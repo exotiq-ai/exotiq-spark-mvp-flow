@@ -23,11 +23,11 @@ import {
   MessageSquare,
   Plus
 } from "lucide-react";
-import MotorIQ from "@/components/dashboard/MotorIQ";
-import Pulse from "@/components/dashboard/Pulse";
-import Book from "@/components/dashboard/Book";
-import Vault from "@/components/dashboard/Vault";
-import Core from "@/components/dashboard/Core";
+import { MotorIQ } from "@/components/dashboard/MotorIQ";
+import { Pulse } from "@/components/dashboard/Pulse";
+import { Book } from "@/components/dashboard/Book";
+import { Vault } from "@/components/dashboard/Vault";
+import { Core } from "@/components/dashboard/Core";
 
 const Dashboard = () => {
   const [activeModule, setActiveModule] = useState("overview");

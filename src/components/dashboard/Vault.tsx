@@ -1,114 +1,232 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Shield, Upload, FileText, AlertTriangle, Download, Eye, Calendar } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { 
+  Shield, 
+  FileText, 
+  AlertTriangle, 
+  CheckCircle,
+  Clock,
+  Upload,
+  Search,
+  Download,
+  Eye,
+  Calendar
+} from "lucide-react";
 
-const Vault = () => {
+export const Vault = () => {
+  const complianceStatus = [
+    { category: "Insurance", status: "compliant", items: 12, expiring: 2 },
+    { category: "Registration", status: "warning", items: 10, expiring: 4 },
+    { category: "Inspections", status: "compliant", items: 8, expiring: 1 },
+    { category: "Licenses", status: "urgent", items: 6, expiring: 1 }
+  ];
+
+  const recentDocuments = [
+    {
+      name: "McLaren 720S Insurance Policy",
+      type: "Insurance",
+      uploaded: "2 days ago",
+      expires: "Mar 15, 2025",
+      status: "active"
+    },
+    {
+      name: "Driver License - John Smith", 
+      type: "License",
+      uploaded: "1 week ago",
+      expires: "Dec 22, 2024",
+      status: "expiring"
+    },
+    {
+      name: "Lamborghini Registration",
+      type: "Registration", 
+      uploaded: "3 days ago",
+      expires: "Jun 30, 2025",
+      status: "active"
+    },
+    {
+      name: "Safety Inspection - Ferrari 488",
+      type: "Inspection",
+      uploaded: "1 day ago", 
+      expires: "Nov 18, 2024",
+      status: "urgent"
+    }
+  ];
+
+  const upcomingExpirations = [
+    {
+      document: "Driver License - Sarah M.",
+      vehicle: "Porsche 911 GT3",
+      expires: "In 5 days",
+      type: "License",
+      priority: "high"
+    },
+    {
+      document: "Insurance Policy",
+      vehicle: "BMW i8", 
+      expires: "In 12 days",
+      type: "Insurance",
+      priority: "medium"
+    },
+    {
+      document: "Safety Inspection",
+      vehicle: "Audi R8",
+      expires: "In 18 days", 
+      type: "Inspection",
+      priority: "low"
+    }
+  ];
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'compliant': return <CheckCircle className="w-5 h-5 text-success" />;
+      case 'warning': return <AlertTriangle className="w-5 h-5 text-warning" />;
+      case 'urgent': return <AlertTriangle className="w-5 h-5 text-destructive" />;
+      default: return <Clock className="w-5 h-5 text-muted-foreground" />;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'active': return 'bg-success/10 text-success border-success/20';
+      case 'expiring': return 'bg-warning/10 text-warning border-warning/20';
+      case 'urgent': return 'bg-destructive/10 text-destructive border-destructive/20';
+      default: return 'bg-muted/10 text-muted-foreground border-muted/20';
+    }
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'high': return 'bg-destructive/10 text-destructive border-destructive/20';
+      case 'medium': return 'bg-warning/10 text-warning border-warning/20';
+      case 'low': return 'bg-success/10 text-success border-success/20';
+      default: return 'bg-muted/10 text-muted-foreground border-muted/20';
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-primary">Vault</h1>
-          <p className="text-muted-foreground">Compliance Hub</p>
+          <h2 className="text-3xl font-bold">Vault</h2>
+          <p className="text-muted-foreground mt-1">Intelligent compliance and document management</p>
         </div>
         <Button className="btn-premium">
-          <Upload className="h-4 w-4 mr-2" />
+          <Upload className="w-4 h-4 mr-2" />
           Upload Document
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <Card className="stat-card">
-          <div className="flex items-center justify-between mb-2">
-            <FileText className="h-5 w-5 text-primary" />
-          </div>
-          <div className="text-2xl font-bold text-primary">24</div>
-          <div className="text-sm text-muted-foreground">Total Documents</div>
-        </Card>
-
-        <Card className="stat-card">
-          <div className="flex items-center justify-between mb-2">
-            <AlertTriangle className="h-5 w-5 text-warning" />
-          </div>
-          <div className="text-2xl font-bold text-primary">3</div>
-          <div className="text-sm text-muted-foreground">Expiring Soon</div>
-        </Card>
-
-        <Card className="stat-card">
-          <div className="flex items-center justify-between mb-2">
-            <Shield className="h-5 w-5 text-success" />
-          </div>
-          <div className="text-2xl font-bold text-primary">89%</div>
-          <div className="text-sm text-muted-foreground">Compliance Rate</div>
-        </Card>
-      </div>
-
-      {/* Document Upload and Management */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="card-premium">
-          <h3 className="text-lg font-semibold mb-4">Document Upload</h3>
-          <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center hover:border-primary/50 transition-colors cursor-pointer">
-            <Upload className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-lg font-medium mb-2">Drop files here or click to browse</p>
-            <p className="text-sm text-muted-foreground mb-4">
-              Supports PDF, JPG, PNG up to 10MB
-            </p>
-            <Button>Select Files</Button>
-          </div>
-          
-          <div className="mt-6 space-y-2">
-            <h4 className="font-medium">Upload Progress</h4>
-            <div className="space-y-3">
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span>insurance_policy.pdf</span>
-                  <span>75%</span>
-                </div>
-                <Progress value={75} className="h-2" />
-              </div>
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span>registration_docs.pdf</span>
-                  <span>100%</span>
-                </div>
-                <Progress value={100} className="h-2" />
+      {/* Compliance Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {complianceStatus.map((category) => (
+          <Card key={category.category} className="card-premium p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center">
+                {getStatusIcon(category.status)}
+                <h3 className="ml-2 font-semibold">{category.category}</h3>
               </div>
             </div>
+            
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Total Items:</span>
+                <span className="font-medium">{category.items}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Expiring Soon:</span>
+                <span className={`font-medium ${category.expiring > 2 ? 'text-destructive' : 'text-success'}`}>
+                  {category.expiring}
+                </span>
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Recent Documents */}
+        <Card className="card-premium p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-semibold">Recent Documents</h3>
+            <div className="flex space-x-2">
+              <div className="relative">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
+                <Input placeholder="Search documents..." className="pl-10 w-40" />
+              </div>
+              <Button variant="outline" size="sm">
+                All Documents
+              </Button>
+            </div>
+          </div>
+          
+          <div className="space-y-4">
+            {recentDocuments.map((doc, index) => (
+              <div key={index} className="p-4 rounded-lg bg-muted/30 border border-primary/10">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-start space-x-3">
+                    <div className="p-2 bg-primary/10 rounded-lg">
+                      <FileText className="w-4 h-4 text-primary" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-sm">{doc.name}</h4>
+                      <p className="text-xs text-muted-foreground">{doc.type} • {doc.uploaded}</p>
+                    </div>
+                  </div>
+                  <Badge className={getStatusColor(doc.status)}>
+                    {doc.status}
+                  </Badge>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center text-xs text-muted-foreground">
+                    <Calendar className="w-3 h-3 mr-1" />
+                    Expires: {doc.expires}
+                  </div>
+                  <div className="flex space-x-1">
+                    <Button size="sm" variant="ghost">
+                      <Eye className="w-4 h-4" />
+                    </Button>
+                    <Button size="sm" variant="ghost">
+                      <Download className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </Card>
 
-        <Card className="card-premium">
-          <h3 className="text-lg font-semibold mb-4">Recent Documents</h3>
+        {/* Upcoming Expirations */}
+        <Card className="card-premium p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-semibold">Upcoming Expirations</h3>
+            <Badge className="bg-warning/10 text-warning border-warning/20">
+              {upcomingExpirations.length} Items
+            </Badge>
+          </div>
+          
           <div className="space-y-4">
-            {[
-              { name: "Vehicle Registration - BMW M4", type: "PDF", status: "Active", expires: "2025-03-15" },
-              { name: "Insurance Policy - Fleet Coverage", type: "PDF", status: "Expiring", expires: "2024-12-20" },
-              { name: "Safety Inspection - Lamborghini", type: "PDF", status: "Active", expires: "2025-06-10" },
-              { name: "Business License", type: "PDF", status: "Active", expires: "2025-12-31" }
-            ].map((doc, index) => (
-              <div key={index} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/30">
-                <div className="flex items-center space-x-3">
-                  <FileText className="h-5 w-5 text-primary" />
+            {upcomingExpirations.map((item, index) => (
+              <div key={index} className="p-4 rounded-lg bg-muted/30 border border-warning/20">
+                <div className="flex items-start justify-between mb-3">
                   <div>
-                    <div className="font-medium text-sm">{doc.name}</div>
-                    <div className="text-xs text-muted-foreground flex items-center space-x-2">
-                      <span>{doc.type}</span>
-                      <span>•</span>
-                      <Calendar className="h-3 w-3" />
-                      <span>Expires {doc.expires}</span>
-                    </div>
+                    <h4 className="font-semibold text-sm">{item.document}</h4>
+                    <p className="text-xs text-muted-foreground">{item.vehicle}</p>
                   </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Badge variant={doc.status === "Active" ? "default" : "destructive"}>
-                    {doc.status}
+                  <Badge className={getPriorityColor(item.priority)}>
+                    {item.priority}
                   </Badge>
-                  <Button size="sm" variant="ghost">
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                  <Button size="sm" variant="ghost">
-                    <Download className="h-4 w-4" />
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center text-xs">
+                    <AlertTriangle className="w-3 h-3 mr-1 text-warning" />
+                    {item.expires}
+                  </div>
+                  <Button size="sm" variant="outline">
+                    Renew
                   </Button>
                 </div>
               </div>
@@ -116,8 +234,29 @@ const Vault = () => {
           </div>
         </Card>
       </div>
+
+      {/* Document Categories */}
+      <Card className="card-premium p-6">
+        <h3 className="text-xl font-semibold mb-6">Document Categories</h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[
+            { name: "Insurance Policies", count: 12, icon: Shield, color: "text-primary" },
+            { name: "Vehicle Registration", count: 10, icon: FileText, color: "text-success" },
+            { name: "Driver Licenses", count: 8, icon: FileText, color: "text-accent" },
+            { name: "Inspections", count: 6, icon: CheckCircle, color: "text-warning" }
+          ].map((category) => (
+            <div key={category.name} className="p-4 rounded-lg bg-muted/30 border border-primary/10 hover-scale cursor-pointer">
+              <div className="flex items-center mb-3">
+                <category.icon className={`w-6 h-6 ${category.color}`} />
+                <h4 className="ml-2 font-semibold text-sm">{category.name}</h4>
+              </div>
+              <div className="text-2xl font-bold">{category.count}</div>
+              <div className="text-xs text-muted-foreground">Documents</div>
+            </div>
+          ))}
+        </div>
+      </Card>
     </div>
   );
 };
-
-export default Vault;

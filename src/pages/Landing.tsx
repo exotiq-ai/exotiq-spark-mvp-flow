@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { useToast } from "@/hooks/use-toast";
 import { 
   Car, 
   TrendingUp, 
@@ -23,6 +24,28 @@ import { useState } from "react";
 
 const Landing = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { toast } = useToast();
+
+  const handleRequestAccess = () => {
+    toast({
+      title: "Access Request Submitted",
+      description: "We'll contact you soon with early access details!",
+    });
+  };
+
+  const handleGetStarted = () => {
+    toast({
+      title: "Coming Soon",
+      description: "We're preparing your premium experience!",
+    });
+  };
+
+  const scrollToSection = (sectionId: string) => {
+    const element = document.getElementById(sectionId);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
   
   const features = [
     {
@@ -126,13 +149,13 @@ const Landing = () => {
             </div>
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-8">
-              <a href="#features" className="text-muted-foreground hover:text-foreground transition-smooth">Features</a>
-              <a href="#pricing" className="text-muted-foreground hover:text-foreground transition-smooth">Pricing</a>
-              <a href="#testimonials" className="text-muted-foreground hover:text-foreground transition-smooth">Testimonials</a>
+              <button onClick={() => scrollToSection('features')} className="text-muted-foreground hover:text-foreground transition-smooth">Features</button>
+              <button onClick={() => scrollToSection('pricing')} className="text-muted-foreground hover:text-foreground transition-smooth">Pricing</button>
+              <button onClick={() => scrollToSection('testimonials')} className="text-muted-foreground hover:text-foreground transition-smooth">Testimonials</button>
               <Link to="/dashboard">
                 <Button variant="outline" className="mr-2">Sign In</Button>
               </Link>
-              <Button className="btn-premium">Request Access</Button>
+              <Button className="btn-premium" onClick={handleRequestAccess}>Request Access</Button>
             </div>
             
             {/* Mobile Navigation */}
@@ -145,32 +168,41 @@ const Landing = () => {
                 </SheetTrigger>
                 <SheetContent side="right" className="w-80">
                   <div className="flex flex-col space-y-6 mt-8">
-                    <a 
-                      href="#features" 
-                      className="text-lg font-medium text-muted-foreground hover:text-foreground transition-smooth"
-                      onClick={() => setMobileMenuOpen(false)}
+                    <button 
+                      onClick={() => {
+                        scrollToSection('features');
+                        setMobileMenuOpen(false);
+                      }}
+                      className="text-lg font-medium text-muted-foreground hover:text-foreground transition-smooth text-left"
                     >
                       Features
-                    </a>
-                    <a 
-                      href="#pricing" 
-                      className="text-lg font-medium text-muted-foreground hover:text-foreground transition-smooth"
-                      onClick={() => setMobileMenuOpen(false)}
+                    </button>
+                    <button 
+                      onClick={() => {
+                        scrollToSection('pricing');
+                        setMobileMenuOpen(false);
+                      }}
+                      className="text-lg font-medium text-muted-foreground hover:text-foreground transition-smooth text-left"
                     >
                       Pricing
-                    </a>
-                    <a 
-                      href="#testimonials" 
-                      className="text-lg font-medium text-muted-foreground hover:text-foreground transition-smooth"
-                      onClick={() => setMobileMenuOpen(false)}
+                    </button>
+                    <button 
+                      onClick={() => {
+                        scrollToSection('testimonials');
+                        setMobileMenuOpen(false);
+                      }}
+                      className="text-lg font-medium text-muted-foreground hover:text-foreground transition-smooth text-left"
                     >
                       Testimonials
-                    </a>
+                    </button>
                     <div className="flex flex-col space-y-4 pt-4">
                       <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)}>
                         <Button variant="outline" className="w-full">Sign In</Button>
                       </Link>
-                      <Button className="btn-premium w-full" onClick={() => setMobileMenuOpen(false)}>
+                      <Button className="btn-premium w-full" onClick={() => {
+                        handleRequestAccess();
+                        setMobileMenuOpen(false);
+                      }}>
                         Request Access
                       </Button>
                     </div>
@@ -198,11 +230,11 @@ const Landing = () => {
             automated operations, and intelligent optimization for maximum profitability.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center mb-8 sm:mb-12 px-4">
-            <Button size="lg" className="btn-premium h-12 sm:h-14 text-base sm:text-lg px-6 sm:px-8">
+            <Button size="lg" className="btn-premium h-12 sm:h-14 text-base sm:text-lg px-6 sm:px-8" onClick={handleRequestAccess}>
               Request Early Access
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
-            <Button size="lg" variant="outline" className="h-12 sm:h-14 text-base sm:text-lg px-6 sm:px-8">
+            <Button size="lg" variant="outline" className="h-12 sm:h-14 text-base sm:text-lg px-6 sm:px-8" onClick={handleGetStarted}>
               Watch Demo
             </Button>
           </div>
@@ -280,7 +312,11 @@ const Landing = () => {
                     </li>
                   ))}
                 </ul>
-                <Button className={`w-full h-11 sm:h-12 text-sm sm:text-base ${plan.popular ? 'btn-premium' : ''}`} variant={plan.popular ? 'default' : 'outline'}>
+                <Button 
+                  className={`w-full h-11 sm:h-12 text-sm sm:text-base ${plan.popular ? 'btn-premium' : ''}`} 
+                  variant={plan.popular ? 'default' : 'outline'}
+                  onClick={handleGetStarted}
+                >
                   Get Started
                 </Button>
               </Card>
@@ -327,11 +363,11 @@ const Landing = () => {
               Join the revolution in AI-powered vehicle rental operations
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center px-4">
-              <Button size="lg" variant="secondary" className="bg-white text-primary hover:bg-white/90 h-12 sm:h-14 text-base sm:text-lg px-6 sm:px-8">
+              <Button size="lg" variant="secondary" className="bg-white text-primary hover:bg-white/90 h-12 sm:h-14 text-base sm:text-lg px-6 sm:px-8" onClick={handleRequestAccess}>
                 Request Early Access
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
-              <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-primary h-12 sm:h-14 text-base sm:text-lg px-6 sm:px-8">
+              <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-primary h-12 sm:h-14 text-base sm:text-lg px-6 sm:px-8" onClick={handleGetStarted}>
                 Schedule Demo
               </Button>
             </div>
