@@ -116,7 +116,7 @@ const Landing = () => {
     <div className="min-h-screen bg-background">
       {/* Navigation */}
       <nav className="bg-background/95 backdrop-blur-sm border-b border-border sticky top-0 z-50">
-        <div className="container mx-auto px-6 py-4">
+        <div className="container mx-auto px-4 sm:px-6 py-3 sm:py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <Car className="h-8 w-8 text-primary" />
@@ -183,68 +183,68 @@ const Landing = () => {
       </nav>
 
       {/* Hero Section */}
-      <section className="py-20 px-6">
+      <section className="py-12 sm:py-16 lg:py-20 px-4 sm:px-6">
         <div className="container mx-auto text-center">
-          <Badge className="mb-6 bg-primary/10 text-primary border-primary/20">
+          <Badge className="mb-4 sm:mb-6 bg-primary/10 text-primary border-primary/20 text-sm sm:text-base px-3 py-1.5">
             <Zap className="w-4 h-4 mr-2" />
             AI-Powered Vehicle Rental Operations
           </Badge>
-          <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold mb-4 sm:mb-6 leading-tight px-2">
             The <span className="bg-gradient-primary bg-clip-text text-transparent">Command Center</span>
             <br />for Exotic Rentals
           </h1>
-          <p className="text-xl text-muted-foreground mb-8 max-w-3xl mx-auto">
+          <p className="text-lg sm:text-xl text-muted-foreground mb-6 sm:mb-8 max-w-3xl mx-auto px-4 leading-relaxed">
             ExotIQ.ai empowers P2P and boutique fleet operators with AI-driven insights, 
             automated operations, and intelligent optimization for maximum profitability.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-            <Button size="lg" className="btn-premium">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center mb-8 sm:mb-12 px-4">
+            <Button size="lg" className="btn-premium h-12 sm:h-14 text-base sm:text-lg px-6 sm:px-8">
               Request Early Access
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
-            <Button size="lg" variant="outline">
+            <Button size="lg" variant="outline" className="h-12 sm:h-14 text-base sm:text-lg px-6 sm:px-8">
               Watch Demo
             </Button>
           </div>
           
           {/* Hero Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto">
-            <div className="text-center">
-              <div className="text-3xl font-bold text-primary">40%</div>
-              <div className="text-sm text-muted-foreground">Profit Increase</div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 lg:gap-8 max-w-4xl mx-auto px-4">
+            <div className="text-center py-4">
+              <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-primary">40%</div>
+              <div className="text-sm sm:text-base text-muted-foreground mt-1">Profit Increase</div>
             </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-success">24/7</div>
-              <div className="text-sm text-muted-foreground">AI Monitoring</div>
+            <div className="text-center py-4">
+              <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-success">24/7</div>
+              <div className="text-sm sm:text-base text-muted-foreground mt-1">AI Monitoring</div>
             </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-accent">200+</div>
-              <div className="text-sm text-muted-foreground">Fleet Support</div>
+            <div className="text-center py-4">
+              <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-accent">200+</div>
+              <div className="text-sm sm:text-base text-muted-foreground mt-1">Fleet Support</div>
             </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-warning">5min</div>
-              <div className="text-sm text-muted-foreground">Setup Time</div>
+            <div className="text-center py-4">
+              <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-warning">5min</div>
+              <div className="text-sm sm:text-base text-muted-foreground mt-1">Setup Time</div>
             </div>
           </div>
         </div>
       </section>
 
       {/* Features Section */}
-      <section id="features" className="py-20 px-6 bg-muted/30">
+      <section id="features" className="py-12 sm:py-16 lg:py-20 px-4 sm:px-6 bg-muted/30">
         <div className="container mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4">Five Intelligent Modules</h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+          <div className="text-center mb-12 sm:mb-16">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3 sm:mb-4 px-4">Five Intelligent Modules</h2>
+            <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto px-4">
               Each module powered by AI to automate and optimize your rental operations
             </p>
           </div>
           
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 px-4">
             {features.map((feature, index) => (
-              <Card key={index} className="card-module group">
-                <feature.icon className={`h-12 w-12 ${feature.color} mb-4 group-hover:scale-110 transition-smooth`} />
-                <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
-                <p className="text-muted-foreground">{feature.description}</p>
+              <Card key={index} className="card-module group p-6 sm:p-8 hover-scale">
+                <feature.icon className={`h-10 w-10 sm:h-12 sm:w-12 ${feature.color} mb-4 group-hover:scale-110 transition-smooth`} />
+                <h3 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-2">{feature.title}</h3>
+                <p className="text-muted-foreground text-sm sm:text-base leading-relaxed">{feature.description}</p>
               </Card>
             ))}
           </div>
@@ -252,35 +252,35 @@ const Landing = () => {
       </section>
 
       {/* Pricing Section */}
-      <section id="pricing" className="py-20 px-6">
+      <section id="pricing" className="py-12 sm:py-16 lg:py-20 px-4 sm:px-6">
         <div className="container mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4">Choose Your Plan</h2>
-            <p className="text-xl text-muted-foreground">Scale with confidence as your fleet grows</p>
+          <div className="text-center mb-12 sm:mb-16">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3 sm:mb-4 px-4">Choose Your Plan</h2>
+            <p className="text-lg sm:text-xl text-muted-foreground px-4">Scale with confidence as your fleet grows</p>
           </div>
           
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8 px-4">
             {pricingPlans.map((plan, index) => (
-              <Card key={index} className={`card-premium ${plan.popular ? 'ring-2 ring-primary shadow-premium' : ''} relative`}>
+              <Card key={index} className={`card-premium ${plan.popular ? 'ring-2 ring-primary shadow-premium' : ''} relative p-6 sm:p-8`}>
                 {plan.popular && (
-                  <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-gradient-primary text-primary-foreground">
+                  <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-gradient-primary text-primary-foreground text-xs sm:text-sm">
                     Most Popular
                   </Badge>
                 )}
                 <div className="text-center mb-6">
-                  <h3 className="text-xl font-semibold mb-2">{plan.name}</h3>
-                  <div className="text-3xl font-bold text-primary mb-1">{plan.price}</div>
+                  <h3 className="text-lg sm:text-xl font-semibold mb-2">{plan.name}</h3>
+                  <div className="text-2xl sm:text-3xl font-bold text-primary mb-1">{plan.price}</div>
                   <div className="text-sm text-muted-foreground">{plan.vehicles}</div>
                 </div>
                 <ul className="space-y-3 mb-6">
                   {plan.features.map((feature, featureIndex) => (
-                    <li key={featureIndex} className="flex items-center text-sm">
+                    <li key={featureIndex} className="flex items-center text-sm sm:text-base">
                       <CheckCircle2 className="h-4 w-4 text-success mr-2 flex-shrink-0" />
                       {feature}
                     </li>
                   ))}
                 </ul>
-                <Button className={`w-full ${plan.popular ? 'btn-premium' : ''}`} variant={plan.popular ? 'default' : 'outline'}>
+                <Button className={`w-full h-11 sm:h-12 text-sm sm:text-base ${plan.popular ? 'btn-premium' : ''}`} variant={plan.popular ? 'default' : 'outline'}>
                   Get Started
                 </Button>
               </Card>
@@ -290,25 +290,25 @@ const Landing = () => {
       </section>
 
       {/* Testimonials Section */}
-      <section id="testimonials" className="py-20 px-6 bg-muted/30">
+      <section id="testimonials" className="py-12 sm:py-16 lg:py-20 px-4 sm:px-6 bg-muted/30">
         <div className="container mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4">Trusted by Industry Leaders</h2>
-            <p className="text-xl text-muted-foreground">See what our customers are saying</p>
+          <div className="text-center mb-12 sm:mb-16">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3 sm:mb-4 px-4">Trusted by Industry Leaders</h2>
+            <p className="text-lg sm:text-xl text-muted-foreground px-4">See what our customers are saying</p>
           </div>
           
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 px-4">
             {testimonials.map((testimonial, index) => (
-              <Card key={index} className="card-premium">
+              <Card key={index} className="card-premium p-6 sm:p-8">
                 <div className="flex mb-4">
                   {[...Array(testimonial.rating)].map((_, i) => (
                     <Star key={i} className="h-5 w-5 text-accent fill-current" />
                   ))}
                 </div>
-                <p className="text-muted-foreground mb-4">"{testimonial.content}"</p>
+                <p className="text-muted-foreground mb-4 text-sm sm:text-base leading-relaxed">"{testimonial.content}"</p>
                 <div>
-                  <div className="font-semibold">{testimonial.name}</div>
-                  <div className="text-sm text-muted-foreground">
+                  <div className="font-semibold text-sm sm:text-base">{testimonial.name}</div>
+                  <div className="text-xs sm:text-sm text-muted-foreground">
                     {testimonial.role} at {testimonial.company}
                   </div>
                 </div>
@@ -319,19 +319,19 @@ const Landing = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 px-6">
+      <section className="py-12 sm:py-16 lg:py-20 px-4 sm:px-6">
         <div className="container mx-auto text-center">
-          <Card className="card-premium max-w-4xl mx-auto bg-gradient-hero text-primary-foreground">
-            <h2 className="text-4xl font-bold mb-4">Ready to Transform Your Fleet?</h2>
-            <p className="text-xl mb-8 opacity-90">
+          <Card className="card-premium max-w-4xl mx-auto bg-gradient-hero text-primary-foreground p-8 sm:p-12">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4 sm:mb-6 px-4">Ready to Transform Your Fleet?</h2>
+            <p className="text-lg sm:text-xl mb-6 sm:mb-8 opacity-90 px-4">
               Join the revolution in AI-powered vehicle rental operations
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button size="lg" variant="secondary" className="bg-white text-primary hover:bg-white/90">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center px-4">
+              <Button size="lg" variant="secondary" className="bg-white text-primary hover:bg-white/90 h-12 sm:h-14 text-base sm:text-lg px-6 sm:px-8">
                 Request Early Access
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
-              <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-primary">
+              <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-primary h-12 sm:h-14 text-base sm:text-lg px-6 sm:px-8">
                 Schedule Demo
               </Button>
             </div>
@@ -340,16 +340,16 @@ const Landing = () => {
       </section>
 
       {/* Footer */}
-      <footer className="bg-muted/50 py-12 px-6">
+      <footer className="bg-muted/50 py-8 sm:py-12 px-4 sm:px-6">
         <div className="container mx-auto">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="flex items-center space-x-2 mb-4 md:mb-0">
-              <Car className="h-8 w-8 text-primary" />
-              <span className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+              <Car className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
+              <span className="text-xl sm:text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
                 ExotIQ.ai
               </span>
             </div>
-            <div className="text-sm text-muted-foreground">
+            <div className="text-xs sm:text-sm text-muted-foreground text-center">
               © 2024 ExotIQ.ai. All rights reserved.
             </div>
           </div>
