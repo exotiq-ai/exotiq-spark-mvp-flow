@@ -143,35 +143,35 @@ const Dashboard = () => {
         return (
           <div className="space-y-8">
             {/* Quick Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="mobile-grid gap-4 sm:gap-6">
               {quickStats.map((stat, index) => (
                 <Card key={index} className="stat-card">
                   <div className="flex items-center justify-between mb-2">
-                    <stat.icon className="h-5 w-5 text-muted-foreground" />
+                    <stat.icon className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
                     <Badge variant={stat.trend === "up" ? "default" : "destructive"} className="text-xs">
                       {stat.change}
                     </Badge>
                   </div>
-                  <div className="text-2xl font-bold text-primary mb-1">{stat.value}</div>
-                  <div className="text-sm text-muted-foreground">{stat.title}</div>
+                  <div className="text-xl sm:text-2xl font-bold text-primary mb-1">{stat.value}</div>
+                  <div className="text-xs sm:text-sm text-muted-foreground">{stat.title}</div>
                 </Card>
               ))}
             </div>
 
             {/* Module Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="mobile-grid gap-4 sm:gap-6">
               {modules.map((module) => (
                 <Card 
                   key={module.id} 
-                  className="card-module cursor-pointer"
+                  className="card-module cursor-pointer touch-target"
                   onClick={() => setActiveModule(module.id)}
                 >
-                  <div className={`p-4 rounded-xl ${module.bgColor} mb-4 w-fit`}>
-                    <module.icon className={`h-8 w-8 ${module.color}`} />
+                  <div className={`p-3 sm:p-4 rounded-xl ${module.bgColor} mb-3 sm:mb-4 w-fit`}>
+                    <module.icon className={`h-6 w-6 sm:h-8 sm:w-8 ${module.color}`} />
                   </div>
-                  <h3 className="text-xl font-semibold mb-2">{module.name}</h3>
-                  <p className="text-muted-foreground mb-4">{module.description}</p>
-                  <Button variant="outline" className="w-full">
+                  <h3 className="text-lg sm:text-xl font-semibold mb-2">{module.name}</h3>
+                  <p className="mobile-text text-muted-foreground mb-3 sm:mb-4">{module.description}</p>
+                  <Button variant="outline" className="w-full mobile-button">
                     Open Module
                   </Button>
                 </Card>
@@ -239,30 +239,30 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background mobile-friendly">
       {/* Top Navigation */}
-      <nav className="bg-background border-b border-border">
-        <div className="px-6 py-4">
+      <nav className="bg-background border-b border-border sticky top-0 z-40">
+        <div className="mobile-padding py-3 sm:py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <Car className="h-8 w-8 text-primary" />
-              <span className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+            <div className="flex items-center space-x-2 sm:space-x-4">
+              <Car className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
+              <span className="text-lg sm:text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
                 ExotIQ.ai
               </span>
               {activeModule !== "overview" && (
-                <Badge variant="outline" className="ml-4">
+                <Badge variant="outline" className="ml-2 sm:ml-4 text-xs sm:text-sm">
                   {modules.find(m => m.id === activeModule)?.name || "Overview"}
                 </Badge>
               )}
             </div>
-            <div className="flex items-center space-x-4">
-              <Button variant="ghost" size="sm">
+            <div className="flex items-center space-x-2 sm:space-x-4">
+              <Button variant="ghost" size="sm" className="touch-target">
                 <Bell className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="sm">
+              <Button variant="ghost" size="sm" className="touch-target">
                 <Settings className="h-4 w-4" />
               </Button>
-              <div className="flex items-center space-x-2">
+              <div className="hidden sm:flex items-center space-x-2">
                 <div className="w-8 h-8 bg-gradient-primary rounded-full flex items-center justify-center">
                   <Users className="h-4 w-4 text-primary-foreground" />
                 </div>
@@ -273,14 +273,14 @@ const Dashboard = () => {
         </div>
       </nav>
 
-      {/* Module Navigation */}
-      <div className="bg-muted/30 border-b border-border">
-        <div className="px-6 py-2">
+      {/* Module Navigation - Desktop */}
+      <div className="hidden md:block bg-muted/30 border-b border-border">
+        <div className="mobile-padding py-2">
           <Tabs value={activeModule} onValueChange={setActiveModule} className="w-full">
             <TabsList className="grid w-full grid-cols-6 bg-transparent">
               <TabsTrigger 
                 value="overview" 
-                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs sm:text-sm"
               >
                 Overview
               </TabsTrigger>
@@ -288,10 +288,10 @@ const Dashboard = () => {
                 <TabsTrigger 
                   key={module.id}
                   value={module.id}
-                  className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                  className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs sm:text-sm"
                 >
-                  <module.icon className="h-4 w-4 mr-2" />
-                  {module.name}
+                  <module.icon className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                  <span className="hidden sm:inline">{module.name}</span>
                 </TabsTrigger>
               ))}
             </TabsList>
@@ -299,9 +299,36 @@ const Dashboard = () => {
         </div>
       </div>
 
+      {/* Mobile Bottom Navigation */}
+      <div className="mobile-nav">
+        <div className="grid grid-cols-6 gap-1 p-2">
+          <button
+            onClick={() => setActiveModule("overview")}
+            className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg transition-colors touch-target ${
+              activeModule === "overview" ? "bg-primary text-primary-foreground" : "text-muted-foreground"
+            }`}
+          >
+            <BarChart3 className="h-5 w-5 mb-1" />
+            <span className="text-xs">Overview</span>
+          </button>
+          {modules.map((module) => (
+            <button
+              key={module.id}
+              onClick={() => setActiveModule(module.id)}
+              className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg transition-colors touch-target ${
+                activeModule === module.id ? "bg-primary text-primary-foreground" : "text-muted-foreground"
+              }`}
+            >
+              <module.icon className="h-5 w-5 mb-1" />
+              <span className="text-xs">{module.name}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Main Content */}
-      <main className="p-6">
-        <div className="max-w-7xl mx-auto">
+      <main className="mobile-padding py-4 sm:py-6 pb-20 md:pb-6">
+        <div className="max-w-7xl mx-auto mobile-spacing">
           {renderModuleContent()}
         </div>
       </main>

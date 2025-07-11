@@ -198,4 +198,38 @@
   .metric-neutral {
     @apply text-warning;
   }
+  
+  /* Mobile Optimizations */
+  .mobile-friendly {
+    @apply touch-manipulation scroll-smooth;
+  }
+  
+  .mobile-nav {
+    @apply fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-sm border-t border-border z-50 md:hidden;
+  }
+  
+  .mobile-grid {
+    @apply grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4;
+  }
+  
+  .mobile-text {
+    @apply text-sm sm:text-base;
+  }
+  
+  .mobile-padding {
+    @apply px-4 sm:px-6 lg:px-8;
+  }
+  
+  .mobile-spacing {
+    @apply space-y-4 sm:space-y-6;
+  }
+  
+  /* Touch-friendly interactive elements */
+  .touch-target {
+    @apply min-h-[44px] min-w-[44px];
+  }
+  
+  .mobile-button {
+    @apply px-4 py-3 text-sm font-medium touch-target;
+  }
 }
