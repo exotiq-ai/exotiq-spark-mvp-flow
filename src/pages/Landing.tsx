@@ -189,11 +189,11 @@ const Landing = () => {
             <Zap className="w-4 h-4 mr-2" />
             AI-Powered Vehicle Rental Operations
           </Badge>
-          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold mb-4 sm:mb-6 leading-tight px-2">
+          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-6 sm:mb-8 leading-tight px-2">
             The <span className="bg-gradient-primary bg-clip-text text-transparent">Command Center</span>
             <br />for Exotic Rentals
           </h1>
-          <p className="text-lg sm:text-xl text-muted-foreground mb-6 sm:mb-8 max-w-3xl mx-auto px-4 leading-relaxed">
+          <p className="text-xl sm:text-2xl text-muted-foreground mb-8 sm:mb-10 max-w-3xl mx-auto px-4 leading-relaxed">
             ExotIQ.ai empowers P2P and boutique fleet operators with AI-driven insights, 
             automated operations, and intelligent optimization for maximum profitability.
           </p>
