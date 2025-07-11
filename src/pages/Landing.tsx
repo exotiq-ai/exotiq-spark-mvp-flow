@@ -1,0 +1,312 @@
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { 
+  Car, 
+  TrendingUp, 
+  Calendar, 
+  Shield, 
+  Brain, 
+  Users, 
+  CheckCircle2,
+  Star,
+  ArrowRight,
+  Zap,
+  BarChart3,
+  BookOpen,
+  Lock
+} from "lucide-react";
+import { Link } from "react-router-dom";
+
+const Landing = () => {
+  const features = [
+    {
+      icon: TrendingUp,
+      title: "MotorIQ",
+      description: "AI-powered fleet profitability engine with dynamic pricing optimization",
+      color: "text-success"
+    },
+    {
+      icon: BarChart3,
+      title: "Pulse",
+      description: "Live analytics dashboard with predictive insights and forecasting",
+      color: "text-primary"
+    },
+    {
+      icon: Calendar,
+      title: "Book",
+      description: "Direct booking tools with seamless calendar management",
+      color: "text-accent"
+    },
+    {
+      icon: Shield,
+      title: "Vault",
+      description: "Intelligent compliance hub with automated document tracking",
+      color: "text-warning"
+    },
+    {
+      icon: Brain,
+      title: "Core",
+      description: "Smart command center with AI-powered alerts and insights",
+      color: "text-destructive"
+    }
+  ];
+
+  const pricingPlans = [
+    {
+      name: "Starter",
+      price: "$49",
+      vehicles: "5 vehicles",
+      features: ["Basic analytics", "Document management", "Email support"],
+      popular: false
+    },
+    {
+      name: "Growth",
+      price: "$99",
+      vehicles: "20 vehicles",
+      features: ["Advanced analytics", "AI insights", "Priority support", "Custom branding"],
+      popular: true
+    },
+    {
+      name: "Pro",
+      price: "$199",
+      vehicles: "50 vehicles",
+      features: ["Full AI suite", "API access", "White-label solution", "Dedicated support"],
+      popular: false
+    },
+    {
+      name: "Enterprise",
+      price: "Custom",
+      vehicles: "200+ vehicles",
+      features: ["Custom integrations", "Dedicated account manager", "SLA guarantee"],
+      popular: false
+    }
+  ];
+
+  const testimonials = [
+    {
+      name: "Sarah Chen",
+      role: "Fleet Owner",
+      company: "Luxury Drives Miami",
+      content: "ExotIQ transformed our operations. We increased profits by 40% in just 3 months.",
+      rating: 5
+    },
+    {
+      name: "Marcus Rodriguez",
+      role: "Rental Entrepreneur",
+      company: "Elite Car Share",
+      content: "The AI insights are game-changing. It's like having a business consultant available 24/7.",
+      rating: 5
+    },
+    {
+      name: "Emma Thompson",
+      role: "Operations Manager",
+      company: "Premium Auto Collective",
+      content: "Finally, a platform that understands the exotic rental business. Absolutely essential.",
+      rating: 5
+    }
+  ];
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Navigation */}
+      <nav className="bg-background/95 backdrop-blur-sm border-b border-border sticky top-0 z-50">
+        <div className="container mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <Car className="h-8 w-8 text-primary" />
+              <span className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+                ExotIQ.ai
+              </span>
+            </div>
+            <div className="hidden md:flex items-center space-x-8">
+              <a href="#features" className="text-muted-foreground hover:text-foreground transition-smooth">Features</a>
+              <a href="#pricing" className="text-muted-foreground hover:text-foreground transition-smooth">Pricing</a>
+              <a href="#testimonials" className="text-muted-foreground hover:text-foreground transition-smooth">Testimonials</a>
+              <Link to="/dashboard">
+                <Button variant="outline" className="mr-2">Sign In</Button>
+              </Link>
+              <Button className="btn-premium">Request Access</Button>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      {/* Hero Section */}
+      <section className="py-20 px-6">
+        <div className="container mx-auto text-center">
+          <Badge className="mb-6 bg-primary/10 text-primary border-primary/20">
+            <Zap className="w-4 h-4 mr-2" />
+            AI-Powered Vehicle Rental Operations
+          </Badge>
+          <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
+            The <span className="bg-gradient-primary bg-clip-text text-transparent">Command Center</span>
+            <br />for Exotic Rentals
+          </h1>
+          <p className="text-xl text-muted-foreground mb-8 max-w-3xl mx-auto">
+            ExotIQ.ai empowers P2P and boutique fleet operators with AI-driven insights, 
+            automated operations, and intelligent optimization for maximum profitability.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
+            <Button size="lg" className="btn-premium">
+              Request Early Access
+              <ArrowRight className="ml-2 h-5 w-5" />
+            </Button>
+            <Button size="lg" variant="outline">
+              Watch Demo
+            </Button>
+          </div>
+          
+          {/* Hero Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto">
+            <div className="text-center">
+              <div className="text-3xl font-bold text-primary">40%</div>
+              <div className="text-sm text-muted-foreground">Profit Increase</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl font-bold text-success">24/7</div>
+              <div className="text-sm text-muted-foreground">AI Monitoring</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl font-bold text-accent">200+</div>
+              <div className="text-sm text-muted-foreground">Fleet Support</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl font-bold text-warning">5min</div>
+              <div className="text-sm text-muted-foreground">Setup Time</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section id="features" className="py-20 px-6 bg-muted/30">
+        <div className="container mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold mb-4">Five Intelligent Modules</h2>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+              Each module powered by AI to automate and optimize your rental operations
+            </p>
+          </div>
+          
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {features.map((feature, index) => (
+              <Card key={index} className="card-module group">
+                <feature.icon className={`h-12 w-12 ${feature.color} mb-4 group-hover:scale-110 transition-smooth`} />
+                <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
+                <p className="text-muted-foreground">{feature.description}</p>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing Section */}
+      <section id="pricing" className="py-20 px-6">
+        <div className="container mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold mb-4">Choose Your Plan</h2>
+            <p className="text-xl text-muted-foreground">Scale with confidence as your fleet grows</p>
+          </div>
+          
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {pricingPlans.map((plan, index) => (
+              <Card key={index} className={`card-premium ${plan.popular ? 'ring-2 ring-primary shadow-premium' : ''} relative`}>
+                {plan.popular && (
+                  <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-gradient-primary text-primary-foreground">
+                    Most Popular
+                  </Badge>
+                )}
+                <div className="text-center mb-6">
+                  <h3 className="text-xl font-semibold mb-2">{plan.name}</h3>
+                  <div className="text-3xl font-bold text-primary mb-1">{plan.price}</div>
+                  <div className="text-sm text-muted-foreground">{plan.vehicles}</div>
+                </div>
+                <ul className="space-y-3 mb-6">
+                  {plan.features.map((feature, featureIndex) => (
+                    <li key={featureIndex} className="flex items-center text-sm">
+                      <CheckCircle2 className="h-4 w-4 text-success mr-2 flex-shrink-0" />
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+                <Button className={`w-full ${plan.popular ? 'btn-premium' : ''}`} variant={plan.popular ? 'default' : 'outline'}>
+                  Get Started
+                </Button>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials Section */}
+      <section id="testimonials" className="py-20 px-6 bg-muted/30">
+        <div className="container mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold mb-4">Trusted by Industry Leaders</h2>
+            <p className="text-xl text-muted-foreground">See what our customers are saying</p>
+          </div>
+          
+          <div className="grid md:grid-cols-3 gap-8">
+            {testimonials.map((testimonial, index) => (
+              <Card key={index} className="card-premium">
+                <div className="flex mb-4">
+                  {[...Array(testimonial.rating)].map((_, i) => (
+                    <Star key={i} className="h-5 w-5 text-accent fill-current" />
+                  ))}
+                </div>
+                <p className="text-muted-foreground mb-4">"{testimonial.content}"</p>
+                <div>
+                  <div className="font-semibold">{testimonial.name}</div>
+                  <div className="text-sm text-muted-foreground">
+                    {testimonial.role} at {testimonial.company}
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-20 px-6">
+        <div className="container mx-auto text-center">
+          <Card className="card-premium max-w-4xl mx-auto bg-gradient-hero text-primary-foreground">
+            <h2 className="text-4xl font-bold mb-4">Ready to Transform Your Fleet?</h2>
+            <p className="text-xl mb-8 opacity-90">
+              Join the revolution in AI-powered vehicle rental operations
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Button size="lg" variant="secondary" className="bg-white text-primary hover:bg-white/90">
+                Request Early Access
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+              <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-primary">
+                Schedule Demo
+              </Button>
+            </div>
+          </Card>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="bg-muted/50 py-12 px-6">
+        <div className="container mx-auto">
+          <div className="flex flex-col md:flex-row justify-between items-center">
+            <div className="flex items-center space-x-2 mb-4 md:mb-0">
+              <Car className="h-8 w-8 text-primary" />
+              <span className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+                ExotIQ.ai
+              </span>
+            </div>
+            <div className="text-sm text-muted-foreground">
+              © 2024 ExotIQ.ai. All rights reserved.
+            </div>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+};
+
+export default Landing;
