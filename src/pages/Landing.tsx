@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { 
   Car, 
   TrendingUp, 
@@ -14,11 +15,15 @@ import {
   Zap,
   BarChart3,
   BookOpen,
-  Lock
+  Lock,
+  Menu
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useState } from "react";
 
 const Landing = () => {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  
   const features = [
     {
       icon: TrendingUp,
@@ -119,6 +124,7 @@ const Landing = () => {
                 ExotIQ.ai
               </span>
             </div>
+            {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-8">
               <a href="#features" className="text-muted-foreground hover:text-foreground transition-smooth">Features</a>
               <a href="#pricing" className="text-muted-foreground hover:text-foreground transition-smooth">Pricing</a>
@@ -127,6 +133,50 @@ const Landing = () => {
                 <Button variant="outline" className="mr-2">Sign In</Button>
               </Link>
               <Button className="btn-premium">Request Access</Button>
+            </div>
+            
+            {/* Mobile Navigation */}
+            <div className="md:hidden">
+              <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <Menu className="h-6 w-6" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="right" className="w-80">
+                  <div className="flex flex-col space-y-6 mt-8">
+                    <a 
+                      href="#features" 
+                      className="text-lg font-medium text-muted-foreground hover:text-foreground transition-smooth"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Features
+                    </a>
+                    <a 
+                      href="#pricing" 
+                      className="text-lg font-medium text-muted-foreground hover:text-foreground transition-smooth"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Pricing
+                    </a>
+                    <a 
+                      href="#testimonials" 
+                      className="text-lg font-medium text-muted-foreground hover:text-foreground transition-smooth"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Testimonials
+                    </a>
+                    <div className="flex flex-col space-y-4 pt-4">
+                      <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)}>
+                        <Button variant="outline" className="w-full">Sign In</Button>
+                      </Link>
+                      <Button className="btn-premium w-full" onClick={() => setMobileMenuOpen(false)}>
+                        Request Access
+                      </Button>
+                    </div>
+                  </div>
+                </SheetContent>
+              </Sheet>
             </div>
           </div>
         </div>
