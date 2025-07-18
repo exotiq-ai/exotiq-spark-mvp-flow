@@ -58,6 +58,12 @@ export const Core = () => {
       priority: "medium"
     },
     {
+      type: "info",
+      message: "New booking inquiry by Sam for weekend - Ferarri 458",
+      time: "15 minutes ago",
+      priority: "medium"
+    },
+    {
       type: "success",
       message: "Payment received: $2,100 for completed rental",
       time: "1 hour ago",
