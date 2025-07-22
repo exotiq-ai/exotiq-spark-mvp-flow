@@ -1,5 +1,7 @@
+
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Navigation } from "@/components/landing/Navigation";
 import { HeroSection } from "@/components/landing/HeroSection";
 import { FeaturesSection } from "@/components/landing/FeaturesSection";
@@ -10,6 +12,7 @@ import { Footer } from "@/components/landing/Footer";
 
 const Landing = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const handleRequestAccess = () => {
     toast({
@@ -25,6 +28,10 @@ const Landing = () => {
     });
   };
 
+  const handleTryDemo = () => {
+    navigate('/demo-landing');
+  };
+
   const scrollToSection = (sectionId: string) => {
     const element = document.getElementById(sectionId);
     if (element) {
@@ -36,11 +43,13 @@ const Landing = () => {
     <div className="min-h-screen bg-background">
       <Navigation 
         onRequestAccess={handleRequestAccess}
+        onTryDemo={handleTryDemo}
         scrollToSection={scrollToSection}
       />
       <HeroSection 
         onRequestAccess={handleRequestAccess}
         onGetStarted={handleGetStarted}
+        onTryDemo={handleTryDemo}
       />
       <FeaturesSection />
       <PricingSection onGetStarted={handleGetStarted} />
@@ -48,6 +57,7 @@ const Landing = () => {
       <CTASection 
         onRequestAccess={handleRequestAccess}
         onGetStarted={handleGetStarted}
+        onTryDemo={handleTryDemo}
       />
       <Footer />
     </div>
