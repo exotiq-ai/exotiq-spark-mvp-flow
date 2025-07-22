@@ -5,9 +5,10 @@ import { ArrowRight } from "lucide-react";
 interface CTASectionProps {
   onRequestAccess: () => void;
   onGetStarted: () => void;
+  onTryDemo: () => void;
 }
 
-export const CTASection = ({ onRequestAccess, onGetStarted }: CTASectionProps) => {
+export const CTASection = ({ onRequestAccess, onGetStarted, onTryDemo }: CTASectionProps) => {
   return (
     <section className="py-12 sm:py-16 lg:py-20 px-4 sm:px-6">
       <div className="container mx-auto text-center">

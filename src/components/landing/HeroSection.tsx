@@ -5,9 +5,10 @@ import { Zap, ArrowRight } from "lucide-react";
 interface HeroSectionProps {
   onRequestAccess: () => void;
   onGetStarted: () => void;
+  onTryDemo: () => void;
 }
 
-export const HeroSection = ({ onRequestAccess, onGetStarted }: HeroSectionProps) => {
+export const HeroSection = ({ onRequestAccess, onGetStarted, onTryDemo }: HeroSectionProps) => {
   return (
     <section className="py-12 sm:py-16 lg:py-20 px-4 sm:px-6">
       <div className="container mx-auto text-center">

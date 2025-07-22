@@ -6,10 +6,11 @@ import { useState } from "react";
 
 interface NavigationProps {
   onRequestAccess: () => void;
+  onTryDemo: () => void;
   scrollToSection: (sectionId: string) => void;
 }
 
-export const Navigation = ({ onRequestAccess, scrollToSection }: NavigationProps) => {
+export const Navigation = ({ onRequestAccess, onTryDemo, scrollToSection }: NavigationProps) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
