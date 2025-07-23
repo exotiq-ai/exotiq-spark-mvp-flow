@@ -244,11 +244,12 @@ const Dashboard = () => {
       <nav className="bg-background border-b border-border sticky top-0 z-40">
         <div className="mobile-padding py-3 sm:py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2 sm:space-x-4">
-              <Car className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
-              <span className="text-lg sm:text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-                ExotIQ.ai
-              </span>
+            <div className="flex items-center">
+              <img 
+                src="/lovable-uploads/43a26c67-7824-4e00-9cdd-a8d19d0f9e43.png" 
+                alt="ExotIQ Logo" 
+                className="h-8 w-auto sm:h-10 sm:w-auto"
+              />
               {activeModule !== "overview" && (
                 <Badge variant="outline" className="ml-2 sm:ml-4 text-xs sm:text-sm">
                   {modules.find(m => m.id === activeModule)?.name || "Overview"}
