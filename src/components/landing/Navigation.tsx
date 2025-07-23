@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Car, Menu } from "lucide-react";
+import { Menu } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useState } from "react";
 
@@ -17,11 +17,12 @@ export const Navigation = ({ onRequestAccess, onTryDemo, scrollToSection }: Navi
     <nav className="bg-background/95 backdrop-blur-sm border-b border-border sticky top-0 z-50">
       <div className="container mx-auto px-4 sm:px-6 py-3 sm:py-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Car className="h-8 w-8 text-primary" />
-            <span className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-              ExotIQ.ai
-            </span>
+          <div className="flex items-center">
+            <img 
+              src="/lovable-uploads/43a26c67-7824-4e00-9cdd-a8d19d0f9e43.png" 
+              alt="ExotIQ Logo" 
+              className="h-10 w-auto"
+            />
           </div>
           
           {/* Desktop Navigation */}
