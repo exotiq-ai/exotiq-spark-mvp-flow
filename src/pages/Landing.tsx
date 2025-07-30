@@ -15,10 +15,7 @@ const Landing = () => {
   const navigate = useNavigate();
 
   const handleRequestAccess = () => {
-    toast({
-      title: "Access Request Submitted",
-      description: "We'll contact you soon with early access details!",
-    });
+    window.open('https://exotiq.ai/contact', '_blank');
   };
 
   const handleGetStarted = () => {

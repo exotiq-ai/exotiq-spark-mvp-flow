@@ -17,16 +17,14 @@ export const HeroSection = ({ onRequestAccess, onGetStarted, onTryDemo }: HeroSe
           AI-Powered Vehicle Rental Operations
         </Badge>
         <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-6 sm:mb-8 leading-tight px-2">
-          The <span className="bg-gradient-primary bg-clip-text text-transparent">Command Center</span>
-          <br />for Exotic Rentals
+          AI Fleet Intelligence That Saves Time and <span className="bg-gradient-primary bg-clip-text text-transparent">Accelerates Growth</span>
         </h1>
         <p className="text-xl sm:text-2xl text-muted-foreground mb-8 sm:mb-10 max-w-3xl mx-auto px-4 leading-relaxed">
-          ExotIQ.ai empowers P2P and boutique fleet operators with AI-driven insights, 
-          automated operations, and intelligent optimization for maximum profitability.
+          Exotiq automates the heavy lifting of fleet management – from pricing optimization to guest communication – so you can focus on growing your business. Our AI handles the details while you capture more revenue with less effort.
         </p>
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center mb-8 sm:mb-12 px-4">
           <Button size="lg" className="btn-premium h-12 sm:h-14 text-base sm:text-lg px-6 sm:px-8" onClick={onRequestAccess}>
-            Request Early Access
+            Request Access
             <ArrowRight className="ml-2 h-5 w-5" />
           </Button>
           <Button size="lg" variant="outline" className="h-12 sm:h-14 text-base sm:text-lg px-6 sm:px-8" onClick={onGetStarted}>

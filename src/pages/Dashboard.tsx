@@ -31,7 +31,7 @@ import { Vault } from "@/components/dashboard/Vault";
 import { Core } from "@/components/dashboard/Core";
 
 const Dashboard = () => {
-  const [activeModule, setActiveModule] = useState("overview");
+  const [activeModule, setActiveModule] = useState("dashboard");
 
   const modules = [
     {
@@ -247,9 +247,9 @@ const Dashboard = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center">
               <Logo size="md" className="h-8 sm:h-10" />
-              {activeModule !== "overview" && (
+              {activeModule !== "dashboard" && (
                 <Badge variant="outline" className="ml-2 sm:ml-4 text-xs sm:text-sm">
-                  {modules.find(m => m.id === activeModule)?.name || "Overview"}
+                  {modules.find(m => m.id === activeModule)?.name || "Dashboard"}
                 </Badge>
               )}
             </div>
@@ -277,10 +277,10 @@ const Dashboard = () => {
           <Tabs value={activeModule} onValueChange={setActiveModule} className="w-full">
             <TabsList className="grid w-full grid-cols-6 bg-transparent">
               <TabsTrigger 
-                value="overview" 
+                value="dashboard" 
                 className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs sm:text-sm"
               >
-                Overview
+                Dashboard
               </TabsTrigger>
               {modules.map((module) => (
                 <TabsTrigger 
@@ -301,13 +301,13 @@ const Dashboard = () => {
       <div className="mobile-nav">
         <div className="grid grid-cols-6 gap-1 p-2">
           <button
-            onClick={() => setActiveModule("overview")}
+            onClick={() => setActiveModule("dashboard")}
             className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg transition-colors touch-target ${
-              activeModule === "overview" ? "bg-primary text-primary-foreground" : "text-muted-foreground"
+              activeModule === "dashboard" ? "bg-primary text-primary-foreground" : "text-muted-foreground"
             }`}
           >
             <BarChart3 className="h-5 w-5 mb-1" />
-            <span className="text-xs">Overview</span>
+            <span className="text-xs">Dashboard</span>
           </button>
           {modules.map((module) => (
             <button

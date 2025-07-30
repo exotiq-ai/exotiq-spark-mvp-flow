@@ -49,7 +49,7 @@ export const MotorIQ = () => {
         </div>
         <Badge className="bg-success/10 text-success border-success/20">
           <Zap className="w-4 h-4 mr-1" />
-          AI Active
+          FleetCopilot™ AI Active
         </Badge>
       </div>
 

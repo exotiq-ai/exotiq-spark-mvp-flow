@@ -113,16 +113,45 @@ export const Core = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-bold">Core</h2>
-          <p className="text-muted-foreground mt-1">AI-powered command center and intelligent automation</p>
+      {/* AI Command Center */}
+      <Card className="card-premium p-6 bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-3xl font-bold">FleetCopilot™</h2>
+            <p className="text-xl text-muted-foreground mt-1">AI Command Center</p>
+          </div>
+          <div className="flex items-center space-x-4">
+            <Button className="btn-premium">
+              <Settings className="w-4 h-4 mr-2" />
+              Configure AI
+            </Button>
+            <Badge className="bg-primary/10 text-primary border-primary/20">
+              <Brain className="w-4 h-4 mr-1" />
+              FleetCopilot™ AI Active
+            </Badge>
+          </div>
         </div>
-        <Badge className="bg-primary/10 text-primary border-primary/20">
-          <Brain className="w-4 h-4 mr-1" />
-          AI Active
-        </Badge>
-      </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="text-center p-4 rounded-lg bg-white/50 border border-primary/20">
+            <Brain className="w-8 h-8 text-primary mx-auto mb-3" />
+            <div className="text-lg font-bold">24/7</div>
+            <div className="text-sm text-muted-foreground">AI Monitoring</div>
+          </div>
+          
+          <div className="text-center p-4 rounded-lg bg-white/50 border border-primary/20">
+            <Zap className="w-8 h-8 text-success mx-auto mb-3" />
+            <div className="text-lg font-bold">87%</div>
+            <div className="text-sm text-muted-foreground">Tasks Automated</div>
+          </div>
+          
+          <div className="text-center p-4 rounded-lg bg-white/50 border border-primary/20">
+            <Clock className="w-8 h-8 text-accent mx-auto mb-3" />
+            <div className="text-lg font-bold">4.2h</div>
+            <div className="text-sm text-muted-foreground">Time Saved Daily</div>
+          </div>
+        </div>
+      </Card>
 
       {/* Performance Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -222,39 +251,6 @@ export const Core = () => {
         </div>
       </Card>
 
-      {/* AI Command Center */}
-      <Card className="card-premium p-6 bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h3 className="text-xl font-semibold">AI Command Center</h3>
-            <p className="text-sm text-muted-foreground mt-1">Central hub for all intelligent automation</p>
-          </div>
-          <Button className="btn-premium">
-            <Settings className="w-4 h-4 mr-2" />
-            Configure AI
-          </Button>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="text-center p-4 rounded-lg bg-white/50 border border-primary/20">
-            <Brain className="w-8 h-8 text-primary mx-auto mb-3" />
-            <div className="text-lg font-bold">24/7</div>
-            <div className="text-sm text-muted-foreground">AI Monitoring</div>
-          </div>
-          
-          <div className="text-center p-4 rounded-lg bg-white/50 border border-primary/20">
-            <Zap className="w-8 h-8 text-success mx-auto mb-3" />
-            <div className="text-lg font-bold">87%</div>
-            <div className="text-sm text-muted-foreground">Tasks Automated</div>
-          </div>
-          
-          <div className="text-center p-4 rounded-lg bg-white/50 border border-primary/20">
-            <Clock className="w-8 h-8 text-accent mx-auto mb-3" />
-            <div className="text-lg font-bold">4.2h</div>
-            <div className="text-sm text-muted-foreground">Time Saved Daily</div>
-          </div>
-        </div>
-      </Card>
     </div>
   );
 };
