@@ -8,13 +8,13 @@ interface LogoProps {
 export const Logo = ({ className, size = "md" }: LogoProps) => {
   const sizeClasses = {
     sm: "h-8",
-    md: "h-10", 
-    lg: "h-12"
+    md: "h-12 sm:h-10", 
+    lg: "h-16 sm:h-12"
   };
 
   return (
     <img 
-      src="/lovable-uploads/e505c73d-8d32-4327-be34-164145aa687c.png" 
+      src="/lovable-uploads/ea741db3-49ad-45fc-8c13-a2e2dcb69d75.png" 
       alt="ExotIQ Logo" 
       className={cn("w-auto", sizeClasses[size], className)}
       onError={(e) => {
