@@ -246,8 +246,8 @@ const Dashboard = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center">
               <img 
-                src="/exotiq-logo.png" 
-                alt="ExotIQ Logo" 
+                src="/exotiq-logo-new.png" 
+                alt="Exotiq Logo" 
                 className="h-8 w-auto sm:h-10 sm:w-auto"
               />
               {activeModule !== "overview" && (
