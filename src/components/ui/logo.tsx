@@ -14,7 +14,7 @@ export const Logo = ({ className, size = "md" }: LogoProps) => {
 
   return (
     <img 
-      src="/exotiq-logo.png" 
+      src="/lovable-uploads/e505c73d-8d32-4327-be34-164145aa687c.png" 
       alt="ExotIQ Logo" 
       className={cn("w-auto", sizeClasses[size], className)}
       onError={(e) => {
