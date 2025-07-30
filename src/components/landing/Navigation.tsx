@@ -19,7 +19,7 @@ export const Navigation = ({ onRequestAccess, onTryDemo, scrollToSection }: Navi
         <div className="flex items-center justify-between">
           <div className="flex items-center">
             <img 
-              src="/lovable-uploads/43a26c67-7824-4e00-9cdd-a8d19d0f9e43.png" 
+              src="/exotiq-logo.png" 
               alt="ExotIQ Logo" 
               className="h-10 w-auto"
             />
