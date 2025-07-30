@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Logo } from "@/components/ui/logo";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Car, 
@@ -245,11 +246,7 @@ const Dashboard = () => {
         <div className="mobile-padding py-3 sm:py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
-              <img 
-                src="/exotiq-logo-new.png" 
-                alt="Exotiq Logo" 
-                className="h-8 w-auto sm:h-10 sm:w-auto"
-              />
+              <Logo size="md" className="h-8 sm:h-10" />
               {activeModule !== "overview" && (
                 <Badge variant="outline" className="ml-2 sm:ml-4 text-xs sm:text-sm">
                   {modules.find(m => m.id === activeModule)?.name || "Overview"}

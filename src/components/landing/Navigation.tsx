@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Logo } from "@/components/ui/logo";
 import { Menu } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useState } from "react";
@@ -18,11 +19,7 @@ export const Navigation = ({ onRequestAccess, onTryDemo, scrollToSection }: Navi
       <div className="container mx-auto px-4 sm:px-6 py-3 sm:py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center">
-            <img 
-              src="/exotiq-logo-new.png" 
-              alt="Exotiq Logo" 
-              className="h-10 w-auto"
-            />
+            <Logo size="md" />
           </div>
           
           {/* Desktop Navigation */}
