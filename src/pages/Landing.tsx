@@ -2,6 +2,7 @@
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { SEOHead } from "@/components/common/SEOHead";
 import { Navigation } from "@/components/landing/Navigation";
 import { HeroSection } from "@/components/landing/HeroSection";
 import { FeaturesSection } from "@/components/landing/FeaturesSection";
@@ -38,6 +39,12 @@ const Landing = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead
+        title="AI-Powered Fleet Management Platform"
+        description="Transform your luxury fleet operations with ExotIQ.ai's comprehensive AI-driven platform. Optimize profitability, streamline bookings, and ensure compliance with cutting-edge technology."
+        keywords={['luxury fleet management', 'AI optimization', 'fleet analytics', 'booking platform', 'compliance tracking']}
+        url="/"
+      />
       <Navigation 
         onRequestAccess={handleRequestAccess}
         onTryDemo={handleTryDemo}

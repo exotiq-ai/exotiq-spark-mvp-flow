@@ -232,4 +232,56 @@
   .mobile-button {
     @apply px-4 py-3 text-sm font-medium touch-target;
   }
+
+  /* Performance optimizations */
+  .will-change-transform {
+    will-change: transform;
+  }
+
+  .will-change-auto {
+    will-change: auto;
+  }
+
+  /* Focus styles for accessibility */
+  .focus-visible {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2;
+  }
+
+  /* Skip navigation for accessibility */
+  .skip-nav {
+    @apply absolute -top-full left-4 z-50 bg-primary text-primary-foreground px-4 py-2 rounded-md transition-all focus:top-4;
+  }
+
+  /* High contrast mode support */
+  @media (prefers-contrast: high) {
+    .card-premium,
+    .card-module,
+    .stat-card {
+      @apply border-2;
+    }
+  }
+
+  /* Reduced motion support */
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  /* Print styles */
+  @media print {
+    .no-print {
+      display: none !important;
+    }
+    
+    .print-break-before {
+      page-break-before: always;
+    }
+    
+    .print-break-after {
+      page-break-after: always;
+    }
+  }
 }

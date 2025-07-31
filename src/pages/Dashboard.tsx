@@ -1,9 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Logo } from "@/components/ui/logo";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SkipNavigation } from "@/components/common/SkipNavigation";
+import { SEOHead } from "@/components/common/SEOHead";
+import { useAnalytics } from "@/lib/analytics";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { performance } from "@/lib/performance";
+import { MODULES } from "@/lib/constants";
 import { 
   Car, 
   TrendingUp, 
@@ -31,7 +37,23 @@ import { Vault } from "@/components/dashboard/Vault";
 import { Core } from "@/components/dashboard/Core";
 
 const Dashboard = () => {
-  const [activeModule, setActiveModule] = useState("dashboard");
+  const [activeModule, setActiveModule] = useLocalStorage("activeModule", "dashboard");
+  const { track, page } = useAnalytics();
+
+  useEffect(() => {
+    performance.mark('dashboard-load-start');
+    page('/dashboard');
+    
+    return () => {
+      performance.mark('dashboard-load-end');
+      performance.measure('dashboard-load-time', 'dashboard-load-start', 'dashboard-load-end');
+    };
+  }, [page]);
+
+  const handleModuleChange = (moduleId: string) => {
+    track('module_switch', { from: activeModule, to: moduleId });
+    setActiveModule(moduleId);
+  };
 
   const modules = [
     {
@@ -164,8 +186,17 @@ const Dashboard = () => {
               {modules.map((module) => (
                 <Card 
                   key={module.id} 
-                  className="card-module cursor-pointer touch-target"
-                  onClick={() => setActiveModule(module.id)}
+                  className="card-module cursor-pointer touch-target focus-visible will-change-transform"
+                  onClick={() => handleModuleChange(module.id)}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`Open ${module.name} module - ${module.description}`}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleModuleChange(module.id);
+                    }
+                  }}
                 >
                   <div className={`p-3 sm:p-4 rounded-xl ${module.bgColor} mb-3 sm:mb-4 w-fit`}>
                     <module.icon className={`h-6 w-6 sm:h-8 sm:w-8 ${module.color}`} />
@@ -241,6 +272,12 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-background mobile-friendly">
+      <SEOHead
+        title="Fleet Management Dashboard"
+        description="Manage your luxury fleet with comprehensive analytics, AI-powered insights, and real-time monitoring."
+        noIndex={true}
+      />
+      <SkipNavigation />
       {/* Top Navigation */}
       <nav className="bg-background border-b border-border sticky top-0 z-40">
         <div className="mobile-padding py-3 sm:py-4">
@@ -274,7 +311,7 @@ const Dashboard = () => {
       {/* Module Navigation - Desktop */}
       <div className="hidden md:block bg-muted/30 border-b border-border">
         <div className="mobile-padding py-2">
-          <Tabs value={activeModule} onValueChange={setActiveModule} className="w-full">
+          <Tabs value={activeModule} onValueChange={handleModuleChange} className="w-full">
             <TabsList className="grid w-full grid-cols-6 bg-transparent">
               <TabsTrigger 
                 value="dashboard" 
@@ -301,10 +338,11 @@ const Dashboard = () => {
       <div className="mobile-nav">
         <div className="grid grid-cols-6 gap-1 p-2">
           <button
-            onClick={() => setActiveModule("dashboard")}
-            className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg transition-colors touch-target ${
+            onClick={() => handleModuleChange("dashboard")}
+            className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg transition-colors touch-target focus-visible ${
               activeModule === "dashboard" ? "bg-primary text-primary-foreground" : "text-muted-foreground"
             }`}
+            aria-label="Dashboard"
           >
             <BarChart3 className="h-5 w-5 mb-1" />
             <span className="text-xs">Dashboard</span>
@@ -312,10 +350,11 @@ const Dashboard = () => {
           {modules.map((module) => (
             <button
               key={module.id}
-              onClick={() => setActiveModule(module.id)}
-              className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg transition-colors touch-target ${
+              onClick={() => handleModuleChange(module.id)}
+              className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg transition-colors touch-target focus-visible ${
                 activeModule === module.id ? "bg-primary text-primary-foreground" : "text-muted-foreground"
               }`}
+              aria-label={`${module.name} - ${module.description}`}
             >
               <module.icon className="h-5 w-5 mb-1" />
               <span className="text-xs">{module.name}</span>
@@ -325,7 +364,7 @@ const Dashboard = () => {
       </div>
 
       {/* Main Content */}
-      <main className="mobile-padding py-4 sm:py-6 pb-20 md:pb-6">
+      <main id="main-content" className="mobile-padding py-4 sm:py-6 pb-20 md:pb-6" tabIndex={-1}>
         <div className="max-w-7xl mx-auto mobile-spacing">
           {renderModuleContent()}
         </div>

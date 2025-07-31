@@ -3,7 +3,8 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Logo } from "@/components/ui/logo";
 import { Menu } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useAnalytics } from "@/lib/analytics";
 
 interface NavigationProps {
   onRequestAccess: () => void;
@@ -13,9 +14,29 @@ interface NavigationProps {
 
 export const Navigation = ({ onRequestAccess, onTryDemo, scrollToSection }: NavigationProps) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const { track } = useAnalytics();
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 20);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const handleNavClick = (section: string) => {
+    track('navigation_click', { section });
+    scrollToSection(section);
+  };
 
   return (
-    <nav className="bg-background/95 backdrop-blur-sm border-b border-border sticky top-0 z-50">
+    <nav className={`transition-all duration-300 sticky top-0 z-50 ${
+      isScrolled 
+        ? 'bg-background/95 backdrop-blur-sm border-b border-border shadow-sm' 
+        : 'bg-transparent'
+    }`}>
       <div className="container mx-auto px-4 sm:px-6 py-3 sm:py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center">
@@ -24,9 +45,9 @@ export const Navigation = ({ onRequestAccess, onTryDemo, scrollToSection }: Navi
           
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
-            <button onClick={() => scrollToSection('features')} className="text-muted-foreground hover:text-foreground transition-smooth">Features</button>
-            <button onClick={() => scrollToSection('pricing')} className="text-muted-foreground hover:text-foreground transition-smooth">Pricing</button>
-            <button onClick={() => scrollToSection('testimonials')} className="text-muted-foreground hover:text-foreground transition-smooth">Testimonials</button>
+            <button onClick={() => handleNavClick('features')} className="text-muted-foreground hover:text-foreground transition-smooth focus-visible">Features</button>
+            <button onClick={() => handleNavClick('pricing')} className="text-muted-foreground hover:text-foreground transition-smooth focus-visible">Pricing</button>
+            <button onClick={() => handleNavClick('testimonials')} className="text-muted-foreground hover:text-foreground transition-smooth focus-visible">Testimonials</button>
             <Link to="/dashboard">
               <Button variant="outline" className="mr-2">Sign In</Button>
             </Link>
