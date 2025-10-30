@@ -14,13 +14,242 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      bookings: {
+        Row: {
+          created_at: string | null
+          customer_email: string | null
+          customer_name: string
+          customer_phone: string | null
+          daily_rate: number
+          dropoff_location: string | null
+          end_date: string
+          id: string
+          notes: string | null
+          pickup_location: string
+          start_date: string
+          status: string | null
+          total_value: number
+          updated_at: string | null
+          user_id: string
+          vehicle_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          customer_email?: string | null
+          customer_name: string
+          customer_phone?: string | null
+          daily_rate: number
+          dropoff_location?: string | null
+          end_date: string
+          id?: string
+          notes?: string | null
+          pickup_location: string
+          start_date: string
+          status?: string | null
+          total_value: number
+          updated_at?: string | null
+          user_id: string
+          vehicle_id: string
+        }
+        Update: {
+          created_at?: string | null
+          customer_email?: string | null
+          customer_name?: string
+          customer_phone?: string | null
+          daily_rate?: number
+          dropoff_location?: string | null
+          end_date?: string
+          id?: string
+          notes?: string | null
+          pickup_location?: string
+          start_date?: string
+          status?: string | null
+          total_value?: number
+          updated_at?: string | null
+          user_id?: string
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      documents: {
+        Row: {
+          created_at: string | null
+          expires_at: string | null
+          file_size: number | null
+          file_url: string
+          id: string
+          name: string
+          status: string | null
+          type: string
+          updated_at: string | null
+          user_id: string
+          vehicle_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          expires_at?: string | null
+          file_size?: number | null
+          file_url: string
+          id?: string
+          name: string
+          status?: string | null
+          type: string
+          updated_at?: string | null
+          user_id: string
+          vehicle_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          expires_at?: string | null
+          file_size?: number | null
+          file_url?: string
+          id?: string
+          name?: string
+          status?: string | null
+          type?: string
+          updated_at?: string | null
+          user_id?: string
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          company_name: string | null
+          created_at: string | null
+          email: string
+          full_name: string | null
+          id: string
+          onboarding_completed: boolean | null
+          phone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          company_name?: string | null
+          created_at?: string | null
+          email: string
+          full_name?: string | null
+          id: string
+          onboarding_completed?: boolean | null
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          company_name?: string | null
+          created_at?: string | null
+          email?: string
+          full_name?: string | null
+          id?: string
+          onboarding_completed?: boolean | null
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      vehicles: {
+        Row: {
+          created_at: string | null
+          current_rate: number
+          id: string
+          image_url: string | null
+          license_plate: string | null
+          make: string
+          model: string
+          name: string
+          revenue: number | null
+          status: string | null
+          suggested_rate: number | null
+          updated_at: string | null
+          user_id: string
+          utilization: number | null
+          vin: string | null
+          year: number
+        }
+        Insert: {
+          created_at?: string | null
+          current_rate?: number
+          id?: string
+          image_url?: string | null
+          license_plate?: string | null
+          make: string
+          model: string
+          name: string
+          revenue?: number | null
+          status?: string | null
+          suggested_rate?: number | null
+          updated_at?: string | null
+          user_id: string
+          utilization?: number | null
+          vin?: string | null
+          year: number
+        }
+        Update: {
+          created_at?: string | null
+          current_rate?: number
+          id?: string
+          image_url?: string | null
+          license_plate?: string | null
+          make?: string
+          model?: string
+          name?: string
+          revenue?: number | null
+          status?: string | null
+          suggested_rate?: number | null
+          updated_at?: string | null
+          user_id?: string
+          utilization?: number | null
+          vin?: string | null
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      update_document_status: { Args: never; Returns: undefined }
     }
     Enums: {
       [_ in never]: never

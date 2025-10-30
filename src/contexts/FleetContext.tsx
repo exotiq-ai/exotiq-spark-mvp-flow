@@ -1,212 +1,216 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from './AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { Database } from '@/integrations/supabase/types';
 
-interface Vehicle {
-  id: string;
-  name: string;
-  currentRate: number;
-  suggestedRate?: number;
-  utilization: number;
-  revenue: number;
-  status: 'available' | 'booked' | 'maintenance';
-}
-
-interface Booking {
-  id: string;
-  vehicle: string;
-  customer: string;
-  time: string;
-  location: string;
-  status: 'confirmed' | 'pending' | 'completed' | 'cancelled';
-  value: string;
-  date?: string;
-}
-
-interface Document {
-  id: string;
-  name: string;
-  type: string;
-  uploaded: string;
-  expires: string;
-  status: 'active' | 'expiring' | 'expired';
-}
+type Vehicle = Database['public']['Tables']['vehicles']['Row'];
+type Booking = Database['public']['Tables']['bookings']['Row'];
+type Document = Database['public']['Tables']['documents']['Row'];
 
 interface FleetContextType {
   vehicles: Vehicle[];
   bookings: Booking[];
   documents: Document[];
   revenue: { today: number; month: number; change: number };
-  applyPriceOptimization: (vehicleId: string, newRate: number) => void;
-  createBooking: (booking: Omit<Booking, 'id'>) => void;
-  updateBookingStatus: (bookingId: string, status: Booking['status']) => void;
-  uploadDocument: (document: Omit<Document, 'id' | 'uploaded'>) => void;
-  deleteDocument: (documentId: string) => void;
+  loading: boolean;
+  applyPriceOptimization: (vehicleId: string, newRate: number) => Promise<void>;
+  createBooking: (booking: Database['public']['Tables']['bookings']['Insert']) => Promise<void>;
+  updateBookingStatus: (bookingId: string, status: Booking['status']) => Promise<void>;
+  uploadDocument: (document: Database['public']['Tables']['documents']['Insert']) => Promise<void>;
+  deleteDocument: (documentId: string) => Promise<void>;
+  refreshData: () => Promise<void>;
 }
 
 const FleetContext = createContext<FleetContextType | undefined>(undefined);
 
 export const FleetProvider = ({ children }: { children: ReactNode }) => {
   const { toast } = useToast();
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
   
   const [revenue, setRevenue] = useState({
-    today: 3240,
-    month: 24680,
-    change: 12
+    today: 0,
+    month: 0,
+    change: 0
   });
 
-  const [vehicles, setVehicles] = useState<Vehicle[]>([
-    {
-      id: 'v1',
-      name: 'McLaren 720S',
-      currentRate: 450,
-      suggestedRate: 520,
-      utilization: 82,
-      revenue: 8400,
-      status: 'booked'
-    },
-    {
-      id: 'v2',
-      name: 'Ferrari 488',
-      currentRate: 520,
-      suggestedRate: 595,
-      utilization: 76,
-      revenue: 7280,
-      status: 'available'
-    },
-    {
-      id: 'v3',
-      name: 'Lamborghini Huracán',
-      currentRate: 480,
-      utilization: 89,
-      revenue: 9120,
-      status: 'booked'
-    },
-    {
-      id: 'v4',
-      name: 'Porsche 911 GT3',
-      currentRate: 380,
-      utilization: 71,
-      revenue: 5320,
-      status: 'available'
-    }
-  ]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [documents, setDocuments] = useState<Document[]>([]);
 
-  const [bookings, setBookings] = useState<Booking[]>([
-    {
-      id: 'BK001',
-      vehicle: 'McLaren 720S',
-      customer: 'John Smith',
-      time: '2:00 PM - 5:00 PM',
-      location: 'Downtown',
-      status: 'confirmed',
-      value: '$450',
-      date: 'Today'
-    },
-    {
-      id: 'BK002',
-      vehicle: 'Lamborghini Huracán',
-      customer: 'Sarah Johnson',
-      time: '6:00 PM - 11:59 PM',
-      location: 'Airport',
-      status: 'pending',
-      value: '$520',
-      date: 'Today'
-    },
-    {
-      id: 'BK003',
-      vehicle: 'Ferrari 488',
-      customer: 'Mike Chen',
-      time: '10:00 AM - 2:00 PM',
-      location: 'Hotel Pickup',
-      status: 'confirmed',
-      value: '$680',
-      date: 'Tomorrow'
+  const refreshData = async () => {
+    if (!user) {
+      setLoading(false);
+      return;
     }
-  ]);
+    
+    setLoading(true);
+    try {
+      const { data: vehiclesData, error: vehiclesError } = await supabase
+        .from('vehicles')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
 
-  const [documents, setDocuments] = useState<Document[]>([
-    {
-      id: 'DOC001',
-      name: 'McLaren 720S Insurance Policy',
-      type: 'Insurance',
-      uploaded: '2 days ago',
-      expires: 'Mar 15, 2025',
-      status: 'active'
-    },
-    {
-      id: 'DOC002',
-      name: 'Driver License - John Smith',
-      type: 'License',
-      uploaded: '1 week ago',
-      expires: 'Dec 22, 2024',
-      status: 'expiring'
-    },
-    {
-      id: 'DOC003',
-      name: 'Vehicle Registration - Ferrari 488',
-      type: 'Registration',
-      uploaded: '3 weeks ago',
-      expires: 'Jan 30, 2025',
-      status: 'active'
+      if (vehiclesError) throw vehiclesError;
+      setVehicles(vehiclesData || []);
+
+      const { data: bookingsData, error: bookingsError } = await supabase
+        .from('bookings')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (bookingsError) throw bookingsError;
+      setBookings(bookingsData || []);
+
+      const { data: documentsData, error: documentsError } = await supabase
+        .from('documents')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false});
+
+      if (documentsError) throw documentsError;
+      setDocuments(documentsData || []);
+
+      // Calculate revenue
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const confirmedBookings = bookingsData?.filter(b => b.status === 'confirmed' || b.status === 'completed') || [];
+      const todayRevenue = confirmedBookings
+        .filter(b => new Date(b.start_date) >= today)
+        .reduce((sum, b) => sum + parseFloat(b.total_value?.toString() || '0'), 0);
+      
+      const monthRevenue = confirmedBookings
+        .reduce((sum, b) => sum + parseFloat(b.total_value?.toString() || '0'), 0);
+
+      setRevenue({
+        today: todayRevenue,
+        month: monthRevenue,
+        change: 12
+      });
+
+    } catch (error: any) {
+      console.error('Error loading data:', error);
+      toast({
+        title: "Error Loading Data",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
     }
-  ]);
+  };
 
-  const applyPriceOptimization = (vehicleId: string, newRate: number) => {
-    setVehicles(prev => prev.map(v => 
-      v.id === vehicleId ? { ...v, currentRate: newRate, suggestedRate: undefined } : v
-    ));
+  useEffect(() => {
+    refreshData();
+  }, [user]);
+
+  const applyPriceOptimization = async (vehicleId: string, newRate: number) => {
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('vehicles')
+      .update({ 
+        current_rate: newRate,
+        suggested_rate: null 
+      })
+      .eq('id', vehicleId)
+      .eq('user_id', user.id);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    await refreshData();
     
     const vehicle = vehicles.find(v => v.id === vehicleId);
-    const increase = newRate - (vehicle?.currentRate || 0);
-    const weeklyIncrease = increase * 7;
-    
-    setRevenue(prev => ({
-      ...prev,
-      month: prev.month + weeklyIncrease * 4,
-      change: prev.change + 2
-    }));
-
     toast({
       title: "Price Updated Successfully",
-      description: `${vehicle?.name} rate increased to $${newRate}/day. Projected weekly revenue: +$${weeklyIncrease.toFixed(0)}`,
+      description: `${vehicle?.name} rate updated to $${newRate}/day`,
     });
   };
 
-  const createBooking = (booking: Omit<Booking, 'id'>) => {
-    const newBooking: Booking = {
-      ...booking,
-      id: `BK${String(bookings.length + 1).padStart(3, '0')}`,
-    };
-    
-    setBookings(prev => [newBooking, ...prev]);
+  const createBooking = async (booking: Database['public']['Tables']['bookings']['Insert']) => {
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('bookings')
+      .insert({
+        ...booking,
+        user_id: user.id
+      });
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    await refreshData();
     
     toast({
       title: "Booking Created",
-      description: `New booking for ${booking.vehicle} has been created successfully.`,
+      description: "New booking has been created successfully.",
     });
   };
 
-  const updateBookingStatus = (bookingId: string, status: Booking['status']) => {
-    setBookings(prev => prev.map(b => 
-      b.id === bookingId ? { ...b, status } : b
-    ));
-    
-    const booking = bookings.find(b => b.id === bookingId);
+  const updateBookingStatus = async (bookingId: string, status: Booking['status']) => {
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('bookings')
+      .update({ status })
+      .eq('id', bookingId)
+      .eq('user_id', user.id);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    await refreshData();
     
     toast({
       title: "Booking Updated",
-      description: `Booking ${bookingId} status changed to ${status}.`,
+      description: `Booking status changed to ${status}.`,
     });
   };
 
-  const uploadDocument = (document: Omit<Document, 'id' | 'uploaded'>) => {
-    const newDocument: Document = {
-      ...document,
-      id: `DOC${String(documents.length + 1).padStart(3, '0')}`,
-      uploaded: 'Just now'
-    };
-    
-    setDocuments(prev => [newDocument, ...prev]);
+  const uploadDocument = async (document: Database['public']['Tables']['documents']['Insert']) => {
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('documents')
+      .insert({
+        ...document,
+        user_id: user.id
+      });
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    await refreshData();
     
     toast({
       title: "Document Uploaded",
@@ -214,8 +218,25 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
-  const deleteDocument = (documentId: string) => {
-    setDocuments(prev => prev.filter(d => d.id !== documentId));
+  const deleteDocument = async (documentId: string) => {
+    if (!user) return;
+
+    const { error} = await supabase
+      .from('documents')
+      .delete()
+      .eq('id', documentId)
+      .eq('user_id', user.id);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    await refreshData();
     
     toast({
       title: "Document Deleted",
@@ -229,11 +250,13 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       bookings,
       documents,
       revenue,
+      loading,
       applyPriceOptimization,
       createBooking,
       updateBookingStatus,
       uploadDocument,
-      deleteDocument
+      deleteDocument,
+      refreshData
     }}>
       {children}
     </FleetContext.Provider>
