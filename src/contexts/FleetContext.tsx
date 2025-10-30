@@ -7,18 +7,26 @@ import { Database } from '@/integrations/supabase/types';
 type Vehicle = Database['public']['Tables']['vehicles']['Row'];
 type Booking = Database['public']['Tables']['bookings']['Row'];
 type Document = Database['public']['Tables']['documents']['Row'];
+type Maintenance = Database['public']['Tables']['maintenance_schedules']['Row'];
+type Message = Database['public']['Tables']['messages']['Row'];
 
 interface FleetContextType {
   vehicles: Vehicle[];
   bookings: Booking[];
   documents: Document[];
+  maintenance: Maintenance[];
+  messages: Message[];
   revenue: { today: number; month: number; change: number };
   loading: boolean;
   applyPriceOptimization: (vehicleId: string, newRate: number) => Promise<void>;
-  createBooking: (booking: Database['public']['Tables']['bookings']['Insert']) => Promise<void>;
+  createVehicle: (vehicle: Omit<Database['public']['Tables']['vehicles']['Insert'], 'user_id'>) => Promise<void>;
+  createBooking: (booking: Omit<Database['public']['Tables']['bookings']['Insert'], 'user_id'>) => Promise<void>;
   updateBookingStatus: (bookingId: string, status: Booking['status']) => Promise<void>;
-  uploadDocument: (document: Database['public']['Tables']['documents']['Insert']) => Promise<void>;
+  uploadDocument: (document: Omit<Database['public']['Tables']['documents']['Insert'], 'user_id'>) => Promise<void>;
   deleteDocument: (documentId: string) => Promise<void>;
+  createMaintenance: (maintenance: Omit<Database['public']['Tables']['maintenance_schedules']['Insert'], 'user_id'>) => Promise<void>;
+  sendMessage: (message: Omit<Database['public']['Tables']['messages']['Insert'], 'user_id'>) => Promise<void>;
+  generateReport: (reportType: string, dateRange: { start: string; end: string }, format: string) => Promise<void>;
   refreshData: () => Promise<void>;
 }
 
@@ -38,6 +46,8 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
+  const [maintenance, setMaintenance] = useState<Maintenance[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
 
   const refreshData = async () => {
     if (!user) {
@@ -73,6 +83,24 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
 
       if (documentsError) throw documentsError;
       setDocuments(documentsData || []);
+
+      const { data: maintenanceData, error: maintenanceError } = await supabase
+        .from('maintenance_schedules')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('scheduled_date', { ascending: true });
+
+      if (maintenanceError) throw maintenanceError;
+      setMaintenance(maintenanceData || []);
+
+      const { data: messagesData, error: messagesError } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (messagesError) throw messagesError;
+      setMessages(messagesData || []);
 
       // Calculate revenue
       const today = new Date();
@@ -138,7 +166,34 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
-  const createBooking = async (booking: Database['public']['Tables']['bookings']['Insert']) => {
+  const createVehicle = async (vehicle: Omit<Database['public']['Tables']['vehicles']['Insert'], 'user_id'>) => {
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('vehicles')
+      .insert({
+        ...vehicle,
+        user_id: user.id
+      });
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    await refreshData();
+    
+    toast({
+      title: "Vehicle Added",
+      description: "New vehicle has been added to your fleet.",
+    });
+  };
+
+  const createBooking = async (booking: Omit<Database['public']['Tables']['bookings']['Insert'], 'user_id'>) => {
     if (!user) return;
 
     const { error } = await supabase
@@ -191,7 +246,7 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
-  const uploadDocument = async (document: Database['public']['Tables']['documents']['Insert']) => {
+  const uploadDocument = async (document: Omit<Database['public']['Tables']['documents']['Insert'], 'user_id'>) => {
     if (!user) return;
 
     const { error } = await supabase
@@ -244,18 +299,94 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
+  const createMaintenance = async (maintenance: Omit<Database['public']['Tables']['maintenance_schedules']['Insert'], 'user_id'>) => {
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('maintenance_schedules')
+      .insert({
+        ...maintenance,
+        user_id: user.id
+      });
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    await refreshData();
+    
+    toast({
+      title: "Maintenance Scheduled",
+      description: "Maintenance has been scheduled successfully.",
+    });
+  };
+
+  const sendMessage = async (message: Omit<Database['public']['Tables']['messages']['Insert'], 'user_id'>) => {
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('messages')
+      .insert({
+        ...message,
+        user_id: user.id
+      });
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    await refreshData();
+    
+    toast({
+      title: "Message Sent",
+      description: "Your message has been sent successfully.",
+    });
+  };
+
+  const generateReport = async (reportType: string, dateRange: { start: string; end: string }, format: string) => {
+    // Simulate report generation
+    toast({
+      title: "Generating Report",
+      description: `Your ${reportType} report is being generated...`,
+    });
+
+    // In a real app, this would call an edge function or generate the report
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    toast({
+      title: "Report Generated",
+      description: `Your ${reportType} report (${format}) is ready for download.`,
+    });
+  };
+
   return (
     <FleetContext.Provider value={{
       vehicles,
       bookings,
       documents,
+      maintenance,
+      messages,
       revenue,
       loading,
       applyPriceOptimization,
+      createVehicle,
       createBooking,
       updateBookingStatus,
       uploadDocument,
       deleteDocument,
+      createMaintenance,
+      sendMessage,
+      generateReport,
       refreshData
     }}>
       {children}

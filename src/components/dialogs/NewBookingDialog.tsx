@@ -17,61 +17,69 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Calendar, User, MapPin, Clock, DollarSign } from 'lucide-react';
-import { TablesInsert } from '@/integrations/supabase/types';
+import { Textarea } from '@/components/ui/textarea';
+import { Calendar, User, MapPin, DollarSign } from 'lucide-react';
+import { TablesInsert, Tables } from '@/integrations/supabase/types';
 
 interface NewBookingDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (booking: TablesInsert<"bookings">) => Promise<void>;
+  vehicles: Tables<'vehicles'>[];
+  onSubmit: (booking: Omit<TablesInsert<"bookings">, 'user_id'>) => Promise<void>;
 }
 
 export const NewBookingDialog = ({
   open,
   onOpenChange,
+  vehicles,
   onSubmit
 }: NewBookingDialogProps) => {
   const [vehicleId, setVehicleId] = useState('');
   const [customerName, setCustomerName] = useState('');
+  const [customerEmail, setCustomerEmail] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [pickupLocation, setPickupLocation] = useState('');
-  const [dailyRate, setDailyRate] = useState('');
-
-  const vehicles = [
-    { id: '1', name: 'McLaren 720S', rate: 450 },
-    { id: '2', name: 'Ferrari 488', rate: 520 },
-    { id: '3', name: 'Lamborghini Huracán', rate: 480 },
-    { id: '4', name: 'Porsche 911 GT3', rate: 380 }
-  ];
+  const [dropoffLocation, setDropoffLocation] = useState('');
+  const [notes, setNotes] = useState('');
 
   const handleSubmit = async () => {
-    if (!vehicleId || !customerName || !startDate || !endDate || !pickupLocation || !dailyRate) {
+    if (!vehicleId || !customerName || !startDate || !endDate || !pickupLocation) {
       return;
     }
 
+    const selectedVehicle = vehicles.find(v => v.id === vehicleId);
+    if (!selectedVehicle) return;
+
     const days = Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24));
-    const totalValue = Number(dailyRate) * days;
+    const totalValue = Number(selectedVehicle.current_rate) * days;
 
     await onSubmit({
       vehicle_id: vehicleId,
       customer_name: customerName,
+      customer_email: customerEmail || null,
+      customer_phone: customerPhone || null,
       start_date: new Date(startDate).toISOString(),
       end_date: new Date(endDate).toISOString(),
       pickup_location: pickupLocation,
-      daily_rate: Number(dailyRate),
+      dropoff_location: dropoffLocation || null,
+      daily_rate: selectedVehicle.current_rate,
       total_value: totalValue,
-      status: 'pending',
-      user_id: '' // Will be set by context
+      notes: notes || null,
+      status: 'pending'
     });
 
     // Reset form
     setVehicleId('');
     setCustomerName('');
+    setCustomerEmail('');
+    setCustomerPhone('');
     setStartDate('');
     setEndDate('');
     setPickupLocation('');
-    setDailyRate('');
+    setDropoffLocation('');
+    setNotes('');
     onOpenChange(false);
   };
 
@@ -92,35 +100,55 @@ export const NewBookingDialog = ({
           {/* Vehicle Selection */}
           <div className="space-y-2">
             <Label htmlFor="vehicle">Vehicle</Label>
-            <Select value={vehicleId} onValueChange={(value) => {
-              setVehicleId(value);
-              const vehicle = vehicles.find(v => v.id === value);
-              if (vehicle) setDailyRate(vehicle.rate.toString());
-            }}>
+            <Select value={vehicleId} onValueChange={setVehicleId}>
               <SelectTrigger id="vehicle">
                 <SelectValue placeholder="Select vehicle" />
               </SelectTrigger>
               <SelectContent>
                 {vehicles.map((v) => (
                   <SelectItem key={v.id} value={v.id}>
-                    {v.name} - ${v.rate}/day
+                    {v.name} - ${v.current_rate}/day
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
 
-          {/* Customer Name */}
-          <div className="space-y-2">
-            <Label htmlFor="customer">Customer Name</Label>
-            <div className="relative">
-              <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+          {/* Customer Info */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2 col-span-2">
+              <Label htmlFor="customer">Customer Name</Label>
+              <div className="relative">
+                <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="customer"
+                  placeholder="John Smith"
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
               <Input
-                id="customer"
-                placeholder="John Smith"
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-                className="pl-10"
+                id="email"
+                type="email"
+                placeholder="john@example.com"
+                value={customerEmail}
+                onChange={(e) => setCustomerEmail(e.target.value)}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone</Label>
+              <Input
+                id="phone"
+                type="tel"
+                placeholder="+1 234 567 8900"
+                value={customerPhone}
+                onChange={(e) => setCustomerPhone(e.target.value)}
               />
             </div>
           </div>
@@ -147,35 +175,47 @@ export const NewBookingDialog = ({
             </div>
           </div>
 
-          {/* Location */}
-          <div className="space-y-2">
-            <Label htmlFor="location">Pickup Location</Label>
-            <div className="relative">
-              <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
-                id="location"
-                placeholder="Downtown, Airport, etc."
-                value={pickupLocation}
-                onChange={(e) => setPickupLocation(e.target.value)}
-                className="pl-10"
-              />
+          {/* Locations */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="pickup">Pickup Location</Label>
+              <div className="relative">
+                <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="pickup"
+                  placeholder="Downtown, Airport, etc."
+                  value={pickupLocation}
+                  onChange={(e) => setPickupLocation(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="dropoff">Drop-off Location</Label>
+              <div className="relative">
+                <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="dropoff"
+                  placeholder="Same as pickup"
+                  value={dropoffLocation}
+                  onChange={(e) => setDropoffLocation(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
             </div>
           </div>
 
-          {/* Rate */}
+          {/* Notes */}
           <div className="space-y-2">
-            <Label htmlFor="rate">Daily Rate</Label>
-            <div className="relative">
-              <DollarSign className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
-                id="rate"
-                type="number"
-                placeholder="450"
-                value={dailyRate}
-                onChange={(e) => setDailyRate(e.target.value)}
-                className="pl-10"
-              />
-            </div>
+            <Label htmlFor="notes">Notes</Label>
+            <Textarea
+              id="notes"
+              placeholder="Special requests or additional information..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={3}
+            />
           </div>
         </div>
 
@@ -183,7 +223,7 @@ export const NewBookingDialog = ({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={!vehicleId || !customerName || !startDate || !endDate || !pickupLocation || !dailyRate}>
+          <Button onClick={handleSubmit} disabled={!vehicleId || !customerName || !startDate || !endDate || !pickupLocation}>
             Create Booking
           </Button>
         </DialogFooter>

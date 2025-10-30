@@ -20,7 +20,7 @@ import { Tables } from "@/integrations/supabase/types";
 type Booking = Tables<"bookings">;
 
 export const BookEnhanced = () => {
-  const { bookings, createBooking, updateBookingStatus } = useFleet();
+  const { bookings, vehicles, createBooking, updateBookingStatus } = useFleet();
   const [showNewBooking, setShowNewBooking] = useState(false);
   const [showBookingDetails, setShowBookingDetails] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
@@ -67,6 +67,7 @@ export const BookEnhanced = () => {
       <NewBookingDialog
         open={showNewBooking}
         onOpenChange={setShowNewBooking}
+        vehicles={vehicles}
         onSubmit={createBooking}
       />
       

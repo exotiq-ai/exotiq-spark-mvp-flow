@@ -143,6 +143,109 @@ export type Database = {
           },
         ]
       }
+      maintenance_schedules: {
+        Row: {
+          created_at: string
+          estimated_cost: number | null
+          id: string
+          maintenance_type: string
+          notes: string | null
+          scheduled_date: string
+          service_provider: string | null
+          status: string | null
+          updated_at: string
+          user_id: string
+          vehicle_id: string
+        }
+        Insert: {
+          created_at?: string
+          estimated_cost?: number | null
+          id?: string
+          maintenance_type: string
+          notes?: string | null
+          scheduled_date: string
+          service_provider?: string | null
+          status?: string | null
+          updated_at?: string
+          user_id: string
+          vehicle_id: string
+        }
+        Update: {
+          created_at?: string
+          estimated_cost?: number | null
+          id?: string
+          maintenance_type?: string
+          notes?: string | null
+          scheduled_date?: string
+          service_provider?: string | null
+          status?: string | null
+          updated_at?: string
+          user_id?: string
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_schedules_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          body: string
+          booking_id: string | null
+          created_at: string
+          id: string
+          message_type: string
+          recipient_email: string | null
+          recipient_name: string
+          recipient_phone: string | null
+          sent_at: string
+          status: string | null
+          subject: string | null
+          user_id: string
+        }
+        Insert: {
+          body: string
+          booking_id?: string | null
+          created_at?: string
+          id?: string
+          message_type: string
+          recipient_email?: string | null
+          recipient_name: string
+          recipient_phone?: string | null
+          sent_at?: string
+          status?: string | null
+          subject?: string | null
+          user_id: string
+        }
+        Update: {
+          body?: string
+          booking_id?: string | null
+          created_at?: string
+          id?: string
+          message_type?: string
+          recipient_email?: string | null
+          recipient_name?: string
+          recipient_phone?: string | null
+          sent_at?: string
+          status?: string | null
+          subject?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null

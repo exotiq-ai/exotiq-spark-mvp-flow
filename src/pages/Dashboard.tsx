@@ -27,7 +27,7 @@ import { MotorIQEnhanced } from "@/components/dashboard/MotorIQEnhanced";
 import { PulseEnhanced } from "@/components/dashboard/PulseEnhanced";
 import { BookEnhanced } from "@/components/dashboard/BookEnhanced";
 import { VaultEnhanced } from "@/components/dashboard/VaultEnhanced";
-import { Core } from "@/components/dashboard/Core";
+import { CoreEnhanced } from "@/components/dashboard/CoreEnhanced";
 import { DashboardOverview } from "@/components/dashboard/DashboardOverview";
 import { ModulePagination } from "@/components/dashboard/ModulePagination";
 
