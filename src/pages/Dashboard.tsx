@@ -146,7 +146,7 @@ const Dashboard = () => {
         content = <VaultEnhanced />;
         break;
       case "core":
-        content = <Core />;
+        content = <CoreEnhanced />;
         break;
       default:
         content = <DashboardOverview modules={modules} onModuleClick={handleModuleChange} />;

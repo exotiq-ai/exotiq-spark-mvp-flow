@@ -15,7 +15,7 @@ import {
 
 export const MotorIQEnhanced = () => {
   const { vehicles, applyPriceOptimization } = useFleet();
-  const [selectedVehicle, setSelectedVehicle] = useState<any>(null);
+  
   const [showOptimizationDialog, setShowOptimizationDialog] = useState(false);
 
   const vehiclesWithOptimization = vehicles.map(v => ({
@@ -28,28 +28,13 @@ export const MotorIQEnhanced = () => {
     ? (topRecommendation.suggested_rate - topRecommendation.current_rate) * 30 
     : 0;
 
-  const handleApplyOptimization = (vehicle: any) => {
-    if (vehicle.suggested_rate) {
-      setSelectedVehicle(vehicle);
-      setShowOptimizationDialog(true);
-    }
-  };
-
   return (
     <>
       <PriceOptimizationDialog
         open={showOptimizationDialog}
         onOpenChange={setShowOptimizationDialog}
-        vehicle={selectedVehicle ? {
-          name: selectedVehicle.name,
-          currentRate: selectedVehicle.current_rate,
-          suggestedRate: selectedVehicle.suggested_rate
-        } : { name: '', currentRate: 0, suggestedRate: 0 }}
-        onApply={(newRate) => {
-          if (selectedVehicle) {
-            applyPriceOptimization(selectedVehicle.id, newRate);
-          }
-        }}
+        vehicles={vehiclesWithOptimization}
+        onApply={(vehicleId, newRate) => applyPriceOptimization(vehicleId, newRate)}
       />
       <div className="space-y-6">
         {/* Hero Section - Top Priority AI Insight */}
@@ -84,10 +69,10 @@ export const MotorIQEnhanced = () => {
           </div>
 
           <div className="flex space-x-3">
-            <Button 
-              className="btn-premium hover-scale"
-              onClick={() => handleApplyOptimization(topRecommendation)}
-            >
+          <Button 
+            className="btn-premium hover-scale"
+            onClick={() => setShowOptimizationDialog(true)}
+          >
               <CheckCircle className="w-4 h-4 mr-2" />
               Apply This Optimization
             </Button>
@@ -197,7 +182,7 @@ export const MotorIQEnhanced = () => {
                   <Button 
                     size="sm" 
                     className="btn-premium hover-scale w-full"
-                    onClick={() => handleApplyOptimization(vehicle)}
+                    onClick={() => setShowOptimizationDialog(true)}
                   >
                     Apply Optimization
                   </Button>

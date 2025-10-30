@@ -39,18 +39,12 @@ export const DashboardOverview = ({ modules, onModuleClick }: DashboardOverviewP
 
   return (
     <>
-      {suggestedVehicle && (
-        <PriceOptimizationDialog
-          open={showOptimizationDialog}
-          onOpenChange={setShowOptimizationDialog}
-          vehicle={{
-            name: suggestedVehicle.name,
-            currentRate: suggestedVehicle.current_rate,
-            suggestedRate: suggestedVehicle.suggested_rate || suggestedVehicle.current_rate
-          }}
-          onApply={(newRate) => applyPriceOptimization(suggestedVehicle.id, newRate)}
-        />
-      )}
+      <PriceOptimizationDialog
+        open={showOptimizationDialog}
+        onOpenChange={setShowOptimizationDialog}
+        vehicles={vehicles}
+        onApply={(vehicleId, newRate) => applyPriceOptimization(vehicleId, newRate)}
+      />
     <div className="space-y-6">
       {/* Hero Metric */}
       <Card className="card-premium bg-gradient-to-br from-primary/10 via-accent/5 to-success/10 border-primary/20 p-8">
