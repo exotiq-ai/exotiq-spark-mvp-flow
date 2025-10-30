@@ -1,6 +1,10 @@
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useFleet } from "@/contexts/FleetContext";
+import { DocumentUploadDialog } from "@/components/dialogs/DocumentUploadDialog";
+import { useToast } from "@/hooks/use-toast";
 import { 
   Shield, 
   FileText, 
@@ -14,6 +18,10 @@ import {
 } from "lucide-react";
 
 export const VaultEnhanced = () => {
+  const { documents, uploadDocument, deleteDocument } = useFleet();
+  const { toast } = useToast();
+  const [showUploadDialog, setShowUploadDialog] = useState(false);
+
   const urgentAlert = {
     title: "License Expiring Soon",
     document: "Driver License - Sarah M.",
@@ -36,24 +44,29 @@ export const VaultEnhanced = () => {
     { name: "Licenses", status: "urgent", items: 6, expiring: 1, icon: AlertTriangle }
   ];
 
-  const recentDocuments = [
-    {
-      name: "McLaren 720S Insurance Policy",
-      type: "Insurance",
-      uploaded: "2 days ago",
-      expires: "Mar 15, 2025",
-      status: "active"
-    },
-    {
-      name: "Driver License - John Smith", 
-      type: "License",
-      uploaded: "1 week ago",
-      expires: "Dec 22, 2024",
-      status: "expiring"
-    }
-  ];
+  const recentDocuments = documents.slice(0, 5);
+
+  const handleDownload = (docName: string) => {
+    toast({
+      title: "Download Started",
+      description: `Downloading ${docName}...`,
+    });
+  };
+
+  const handleView = (docName: string) => {
+    toast({
+      title: "Opening Document",
+      description: `Opening ${docName} in viewer...`,
+    });
+  };
 
   return (
+    <>
+      <DocumentUploadDialog
+        open={showUploadDialog}
+        onOpenChange={setShowUploadDialog}
+        onSubmit={uploadDocument}
+      />
     <div className="space-y-6">
       {/* Hero - Urgent Alert */}
       <Card className="card-premium bg-gradient-to-br from-warning/10 to-destructive/10 border-warning/20 p-8">
@@ -80,11 +93,21 @@ export const VaultEnhanced = () => {
         </div>
 
         <div className="flex space-x-3">
-          <Button className="btn-premium hover-scale">
+          <Button 
+            className="btn-premium hover-scale"
+            onClick={() => setShowUploadDialog(true)}
+          >
             <Upload className="w-4 h-4 mr-2" />
             Renew Now
           </Button>
-          <Button variant="outline" className="hover-scale">
+          <Button 
+            variant="outline" 
+            className="hover-scale"
+            onClick={() => toast({
+              title: "Document Details",
+              description: "Opening detailed compliance view...",
+            })}
+          >
             View Details
             <ArrowRight className="w-4 h-4 ml-2" />
           </Button>
@@ -130,7 +153,10 @@ export const VaultEnhanced = () => {
       <Card className="card-premium p-6">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-xl font-semibold">Recent Documents</h3>
-          <Button className="btn-premium hover-scale">
+          <Button 
+            className="btn-premium hover-scale"
+            onClick={() => setShowUploadDialog(true)}
+          >
             <Upload className="w-4 h-4 mr-2" />
             Upload
           </Button>
@@ -160,10 +186,18 @@ export const VaultEnhanced = () => {
                   Expires: {doc.expires}
                 </div>
                 <div className="flex space-x-1">
-                  <Button size="sm" variant="ghost">
+                  <Button 
+                    size="sm" 
+                    variant="ghost"
+                    onClick={() => handleView(doc.name)}
+                  >
                     <Eye className="w-4 h-4" />
                   </Button>
-                  <Button size="sm" variant="ghost">
+                  <Button 
+                    size="sm" 
+                    variant="ghost"
+                    onClick={() => handleDownload(doc.name)}
+                  >
                     <Download className="w-4 h-4" />
                   </Button>
                 </div>
@@ -173,5 +207,6 @@ export const VaultEnhanced = () => {
         </div>
       </Card>
     </div>
+    </>
   );
 };

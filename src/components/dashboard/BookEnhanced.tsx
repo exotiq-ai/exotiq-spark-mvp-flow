@@ -1,6 +1,10 @@
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useFleet } from "@/contexts/FleetContext";
+import { NewBookingDialog } from "@/components/dialogs/NewBookingDialog";
+import { BookingDetailsDialog } from "@/components/dialogs/BookingDetailsDialog";
 import { 
   Calendar, 
   Clock, 
@@ -12,7 +16,12 @@ import {
 } from "lucide-react";
 
 export const BookEnhanced = () => {
-  const nextBooking = {
+  const { bookings, createBooking, updateBookingStatus } = useFleet();
+  const [showNewBooking, setShowNewBooking] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState<any>(null);
+  const [showBookingDetails, setShowBookingDetails] = useState(false);
+
+  const nextBooking = bookings.find(b => b.status === 'confirmed') || {
     vehicle: "McLaren 720S",
     customer: "John Smith",
     time: "2:00 PM Today",
@@ -21,34 +30,32 @@ export const BookEnhanced = () => {
     status: "confirmed"
   };
 
+  const todayBookings = bookings.slice(0, 5);
+
   const todayStats = [
-    { label: "Today's Bookings", value: "3", icon: Calendar },
+    { label: "Today's Bookings", value: bookings.filter(b => b.date === 'Today').length.toString(), icon: Calendar },
     { label: "This Week", value: "35", icon: Clock },
     { label: "Next 7 Days", value: "$12,400", icon: CheckCircle }
   ];
 
-  const todayBookings = [
-    {
-      id: "BK001",
-      vehicle: "McLaren 720S",
-      customer: "John Smith",
-      time: "2:00 PM - 5:00 PM",
-      location: "Downtown",
-      status: "confirmed",
-      value: "$450"
-    },
-    {
-      id: "BK002", 
-      vehicle: "Lamborghini Huracán",
-      customer: "Sarah Johnson",
-      time: "6:00 PM - 11:59 PM",
-      location: "Airport",
-      status: "pending",
-      value: "$520"
-    }
-  ];
+  const handleViewDetails = (booking: any) => {
+    setSelectedBooking(booking);
+    setShowBookingDetails(true);
+  };
 
   return (
+    <>
+      <NewBookingDialog
+        open={showNewBooking}
+        onOpenChange={setShowNewBooking}
+        onSubmit={createBooking}
+      />
+      <BookingDetailsDialog
+        open={showBookingDetails}
+        onOpenChange={setShowBookingDetails}
+        booking={selectedBooking}
+        onUpdateStatus={updateBookingStatus}
+      />
     <div className="space-y-6">
       {/* Hero - Next Booking */}
       <Card className="card-premium bg-gradient-to-br from-accent/10 to-primary/10 border-accent/20 p-8">
@@ -81,7 +88,10 @@ export const BookEnhanced = () => {
           </div>
         </div>
 
-        <Button className="btn-premium w-full hover-scale">
+        <Button 
+          className="btn-premium w-full hover-scale"
+          onClick={() => handleViewDetails(nextBooking)}
+        >
           <Calendar className="w-5 h-5 mr-2" />
           View Full Schedule
         </Button>
@@ -106,7 +116,10 @@ export const BookEnhanced = () => {
       <Card className="card-premium p-6">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-xl font-semibold">Today's Schedule</h3>
-          <Button className="btn-premium hover-scale">
+          <Button 
+            className="btn-premium hover-scale"
+            onClick={() => setShowNewBooking(true)}
+          >
             <Plus className="w-4 h-4 mr-2" />
             New Booking
           </Button>
@@ -114,7 +127,11 @@ export const BookEnhanced = () => {
         
         <div className="space-y-4">
           {todayBookings.map((booking) => (
-            <div key={booking.id} className="p-4 rounded-xl bg-muted/30 border border-primary/10 hover-scale cursor-pointer">
+            <div 
+              key={booking.id} 
+              className="p-4 rounded-xl bg-muted/30 border border-primary/10 hover-scale cursor-pointer"
+              onClick={() => handleViewDetails(booking)}
+            >
               <div className="flex items-start justify-between mb-3">
                 <div>
                   <h4 className="font-semibold text-lg">{booking.vehicle}</h4>
@@ -142,7 +159,14 @@ export const BookEnhanced = () => {
               
               <div className="flex items-center justify-between">
                 <span className="font-semibold text-primary text-lg">{booking.value}</span>
-                <Button size="sm" variant="outline">
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleViewDetails(booking);
+                  }}
+                >
                   View Details
                   <ArrowRight className="w-4 h-4 ml-1" />
                 </Button>
@@ -152,5 +176,6 @@ export const BookEnhanced = () => {
         </div>
       </Card>
     </div>
+    </>
   );
 };

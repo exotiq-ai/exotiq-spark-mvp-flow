@@ -1,6 +1,10 @@
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useFleet } from "@/contexts/FleetContext";
+import { PriceOptimizationDialog } from "@/components/dialogs/PriceOptimizationDialog";
+import { useToast } from "@/hooks/use-toast";
 import { 
   DollarSign, 
   TrendingUp, 
@@ -27,7 +31,26 @@ interface DashboardOverviewProps {
 }
 
 export const DashboardOverview = ({ modules, onModuleClick }: DashboardOverviewProps) => {
+  const { revenue, vehicles, applyPriceOptimization } = useFleet();
+  const { toast } = useToast();
+  const [showOptimizationDialog, setShowOptimizationDialog] = useState(false);
+  
+  const suggestedVehicle = vehicles.find(v => v.suggestedRate);
+
   return (
+    <>
+      {suggestedVehicle && (
+        <PriceOptimizationDialog
+          open={showOptimizationDialog}
+          onOpenChange={setShowOptimizationDialog}
+          vehicle={{
+            name: suggestedVehicle.name,
+            currentRate: suggestedVehicle.currentRate,
+            suggestedRate: suggestedVehicle.suggestedRate || suggestedVehicle.currentRate
+          }}
+          onApply={(newRate) => applyPriceOptimization(suggestedVehicle.id, newRate)}
+        />
+      )}
     <div className="space-y-6">
       {/* Hero Metric */}
       <Card className="card-premium bg-gradient-to-br from-primary/10 via-accent/5 to-success/10 border-primary/20 p-8">
@@ -37,13 +60,13 @@ export const DashboardOverview = ({ modules, onModuleClick }: DashboardOverviewP
               <Activity className="w-3 h-3 mr-1" />
               Live Today
             </Badge>
-            <h2 className="text-6xl font-bold mb-2">$24,680</h2>
+            <h2 className="text-6xl font-bold mb-2">${revenue.month.toLocaleString()}</h2>
             <p className="text-2xl text-muted-foreground">Total Revenue This Month</p>
           </div>
           <div className="text-right">
             <div className="flex items-center text-success text-3xl font-semibold mb-2">
               <TrendingUp className="w-8 h-8 mr-2" />
-              +12%
+              +{revenue.change}%
             </div>
             <p className="text-sm text-muted-foreground">vs last month</p>
           </div>
@@ -52,7 +75,7 @@ export const DashboardOverview = ({ modules, onModuleClick }: DashboardOverviewP
         <div className="grid grid-cols-4 gap-4 mt-6">
           <div className="bg-card/50 backdrop-blur-sm rounded-xl p-4">
             <DollarSign className="h-5 w-5 text-success mb-2" />
-            <div className="text-2xl font-bold">$3,240</div>
+            <div className="text-2xl font-bold">${revenue.today.toLocaleString()}</div>
             <div className="text-xs text-muted-foreground">Today</div>
           </div>
           <div className="bg-card/50 backdrop-blur-sm rounded-xl p-4">
@@ -91,11 +114,18 @@ export const DashboardOverview = ({ modules, onModuleClick }: DashboardOverviewP
               Market demand shows 89% probability of maintaining bookings at this price point.
             </p>
             <div className="flex space-x-3">
-              <Button className="btn-premium hover-scale">
+              <Button 
+                className="btn-premium hover-scale"
+                onClick={() => setShowOptimizationDialog(true)}
+              >
                 <Zap className="w-4 h-4 mr-2" />
                 Apply Optimization
               </Button>
-              <Button variant="outline" className="hover-scale">
+              <Button 
+                variant="outline" 
+                className="hover-scale"
+                onClick={() => onModuleClick('motoriq')}
+              >
                 View Analysis
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
@@ -134,5 +164,6 @@ export const DashboardOverview = ({ modules, onModuleClick }: DashboardOverviewP
         ))}
       </div>
     </div>
+    </>
   );
 };
