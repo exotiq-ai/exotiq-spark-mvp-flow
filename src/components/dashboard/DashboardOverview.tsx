@@ -35,7 +35,7 @@ export const DashboardOverview = ({ modules, onModuleClick }: DashboardOverviewP
   const { toast } = useToast();
   const [showOptimizationDialog, setShowOptimizationDialog] = useState(false);
   
-  const suggestedVehicle = vehicles.find(v => v.suggestedRate);
+  const suggestedVehicle = vehicles.find(v => v.suggested_rate);
 
   return (
     <>
@@ -45,8 +45,8 @@ export const DashboardOverview = ({ modules, onModuleClick }: DashboardOverviewP
           onOpenChange={setShowOptimizationDialog}
           vehicle={{
             name: suggestedVehicle.name,
-            currentRate: suggestedVehicle.currentRate,
-            suggestedRate: suggestedVehicle.suggestedRate || suggestedVehicle.currentRate
+            currentRate: suggestedVehicle.current_rate,
+            suggestedRate: suggestedVehicle.suggested_rate || suggestedVehicle.current_rate
           }}
           onApply={(newRate) => applyPriceOptimization(suggestedVehicle.id, newRate)}
         />

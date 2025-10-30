@@ -20,16 +20,16 @@ export const MotorIQEnhanced = () => {
 
   const vehiclesWithOptimization = vehicles.map(v => ({
     ...v,
-    opportunity: v.suggestedRate ? `$${((v.suggestedRate - v.currentRate) * 30).toFixed(0)}` : null
+    opportunity: v.suggested_rate ? `$${((v.suggested_rate - v.current_rate) * 30).toFixed(0)}` : null
   }));
 
-  const topRecommendation = vehiclesWithOptimization.find(v => v.suggestedRate) || vehiclesWithOptimization[0];
-  const potentialIncrease = topRecommendation?.suggestedRate 
-    ? (topRecommendation.suggestedRate - topRecommendation.currentRate) * 30 
+  const topRecommendation = vehiclesWithOptimization.find(v => v.suggested_rate) || vehiclesWithOptimization[0];
+  const potentialIncrease = topRecommendation?.suggested_rate 
+    ? (topRecommendation.suggested_rate - topRecommendation.current_rate) * 30 
     : 0;
 
   const handleApplyOptimization = (vehicle: any) => {
-    if (vehicle.suggestedRate) {
+    if (vehicle.suggested_rate) {
       setSelectedVehicle(vehicle);
       setShowOptimizationDialog(true);
     }
@@ -40,7 +40,11 @@ export const MotorIQEnhanced = () => {
       <PriceOptimizationDialog
         open={showOptimizationDialog}
         onOpenChange={setShowOptimizationDialog}
-        vehicle={selectedVehicle || { name: '', currentRate: 0, suggestedRate: 0 }}
+        vehicle={selectedVehicle ? {
+          name: selectedVehicle.name,
+          currentRate: selectedVehicle.current_rate,
+          suggestedRate: selectedVehicle.suggested_rate
+        } : { name: '', currentRate: 0, suggestedRate: 0 }}
         onApply={(newRate) => {
           if (selectedVehicle) {
             applyPriceOptimization(selectedVehicle.id, newRate);
@@ -72,7 +76,7 @@ export const MotorIQEnhanced = () => {
           <div className="bg-card/50 backdrop-blur-sm rounded-xl p-6 mb-4">
             <h3 className="text-xl font-semibold mb-2">{topRecommendation?.name} Optimization</h3>
             <p className="text-lg text-success font-medium mb-3">
-              Increase rate to ${topRecommendation?.suggestedRate || topRecommendation?.currentRate}/day
+              Increase rate to ${topRecommendation?.suggested_rate || topRecommendation?.current_rate}/day
             </p>
             <p className="text-sm text-muted-foreground">
               Market demand analysis shows high probability of maintaining bookings at this price point.
@@ -92,8 +96,8 @@ export const MotorIQEnhanced = () => {
               className="hover-scale"
               onClick={() => {
                 vehiclesWithOptimization.forEach(v => {
-                  if (v.suggestedRate) {
-                    applyPriceOptimization(v.id, v.suggestedRate);
+                  if (v.suggested_rate) {
+                    applyPriceOptimization(v.id, v.suggested_rate);
                   }
                 });
               }}
@@ -112,7 +116,7 @@ export const MotorIQEnhanced = () => {
               <Badge variant="outline" className="text-xs">This Week</Badge>
             </div>
             <div className="text-3xl font-bold text-primary mb-1">
-              ${vehicles.reduce((sum, v) => sum + v.revenue, 0).toLocaleString()}
+              ${vehicles.reduce((sum, v) => sum + (v.revenue || 0), 0).toLocaleString()}
             </div>
             <div className="text-sm text-muted-foreground mb-2">Total Fleet Revenue</div>
             <div className="flex items-center text-xs text-success">
@@ -127,7 +131,7 @@ export const MotorIQEnhanced = () => {
               <Badge variant="outline" className="text-xs">Active</Badge>
             </div>
             <div className="text-3xl font-bold text-primary mb-1">
-              {vehiclesWithOptimization.filter(v => v.suggestedRate).length}
+              {vehiclesWithOptimization.filter(v => v.suggested_rate).length}
             </div>
             <div className="text-sm text-muted-foreground mb-2">Active Optimizations</div>
             <div className="text-xs text-muted-foreground">
@@ -141,7 +145,7 @@ export const MotorIQEnhanced = () => {
               <Badge variant="outline" className="text-xs">Avg</Badge>
             </div>
             <div className="text-3xl font-bold text-primary mb-1">
-              {Math.round(vehicles.reduce((sum, v) => sum + v.utilization, 0) / vehicles.length)}%
+              {Math.round(vehicles.reduce((sum, v) => sum + (v.utilization || 0), 0) / vehicles.length)}%
             </div>
             <div className="text-sm text-muted-foreground mb-2">Fleet Utilization</div>
             <div className="flex items-center text-xs text-success">
@@ -165,11 +169,11 @@ export const MotorIQEnhanced = () => {
                     <h4 className="font-semibold text-lg">{vehicle.name}</h4>
                     <div className="flex items-center space-x-4 mt-1">
                       <span className="text-sm text-muted-foreground">
-                        Current: <span className="font-medium text-foreground">${vehicle.currentRate}/day</span>
+                        Current: <span className="font-medium text-foreground">${vehicle.current_rate}/day</span>
                       </span>
-                      {vehicle.suggestedRate && (
+                      {vehicle.suggested_rate && (
                         <span className="text-sm text-success">
-                          Suggested: ${vehicle.suggestedRate}/day
+                          Suggested: ${vehicle.suggested_rate}/day
                         </span>
                       )}
                     </div>
@@ -184,12 +188,12 @@ export const MotorIQEnhanced = () => {
                   <div className="flex-1 bg-muted/50 rounded-full h-2">
                     <div 
                       className="bg-primary h-2 rounded-full" 
-                      style={{ width: `${vehicle.utilization}%` }}
+                      style={{ width: `${vehicle.utilization || 0}%` }}
                     />
                   </div>
-                  <span className="text-sm font-medium">{vehicle.utilization}% utilized</span>
+                  <span className="text-sm font-medium">{vehicle.utilization || 0}% utilized</span>
                 </div>
-                {vehicle.suggestedRate && (
+                {vehicle.suggested_rate && (
                   <Button 
                     size="sm" 
                     className="btn-premium hover-scale w-full"

@@ -18,16 +18,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Upload, FileText, Calendar } from 'lucide-react';
+import { TablesInsert } from '@/integrations/supabase/types';
 
 interface DocumentUploadDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (document: {
-    name: string;
-    type: string;
-    expires: string;
-    status: 'active' | 'expiring';
-  }) => void;
+  onSubmit: (document: TablesInsert<"documents">) => Promise<void>;
 }
 
 export const DocumentUploadDialog = ({
@@ -48,7 +44,7 @@ export const DocumentUploadDialog = ({
     'Other'
   ];
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!name || !type || !expiryDate) {
       return;
     }
@@ -57,11 +53,13 @@ export const DocumentUploadDialog = ({
     const today = new Date();
     const daysUntilExpiry = Math.ceil((expiryDateObj.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
     
-    onSubmit({
+    await onSubmit({
       name,
       type,
-      expires: expiryDateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-      status: daysUntilExpiry <= 30 ? 'expiring' : 'active'
+      expires_at: expiryDateObj.toISOString(),
+      status: daysUntilExpiry <= 30 ? 'expiring' : 'active',
+      file_url: 'https://placeholder.com/document', // Placeholder for now
+      user_id: '' // Will be set by context
     });
 
     // Reset form

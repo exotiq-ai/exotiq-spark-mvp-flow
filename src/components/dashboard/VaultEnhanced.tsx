@@ -60,6 +60,12 @@ export const VaultEnhanced = () => {
     });
   };
 
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
   return (
     <>
       <DocumentUploadDialog
@@ -172,7 +178,7 @@ export const VaultEnhanced = () => {
                   </div>
                   <div>
                     <h4 className="font-semibold">{doc.name}</h4>
-                    <p className="text-xs text-muted-foreground">{doc.type} • {doc.uploaded}</p>
+                    <p className="text-xs text-muted-foreground">{doc.type} • {formatDate(doc.created_at)}</p>
                   </div>
                 </div>
                 <Badge className={doc.status === 'active' ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'}>
@@ -183,7 +189,7 @@ export const VaultEnhanced = () => {
               <div className="flex items-center justify-between">
                 <div className="flex items-center text-xs text-muted-foreground">
                   <Calendar className="w-3 h-3 mr-1" />
-                  Expires: {doc.expires}
+                  Expires: {formatDate(doc.expires_at)}
                 </div>
                 <div className="flex space-x-1">
                   <Button 

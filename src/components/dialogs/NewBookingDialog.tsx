@@ -18,19 +18,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Calendar, User, MapPin, Clock, DollarSign } from 'lucide-react';
+import { TablesInsert } from '@/integrations/supabase/types';
 
 interface NewBookingDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (booking: {
-    vehicle: string;
-    customer: string;
-    time: string;
-    location: string;
-    status: 'confirmed' | 'pending';
-    value: string;
-    date: string;
-  }) => void;
+  onSubmit: (booking: TablesInsert<"bookings">) => Promise<void>;
 }
 
 export const NewBookingDialog = ({
@@ -38,46 +31,48 @@ export const NewBookingDialog = ({
   onOpenChange,
   onSubmit
 }: NewBookingDialogProps) => {
-  const [vehicle, setVehicle] = useState('');
-  const [customer, setCustomer] = useState('');
-  const [date, setDate] = useState('');
-  const [startTime, setStartTime] = useState('');
-  const [endTime, setEndTime] = useState('');
-  const [location, setLocation] = useState('');
-  const [rate, setRate] = useState('');
+  const [vehicleId, setVehicleId] = useState('');
+  const [customerName, setCustomerName] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [pickupLocation, setPickupLocation] = useState('');
+  const [dailyRate, setDailyRate] = useState('');
 
   const vehicles = [
-    'McLaren 720S - $450/day',
-    'Ferrari 488 - $520/day',
-    'Lamborghini Huracán - $480/day',
-    'Porsche 911 GT3 - $380/day'
+    { id: '1', name: 'McLaren 720S', rate: 450 },
+    { id: '2', name: 'Ferrari 488', rate: 520 },
+    { id: '3', name: 'Lamborghini Huracán', rate: 480 },
+    { id: '4', name: 'Porsche 911 GT3', rate: 380 }
   ];
 
-  const handleSubmit = () => {
-    if (!vehicle || !customer || !date || !startTime || !endTime || !location || !rate) {
+  const handleSubmit = async () => {
+    if (!vehicleId || !customerName || !startDate || !endDate || !pickupLocation || !dailyRate) {
       return;
     }
 
-    const vehicleName = vehicle.split(' - ')[0];
-    
-    onSubmit({
-      vehicle: vehicleName,
-      customer,
-      time: `${startTime} - ${endTime}`,
-      location,
+    const days = Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24));
+    const totalValue = Number(dailyRate) * days;
+
+    await onSubmit({
+      vehicle_id: vehicleId,
+      customer_name: customerName,
+      start_date: new Date(startDate).toISOString(),
+      end_date: new Date(endDate).toISOString(),
+      pickup_location: pickupLocation,
+      daily_rate: Number(dailyRate),
+      total_value: totalValue,
       status: 'pending',
-      value: `$${rate}`,
-      date
+      user_id: '' // Will be set by context
     });
 
     // Reset form
-    setVehicle('');
-    setCustomer('');
-    setDate('');
-    setStartTime('');
-    setEndTime('');
-    setLocation('');
-    setRate('');
+    setVehicleId('');
+    setCustomerName('');
+    setStartDate('');
+    setEndDate('');
+    setPickupLocation('');
+    setDailyRate('');
+    onOpenChange(false);
   };
 
   return (
@@ -97,14 +92,18 @@ export const NewBookingDialog = ({
           {/* Vehicle Selection */}
           <div className="space-y-2">
             <Label htmlFor="vehicle">Vehicle</Label>
-            <Select value={vehicle} onValueChange={setVehicle}>
+            <Select value={vehicleId} onValueChange={(value) => {
+              setVehicleId(value);
+              const vehicle = vehicles.find(v => v.id === value);
+              if (vehicle) setDailyRate(vehicle.rate.toString());
+            }}>
               <SelectTrigger id="vehicle">
                 <SelectValue placeholder="Select vehicle" />
               </SelectTrigger>
               <SelectContent>
                 {vehicles.map((v) => (
-                  <SelectItem key={v} value={v}>
-                    {v}
+                  <SelectItem key={v.id} value={v.id}>
+                    {v.name} - ${v.rate}/day
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -119,40 +118,31 @@ export const NewBookingDialog = ({
               <Input
                 id="customer"
                 placeholder="John Smith"
-                value={customer}
-                onChange={(e) => setCustomer(e.target.value)}
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
                 className="pl-10"
               />
             </div>
           </div>
 
-          {/* Date and Time */}
-          <div className="grid grid-cols-3 gap-3">
+          {/* Start and End Date */}
+          <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label htmlFor="date">Date</Label>
+              <Label htmlFor="start-date">Start Date</Label>
               <Input
-                id="date"
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
+                id="start-date"
+                type="datetime-local"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="start-time">Start</Label>
+              <Label htmlFor="end-date">End Date</Label>
               <Input
-                id="start-time"
-                type="time"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="end-time">End</Label>
-              <Input
-                id="end-time"
-                type="time"
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
+                id="end-date"
+                type="datetime-local"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
               />
             </div>
           </div>
@@ -165,8 +155,8 @@ export const NewBookingDialog = ({
               <Input
                 id="location"
                 placeholder="Downtown, Airport, etc."
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
+                value={pickupLocation}
+                onChange={(e) => setPickupLocation(e.target.value)}
                 className="pl-10"
               />
             </div>
@@ -181,8 +171,8 @@ export const NewBookingDialog = ({
                 id="rate"
                 type="number"
                 placeholder="450"
-                value={rate}
-                onChange={(e) => setRate(e.target.value)}
+                value={dailyRate}
+                onChange={(e) => setDailyRate(e.target.value)}
                 className="pl-10"
               />
             </div>
@@ -193,7 +183,7 @@ export const NewBookingDialog = ({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={!vehicle || !customer || !date || !startTime || !endTime || !location || !rate}>
+          <Button onClick={handleSubmit} disabled={!vehicleId || !customerName || !startDate || !endDate || !pickupLocation || !dailyRate}>
             Create Booking
           </Button>
         </DialogFooter>
