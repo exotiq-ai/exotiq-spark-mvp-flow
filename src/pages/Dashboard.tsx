@@ -9,7 +9,7 @@ import { SEOHead } from "@/components/common/SEOHead";
 import { useAnalytics } from "@/lib/analytics";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useSwipeGesture } from "@/hooks/useSwipeGesture";
-import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+// import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { performance } from "@/lib/performance";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -39,7 +39,7 @@ const Dashboard = () => {
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Enable keyboard shortcuts
-  useKeyboardShortcuts();
+  // useKeyboardShortcuts();
 
   const moduleOrder = ["dashboard", "core", "book", "pulse", "motoriq", "vault"];
   const currentIndex = moduleOrder.indexOf(activeModule);
