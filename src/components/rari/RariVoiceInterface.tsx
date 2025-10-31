@@ -68,11 +68,14 @@ export default function RariVoiceInterface() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [inputText, setInputText] = useState('');
+  const [recordingDuration, setRecordingDuration] = useState(0);
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const audioQueueRef = useRef<AudioQueue>(new AudioQueue());
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const recordingStartTimeRef = useRef<number>(0);
+  const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -88,14 +91,44 @@ export default function RariVoiceInterface() {
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
 
+      // Track recording start time
+      recordingStartTimeRef.current = Date.now();
+      setRecordingDuration(0);
+
+      // Update duration every 100ms
+      recordingTimerRef.current = setInterval(() => {
+        const duration = (Date.now() - recordingStartTimeRef.current) / 1000;
+        setRecordingDuration(duration);
+      }, 100);
+
       mediaRecorder.ondataavailable = (event) => {
         audioChunksRef.current.push(event.data);
       };
 
       mediaRecorder.onstop = async () => {
+        if (recordingTimerRef.current) {
+          clearInterval(recordingTimerRef.current);
+          recordingTimerRef.current = null;
+        }
+
+        const recordingDuration = (Date.now() - recordingStartTimeRef.current) / 1000;
+        
+        // Check minimum duration (0.5 seconds)
+        if (recordingDuration < 0.5) {
+          toast({
+            title: "Recording Too Short",
+            description: "Please hold the button for at least 0.5 seconds to record.",
+            variant: "destructive",
+          });
+          stream.getTracks().forEach(track => track.stop());
+          setRecordingDuration(0);
+          return;
+        }
+
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         await processAudioInput(audioBlob);
         stream.getTracks().forEach(track => track.stop());
+        setRecordingDuration(0);
       };
 
       mediaRecorder.start();
@@ -376,7 +409,9 @@ export default function RariVoiceInterface() {
           </Button>
         </div>
         <p className="text-xs text-center text-muted-foreground">
-          {isRecording ? 'Release to send' : 'Hold to talk'}
+          {isRecording 
+            ? `Recording: ${recordingDuration.toFixed(1)}s (min 0.5s)` 
+            : 'Hold to talk'}
         </p>
       </div>
     </div>
