@@ -104,6 +104,16 @@ export default function RariVoiceInterface() {
     }
   }, [messages]);
 
+  // Format assistant messages: support **bold** while escaping HTML
+  const formatMessage = (text: string) => {
+    const escaped = text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    const withBold = escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    return withBold.replace(/\n/g, '<br/>');
+  };
+
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -379,7 +389,7 @@ export default function RariVoiceInterface() {
                 <p className="text-sm font-medium mb-1">
                   {message.role === 'user' ? 'You' : 'Rari'}
                 </p>
-                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                <div className="text-sm" dangerouslySetInnerHTML={{ __html: formatMessage(message.content) }} />
                 <p className="text-xs text-muted-foreground mt-1">
                   {message.timestamp.toLocaleTimeString()}
                 </p>

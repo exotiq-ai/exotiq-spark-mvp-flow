@@ -1,4 +1,5 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { encode as base64Encode } from 'https://deno.land/std@0.168.0/encoding/base64.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -54,18 +55,7 @@ serve(async (req) => {
     }
 
     const arrayBuffer = await response.arrayBuffer();
-    
-    // Convert to base64 in chunks to avoid stack overflow
-    const uint8Array = new Uint8Array(arrayBuffer);
-    let binaryString = '';
-    const chunkSize = 8192;
-    
-    for (let i = 0; i < uint8Array.length; i += chunkSize) {
-      const chunk = uint8Array.subarray(i, Math.min(i + chunkSize, uint8Array.length));
-      binaryString += String.fromCharCode(...chunk);
-    }
-    
-    const base64Audio = btoa(binaryString);
+    const base64Audio = base64Encode(new Uint8Array(arrayBuffer));
 
     return new Response(
       JSON.stringify({ audioContent: base64Audio }),
