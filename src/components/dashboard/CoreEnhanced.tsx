@@ -24,6 +24,7 @@ import { ScheduleMaintenanceDialog } from "@/components/dialogs/ScheduleMaintena
 import { SendMessageDialog } from "@/components/dialogs/SendMessageDialog";
 import { GenerateReportDialog } from "@/components/dialogs/GenerateReportDialog";
 import { PriceOptimizationDialog } from "@/components/dialogs/PriceOptimizationDialog";
+import RariVoiceInterface from "@/components/rari/RariVoiceInterface";
 import { CRMSection } from "@/components/dashboard/CRMSection";
 import { UserManagementSection } from "@/components/dashboard/UserManagementSection";
 import { SystemSettingsSection } from "@/components/dashboard/SystemSettingsSection";
@@ -165,16 +166,10 @@ export const CoreEnhanced = () => {
             <h2 className="text-3xl font-bold">FleetCopilot™</h2>
             <p className="text-xl text-muted-foreground mt-1">AI Command Center & CRM</p>
           </div>
-          <div className="flex items-center space-x-4">
-            <Button className="btn-premium">
-              <Settings className="w-4 h-4 mr-2" />
-              Configure AI
-            </Button>
-            <Badge className="bg-primary/10 text-primary border-primary/20">
-              <Brain className="w-4 h-4 mr-1" />
-              FleetCopilot™ Active
-            </Badge>
-          </div>
+          <Badge className="bg-primary/10 text-primary border-primary/20 text-lg px-4 py-2">
+            <Brain className="w-5 h-5 mr-2" />
+            Rari FleetCopilot™ Active
+          </Badge>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -198,9 +193,13 @@ export const CoreEnhanced = () => {
         </div>
       </Card>
 
-      {/* Tabbed Interface for AI Insights & CRM */}
-      <Tabs defaultValue="crm" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+      {/* Tabbed Interface for Rari, AI Insights & CRM */}
+      <Tabs defaultValue="rari" className="w-full">
+        <TabsList className="grid w-full grid-cols-6">
+          <TabsTrigger value="rari" className="text-primary">
+            <Brain className="w-4 h-4 mr-2" />
+            Talk to Rari
+          </TabsTrigger>
           <TabsTrigger value="crm">
             <Users className="w-4 h-4 mr-2" />
             Customer CRM
@@ -222,6 +221,12 @@ export const CoreEnhanced = () => {
             System Settings
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="rari">
+          <Card className="card-premium p-0 overflow-hidden">
+            <RariVoiceInterface />
+          </Card>
+        </TabsContent>
 
         <TabsContent value="crm">
           <CRMSection />
