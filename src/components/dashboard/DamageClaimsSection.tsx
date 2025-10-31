@@ -26,8 +26,11 @@ export const DamageClaimsSection = () => {
 
   const filteredClaims = damageClaims.filter(claim => {
     const vehicle = vehicles.find(v => v.id === claim.vehicle_id);
-    const matchesSearch = vehicle?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         claim.description.toLowerCase().includes(searchTerm.toLowerCase());
+    const vehicleName = vehicle?.name?.toLowerCase() || '';
+    const description = claim.description?.toLowerCase() || '';
+    const searchLower = searchTerm.toLowerCase().trim();
+    
+    const matchesSearch = vehicleName.includes(searchLower) || description.includes(searchLower);
     const matchesStatus = statusFilter === "all" || claim.claim_status === statusFilter;
     return matchesSearch && matchesStatus;
   });

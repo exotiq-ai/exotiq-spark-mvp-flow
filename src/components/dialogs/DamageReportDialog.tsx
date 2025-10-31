@@ -8,6 +8,32 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useFleet } from "@/contexts/FleetContext";
 import { toast } from "sonner";
 import { Tables } from "@/integrations/supabase/types";
+import { z } from "zod";
+
+const damageClaimSchema = z.object({
+  vehicle_id: z.string().uuid({ message: "Valid vehicle selection required" }),
+  claim_type: z.enum(["accident", "vandalism", "theft", "mechanical", "weather", "other"], {
+    errorMap: () => ({ message: "Please select a valid claim type" })
+  }),
+  severity: z.enum(["minor", "moderate", "major"], {
+    errorMap: () => ({ message: "Please select a valid severity level" })
+  }),
+  description: z.string()
+    .trim()
+    .min(10, { message: "Description must be at least 10 characters" })
+    .max(2000, { message: "Description must be less than 2000 characters" }),
+  estimated_cost: z.string()
+    .optional()
+    .refine((val) => {
+      if (!val || val === "") return true;
+      const num = parseFloat(val);
+      return !isNaN(num) && num >= 0 && num <= 1000000;
+    }, { message: "Estimated cost must be between $0 and $1,000,000" }),
+  insurance_claim_number: z.string()
+    .trim()
+    .max(100, { message: "Insurance claim number must be less than 100 characters" })
+    .optional()
+});
 
 type Vehicle = Tables<"vehicles">;
 
@@ -33,20 +59,24 @@ export const DamageReportDialog = ({ open, onOpenChange, vehicles }: DamageRepor
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.vehicle_id || !formData.claim_type || !formData.severity || !formData.description) {
-      toast.error("Please fill in all required fields");
+    // Validate form data with zod schema
+    const validation = damageClaimSchema.safeParse(formData);
+    
+    if (!validation.success) {
+      const errors = validation.error.errors;
+      toast.error(errors[0].message);
       return;
     }
 
     setIsSubmitting(true);
     try {
       await createDamageClaim({
-        vehicle_id: formData.vehicle_id,
-        claim_type: formData.claim_type,
-        severity: formData.severity,
-        description: formData.description,
-        estimated_cost: formData.estimated_cost ? parseFloat(formData.estimated_cost) : undefined,
-        insurance_claim_number: formData.insurance_claim_number || undefined
+        vehicle_id: validation.data.vehicle_id,
+        claim_type: validation.data.claim_type,
+        severity: validation.data.severity,
+        description: validation.data.description,
+        estimated_cost: validation.data.estimated_cost ? parseFloat(validation.data.estimated_cost) : undefined,
+        insurance_claim_number: validation.data.insurance_claim_number || undefined
       });
 
       // Reset form
@@ -59,9 +89,10 @@ export const DamageReportDialog = ({ open, onOpenChange, vehicles }: DamageRepor
         insurance_claim_number: ""
       });
       
+      toast.success("Damage claim created successfully");
       onOpenChange(false);
     } catch (error) {
-      console.error('Error creating damage claim:', error);
+      toast.error("Failed to create damage claim. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -137,8 +168,12 @@ export const DamageReportDialog = ({ open, onOpenChange, vehicles }: DamageRepor
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               rows={4}
+              maxLength={2000}
               required
             />
+            <p className="text-xs text-muted-foreground">
+              {formData.description.length}/2000 characters
+            </p>
           </div>
 
           {/* Estimated Cost */}
@@ -148,6 +183,8 @@ export const DamageReportDialog = ({ open, onOpenChange, vehicles }: DamageRepor
               id="estimated_cost"
               type="number"
               step="0.01"
+              min="0"
+              max="1000000"
               placeholder="0.00"
               value={formData.estimated_cost}
               onChange={(e) => setFormData({ ...formData, estimated_cost: e.target.value })}
@@ -160,6 +197,7 @@ export const DamageReportDialog = ({ open, onOpenChange, vehicles }: DamageRepor
             <Input
               id="insurance_claim_number"
               placeholder="Optional"
+              maxLength={100}
               value={formData.insurance_claim_number}
               onChange={(e) => setFormData({ ...formData, insurance_claim_number: e.target.value })}
             />
