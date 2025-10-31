@@ -2,18 +2,24 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useFleet } from "@/contexts/FleetContext";
 import { NewBookingDialog } from "@/components/dialogs/NewBookingDialog";
 import { BookingDetailsDialog } from "@/components/dialogs/BookingDetailsDialog";
+import { BookingCalendar } from "@/components/dashboard/BookingCalendar";
+import { PaymentTracker } from "@/components/dashboard/PaymentTracker";
+import { InspectionForm } from "@/components/dashboard/InspectionForm";
 import { 
-  Calendar, 
+  Calendar as CalendarIcon, 
   Clock, 
   MapPin, 
   Car,
   TrendingUp,
   DollarSign,
   Users,
-  Plus
+  Plus,
+  Receipt,
+  ClipboardCheck
 } from "lucide-react";
 import { Tables } from "@/integrations/supabase/types";
 
@@ -89,7 +95,27 @@ export const BookEnhanced = () => {
         />
       )}
 
-      <div className="space-y-6">
+      <Tabs defaultValue="overview" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="overview">
+            <Car className="w-4 h-4 mr-2" />
+            Overview
+          </TabsTrigger>
+          <TabsTrigger value="calendar">
+            <CalendarIcon className="w-4 h-4 mr-2" />
+            Calendar
+          </TabsTrigger>
+          <TabsTrigger value="payments">
+            <Receipt className="w-4 h-4 mr-2" />
+            Payments
+          </TabsTrigger>
+          <TabsTrigger value="inspections">
+            <ClipboardCheck className="w-4 h-4 mr-2" />
+            Inspections
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-6">
         {/* Next Pickup Card */}
         <Card className="card-premium bg-gradient-to-br from-primary/10 to-accent/5 border-primary/20 p-6">
           <div className="flex items-center justify-between mb-4">
@@ -151,7 +177,7 @@ export const BookEnhanced = () => {
         <Card className="card-module p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold flex items-center">
-              <Calendar className="h-5 w-5 mr-2 text-primary" />
+              <CalendarIcon className="h-5 w-5 mr-2 text-primary" />
               Today's Schedule
             </h3>
             <Button onClick={() => setShowNewBooking(true)} size="sm">
@@ -200,7 +226,38 @@ export const BookEnhanced = () => {
             ))}
           </div>
         </Card>
-      </div>
+        </TabsContent>
+
+        <TabsContent value="calendar">
+          <BookingCalendar />
+        </TabsContent>
+
+        <TabsContent value="payments">
+          <PaymentTracker />
+        </TabsContent>
+
+        <TabsContent value="inspections">
+          <div className="space-y-6">
+            <Card className="card-premium p-6">
+              <h3 className="text-lg font-semibold mb-4">Vehicle Inspections</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Select a vehicle to perform an inspection
+              </p>
+              {vehicles.length > 0 ? (
+                <InspectionForm
+                  vehicleId={vehicles[0].id}
+                  inspectionType="pre_rental"
+                />
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <ClipboardCheck className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p>No vehicles available for inspection</p>
+                </div>
+              )}
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
     </>
   );
 };
