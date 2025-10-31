@@ -25,6 +25,8 @@ import { SendMessageDialog } from "@/components/dialogs/SendMessageDialog";
 import { GenerateReportDialog } from "@/components/dialogs/GenerateReportDialog";
 import { PriceOptimizationDialog } from "@/components/dialogs/PriceOptimizationDialog";
 import { CRMSection } from "@/components/dashboard/CRMSection";
+import { UserManagementSection } from "@/components/dashboard/UserManagementSection";
+import { SystemSettingsSection } from "@/components/dashboard/SystemSettingsSection";
 
 export const CoreEnhanced = () => {
   const { vehicles, bookings, createVehicle, createBooking, createMaintenance, sendMessage, generateReport, applyPriceOptimization } = useFleet();
@@ -198,7 +200,7 @@ export const CoreEnhanced = () => {
 
       {/* Tabbed Interface for AI Insights & CRM */}
       <Tabs defaultValue="crm" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="crm">
             <Users className="w-4 h-4 mr-2" />
             Customer CRM
@@ -210,6 +212,14 @@ export const CoreEnhanced = () => {
           <TabsTrigger value="actions">
             <Zap className="w-4 h-4 mr-2" />
             Quick Actions
+          </TabsTrigger>
+          <TabsTrigger value="users">
+            <Users className="w-4 h-4 mr-2" />
+            User Management
+          </TabsTrigger>
+          <TabsTrigger value="settings">
+            <Settings className="w-4 h-4 mr-2" />
+            System Settings
           </TabsTrigger>
         </TabsList>
 
@@ -322,6 +332,14 @@ export const CoreEnhanced = () => {
               ))}
             </div>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="users">
+          <UserManagementSection />
+        </TabsContent>
+
+        <TabsContent value="settings">
+          <SystemSettingsSection />
         </TabsContent>
       </Tabs>
 
