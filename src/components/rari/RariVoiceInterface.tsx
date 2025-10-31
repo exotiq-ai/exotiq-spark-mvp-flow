@@ -350,6 +350,7 @@ export default function RariVoiceInterface() {
   const sendToRari = async (text: string, retryAttempt = false) => {
     const chatStartTime = performance.now();
     setIsProcessing(true);
+    let hasSpokenPartial = false; // Track if we've already generated TTS
 
     // Create new abort controller for this request
     abortControllerRef.current = new AbortController();
@@ -429,9 +430,10 @@ export default function RariVoiceInterface() {
                   return newMessages;
                 });
 
-                // Pre-buffer TTS: Start generating audio after first sentence
-                if (assistantMessage.includes('.') && assistantMessage.length > 50) {
-                  speakText(assistantMessage, true); // true = partial text
+                // Pre-buffer TTS: Only once when first complete sentence arrives
+                if (!hasSpokenPartial && assistantMessage.includes('.') && assistantMessage.length > 50) {
+                  speakText(assistantMessage, true);
+                  hasSpokenPartial = true;
                 }
               }
             } catch (e) {
@@ -445,7 +447,8 @@ export default function RariVoiceInterface() {
       console.log(`⏱️ Total chat response: ${totalDuration.toFixed(0)}ms`);
       setPerformanceMetrics(prev => [...prev.slice(-4), { operation: 'chat', duration: totalDuration }]);
 
-      if (assistantMessage) {
+      // Only speak if we haven't already done partial TTS
+      if (assistantMessage && !hasSpokenPartial) {
         await speakText(assistantMessage);
       }
     } catch (error: any) {
