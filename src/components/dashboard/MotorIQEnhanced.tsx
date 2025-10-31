@@ -36,7 +36,7 @@ export const MotorIQEnhanced = () => {
         vehicles={vehiclesWithOptimization}
         onApply={(vehicleId, newRate) => applyPriceOptimization(vehicleId, newRate)}
       />
-      <div className="space-y-6">
+      <div className="space-y-6 overflow-x-hidden">
         {/* Hero Section - Top Priority AI Insight */}
         <Card className="card-premium bg-gradient-to-br from-success/10 via-primary/5 to-accent/10 border-success/20 p-8">
           <div className="flex items-start justify-between mb-6">
@@ -141,42 +141,42 @@ export const MotorIQEnhanced = () => {
         </div>
 
         {/* Vehicle Performance */}
-        <Card className="card-premium p-6">
+        <Card className="card-premium p-4 sm:p-6 overflow-hidden">
           <h3 className="text-xl font-semibold mb-6">Fleet Performance</h3>
           <div className="space-y-4">
             {vehiclesWithOptimization.map((vehicle, index) => (
               <div 
                 key={index} 
-                className="p-4 rounded-xl bg-muted/30 border border-primary/10 hover-scale cursor-pointer transition-all"
+                className="p-4 rounded-xl bg-muted/30 border border-primary/10 hover-scale cursor-pointer transition-all min-w-0 w-full"
               >
-                <div className="flex items-center justify-between mb-3">
-                  <div>
-                    <h4 className="font-semibold text-lg">{vehicle.name}</h4>
-                    <div className="flex items-center space-x-4 mt-1">
-                      <span className="text-sm text-muted-foreground">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+                  <div className="min-w-0 flex-1">
+                    <h4 className="font-semibold text-lg truncate">{vehicle.name}</h4>
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 gap-1 sm:gap-0 mt-1">
+                      <span className="text-sm text-muted-foreground truncate">
                         Current: <span className="font-medium text-foreground">${vehicle.current_rate}/day</span>
                       </span>
                       {vehicle.suggested_rate && (
-                        <span className="text-sm text-success">
+                        <span className="text-sm text-success truncate">
                           Suggested: ${vehicle.suggested_rate}/day
                         </span>
                       )}
                     </div>
                   </div>
                   {vehicle.opportunity && (
-                    <Badge className="bg-accent/10 text-accent border-accent/20">
+                    <Badge className="bg-accent/10 text-accent border-accent/20 shrink-0 text-xs sm:text-sm whitespace-nowrap">
                       {vehicle.opportunity}/mo opportunity
                     </Badge>
                   )}
                 </div>
-                <div className="flex items-center space-x-3 mb-3">
-                  <div className="flex-1 bg-muted/50 rounded-full h-2">
+                <div className="flex items-center space-x-3 mb-3 min-w-0">
+                  <div className="flex-1 bg-muted/50 rounded-full h-2 min-w-0">
                     <div 
                       className="bg-primary h-2 rounded-full" 
                       style={{ width: `${vehicle.utilization || 0}%` }}
                     />
                   </div>
-                  <span className="text-sm font-medium">{vehicle.utilization || 0}% utilized</span>
+                  <span className="text-sm font-medium shrink-0">{vehicle.utilization || 0}% utilized</span>
                 </div>
                 {vehicle.suggested_rate && (
                   <Button 

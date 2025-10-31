@@ -13,8 +13,7 @@ import { useRealtimeSubscriptions } from "@/hooks/useRealtimeSubscriptions";
 // import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { performance } from "@/lib/performance";
 import { motion, AnimatePresence } from "framer-motion";
-import { GlobalSearch } from "@/components/common/GlobalSearch";
-import { 
+import {
   TrendingUp, 
   Calendar, 
   Shield, 
@@ -185,7 +184,6 @@ const Dashboard = () => {
         noIndex={true}
       />
       <SkipNavigation />
-      <GlobalSearch />
       
       {/* Desktop Sidebar */}
       <DashboardSidebar 
@@ -232,19 +230,19 @@ const Dashboard = () => {
 
         {/* Mobile Bottom Navigation - 6 Items */}
         <div className="mobile-nav">
-          <div className="grid grid-cols-6 gap-1 p-2">
+          <div className="grid grid-cols-6 gap-1.5 p-2">
             <button
               onClick={() => {
                 handleModuleChange("dashboard");
                 if (navigator.vibrate) navigator.vibrate(10);
               }}
-              className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg transition-all hover-scale touch-target focus-visible ${
+              className={`flex flex-col items-center justify-center py-2 px-1.5 rounded-lg transition-all hover-scale touch-target focus-visible ${
                 activeModule === "dashboard" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"
               }`}
               aria-label="Dashboard"
             >
               <Home className="h-5 w-5 mb-1" />
-              <span className="text-[10px] font-medium">Dashboard</span>
+              <span className="text-[10px] font-medium truncate max-w-full">Dashboard</span>
             </button>
             
             <button
@@ -252,13 +250,13 @@ const Dashboard = () => {
                 handleModuleChange("core");
                 if (navigator.vibrate) navigator.vibrate(10);
               }}
-              className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg transition-all hover-scale touch-target focus-visible ${
+              className={`flex flex-col items-center justify-center py-2 px-1.5 rounded-lg transition-all hover-scale touch-target focus-visible ${
                 activeModule === "core" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"
               }`}
               aria-label="FleetCopilot"
             >
               <Brain className="h-5 w-5 mb-1" />
-              <span className="text-[10px] font-medium">FleetCopilot</span>
+              <span className="text-[10px] font-medium truncate max-w-full">Copilot</span>
             </button>
 
             <button
@@ -266,13 +264,13 @@ const Dashboard = () => {
                 handleModuleChange("book");
                 if (navigator.vibrate) navigator.vibrate(10);
               }}
-              className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg transition-all hover-scale touch-target focus-visible ${
+              className={`flex flex-col items-center justify-center py-2 px-1.5 rounded-lg transition-all hover-scale touch-target focus-visible ${
                 activeModule === "book" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"
               }`}
               aria-label="Book"
             >
               <Calendar className="h-5 w-5 mb-1" />
-              <span className="text-[10px] font-medium">Book</span>
+              <span className="text-[10px] font-medium truncate max-w-full">Book</span>
             </button>
 
             <button
@@ -280,13 +278,13 @@ const Dashboard = () => {
                 handleModuleChange("pulse");
                 if (navigator.vibrate) navigator.vibrate(10);
               }}
-              className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg transition-all hover-scale touch-target focus-visible ${
+              className={`flex flex-col items-center justify-center py-2 px-1.5 rounded-lg transition-all hover-scale touch-target focus-visible ${
                 activeModule === "pulse" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"
               }`}
               aria-label="Pulse"
             >
               <BarChart3 className="h-5 w-5 mb-1" />
-              <span className="text-[10px] font-medium">Pulse</span>
+              <span className="text-[10px] font-medium truncate max-w-full">Pulse</span>
             </button>
 
             <button
@@ -294,13 +292,13 @@ const Dashboard = () => {
                 handleModuleChange("motoriq");
                 if (navigator.vibrate) navigator.vibrate(10);
               }}
-              className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg transition-all hover-scale touch-target focus-visible ${
+              className={`flex flex-col items-center justify-center py-2 px-1.5 rounded-lg transition-all hover-scale touch-target focus-visible ${
                 (activeModule === "motoriq" || activeModule === "optimize") ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"
               }`}
               aria-label="MotorIQ"
             >
               <TrendingUp className="h-5 w-5 mb-1" />
-              <span className="text-[10px] font-medium">MotorIQ</span>
+              <span className="text-[10px] font-medium truncate max-w-full">MotorIQ</span>
             </button>
 
             <button
@@ -308,13 +306,13 @@ const Dashboard = () => {
                 handleModuleChange("vault");
                 if (navigator.vibrate) navigator.vibrate(10);
               }}
-              className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg transition-all hover-scale touch-target focus-visible ${
+              className={`flex flex-col items-center justify-center py-2 px-1.5 rounded-lg transition-all hover-scale touch-target focus-visible ${
                 activeModule === "vault" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"
               }`}
               aria-label="Vault"
             >
               <Shield className="h-5 w-5 mb-1" />
-              <span className="text-[10px] font-medium">Vault</span>
+              <span className="text-[10px] font-medium truncate max-w-full">Vault</span>
             </button>
           </div>
         </div>
