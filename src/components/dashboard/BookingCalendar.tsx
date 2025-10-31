@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar } from "@/components/ui/calendar";
 import { useFleet } from "@/contexts/FleetContext";
 import { generateVehicleColors } from "@/lib/conflictDetection";
 import { 
