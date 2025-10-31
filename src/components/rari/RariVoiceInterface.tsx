@@ -476,15 +476,41 @@ export default function RariVoiceInterface() {
     }
   };
 
+  // Clean text for speech: strip markdown, format numbers/currency
+  const cleanTextForSpeech = (text: string): string => {
+    let cleaned = text;
+    
+    // Remove markdown formatting
+    cleaned = cleaned.replace(/\*\*(.+?)\*\*/g, '$1'); // Bold
+    cleaned = cleaned.replace(/\*(.+?)\*/g, '$1'); // Italic
+    cleaned = cleaned.replace(/`(.+?)`/g, '$1'); // Code
+    cleaned = cleaned.replace(/^#+\s+/gm, ''); // Headers
+    cleaned = cleaned.replace(/^[*-]\s+/gm, ''); // Bullet points
+    cleaned = cleaned.replace(/^\d+\.\s+/gm, ''); // Numbered lists
+    
+    // Format currency for speech ($5,000 → "5 thousand dollars")
+    cleaned = cleaned.replace(/\$(\d{1,3}),(\d{3})/g, '$1 thousand dollars');
+    cleaned = cleaned.replace(/\$(\d+)/g, '$1 dollars');
+    
+    // Format percentages
+    cleaned = cleaned.replace(/(\d+)%/g, '$1 percent');
+    
+    // Remove extra whitespace
+    cleaned = cleaned.replace(/\s+/g, ' ').trim();
+    
+    return cleaned;
+  };
+
   const speakText = async (text: string, isPartial = false) => {
     const startTime = performance.now();
+    const cleanedText = cleanTextForSpeech(text);
     
     try {
       const { data: audioData, error: audioError } = await retryWithBackoff(
         async () => {
           const result = await supabase.functions.invoke(
             'text-to-speech',
-            { body: { text } }
+            { body: { text: cleanedText } }
           );
           if (result.error) throw result.error;
           return result;
