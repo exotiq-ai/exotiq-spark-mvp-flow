@@ -2,8 +2,10 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useFleet } from "@/contexts/FleetContext";
 import { DocumentUploadDialog } from "@/components/dialogs/DocumentUploadDialog";
+import { DamageClaimsSection } from "@/components/dashboard/DamageClaimsSection";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Shield, 
@@ -73,7 +75,20 @@ export const VaultEnhanced = () => {
         onOpenChange={setShowUploadDialog}
         onSubmit={uploadDocument}
       />
-    <div className="space-y-6">
+
+      <Tabs defaultValue="documents" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="documents">
+            <FileText className="w-4 h-4 mr-2" />
+            Documents
+          </TabsTrigger>
+          <TabsTrigger value="claims">
+            <AlertTriangle className="w-4 h-4 mr-2" />
+            Damage Claims
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="documents" className="space-y-6">
       {/* Hero - Urgent Alert */}
       <Card className="card-premium bg-gradient-to-br from-warning/10 to-destructive/10 border-warning/20 p-8">
         <div className="flex items-start justify-between mb-6">
@@ -212,7 +227,12 @@ export const VaultEnhanced = () => {
           ))}
         </div>
       </Card>
-    </div>
+        </TabsContent>
+
+        <TabsContent value="claims">
+          <DamageClaimsSection />
+        </TabsContent>
+      </Tabs>
     </>
   );
 };
