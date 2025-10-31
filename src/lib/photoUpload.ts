@@ -60,13 +60,22 @@ export const uploadVehiclePhoto = async (
       };
     }
 
-    // Get public URL
-    const { data: { publicUrl } } = supabase.storage
+    // Get signed URL (valid for 1 hour)
+    const { data: signedData, error: signedError } = await supabase.storage
       .from('vehicle-photos')
-      .getPublicUrl(data.path);
+      .createSignedUrl(data.path, 3600);
+
+    if (signedError) {
+      console.error('Signed URL error:', signedError);
+      return {
+        url: '',
+        path: '',
+        error: signedError.message
+      };
+    }
 
     return {
-      url: publicUrl,
+      url: signedData.signedUrl,
       path: data.path
     };
   } catch (error: any) {
