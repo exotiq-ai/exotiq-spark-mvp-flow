@@ -26,6 +26,7 @@ import {
 
 export const SystemSettingsSection = () => {
   const { toast } = useToast();
+  const [errors, setErrors] = useState<Record<string, string>>({});
   
   const [settings, setSettings] = useState({
     notifications: {
@@ -56,11 +57,53 @@ export const SystemSettingsSection = () => {
     }
   });
 
+  const validateSettings = (): boolean => {
+    const newErrors: Record<string, string> = {};
+
+    // Validate business name
+    if (settings.business.businessName.trim().length === 0) {
+      newErrors.businessName = "Business name is required";
+    } else if (settings.business.businessName.length > 100) {
+      newErrors.businessName = "Business name must be less than 100 characters";
+    }
+
+    // Validate tax rate
+    const taxRate = parseFloat(settings.business.taxRate);
+    if (isNaN(taxRate) || taxRate < 0 || taxRate > 100) {
+      newErrors.taxRate = "Tax rate must be between 0 and 100";
+    }
+
+    // Validate session timeout
+    const sessionTimeout = parseInt(settings.security.sessionTimeout);
+    if (isNaN(sessionTimeout) || sessionTimeout < 15 || sessionTimeout > 480) {
+      newErrors.sessionTimeout = "Session timeout must be between 15 and 480 minutes";
+    }
+
+    // Validate password expiry
+    const passwordExpiry = parseInt(settings.security.passwordExpiry);
+    if (isNaN(passwordExpiry) || passwordExpiry < 30 || passwordExpiry > 365) {
+      newErrors.passwordExpiry = "Password expiry must be between 30 and 365 days";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSaveSettings = () => {
+    if (!validateSettings()) {
+      toast({
+        title: "Validation Error",
+        description: "Please fix the errors before saving.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     toast({
       title: "Settings Saved",
       description: "Your system settings have been updated successfully.",
     });
+    setErrors({});
   };
 
   const toggleSetting = (category: keyof typeof settings, key: string) => {
@@ -74,6 +117,15 @@ export const SystemSettingsSection = () => {
   };
 
   const updateSetting = (category: keyof typeof settings, key: string, value: string) => {
+    // Clear error for this field when user types
+    if (errors[key]) {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[key];
+        return newErrors;
+      });
+    }
+
     setSettings(prev => ({
       ...prev,
       [category]: {
@@ -217,7 +269,12 @@ export const SystemSettingsSection = () => {
             <Input
               value={settings.business.businessName}
               onChange={(e) => updateSetting('business', 'businessName', e.target.value)}
+              maxLength={100}
+              className={errors.businessName ? "border-destructive" : ""}
             />
+            {errors.businessName && (
+              <p className="text-xs text-destructive">{errors.businessName}</p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -266,7 +323,11 @@ export const SystemSettingsSection = () => {
               min="0"
               max="100"
               step="0.1"
+              className={errors.taxRate ? "border-destructive" : ""}
             />
+            {errors.taxRate && (
+              <p className="text-xs text-destructive">{errors.taxRate}</p>
+            )}
           </div>
         </div>
       </Card>
@@ -310,7 +371,11 @@ export const SystemSettingsSection = () => {
                 onChange={(e) => updateSetting('security', 'sessionTimeout', e.target.value)}
                 min="15"
                 max="480"
+                className={errors.sessionTimeout ? "border-destructive" : ""}
               />
+              {errors.sessionTimeout && (
+                <p className="text-xs text-destructive">{errors.sessionTimeout}</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -321,7 +386,11 @@ export const SystemSettingsSection = () => {
                 onChange={(e) => updateSetting('security', 'passwordExpiry', e.target.value)}
                 min="30"
                 max="365"
+                className={errors.passwordExpiry ? "border-destructive" : ""}
               />
+              {errors.passwordExpiry && (
+                <p className="text-xs text-destructive">{errors.passwordExpiry}</p>
+              )}
             </div>
           </div>
         </div>

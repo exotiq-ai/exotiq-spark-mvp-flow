@@ -35,6 +35,13 @@ interface User {
 export const UserManagementSection = () => {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
+
+  const handleSearchChange = (value: string) => {
+    // Limit search query to 100 characters to prevent performance issues
+    if (value.length <= 100) {
+      setSearchQuery(value);
+    }
+  };
   
   const users: User[] = [
     {
@@ -182,8 +189,9 @@ export const UserManagementSection = () => {
           <Input
             placeholder="Search users by name, email, or role..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
             className="pl-10"
+            maxLength={100}
           />
         </div>
 
