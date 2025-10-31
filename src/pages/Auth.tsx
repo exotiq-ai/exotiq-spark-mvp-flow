@@ -6,22 +6,27 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Logo } from '@/components/ui/logo';
 import { useAuth } from '@/contexts/AuthContext';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { Loader2, AlertCircle, Mail, Lock, Sparkles, KeyRound } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { validators } from '@/lib/validation';
 
+type AuthMode = 'signin' | 'signup' | 'magiclink' | 'reset';
+
 export default function Auth() {
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [authMode, setAuthMode] = useState<AuthMode>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { signUp, signIn } = useAuth();
+  const [success, setSuccess] = useState<string | null>(null);
+  const { signUp, signIn, signInWithMagicLink, resetPassword, signInAsDemo } = useAuth();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handlePasswordAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setSuccess(null);
     
     // Client-side validation
     const emailValidation = validators.email(email);
@@ -36,7 +41,7 @@ export default function Auth() {
       return;
     }
 
-    if (isSignUp && !fullName.trim()) {
+    if (authMode === 'signup' && !fullName.trim()) {
       setError("Full name is required");
       return;
     }
@@ -44,7 +49,7 @@ export default function Auth() {
     setLoading(true);
 
     try {
-      if (isSignUp) {
+      if (authMode === 'signup') {
         const { error: signUpError } = await signUp(email, password, fullName);
         if (signUpError) {
           setError(signUpError.message || "Failed to create account. Please try again.");
@@ -63,6 +68,75 @@ export default function Auth() {
     }
   };
 
+  const handleMagicLink = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSuccess(null);
+    
+    const emailValidation = validators.email(email);
+    if (!emailValidation.isValid) {
+      setError(emailValidation.error!);
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const { error: magicLinkError } = await signInWithMagicLink(email);
+      if (!magicLinkError) {
+        setSuccess("Check your email! We've sent you a magic link to sign in.");
+        setEmail('');
+      }
+    } catch (err) {
+      setError("Failed to send magic link. Please try again.");
+      console.error("Magic link error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSuccess(null);
+    
+    const emailValidation = validators.email(email);
+    if (!emailValidation.isValid) {
+      setError(emailValidation.error!);
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const { error: resetError } = await resetPassword(email);
+      if (!resetError) {
+        setSuccess("Password reset email sent! Check your inbox.");
+        setEmail('');
+      }
+    } catch (err) {
+      setError("Failed to send reset email. Please try again.");
+      console.error("Password reset error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDemoMode = async () => {
+    setError(null);
+    setSuccess(null);
+    setLoading(true);
+
+    try {
+      await signInAsDemo();
+    } catch (err) {
+      setError("Failed to start demo mode. Please try again.");
+      console.error("Demo mode error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 flex items-center justify-center p-4">
       <motion.div
@@ -71,17 +145,37 @@ export default function Auth() {
         transition={{ duration: 0.5 }}
         className="w-full max-w-md"
       >
-        <Card className="card-premium p-8">
-          <div className="text-center mb-8">
+        <Card className="card-premium p-6 sm:p-8">
+          <div className="text-center mb-6">
             <Logo className="mx-auto mb-4" />
-            <h1 className="text-3xl font-bold mb-2">
-              {isSignUp ? 'Create Account' : 'Welcome Back'}
+            <h1 className="text-2xl sm:text-3xl font-bold mb-2">
+              Welcome to ExotIQ
             </h1>
-            <p className="text-muted-foreground">
-              {isSignUp 
-                ? 'Start optimizing your fleet today' 
-                : 'Sign in to access your dashboard'}
+            <p className="text-sm sm:text-base text-muted-foreground">
+              Premium fleet management made simple
             </p>
+          </div>
+
+          {/* Demo Mode Button - Prominently displayed */}
+          <Button 
+            onClick={handleDemoMode}
+            disabled={loading}
+            className="w-full mb-6 btn-premium bg-gradient-to-r from-accent to-primary hover:opacity-90 transition-opacity"
+            size="lg"
+          >
+            <Sparkles className="w-5 h-5 mr-2" />
+            Try Demo Mode
+          </Button>
+
+          <div className="relative mb-6">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-card px-2 text-muted-foreground">
+                Or continue with
+              </span>
+            </div>
           </div>
 
           {error && (
@@ -91,96 +185,271 @@ export default function Auth() {
             </Alert>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {isSignUp && (
-              <div className="space-y-2">
-                <Label htmlFor="fullName">Full Name</Label>
-                <Input
-                  id="fullName"
-                  type="text"
-                  placeholder="John Smith"
-                  value={fullName}
-                  onChange={(e) => {
-                    setFullName(e.target.value);
-                    setError(null);
-                  }}
-                  required
-                  aria-required="true"
-                  aria-invalid={error?.includes("name") ? "true" : "false"}
-                />
+          {success && (
+            <Alert className="mb-4 border-green-500/50 bg-green-500/10">
+              <Mail className="h-4 w-4 text-green-500" />
+              <AlertDescription className="text-green-500">{success}</AlertDescription>
+            </Alert>
+          )}
+
+          <Tabs defaultValue="signin" className="w-full" onValueChange={(value) => setAuthMode(value as AuthMode)}>
+            <TabsList className="grid w-full grid-cols-3 mb-4">
+              <TabsTrigger value="signin" className="text-xs sm:text-sm">
+                <Lock className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                Sign In
+              </TabsTrigger>
+              <TabsTrigger value="magiclink" className="text-xs sm:text-sm">
+                <Mail className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                Magic Link
+              </TabsTrigger>
+              <TabsTrigger value="signup" className="text-xs sm:text-sm">
+                Create
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="signin">
+              <form onSubmit={handlePasswordAuth} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="signin-email">Email</Label>
+                  <Input
+                    id="signin-email"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      setError(null);
+                      setSuccess(null);
+                    }}
+                    required
+                    aria-required="true"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="signin-password">Password</Label>
+                  <Input
+                    id="signin-password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      setError(null);
+                      setSuccess(null);
+                    }}
+                    required
+                    minLength={6}
+                    aria-required="true"
+                  />
+                </div>
+
+                <Button 
+                  type="submit" 
+                  className="w-full btn-premium"
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Signing In...
+                    </>
+                  ) : (
+                    'Sign In'
+                  )}
+                </Button>
+
+                <button
+                  type="button"
+                  onClick={() => setAuthMode('reset')}
+                  className="w-full text-xs sm:text-sm text-primary hover:underline text-center"
+                >
+                  Forgot password?
+                </button>
+              </form>
+            </TabsContent>
+
+            <TabsContent value="magiclink">
+              <form onSubmit={handleMagicLink} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="magic-email">Email</Label>
+                  <Input
+                    id="magic-email"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      setError(null);
+                      setSuccess(null);
+                    }}
+                    required
+                    aria-required="true"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    We'll email you a secure link to sign in
+                  </p>
+                </div>
+
+                <Button 
+                  type="submit" 
+                  className="w-full btn-premium"
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      <Mail className="w-4 h-4 mr-2" />
+                      Send Magic Link
+                    </>
+                  )}
+                </Button>
+              </form>
+            </TabsContent>
+
+            <TabsContent value="signup">
+              <form onSubmit={handlePasswordAuth} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="signup-name">Full Name</Label>
+                  <Input
+                    id="signup-name"
+                    type="text"
+                    placeholder="John Smith"
+                    value={fullName}
+                    onChange={(e) => {
+                      setFullName(e.target.value);
+                      setError(null);
+                      setSuccess(null);
+                    }}
+                    required
+                    aria-required="true"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="signup-email">Email</Label>
+                  <Input
+                    id="signup-email"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      setError(null);
+                      setSuccess(null);
+                    }}
+                    required
+                    aria-required="true"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="signup-password">Password</Label>
+                  <Input
+                    id="signup-password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      setError(null);
+                      setSuccess(null);
+                    }}
+                    required
+                    minLength={6}
+                    aria-required="true"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Must be at least 6 characters
+                  </p>
+                </div>
+
+                <Button 
+                  type="submit" 
+                  className="w-full btn-premium"
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Creating Account...
+                    </>
+                  ) : (
+                    'Create Account'
+                  )}
+                </Button>
+              </form>
+            </TabsContent>
+          </Tabs>
+
+          {authMode === 'reset' && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              className="mt-4 p-4 border rounded-lg bg-muted/50"
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <KeyRound className="w-4 h-4" />
+                <h3 className="font-semibold text-sm">Reset Password</h3>
               </div>
-            )}
-
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => {
-                  setEmail(e.target.value);
-                  setError(null);
-                }}
-                required
-                aria-required="true"
-                aria-invalid={error?.includes("email") ? "true" : "false"}
-                aria-describedby={error?.includes("email") ? "email-error" : undefined}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                  setError(null);
-                }}
-                required
-                minLength={6}
-                aria-required="true"
-                aria-invalid={error?.includes("password") ? "true" : "false"}
-                aria-describedby={error?.includes("password") ? "password-error" : undefined}
-              />
-              {isSignUp && (
-                <p className="text-xs text-muted-foreground">
-                  Must be at least 6 characters
-                </p>
-              )}
-            </div>
-
-            <Button 
-              type="submit" 
-              className="w-full btn-premium"
-              disabled={loading}
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                isSignUp ? 'Create Account' : 'Sign In'
-              )}
-            </Button>
-          </form>
-
-          <div className="mt-6 text-center">
-            <button
-              type="button"
-              onClick={() => setIsSignUp(!isSignUp)}
-              className="text-sm text-primary hover:underline"
-            >
-              {isSignUp 
-                ? 'Already have an account? Sign in' 
-                : "Don't have an account? Sign up"}
-            </button>
-          </div>
+              <form onSubmit={handlePasswordReset} className="space-y-3">
+                <div className="space-y-2">
+                  <Label htmlFor="reset-email" className="text-xs">Email</Label>
+                  <Input
+                    id="reset-email"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      setError(null);
+                      setSuccess(null);
+                    }}
+                    required
+                    aria-required="true"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button 
+                    type="submit" 
+                    className="flex-1"
+                    disabled={loading}
+                    size="sm"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="w-3 h-3 mr-2 animate-spin" />
+                        Sending...
+                      </>
+                    ) : (
+                      'Send Reset Link'
+                    )}
+                  </Button>
+                  <Button 
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setAuthMode('signin');
+                      setError(null);
+                      setSuccess(null);
+                    }}
+                    size="sm"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            </motion.div>
+          )}
         </Card>
+
+        <p className="text-center text-xs text-muted-foreground mt-4">
+          Demo mode includes pre-populated fleet data for testing
+        </p>
       </motion.div>
     </div>
   );

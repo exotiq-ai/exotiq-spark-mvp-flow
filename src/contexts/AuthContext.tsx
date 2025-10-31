@@ -10,6 +10,9 @@ interface AuthContextType {
   loading: boolean;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signInWithMagicLink: (email: string) => Promise<{ error: any }>;
+  resetPassword: (email: string) => Promise<{ error: any }>;
+  signInAsDemo: () => Promise<{ error: any }>;
   signOut: () => Promise<void>;
 }
 
@@ -111,6 +114,81 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return { error };
   };
 
+  const signInWithMagicLink = async (email: string) => {
+    const redirectUrl = `${window.location.origin}/dashboard`;
+    
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: redirectUrl
+      }
+    });
+
+    if (error) {
+      toast({
+        title: "Error Sending Magic Link",
+        description: error.message,
+        variant: "destructive"
+      });
+    } else {
+      toast({
+        title: "Check Your Email!",
+        description: "We've sent you a magic link to sign in.",
+      });
+    }
+
+    return { error };
+  };
+
+  const resetPassword = async (email: string) => {
+    const redirectUrl = `${window.location.origin}/auth`;
+    
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: redirectUrl
+    });
+
+    if (error) {
+      toast({
+        title: "Error Sending Reset Email",
+        description: error.message,
+        variant: "destructive"
+      });
+    } else {
+      toast({
+        title: "Password Reset Email Sent",
+        description: "Check your email for the password reset link.",
+      });
+    }
+
+    return { error };
+  };
+
+  const signInAsDemo = async () => {
+    // Sign in with demo credentials
+    const demoEmail = "demo@exotiq.ai";
+    const demoPassword = "demo123456";
+    
+    const { error } = await supabase.auth.signInWithPassword({
+      email: demoEmail,
+      password: demoPassword
+    });
+
+    if (error) {
+      toast({
+        title: "Demo Mode Unavailable",
+        description: "Please try again or contact support.",
+        variant: "destructive"
+      });
+    } else {
+      toast({
+        title: "Welcome to Demo Mode!",
+        description: "Exploring ExotIQ with pre-populated data.",
+      });
+    }
+
+    return { error };
+  };
+
   const signOut = async () => {
     await supabase.auth.signOut();
     navigate('/auth');
@@ -127,6 +205,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       loading,
       signUp,
       signIn,
+      signInWithMagicLink,
+      resetPassword,
+      signInAsDemo,
       signOut
     }}>
       {children}
