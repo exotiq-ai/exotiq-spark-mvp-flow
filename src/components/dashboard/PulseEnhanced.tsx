@@ -100,6 +100,98 @@ export const PulseEnhanced = () => {
         </div>
       </Card>
 
+      {/* Live Telematics Section */}
+      <Card className="card-premium p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h3 className="text-xl font-semibold">Driver Telematics</h3>
+            <p className="text-sm text-muted-foreground mt-1">Real-time driver performance monitoring</p>
+          </div>
+          <Badge className="bg-primary/20 text-primary border-primary/30">
+            <Activity className="w-3 h-3 mr-1" />
+            Live
+          </Badge>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Driver 1 - High Performance */}
+          <div className="p-5 rounded-xl bg-gradient-to-br from-success/10 to-success/5 border border-success/20">
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-success/20 rounded-lg">
+                  <User className="h-5 w-5 text-success" />
+                </div>
+                <div>
+                  <h4 className="font-semibold">Marcus Chen</h4>
+                  <p className="text-xs text-muted-foreground">Lamborghini Huracán</p>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm text-muted-foreground">Performance Score</span>
+                  <span className="text-2xl font-bold text-success">86%</span>
+                </div>
+                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                  <div className="h-full bg-success" style={{ width: '86%' }}></div>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2 pt-2">
+                <div className="text-xs">
+                  <div className="text-muted-foreground">Smooth Driving</div>
+                  <div className="font-semibold">Excellent</div>
+                </div>
+                <div className="text-xs">
+                  <div className="text-muted-foreground">Safety</div>
+                  <div className="font-semibold">95/100</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Driver 2 - Needs Improvement */}
+          <div className="p-5 rounded-xl bg-gradient-to-br from-destructive/10 to-destructive/5 border border-destructive/20">
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-destructive/20 rounded-lg">
+                  <User className="h-5 w-5 text-destructive" />
+                </div>
+                <div>
+                  <h4 className="font-semibold">Sarah Mitchell</h4>
+                  <p className="text-xs text-muted-foreground">Ferrari 488</p>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm text-muted-foreground">Performance Score</span>
+                  <span className="text-2xl font-bold text-destructive">72%</span>
+                </div>
+                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                  <div className="h-full bg-destructive" style={{ width: '72%' }}></div>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2 pt-2">
+                <div className="text-xs">
+                  <div className="text-muted-foreground">Smooth Driving</div>
+                  <div className="font-semibold">Fair</div>
+                </div>
+                <div className="text-xs">
+                  <div className="text-muted-foreground">Safety</div>
+                  <div className="font-semibold">78/100</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 p-3 bg-muted/30 rounded-lg text-xs text-muted-foreground">
+          💡 API Integration Ready: Connect your telematics provider to display live driver data
+        </div>
+      </Card>
+
       {/* Recent Activity */}
       <Card className="card-premium p-6">
         <div className="flex items-center justify-between mb-6">

@@ -30,14 +30,14 @@ import { VaultEnhanced } from "@/components/dashboard/VaultEnhanced";
 import { CoreEnhanced } from "@/components/dashboard/CoreEnhanced";
 import { DashboardOverview } from "@/components/dashboard/DashboardOverview";
 import { ModulePagination } from "@/components/dashboard/ModulePagination";
+import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 
 const Dashboard = () => {
   const [activeModule, setActiveModule] = useLocalStorage("activeModule", "dashboard");
-  const [showMore, setShowMore] = useState(false);
   const { track, page } = useAnalytics();
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const moduleOrder = ["dashboard", "optimize", "book", "vault", "core"];
+  const moduleOrder = ["dashboard", "core", "book", "pulse", "motoriq", "vault"];
   const currentIndex = moduleOrder.indexOf(activeModule);
 
   useEffect(() => {
@@ -87,7 +87,7 @@ const Dashboard = () => {
       id: "pulse",
       name: "Pulse",
       icon: BarChart3,
-      description: "Live Analytics",
+      description: "Live Analytics & Telematics",
       color: "text-primary",
       bgColor: "bg-primary/10"
     },
@@ -109,9 +109,9 @@ const Dashboard = () => {
     },
     {
       id: "core",
-      name: "Core",
+      name: "FleetCopilot™",
       icon: Brain,
-      description: "Control Center",
+      description: "AI Control Center",
       color: "text-destructive",
       bgColor: "bg-destructive/10"
     }
@@ -169,15 +169,24 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background mobile-friendly">
+    <div className="min-h-screen bg-background mobile-friendly flex">
       <SEOHead
         title="Fleet Management Dashboard"
         description="Manage your luxury fleet with comprehensive analytics, AI-powered insights, and real-time monitoring."
         noIndex={true}
       />
       <SkipNavigation />
-      {/* Top Navigation */}
-      <nav className="bg-background border-b border-border sticky top-0 z-40">
+      
+      {/* Desktop Sidebar */}
+      <DashboardSidebar 
+        activeModule={activeModule}
+        onModuleChange={handleModuleChange}
+      />
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Top Navigation */}
+        <nav className="bg-background border-b border-border sticky top-0 z-40 md:hidden">
         <div className="mobile-padding py-3 sm:py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
@@ -206,109 +215,97 @@ const Dashboard = () => {
         </div>
       </nav>
 
-      {/* Mobile Bottom Navigation - 5 Items */}
-      <div className="mobile-nav">
-        <div className="grid grid-cols-5 gap-1 p-2">
-          <button
-            onClick={() => handleModuleChange("dashboard")}
-            className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg transition-all hover-scale touch-target focus-visible ${
-              activeModule === "dashboard" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"
-            }`}
-            aria-label="Dashboard"
-          >
-            <Home className="h-5 w-5 mb-1" />
-            <span className="text-xs font-medium">Home</span>
-          </button>
-          
-          <button
-            onClick={() => handleModuleChange("optimize")}
-            className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg transition-all hover-scale touch-target focus-visible ${
-              (activeModule === "motoriq" || activeModule === "pulse" || activeModule === "optimize") 
-                ? "bg-primary text-primary-foreground" 
-                : "text-muted-foreground hover:bg-muted/50"
-            }`}
-            aria-label="Optimize - AI & Analytics"
-          >
-            <TrendingUp className="h-5 w-5 mb-1" />
-            <span className="text-xs font-medium">Optimize</span>
-          </button>
+        {/* Mobile Bottom Navigation - 6 Items */}
+        <div className="mobile-nav">
+          <div className="grid grid-cols-6 gap-1 p-2">
+            <button
+              onClick={() => {
+                handleModuleChange("dashboard");
+                if (navigator.vibrate) navigator.vibrate(10);
+              }}
+              className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg transition-all hover-scale touch-target focus-visible ${
+                activeModule === "dashboard" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"
+              }`}
+              aria-label="Dashboard"
+            >
+              <Home className="h-5 w-5 mb-1" />
+              <span className="text-[10px] font-medium">Dashboard</span>
+            </button>
+            
+            <button
+              onClick={() => {
+                handleModuleChange("core");
+                if (navigator.vibrate) navigator.vibrate(10);
+              }}
+              className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg transition-all hover-scale touch-target focus-visible ${
+                activeModule === "core" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"
+              }`}
+              aria-label="FleetCopilot"
+            >
+              <Brain className="h-5 w-5 mb-1" />
+              <span className="text-[10px] font-medium">FleetCopilot</span>
+            </button>
 
-          <button
-            onClick={() => handleModuleChange("book")}
-            className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg transition-all hover-scale touch-target focus-visible ${
-              activeModule === "book" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"
-            }`}
-            aria-label="Book - Booking Management"
-          >
-            <Calendar className="h-5 w-5 mb-1" />
-            <span className="text-xs font-medium">Book</span>
-          </button>
+            <button
+              onClick={() => {
+                handleModuleChange("book");
+                if (navigator.vibrate) navigator.vibrate(10);
+              }}
+              className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg transition-all hover-scale touch-target focus-visible ${
+                activeModule === "book" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"
+              }`}
+              aria-label="Book"
+            >
+              <Calendar className="h-5 w-5 mb-1" />
+              <span className="text-[10px] font-medium">Book</span>
+            </button>
 
-          <button
-            onClick={() => handleModuleChange("vault")}
-            className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg transition-all hover-scale touch-target focus-visible ${
-              activeModule === "vault" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"
-            }`}
-            aria-label="Vault - Compliance"
-          >
-            <Shield className="h-5 w-5 mb-1" />
-            <span className="text-xs font-medium">Vault</span>
-          </button>
+            <button
+              onClick={() => {
+                handleModuleChange("pulse");
+                if (navigator.vibrate) navigator.vibrate(10);
+              }}
+              className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg transition-all hover-scale touch-target focus-visible ${
+                activeModule === "pulse" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"
+              }`}
+              aria-label="Pulse"
+            >
+              <BarChart3 className="h-5 w-5 mb-1" />
+              <span className="text-[10px] font-medium">Pulse</span>
+            </button>
 
-          <button
-            onClick={() => setShowMore(!showMore)}
-            className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg transition-all hover-scale touch-target focus-visible ${
-              showMore || activeModule === "core" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"
-            }`}
-            aria-label="More options"
-          >
-            <MoreHorizontal className="h-5 w-5 mb-1" />
-            <span className="text-xs font-medium">More</span>
-          </button>
+            <button
+              onClick={() => {
+                handleModuleChange("motoriq");
+                if (navigator.vibrate) navigator.vibrate(10);
+              }}
+              className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg transition-all hover-scale touch-target focus-visible ${
+                (activeModule === "motoriq" || activeModule === "optimize") ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"
+              }`}
+              aria-label="MotorIQ"
+            >
+              <TrendingUp className="h-5 w-5 mb-1" />
+              <span className="text-[10px] font-medium">MotorIQ</span>
+            </button>
+
+            <button
+              onClick={() => {
+                handleModuleChange("vault");
+                if (navigator.vibrate) navigator.vibrate(10);
+              }}
+              className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg transition-all hover-scale touch-target focus-visible ${
+                activeModule === "vault" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"
+              }`}
+              aria-label="Vault"
+            >
+              <Shield className="h-5 w-5 mb-1" />
+              <span className="text-[10px] font-medium">Vault</span>
+            </button>
+          </div>
         </div>
 
-        {/* More Menu */}
-        <AnimatePresence>
-          {showMore && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 20 }}
-              transition={{ duration: 0.2 }}
-              className="absolute bottom-full left-0 right-0 mb-2 mx-2 bg-card border border-border rounded-2xl shadow-premium overflow-hidden"
-            >
-              <div className="p-2 space-y-1">
-                <button
-                  onClick={() => {
-                    handleModuleChange("core");
-                    setShowMore(false);
-                  }}
-                  className="w-full flex items-center space-x-3 p-4 rounded-xl hover:bg-muted/50 transition-colors touch-target"
-                >
-                  <Brain className="h-5 w-5 text-destructive" />
-                  <div className="text-left">
-                    <div className="font-semibold">Core</div>
-                    <div className="text-xs text-muted-foreground">Control Center</div>
-                  </div>
-                </button>
-                <button
-                  onClick={() => setShowMore(false)}
-                  className="w-full flex items-center space-x-3 p-4 rounded-xl hover:bg-muted/50 transition-colors touch-target"
-                >
-                  <Settings className="h-5 w-5 text-muted-foreground" />
-                  <div className="text-left">
-                    <div className="font-semibold">Settings</div>
-                    <div className="text-xs text-muted-foreground">App preferences</div>
-                  </div>
-                </button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* Main Content with Swipe Support */}
-      <main 
+        {/* Main Content with Swipe Support */}
+        <main
         id="main-content" 
         ref={containerRef}
         className="mobile-padding py-4 sm:py-6 pb-24 md:pb-6" 
@@ -327,7 +324,8 @@ const Dashboard = () => {
             />
           </div>
         </div>
-      </main>
+        </main>
+      </div>
     </div>
   );
 };
