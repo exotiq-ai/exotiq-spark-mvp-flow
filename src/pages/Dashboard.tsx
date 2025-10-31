@@ -9,6 +9,7 @@ import { SEOHead } from "@/components/common/SEOHead";
 import { useAnalytics } from "@/lib/analytics";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useSwipeGesture } from "@/hooks/useSwipeGesture";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { performance } from "@/lib/performance";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -36,6 +37,9 @@ const Dashboard = () => {
   const [activeModule, setActiveModule] = useLocalStorage("activeModule", "dashboard");
   const { track, page } = useAnalytics();
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Enable keyboard shortcuts
+  useKeyboardShortcuts();
 
   const moduleOrder = ["dashboard", "core", "book", "pulse", "motoriq", "vault"];
   const currentIndex = moduleOrder.indexOf(activeModule);
@@ -185,7 +189,12 @@ const Dashboard = () => {
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Top Navigation */}
+        {/* Desktop Header */}
+        <div className="hidden md:block">
+          <DashboardHeader />
+        </div>
+
+        {/* Top Navigation - Mobile */}
         <nav className="bg-background border-b border-border sticky top-0 z-40 md:hidden">
         <div className="mobile-padding py-3 sm:py-4">
           <div className="flex items-center justify-between">
