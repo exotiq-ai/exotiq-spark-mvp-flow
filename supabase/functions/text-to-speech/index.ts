@@ -11,6 +11,8 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
+  const startTime = Date.now();
+
   try {
     const { text } = await req.json();
 
@@ -25,6 +27,10 @@ serve(async (req) => {
 
     // Replace "Rari" with "Rarri" for proper pronunciation (like Ferrari)
     const processedText = text.replace(/\bRari\b/g, 'Rarri');
+
+    // Add timeout to TTS request
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000); // 15s timeout
 
     const response = await fetch(
       'https://api.elevenlabs.io/v1/text-to-speech/kdmDKE6EkgrWrrykO9Qt',
@@ -45,17 +51,29 @@ serve(async (req) => {
             use_speaker_boost: true,
           },
         }),
+        signal: controller.signal,
       }
-    );
+    ).finally(() => clearTimeout(timeout));
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('ElevenLabs API error:', response.status, errorText);
+      console.error('🚨 ElevenLabs API error:', response.status, errorText);
+      
+      if (response.status === 429) {
+        return new Response(
+          JSON.stringify({ error: 'Rate limit exceeded' }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
       throw new Error(`ElevenLabs API error: ${errorText}`);
     }
 
     const arrayBuffer = await response.arrayBuffer();
     const base64Audio = base64Encode(new Uint8Array(arrayBuffer));
+
+    const duration = Date.now() - startTime;
+    console.log(`⏱️ TTS completed in ${duration}ms`);
 
     return new Response(
       JSON.stringify({ audioContent: base64Audio }),
@@ -64,11 +82,20 @@ serve(async (req) => {
       }
     );
   } catch (error) {
-    console.error('TTS error:', error);
+    console.error('🚨 TTS error:', error);
+    
+    let status = 400;
+    let message = error.message || 'TTS generation failed';
+    
+    if (error.name === 'AbortError') {
+      status = 408;
+      message = 'Request timeout';
+    }
+    
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: message }),
       {
-        status: 400,
+        status,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );

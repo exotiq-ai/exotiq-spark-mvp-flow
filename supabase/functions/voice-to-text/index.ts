@@ -40,6 +40,8 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
+  const startTime = Date.now();
+
   try {
     const { audio } = await req.json();
     
@@ -59,21 +61,37 @@ serve(async (req) => {
     formData.append('file', blob, 'audio.webm');
     formData.append('model', 'whisper-1');
 
+    // Add timeout to transcription request
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000); // 15s timeout
+
     const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${OPENAI_API_KEY}`,
       },
       body: formData,
-    });
+      signal: controller.signal,
+    }).finally(() => clearTimeout(timeout));
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('OpenAI API error:', errorText);
+      console.error('🚨 OpenAI API error:', response.status, errorText);
+      
+      if (response.status === 429) {
+        return new Response(
+          JSON.stringify({ error: 'Rate limit exceeded' }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
       throw new Error(`OpenAI API error: ${errorText}`);
     }
 
     const result = await response.json();
+    
+    const duration = Date.now() - startTime;
+    console.log(`⏱️ Transcription completed in ${duration}ms`);
 
     return new Response(
       JSON.stringify({ text: result.text }),
@@ -81,11 +99,20 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Transcription error:', error);
+    console.error('🚨 Transcription error:', error);
+    
+    let status = 500;
+    let message = error.message || 'Transcription failed';
+    
+    if (error.name === 'AbortError') {
+      status = 408;
+      message = 'Request timeout';
+    }
+    
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: message }),
       {
-        status: 500,
+        status,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );

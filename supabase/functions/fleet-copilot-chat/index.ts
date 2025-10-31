@@ -465,7 +465,10 @@ Communication Style:
 
 Always address users professionally and provide actionable insights based on REAL data from the database.`;
 
-    // Make initial AI request
+    // Make initial AI request with timeout
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 25000); // 25s timeout
+
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -481,11 +484,26 @@ Always address users professionally and provide actionable insights based on REA
         tools,
         tool_choice: "auto",
       }),
-    });
+      signal: controller.signal,
+    }).finally(() => clearTimeout(timeout));
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
+      console.error("🚨 AI gateway error:", response.status, errorText);
+      
+      // Handle rate limits specifically
+      if (response.status === 429) {
+        return new Response(
+          JSON.stringify({ error: "Rate limit exceeded. Please wait and try again." }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } else if (response.status === 402) {
+        return new Response(
+          JSON.stringify({ error: "Service credits depleted. Please contact support." }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
       throw new Error(`AI gateway error: ${errorText}`);
     }
 
@@ -511,7 +529,10 @@ Always address users professionally and provide actionable insights based on REA
         })
       );
 
-      // Send function results back to AI for final response
+      // Send function results back to AI for final response with timeout
+      const finalController = new AbortController();
+      const finalTimeout = setTimeout(() => finalController.abort(), 25000);
+
       const finalResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -528,7 +549,22 @@ Always address users professionally and provide actionable insights based on REA
           ],
           stream: true,
         }),
-      });
+        signal: finalController.signal,
+      }).finally(() => clearTimeout(finalTimeout));
+
+      if (!finalResponse.ok) {
+        if (finalResponse.status === 429) {
+          return new Response(
+            JSON.stringify({ error: "Rate limit exceeded" }),
+            { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        } else if (finalResponse.status === 402) {
+          return new Response(
+            JSON.stringify({ error: "Service credits depleted" }),
+            { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      }
 
       return new Response(finalResponse.body, {
         headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
@@ -544,9 +580,19 @@ Always address users professionally and provide actionable insights based on REA
     });
 
   } catch (error) {
-    console.error("Chat error:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
+    console.error("🚨 Chat error:", error);
+    
+    // Handle specific error types
+    let status = 500;
+    let message = error.message || "Internal server error";
+    
+    if (error.name === 'AbortError') {
+      status = 408;
+      message = "Request timeout";
+    }
+    
+    return new Response(JSON.stringify({ error: message }), {
+      status,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
