@@ -18,12 +18,20 @@ export const MotorIQEnhanced = () => {
   
   const [showOptimizationDialog, setShowOptimizationDialog] = useState(false);
 
-  const vehiclesWithOptimization = vehicles.map(v => ({
-    ...v,
-    opportunity: v.suggested_rate ? `$${((v.suggested_rate - v.current_rate) * 30).toFixed(0)}` : null
-  }));
+  const vehiclesWithOptimization = vehicles
+    .filter(v => v.name !== 'Lotus Evija')
+    .map(v => ({
+      ...v,
+      opportunity: v.suggested_rate && v.suggested_rate > v.current_rate 
+        ? `$${((v.suggested_rate - v.current_rate) * 30).toFixed(0)}` 
+        : null
+    }));
 
-  const topRecommendation = vehiclesWithOptimization.find(v => v.suggested_rate) || vehiclesWithOptimization[0];
+  const validOptimizations = vehiclesWithOptimization.filter(v => 
+    v.suggested_rate && v.suggested_rate > v.current_rate
+  );
+  
+  const topRecommendation = validOptimizations[0] || null;
   const potentialIncrease = topRecommendation?.suggested_rate 
     ? (topRecommendation.suggested_rate - topRecommendation.current_rate) * 30 
     : 0;
@@ -38,60 +46,72 @@ export const MotorIQEnhanced = () => {
       />
       <div className="space-y-6 overflow-x-hidden">
         {/* Hero Section - Top Priority AI Insight */}
-        <Card className="card-premium bg-gradient-to-br from-success/10 via-primary/5 to-accent/10 border-success/20 p-8">
-          <div className="flex items-start justify-between mb-6">
-            <div className="flex items-center space-x-3">
-              <div className="p-3 bg-success/20 rounded-xl animate-pulse-glow">
-                <Sparkles className="h-8 w-8 text-success" />
+        {topRecommendation && potentialIncrease > 0 ? (
+          <Card className="card-premium bg-gradient-to-br from-success/10 via-primary/5 to-accent/10 border-success/20 p-8">
+            <div className="flex items-start justify-between mb-6">
+              <div className="flex items-center space-x-3">
+                <div className="p-3 bg-success/20 rounded-xl animate-pulse-glow">
+                  <Sparkles className="h-8 w-8 text-success" />
+                </div>
+                <div>
+                  <Badge className="bg-success/20 text-success border-success/30 mb-2">
+                    <Brain className="w-3 h-3 mr-1" />
+                    AI Recommendation
+                  </Badge>
+                  <h2 className="text-3xl font-bold">+${potentialIncrease.toFixed(0)}/mo</h2>
+                  <p className="text-muted-foreground mt-1">Potential revenue increase</p>
+                </div>
               </div>
-              <div>
-                <Badge className="bg-success/20 text-success border-success/30 mb-2">
-                  <Brain className="w-3 h-3 mr-1" />
-                  AI Recommendation
-                </Badge>
-                <h2 className="text-3xl font-bold">+${potentialIncrease.toFixed(0)}/mo</h2>
-                <p className="text-muted-foreground mt-1">Potential revenue increase</p>
-              </div>
+              <Badge className="bg-primary/10 text-primary border-primary/20">
+                94% Confidence
+              </Badge>
             </div>
-            <Badge className="bg-primary/10 text-primary border-primary/20">
-              94% Confidence
-            </Badge>
-          </div>
 
-          <div className="bg-card/50 backdrop-blur-sm rounded-xl p-6 mb-4">
-            <h3 className="text-xl font-semibold mb-2">{topRecommendation?.name} Optimization</h3>
-            <p className="text-lg text-success font-medium mb-3">
-              Increase rate to ${topRecommendation?.suggested_rate || topRecommendation?.current_rate}/day
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Market demand analysis shows high probability of maintaining bookings at this price point.
-            </p>
-          </div>
+            <div className="bg-card/50 backdrop-blur-sm rounded-xl p-6 mb-4">
+              <h3 className="text-xl font-semibold mb-2">{topRecommendation.name} Optimization</h3>
+              <p className="text-lg text-success font-medium mb-3">
+                Increase rate to ${topRecommendation.suggested_rate}/day
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Market demand analysis shows high probability of maintaining bookings at this price point.
+              </p>
+            </div>
 
-          <div className="flex space-x-3">
-          <Button 
-            className="btn-premium hover-scale"
-            onClick={() => setShowOptimizationDialog(true)}
-          >
-              <CheckCircle className="w-4 h-4 mr-2" />
-              Apply This Optimization
-            </Button>
-            <Button 
-              variant="outline" 
-              className="hover-scale"
-              onClick={() => {
-                vehiclesWithOptimization.forEach(v => {
-                  if (v.suggested_rate) {
-                    applyPriceOptimization(v.id, v.suggested_rate);
-                  }
-                });
-              }}
-            >
-              Apply All
-              <ArrowRight className="w-4 h-4 ml-2" />
-            </Button>
-          </div>
-        </Card>
+            <div className="flex space-x-3">
+              <Button 
+                className="btn-premium hover-scale"
+                onClick={() => setShowOptimizationDialog(true)}
+              >
+                <CheckCircle className="w-4 h-4 mr-2" />
+                Apply This Optimization
+              </Button>
+              <Button 
+                variant="outline" 
+                className="hover-scale"
+                onClick={() => {
+                  validOptimizations.forEach(v => {
+                    if (v.suggested_rate) {
+                      applyPriceOptimization(v.id, v.suggested_rate);
+                    }
+                  });
+                }}
+              >
+                Apply All ({validOptimizations.length})
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </div>
+          </Card>
+        ) : (
+          <Card className="card-premium p-8">
+            <div className="text-center py-8">
+              <Brain className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
+              <h3 className="text-xl font-semibold mb-2">No Active Optimizations</h3>
+              <p className="text-muted-foreground">
+                Your fleet is currently optimized. We'll notify you when new opportunities arise.
+              </p>
+            </div>
+          </Card>
+        )}
 
         {/* Key Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -101,9 +121,11 @@ export const MotorIQEnhanced = () => {
               <Badge variant="outline" className="text-xs">This Week</Badge>
             </div>
             <div className="text-3xl font-bold text-primary mb-1">
-              ${vehicles.reduce((sum, v) => sum + (v.revenue || 0), 0).toLocaleString()}
+              ${(vehicles.reduce((sum, v) => sum + (v.revenue || 0), 0) / 4.33).toLocaleString('en-US', { 
+                maximumFractionDigits: 0 
+              })}
             </div>
-            <div className="text-sm text-muted-foreground mb-2">Total Fleet Revenue</div>
+            <div className="text-sm text-muted-foreground mb-2">Total Fleet Revenue (This Week)</div>
             <div className="flex items-center text-xs text-success">
               <TrendingUp className="w-3 h-3 mr-1" />
               +18% vs last week
@@ -116,7 +138,7 @@ export const MotorIQEnhanced = () => {
               <Badge variant="outline" className="text-xs">Active</Badge>
             </div>
             <div className="text-3xl font-bold text-primary mb-1">
-              {vehiclesWithOptimization.filter(v => v.suggested_rate).length}
+              {validOptimizations.length}
             </div>
             <div className="text-sm text-muted-foreground mb-2">Active Optimizations</div>
             <div className="text-xs text-muted-foreground">
