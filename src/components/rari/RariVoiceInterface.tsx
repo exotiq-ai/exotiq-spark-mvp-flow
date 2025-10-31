@@ -15,6 +15,13 @@ interface Message {
 class AudioQueue {
   private queue: string[] = [];
   private isPlaying = false;
+  private onPlaybackStart?: () => void;
+  private onPlaybackEnd?: () => void;
+
+  constructor(callbacks?: { onPlaybackStart?: () => void; onPlaybackEnd?: () => void }) {
+    this.onPlaybackStart = callbacks?.onPlaybackStart;
+    this.onPlaybackEnd = callbacks?.onPlaybackEnd;
+  }
 
   addToQueue(base64Audio: string) {
     this.queue.push(base64Audio);
@@ -26,10 +33,17 @@ class AudioQueue {
   private async playNext() {
     if (this.queue.length === 0) {
       this.isPlaying = false;
+      this.onPlaybackEnd?.();
+      console.log('Audio queue empty, playback ended');
       return;
     }
 
-    this.isPlaying = true;
+    if (!this.isPlaying) {
+      this.isPlaying = true;
+      this.onPlaybackStart?.();
+      console.log('Audio playback started');
+    }
+
     const base64Audio = this.queue.shift()!;
 
     try {
@@ -44,12 +58,13 @@ class AudioQueue {
       const audio = new Audio(url);
 
       audio.onended = () => {
+        console.log('Audio chunk finished');
         URL.revokeObjectURL(url);
         this.playNext();
       };
 
-      audio.onerror = () => {
-        console.error('Audio playback error');
+      audio.onerror = (error) => {
+        console.error('Audio playback error:', error);
         URL.revokeObjectURL(url);
         this.playNext();
       };
@@ -72,7 +87,12 @@ export default function RariVoiceInterface() {
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
-  const audioQueueRef = useRef<AudioQueue>(new AudioQueue());
+  const audioQueueRef = useRef<AudioQueue>(
+    new AudioQueue({
+      onPlaybackStart: () => setIsSpeaking(true),
+      onPlaybackEnd: () => setIsSpeaking(false),
+    })
+  );
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const recordingStartTimeRef = useRef<number>(0);
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -268,8 +288,6 @@ export default function RariVoiceInterface() {
   };
 
   const speakText = async (text: string) => {
-    setIsSpeaking(true);
-
     try {
       const { data: audioData, error: audioError } = await supabase.functions.invoke(
         'text-to-speech',
@@ -281,8 +299,11 @@ export default function RariVoiceInterface() {
       audioQueueRef.current.addToQueue(audioData.audioContent);
     } catch (error) {
       console.error('TTS error:', error);
-    } finally {
-      setIsSpeaking(false);
+      toast({
+        title: "Voice Error",
+        description: "Could not generate Rari's voice. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
