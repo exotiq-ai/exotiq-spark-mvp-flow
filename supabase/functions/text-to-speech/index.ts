@@ -32,9 +32,9 @@ serve(async (req) => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000); // 15s timeout
 
-    // Using Alexandra voice (XB0fDUnXU5powFXDhCwa) - warm, professional, clear
+    // Using Lucy voice (lcMyyd2HUfFzxdCaC4Ta) - clear, professional
     const response = await fetch(
-      'https://api.elevenlabs.io/v1/text-to-speech/XB0fDUnXU5powFXDhCwa',
+      'https://api.elevenlabs.io/v1/text-to-speech/lcMyyd2HUfFzxdCaC4Ta',
       {
         method: 'POST',
         headers: {
