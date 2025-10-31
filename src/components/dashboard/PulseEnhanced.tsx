@@ -1,6 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useNavigate } from "react-router-dom";
 import { 
   Activity, 
   TrendingUp, 
@@ -13,6 +14,8 @@ import {
 } from "lucide-react";
 
 export const PulseEnhanced = () => {
+  const navigate = useNavigate();
+  
   const todayRevenue = {
     amount: "$3,240",
     change: "+12%",
@@ -254,7 +257,12 @@ export const PulseEnhanced = () => {
                   </div>
                 </div>
               </div>
-              <Button size="sm" variant="outline" className="w-full">
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="w-full"
+                onClick={() => navigate('/dashboard?module=book')}
+              >
                 View Details
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
