@@ -76,13 +76,13 @@ export const BookingCalendar = () => {
   return (
     <div className="space-y-6">
       {/* Calendar Controls */}
-      <Card className="card-premium p-6">
+      <Card className="card-premium p-4 sm:p-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2 sm:space-x-4">
             <Button variant="outline" size="icon" onClick={previousMonth}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <h3 className="text-2xl font-bold">
+            <h3 className="text-lg sm:text-2xl font-bold">
               {format(currentDate, 'MMMM yyyy')}
             </h3>
             <Button variant="outline" size="icon" onClick={nextMonth}>
@@ -90,10 +90,10 @@ export const BookingCalendar = () => {
             </Button>
           </div>
 
-          <div className="flex items-center space-x-2">
-            <Filter className="h-4 w-4 text-muted-foreground" />
+          <div className="flex items-center space-x-2 w-full sm:w-auto">
+            <Filter className="h-4 w-4 text-muted-foreground flex-shrink-0" />
             <Select value={selectedVehicle} onValueChange={setSelectedVehicle}>
-              <SelectTrigger className="w-[200px]">
+              <SelectTrigger className="w-full sm:w-[200px]">
                 <SelectValue placeholder="All Vehicles" />
               </SelectTrigger>
               <SelectContent>
@@ -109,10 +109,10 @@ export const BookingCalendar = () => {
         </div>
 
         {/* Calendar Grid */}
-        <div className="grid grid-cols-7 gap-2">
+        <div className="grid grid-cols-7 gap-1 sm:gap-2">
           {/* Day Headers */}
           {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-            <div key={day} className="text-center font-semibold text-sm text-muted-foreground p-2">
+            <div key={day} className="text-center font-semibold text-xs sm:text-sm text-muted-foreground p-1 sm:p-2">
               {day}
             </div>
           ))}
@@ -134,25 +134,25 @@ export const BookingCalendar = () => {
                 key={day.toISOString()}
                 onClick={() => setSelectedDate(day)}
                 className={`
-                  relative p-2 min-h-[80px] rounded-lg border cursor-pointer transition-all
+                  relative p-1 sm:p-2 min-h-[60px] sm:min-h-[80px] rounded-lg border cursor-pointer transition-all
                   ${isSelected ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'}
                   ${isToday ? 'bg-accent/5' : 'bg-background'}
                   ${hasConflict ? 'border-destructive' : ''}
                 `}
               >
                 <div className="flex items-center justify-between mb-1">
-                  <span className={`text-sm font-medium ${isToday ? 'text-primary' : ''}`}>
+                  <span className={`text-xs sm:text-sm font-medium ${isToday ? 'text-primary' : ''}`}>
                     {format(day, 'd')}
                   </span>
                   {hasConflict && (
-                    <AlertTriangle className="h-3 w-3 text-destructive" />
+                    <AlertTriangle className="h-3 w-3 text-destructive flex-shrink-0" />
                   )}
                 </div>
 
                 {bookingsCount > 0 && (
                   <div className="space-y-1">
-                    <Badge variant="outline" className="text-xs">
-                      {bookingsCount} booking{bookingsCount > 1 ? 's' : ''}
+                    <Badge variant="outline" className="text-[10px] sm:text-xs px-1 sm:px-2 truncate block max-w-full">
+                      {bookingsCount}
                     </Badge>
                   </div>
                 )}
@@ -180,8 +180,8 @@ export const BookingCalendar = () => {
 
       {/* Selected Day Details */}
       {selectedDate && (
-        <Card className="card-premium p-6">
-          <h4 className="text-lg font-semibold mb-4">
+        <Card className="card-premium p-4 sm:p-6">
+          <h4 className="text-base sm:text-lg font-semibold mb-4">
             Bookings for {format(selectedDate, 'MMMM d, yyyy')}
           </h4>
 
@@ -199,25 +199,25 @@ export const BookingCalendar = () => {
                 return (
                   <div
                     key={booking.id}
-                    className="p-4 rounded-lg border"
+                    className="p-3 sm:p-4 rounded-lg border"
                     style={{ borderLeftWidth: '4px', borderLeftColor: vehicleColor }}
                   >
-                    <div className="flex items-start justify-between mb-2">
-                      <div>
-                        <h5 className="font-semibold">{vehicle?.name || 'Unknown Vehicle'}</h5>
-                        <p className="text-sm text-muted-foreground">{booking.customer_name}</p>
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-2">
+                      <div className="min-w-0 flex-1">
+                        <h5 className="font-semibold truncate">{vehicle?.name || 'Unknown Vehicle'}</h5>
+                        <p className="text-sm text-muted-foreground truncate">{booking.customer_name}</p>
                       </div>
-                      <Badge className={
+                      <Badge className={`flex-shrink-0 ${
                         booking.status === 'confirmed' ? 'bg-success/10 text-success' :
                         booking.status === 'completed' ? 'bg-primary/10 text-primary' :
                         booking.status === 'cancelled' ? 'bg-destructive/10 text-destructive' :
                         'bg-warning/10 text-warning'
-                      }>
+                      }`}>
                         {booking.status}
                       </Badge>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
                       <div>
                         <span className="text-muted-foreground">Pickup:</span>
                         <span className="ml-2">{format(new Date(booking.start_date), 'h:mm a')}</span>
@@ -226,9 +226,9 @@ export const BookingCalendar = () => {
                         <span className="text-muted-foreground">Return:</span>
                         <span className="ml-2">{format(new Date(booking.end_date), 'h:mm a')}</span>
                       </div>
-                      <div className="col-span-2">
+                      <div className="col-span-1 sm:col-span-2 min-w-0">
                         <span className="text-muted-foreground">Location:</span>
-                        <span className="ml-2">{booking.pickup_location}</span>
+                        <span className="ml-2 truncate">{booking.pickup_location}</span>
                       </div>
                     </div>
                   </div>

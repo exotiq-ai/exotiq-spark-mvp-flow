@@ -82,45 +82,45 @@ export const DamageClaimsSection = () => {
 
       <div className="space-y-6">
         {/* Stats Overview */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="card-module p-4">
-            <div className="flex items-center space-x-3 mb-2">
-              <FileText className="h-5 w-5 text-primary" />
-              <span className="text-sm text-muted-foreground">Total Claims</span>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <Card className="card-module p-3 sm:p-4">
+            <div className="flex items-center space-x-2 sm:space-x-3 mb-2">
+              <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0" />
+              <span className="text-xs sm:text-sm text-muted-foreground">Total Claims</span>
             </div>
-            <div className="text-2xl font-bold">{claimStats.total}</div>
+            <div className="text-xl sm:text-2xl font-bold">{claimStats.total}</div>
           </Card>
 
-          <Card className="card-module p-4">
-            <div className="flex items-center space-x-3 mb-2">
-              <AlertTriangle className="h-5 w-5 text-warning" />
-              <span className="text-sm text-muted-foreground">Open</span>
+          <Card className="card-module p-3 sm:p-4">
+            <div className="flex items-center space-x-2 sm:space-x-3 mb-2">
+              <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-warning flex-shrink-0" />
+              <span className="text-xs sm:text-sm text-muted-foreground">Open</span>
             </div>
-            <div className="text-2xl font-bold">{claimStats.open}</div>
+            <div className="text-xl sm:text-2xl font-bold">{claimStats.open}</div>
           </Card>
 
-          <Card className="card-module p-4">
-            <div className="flex items-center space-x-3 mb-2">
-              <Clock className="h-5 w-5 text-info" />
-              <span className="text-sm text-muted-foreground">Pending</span>
+          <Card className="card-module p-3 sm:p-4">
+            <div className="flex items-center space-x-2 sm:space-x-3 mb-2">
+              <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-info flex-shrink-0" />
+              <span className="text-xs sm:text-sm text-muted-foreground">Pending</span>
             </div>
-            <div className="text-2xl font-bold">{claimStats.pending}</div>
+            <div className="text-xl sm:text-2xl font-bold">{claimStats.pending}</div>
           </Card>
 
-          <Card className="card-module p-4">
-            <div className="flex items-center space-x-3 mb-2">
-              <DollarSign className="h-5 w-5 text-destructive" />
-              <span className="text-sm text-muted-foreground">Total Cost</span>
+          <Card className="card-module p-3 sm:p-4">
+            <div className="flex items-center space-x-2 sm:space-x-3 mb-2">
+              <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-destructive flex-shrink-0" />
+              <span className="text-xs sm:text-sm text-muted-foreground">Total Cost</span>
             </div>
-            <div className="text-2xl font-bold">${claimStats.totalCost.toLocaleString()}</div>
+            <div className="text-xl sm:text-2xl font-bold">${claimStats.totalCost.toLocaleString()}</div>
           </Card>
         </div>
 
         {/* Search and Filters */}
-        <Card className="card-premium p-6">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-            <h3 className="text-lg font-semibold">Damage Claims</h3>
-            <Button onClick={() => setShowReportDialog(true)}>
+        <Card className="card-premium p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 mb-6">
+            <h3 className="text-base sm:text-lg font-semibold">Damage Claims</h3>
+            <Button onClick={() => setShowReportDialog(true)} className="w-full sm:w-auto">
               <Plus className="h-4 w-4 mr-2" />
               New Claim
             </Button>
@@ -136,7 +136,7 @@ export const DamageClaimsSection = () => {
                 className="pl-10"
               />
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {['all', 'open', 'pending_review', 'resolved'].map((status) => (
                 <Button
                   key={status}
@@ -144,7 +144,9 @@ export const DamageClaimsSection = () => {
                   size="sm"
                   onClick={() => setStatusFilter(status)}
                 >
-                  {status === 'all' ? 'All' : status.replace('_', ' ')}
+                  {status === 'all' ? 'All' : 
+                   status === 'pending_review' ? 'Pending Review' : 
+                   status.charAt(0).toUpperCase() + status.slice(1)}
                 </Button>
               ))}
             </div>
@@ -163,27 +165,28 @@ export const DamageClaimsSection = () => {
                 return (
                   <div
                     key={claim.id}
-                    className="p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors"
+                    className="p-3 sm:p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors"
                   >
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h4 className="font-semibold">{vehicle?.name || 'Unknown Vehicle'}</h4>
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 mb-1">
+                          <h4 className="font-semibold truncate">{vehicle?.name || 'Unknown Vehicle'}</h4>
                           <Badge className={getSeverityColor(claim.severity)}>
                             {claim.severity}
                           </Badge>
                         </div>
-                        <p className="text-sm text-muted-foreground mb-2">{claim.description}</p>
+                        <p className="text-sm text-muted-foreground line-clamp-2">{claim.description}</p>
                       </div>
-                      <Badge className={getStatusColor(claim.claim_status || 'open')}>
+                      <Badge className={`${getStatusColor(claim.claim_status || 'open')} flex-shrink-0`}>
                         <span className="flex items-center gap-1">
                           {getStatusIcon(claim.claim_status || 'open')}
-                          {claim.claim_status?.replace('_', ' ') || 'open'}
+                          {claim.claim_status === 'pending_review' ? 'Pending Review' : 
+                           (claim.claim_status || 'open').replace('_', ' ')}
                         </span>
                       </Badge>
                     </div>
 
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
                       <div>
                         <span className="text-muted-foreground">Type:</span>
                         <span className="ml-2 font-medium capitalize">{claim.claim_type}</span>
@@ -205,7 +208,7 @@ export const DamageClaimsSection = () => {
                         </span>
                       </div>
                       {claim.insurance_claim_number && (
-                        <div className="col-span-2">
+                        <div className="col-span-1 sm:col-span-2">
                           <span className="text-muted-foreground">Insurance #:</span>
                           <span className="ml-2 font-medium">{claim.insurance_claim_number}</span>
                         </div>
