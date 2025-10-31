@@ -1,39 +1,79 @@
-import { useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 
 export const useModuleNavigation = () => {
-  const navigate = useNavigate();
-  
+  const [searchParams, setSearchParams] = useSearchParams();
+
   const goToCustomerProfile = (customerId: string) => {
-    navigate(`/dashboard?module=core&customerId=${customerId}`);
-  };
-  
-  const goToBooking = (bookingId: string) => {
-    navigate(`/dashboard?module=book&bookingId=${bookingId}`);
-  };
-  
-  const goToVehicle = (vehicleId: string) => {
-    navigate(`/dashboard?module=motoriq&vehicleId=${vehicleId}`);
-  };
-  
-  const goToDocument = (documentId: string) => {
-    navigate(`/dashboard?module=vault&documentId=${documentId}`);
-  };
-  
-  const goToMaintenance = (maintenanceId: string) => {
-    navigate(`/dashboard?module=pulse&maintenanceId=${maintenanceId}`);
+    setSearchParams({ 
+      module: 'core', 
+      view: 'crm', 
+      customerId 
+    });
   };
 
-  const goToModule = (module: string, params?: Record<string, string>) => {
-    const queryParams = new URLSearchParams({ module, ...params }).toString();
-    navigate(`/dashboard?${queryParams}`);
+  const goToBookingDetails = (bookingId: string) => {
+    setSearchParams({ 
+      module: 'book', 
+      bookingId 
+    });
   };
-  
+
+  const goToVehicleDetails = (vehicleId: string) => {
+    setSearchParams({ 
+      module: 'core', 
+      vehicleId 
+    });
+  };
+
+  const goToDamageReport = (damageClaimId: string) => {
+    setSearchParams({ 
+      module: 'vault', 
+      view: 'damage', 
+      damageClaimId 
+    });
+  };
+
+  const goToInspection = (inspectionId: string) => {
+    setSearchParams({ 
+      module: 'vault', 
+      view: 'inspections', 
+      inspectionId 
+    });
+  };
+
+  const goToPayments = (bookingId?: string) => {
+    setSearchParams({ 
+      module: 'book', 
+      view: 'payments',
+      ...(bookingId && { bookingId })
+    });
+  };
+
+  const goToCustomerBookings = (customerId: string) => {
+    setSearchParams({ 
+      module: 'book', 
+      customerId 
+    });
+  };
+
+  const getCurrentModule = () => searchParams.get('module') || 'core';
+  const getCurrentView = () => searchParams.get('view');
+  const getCurrentCustomerId = () => searchParams.get('customerId');
+  const getCurrentBookingId = () => searchParams.get('bookingId');
+  const getCurrentVehicleId = () => searchParams.get('vehicleId');
+
   return {
     goToCustomerProfile,
-    goToBooking,
-    goToVehicle,
-    goToDocument,
-    goToMaintenance,
-    goToModule
+    goToBookingDetails,
+    goToVehicleDetails,
+    goToDamageReport,
+    goToInspection,
+    goToPayments,
+    goToCustomerBookings,
+    getCurrentModule,
+    getCurrentView,
+    getCurrentCustomerId,
+    getCurrentBookingId,
+    getCurrentVehicleId,
   };
 };

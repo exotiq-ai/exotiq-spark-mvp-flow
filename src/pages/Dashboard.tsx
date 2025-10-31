@@ -9,9 +9,11 @@ import { SEOHead } from "@/components/common/SEOHead";
 import { useAnalytics } from "@/lib/analytics";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useSwipeGesture } from "@/hooks/useSwipeGesture";
+import { useRealtimeSubscriptions } from "@/hooks/useRealtimeSubscriptions";
 // import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { performance } from "@/lib/performance";
 import { motion, AnimatePresence } from "framer-motion";
+import { GlobalSearch } from "@/components/common/GlobalSearch";
 import { 
   TrendingUp, 
   Calendar, 
@@ -37,6 +39,9 @@ const Dashboard = () => {
   const [activeModule, setActiveModule] = useLocalStorage("activeModule", "dashboard");
   const { track, page } = useAnalytics();
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Enable real-time subscriptions
+  useRealtimeSubscriptions();
 
   // Enable keyboard shortcuts
   // useKeyboardShortcuts();
@@ -180,6 +185,7 @@ const Dashboard = () => {
         noIndex={true}
       />
       <SkipNavigation />
+      <GlobalSearch />
       
       {/* Desktop Sidebar */}
       <DashboardSidebar 

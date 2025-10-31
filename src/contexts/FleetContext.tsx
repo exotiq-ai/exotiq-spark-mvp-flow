@@ -45,6 +45,10 @@ interface FleetContextType {
   createDamageClaim: (claim: Omit<Database['public']['Tables']['damage_claims']['Insert'], 'user_id'>) => Promise<void>;
   createPayment: (payment: Omit<Database['public']['Tables']['payments']['Insert'], 'user_id'>) => Promise<void>;
   refreshData: () => Promise<void>;
+  refreshBookings: () => void;
+  refreshPayments: () => void;
+  refreshDamageClaims: () => void;
+  refreshCustomers: () => void;
 }
 
 const FleetContext = createContext<FleetContextType | undefined>(undefined);
@@ -627,6 +631,47 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
+  // Individual refresh methods for real-time updates
+  const refreshBookings = () => {
+    if (!user) return;
+    supabase
+      .from('bookings')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('start_date', { ascending: false })
+      .then(({ data }) => setBookings(data || []));
+  };
+
+  const refreshPayments = () => {
+    if (!user) return;
+    supabase
+      .from('payments')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .then(({ data }) => setPayments(data || []));
+  };
+
+  const refreshDamageClaims = () => {
+    if (!user) return;
+    supabase
+      .from('damage_claims')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('reported_date', { ascending: false })
+      .then(({ data }) => setDamageClaims(data || []));
+  };
+
+  const refreshCustomers = () => {
+    if (!user) return;
+    supabase
+      .from('customers')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .then(({ data }) => setCustomers(data || []));
+  };
+
   return (
     <FleetContext.Provider value={{
       vehicles,
@@ -657,7 +702,11 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       createInspection,
       createDamageClaim,
       createPayment,
-      refreshData
+      refreshData,
+      refreshBookings,
+      refreshPayments,
+      refreshDamageClaims,
+      refreshCustomers
     }}>
       {children}
     </FleetContext.Provider>
