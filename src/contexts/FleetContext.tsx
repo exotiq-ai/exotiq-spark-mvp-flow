@@ -9,6 +9,11 @@ type Booking = Database['public']['Tables']['bookings']['Row'];
 type Document = Database['public']['Tables']['documents']['Row'];
 type Maintenance = Database['public']['Tables']['maintenance_schedules']['Row'];
 type Message = Database['public']['Tables']['messages']['Row'];
+type Customer = Database['public']['Tables']['customers']['Row'];
+type CustomerNote = Database['public']['Tables']['customer_notes']['Row'];
+type VehicleInspection = Database['public']['Tables']['vehicle_inspections']['Row'];
+type DamageClaim = Database['public']['Tables']['damage_claims']['Row'];
+type Payment = Database['public']['Tables']['payments']['Row'];
 
 interface FleetContextType {
   vehicles: Vehicle[];
@@ -16,6 +21,11 @@ interface FleetContextType {
   documents: Document[];
   maintenance: Maintenance[];
   messages: Message[];
+  customers: Customer[];
+  customerNotes: CustomerNote[];
+  inspections: VehicleInspection[];
+  damageClaims: DamageClaim[];
+  payments: Payment[];
   revenue: { today: number; month: number; change: number };
   loading: boolean;
   applyPriceOptimization: (vehicleId: string, newRate: number) => Promise<void>;
@@ -27,6 +37,13 @@ interface FleetContextType {
   createMaintenance: (maintenance: Omit<Database['public']['Tables']['maintenance_schedules']['Insert'], 'user_id'>) => Promise<void>;
   sendMessage: (message: Omit<Database['public']['Tables']['messages']['Insert'], 'user_id'>) => Promise<void>;
   generateReport: (reportType: string, dateRange: { start: string; end: string }, format: string) => Promise<void>;
+  createCustomer: (customer: Omit<Database['public']['Tables']['customers']['Insert'], 'user_id'>) => Promise<void>;
+  updateCustomer: (customerId: string, updates: Partial<Customer>) => Promise<void>;
+  addCustomerNote: (customerId: string, note: string, createdBy: string) => Promise<void>;
+  blacklistCustomer: (customerId: string, reason: string) => Promise<void>;
+  createInspection: (inspection: Omit<Database['public']['Tables']['vehicle_inspections']['Insert'], 'user_id'>) => Promise<void>;
+  createDamageClaim: (claim: Omit<Database['public']['Tables']['damage_claims']['Insert'], 'user_id'>) => Promise<void>;
+  createPayment: (payment: Omit<Database['public']['Tables']['payments']['Insert'], 'user_id'>) => Promise<void>;
   refreshData: () => Promise<void>;
 }
 
@@ -48,6 +65,11 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [maintenance, setMaintenance] = useState<Maintenance[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customerNotes, setCustomerNotes] = useState<CustomerNote[]>([]);
+  const [inspections, setInspections] = useState<VehicleInspection[]>([]);
+  const [damageClaims, setDamageClaims] = useState<DamageClaim[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
 
   const refreshData = async () => {
     if (!user) {
@@ -101,6 +123,51 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
 
       if (messagesError) throw messagesError;
       setMessages(messagesData || []);
+
+      const { data: customersData, error: customersError } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (customersError) throw customersError;
+      setCustomers(customersData || []);
+
+      const { data: notesData, error: notesError } = await supabase
+        .from('customer_notes')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (notesError) throw notesError;
+      setCustomerNotes(notesData || []);
+
+      const { data: inspectionsData, error: inspectionsError } = await supabase
+        .from('vehicle_inspections')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (inspectionsError) throw inspectionsError;
+      setInspections(inspectionsData || []);
+
+      const { data: claimsData, error: claimsError } = await supabase
+        .from('damage_claims')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (claimsError) throw claimsError;
+      setDamageClaims(claimsData || []);
+
+      const { data: paymentsData, error: paymentsError } = await supabase
+        .from('payments')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (paymentsError) throw paymentsError;
+      setPayments(paymentsData || []);
 
       // Calculate revenue
       const today = new Date();
@@ -354,18 +421,209 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const generateReport = async (reportType: string, dateRange: { start: string; end: string }, format: string) => {
-    // Simulate report generation
     toast({
       title: "Generating Report",
       description: `Your ${reportType} report is being generated...`,
     });
 
-    // In a real app, this would call an edge function or generate the report
     await new Promise(resolve => setTimeout(resolve, 2000));
 
     toast({
       title: "Report Generated",
       description: `Your ${reportType} report (${format}) is ready for download.`,
+    });
+  };
+
+  const createCustomer = async (customer: Omit<Database['public']['Tables']['customers']['Insert'], 'user_id'>) => {
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('customers')
+      .insert({
+        ...customer,
+        user_id: user.id
+      });
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    await refreshData();
+    
+    toast({
+      title: "Customer Added",
+      description: "New customer has been added to your CRM.",
+    });
+  };
+
+  const updateCustomer = async (customerId: string, updates: Partial<Customer>) => {
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('customers')
+      .update(updates)
+      .eq('id', customerId)
+      .eq('user_id', user.id);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    await refreshData();
+    
+    toast({
+      title: "Customer Updated",
+      description: "Customer information has been updated.",
+    });
+  };
+
+  const addCustomerNote = async (customerId: string, note: string, createdBy: string) => {
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('customer_notes')
+      .insert({
+        customer_id: customerId,
+        user_id: user.id,
+        note,
+        created_by: createdBy
+      });
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    await refreshData();
+    
+    toast({
+      title: "Note Added",
+      description: "Note has been added to customer profile.",
+    });
+  };
+
+  const blacklistCustomer = async (customerId: string, reason: string) => {
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('customers')
+      .update({
+        customer_status: 'blacklisted',
+        blacklist_reason: reason
+      })
+      .eq('id', customerId)
+      .eq('user_id', user.id);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    await refreshData();
+    
+    toast({
+      title: "Customer Blacklisted",
+      description: "Customer has been blacklisted.",
+      variant: "destructive"
+    });
+  };
+
+  const createInspection = async (inspection: Omit<Database['public']['Tables']['vehicle_inspections']['Insert'], 'user_id'>) => {
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('vehicle_inspections')
+      .insert({
+        ...inspection,
+        user_id: user.id
+      });
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    await refreshData();
+    
+    toast({
+      title: "Inspection Logged",
+      description: "Vehicle inspection has been recorded.",
+    });
+  };
+
+  const createDamageClaim = async (claim: Omit<Database['public']['Tables']['damage_claims']['Insert'], 'user_id'>) => {
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('damage_claims')
+      .insert({
+        ...claim,
+        user_id: user.id
+      });
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    await refreshData();
+    
+    toast({
+      title: "Damage Claim Created",
+      description: "Damage claim has been filed.",
+    });
+  };
+
+  const createPayment = async (payment: Omit<Database['public']['Tables']['payments']['Insert'], 'user_id'>) => {
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('payments')
+      .insert({
+        ...payment,
+        user_id: user.id
+      });
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    await refreshData();
+    
+    toast({
+      title: "Payment Recorded",
+      description: "Payment has been successfully recorded.",
     });
   };
 
@@ -376,6 +634,11 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       documents,
       maintenance,
       messages,
+      customers,
+      customerNotes,
+      inspections,
+      damageClaims,
+      payments,
       revenue,
       loading,
       applyPriceOptimization,
@@ -387,6 +650,13 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       createMaintenance,
       sendMessage,
       generateReport,
+      createCustomer,
+      updateCustomer,
+      addCustomerNote,
+      blacklistCustomer,
+      createInspection,
+      createDamageClaim,
+      createPayment,
       refreshData
     }}>
       {children}

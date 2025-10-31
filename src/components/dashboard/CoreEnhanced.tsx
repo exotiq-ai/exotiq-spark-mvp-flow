@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useFleet } from "@/contexts/FleetContext";
 import { 
   Brain, 
@@ -23,6 +24,7 @@ import { ScheduleMaintenanceDialog } from "@/components/dialogs/ScheduleMaintena
 import { SendMessageDialog } from "@/components/dialogs/SendMessageDialog";
 import { GenerateReportDialog } from "@/components/dialogs/GenerateReportDialog";
 import { PriceOptimizationDialog } from "@/components/dialogs/PriceOptimizationDialog";
+import { CRMSection } from "@/components/dashboard/CRMSection";
 
 export const CoreEnhanced = () => {
   const { vehicles, bookings, createVehicle, createBooking, createMaintenance, sendMessage, generateReport, applyPriceOptimization } = useFleet();
@@ -154,12 +156,12 @@ export const CoreEnhanced = () => {
 
   return (
     <div className="space-y-6">
-      {/* AI Command Center */}
+      {/* AI Command Center Header */}
       <Card className="card-premium p-6 bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-3xl font-bold">FleetCopilot™</h2>
-            <p className="text-xl text-muted-foreground mt-1">AI Command Center</p>
+            <p className="text-xl text-muted-foreground mt-1">AI Command Center & CRM</p>
           </div>
           <div className="flex items-center space-x-4">
             <Button className="btn-premium">
@@ -168,7 +170,7 @@ export const CoreEnhanced = () => {
             </Button>
             <Badge className="bg-primary/10 text-primary border-primary/20">
               <Brain className="w-4 h-4 mr-1" />
-              FleetCopilot™ AI Active
+              FleetCopilot™ Active
             </Badge>
           </div>
         </div>
@@ -193,6 +195,29 @@ export const CoreEnhanced = () => {
           </div>
         </div>
       </Card>
+
+      {/* Tabbed Interface for AI Insights & CRM */}
+      <Tabs defaultValue="crm" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="crm">
+            <Users className="w-4 h-4 mr-2" />
+            Customer CRM
+          </TabsTrigger>
+          <TabsTrigger value="insights">
+            <Brain className="w-4 h-4 mr-2" />
+            AI Insights
+          </TabsTrigger>
+          <TabsTrigger value="actions">
+            <Zap className="w-4 h-4 mr-2" />
+            Quick Actions
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="crm">
+          <CRMSection />
+        </TabsContent>
+
+        <TabsContent value="insights" className="space-y-6">
 
       {/* Performance Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -274,27 +299,31 @@ export const CoreEnhanced = () => {
         </Card>
       </div>
 
-      {/* Quick Actions */}
-      <Card className="card-premium p-6">
-        <h3 className="text-xl font-semibold mb-6">Quick Actions</h3>
-        
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          {quickActions.map((action, index) => (
-            <div 
-              key={index} 
-              onClick={action.onClick}
-              className="p-4 rounded-lg bg-muted/30 border border-primary/10 hover-scale cursor-pointer group"
-            >
-              <div className="text-center">
-                <div className="p-3 rounded-lg bg-primary/10 mb-3 group-hover:bg-primary/20 transition-smooth">
-                  <action.icon className={`w-6 h-6 ${action.color} mx-auto`} />
+        </TabsContent>
+
+        <TabsContent value="actions">
+          <Card className="card-premium p-6">
+            <h3 className="text-xl font-semibold mb-6">Quick Actions</h3>
+            
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              {quickActions.map((action, index) => (
+                <div 
+                  key={index} 
+                  onClick={action.onClick}
+                  className="p-4 rounded-lg bg-muted/30 border border-primary/10 hover-scale cursor-pointer group"
+                >
+                  <div className="text-center">
+                    <div className="p-3 rounded-lg bg-primary/10 mb-3 group-hover:bg-primary/20 transition-smooth">
+                      <action.icon className={`w-6 h-6 ${action.color} mx-auto`} />
+                    </div>
+                    <div className="text-sm font-medium">{action.title}</div>
+                  </div>
                 </div>
-                <div className="text-sm font-medium">{action.title}</div>
-              </div>
+              ))}
             </div>
-          ))}
-        </div>
-      </Card>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* All Dialogs */}
       <AddVehicleDialog
