@@ -13,6 +13,10 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Database } from "@/integrations/supabase/types";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle, Loader2 } from "lucide-react";
+import { validators, validateForm } from "@/lib/validation";
+import { toast } from "@/hooks/use-toast";
 
 interface AddCustomerDialogProps {
   open: boolean;
@@ -27,6 +31,7 @@ export const AddCustomerDialog = ({
 }: AddCustomerDialogProps) => {
   const [loading, setLoading] = useState(false);
   const [isVIP, setIsVIP] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     full_name: "",
     email: "",
@@ -43,6 +48,20 @@ export const AddCustomerDialog = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
+    
+    // Validate form
+    const validation = validateForm([
+      () => validators.required(formData.full_name, 'Full name'),
+      () => validators.email(formData.email),
+      () => formData.phone ? validators.phone(formData.phone) : { isValid: true },
+    ]);
+
+    if (!validation.isValid) {
+      setError(validation.errors[0]);
+      return;
+    }
+
     setLoading(true);
     
     try {
@@ -68,9 +87,16 @@ export const AddCustomerDialog = ({
         notes: "",
       });
       setIsVIP(false);
+      setError(null);
       onOpenChange(false);
-    } catch (error) {
-      console.error("Error adding customer:", error);
+      
+      toast({
+        title: "Success",
+        description: "Customer added successfully",
+      });
+    } catch (err) {
+      setError("Failed to add customer. Please try again.");
+      console.error("Error adding customer:", err);
     } finally {
       setLoading(false);
     }
@@ -85,6 +111,13 @@ export const AddCustomerDialog = ({
             Enter customer details to add them to your CRM system
           </DialogDescription>
         </DialogHeader>
+
+        {error && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
 
         <form onSubmit={handleSubmit}>
           <div className="space-y-6 py-4">
@@ -230,11 +263,18 @@ export const AddCustomerDialog = ({
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
               Cancel
             </Button>
             <Button type="submit" disabled={loading} className="btn-premium">
-              {loading ? "Adding..." : "Add Customer"}
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Adding...
+                </>
+              ) : (
+                "Add Customer"
+              )}
             </Button>
           </DialogFooter>
         </form>

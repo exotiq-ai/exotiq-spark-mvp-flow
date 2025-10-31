@@ -18,8 +18,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Calendar, User, MapPin, DollarSign } from 'lucide-react';
+import { Calendar, User, MapPin, Loader2, AlertCircle } from 'lucide-react';
 import { TablesInsert, Tables } from '@/integrations/supabase/types';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { validators, validateForm } from '@/lib/validation';
+import { toast } from '@/hooks/use-toast';
 
 interface NewBookingDialogProps {
   open: boolean;
@@ -43,44 +46,79 @@ export const NewBookingDialog = ({
   const [pickupLocation, setPickupLocation] = useState('');
   const [dropoffLocation, setDropoffLocation] = useState('');
   const [notes, setNotes] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async () => {
-    if (!vehicleId || !customerName || !startDate || !endDate || !pickupLocation) {
+    setError(null);
+
+    // Validate form
+    const validation = validateForm([
+      () => validators.required(vehicleId, 'Vehicle'),
+      () => validators.required(customerName, 'Customer name'),
+      () => validators.required(startDate, 'Start date'),
+      () => validators.required(endDate, 'End date'),
+      () => validators.required(pickupLocation, 'Pickup location'),
+      () => validators.dateRange(startDate, endDate),
+      () => customerEmail ? validators.email(customerEmail) : { isValid: true },
+      () => customerPhone ? validators.phone(customerPhone) : { isValid: true },
+    ]);
+
+    if (!validation.isValid) {
+      setError(validation.errors[0]);
       return;
     }
 
     const selectedVehicle = vehicles.find(v => v.id === vehicleId);
-    if (!selectedVehicle) return;
+    if (!selectedVehicle) {
+      setError('Selected vehicle not found');
+      return;
+    }
 
-    const days = Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24));
-    const totalValue = Number(selectedVehicle.current_rate) * days;
+    setLoading(true);
 
-    await onSubmit({
-      vehicle_id: vehicleId,
-      customer_name: customerName,
-      customer_email: customerEmail || null,
-      customer_phone: customerPhone || null,
-      start_date: new Date(startDate).toISOString(),
-      end_date: new Date(endDate).toISOString(),
-      pickup_location: pickupLocation,
-      dropoff_location: dropoffLocation || null,
-      daily_rate: selectedVehicle.current_rate,
-      total_value: totalValue,
-      notes: notes || null,
-      status: 'pending'
-    });
+    try {
+      const days = Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24));
+      const totalValue = Number(selectedVehicle.current_rate) * days;
 
-    // Reset form
-    setVehicleId('');
-    setCustomerName('');
-    setCustomerEmail('');
-    setCustomerPhone('');
-    setStartDate('');
-    setEndDate('');
-    setPickupLocation('');
-    setDropoffLocation('');
-    setNotes('');
-    onOpenChange(false);
+      await onSubmit({
+        vehicle_id: vehicleId,
+        customer_name: customerName,
+        customer_email: customerEmail || null,
+        customer_phone: customerPhone || null,
+        start_date: new Date(startDate).toISOString(),
+        end_date: new Date(endDate).toISOString(),
+        pickup_location: pickupLocation,
+        dropoff_location: dropoffLocation || null,
+        daily_rate: selectedVehicle.current_rate,
+        total_value: totalValue,
+        notes: notes || null,
+        status: 'pending'
+      });
+
+      // Reset form
+      setVehicleId('');
+      setCustomerName('');
+      setCustomerEmail('');
+      setCustomerPhone('');
+      setStartDate('');
+      setEndDate('');
+      setPickupLocation('');
+      setDropoffLocation('');
+      setNotes('');
+      setError(null);
+      onOpenChange(false);
+      
+      toast({
+        title: "Success",
+        description: "Booking created successfully",
+      });
+    } catch (err) {
+      setError('Failed to create booking. Please try again.');
+      console.error('Booking error:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -95,6 +133,13 @@ export const NewBookingDialog = ({
             Create a new booking for your fleet
           </DialogDescription>
         </DialogHeader>
+
+        {error && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
 
         <div className="space-y-4 py-4">
           {/* Vehicle Selection */}
@@ -220,11 +265,21 @@ export const NewBookingDialog = ({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={!vehicleId || !customerName || !startDate || !endDate || !pickupLocation}>
-            Create Booking
+          <Button 
+            onClick={handleSubmit} 
+            disabled={loading || !vehicleId || !customerName || !startDate || !endDate || !pickupLocation}
+          >
+            {loading ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Creating...
+              </>
+            ) : (
+              'Create Booking'
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

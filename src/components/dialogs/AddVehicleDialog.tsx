@@ -5,6 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Database } from "@/integrations/supabase/types";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle, Loader2 } from "lucide-react";
+import { validators, validateForm } from "@/lib/validation";
+import { toast } from "@/hooks/use-toast";
 
 type VehicleInsert = Omit<Database['public']['Tables']['vehicles']['Insert'], 'user_id'>;
 
@@ -24,11 +28,25 @@ export const AddVehicleDialog = ({ open, onOpenChange, onSubmit }: AddVehicleDia
   const [currentRate, setCurrentRate] = useState("");
   const [status, setStatus] = useState<string>("available");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     
-    if (!name || !make || !model || !year || !currentRate) {
+    // Validate form
+    const validation = validateForm([
+      () => validators.required(name, 'Vehicle name'),
+      () => validators.required(make, 'Make'),
+      () => validators.required(model, 'Model'),
+      () => validators.required(year, 'Year'),
+      () => validators.year(year),
+      () => validators.required(currentRate, 'Daily rate'),
+      () => validators.positiveNumber(currentRate, 'Daily rate'),
+    ]);
+
+    if (!validation.isValid) {
+      setError(validation.errors[0]);
       return;
     }
 
@@ -58,9 +76,16 @@ export const AddVehicleDialog = ({ open, onOpenChange, onSubmit }: AddVehicleDia
       setVin("");
       setCurrentRate("");
       setStatus("available");
+      setError(null);
       onOpenChange(false);
-    } catch (error) {
-      console.error("Error adding vehicle:", error);
+      
+      toast({
+        title: "Success",
+        description: "Vehicle added successfully",
+      });
+    } catch (err) {
+      setError("Failed to add vehicle. Please try again.");
+      console.error("Error adding vehicle:", err);
     } finally {
       setLoading(false);
     }
@@ -72,6 +97,13 @@ export const AddVehicleDialog = ({ open, onOpenChange, onSubmit }: AddVehicleDia
         <DialogHeader>
           <DialogTitle>Add New Vehicle</DialogTitle>
         </DialogHeader>
+
+        {error && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -172,11 +204,18 @@ export const AddVehicleDialog = ({ open, onOpenChange, onSubmit }: AddVehicleDia
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
               Cancel
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? "Adding..." : "Add Vehicle"}
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Adding...
+                </>
+              ) : (
+                "Add Vehicle"
+              )}
             </Button>
           </DialogFooter>
         </form>

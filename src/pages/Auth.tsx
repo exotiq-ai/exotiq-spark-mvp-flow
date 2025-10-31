@@ -6,7 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Logo } from '@/components/ui/logo';
 import { useAuth } from '@/contexts/AuthContext';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { validators } from '@/lib/validation';
 
 export default function Auth() {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -14,19 +16,51 @@ export default function Auth() {
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { signUp, signIn } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-
-    if (isSignUp) {
-      await signUp(email, password, fullName);
-    } else {
-      await signIn(email, password);
+    setError(null);
+    
+    // Client-side validation
+    const emailValidation = validators.email(email);
+    if (!emailValidation.isValid) {
+      setError(emailValidation.error!);
+      return;
     }
 
-    setLoading(false);
+    const passwordValidation = validators.password(password);
+    if (!passwordValidation.isValid) {
+      setError(passwordValidation.error!);
+      return;
+    }
+
+    if (isSignUp && !fullName.trim()) {
+      setError("Full name is required");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      if (isSignUp) {
+        const { error: signUpError } = await signUp(email, password, fullName);
+        if (signUpError) {
+          setError(signUpError.message || "Failed to create account. Please try again.");
+        }
+      } else {
+        const { error: signInError } = await signIn(email, password);
+        if (signInError) {
+          setError(signInError.message || "Invalid email or password. Please try again.");
+        }
+      }
+    } catch (err) {
+      setError("An unexpected error occurred. Please try again.");
+      console.error("Auth error:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -50,6 +84,13 @@ export default function Auth() {
             </p>
           </div>
 
+          {error && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
             {isSignUp && (
               <div className="space-y-2">
@@ -59,8 +100,13 @@ export default function Auth() {
                   type="text"
                   placeholder="John Smith"
                   value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
+                  onChange={(e) => {
+                    setFullName(e.target.value);
+                    setError(null);
+                  }}
                   required
+                  aria-required="true"
+                  aria-invalid={error?.includes("name") ? "true" : "false"}
                 />
               </div>
             )}
@@ -72,8 +118,14 @@ export default function Auth() {
                 type="email"
                 placeholder="you@example.com"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setError(null);
+                }}
                 required
+                aria-required="true"
+                aria-invalid={error?.includes("email") ? "true" : "false"}
+                aria-describedby={error?.includes("email") ? "email-error" : undefined}
               />
             </div>
 
@@ -84,10 +136,21 @@ export default function Auth() {
                 type="password"
                 placeholder="••••••••"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setError(null);
+                }}
                 required
                 minLength={6}
+                aria-required="true"
+                aria-invalid={error?.includes("password") ? "true" : "false"}
+                aria-describedby={error?.includes("password") ? "password-error" : undefined}
               />
+              {isSignUp && (
+                <p className="text-xs text-muted-foreground">
+                  Must be at least 6 characters
+                </p>
+              )}
             </div>
 
             <Button 
