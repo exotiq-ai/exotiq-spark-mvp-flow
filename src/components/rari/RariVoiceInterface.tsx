@@ -88,6 +88,11 @@ class AudioQueue {
     this.onPlaybackEnd?.();
   }
 
+  stopAll() {
+    // Clear queue and stop all audio immediately (for interruption)
+    this.clear();
+  }
+
   private async playNext() {
     if (this.queue.length === 0) {
       this.isPlaying = false;
@@ -115,6 +120,7 @@ class AudioQueue {
       const blob = new Blob([bytes], { type: 'audio/mpeg' });
       const url = URL.createObjectURL(blob);
       const audio = new Audio(url);
+      audio.playbackRate = 1.1; // Slightly faster for more natural cadence
       this.audioElements.push(audio);
 
       audio.onended = () => {
@@ -216,6 +222,9 @@ export default function RariVoiceInterface() {
 
   const startRecording = async () => {
     try {
+      // INTERRUPT: Stop any playing audio and clear queue
+      audioQueueRef.current.stopAll();
+      
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;

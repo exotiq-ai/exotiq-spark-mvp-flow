@@ -32,8 +32,9 @@ serve(async (req) => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000); // 15s timeout
 
+    // Using Sarah voice (EXAVITQu4vr4xnSDxMaL) - natural, clear, fast
     const response = await fetch(
-      'https://api.elevenlabs.io/v1/text-to-speech/kdmDKE6EkgrWrrykO9Qt',
+      'https://api.elevenlabs.io/v1/text-to-speech/EXAVITQu4vr4xnSDxMaL',
       {
         method: 'POST',
         headers: {
@@ -44,10 +45,11 @@ serve(async (req) => {
         body: JSON.stringify({
           text: processedText,
           model_id: 'eleven_turbo_v2_5',
+          language_code: 'en',
           voice_settings: {
-            stability: 0.5,
-            similarity_boost: 0.75,
-            style: 0.3,
+            stability: 0.35,
+            similarity_boost: 0.8,
+            style: 0.5,
             use_speaker_boost: true,
           },
         }),
