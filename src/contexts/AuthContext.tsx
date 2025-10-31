@@ -165,7 +165,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signInAsDemo = async () => {
     // Sign in with demo credentials
-    const demoEmail = "demo@exotiq.ai";
+    const demoEmail = "hello@exotiq.ai";
     const demoPassword = "demo123456";
     
     const { error } = await supabase.auth.signInWithPassword({
