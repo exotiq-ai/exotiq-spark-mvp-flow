@@ -647,47 +647,141 @@ Communication Style:
 
 Remember: Users rely on you for critical business insights. Always provide complete, accurate information without cutting responses short.`;
 
-    // Make initial AI request with timeout
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 25000); // 25s timeout
+    // Trim conversation history to most recent 15 messages to reduce payload size
+    const trimmedMessages = messages.slice(-15);
+    console.log(`📊 Message count: ${messages.length} → ${trimmedMessages.length} (trimmed)`);
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          ...messages,
-        ],
-        tools,
-        // Note: Google models don't support tool_choice parameter
-      }),
-      signal: controller.signal,
-    }).finally(() => clearTimeout(timeout));
+    // Retry wrapper with exponential backoff for AI gateway calls
+    const callAIGatewayWithRetry = async (requestBody: any, streamResponse = false, retryCount = 0): Promise<Response> => {
+      const maxRetries = 2;
+      const retryDelays = [300, 900]; // ms
+      const useFallback = retryCount > 0;
+      const modelToUse = useFallback ? "google/gemini-2.5-flash-lite" : "google/gemini-2.5-flash";
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("🚨 AI gateway error:", response.status, errorText);
-      
-      // Handle rate limits specifically
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Rate limit exceeded. Please wait and try again." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      } else if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "Service credits depleted. Please contact support." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+      console.log(`🤖 AI Request - Model: ${modelToUse}, Retry: ${retryCount}/${maxRetries}`);
+      const requestStartTime = Date.now();
+
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 30000); // 30s timeout
+
+        const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            ...requestBody,
+            model: modelToUse,
+          }),
+          signal: controller.signal,
+        }).finally(() => clearTimeout(timeout));
+
+        const duration = Date.now() - requestStartTime;
+        console.log(`⏱️ AI gateway response: ${response.status} (${duration}ms, model: ${modelToUse})`);
+
+        // Handle rate limits - no retry
+        if (response.status === 429) {
+          console.error("🚨 Rate limit exceeded (429)");
+          return new Response(
+            JSON.stringify({ 
+              error: "RATE_LIMIT_EXCEEDED",
+              message: "Rate limit exceeded. Please wait and try again.",
+              retryable: false 
+            }),
+            { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        // Handle payment required - no retry
+        if (response.status === 402) {
+          console.error("🚨 Payment required (402)");
+          return new Response(
+            JSON.stringify({ 
+              error: "SERVICE_UNAVAILABLE",
+              message: "Service credits depleted. Please contact support.",
+              retryable: false 
+            }),
+            { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        // Handle 5xx errors with retry
+        if (response.status >= 500 && retryCount < maxRetries) {
+          const errorText = await response.text();
+          console.error(`🚨 AI gateway 5xx error (attempt ${retryCount + 1}/${maxRetries + 1}):`, response.status, errorText);
+          
+          // Wait before retry
+          const delay = retryDelays[retryCount];
+          console.log(`⏳ Retrying in ${delay}ms with ${retryCount === 0 ? 'same model' : 'fallback model'}...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          
+          return callAIGatewayWithRetry(requestBody, streamResponse, retryCount + 1);
+        }
+
+        // If still failing after retries
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("🚨 AI gateway final error:", response.status, errorText);
+          return new Response(
+            JSON.stringify({ 
+              error: "AI_GATEWAY_ERROR",
+              message: "AI service temporarily unavailable. Please try again.",
+              retryable: true,
+              usedFallback: useFallback
+            }),
+            { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        // Success - log if using fallback
+        if (useFallback) {
+          console.log("✅ Request succeeded using fallback model");
+        }
+
+        return response;
+
+      } catch (error: any) {
+        const duration = Date.now() - requestStartTime;
+        
+        if (error.name === 'AbortError') {
+          console.error(`🚨 Request timeout after ${duration}ms (attempt ${retryCount + 1})`);
+          if (retryCount < maxRetries) {
+            const delay = retryDelays[retryCount];
+            console.log(`⏳ Retrying after timeout in ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            return callAIGatewayWithRetry(requestBody, streamResponse, retryCount + 1);
+          }
+          return new Response(
+            JSON.stringify({ 
+              error: "AI_GATEWAY_TIMEOUT",
+              message: "Request timeout. Please try again.",
+              retryable: true 
+            }),
+            { status: 408, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        console.error(`🚨 Unexpected error (attempt ${retryCount + 1}):`, error);
+        if (retryCount < maxRetries) {
+          const delay = retryDelays[retryCount];
+          await new Promise(resolve => setTimeout(resolve, delay));
+          return callAIGatewayWithRetry(requestBody, streamResponse, retryCount + 1);
+        }
+
+        throw error;
       }
-      
-      throw new Error(`AI gateway error: ${errorText}`);
-    }
+    };
+
+    // Make initial AI request with retry logic
+    const response = await callAIGatewayWithRetry({
+      messages: [
+        { role: "system", content: systemPrompt },
+        ...trimmedMessages,
+      ],
+      tools,
+    });
 
     const aiResponse = await response.json();
     console.log("AI Response:", JSON.stringify(aiResponse, null, 2));
@@ -711,42 +805,16 @@ Remember: Users rely on you for critical business insights. Always provide compl
         })
       );
 
-      // Send function results back to AI for final response with timeout
-      const finalController = new AbortController();
-      const finalTimeout = setTimeout(() => finalController.abort(), 25000);
-
-      const finalResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
-          messages: [
-            { role: "system", content: systemPrompt },
-            ...messages,
-            choice.message,
-            ...functionResults
-          ],
-          stream: true,
-        }),
-        signal: finalController.signal,
-      }).finally(() => clearTimeout(finalTimeout));
-
-      if (!finalResponse.ok) {
-        if (finalResponse.status === 429) {
-          return new Response(
-            JSON.stringify({ error: "Rate limit exceeded" }),
-            { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        } else if (finalResponse.status === 402) {
-          return new Response(
-            JSON.stringify({ error: "Service credits depleted" }),
-            { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
-      }
+      // Send function results back to AI for final response with retry logic
+      const finalResponse = await callAIGatewayWithRetry({
+        messages: [
+          { role: "system", content: systemPrompt },
+          ...trimmedMessages,
+          choice.message,
+          ...functionResults
+        ],
+        stream: true,
+      }, true);
 
       return new Response(finalResponse.body, {
         headers: { ...corsHeaders, "Content-Type": "text/event-stream" },

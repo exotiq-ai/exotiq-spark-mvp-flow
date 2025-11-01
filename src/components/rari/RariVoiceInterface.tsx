@@ -157,6 +157,9 @@ export default function RariVoiceInterface() {
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [performanceMetrics, setPerformanceMetrics] = useState<{ operation: string; duration: number }[]>([]);
+  const [isDegraded, setIsDegraded] = useState(false);
+  const [consecutiveFallbacks, setConsecutiveFallbacks] = useState(0);
+  const [isRetrying, setIsRetrying] = useState(false);
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -341,8 +344,9 @@ export default function RariVoiceInterface() {
     }
   };
 
-  const sendToRari = async (text: string, retryAttempt = false) => {
+  const sendToRari = async (text: string, retryAttempt = 0) => {
     const chatStartTime = performance.now();
+    const maxRetries = 1; // Auto-retry once for 500 errors
     setIsProcessing(true);
     let hasSpokenPartial = false; // Track if we've already generated TTS
 
@@ -363,6 +367,20 @@ export default function RariVoiceInterface() {
 
       conversationMessages.push({ role: 'user', content: text });
 
+      // Show "Retrying..." if this is a retry attempt
+      if (retryAttempt > 0) {
+        setIsRetrying(true);
+        setMessages(prev => {
+          const newMessages = [...prev];
+          const lastMessage = newMessages[newMessages.length - 1];
+          if (lastMessage?.role === 'assistant' && lastMessage.error) {
+            lastMessage.content = "Retrying connection...";
+          }
+          return newMessages;
+        });
+        await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay before retry
+      }
+
       const { data: chatResponse, error: chatError } = await supabase.functions.invoke(
         'fleet-copilot-chat',
         {
@@ -371,13 +389,62 @@ export default function RariVoiceInterface() {
       );
 
       if (chatError) {
-        // Handle rate limiting specifically
-        if (chatError.message?.includes('429')) {
-          throw new Error('Rate limit exceeded. Please wait a moment and try again.');
-        } else if (chatError.message?.includes('402')) {
-          throw new Error('Service credits depleted. Please contact support.');
+        // Parse structured error codes if present
+        let errorCode = 'UNKNOWN';
+        let errorMessage = chatError.message;
+        let retryable = true;
+
+        try {
+          const errorData = JSON.parse(chatError.message);
+          errorCode = errorData.error || errorCode;
+          errorMessage = errorData.message || errorMessage;
+          retryable = errorData.retryable !== false;
+          
+          // Track fallback usage for degraded mode detection
+          if (errorData.usedFallback) {
+            setConsecutiveFallbacks(prev => {
+              const newCount = prev + 1;
+              if (newCount >= 3 && !isDegraded) {
+                setIsDegraded(true);
+                toast({
+                  title: "Running in Backup Mode",
+                  description: "Rari is using backup AI model due to high demand.",
+                  variant: "default",
+                });
+              }
+              return newCount;
+            });
+          } else {
+            // Reset degraded mode on successful primary model
+            if (consecutiveFallbacks >= 3) {
+              setIsDegraded(false);
+              toast({
+                title: "Service Restored",
+                description: "Rari is back to full performance!",
+              });
+            }
+            setConsecutiveFallbacks(0);
+          }
+        } catch (e) {
+          // Not a structured error, use legacy handling
         }
-        throw chatError;
+
+        // Auto-retry logic for 500 errors
+        if ((errorCode === 'AI_GATEWAY_ERROR' || errorCode === 'AI_GATEWAY_500') && retryAttempt < maxRetries) {
+          console.log(`🔄 Auto-retry ${retryAttempt + 1}/${maxRetries} for ${errorCode}`);
+          return sendToRari(text, retryAttempt + 1);
+        }
+
+        // Handle specific error codes
+        if (errorCode === 'RATE_LIMIT_EXCEEDED' || errorMessage?.includes('429')) {
+          throw new Error('RATE_LIMIT:Too many requests. Please wait 30 seconds and try again.');
+        } else if (errorCode === 'SERVICE_UNAVAILABLE' || errorMessage?.includes('402')) {
+          throw new Error('SERVICE_UNAVAILABLE:Service credits depleted. Please contact support.');
+        } else if (errorCode === 'AI_GATEWAY_TIMEOUT') {
+          throw new Error('TIMEOUT:Request timed out. Please check your connection.');
+        }
+        
+        throw new Error(`${errorCode}:${errorMessage}`);
       }
 
       const reader = chatResponse.body.getReader();
@@ -448,36 +515,69 @@ export default function RariVoiceInterface() {
     } catch (error: any) {
       console.error('Rari chat error:', error);
       
+      // Parse error code and message
+      let errorCode = 'UNKNOWN';
       let errorMessage = "Could not connect to Rari. Please try again.";
       let retryable = true;
 
-      if (error.message?.includes('timeout')) {
-        errorMessage = "Request timed out. Please check your connection.";
-      } else if (error.message?.includes('429')) {
-        errorMessage = "Too many requests. Please wait 30 seconds.";
-        retryable = false;
-      } else if (error.message?.includes('402')) {
-        errorMessage = "Service unavailable. Please contact support.";
-        retryable = false;
-      } else if (error.message?.includes('No internet')) {
-        errorMessage = "No internet connection. Please check your network.";
+      if (error.message?.includes(':')) {
+        const [code, msg] = error.message.split(':');
+        errorCode = code;
+        errorMessage = msg;
       }
+
+      // Map error codes to user-friendly messages
+      const errorMapping: Record<string, { message: string; retryable: boolean; variant?: 'default' | 'destructive' }> = {
+        'RATE_LIMIT': {
+          message: "⏱️ Too busy right now. Please wait 30 seconds and try again.",
+          retryable: false,
+          variant: 'destructive'
+        },
+        'SERVICE_UNAVAILABLE': {
+          message: "🔧 Service temporarily unavailable. Please contact support.",
+          retryable: false,
+          variant: 'destructive'
+        },
+        'TIMEOUT': {
+          message: "⏱️ Connection slow. Please check your network and try again.",
+          retryable: true,
+        },
+        'AI_GATEWAY_ERROR': {
+          message: "🔄 Rari is temporarily unavailable. Retrying automatically...",
+          retryable: true,
+        },
+        'AI_GATEWAY_TIMEOUT': {
+          message: "⏱️ Request timed out. Please try again.",
+          retryable: true,
+        },
+        'No internet': {
+          message: "📡 No internet connection. Please check your network.",
+          retryable: true,
+          variant: 'destructive'
+        },
+      };
+
+      const mappedError = errorMapping[errorCode] || { 
+        message: errorMessage, 
+        retryable: true 
+      };
 
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: errorMessage,
+        content: mappedError.message,
         timestamp: new Date(),
         error: true,
-        retryable,
+        retryable: mappedError.retryable,
       }]);
       
       toast({
-        title: "Chat Error",
-        description: errorMessage,
-        variant: "destructive",
+        title: mappedError.retryable ? "Connection Issue" : "Service Error",
+        description: mappedError.message,
+        variant: mappedError.variant || "destructive",
       });
     } finally {
       setIsProcessing(false);
+      setIsRetrying(false);
       abortControllerRef.current = null;
     }
   };
@@ -560,7 +660,7 @@ export default function RariVoiceInterface() {
 
     // Remove the error message and retry
     setMessages(prev => prev.slice(0, messageIndex + 1));
-    await sendToRari(message.content, true);
+    await sendToRari(message.content, 0);
   };
 
   const sendTextMessage = async () => {
@@ -602,9 +702,25 @@ export default function RariVoiceInterface() {
                 <WifiOff className="w-3 h-3" /> Offline
               </Badge>
             )}
+            {isDegraded && (
+              <Badge variant="secondary" className="text-xs">
+                Backup Mode
+              </Badge>
+            )}
           </div>
           <p className="text-sm text-muted-foreground">
-            {isProcessing ? 'Processing...' : isSpeaking ? 'Speaking...' : 'Ready to help'}
+            {isProcessing ? (
+              <span className="flex items-center gap-1">
+                <Loader2 className="w-3 h-3 animate-spin" />
+                {isRetrying ? 'Retrying connection...' : 'Processing...'}
+              </span>
+            ) : isSpeaking ? (
+              'Speaking...'
+            ) : isDegraded ? (
+              'Running in backup mode'
+            ) : (
+              'Ready to help'
+            )}
           </p>
         </div>
       </div>
