@@ -10,6 +10,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
 interface Message {
+  id: string;
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
@@ -314,6 +315,7 @@ export default function RariVoiceInterface() {
         setPerformanceMetrics(prev => [...prev.slice(-4), { operation: 'voice-to-text', duration }]);
 
         const userMessage: Message = {
+          id: crypto.randomUUID(),
           role: 'user',
           content: transcription.text,
           timestamp: new Date(),
@@ -352,6 +354,9 @@ export default function RariVoiceInterface() {
 
     // Create new abort controller for this request
     abortControllerRef.current = new AbortController();
+
+    // Create assistant message with unique ID for streaming updates
+    const assistantMessageId = crypto.randomUUID();
 
     try {
       if (!isOnline) {
@@ -478,11 +483,12 @@ export default function RariVoiceInterface() {
                 assistantMessage += content;
                 setMessages(prev => {
                   const newMessages = [...prev];
-                  const lastMessage = newMessages[newMessages.length - 1];
-                  if (lastMessage?.role === 'assistant' && !lastMessage.error) {
-                    lastMessage.content = assistantMessage;
+                  const existingMsg = newMessages.find(m => m.id === assistantMessageId);
+                  if (existingMsg) {
+                    existingMsg.content = assistantMessage;
                   } else {
                     newMessages.push({
+                      id: assistantMessageId,
                       role: 'assistant',
                       content: assistantMessage,
                       timestamp: new Date(),
@@ -563,6 +569,7 @@ export default function RariVoiceInterface() {
       };
 
       setMessages(prev => [...prev, {
+        id: crypto.randomUUID(),
         role: 'assistant',
         content: mappedError.message,
         timestamp: new Date(),
@@ -667,6 +674,7 @@ export default function RariVoiceInterface() {
     if (!inputText.trim()) return;
 
     const userMessage: Message = {
+      id: crypto.randomUUID(),
       role: 'user',
       content: inputText,
       timestamp: new Date(),
