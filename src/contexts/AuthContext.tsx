@@ -164,29 +164,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signInAsDemo = async () => {
-    // Sign in with demo credentials
-    const demoEmail = "hello@exotiq.ai";
-    const demoPassword = "demo123456";
-    
-    const { error } = await supabase.auth.signInWithPassword({
-      email: demoEmail,
-      password: demoPassword
-    });
+    try {
+      // Call secure demo-login edge function
+      const { data, error } = await supabase.functions.invoke('demo-login', {
+        method: 'POST',
+      });
 
-    if (error) {
+      if (error) throw error;
+      
+      if (data?.session) {
+        // Session is automatically set by Supabase
+        toast({
+          title: "Welcome to Demo Mode!",
+          description: "Exploring ExotIQ with pre-populated data.",
+        });
+        return { error: null };
+      }
+      
+      throw new Error('No session returned');
+    } catch (error: any) {
       toast({
         title: "Demo Mode Unavailable",
-        description: "Please try again or contact support.",
+        description: error.message || "Please try again or contact support.",
         variant: "destructive"
       });
-    } else {
-      toast({
-        title: "Welcome to Demo Mode!",
-        description: "Exploring ExotIQ with pre-populated data.",
-      });
+      return { error };
     }
-
-    return { error };
   };
 
   const signOut = async () => {

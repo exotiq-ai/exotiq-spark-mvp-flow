@@ -6,6 +6,8 @@ import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -210,15 +212,7 @@ export default function RariVoiceInterface() {
     }
   }, [messages]);
 
-  // Format assistant messages: support **bold** while escaping HTML
-  const formatMessage = (text: string) => {
-    const escaped = text
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
-    const withBold = escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-    return withBold.replace(/\n/g, '<br/>');
-  };
+  // No longer needed - using ReactMarkdown for safe rendering
 
   const startRecording = async () => {
     try {
@@ -654,10 +648,16 @@ export default function RariVoiceInterface() {
                 <p className="text-sm font-medium mb-1">
                   {message.role === 'user' ? 'You' : 'Rari'}
                 </p>
-                <div 
-                  className="text-sm whitespace-pre-wrap break-words overflow-y-auto max-h-[400px]" 
-                  dangerouslySetInnerHTML={{ __html: formatMessage(message.content) }} 
-                />
+                <ReactMarkdown
+                  className="text-sm whitespace-pre-wrap break-words overflow-y-auto max-h-[400px] prose prose-sm max-w-none dark:prose-invert"
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />,
+                    strong: ({node, ...props}) => <strong className="font-semibold" {...props} />,
+                  }}
+                >
+                  {message.content}
+                </ReactMarkdown>
                 <div className="flex items-center justify-between mt-1">
                   <p className="text-xs text-muted-foreground">
                     {message.timestamp.toLocaleTimeString()}

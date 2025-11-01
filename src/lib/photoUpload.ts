@@ -13,8 +13,9 @@ export interface PhotoUploadResult {
  * @returns PhotoUploadResult with url and path or error
  */
 export const uploadVehiclePhoto = async (
-  file: File,
-  folder: string
+  file: File, 
+  folder: string,
+  userId: string
 ): Promise<PhotoUploadResult> => {
   try {
     // Validate file type
@@ -37,11 +38,12 @@ export const uploadVehiclePhoto = async (
       };
     }
 
-    // Generate unique filename
+    // Generate unique filename with userId prefix for security
     const timestamp = Date.now();
     const randomString = Math.random().toString(36).substring(7);
     const extension = file.name.split('.').pop();
-    const fileName = `${folder}/${timestamp}-${randomString}.${extension}`;
+    // IMPORTANT: Always include userId as first folder segment for RLS
+    const fileName = `${userId}/${folder}/${timestamp}-${randomString}.${extension}`;
 
     // Upload to Supabase Storage
     const { data, error } = await supabase.storage

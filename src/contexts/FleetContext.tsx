@@ -3,6 +3,15 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Database } from '@/integrations/supabase/types';
+import { z } from 'zod';
+import { 
+  customerSchema, 
+  bookingSchema, 
+  messageSchema, 
+  damageClaimSchema, 
+  paymentSchema,
+  vehicleSchema 
+} from '@/lib/validationSchemas';
 
 type Vehicle = Database['public']['Tables']['vehicles']['Row'];
 type Booking = Database['public']['Tables']['bookings']['Row'];
@@ -240,55 +249,85 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
   const createVehicle = async (vehicle: Omit<Database['public']['Tables']['vehicles']['Insert'], 'user_id'>) => {
     if (!user) return;
 
-    const { error } = await supabase
-      .from('vehicles')
-      .insert({
-        ...vehicle,
-        user_id: user.id
-      });
+    try {
+      // Validate input
+      const validated = vehicleSchema.parse(vehicle);
 
-    if (error) {
+      const { error } = await supabase
+        .from('vehicles')
+        .insert({
+          ...(validated as any),
+          user_id: user.id
+        });
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive"
+        });
+        return;
+      }
+
+      await refreshData();
+      
       toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive"
+        title: "Vehicle Added",
+        description: "New vehicle has been added to your fleet.",
       });
-      return;
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        toast({
+          title: "Validation Error",
+          description: error.errors[0].message,
+          variant: "destructive"
+        });
+      } else {
+        throw error;
+      }
     }
-
-    await refreshData();
-    
-    toast({
-      title: "Vehicle Added",
-      description: "New vehicle has been added to your fleet.",
-    });
   };
 
   const createBooking = async (booking: Omit<Database['public']['Tables']['bookings']['Insert'], 'user_id'>) => {
     if (!user) return;
 
-    const { error } = await supabase
-      .from('bookings')
-      .insert({
-        ...booking,
-        user_id: user.id
-      });
+    try {
+      // Validate input
+      const validated = bookingSchema.parse(booking);
 
-    if (error) {
+      const { error } = await supabase
+        .from('bookings')
+        .insert({
+          ...(validated as any),
+          user_id: user.id
+        });
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive"
+        });
+        return;
+      }
+
+      await refreshData();
+      
       toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive"
+        title: "Booking Created",
+        description: "New booking has been created successfully.",
       });
-      return;
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        toast({
+          title: "Validation Error",
+          description: error.errors[0].message,
+          variant: "destructive"
+        });
+      } else {
+        throw error;
+      }
     }
-
-    await refreshData();
-    
-    toast({
-      title: "Booking Created",
-      description: "New booking has been created successfully.",
-    });
   };
 
   const updateBookingStatus = async (bookingId: string, status: Booking['status']) => {
@@ -400,28 +439,43 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
   const sendMessage = async (message: Omit<Database['public']['Tables']['messages']['Insert'], 'user_id'>) => {
     if (!user) return;
 
-    const { error } = await supabase
-      .from('messages')
-      .insert({
-        ...message,
-        user_id: user.id
-      });
+    try {
+      // Validate input
+      const validated = messageSchema.parse(message);
 
-    if (error) {
+      const { error } = await supabase
+        .from('messages')
+        .insert({
+          ...(validated as any),
+          user_id: user.id
+        });
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive"
+        });
+        return;
+      }
+
+      await refreshData();
+      
       toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive"
+        title: "Message Sent",
+        description: "Your message has been sent successfully.",
       });
-      return;
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        toast({
+          title: "Validation Error",
+          description: error.errors[0].message,
+          variant: "destructive"
+        });
+      } else {
+        throw error;
+      }
     }
-
-    await refreshData();
-    
-    toast({
-      title: "Message Sent",
-      description: "Your message has been sent successfully.",
-    });
   };
 
   const generateReport = async (reportType: string, dateRange: { start: string; end: string }, format: string) => {
@@ -441,28 +495,43 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
   const createCustomer = async (customer: Omit<Database['public']['Tables']['customers']['Insert'], 'user_id'>) => {
     if (!user) return;
 
-    const { error } = await supabase
-      .from('customers')
-      .insert({
-        ...customer,
-        user_id: user.id
-      });
+    try {
+      // Validate input
+      const validated = customerSchema.parse(customer);
 
-    if (error) {
+      const { error } = await supabase
+        .from('customers')
+        .insert({
+          ...(validated as any),
+          user_id: user.id
+        });
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive"
+        });
+        return;
+      }
+
+      await refreshData();
+      
       toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive"
+        title: "Customer Added",
+        description: "New customer has been added to your CRM.",
       });
-      return;
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        toast({
+          title: "Validation Error",
+          description: error.errors[0].message,
+          variant: "destructive"
+        });
+      } else {
+        throw error;
+      }
     }
-
-    await refreshData();
-    
-    toast({
-      title: "Customer Added",
-      description: "New customer has been added to your CRM.",
-    });
   };
 
   const updateCustomer = async (customerId: string, updates: Partial<Customer>) => {
@@ -580,55 +649,84 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
   const createDamageClaim = async (claim: Omit<Database['public']['Tables']['damage_claims']['Insert'], 'user_id'>) => {
     if (!user) return;
 
-    const { error } = await supabase
-      .from('damage_claims')
-      .insert({
-        ...claim,
-        user_id: user.id
-      });
+    try {
+      // Validate input
+      const validated = damageClaimSchema.parse(claim);
 
-    if (error) {
+      const { error } = await supabase
+        .from('damage_claims')
+        .insert({
+          ...(validated as any),
+          user_id: user.id
+        });
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive"
+        });
+        return;
+      }
+
+      await refreshData();
+      
       toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive"
+        title: "Damage Claim Created",
+        description: "Damage claim has been filed.",
       });
-      return;
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        toast({
+          title: "Validation Error",
+          description: error.errors[0].message,
+          variant: "destructive"
+        });
+      } else {
+        throw error;
+      }
     }
-
-    await refreshData();
-    
-    toast({
-      title: "Damage Claim Created",
-      description: "Damage claim has been filed.",
-    });
   };
 
   const createPayment = async (payment: Omit<Database['public']['Tables']['payments']['Insert'], 'user_id'>) => {
     if (!user) return;
 
-    const { error } = await supabase
-      .from('payments')
-      .insert({
-        ...payment,
-        user_id: user.id
-      });
+    try {
+      const validated = paymentSchema.parse(payment);
 
-    if (error) {
+      const { error } = await supabase
+        .from('payments')
+        .insert({
+          ...(validated as any),
+          user_id: user.id
+        });
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive"
+        });
+        return;
+      }
+
+      await refreshData();
+      
       toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive"
+        title: "Payment Recorded",
+        description: "Payment has been successfully recorded.",
       });
-      return;
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        toast({
+          title: "Validation Error",
+          description: error.errors[0].message,
+          variant: "destructive"
+        });
+      } else {
+        throw error;
+      }
     }
-
-    await refreshData();
-    
-    toast({
-      title: "Payment Recorded",
-      description: "Payment has been successfully recorded.",
-    });
   };
 
   // Individual refresh methods for real-time updates
