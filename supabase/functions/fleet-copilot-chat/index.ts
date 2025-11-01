@@ -618,9 +618,16 @@ serve(async (req) => {
       }
     }
 
+    // Generate current date dynamically
+    const currentDate = new Date().toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+
     const systemPrompt = `You are Rari (pronounced "Rarri" like Ferrari), the FleetCopilot™ AI assistant for EXOTIQ luxury car rental operations.
 
-Current Date: October 31, 2025
+Current Date: ${currentDate}
 
 Core Personality: 
 - Confident automotive expert with deep passion for exotic cars
@@ -843,6 +850,18 @@ Remember: You're not just a database assistant - you're an automotive enthusiast
         ],
         stream: true,
       }, true);
+
+      // Check if final response has error (can happen after function execution)
+      if (!finalResponse.ok) {
+        const errorData = await finalResponse.json();
+        return new Response(
+          JSON.stringify(errorData),
+          { 
+            status: finalResponse.status, 
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          }
+        );
+      }
 
       return new Response(finalResponse.body, {
         headers: { ...corsHeaders, "Content-Type": "text/event-stream" },

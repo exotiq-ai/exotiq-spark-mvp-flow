@@ -459,9 +459,16 @@ export default function RariVoiceInterface() {
       let assistantMessage = '';
       let firstTokenTime: number | null = null;
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      // Add timeout for streaming (60 seconds max)
+      const streamTimeout = setTimeout(() => {
+        reader.cancel();
+        throw new Error('TIMEOUT:Streaming timed out after 60 seconds');
+      }, 60000);
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
 
         const chunk = decoder.decode(value);
         const lines = chunk.split('\n').filter(line => line.trim() !== '');
@@ -511,6 +518,9 @@ export default function RariVoiceInterface() {
           }
         }
       }
+      } finally {
+        clearTimeout(streamTimeout);
+      }
 
       const totalDuration = performance.now() - chatStartTime;
       console.log(`⏱️ Total chat response: ${totalDuration.toFixed(0)}ms`);
@@ -556,6 +566,14 @@ export default function RariVoiceInterface() {
         },
         'AI_GATEWAY_TIMEOUT': {
           message: "⏱️ Request timed out. Please try again.",
+          retryable: true,
+        },
+        'EMPTY_RESPONSE': {
+          message: "🔄 Rari returned an empty response. Retrying...",
+          retryable: true,
+        },
+        'EMPTY': {
+          message: "🔄 Rari returned an empty response. Retrying...",
           retryable: true,
         },
         'No internet': {
