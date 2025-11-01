@@ -615,7 +615,7 @@ export default function RariVoiceInterface() {
         </div>
       </div>
 
-      <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
+      <ScrollArea className="flex-1 p-4 overflow-y-auto" ref={scrollAreaRef}>
         {messages.length === 0 ? (
           <div className="space-y-4">
             <p className="text-muted-foreground text-center py-8">
@@ -654,7 +654,10 @@ export default function RariVoiceInterface() {
                 <p className="text-sm font-medium mb-1">
                   {message.role === 'user' ? 'You' : 'Rari'}
                 </p>
-                <div className="text-sm" dangerouslySetInnerHTML={{ __html: formatMessage(message.content) }} />
+                <div 
+                  className="text-sm whitespace-pre-wrap break-words overflow-y-auto max-h-[400px]" 
+                  dangerouslySetInnerHTML={{ __html: formatMessage(message.content) }} 
+                />
                 <div className="flex items-center justify-between mt-1">
                   <p className="text-xs text-muted-foreground">
                     {message.timestamp.toLocaleTimeString()}

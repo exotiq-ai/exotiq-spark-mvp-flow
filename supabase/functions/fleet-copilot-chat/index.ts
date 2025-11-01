@@ -39,163 +39,177 @@ serve(async (req) => {
     const tools = [
       {
         type: "function",
-        function: {
-          name: "getFleetMetrics",
-          description: "Get comprehensive fleet metrics including total vehicles, active bookings, revenue, and utilization rates for a specific timeframe",
-          parameters: {
-            type: "object",
-            properties: {
-              timeframe: {
-                type: "string",
-                enum: ["today", "week", "month", "year"],
-                description: "Time period for metrics"
-              }
-            },
-            required: ["timeframe"]
-          }
-        }
-      },
-      {
-        type: "function",
-        function: {
-          name: "getVehicleDetails",
-          description: "Get detailed information about a specific vehicle including current status, bookings, maintenance history, and performance metrics",
-          parameters: {
-            type: "object",
-            properties: {
-              vehicleName: { type: "string", description: "Vehicle name (e.g., 'Ferrari 488 GTB')" },
-              includeBookings: { type: "boolean", description: "Include booking history" }
-            },
-            required: ["vehicleName"]
-          }
-        }
-      },
-      {
-        type: "function",
-        function: {
-          name: "getCustomerProfile",
-          description: "Get customer profile with booking history, lifetime value, payment history, and preferences",
-          parameters: {
-            type: "object",
-            properties: {
-              customerName: { type: "string", description: "Customer full name" },
-              includeHistory: { type: "boolean", description: "Include full booking history" }
-            },
-            required: ["customerName"]
-          }
-        }
-      },
-      {
-        type: "function",
-        function: {
-          name: "checkAvailability",
-          description: "Check vehicle availability for specific date range and identify any conflicts",
-          parameters: {
-            type: "object",
-            properties: {
-              vehicleName: { type: "string", description: "Vehicle name" },
-              startDate: { type: "string", description: "Start date ISO format" },
-              endDate: { type: "string", description: "End date ISO format" }
-            },
-            required: ["vehicleName", "startDate", "endDate"]
-          }
-        }
-      },
-      {
-        type: "function",
-        function: {
-          name: "getRevenueAnalysis",
-          description: "Analyze revenue by timeframe with breakdowns by vehicle, trends, and comparisons",
-          parameters: {
-            type: "object",
-            properties: {
-              timeframe: { type: "string", description: "Analysis period (today/week/month/year)" },
-              vehicleName: { type: "string", description: "Optional vehicle filter" }
-            },
-            required: ["timeframe"]
-          }
-        }
-      },
-      {
-        type: "function",
-        function: {
-          name: "getTopPerformers",
-          description: "Get top performing vehicles or customers by specified metric",
-          parameters: {
-            type: "object",
-            properties: {
-              metric: {
-                type: "string",
-                enum: ["revenue", "utilization", "bookings"],
-                description: "Performance metric to rank by"
-              },
-              limit: { type: "number", description: "Number of results to return" }
-            },
-            required: ["metric", "limit"]
-          }
-        }
-      },
-      {
-        type: "function",
-        function: {
-          name: "searchBookings",
-          description: "Search and filter bookings by status, date range, customer, or vehicle",
-          parameters: {
-            type: "object",
-            properties: {
-              status: { type: "string", description: "Booking status filter (pending/confirmed/active/completed/cancelled)" },
-              daysRange: { type: "number", description: "Look back/forward this many days from today" }
+        name: "getFleetMetrics",
+        description: "Get overall fleet performance metrics for a specific time period",
+        parameters: {
+          type: "object",
+          properties: {
+            timeframe: {
+              type: "string",
+              enum: ["today", "week", "month", "year"],
+              description: "The timeframe for metrics"
             }
+          },
+          required: ["timeframe"]
+        }
+      },
+      {
+        type: "function",
+        name: "getVehicleDetails",
+        description: "Get detailed information about a specific vehicle, optionally including booking history",
+        parameters: {
+          type: "object",
+          properties: {
+            vehicleName: { type: "string", description: "The vehicle name or partial name" },
+            includeBookings: { type: "boolean", description: "Whether to include booking history", default: false }
+          },
+          required: ["vehicleName"]
+        }
+      },
+      {
+        type: "function",
+        name: "getCustomerProfile",
+        description: "Get customer details and optionally their booking history",
+        parameters: {
+          type: "object",
+          properties: {
+            customerName: { type: "string", description: "The customer name or partial name" },
+            includeHistory: { type: "boolean", description: "Whether to include booking history", default: false }
+          },
+          required: ["customerName"]
+        }
+      },
+      {
+        type: "function",
+        name: "checkAvailability",
+        description: "Check if a vehicle is available for a specific date range",
+        parameters: {
+          type: "object",
+          properties: {
+            vehicleName: { type: "string", description: "The vehicle name" },
+            startDate: { type: "string", description: "Start date in ISO format" },
+            endDate: { type: "string", description: "End date in ISO format" }
+          },
+          required: ["vehicleName", "startDate", "endDate"]
+        }
+      },
+      {
+        type: "function",
+        name: "getRevenueAnalysis",
+        description: "Get revenue analysis for a timeframe, optionally filtered by vehicle",
+        parameters: {
+          type: "object",
+          properties: {
+            timeframe: { type: "string", enum: ["today", "week", "month", "year"] },
+            vehicleName: { type: "string", description: "Optional vehicle name filter" }
+          },
+          required: ["timeframe"]
+        }
+      },
+      {
+        type: "function",
+        name: "getTopPerformers",
+        description: "Get top performing vehicles or customers by a specific metric",
+        parameters: {
+          type: "object",
+          properties: {
+            metric: { type: "string", enum: ["revenue", "utilization", "bookings"] },
+            limit: { type: "number", description: "Number of results to return", default: 5 }
+          },
+          required: ["metric"]
+        }
+      },
+      {
+        type: "function",
+        name: "searchBookings",
+        description: "Search bookings with optional filters",
+        parameters: {
+          type: "object",
+          properties: {
+            status: { type: "string", description: "Booking status filter (confirmed, active, completed, cancelled)" },
+            daysRange: { type: "number", description: "Number of days to look back" }
           }
         }
       },
       {
         type: "function",
-        function: {
-          name: "getDamageReports",
-          description: "Get damage claims and reports with optional filters by status or vehicle",
-          parameters: {
-            type: "object",
-            properties: {
-              status: {
-                type: "string",
-                enum: ["open", "resolved", "all"],
-                description: "Filter by claim status"
-              }
-            },
-            required: ["status"]
+        name: "getDamageReports",
+        description: "Get damage claims with status filter",
+        parameters: {
+          type: "object",
+          properties: {
+            status: { type: "string", enum: ["open", "resolved", "all"], default: "all" }
+          },
+          required: ["status"]
+        }
+      },
+      {
+        type: "function",
+        name: "getUpcomingMaintenance",
+        description: "Get upcoming maintenance schedules",
+        parameters: {
+          type: "object",
+          properties: {
+            daysAhead: { type: "number", description: "Number of days to look ahead", default: 30 }
+          },
+          required: ["daysAhead"]
+        }
+      },
+      {
+        type: "function",
+        name: "getCustomerLifetimeValue",
+        description: "Calculate customer lifetime value",
+        parameters: {
+          type: "object",
+          properties: {
+            customerName: { type: "string", description: "Customer name" }
+          },
+          required: ["customerName"]
+        }
+      },
+      {
+        type: "function",
+        name: "getVaultDocuments",
+        description: "Get documents from the vault with optional filters",
+        parameters: {
+          type: "object",
+          properties: {
+            category: { type: "string", description: "Document category (insurance, registration, inspection, license)" },
+            status: { type: "string", description: "Document status (active, expiring, urgent)" }
           }
         }
       },
       {
         type: "function",
-        function: {
-          name: "getUpcomingMaintenance",
-          description: "Get maintenance schedules for vehicles within specified days ahead",
-          parameters: {
-            type: "object",
-            properties: {
-              daysAhead: {
-                type: "number",
-                description: "Number of days to look ahead for maintenance"
-              }
-            },
-            required: ["daysAhead"]
-          }
+        name: "getWeatherInfo",
+        description: "Get current weather information for a location",
+        parameters: {
+          type: "object",
+          properties: {
+            location: { type: "string", description: "City or location name" }
+          },
+          required: ["location"]
         }
       },
       {
         type: "function",
-        function: {
-          name: "getCustomerLifetimeValue",
-          description: "Calculate detailed customer lifetime value including total bookings, revenue, and trends",
-          parameters: {
-            type: "object",
-            properties: {
-              customerName: { type: "string", description: "Customer full name" }
-            },
-            required: ["customerName"]
-          }
+        name: "getCarJoke",
+        description: "Get a random automotive-related joke",
+        parameters: {
+          type: "object",
+          properties: {}
+        }
+      },
+      {
+        type: "function",
+        name: "getVehicleSpecs",
+        description: "Get performance specifications for exotic vehicles",
+        parameters: {
+          type: "object",
+          properties: {
+            vehicleName: { type: "string", description: "The vehicle make and model" }
+          },
+          required: ["vehicleName"]
         }
       }
     ];
@@ -433,6 +447,134 @@ serve(async (req) => {
             return { customer };
           }
 
+          case "getVaultDocuments": {
+            const { category, status } = args;
+            
+            const { data: documents } = await supabase
+              .from('vehicle_documents')
+              .select('*')
+              .eq('user_id', userId);
+
+            // Mock document structure since we don't have real documents yet
+            const mockDocs = [
+              { name: "McLaren 720S Insurance", category: "insurance", status: "active", expires: "2025-03-15" },
+              { name: "Ferrari SF90 Registration", category: "registration", status: "active", expires: "2025-06-30" },
+              { name: "Lamborghini Service Record", category: "inspection", status: "expiring", expires: "2024-11-18" }
+            ];
+
+            return { 
+              documents: mockDocs,
+              summary: `Found ${mockDocs.length} documents in vault`
+            };
+          }
+
+          case "getWeatherInfo": {
+            const { location } = args;
+            
+            // Simulated weather data - in production integrate with actual weather API
+            const conditions = ["Sunny", "Partly Cloudy", "Cloudy", "Light Rain"];
+            return {
+              location,
+              temperature: `${Math.floor(Math.random() * 30) + 60}°F`,
+              conditions: conditions[Math.floor(Math.random() * conditions.length)],
+              humidity: `${Math.floor(Math.random() * 40) + 40}%`,
+              wind: `${Math.floor(Math.random() * 15) + 5} mph`,
+              note: "Weather data is simulated for demo purposes"
+            };
+          }
+
+          case "getCarJoke": {
+            const jokes = [
+              "Why did the exotic car break up with the sedan? It said their relationship had no spark plugs!",
+              "What do you call a Lamborghini that's been in an accident? A Lamb-bore-gini!",
+              "Why don't Ferraris ever get lost? Because they always follow the red line!",
+              "What's a McLaren's favorite music? Heavy metal... and carbon fiber!",
+              "Why did the Bugatti go to therapy? It had too many speed issues!",
+              "What do you call a Porsche in the winter? A Porsicle!",
+              "Why are exotic cars terrible at poker? They always show their hand... on the dashboard!",
+              "What's an Aston Martin's favorite movie? The Fast and the Luxurious!",
+              "Why did the exotic car go to school? To get more horsepower... I mean, brain power!",
+              "What's a supercar's least favorite day? Brake day!"
+            ];
+            return { joke: jokes[Math.floor(Math.random() * jokes.length)] };
+          }
+
+          case "getVehicleSpecs": {
+            const { vehicleName } = args;
+            
+            // Performance specs database
+            const specsDatabase: Record<string, any> = {
+              "ferrari sf90": {
+                make: "Ferrari",
+                model: "SF90 Stradale",
+                engine: "4.0L V8 + Electric Motors",
+                horsepower: "986 hp",
+                torque: "590 lb-ft",
+                acceleration: "2.5 sec (0-60 mph)",
+                topSpeed: "211 mph",
+                drivetrain: "AWD",
+                weight: "3,461 lbs"
+              },
+              "lamborghini aventador": {
+                make: "Lamborghini",
+                model: "Aventador SVJ",
+                engine: "6.5L V12",
+                horsepower: "770 hp",
+                torque: "531 lb-ft",
+                acceleration: "2.8 sec (0-60 mph)",
+                topSpeed: "217 mph",
+                drivetrain: "AWD",
+                weight: "3,362 lbs"
+              },
+              "mclaren 720s": {
+                make: "McLaren",
+                model: "720S",
+                engine: "4.0L Twin-Turbo V8",
+                horsepower: "710 hp",
+                torque: "568 lb-ft",
+                acceleration: "2.8 sec (0-60 mph)",
+                topSpeed: "212 mph",
+                drivetrain: "RWD",
+                weight: "3,128 lbs"
+              },
+              "porsche 911 turbo s": {
+                make: "Porsche",
+                model: "911 Turbo S",
+                engine: "3.8L Twin-Turbo Flat-6",
+                horsepower: "640 hp",
+                torque: "590 lb-ft",
+                acceleration: "2.6 sec (0-60 mph)",
+                topSpeed: "205 mph",
+                drivetrain: "AWD",
+                weight: "3,636 lbs"
+              },
+              "bugatti chiron": {
+                make: "Bugatti",
+                model: "Chiron Sport",
+                engine: "8.0L Quad-Turbo W16",
+                horsepower: "1,479 hp",
+                torque: "1,180 lb-ft",
+                acceleration: "2.4 sec (0-60 mph)",
+                topSpeed: "261 mph",
+                drivetrain: "AWD",
+                weight: "4,400 lbs"
+              }
+            };
+
+            const normalizedName = vehicleName.toLowerCase();
+            const matchedKey = Object.keys(specsDatabase).find(key => 
+              normalizedName.includes(key) || key.includes(normalizedName)
+            );
+
+            if (matchedKey) {
+              return specsDatabase[matchedKey];
+            }
+
+            return {
+              note: `Performance specs for ${vehicleName} not found. Try: Ferrari SF90, Lamborghini Aventador, McLaren 720S, Porsche 911 Turbo S, or Bugatti Chiron.`
+            };
+          }
+
           default:
             return { error: "Unknown function" };
         }
@@ -452,20 +594,24 @@ You have real-time access to the entire fleet database through function calls. U
 
 Capabilities:
 - Fleet performance: revenue, utilization, active bookings
-- Vehicle details: status, bookings, maintenance, damage reports
+- Vehicle details: status, bookings, maintenance, damage reports  
 - Customer intelligence: profiles, history, lifetime value, trends
-- Availability checks: real-time conflict detection
-- Revenue analysis: timeframe comparisons, optimization opportunities
-- Operational insights: top performers, upcoming maintenance, damage claims
+- Availability checking and booking analysis
+- Damage reports and maintenance schedules
+- Vault documents and compliance information
+- Weather updates for locations (simulated)
+- Automotive jokes and humor
+- Performance specifications for exotic vehicles
 
 Communication Style:
-- Be proactive: if you see optimization opportunities, mention them
-- Use metrics and data to back up recommendations
-- Keep responses concise but complete
-- When discussing revenue or metrics, always provide context (comparisons, trends)
-- Always call the appropriate function to get real data before answering
+- Be conversational but professional
+- Provide complete responses - NEVER truncate important information
+- Use clear formatting with bullet points for lists
+- Format currency as $X,XXX.XX
+- When sharing insights, lead with the key takeaway
+- If you need to provide a long response, organize it with clear sections
 
-Always address users professionally and provide actionable insights based on REAL data from the database.`;
+Remember: Users rely on you for critical business insights. Always provide complete, accurate information without cutting responses short.`;
 
     // Make initial AI request with timeout
     const controller = new AbortController();

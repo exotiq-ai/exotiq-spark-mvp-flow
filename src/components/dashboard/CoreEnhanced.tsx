@@ -195,30 +195,30 @@ export const CoreEnhanced = () => {
 
       {/* Tabbed Interface for Rari, AI Insights & CRM */}
       <Tabs defaultValue="rari" className="w-full">
-        <TabsList className="grid w-full grid-cols-6">
-          <TabsTrigger value="rari" className="text-primary">
-            <Brain className="w-4 h-4 mr-2" />
-            Talk to Rari
+        <TabsList className="grid w-full grid-cols-6 gap-1">
+          <TabsTrigger value="rari" className="text-primary text-xs sm:text-sm">
+            <Brain className="w-4 h-4 mr-1 sm:mr-2" />
+            <span className="hidden sm:inline">Talk to</span> Rari
           </TabsTrigger>
-          <TabsTrigger value="crm">
-            <Users className="w-4 h-4 mr-2" />
-            Customer CRM
+          <TabsTrigger value="crm" className="text-xs sm:text-sm">
+            <Users className="w-4 h-4 mr-1 sm:mr-2" />
+            <span className="hidden sm:inline">Customer</span> CRM
           </TabsTrigger>
-          <TabsTrigger value="insights">
-            <Brain className="w-4 h-4 mr-2" />
-            AI Insights
+          <TabsTrigger value="insights" className="text-xs sm:text-sm">
+            <Brain className="w-4 h-4 mr-1 sm:mr-2" />
+            <span className="hidden sm:inline">AI</span> Insights
           </TabsTrigger>
-          <TabsTrigger value="actions">
-            <Zap className="w-4 h-4 mr-2" />
-            Quick Actions
+          <TabsTrigger value="actions" className="text-xs sm:text-sm">
+            <Zap className="w-4 h-4 mr-1 sm:mr-2" />
+            <span className="hidden sm:inline">Quick</span> Actions
           </TabsTrigger>
-          <TabsTrigger value="users">
-            <Users className="w-4 h-4 mr-2" />
-            User Management
+          <TabsTrigger value="users" className="text-xs sm:text-sm">
+            <Users className="w-4 h-4 mr-1 sm:mr-2" />
+            <span className="hidden sm:inline">User</span> Mgmt
           </TabsTrigger>
-          <TabsTrigger value="settings">
-            <Settings className="w-4 h-4 mr-2" />
-            System Settings
+          <TabsTrigger value="settings" className="text-xs sm:text-sm">
+            <Settings className="w-4 h-4 mr-1 sm:mr-2" />
+            <span className="hidden sm:inline">System</span> Settings
           </TabsTrigger>
         </TabsList>
 
