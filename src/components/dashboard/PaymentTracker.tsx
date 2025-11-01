@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useFleet } from "@/contexts/FleetContext";
+import { VehicleImageDialog } from "@/components/dialogs/VehicleImageDialog";
 import { 
   DollarSign, 
   Clock, 
@@ -19,6 +20,30 @@ export const PaymentTracker = () => {
   const { bookings, payments, vehicles, createPayment } = useFleet();
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [showRecordPayment, setShowRecordPayment] = useState(false);
+  const [showVehicleImage, setShowVehicleImage] = useState(false);
+  const [selectedVehicle, setSelectedVehicle] = useState<{
+    name: string;
+    make: string;
+    model: string;
+    year: number;
+    status: string;
+    dailyRate: number;
+  } | null>(null);
+
+  const handleVehicleClick = (vehicleId: string) => {
+    const vehicle = vehicles.find(v => v.id === vehicleId);
+    if (vehicle) {
+      setSelectedVehicle({
+        name: vehicle.name,
+        make: vehicle.make,
+        model: vehicle.model,
+        year: vehicle.year,
+        status: vehicle.status,
+        dailyRate: Number(vehicle.current_rate),
+      });
+      setShowVehicleImage(true);
+    }
+  };
 
   const bookingsWithPaymentStatus = bookings.map(booking => {
     const bookingPayments = payments.filter(p => p.booking_id === booking.id);
@@ -71,7 +96,17 @@ export const PaymentTracker = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <>
+      {selectedVehicle && (
+        <VehicleImageDialog
+          open={showVehicleImage}
+          onOpenChange={setShowVehicleImage}
+          vehicleName={selectedVehicle.name}
+          vehicleDetails={selectedVehicle}
+        />
+      )}
+
+      <div className="space-y-6">
       {/* Payment Summary */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="card-premium p-6">
@@ -123,7 +158,12 @@ export const PaymentTracker = () => {
               >
                 <div className="flex items-start justify-between mb-3">
                   <div>
-                    <h4 className="font-semibold">{booking.vehicle?.name}</h4>
+                    <h4 
+                      className="font-semibold cursor-pointer hover:text-primary transition-colors"
+                      onClick={() => handleVehicleClick(booking.vehicle_id)}
+                    >
+                      {booking.vehicle?.name}
+                    </h4>
                     <p className="text-sm text-muted-foreground">{booking.customer_name}</p>
                   </div>
                   {getPaymentStatusBadge(booking)}
@@ -198,5 +238,6 @@ export const PaymentTracker = () => {
         />
       )}
     </div>
+    </>
   );
 };

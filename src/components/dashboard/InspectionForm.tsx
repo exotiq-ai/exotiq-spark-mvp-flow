@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
+import { VehicleImageDialog } from "@/components/dialogs/VehicleImageDialog";
 import {
   Select,
   SelectContent,
@@ -40,6 +41,7 @@ export const InspectionForm = ({
 }: InspectionFormProps) => {
   const { vehicles, createInspection } = useFleet();
   const [loading, setLoading] = useState(false);
+  const [showVehicleImage, setShowVehicleImage] = useState(false);
   
   const vehicle = vehicles.find(v => v.id === vehicleId);
   
@@ -109,15 +111,34 @@ export const InspectionForm = ({
   };
 
   return (
-    <Card className="card-premium p-6">
-      <div className="mb-6">
-        <h3 className="text-xl font-semibold mb-2">
-          {inspectionType === 'pre_rental' ? 'Pickup' : 'Return'} Inspection
-        </h3>
-        <p className="text-sm text-muted-foreground">
-          Document vehicle condition for {vehicle?.name}
-        </p>
-      </div>
+    <>
+      {vehicle && (
+        <VehicleImageDialog
+          open={showVehicleImage}
+          onOpenChange={setShowVehicleImage}
+          vehicleName={vehicle.name}
+          vehicleDetails={{
+            make: vehicle.make,
+            model: vehicle.model,
+            year: vehicle.year,
+            status: vehicle.status,
+            dailyRate: Number(vehicle.current_rate),
+          }}
+        />
+      )}
+
+      <Card className="card-premium p-6">
+        <div className="mb-6">
+          <h3 className="text-xl font-semibold mb-2">
+            {inspectionType === 'pre_rental' ? 'Pickup' : 'Return'} Inspection
+          </h3>
+          <p 
+            className="text-sm text-muted-foreground cursor-pointer hover:text-primary transition-colors"
+            onClick={() => setShowVehicleImage(true)}
+          >
+            Document vehicle condition for {vehicle?.name}
+          </p>
+        </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Inspector Name */}
@@ -292,5 +313,6 @@ export const InspectionForm = ({
         </Button>
       </form>
     </Card>
+    </>
   );
 };

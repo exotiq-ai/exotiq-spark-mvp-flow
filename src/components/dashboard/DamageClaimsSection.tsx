@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useFleet } from "@/contexts/FleetContext";
 import { DamageReportDialog } from "@/components/dialogs/DamageReportDialog";
+import { VehicleImageDialog } from "@/components/dialogs/VehicleImageDialog";
 import {
   AlertTriangle,
   Plus,
@@ -23,6 +24,30 @@ export const DamageClaimsSection = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [showReportDialog, setShowReportDialog] = useState(false);
+  const [showVehicleImage, setShowVehicleImage] = useState(false);
+  const [selectedVehicle, setSelectedVehicle] = useState<{
+    name: string;
+    make: string;
+    model: string;
+    year: number;
+    status: string;
+    dailyRate: number;
+  } | null>(null);
+
+  const handleVehicleClick = (vehicleId: string) => {
+    const vehicle = vehicles.find(v => v.id === vehicleId);
+    if (vehicle) {
+      setSelectedVehicle({
+        name: vehicle.name,
+        make: vehicle.make,
+        model: vehicle.model,
+        year: vehicle.year,
+        status: vehicle.status,
+        dailyRate: Number(vehicle.current_rate),
+      });
+      setShowVehicleImage(true);
+    }
+  };
 
   const filteredClaims = damageClaims.filter(claim => {
     const vehicle = vehicles.find(v => v.id === claim.vehicle_id);
@@ -79,6 +104,15 @@ export const DamageClaimsSection = () => {
         onOpenChange={setShowReportDialog}
         vehicles={vehicles}
       />
+
+      {selectedVehicle && (
+        <VehicleImageDialog
+          open={showVehicleImage}
+          onOpenChange={setShowVehicleImage}
+          vehicleName={selectedVehicle.name}
+          vehicleDetails={selectedVehicle}
+        />
+      )}
 
       <div className="space-y-6">
         {/* Stats Overview */}
@@ -170,7 +204,12 @@ export const DamageClaimsSection = () => {
                     <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2 mb-1">
-                          <h4 className="font-semibold truncate">{vehicle?.name || 'Unknown Vehicle'}</h4>
+                          <h4 
+                            className="font-semibold truncate cursor-pointer hover:text-primary transition-colors"
+                            onClick={() => handleVehicleClick(claim.vehicle_id)}
+                          >
+                            {vehicle?.name || 'Unknown Vehicle'}
+                          </h4>
                           <Badge className={getSeverityColor(claim.severity)}>
                             {claim.severity}
                           </Badge>

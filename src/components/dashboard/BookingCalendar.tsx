@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useFleet } from "@/contexts/FleetContext";
 import { generateVehicleColors } from "@/lib/conflictDetection";
+import { VehicleImageDialog } from "@/components/dialogs/VehicleImageDialog";
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -25,6 +26,30 @@ export const BookingCalendar = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedVehicle, setSelectedVehicle] = useState<string>("all");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
+  const [showVehicleImage, setShowVehicleImage] = useState(false);
+  const [selectedVehicleDetails, setSelectedVehicleDetails] = useState<{
+    name: string;
+    make: string;
+    model: string;
+    year: number;
+    status: string;
+    dailyRate: number;
+  } | null>(null);
+
+  const handleVehicleClick = (vehicleId: string) => {
+    const vehicle = vehicles.find(v => v.id === vehicleId);
+    if (vehicle) {
+      setSelectedVehicleDetails({
+        name: vehicle.name,
+        make: vehicle.make,
+        model: vehicle.model,
+        year: vehicle.year,
+        status: vehicle.status,
+        dailyRate: Number(vehicle.current_rate),
+      });
+      setShowVehicleImage(true);
+    }
+  };
 
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
@@ -74,7 +99,17 @@ export const BookingCalendar = () => {
   const selectedDayBookings = selectedDate ? getBookingsForDay(selectedDate) : [];
 
   return (
-    <div className="space-y-6">
+    <>
+      {selectedVehicleDetails && (
+        <VehicleImageDialog
+          open={showVehicleImage}
+          onOpenChange={setShowVehicleImage}
+          vehicleName={selectedVehicleDetails.name}
+          vehicleDetails={selectedVehicleDetails}
+        />
+      )}
+
+      <div className="space-y-6">
       {/* Calendar Controls */}
       <Card className="card-premium p-4 sm:p-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
@@ -204,7 +239,12 @@ export const BookingCalendar = () => {
                   >
                     <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-2">
                       <div className="min-w-0 flex-1">
-                        <h5 className="font-semibold truncate">{vehicle?.name || 'Unknown Vehicle'}</h5>
+                        <h5 
+                          className="font-semibold truncate cursor-pointer hover:text-primary transition-colors"
+                          onClick={() => handleVehicleClick(booking.vehicle_id)}
+                        >
+                          {vehicle?.name || 'Unknown Vehicle'}
+                        </h5>
                         <p className="text-sm text-muted-foreground truncate">{booking.customer_name}</p>
                       </div>
                       <Badge className={`flex-shrink-0 ${
@@ -239,5 +279,6 @@ export const BookingCalendar = () => {
         </Card>
       )}
     </div>
+    </>
   );
 };

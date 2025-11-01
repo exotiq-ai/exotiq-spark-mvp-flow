@@ -10,6 +10,7 @@ import { BookingDetailsDialog } from "@/components/dialogs/BookingDetailsDialog"
 import { BookingCalendar } from "@/components/dashboard/BookingCalendar";
 import { PaymentTracker } from "@/components/dashboard/PaymentTracker";
 import { InspectionForm } from "@/components/dashboard/InspectionForm";
+import { VehicleImageDialog } from "@/components/dialogs/VehicleImageDialog";
 import { 
   Calendar as CalendarIcon, 
   Clock, 
@@ -32,6 +33,30 @@ export const BookEnhanced = () => {
   const [showNewBooking, setShowNewBooking] = useState(false);
   const [showBookingDetails, setShowBookingDetails] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [showVehicleImage, setShowVehicleImage] = useState(false);
+  const [selectedVehicle, setSelectedVehicle] = useState<{
+    name: string;
+    make: string;
+    model: string;
+    year: number;
+    status: string;
+    dailyRate: number;
+  } | null>(null);
+
+  const handleVehicleClick = (vehicleId: string) => {
+    const vehicle = vehicles.find(v => v.id === vehicleId);
+    if (vehicle) {
+      setSelectedVehicle({
+        name: vehicle.name,
+        make: vehicle.make,
+        model: vehicle.model,
+        year: vehicle.year,
+        status: vehicle.status,
+        dailyRate: Number(vehicle.current_rate),
+      });
+      setShowVehicleImage(true);
+    }
+  };
 
   const getVehicleDisplay = (vehicleId: string) => {
     const vehicle = vehicles.find(v => v.id === vehicleId);
@@ -77,6 +102,15 @@ export const BookEnhanced = () => {
 
   return (
     <>
+      {selectedVehicle && (
+        <VehicleImageDialog
+          open={showVehicleImage}
+          onOpenChange={setShowVehicleImage}
+          vehicleName={selectedVehicle.name}
+          vehicleDetails={selectedVehicle}
+        />
+      )}
+
       <NewBookingDialog
         open={showNewBooking}
         onOpenChange={setShowNewBooking}
@@ -138,7 +172,12 @@ export const BookEnhanced = () => {
                 <Car className="h-6 w-6 text-primary" />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="font-semibold text-lg truncate">{getVehicleDisplay(nextBooking.vehicle_id)}</div>
+                <div 
+                  className="font-semibold text-lg truncate cursor-pointer hover:text-primary transition-colors"
+                  onClick={() => handleVehicleClick(nextBooking.vehicle_id)}
+                >
+                  {getVehicleDisplay(nextBooking.vehicle_id)}
+                </div>
                 <div className="text-sm text-muted-foreground truncate">{nextBooking.customer_name}</div>
               </div>
             </div>
@@ -197,11 +236,15 @@ export const BookEnhanced = () => {
             {todayBookings.map((booking) => (
               <div
                 key={booking.id}
-                className="p-3 sm:p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer"
-                onClick={() => handleViewDetails(booking)}
+                className="p-3 sm:p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors"
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
-                  <span className="font-semibold truncate">{getVehicleDisplay(booking.vehicle_id)}</span>
+                  <span 
+                    className="font-semibold truncate cursor-pointer hover:text-primary transition-colors"
+                    onClick={() => handleVehicleClick(booking.vehicle_id)}
+                  >
+                    {getVehicleDisplay(booking.vehicle_id)}
+                  </span>
                   <Badge className={`flex-shrink-0 ${
                     booking.status === 'confirmed' ? 'bg-success/20 text-success border-success/30' :
                     booking.status === 'pending' ? 'bg-warning/20 text-warning border-warning/30' :
