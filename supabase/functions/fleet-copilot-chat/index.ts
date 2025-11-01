@@ -849,8 +849,18 @@ Remember: You're not just a database assistant - you're an automotive enthusiast
       });
     }
 
-    // No function calls, return direct response as stream
-    const textContent = choice?.message?.content || "I'm here to help with your fleet operations!";
+    // No function calls. If there's no content, bubble an error instead of sending a generic fallback.
+    const textContent = choice?.message?.content;
+    if (!textContent || typeof textContent !== "string" || textContent.trim().length === 0) {
+      return new Response(
+        JSON.stringify({
+          error: "EMPTY_RESPONSE",
+          message: "The AI returned an empty response.",
+          retryable: true
+        }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
     const streamData = `data: ${JSON.stringify({ choices: [{ delta: { content: textContent } }] })}\n\ndata: [DONE]\n\n`;
     
     return new Response(streamData, {

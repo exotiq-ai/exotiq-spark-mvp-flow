@@ -435,7 +435,7 @@ export default function RariVoiceInterface() {
         }
 
         // Auto-retry logic for 500 errors
-        if ((errorCode === 'AI_GATEWAY_ERROR' || errorCode === 'AI_GATEWAY_500') && retryAttempt < maxRetries) {
+        if ((errorCode === 'AI_GATEWAY_ERROR' || errorCode === 'AI_GATEWAY_500' || errorCode === 'EMPTY_RESPONSE') && retryAttempt < maxRetries) {
           console.log(`🔄 Auto-retry ${retryAttempt + 1}/${maxRetries} for ${errorCode}`);
           return sendToRari(text, retryAttempt + 1);
         }
@@ -447,6 +447,8 @@ export default function RariVoiceInterface() {
           throw new Error('SERVICE_UNAVAILABLE:Service credits depleted. Please contact support.');
         } else if (errorCode === 'AI_GATEWAY_TIMEOUT') {
           throw new Error('TIMEOUT:Request timed out. Please check your connection.');
+        } else if (errorCode === 'EMPTY_RESPONSE') {
+          throw new Error('EMPTY:The AI returned an empty response.');
         }
         
         throw new Error(`${errorCode}:${errorMessage}`);
