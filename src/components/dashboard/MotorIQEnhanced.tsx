@@ -5,17 +5,20 @@ import { Badge } from "@/components/ui/badge";
 import { useFleet } from "@/contexts/FleetContext";
 import { PriceOptimizationDialog } from "@/components/dialogs/PriceOptimizationDialog";
 import { VehicleImageDialog } from "@/components/dialogs/VehicleImageDialog";
+import { SkeletonMetric, SkeletonCard } from "@/components/ui/skeleton-card";
+import { EmptyState } from "@/components/common/EmptyState";
 import { 
   TrendingUp, 
   Zap,
   CheckCircle,
   ArrowRight,
   Sparkles,
-  Brain
+  Brain,
+  Car
 } from "lucide-react";
 
 export const MotorIQEnhanced = () => {
-  const { vehicles, applyPriceOptimization } = useFleet();
+  const { vehicles, applyPriceOptimization, loading } = useFleet();
   
   const [showOptimizationDialog, setShowOptimizationDialog] = useState(false);
   const [showVehicleImage, setShowVehicleImage] = useState(false);
@@ -57,6 +60,34 @@ export const MotorIQEnhanced = () => {
   const potentialIncrease = topRecommendation?.suggested_rate 
     ? (topRecommendation.suggested_rate - topRecommendation.current_rate) * 30 
     : 0;
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <SkeletonCard />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <SkeletonMetric />
+          <SkeletonMetric />
+          <SkeletonMetric />
+        </div>
+        <SkeletonCard />
+      </div>
+    );
+  }
+
+  if (vehicles.length === 0) {
+    return (
+      <EmptyState
+        icon={<Car className="h-16 w-16" />}
+        title="No vehicles in your fleet"
+        description="Add vehicles to your fleet to start tracking pricing and performance optimization opportunities."
+        action={{
+          label: "Add Vehicle",
+          onClick: () => window.location.href = '/dashboard?module=vault'
+        }}
+      />
+    );
+  }
 
   return (
     <>

@@ -11,6 +11,8 @@ import { BookingCalendar } from "@/components/dashboard/BookingCalendar";
 import { PaymentTracker } from "@/components/dashboard/PaymentTracker";
 import { InspectionForm } from "@/components/dashboard/InspectionForm";
 import { VehicleImageDialog } from "@/components/dialogs/VehicleImageDialog";
+import { SkeletonCard, SkeletonMetric } from "@/components/ui/skeleton-card";
+import { EmptyState } from "@/components/common/EmptyState";
 import { 
   Calendar as CalendarIcon, 
   Clock, 
@@ -28,7 +30,7 @@ import { Tables } from "@/integrations/supabase/types";
 type Booking = Tables<"bookings">;
 
 export const BookEnhanced = () => {
-  const { bookings, vehicles, createBooking, updateBookingStatus } = useFleet();
+  const { bookings, vehicles, createBooking, updateBookingStatus, loading } = useFleet();
   const { goToBookingDetails } = useModuleNavigation();
   const [showNewBooking, setShowNewBooking] = useState(false);
   const [showBookingDetails, setShowBookingDetails] = useState(false);
@@ -99,6 +101,28 @@ export const BookEnhanced = () => {
     const date = new Date(dateString);
     return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
   };
+
+  if (loading) {
+    return (
+      <Tabs defaultValue="overview" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="calendar">Calendar</TabsTrigger>
+          <TabsTrigger value="payments">Payments</TabsTrigger>
+          <TabsTrigger value="inspections">Inspections</TabsTrigger>
+        </TabsList>
+        <TabsContent value="overview" className="space-y-6">
+          <SkeletonCard />
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <SkeletonMetric />
+            <SkeletonMetric />
+            <SkeletonMetric />
+            <SkeletonMetric />
+          </div>
+        </TabsContent>
+      </Tabs>
+    );
+  }
 
   return (
     <>
@@ -233,7 +257,18 @@ export const BookEnhanced = () => {
           </div>
 
           <div className="space-y-3">
-            {todayBookings.map((booking) => (
+            {todayBookings.length === 0 ? (
+              <EmptyState
+                icon={<CalendarIcon className="h-16 w-16" />}
+                title="No bookings today"
+                description="Start by creating your first booking. Track rentals, manage schedules, and monitor your fleet performance."
+                action={{
+                  label: "Create Booking",
+                  onClick: () => setShowNewBooking(true)
+                }}
+              />
+            ) : (
+              todayBookings.map((booking) => (
               <div
                 key={booking.id}
                 className="p-3 sm:p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors"
@@ -273,7 +308,8 @@ export const BookEnhanced = () => {
                   </div>
                 </div>
               </div>
-            ))}
+            ))
+            )}
           </div>
         </Card>
         </TabsContent>

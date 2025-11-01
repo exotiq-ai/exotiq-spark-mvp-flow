@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { performance } from '@/lib/performance';
 
@@ -11,6 +11,7 @@ interface OptimizedImageProps extends React.ImgHTMLAttributes<HTMLImageElement> 
   fallback?: string;
   lazy?: boolean;
   className?: string;
+  blurDataURL?: string;
 }
 
 export const OptimizedImage = React.forwardRef<HTMLImageElement, OptimizedImageProps>(
@@ -25,11 +26,34 @@ export const OptimizedImage = React.forwardRef<HTMLImageElement, OptimizedImageP
     className,
     onLoad,
     onError,
+    blurDataURL,
     ...props 
   }, ref) => {
     const [imgSrc, setImgSrc] = useState(performance.optimizeImage(src, width, quality));
     const [isLoading, setIsLoading] = useState(true);
     const [hasError, setHasError] = useState(false);
+    const [inView, setInView] = useState(!lazy);
+
+    useEffect(() => {
+      if (!lazy) return;
+
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              setInView(true);
+              observer.disconnect();
+            }
+          });
+        },
+        { rootMargin: '50px' }
+      );
+
+      const element = document.getElementById(`img-${src}`);
+      if (element) observer.observe(element);
+
+      return () => observer.disconnect();
+    }, [lazy, src]);
 
     const handleLoad = useCallback((event: React.SyntheticEvent<HTMLImageElement>) => {
       setIsLoading(false);
@@ -45,26 +69,37 @@ export const OptimizedImage = React.forwardRef<HTMLImageElement, OptimizedImageP
     }, [fallback, onError]);
 
     return (
-      <div className={cn('relative overflow-hidden', className)}>
-        {isLoading && (
+      <div id={`img-${src}`} className={cn('relative overflow-hidden', className)}>
+        {isLoading && blurDataURL && (
+          <img
+            src={blurDataURL}
+            alt=""
+            aria-hidden="true"
+            className="absolute inset-0 w-full h-full object-cover blur-sm scale-110"
+          />
+        )}
+        {isLoading && !blurDataURL && (
           <div className="absolute inset-0 bg-muted animate-pulse" />
         )}
-        <img
-          ref={ref}
-          src={imgSrc}
-          alt={alt}
-          width={width}
-          height={height}
-          loading={lazy ? 'lazy' : 'eager'}
-          onLoad={handleLoad}
-          onError={handleError}
-          className={cn(
-            'transition-opacity duration-300',
-            isLoading ? 'opacity-0' : 'opacity-100',
-            hasError ? 'filter grayscale' : ''
-          )}
-          {...props}
-        />
+        {inView && (
+          <img
+            ref={ref}
+            src={imgSrc}
+            alt={alt}
+            width={width}
+            height={height}
+            loading={lazy ? 'lazy' : 'eager'}
+            onLoad={handleLoad}
+            onError={handleError}
+            className={cn(
+              'transition-opacity duration-500',
+              isLoading ? 'opacity-0' : 'opacity-100',
+              hasError ? 'filter grayscale' : '',
+              className
+            )}
+            {...props}
+          />
+        )}
       </div>
     );
   }

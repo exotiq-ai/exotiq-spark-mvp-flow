@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useFleet } from "@/contexts/FleetContext";
+import { SkeletonMetric, SkeletonTable } from "@/components/ui/skeleton-card";
+import { EmptyState } from "@/components/common/EmptyState";
 import { 
   Users, 
   Search, 
@@ -19,7 +21,7 @@ import { CustomerProfileDialog } from "@/components/dialogs/CustomerProfileDialo
 import { AddCustomerDialog } from "@/components/dialogs/AddCustomerDialog";
 
 export const CRMSection = () => {
-  const { customers, bookings, createCustomer } = useFleet();
+  const { customers, bookings, createCustomer, loading } = useFleet();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
@@ -63,6 +65,22 @@ export const CRMSection = () => {
   };
 
   const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <SkeletonMetric />
+          <SkeletonMetric />
+          <SkeletonMetric />
+          <SkeletonMetric />
+        </div>
+        <Card className="card-premium p-6">
+          <SkeletonTable rows={6} />
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -190,18 +208,34 @@ export const CRMSection = () => {
             </div>
           ))}
 
-          {filteredCustomers.length === 0 && (
+          {filteredCustomers.length === 0 && searchQuery === "" && filterStatus === "all" && (
+            <div className="col-span-2">
+              <EmptyState
+                icon={<Users className="h-16 w-16" />}
+                title="No customers yet"
+                description="Start building your customer base by adding your first customer. Track bookings, lifetime value, and communication history."
+                action={{
+                  label: "Add First Customer",
+                  onClick: () => setShowAddCustomer(true)
+                }}
+              />
+            </div>
+          )}
+          
+          {filteredCustomers.length === 0 && (searchQuery !== "" || filterStatus !== "all") && (
             <div className="col-span-2 text-center py-12 text-muted-foreground">
-              <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
-              <p>No customers found</p>
+              <Search className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <p>No customers match your filters</p>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setShowAddCustomer(true)}
+                onClick={() => {
+                  setSearchQuery("");
+                  setFilterStatus("all");
+                }}
                 className="mt-4"
               >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Your First Customer
+                Clear Filters
               </Button>
             </div>
           )}

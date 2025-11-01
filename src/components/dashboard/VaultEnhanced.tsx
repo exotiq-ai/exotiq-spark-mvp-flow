@@ -7,6 +7,8 @@ import { useFleet } from "@/contexts/FleetContext";
 import { DocumentUploadDialog } from "@/components/dialogs/DocumentUploadDialog";
 import { DamageClaimsSection } from "@/components/dashboard/DamageClaimsSection";
 import { useToast } from "@/hooks/use-toast";
+import { SkeletonCard, SkeletonMetric } from "@/components/ui/skeleton-card";
+import { EmptyState } from "@/components/common/EmptyState";
 import { 
   Shield, 
   FileText, 
@@ -20,7 +22,7 @@ import {
 } from "lucide-react";
 
 export const VaultEnhanced = () => {
-  const { documents, uploadDocument, deleteDocument } = useFleet();
+  const { documents, uploadDocument, deleteDocument, loading } = useFleet();
   const { toast } = useToast();
   const [showUploadDialog, setShowUploadDialog] = useState(false);
 
@@ -67,6 +69,32 @@ export const VaultEnhanced = () => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
+
+  if (loading) {
+    return (
+      <Tabs defaultValue="documents" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="documents">
+            <FileText className="w-4 h-4 mr-2" />
+            Documents
+          </TabsTrigger>
+          <TabsTrigger value="claims">
+            <AlertTriangle className="w-4 h-4 mr-2" />
+            Damage Claims
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="documents" className="space-y-6">
+          <SkeletonCard />
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <SkeletonMetric />
+            <SkeletonMetric />
+            <SkeletonMetric />
+            <SkeletonMetric />
+          </div>
+        </TabsContent>
+      </Tabs>
+    );
+  }
 
   return (
     <>
@@ -184,7 +212,18 @@ export const VaultEnhanced = () => {
         </div>
         
         <div className="space-y-4">
-          {recentDocuments.map((doc, index) => (
+          {recentDocuments.length === 0 ? (
+            <EmptyState
+              icon={<FileText className="h-16 w-16" />}
+              title="No documents yet"
+              description="Upload your first document to track insurance, registration, inspections, and compliance."
+              action={{
+                label: "Upload Document",
+                onClick: () => setShowUploadDialog(true)
+              }}
+            />
+          ) : (
+            recentDocuments.map((doc, index) => (
             <div key={index} className="p-4 rounded-xl bg-muted/30 border border-primary/10 hover-scale cursor-pointer">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-start space-x-3">
@@ -224,7 +263,8 @@ export const VaultEnhanced = () => {
                 </div>
               </div>
             </div>
-          ))}
+          ))
+          )}
         </div>
       </Card>
         </TabsContent>
