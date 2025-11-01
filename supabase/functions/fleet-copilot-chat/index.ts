@@ -803,6 +803,17 @@ Remember: You're not just a database assistant - you're an automotive enthusiast
     const aiResponse = await response.json();
     console.log("AI Response:", JSON.stringify(aiResponse, null, 2));
 
+    // Check if response contains an error (from retry exhaustion)
+    if (aiResponse.error) {
+      return new Response(
+        JSON.stringify(aiResponse),
+        { 
+          status: response.status || 500, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
+
     // Check if AI wants to call functions
     const choice = aiResponse.choices?.[0];
     if (choice?.message?.tool_calls && choice.message.tool_calls.length > 0) {
