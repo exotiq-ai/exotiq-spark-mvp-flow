@@ -1,195 +1,70 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { useConversation } from '@11labs/react';
+import { Mic, MicOff, Loader2, Wifi, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Mic, MicOff, Send, Volume2, Loader2, WifiOff, RotateCcw, Wifi } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Card } from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Badge } from '@/components/ui/badge';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 
 interface Message {
-  id: string;
   role: 'user' | 'assistant';
   content: string;
-  timestamp: Date;
-  error?: boolean;
-  retryable?: boolean;
+  timestamp: number;
 }
 
-// Timeout wrapper for fetch requests
-const fetchWithTimeout = async (url: string, options: RequestInit, timeoutMs = 30000) => {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-  
-  try {
-    const response = await fetch(url, { ...options, signal: controller.signal });
-    clearTimeout(timeoutId);
-    return response;
-  } catch (error) {
-    clearTimeout(timeoutId);
-    if (error.name === 'AbortError') {
-      throw new Error('Request timeout - please try again');
-    }
-    throw error;
-  }
-};
-
-// Exponential backoff retry logic
-const retryWithBackoff = async <T,>(
-  fn: () => Promise<T>,
-  maxRetries = 3,
-  baseDelay = 1000
-): Promise<T> => {
-  for (let i = 0; i < maxRetries; i++) {
-    try {
-      return await fn();
-    } catch (error: any) {
-      if (i === maxRetries - 1) throw error;
-      
-      // Don't retry on rate limits or auth errors
-      if (error.message?.includes('429') || error.message?.includes('402') || error.message?.includes('401')) {
-        throw error;
-      }
-      
-      const delay = baseDelay * Math.pow(2, i);
-      console.log(`Retry ${i + 1}/${maxRetries} after ${delay}ms`);
-      await new Promise(resolve => setTimeout(resolve, delay));
-    }
-  }
-  throw new Error('Max retries exceeded');
-};
-
-class AudioQueue {
-  private queue: string[] = [];
-  private isPlaying = false;
-  private onPlaybackStart?: () => void;
-  private onPlaybackEnd?: () => void;
-  private audioElements: HTMLAudioElement[] = [];
-
-  constructor(callbacks?: { onPlaybackStart?: () => void; onPlaybackEnd?: () => void }) {
-    this.onPlaybackStart = callbacks?.onPlaybackStart;
-    this.onPlaybackEnd = callbacks?.onPlaybackEnd;
-  }
-
-  addToQueue(base64Audio: string) {
-    this.queue.push(base64Audio);
-    if (!this.isPlaying) {
-      this.playNext();
-    }
-  }
-
-  clear() {
-    this.queue = [];
-    this.audioElements.forEach(audio => {
-      audio.pause();
-      audio.src = '';
-    });
-    this.audioElements = [];
-    this.isPlaying = false;
-    this.onPlaybackEnd?.();
-  }
-
-  stopAll() {
-    // Clear queue and stop all audio immediately (for interruption)
-    this.clear();
-  }
-
-  private async playNext() {
-    if (this.queue.length === 0) {
-      this.isPlaying = false;
-      this.onPlaybackEnd?.();
-      console.log('🎵 Audio queue empty, playback ended');
-      return;
-    }
-
-    if (!this.isPlaying) {
-      this.isPlaying = true;
-      this.onPlaybackStart?.();
-      console.log('🎵 Audio playback started');
-    }
-
-    const base64Audio = this.queue.shift()!;
-    const startTime = performance.now();
-
-    try {
-      const binaryString = atob(base64Audio);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-
-      const blob = new Blob([bytes], { type: 'audio/mpeg' });
-      const url = URL.createObjectURL(blob);
-      const audio = new Audio(url);
-      audio.playbackRate = 1.1; // Slightly faster for more natural cadence
-      this.audioElements.push(audio);
-
-      audio.onended = () => {
-        const duration = performance.now() - startTime;
-        console.log(`🎵 Audio chunk finished (${duration.toFixed(0)}ms)`);
-        URL.revokeObjectURL(url);
-        this.audioElements = this.audioElements.filter(a => a !== audio);
-        this.playNext();
-      };
-
-      audio.onerror = (error) => {
-        console.error('🎵 Audio playback error:', error);
-        URL.revokeObjectURL(url);
-        this.audioElements = this.audioElements.filter(a => a !== audio);
-        this.playNext();
-      };
-
-      await audio.play();
-    } catch (error) {
-      console.error('🎵 Error playing audio:', error);
-      this.playNext();
-    }
-  }
-}
-
-export default function RariVoiceInterface() {
+export const RariVoiceInterface = () => {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [isRecording, setIsRecording] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const [inputText, setInputText] = useState('');
-  const [recordingDuration, setRecordingDuration] = useState(0);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [performanceMetrics, setPerformanceMetrics] = useState<{ operation: string; duration: number }[]>([]);
-  const [isDegraded, setIsDegraded] = useState(false);
-  const [consecutiveFallbacks, setConsecutiveFallbacks] = useState(0);
-  const [isRetrying, setIsRetrying] = useState(false);
-  
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-  const audioQueueRef = useRef<AudioQueue>(
-    new AudioQueue({
-      onPlaybackStart: () => setIsSpeaking(true),
-      onPlaybackEnd: () => setIsSpeaking(false),
-    })
-  );
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const recordingStartTimeRef = useRef<number>(0);
-  const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
   const { toast } = useToast();
 
-  // Monitor online/offline status
-  useEffect(() => {
-    const handleOnline = () => {
-      setIsOnline(true);
-      toast({ title: "Connection Restored", description: "You're back online!" });
-    };
-    const handleOffline = () => {
-      setIsOnline(false);
-      toast({ 
-        title: "Connection Lost", 
-        description: "Please check your internet connection.",
-        variant: "destructive"
+  // ElevenLabs Conversational AI hook
+  const conversation = useConversation({
+    onConnect: () => {
+      console.log('✅ Rari connected');
+      toast({
+        title: "Connected to Rari",
+        description: "Voice assistant is ready",
       });
-    };
+    },
+    onDisconnect: () => {
+      console.log('❌ Rari disconnected');
+    },
+    onMessage: (message) => {
+      console.log('📨 Message from Rari:', message);
+      
+      // Handle user transcripts
+      if (message.type === 'user_transcript') {
+        setMessages(prev => [...prev, {
+          role: 'user',
+          content: message.user_transcript.transcript || '',
+          timestamp: Date.now()
+        }]);
+      }
+      
+      // Handle assistant responses
+      if (message.type === 'agent_response') {
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: message.agent_response.text || '',
+          timestamp: Date.now()
+        }]);
+      }
+    },
+    onError: (error) => {
+      console.error('❌ Rari error:', error);
+      toast({
+        title: "Connection Error",
+        description: error.message || "Failed to connect to Rari",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Monitor network connectivity
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
@@ -198,677 +73,189 @@ export default function RariVoiceInterface() {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [toast]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      audioQueueRef.current.clear();
-      if (recordingTimerRef.current) {
-        clearInterval(recordingTimerRef.current);
-      }
-    };
   }, []);
 
-  useEffect(() => {
-    if (scrollAreaRef.current) {
-      scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
-    }
-  }, [messages]);
-
-  // No longer needed - using ReactMarkdown for safe rendering
-
-  const startRecording = async () => {
+  const startConversation = async () => {
     try {
-      // INTERRUPT: Stop any playing audio and clear queue
-      audioQueueRef.current.stopAll();
-      
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
-
-      // Track recording start time
-      recordingStartTimeRef.current = Date.now();
-      setRecordingDuration(0);
-
-      // Update duration every 100ms
-      recordingTimerRef.current = setInterval(() => {
-        const duration = (Date.now() - recordingStartTimeRef.current) / 1000;
-        setRecordingDuration(duration);
-      }, 100);
-
-      mediaRecorder.ondataavailable = (event) => {
-        audioChunksRef.current.push(event.data);
-      };
-
-      mediaRecorder.onstop = async () => {
-        if (recordingTimerRef.current) {
-          clearInterval(recordingTimerRef.current);
-          recordingTimerRef.current = null;
-        }
-
-        const recordingDuration = (Date.now() - recordingStartTimeRef.current) / 1000;
-        
-        // Check minimum duration (0.5 seconds)
-        if (recordingDuration < 0.5) {
-          toast({
-            title: "Recording Too Short",
-            description: "Please hold the button for at least 0.5 seconds to record.",
-            variant: "destructive",
-          });
-          stream.getTracks().forEach(track => track.stop());
-          setRecordingDuration(0);
-          return;
-        }
-
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        await processAudioInput(audioBlob);
-        stream.getTracks().forEach(track => track.stop());
-        setRecordingDuration(0);
-      };
-
-      mediaRecorder.start();
-      setIsRecording(true);
-    } catch (error) {
-      console.error('Error accessing microphone:', error);
-      toast({
-        title: "Microphone Error",
-        description: "Could not access microphone. Please check permissions.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-    }
-  };
-
-  const processAudioInput = async (audioBlob: Blob) => {
-    const startTime = performance.now();
-    setIsProcessing(true);
-
-    try {
-      const reader = new FileReader();
-      reader.readAsDataURL(audioBlob);
-      reader.onloadend = async () => {
-        const base64Audio = (reader.result as string).split(',')[1];
-
-        const { data: transcription, error: transcriptionError } = await retryWithBackoff(
-          async () => {
-            const result = await supabase.functions.invoke(
-              'voice-to-text',
-              { body: { audio: base64Audio } }
-            );
-            if (result.error) throw result.error;
-            return result;
-          }
-        );
-
-        if (transcriptionError) throw transcriptionError;
-
-        const duration = performance.now() - startTime;
-        console.log(`⏱️ Voice-to-text: ${duration.toFixed(0)}ms`);
-        setPerformanceMetrics(prev => [...prev.slice(-4), { operation: 'voice-to-text', duration }]);
-
-        const userMessage: Message = {
-          id: crypto.randomUUID(),
-          role: 'user',
-          content: transcription.text,
-          timestamp: new Date(),
-        };
-
-        setMessages(prev => [...prev, userMessage]);
-        await sendToRari(transcription.text);
-      };
-    } catch (error: any) {
-      console.error('Audio processing error:', error);
-      
-      let errorMessage = "Could not process audio. Please try again.";
-      if (error.message?.includes('timeout')) {
-        errorMessage = "Request timed out. Please check your connection and try again.";
-      } else if (error.message?.includes('429')) {
-        errorMessage = "Too many requests. Please wait a moment and try again.";
-      } else if (error.message?.includes('402')) {
-        errorMessage = "Service unavailable. Please contact support.";
-      }
-      
-      toast({
-        title: "Processing Error",
-        description: errorMessage,
-        variant: "destructive",
-      });
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const sendToRari = async (text: string, retryAttempt = 0) => {
-    const chatStartTime = performance.now();
-    const maxRetries = 1; // Auto-retry once for 500 errors
-    setIsProcessing(true);
-    let hasSpokenPartial = false; // Track if we've already generated TTS
-
-    // Create new abort controller for this request
-    abortControllerRef.current = new AbortController();
-
-    // Create assistant message with unique ID for streaming updates
-    const assistantMessageId = crypto.randomUUID();
-
-    try {
-      if (!isOnline) {
-        throw new Error('No internet connection');
-      }
-
-      const conversationMessages = messages
-        .filter(m => !m.error) // Exclude error messages
-        .map(m => ({
-          role: m.role,
-          content: m.content,
-        }));
-
-      conversationMessages.push({ role: 'user', content: text });
-
-      // Show "Retrying..." if this is a retry attempt
-      if (retryAttempt > 0) {
-        setIsRetrying(true);
-        setMessages(prev => {
-          const newMessages = [...prev];
-          const lastMessage = newMessages[newMessages.length - 1];
-          if (lastMessage?.role === 'assistant' && lastMessage.error) {
-            lastMessage.content = "Retrying connection...";
-          }
-          return newMessages;
-        });
-        await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay before retry
-      }
-
-      const { data: chatResponse, error: chatError } = await supabase.functions.invoke(
-        'fleet-copilot-chat',
-        {
-          body: { messages: conversationMessages },
-        }
-      );
-
-      if (chatError) {
-        // Parse structured error codes if present
-        let errorCode = 'UNKNOWN';
-        let errorMessage = chatError.message;
-        let retryable = true;
-
-        try {
-          const errorData = JSON.parse(chatError.message);
-          errorCode = errorData.error || errorCode;
-          errorMessage = errorData.message || errorMessage;
-          retryable = errorData.retryable !== false;
-          
-          // Track fallback usage for degraded mode detection
-          if (errorData.usedFallback) {
-            setConsecutiveFallbacks(prev => {
-              const newCount = prev + 1;
-              if (newCount >= 3 && !isDegraded) {
-                setIsDegraded(true);
-                toast({
-                  title: "Running in Backup Mode",
-                  description: "Rari is using backup AI model due to high demand.",
-                  variant: "default",
-                });
-              }
-              return newCount;
-            });
-          } else {
-            // Reset degraded mode on successful primary model
-            if (consecutiveFallbacks >= 3) {
-              setIsDegraded(false);
-              toast({
-                title: "Service Restored",
-                description: "Rari is back to full performance!",
-              });
-            }
-            setConsecutiveFallbacks(0);
-          }
-        } catch (e) {
-          // Not a structured error, use legacy handling
-        }
-
-        // Auto-retry logic for 500 errors
-        if ((errorCode === 'AI_GATEWAY_ERROR' || errorCode === 'AI_GATEWAY_500' || errorCode === 'EMPTY_RESPONSE') && retryAttempt < maxRetries) {
-          console.log(`🔄 Auto-retry ${retryAttempt + 1}/${maxRetries} for ${errorCode}`);
-          return sendToRari(text, retryAttempt + 1);
-        }
-
-        // Handle specific error codes
-        if (errorCode === 'RATE_LIMIT_EXCEEDED' || errorMessage?.includes('429')) {
-          throw new Error('RATE_LIMIT:Too many requests. Please wait 30 seconds and try again.');
-        } else if (errorCode === 'SERVICE_UNAVAILABLE' || errorMessage?.includes('402')) {
-          throw new Error('SERVICE_UNAVAILABLE:Service credits depleted. Please contact support.');
-        } else if (errorCode === 'AI_GATEWAY_TIMEOUT') {
-          throw new Error('TIMEOUT:Request timed out. Please check your connection.');
-        } else if (errorCode === 'EMPTY_RESPONSE') {
-          throw new Error('EMPTY:The AI returned an empty response.');
-        }
-        
-        throw new Error(`${errorCode}:${errorMessage}`);
-      }
-
-      const reader = chatResponse.body.getReader();
-      const decoder = new TextDecoder();
-      let assistantMessage = '';
-      let firstTokenTime: number | null = null;
-
-      // Add timeout for streaming (60 seconds max)
-      const streamTimeout = setTimeout(() => {
-        reader.cancel();
-        throw new Error('TIMEOUT:Streaming timed out after 60 seconds');
-      }, 60000);
-
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n').filter(line => line.trim() !== '');
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6);
-            if (data === '[DONE]') continue;
-
-            try {
-              const parsed = JSON.parse(data);
-              const content = parsed.choices?.[0]?.delta?.content;
-              if (content) {
-                if (!firstTokenTime) {
-                  firstTokenTime = performance.now();
-                  const ttft = firstTokenTime - chatStartTime;
-                  console.log(`⏱️ Time to first token: ${ttft.toFixed(0)}ms`);
-                  setPerformanceMetrics(prev => [...prev.slice(-4), { operation: 'ttft', duration: ttft }]);
-                }
-                
-                assistantMessage += content;
-                setMessages(prev => {
-                  const newMessages = [...prev];
-                  const existingMsg = newMessages.find(m => m.id === assistantMessageId);
-                  if (existingMsg) {
-                    existingMsg.content = assistantMessage;
-                  } else {
-                    newMessages.push({
-                      id: assistantMessageId,
-                      role: 'assistant',
-                      content: assistantMessage,
-                      timestamp: new Date(),
-                    });
-                  }
-                  return newMessages;
-                });
-
-                // Pre-buffer TTS: Only once when first complete sentence arrives
-                if (!hasSpokenPartial && assistantMessage.includes('.') && assistantMessage.length > 50) {
-                  speakText(assistantMessage, true);
-                  hasSpokenPartial = true;
-                }
-              }
-            } catch (e) {
-              // Skip invalid JSON
-            }
-          }
-        }
-      }
-      } finally {
-        clearTimeout(streamTimeout);
-      }
-
-      const totalDuration = performance.now() - chatStartTime;
-      console.log(`⏱️ Total chat response: ${totalDuration.toFixed(0)}ms`);
-      setPerformanceMetrics(prev => [...prev.slice(-4), { operation: 'chat', duration: totalDuration }]);
-
-      // Only speak if we haven't already done partial TTS
-      if (assistantMessage && !hasSpokenPartial) {
-        await speakText(assistantMessage);
-      }
-    } catch (error: any) {
-      console.error('Rari chat error:', error);
-      
-      // Parse error code and message
-      let errorCode = 'UNKNOWN';
-      let errorMessage = "Could not connect to Rari. Please try again.";
-      let retryable = true;
-
-      if (error.message?.includes(':')) {
-        const [code, msg] = error.message.split(':');
-        errorCode = code;
-        errorMessage = msg;
-      }
-
-      // Map error codes to user-friendly messages
-      const errorMapping: Record<string, { message: string; retryable: boolean; variant?: 'default' | 'destructive' }> = {
-        'RATE_LIMIT': {
-          message: "⏱️ Too busy right now. Please wait 30 seconds and try again.",
-          retryable: false,
-          variant: 'destructive'
-        },
-        'SERVICE_UNAVAILABLE': {
-          message: "🔧 Service temporarily unavailable. Please contact support.",
-          retryable: false,
-          variant: 'destructive'
-        },
-        'TIMEOUT': {
-          message: "⏱️ Connection slow. Please check your network and try again.",
-          retryable: true,
-        },
-        'AI_GATEWAY_ERROR': {
-          message: "🔄 Rari is temporarily unavailable. Retrying automatically...",
-          retryable: true,
-        },
-        'AI_GATEWAY_TIMEOUT': {
-          message: "⏱️ Request timed out. Please try again.",
-          retryable: true,
-        },
-        'EMPTY_RESPONSE': {
-          message: "🔄 Rari returned an empty response. Retrying...",
-          retryable: true,
-        },
-        'EMPTY': {
-          message: "🔄 Rari returned an empty response. Retrying...",
-          retryable: true,
-        },
-        'No internet': {
-          message: "📡 No internet connection. Please check your network.",
-          retryable: true,
-          variant: 'destructive'
-        },
-      };
-
-      const mappedError = errorMapping[errorCode] || { 
-        message: errorMessage, 
-        retryable: true 
-      };
-
-      setMessages(prev => [...prev, {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content: mappedError.message,
-        timestamp: new Date(),
-        error: true,
-        retryable: mappedError.retryable,
-      }]);
-      
-      toast({
-        title: mappedError.retryable ? "Connection Issue" : "Service Error",
-        description: mappedError.message,
-        variant: mappedError.variant || "destructive",
-      });
-    } finally {
-      setIsProcessing(false);
-      setIsRetrying(false);
-      abortControllerRef.current = null;
-    }
-  };
-
-  // Clean text for speech: strip markdown, format numbers/currency
-  const cleanTextForSpeech = (text: string): string => {
-    let cleaned = text;
-    
-    // Remove markdown formatting
-    cleaned = cleaned.replace(/\*\*(.+?)\*\*/g, '$1'); // Bold
-    cleaned = cleaned.replace(/\*(.+?)\*/g, '$1'); // Italic
-    cleaned = cleaned.replace(/`(.+?)`/g, '$1'); // Code
-    cleaned = cleaned.replace(/^#+\s+/gm, ''); // Headers
-    cleaned = cleaned.replace(/^[*-]\s+/gm, ''); // Bullet points
-    cleaned = cleaned.replace(/^\d+\.\s+/gm, ''); // Numbered lists
-    
-    // Format currency for speech ($5,000 → "5 thousand dollars")
-    cleaned = cleaned.replace(/\$(\d{1,3}),(\d{3})/g, '$1 thousand dollars');
-    cleaned = cleaned.replace(/\$(\d+)/g, '$1 dollars');
-    
-    // Format percentages
-    cleaned = cleaned.replace(/(\d+)%/g, '$1 percent');
-    
-    // Remove extra whitespace
-    cleaned = cleaned.replace(/\s+/g, ' ').trim();
-    
-    return cleaned;
-  };
-
-  const speakText = async (text: string, isPartial = false) => {
-    const startTime = performance.now();
-    const cleanedText = cleanTextForSpeech(text);
-    
-    try {
-      const { data: audioData, error: audioError } = await retryWithBackoff(
-        async () => {
-          const result = await supabase.functions.invoke(
-            'text-to-speech',
-            { body: { text: cleanedText } }
-          );
-          if (result.error) throw result.error;
-          return result;
-        }
-      );
-
-      if (audioError) throw audioError;
-
-      const duration = performance.now() - startTime;
-      console.log(`⏱️ TTS generation: ${duration.toFixed(0)}ms (${isPartial ? 'partial' : 'full'})`);
-      
-      if (!isPartial) {
-        setPerformanceMetrics(prev => [...prev.slice(-4), { operation: 'tts', duration }]);
-      }
-
-      audioQueueRef.current.addToQueue(audioData.audioContent);
-    } catch (error: any) {
-      console.error('TTS error:', error);
-      
-      // Only show toast for non-partial failures
-      if (!isPartial) {
-        let errorMessage = "Could not generate Rari's voice.";
-        if (error.message?.includes('429')) {
-          errorMessage = "Voice generation rate limit. Try again in a moment.";
-        } else if (error.message?.includes('402')) {
-          errorMessage = "Voice service unavailable.";
-        }
-        
+      // Get auth token for backend tool calls
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
         toast({
-          title: "Voice Error",
-          description: errorMessage,
+          title: "Authentication Required",
+          description: "Please sign in to use Rari",
           variant: "destructive",
         });
+        return;
       }
+
+      // Request microphone access
+      await navigator.mediaDevices.getUserMedia({ audio: true });
+
+      // Start ElevenLabs conversation with your agent ID
+      await conversation.startSession({
+        agentId: import.meta.env.VITE_ELEVENLABS_AGENT_ID, // Set this in your environment
+      });
+
+      setMessages([{
+        role: 'assistant',
+        content: "Hey! I'm Rari, your FleetCopilot AI. What can I help you with today?",
+        timestamp: Date.now()
+      }]);
+    } catch (error) {
+      console.error('Failed to start conversation:', error);
+      toast({
+        title: "Microphone Access Required",
+        description: "Please allow microphone access to use voice features",
+        variant: "destructive",
+      });
     }
   };
 
-  const retryMessage = async (messageIndex: number) => {
-    const message = messages[messageIndex];
-    if (!message || message.role !== 'user') return;
-
-    // Remove the error message and retry
-    setMessages(prev => prev.slice(0, messageIndex + 1));
-    await sendToRari(message.content, 0);
+  const stopConversation = async () => {
+    try {
+      await conversation.endSession();
+      toast({
+        title: "Session Ended",
+        description: "Rari conversation has been stopped",
+      });
+    } catch (error) {
+      console.error('Failed to stop conversation:', error);
+    }
   };
 
-  const sendTextMessage = async () => {
-    if (!inputText.trim()) return;
-
-    const userMessage: Message = {
-      id: crypto.randomUUID(),
-      role: 'user',
-      content: inputText,
-      timestamp: new Date(),
-    };
-
-    setMessages(prev => [...prev, userMessage]);
-    setInputText('');
-    await sendToRari(inputText);
-  };
-
-  const demoQueries = [
-    "What's my total revenue this month?",
-    "Which vehicle should I increase pricing on?",
-    "Do I have any damage reports?",
-    "What's my fleet utilization right now?",
-  ];
+  const { status, isSpeaking } = conversation;
+  const isConnected = status === 'connected';
 
   return (
-    <div className="flex flex-col h-full max-h-[600px]">
-      <div className="flex items-center gap-3 p-4 border-b bg-gradient-to-r from-primary/5 to-accent/5">
-        <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-          <Volume2 className={`w-6 h-6 text-primary ${isSpeaking ? 'animate-pulse' : ''}`} />
-        </div>
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
-            <h3 className="font-semibold text-lg">Rari FleetCopilot</h3>
-            {isOnline ? (
-              <Badge variant="outline" className="text-xs gap-1">
-                <Wifi className="w-3 h-3" /> Online
-              </Badge>
-            ) : (
-              <Badge variant="destructive" className="text-xs gap-1">
-                <WifiOff className="w-3 h-3" /> Offline
-              </Badge>
-            )}
-            {isDegraded && (
-              <Badge variant="secondary" className="text-xs">
-                Backup Mode
-              </Badge>
-            )}
-          </div>
-          <p className="text-sm text-muted-foreground">
-            {isProcessing ? (
-              <span className="flex items-center gap-1">
-                <Loader2 className="w-3 h-3 animate-spin" />
-                {isRetrying ? 'Retrying connection...' : 'Processing...'}
-              </span>
-            ) : isSpeaking ? (
-              'Speaking...'
-            ) : isDegraded ? (
-              'Running in backup mode'
-            ) : (
-              'Ready to help'
-            )}
-          </p>
-        </div>
-      </div>
-
-      <ScrollArea className="flex-1 p-4 overflow-y-auto" ref={scrollAreaRef}>
-        {messages.length === 0 ? (
-          <div className="space-y-4">
-            <p className="text-muted-foreground text-center py-8">
-              Hi! I'm Rari, your FleetCopilot AI. Ask me anything about your fleet operations!
-            </p>
-            <div className="grid gap-2">
-              <p className="text-sm font-medium">Try asking:</p>
-              {demoQueries.map((query, idx) => (
-                <Button
-                  key={idx}
-                  variant="outline"
-                  size="sm"
-                  className="justify-start text-left h-auto py-2 px-3"
-                  onClick={() => {
-                    setInputText(query);
-                  }}
-                >
-                  {query}
-                </Button>
-              ))}
+    <div className="flex flex-col h-full max-w-4xl mx-auto p-4 space-y-4">
+      {/* Header */}
+      <Card className="p-4 bg-gradient-to-r from-primary/10 to-accent/10 border-primary/20">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className={`p-3 rounded-full ${isConnected ? 'bg-primary/20' : 'bg-muted'}`}>
+              <Mic className={`h-6 w-6 ${isConnected ? 'text-primary' : 'text-muted-foreground'}`} />
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold">Rari AI Assistant</h2>
+              <p className="text-sm text-muted-foreground flex items-center gap-2">
+                {isOnline ? (
+                  <>
+                    <Wifi className="h-3 w-3" />
+                    {isConnected ? (isSpeaking ? 'Speaking...' : 'Listening...') : 'Ready to connect'}
+                  </>
+                ) : (
+                  <>
+                    <WifiOff className="h-3 w-3" />
+                    Offline
+                  </>
+                )}
+              </p>
             </div>
           </div>
-        ) : (
-          <div className="space-y-4">
-            {messages.map((message, idx) => (
-              <Card
-                key={idx}
-                className={`p-3 ${
-                  message.role === 'user'
-                    ? 'bg-primary/10 ml-auto max-w-[80%]'
-                    : message.error
-                    ? 'bg-destructive/10 border-destructive/50 mr-auto max-w-[80%]'
-                    : 'bg-accent/10 mr-auto max-w-[80%]'
-                }`}
+          <div className="flex gap-2">
+            {!isConnected ? (
+              <Button
+                onClick={startConversation}
+                disabled={!isOnline}
+                className="gap-2"
               >
-                <p className="text-sm font-medium mb-1">
-                  {message.role === 'user' ? 'You' : 'Rari'}
-                </p>
-                <ReactMarkdown
-                  className="text-sm whitespace-pre-wrap break-words overflow-y-auto max-h-[400px] prose prose-sm max-w-none dark:prose-invert"
-                  remarkPlugins={[remarkGfm]}
-                  components={{
-                    p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />,
-                    strong: ({node, ...props}) => <strong className="font-semibold" {...props} />,
-                  }}
+                <Mic className="h-4 w-4" />
+                Start Voice Chat
+              </Button>
+            ) : (
+              <Button
+                onClick={stopConversation}
+                variant="destructive"
+                className="gap-2"
+              >
+                <MicOff className="h-4 w-4" />
+                End Session
+              </Button>
+            )}
+          </div>
+        </div>
+      </Card>
+
+      {/* Status Indicator */}
+      {isConnected && (
+        <Card className="p-3 bg-primary/5 border-primary/20">
+          <div className="flex items-center gap-3">
+            {isSpeaking ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                <span className="text-sm font-medium">Rari is speaking...</span>
+              </>
+            ) : (
+              <>
+                <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+                <span className="text-sm font-medium">Listening... speak now</span>
+              </>
+            )}
+          </div>
+        </Card>
+      )}
+
+      {/* Messages */}
+      <Card className="flex-1 overflow-hidden">
+        <ScrollArea className="h-full p-4">
+          <div className="space-y-4">
+            {messages.length === 0 && !isConnected && (
+              <div className="text-center text-muted-foreground py-12">
+                <Mic className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p className="text-lg font-medium">Start a conversation with Rari</p>
+                <p className="text-sm mt-2">Click "Start Voice Chat" to begin</p>
+              </div>
+            )}
+            
+            {messages.map((msg, idx) => (
+              <div
+                key={idx}
+                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                <div
+                  className={`max-w-[80%] rounded-lg p-3 ${
+                    msg.role === 'user'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted'
+                  }`}
                 >
-                  {message.content}
-                </ReactMarkdown>
-                <div className="flex items-center justify-between mt-1">
-                  <p className="text-xs text-muted-foreground">
-                    {message.timestamp.toLocaleTimeString()}
+                  <p className="text-sm font-medium mb-1">
+                    {msg.role === 'user' ? 'You' : 'Rari'}
                   </p>
-                  {message.error && message.retryable && idx > 0 && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => retryMessage(idx - 1)}
-                      className="h-6 text-xs gap-1"
-                    >
-                      <RotateCcw className="w-3 h-3" /> Retry
-                    </Button>
-                  )}
+                  <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
                 </div>
-              </Card>
+              </div>
             ))}
           </div>
-        )}
-      </ScrollArea>
+        </ScrollArea>
+      </Card>
 
-      <div className="p-4 border-t space-y-2">
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && sendTextMessage()}
-            placeholder="Type or use voice..."
-            className="flex-1 px-3 py-2 rounded-md border bg-background text-sm"
-            disabled={isProcessing}
-          />
-          <Button
-            onClick={sendTextMessage}
-            disabled={!inputText.trim() || isProcessing}
-            size="icon"
-          >
-            <Send className="w-4 h-4" />
-          </Button>
-        </div>
-
-        <div className="flex justify-center">
-          <Button
-            size="lg"
-            variant={isRecording ? "destructive" : "default"}
-            className="rounded-full w-16 h-16"
-            onMouseDown={startRecording}
-            onMouseUp={stopRecording}
-            onTouchStart={startRecording}
-            onTouchEnd={stopRecording}
-            disabled={isProcessing}
-          >
-            {isProcessing ? (
-              <Loader2 className="w-6 h-6 animate-spin" />
-            ) : isRecording ? (
-              <MicOff className="w-6 h-6" />
-            ) : (
-              <Mic className="w-6 h-6" />
-            )}
-          </Button>
-        </div>
-        <p className="text-xs text-center text-muted-foreground">
-          {isRecording 
-            ? `Recording: ${recordingDuration.toFixed(1)}s (min 0.5s)` 
-            : 'Hold to talk'}
-        </p>
-      </div>
+      {/* Quick Actions */}
+      {!isConnected && (
+        <Card className="p-4">
+          <p className="text-sm text-muted-foreground mb-3">Try asking Rari about:</p>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+            {[
+              "Fleet metrics for this month",
+              "Top performing vehicles",
+              "Upcoming maintenance",
+              "Recent bookings",
+              "Customer lifetime value",
+              "Revenue analysis"
+            ].map((example, idx) => (
+              <Button
+                key={idx}
+                variant="outline"
+                size="sm"
+                className="text-xs h-auto py-2 px-3"
+                disabled={!isConnected}
+              >
+                {example}
+              </Button>
+            ))}
+          </div>
+        </Card>
+      )}
     </div>
   );
-}
+};

@@ -1,5 +1,8 @@
 project_id = "jlgwbbqydjeokypoenoc"
 
+[functions.elevenlabs-tools]
+verify_jwt = true
+
 [functions.fleet-copilot-chat]
 verify_jwt = false
 

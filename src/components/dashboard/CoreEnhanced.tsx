@@ -24,7 +24,7 @@ import { ScheduleMaintenanceDialog } from "@/components/dialogs/ScheduleMaintena
 import { SendMessageDialog } from "@/components/dialogs/SendMessageDialog";
 import { GenerateReportDialog } from "@/components/dialogs/GenerateReportDialog";
 import { PriceOptimizationDialog } from "@/components/dialogs/PriceOptimizationDialog";
-import RariVoiceInterface from "@/components/rari/RariVoiceInterface";
+import { RariVoiceInterface } from "@/components/rari/RariVoiceInterface";
 import { CRMSection } from "@/components/dashboard/CRMSection";
 import { UserManagementSection } from "@/components/dashboard/UserManagementSection";
 import { SystemSettingsSection } from "@/components/dashboard/SystemSettingsSection";
