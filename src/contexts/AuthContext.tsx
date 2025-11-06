@@ -170,19 +170,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         method: 'POST',
       });
 
-      if (error) throw error;
-      
-      if (data?.session) {
-        // Session is automatically set by Supabase
-        toast({
-          title: "Welcome to Demo Mode!",
-          description: "Exploring ExotIQ with pre-populated data.",
-        });
-        return { error: null };
+      if (error) {
+        console.error('Demo login edge function error:', error);
+        throw error;
       }
       
-      throw new Error('No session returned');
+      if (!data?.session) {
+        throw new Error('No session returned from demo login');
+      }
+
+      // CRITICAL: Explicitly set the session on the client
+      const { error: sessionError } = await supabase.auth.setSession({
+        access_token: data.session.access_token,
+        refresh_token: data.session.refresh_token,
+      });
+
+      if (sessionError) {
+        console.error('Error setting demo session:', sessionError);
+        throw sessionError;
+      }
+
+      // Session is now set - onAuthStateChange will fire and handle navigation
+      toast({
+        title: "Welcome to Demo Mode!",
+        description: "Exploring ExotIQ with pre-populated data.",
+      });
+      
+      return { error: null };
     } catch (error: any) {
+      console.error('Demo mode error:', error);
       toast({
         title: "Demo Mode Unavailable",
         description: error.message || "Please try again or contact support.",
