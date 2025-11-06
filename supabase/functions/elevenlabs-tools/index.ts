@@ -16,8 +16,13 @@ Deno.serve(async (req) => {
     console.log('Headers:', Object.fromEntries(req.headers.entries()));
     
     const body = await req.json();
-    const { tool_name, parameters } = body;
-    console.log(`Tool called: ${tool_name}`);
+    console.log('Raw body:', JSON.stringify(body, null, 2));
+    
+    // ElevenLabs sends: { tool_name: "...", parameters: {...} } or { name: "...", parameters: {...} }
+    const toolName = body.tool_name || body.name || body.function_name;
+    const parameters = body.parameters || body.args || {};
+    
+    console.log(`Tool called: ${toolName}`);
     console.log('Parameters:', JSON.stringify(parameters, null, 2));
 
     // Validate request is from ElevenLabs (optional security layer)
@@ -43,7 +48,7 @@ Deno.serve(async (req) => {
     console.log('Using user_id:', userId);
 
     // Execute the requested tool
-    const result = await executeFunction(tool_name, parameters, supabase, userId);
+    const result = await executeFunction(toolName, parameters, supabase, userId);
 
     console.log('Tool result:', JSON.stringify(result, null, 2));
     console.log('=== Request Complete ===\n');
@@ -74,6 +79,80 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
 
   try {
     switch (functionName) {
+      case "get_fleet_vehicles": {
+        const { status } = args;
+        let query = supabase
+          .from('vehicles')
+          .select('*')
+          .eq('user_id', userId);
+
+        if (status) {
+          query = query.eq('status', status);
+        }
+
+        const { data: vehicles } = await query.order('created_at', { ascending: false });
+        
+        return {
+          vehicles: vehicles || [],
+          count: vehicles?.length || 0,
+          summary: `Found ${vehicles?.length || 0} vehicles${status ? ` with status: ${status}` : ''}`
+        };
+      }
+
+      case "get_bookings": {
+        const { status, start_date, end_date } = args;
+        let query = supabase
+          .from('bookings')
+          .select('*, vehicles(name, make, model), customers(full_name, email)')
+          .eq('user_id', userId);
+
+        if (status) {
+          query = query.eq('status', status);
+        }
+        if (start_date) {
+          query = query.gte('start_date', start_date);
+        }
+        if (end_date) {
+          query = query.lte('end_date', end_date);
+        }
+
+        const { data: bookings } = await query.order('start_date', { ascending: false }).limit(20);
+        
+        return {
+          bookings: bookings || [],
+          count: bookings?.length || 0,
+          summary: `Found ${bookings?.length || 0} bookings${status ? ` with status: ${status}` : ''}`
+        };
+      }
+
+      case "get_recent_activity": {
+        const { limit = 10, activity_type } = args;
+        
+        // Get recent bookings as activity
+        const { data: recentBookings } = await supabase
+          .from('bookings')
+          .select('*, vehicles(name), customers(full_name)')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(limit);
+
+        const activities = recentBookings?.map((b: any) => ({
+          type: 'booking',
+          action: `New booking for ${b.vehicles?.name}`,
+          customer: b.customers?.full_name,
+          vehicle: b.vehicles?.name,
+          date: b.created_at,
+          status: b.status,
+          amount: b.total_value
+        })) || [];
+
+        return {
+          activities,
+          count: activities.length,
+          summary: `Found ${activities.length} recent activities`
+        };
+      }
+
       case "getFleetMetrics": {
         const { timeframe } = args;
         let dateFilter = new Date();
