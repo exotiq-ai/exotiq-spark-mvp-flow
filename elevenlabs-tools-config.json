@@ -1,0 +1,253 @@
+{
+  "tools": [
+    {
+      "name": "getFleetMetrics",
+      "description": "Get fleet performance metrics including total vehicles, active bookings, and revenue over a specified timeframe",
+      "webhook_url": "https://jlgwbbqydjeokypoenoc.supabase.co/functions/v1/elevenlabs-tools",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "timeframe": {
+            "type": "string",
+            "enum": ["today", "week", "month", "year"],
+            "description": "The time period to analyze metrics for"
+          }
+        },
+        "required": ["timeframe"]
+      }
+    },
+    {
+      "name": "getVehicleDetails",
+      "description": "Get detailed information about a specific vehicle, optionally including recent booking history",
+      "webhook_url": "https://jlgwbbqydjeokypoenoc.supabase.co/functions/v1/elevenlabs-tools",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "vehicleName": {
+            "type": "string",
+            "description": "Name or partial name of the vehicle to search for"
+          },
+          "includeBookings": {
+            "type": "boolean",
+            "description": "Whether to include the last 10 bookings for this vehicle"
+          }
+        },
+        "required": ["vehicleName"]
+      }
+    },
+    {
+      "name": "getCustomerProfile",
+      "description": "Get customer information and optionally their complete booking history",
+      "webhook_url": "https://jlgwbbqydjeokypoenoc.supabase.co/functions/v1/elevenlabs-tools",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "customerName": {
+            "type": "string",
+            "description": "Full name or partial name of the customer"
+          },
+          "includeHistory": {
+            "type": "boolean",
+            "description": "Whether to include full booking history"
+          }
+        },
+        "required": ["customerName"]
+      }
+    },
+    {
+      "name": "checkAvailability",
+      "description": "Check if a specific vehicle is available for a given date range",
+      "webhook_url": "https://jlgwbbqydjeokypoenoc.supabase.co/functions/v1/elevenlabs-tools",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "vehicleName": {
+            "type": "string",
+            "description": "Name of the vehicle to check availability for"
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date",
+            "description": "Start date in ISO format (YYYY-MM-DD)"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date",
+            "description": "End date in ISO format (YYYY-MM-DD)"
+          }
+        },
+        "required": ["vehicleName", "startDate", "endDate"]
+      }
+    },
+    {
+      "name": "getRevenueAnalysis",
+      "description": "Analyze revenue for the fleet or a specific vehicle over a timeframe",
+      "webhook_url": "https://jlgwbbqydjeokypoenoc.supabase.co/functions/v1/elevenlabs-tools",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "timeframe": {
+            "type": "string",
+            "enum": ["today", "week", "month", "year"],
+            "description": "Time period to analyze"
+          },
+          "vehicleName": {
+            "type": "string",
+            "description": "Optional: specific vehicle name to analyze (leave empty for all vehicles)"
+          }
+        },
+        "required": ["timeframe"]
+      }
+    },
+    {
+      "name": "getTopPerformers",
+      "description": "Get top performing vehicles or customers based on revenue, utilization, or bookings",
+      "webhook_url": "https://jlgwbbqydjeokypoenoc.supabase.co/functions/v1/elevenlabs-tools",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "metric": {
+            "type": "string",
+            "enum": ["revenue", "utilization", "bookings"],
+            "description": "The metric to rank by"
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Number of top performers to return (default: 5)",
+            "default": 5
+          }
+        },
+        "required": ["metric"]
+      }
+    },
+    {
+      "name": "searchBookings",
+      "description": "Search for bookings by status and date range",
+      "webhook_url": "https://jlgwbbqydjeokypoenoc.supabase.co/functions/v1/elevenlabs-tools",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["pending", "confirmed", "active", "completed", "cancelled"],
+            "description": "Filter by booking status (leave empty for all)"
+          },
+          "daysRange": {
+            "type": "integer",
+            "description": "Number of days in the past to search (leave empty for all time)"
+          }
+        },
+        "required": []
+      }
+    },
+    {
+      "name": "getDamageReports",
+      "description": "Get damage claim reports filtered by status",
+      "webhook_url": "https://jlgwbbqydjeokypoenoc.supabase.co/functions/v1/elevenlabs-tools",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["all", "pending", "approved", "rejected", "settled"],
+            "description": "Filter by claim status",
+            "default": "all"
+          }
+        },
+        "required": ["status"]
+      }
+    },
+    {
+      "name": "getUpcomingMaintenance",
+      "description": "Get upcoming maintenance schedules within a specified number of days",
+      "webhook_url": "https://jlgwbbqydjeokypoenoc.supabase.co/functions/v1/elevenlabs-tools",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "daysAhead": {
+            "type": "integer",
+            "description": "Number of days ahead to look for maintenance (default: 30)",
+            "default": 30
+          }
+        },
+        "required": ["daysAhead"]
+      }
+    },
+    {
+      "name": "getCustomerLifetimeValue",
+      "description": "Get lifetime value and total bookings for a specific customer",
+      "webhook_url": "https://jlgwbbqydjeokypoenoc.supabase.co/functions/v1/elevenlabs-tools",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "customerName": {
+            "type": "string",
+            "description": "Full or partial name of the customer"
+          }
+        },
+        "required": ["customerName"]
+      }
+    },
+    {
+      "name": "getVaultDocuments",
+      "description": "Get documents from the vault filtered by category and status (mock data for demo)",
+      "webhook_url": "https://jlgwbbqydjeokypoenoc.supabase.co/functions/v1/elevenlabs-tools",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "category": {
+            "type": "string",
+            "enum": ["insurance", "registration", "inspection"],
+            "description": "Document category"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["active", "expiring", "expired"],
+            "description": "Document status"
+          }
+        },
+        "required": []
+      }
+    },
+    {
+      "name": "getWeatherInfo",
+      "description": "Get simulated weather information for a location (demo purposes)",
+      "webhook_url": "https://jlgwbbqydjeokypoenoc.supabase.co/functions/v1/elevenlabs-tools",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "location": {
+            "type": "string",
+            "description": "City or location name"
+          }
+        },
+        "required": ["location"]
+      }
+    },
+    {
+      "name": "getCarJoke",
+      "description": "Get a random car-related joke to lighten the conversation",
+      "webhook_url": "https://jlgwbbqydjeokypoenoc.supabase.co/functions/v1/elevenlabs-tools",
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      }
+    },
+    {
+      "name": "getVehicleSpecs",
+      "description": "Get technical specifications for a specific vehicle model",
+      "webhook_url": "https://jlgwbbqydjeokypoenoc.supabase.co/functions/v1/elevenlabs-tools",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "vehicleName": {
+            "type": "string",
+            "description": "Name or model of the vehicle"
+          }
+        },
+        "required": ["vehicleName"]
+      }
+    }
+  ]
+}
