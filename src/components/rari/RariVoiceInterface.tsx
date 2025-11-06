@@ -1,102 +1,162 @@
-import { useState, useEffect } from 'react';
-import { Mic, MicOff } from 'lucide-react';
+import { useState } from 'react';
+import { Phone, PhoneOff, Mic } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { useConversation } from '@11labs/react';
+import { LoadingSpinner } from '@/components/common/LoadingSpinner';
+import { supabase } from '@/integrations/supabase/client';
 
-// Placeholder component until ElevenLabs agent is properly configured
 export const RariVoiceInterface = () => {
   const { toast } = useToast();
-  const [isConfigured, setIsConfigured] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  
+  const conversation = useConversation({
+    onConnect: () => {
+      console.log('Connected to Rari');
+      toast({
+        title: "Connected to Rari",
+        description: "Voice assistant is ready to help with your fleet.",
+      });
+    },
+    onDisconnect: () => {
+      console.log('Disconnected from Rari');
+      setConversationId(null);
+    },
+    onMessage: (message) => {
+      console.log('Rari message:', message);
+    },
+    onError: (error) => {
+      console.error('Rari error:', error);
+      toast({
+        title: "Connection Error",
+        description: "Failed to connect to Rari. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
 
-  useEffect(() => {
-    const agentId = import.meta.env.VITE_ELEVENLABS_AGENT_ID;
-    setIsConfigured(!!agentId);
-  }, []);
-
-  const handleSetupClick = () => {
-    toast({
-      title: "ElevenLabs Configuration Required",
-      description: "Please configure your ElevenLabs Conversational AI agent to enable Rari voice features.",
-    });
+  const handleStartConversation = async () => {
+    try {
+      // Request microphone access first
+      await navigator.mediaDevices.getUserMedia({ audio: true });
+      
+      // Get signed URL from backend
+      const { data, error } = await supabase.functions.invoke('elevenlabs-session');
+      
+      if (error || !data?.signed_url) {
+        throw new Error('Failed to get session URL. Please ensure ELEVENLABS_API_KEY is configured.');
+      }
+      
+      const id = await conversation.startSession({ 
+        signedUrl: data.signed_url 
+      });
+      setConversationId(id);
+    } catch (error: any) {
+      console.error('Failed to start conversation:', error);
+      toast({
+        title: "Connection Failed",
+        description: error.message || "Please allow microphone access and ensure API key is configured.",
+        variant: "destructive",
+      });
+    }
   };
 
-  if (!isConfigured) {
-    return (
-      <Card className="p-6 glass-card">
-        <div className="text-center space-y-4">
-          <div className="flex items-center justify-center">
-            <div className="p-3 rounded-full bg-muted">
-              <MicOff className="w-6 h-6 text-muted-foreground" />
-            </div>
-          </div>
-          
-          <div>
-            <h3 className="font-semibold mb-2">Rari AI Assistant</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              ElevenLabs Conversational AI integration ready for setup
-            </p>
-            
-            <Badge variant="outline" className="mb-4">
-              Configuration Required
-            </Badge>
-            
-            <div className="text-xs text-left text-muted-foreground space-y-2 max-w-sm mx-auto">
-              <p className="font-medium">To activate Rari:</p>
-              <ol className="list-decimal list-inside space-y-1 pl-2">
-                <li>Configure agent at elevenlabs.io</li>
-                <li>Add 13 Custom Tools (fleet operations)</li>
-                <li>Set VITE_ELEVENLABS_AGENT_ID in .env</li>
-                <li>Configure webhook URLs to elevenlabs-tools function</li>
-              </ol>
-            </div>
-          </div>
-          
-          <Button onClick={handleSetupClick} variant="outline" size="sm">
-            View Setup Instructions
-          </Button>
-        </div>
-      </Card>
-    );
-  }
+  const handleEndConversation = async () => {
+    await conversation.endSession();
+    setConversationId(null);
+  };
+
+  const { status, isSpeaking } = conversation;
+  const isConnected = status === 'connected';
 
   return (
     <Card className="p-6 glass-card">
       <div className="text-center space-y-4">
         <div className="flex items-center justify-center">
-          <div className="p-3 rounded-full bg-primary/10">
-            <Mic className="w-6 h-6 text-primary" />
+          <div className={`p-4 rounded-full transition-all ${
+            isSpeaking 
+              ? 'bg-primary/20 animate-pulse' 
+              : isConnected 
+                ? 'bg-primary/10' 
+                : 'bg-muted'
+          }`}>
+            {isConnected ? (
+              <Phone className={`w-8 h-8 ${isSpeaking ? 'text-primary animate-pulse' : 'text-primary'}`} />
+            ) : (
+              <PhoneOff className="w-8 h-8 text-muted-foreground" />
+            )}
           </div>
         </div>
         
         <div>
           <h3 className="font-semibold mb-2">Rari AI Assistant</h3>
           <p className="text-sm text-muted-foreground mb-4">
-            Voice-powered fleet management assistant
+            {isConnected 
+              ? isSpeaking 
+                ? "Rari is speaking..."
+                : "Listening... speak naturally"
+              : "Voice-powered fleet management assistant"}
           </p>
           
-          <Badge className="bg-success/10 text-success border-success/20">
-            Ready to Use
+          <Badge className={
+            isConnected 
+              ? "bg-success/10 text-success border-success/20" 
+              : "bg-muted text-muted-foreground"
+          }>
+            {isConnected ? 'Connected' : 'Ready to Connect'}
           </Badge>
         </div>
         
-        <div className="text-xs text-left text-muted-foreground space-y-2 max-w-sm mx-auto">
-          <p className="font-medium">Rari can help you with:</p>
-          <ul className="list-disc list-inside space-y-1 pl-2">
-            <li>Fleet performance metrics</li>
-            <li>Vehicle availability checks</li>
-            <li>Booking management</li>
-            <li>Revenue analysis</li>
-            <li>Customer insights</li>
-            <li>Maintenance scheduling</li>
-          </ul>
-        </div>
+        {!isConnected ? (
+          <>
+            <div className="text-xs text-left text-muted-foreground space-y-2 max-w-sm mx-auto">
+              <p className="font-medium">Rari can help you with:</p>
+              <ul className="list-disc list-inside space-y-1 pl-2">
+                <li>Fleet performance metrics</li>
+                <li>Vehicle availability checks</li>
+                <li>Booking management</li>
+                <li>Revenue analysis</li>
+                <li>Customer insights</li>
+                <li>Maintenance scheduling</li>
+              </ul>
+            </div>
+            
+            <Button 
+              className="w-full" 
+              onClick={handleStartConversation}
+              disabled={status === 'connecting'}
+            >
+              {status === 'connecting' ? (
+                <>
+                  <LoadingSpinner size="sm" className="mr-2" />
+                  Connecting...
+                </>
+              ) : (
+                <>
+                  <Mic className="w-4 h-4 mr-2" />
+                  Start Conversation
+                </>
+              )}
+            </Button>
+          </>
+        ) : (
+          <Button 
+            className="w-full" 
+            variant="destructive"
+            onClick={handleEndConversation}
+          >
+            <PhoneOff className="w-4 h-4 mr-2" />
+            End Conversation
+          </Button>
+        )}
         
-        <Button className="w-full" onClick={handleSetupClick}>
-          <Mic className="w-4 h-4 mr-2" />
-          Complete Setup to Start
-        </Button>
+        {conversationId && (
+          <p className="text-xs text-muted-foreground">
+            Session: {conversationId.slice(0, 8)}...
+          </p>
+        )}
       </div>
     </Card>
   );
