@@ -18,9 +18,38 @@ Deno.serve(async (req) => {
     const body = await req.json();
     console.log('Raw body:', JSON.stringify(body, null, 2));
     
-    // ElevenLabs sends: { tool_name: "...", parameters: {...} } or { name: "...", parameters: {...} }
-    const toolName = body.tool_name || body.name || body.function_name;
-    const parameters = body.parameters || body.args || {};
+    // ElevenLabs sends data in format: { "toolName": "param_string" } or { "toolName": {...} }
+    let toolName: string | undefined;
+    let parameters: any = {};
+    
+    // Check different possible formats
+    if (body.tool_name || body.name || body.function_name) {
+      // Standard format: { tool_name: "...", parameters: {...} }
+      toolName = body.tool_name || body.name || body.function_name;
+      parameters = body.parameters || body.args || {};
+    } else {
+      // ElevenLabs webhook format: { "get_fleet_vehicles": "status:available" }
+      const keys = Object.keys(body);
+      if (keys.length > 0) {
+        toolName = keys[0];
+        const paramValue = body[toolName];
+        
+        // If parameters are a string, parse them
+        if (typeof paramValue === 'string') {
+          // Parse format like "status:all date_range:this_week"
+          const pairs = paramValue.split(' ');
+          parameters = {};
+          pairs.forEach(pair => {
+            const [key, value] = pair.split(':');
+            if (key && value) {
+              parameters[key] = value;
+            }
+          });
+        } else if (typeof paramValue === 'object') {
+          parameters = paramValue;
+        }
+      }
+    }
     
     console.log(`Tool called: ${toolName}`);
     console.log('Parameters:', JSON.stringify(parameters, null, 2));
