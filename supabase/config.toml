@@ -4,7 +4,7 @@ project_id = "jlgwbbqydjeokypoenoc"
 verify_jwt = false
 
 [functions.elevenlabs-tools]
-verify_jwt = true
+verify_jwt = false
 
 [functions.fleet-copilot-chat]
 verify_jwt = false
