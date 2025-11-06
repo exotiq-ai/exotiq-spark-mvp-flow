@@ -74,6 +74,15 @@ Deno.serve(async (req) => {
   }
 });
 
+function getTimeAgo(date: Date): string {
+  const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
+  
+  if (seconds < 60) return 'just now';
+  if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
+  return `${Math.floor(seconds / 86400)} days ago`;
+}
+
 async function executeFunction(functionName: string, args: any, supabase: any, userId: string) {
   console.log(`Executing function: ${functionName}`, args);
 
@@ -92,10 +101,18 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
 
         const { data: vehicles } = await query.order('created_at', { ascending: false });
         
+        const vehicleList = vehicles?.map(v => ({
+          name: `${v.year} ${v.make} ${v.model}`,
+          status: v.status,
+          rate: `$${v.current_rate} per day`,
+          utilization: `${v.utilization}% utilized`,
+          revenue: `$${Number(v.revenue || 0).toFixed(0)} total revenue`
+        })) || [];
+
         return {
-          vehicles: vehicles || [],
           count: vehicles?.length || 0,
-          summary: `Found ${vehicles?.length || 0} vehicles${status ? ` with status: ${status}` : ''}`
+          vehicles: vehicleList,
+          summary: `You have ${vehicles?.length || 0} vehicles${status ? ` that are ${status}` : ' in your fleet'}. ${vehicleList.slice(0, 3).map(v => v.name).join(', ')}${vehicles && vehicles.length > 3 ? ' and others' : ''}.`
         };
       }
 
@@ -103,7 +120,7 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
         const { status, start_date, end_date } = args;
         let query = supabase
           .from('bookings')
-          .select('*, vehicles(name, make, model), customers(full_name, email)')
+          .select('*, vehicles(name, make, model, year), customers(full_name, email)')
           .eq('user_id', userId);
 
         if (status) {
@@ -116,40 +133,59 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
           query = query.lte('end_date', end_date);
         }
 
-        const { data: bookings } = await query.order('start_date', { ascending: false }).limit(20);
+        const { data: bookings } = await query.order('start_date', { ascending: false}).limit(20);
+        
+        const bookingList = bookings?.map(b => {
+          const startDate = new Date(b.start_date).toLocaleDateString();
+          const endDate = new Date(b.end_date).toLocaleDateString();
+          const vehicleName = b.vehicles ? `${b.vehicles.year} ${b.vehicles.make} ${b.vehicles.model}` : 'Unknown vehicle';
+          
+          return {
+            customer: b.customers?.full_name || b.customer_name || 'Unknown',
+            vehicle: vehicleName,
+            dates: `${startDate} to ${endDate}`,
+            status: b.status,
+            total: `$${Number(b.total_value || 0).toFixed(0)}`,
+            payment: b.payment_status
+          };
+        }) || [];
+
+        const totalRevenue = bookings?.reduce((sum, b) => sum + Number(b.total_value || 0), 0) || 0;
         
         return {
-          bookings: bookings || [],
           count: bookings?.length || 0,
-          summary: `Found ${bookings?.length || 0} bookings${status ? ` with status: ${status}` : ''}`
+          bookings: bookingList,
+          totalRevenue: `$${totalRevenue.toFixed(0)}`,
+          summary: `You have ${bookings?.length || 0} bookings${status ? ` that are ${status}` : ''}${bookings && bookings.length > 0 ? `. Total value: $${totalRevenue.toFixed(0)}` : ''}.`
         };
       }
 
       case "get_recent_activity": {
         const { limit = 10, activity_type } = args;
         
-        // Get recent bookings as activity
         const { data: recentBookings } = await supabase
           .from('bookings')
-          .select('*, vehicles(name), customers(full_name)')
+          .select('*, vehicles(name, make, model, year), customers(full_name)')
           .eq('user_id', userId)
           .order('created_at', { ascending: false })
           .limit(limit);
 
-        const activities = recentBookings?.map((b: any) => ({
-          type: 'booking',
-          action: `New booking for ${b.vehicles?.name}`,
-          customer: b.customers?.full_name,
-          vehicle: b.vehicles?.name,
-          date: b.created_at,
-          status: b.status,
-          amount: b.total_value
-        })) || [];
+        const activities = recentBookings?.map((b: any) => {
+          const timeAgo = getTimeAgo(new Date(b.created_at));
+          const vehicleName = b.vehicles ? `${b.vehicles.year} ${b.vehicles.make} ${b.vehicles.model}` : 'a vehicle';
+          
+          return {
+            description: `${b.customers?.full_name || 'A customer'} booked ${vehicleName} for $${Number(b.total_value || 0).toFixed(0)}`,
+            timeAgo,
+            status: b.status,
+            amount: `$${Number(b.total_value || 0).toFixed(0)}`
+          };
+        }) || [];
 
         return {
-          activities,
           count: activities.length,
-          summary: `Found ${activities.length} recent activities`
+          activities,
+          summary: `Recent activity: ${activities.slice(0, 3).map(a => a.description).join('. ')}`
         };
       }
 
@@ -187,23 +223,44 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
           .from('vehicles')
           .select('*')
           .eq('user_id', userId)
-          .ilike('name', `%${vehicleName}%`)
+          .or(`name.ilike.%${vehicleName}%,make.ilike.%${vehicleName}%,model.ilike.%${vehicleName}%`)
           .maybeSingle();
 
-        if (!vehicle) return { error: "Vehicle not found" };
+        if (!vehicle) return { 
+          error: "Vehicle not found",
+          summary: `I couldn't find a vehicle matching "${vehicleName}" in your fleet.`
+        };
 
+        const fullName = `${vehicle.year} ${vehicle.make} ${vehicle.model}`;
         let bookingsData = null;
         if (includeBookings) {
           const { data: bookings } = await supabase
             .from('bookings')
-            .select('*')
+            .select('*, customers(full_name)')
             .eq('vehicle_id', vehicle.id)
             .order('start_date', { ascending: false })
-            .limit(10);
-          bookingsData = bookings;
+            .limit(5);
+          bookingsData = bookings?.map(b => ({
+            customer: b.customers?.full_name || b.customer_name,
+            dates: `${new Date(b.start_date).toLocaleDateString()} to ${new Date(b.end_date).toLocaleDateString()}`,
+            status: b.status,
+            amount: `$${Number(b.total_value || 0).toFixed(0)}`
+          }));
         }
 
-        return { vehicle, bookings: bookingsData };
+        return { 
+          vehicle: {
+            name: fullName,
+            status: vehicle.status,
+            rate: `$${vehicle.current_rate} per day`,
+            utilization: `${vehicle.utilization}% utilization`,
+            revenue: `$${Number(vehicle.revenue || 0).toFixed(0)} total revenue`,
+            licensePlate: vehicle.license_plate,
+            vin: vehicle.vin
+          },
+          bookings: bookingsData,
+          summary: `${fullName} is currently ${vehicle.status}, priced at $${vehicle.current_rate} per day with ${vehicle.utilization}% utilization and $${Number(vehicle.revenue || 0).toFixed(0)} in total revenue.`
+        };
       }
 
       case "getCustomerProfile": {
@@ -321,7 +378,7 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
         const { status, daysRange } = args;
         let query = supabase
           .from('bookings')
-          .select('*, vehicles(name), customers(full_name)')
+          .select('*, vehicles(name, make, model, year), customers(full_name)')
           .eq('user_id', userId);
 
         if (status) query = query.eq('status', status);
@@ -333,7 +390,26 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
         }
 
         const { data: bookings } = await query.order('start_date', { ascending: false }).limit(20);
-        return { bookings: bookings || [], count: bookings?.length || 0 };
+        
+        const bookingList = bookings?.map(b => {
+          const vehicleName = b.vehicles ? `${b.vehicles.year} ${b.vehicles.make} ${b.vehicles.model}` : 'vehicle';
+          return {
+            customer: b.customers?.full_name || b.customer_name,
+            vehicle: vehicleName,
+            dates: `${new Date(b.start_date).toLocaleDateString()} to ${new Date(b.end_date).toLocaleDateString()}`,
+            status: b.status,
+            total: `$${Number(b.total_value || 0).toFixed(0)}`
+          };
+        }) || [];
+
+        const totalValue = bookings?.reduce((sum, b) => sum + Number(b.total_value || 0), 0) || 0;
+
+        return { 
+          count: bookings?.length || 0,
+          bookings: bookingList,
+          totalValue: `$${totalValue.toFixed(0)}`,
+          summary: `Found ${bookings?.length || 0} bookings${status ? ` with ${status} status` : ''}${daysRange ? ` in the last ${daysRange} days` : ''}. Total value: $${totalValue.toFixed(0)}.`
+        };
       }
 
       case "getDamageReports": {
