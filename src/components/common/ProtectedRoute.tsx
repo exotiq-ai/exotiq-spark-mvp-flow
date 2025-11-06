@@ -1,4 +1,4 @@
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { LoadingSpinner } from './LoadingSpinner';
 
@@ -8,9 +8,15 @@ interface ProtectedRouteProps {
 
 export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const { user, loading } = useAuth();
+  const location = useLocation();
 
-  if (loading) {
-    return <LoadingSpinner fullScreen />;
+  // Detect auth redirect state (magic link, password recovery) and avoid premature redirects
+  const isAuthRedirect = Boolean(
+    (location && (location.hash?.includes('access_token') || location.search?.includes('code=')))
+  );
+
+  if (loading || isAuthRedirect) {
+    return <LoadingSpinner fullScreen text="Signing you in..." />;
   }
 
   if (!user) {
