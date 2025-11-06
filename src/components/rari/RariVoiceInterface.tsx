@@ -42,16 +42,29 @@ export const RariVoiceInterface = () => {
       // Request microphone access first
       await navigator.mediaDevices.getUserMedia({ audio: true });
       
+      console.log('Microphone access granted, fetching session...');
+      
       // Get signed URL from backend
       const { data, error } = await supabase.functions.invoke('elevenlabs-session');
       
-      if (error || !data?.signed_url) {
-        throw new Error('Failed to get session URL. Please ensure ELEVENLABS_API_KEY is configured.');
+      console.log('Edge function response:', { data, error });
+      
+      if (error) {
+        console.error('Edge function error:', error);
+        throw new Error(`Backend error: ${error.message || JSON.stringify(error)}`);
       }
       
+      if (!data?.signed_url) {
+        console.error('Invalid response data:', data);
+        throw new Error('Failed to get session URL from backend. Please check edge function logs.');
+      }
+      
+      console.log('Starting session with signed URL...');
       const id = await conversation.startSession({ 
         signedUrl: data.signed_url 
       });
+      
+      console.log('Session started successfully:', id);
       setConversationId(id);
     } catch (error: any) {
       console.error('Failed to start conversation:', error);
