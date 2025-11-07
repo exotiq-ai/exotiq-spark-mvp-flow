@@ -200,11 +200,21 @@ export const InspectionForm = ({
           {/* Visual Fuel Tank */}
           <div className="relative h-12 w-full rounded-lg border-2 border-border bg-muted/30 overflow-hidden">
             <div
-              className="h-full bg-gradient-to-r from-success/50 to-success transition-all duration-300"
+              className={`h-full transition-all duration-300 ${
+                fuelLevel[0] <= 25 
+                  ? 'bg-destructive' 
+                  : fuelLevel[0] <= 50 
+                  ? 'bg-warning' 
+                  : 'bg-success'
+              }`}
               style={{ width: `${fuelLevel[0]}%` }}
             >
               <div className="absolute inset-0 flex items-center justify-center">
-                <Fuel className="h-6 w-6 text-foreground/50" />
+                <Fuel className={`h-6 w-6 ${
+                  fuelLevel[0] <= 25 
+                    ? 'text-destructive-foreground' 
+                    : 'text-foreground/50'
+                }`} />
               </div>
             </div>
           </div>

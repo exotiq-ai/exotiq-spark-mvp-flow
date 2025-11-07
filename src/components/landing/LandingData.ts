@@ -1,41 +1,41 @@
 import { 
-  TrendingUp, 
-  Calendar, 
-  Shield, 
-  Brain, 
-  BarChart3
+  Sparkles, 
+  CalendarDays, 
+  ShieldCheck, 
+  Zap, 
+  BarChart4
 } from "lucide-react";
 
 export const features = [
   {
-    icon: TrendingUp,
+    icon: Sparkles,
     title: "MotorIQ",
-    description: "AI-powered fleet profitability engine with dynamic pricing optimization",
+    description: "AI-powered revenue optimization that learns your market dynamics and automatically adjusts pricing for maximum profitability across your entire fleet",
     color: "text-success"
   },
   {
-    icon: BarChart3,
+    icon: BarChart4,
     title: "Pulse",
-    description: "Live analytics dashboard with predictive insights and forecasting",
+    description: "Real-time operational intelligence with predictive analytics that forecasts demand trends and identifies growth opportunities before they happen",
     color: "text-primary"
   },
   {
-    icon: Calendar,
+    icon: CalendarDays,
     title: "Book",
-    description: "Direct booking tools with seamless calendar management",
+    description: "Seamless direct booking experience that eliminates platform fees while giving you complete control over customer relationships and pricing strategy",
     color: "text-accent"
   },
   {
-    icon: Shield,
+    icon: ShieldCheck,
     title: "Vault",
-    description: "Intelligent compliance hub with automated document tracking",
+    description: "Automated compliance management that tracks insurance, registrations, and maintenance schedules, preventing costly oversights and reducing administrative burden",
     color: "text-warning"
   },
   {
-    icon: Brain,
+    icon: Zap,
     title: "Core",
-    description: "Smart command center with AI-powered alerts and insights",
-    color: "text-destructive"
+    description: "Intelligent command center that automates routine operations and surfaces critical insights, letting you focus on strategic growth instead of daily tasks",
+    color: "text-secondary"
   }
 ];
 
