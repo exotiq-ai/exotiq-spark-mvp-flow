@@ -5,16 +5,19 @@ import { Badge } from "@/components/ui/badge";
 import { useFleet } from "@/contexts/FleetContext";
 import { PriceOptimizationDialog } from "@/components/dialogs/PriceOptimizationDialog";
 import { DashboardBanner } from "@/components/dashboard/DashboardBanner";
+import { RevenueLineChart } from "@/components/charts/RevenueLineChart";
+import { MiniSparkline } from "@/components/charts/MiniSparkline";
+import { LiveFleetStatusWidget } from "@/components/dashboard/LiveFleetStatusWidget";
+import { UpcomingScheduleWidget } from "@/components/dashboard/UpcomingScheduleWidget";
 import { useToast } from "@/hooks/use-toast";
 import { 
-  DollarSign, 
-  TrendingUp, 
   Calendar,
   Car,
   Zap,
   ArrowRight,
   Sparkles,
-  Activity
+  TrendingUp,
+  BarChart3
 } from "lucide-react";
 
 interface Module {
@@ -36,7 +39,10 @@ export const DashboardOverview = ({ modules, onModuleClick }: DashboardOverviewP
   const { toast } = useToast();
   const [showOptimizationDialog, setShowOptimizationDialog] = useState(false);
   
-  const suggestedVehicle = vehicles.find(v => v.suggested_rate);
+  // Generate mock sparkline data (7 days)
+  const bookingsSparkline = [12, 15, 13, 18, 16, 17, 18];
+  const utilizationSparkline = [72, 75, 78, 76, 79, 77, 78];
+  const rateSparkline = [320, 330, 325, 342, 338, 340, 342];
 
   return (
     <>
@@ -50,82 +56,71 @@ export const DashboardOverview = ({ modules, onModuleClick }: DashboardOverviewP
       {/* Dashboard Banner */}
       <DashboardBanner />
 
-      {/* Hero Metric */}
-      <Card className="p-8 border-2 border-border shadow-sm hover:shadow-md transition-all">
-        <div className="flex items-start justify-between mb-8">
-          <div>
-            <Badge className="bg-success text-success-foreground border-transparent mb-4 shadow-sm relative">
-              <Activity className="w-3 h-3 mr-1 animate-pulse" />
-              System Live
-              <div className="absolute -bottom-1 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-green-400 to-transparent animate-pulse" />
-            </Badge>
-            <h2 className="text-6xl font-bold mb-2">${revenue.month.toLocaleString()}</h2>
-            <p className="text-xl text-muted-foreground">Total Revenue This Month</p>
-          </div>
-          <div className="text-right">
-            <div className="flex items-center text-success text-3xl font-semibold mb-2">
-              <TrendingUp className="w-8 h-8 mr-2" />
-              +{revenue.change}%
-            </div>
-            <p className="text-sm text-muted-foreground">vs last month</p>
-          </div>
-        </div>
+      {/* Revenue Chart */}
+      <RevenueLineChart />
 
-        <div className="grid grid-cols-4 gap-4 mt-6">
-          <div className="bg-background border-2 border-border rounded-xl p-4 hover:border-success/50 transition-all group cursor-pointer">
-            <DollarSign className="h-6 w-6 text-success mb-3" />
-            <div className="text-2xl font-bold">${revenue.today.toLocaleString()}</div>
-            <div className="text-sm text-muted-foreground mt-1">Today</div>
-            <div className="h-1 w-full bg-muted rounded-full mt-3 overflow-hidden opacity-0 group-hover:opacity-100 transition-opacity">
-              <div className="h-full bg-success rounded-full animate-fade-in" style={{ width: '67%' }} />
+      {/* Simplified 3-Column Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="p-6 border-2 border-border hover:border-primary/50 transition-all">
+          <div className="flex items-start justify-between mb-4">
+            <div className="p-3 bg-primary/10 rounded-xl">
+              <Calendar className="h-6 w-6 text-primary" />
             </div>
+            <TrendingUp className="h-5 w-5 text-success" />
           </div>
-          <div className="bg-background border-2 border-border rounded-xl p-4 hover:border-primary/50 transition-all group cursor-pointer">
-            <Calendar className="h-6 w-6 text-primary mb-3" />
-            <div className="text-2xl font-bold">18</div>
-            <div className="text-sm text-muted-foreground mt-1">Active Bookings</div>
-            <div className="h-1 w-full bg-muted rounded-full mt-3 overflow-hidden opacity-0 group-hover:opacity-100 transition-opacity">
-              <div className="h-full bg-primary rounded-full animate-fade-in" style={{ width: '72%' }} />
-            </div>
-          </div>
-          <div className="bg-background border-2 border-border rounded-xl p-4 hover:border-accent/50 transition-all group cursor-pointer">
-            <Car className="h-6 w-6 text-accent mb-3" />
-            <div className="text-2xl font-bold">78%</div>
-            <div className="text-sm text-muted-foreground mt-1">Utilization</div>
-            <div className="h-1 w-full bg-muted rounded-full mt-3 overflow-hidden opacity-0 group-hover:opacity-100 transition-opacity">
-              <div className="h-full bg-accent rounded-full animate-fade-in" style={{ width: '78%' }} />
-            </div>
-          </div>
-          <div className="bg-background border-2 border-border rounded-xl p-4 hover:border-warning/50 transition-all group cursor-pointer">
-            <TrendingUp className="h-6 w-6 text-warning mb-3" />
-            <div className="text-2xl font-bold">$342</div>
-            <div className="text-sm text-muted-foreground mt-1">Avg Rate</div>
-            <div className="h-1 w-full bg-muted rounded-full mt-3 overflow-hidden opacity-0 group-hover:opacity-100 transition-opacity">
-              <div className="h-full bg-warning rounded-full animate-fade-in" style={{ width: '85%' }} />
-            </div>
-          </div>
-        </div>
-      </Card>
+          <div className="text-3xl font-bold mb-1">18</div>
+          <div className="text-sm text-muted-foreground mb-3">Active Bookings</div>
+          <MiniSparkline data={bookingsSparkline} color="hsl(var(--primary))" />
+        </Card>
 
-      {/* AI Insight Widget */}
-      <Card className="p-6 border-2 border-accent/30 shadow-sm hover:shadow-md transition-all">
-        <div className="flex items-start space-x-4">
-          <div className="p-3 bg-accent/10 border-2 border-accent/30 rounded-xl">
-            <Sparkles className="h-8 w-8 text-accent" />
+        <Card className="p-6 border-2 border-border hover:border-primary/50 transition-all">
+          <div className="flex items-start justify-between mb-4">
+            <div className="p-3 bg-success/10 rounded-xl">
+              <Car className="h-6 w-6 text-success" />
+            </div>
+            <TrendingUp className="h-5 w-5 text-success" />
+          </div>
+          <div className="text-3xl font-bold mb-1">78%</div>
+          <div className="text-sm text-muted-foreground mb-3">Fleet Utilization</div>
+          <MiniSparkline data={utilizationSparkline} color="hsl(var(--success))" />
+        </Card>
+
+        <Card className="p-6 border-2 border-border hover:border-warning/50 transition-all">
+          <div className="flex items-start justify-between mb-4">
+            <div className="p-3 bg-warning/10 rounded-xl">
+              <BarChart3 className="h-6 w-6 text-warning" />
+            </div>
+            <TrendingUp className="h-5 w-5 text-success" />
+          </div>
+          <div className="text-3xl font-bold mb-1">$342</div>
+          <div className="text-sm text-muted-foreground mb-3">Average Daily Rate</div>
+          <MiniSparkline data={rateSparkline} color="hsl(var(--warning))" />
+        </Card>
+      </div>
+
+      {/* Enhanced AI Insight Widget */}
+      <Card className="p-8 border-2 border-accent/30 shadow-md hover:shadow-lg transition-all bg-gradient-to-br from-background to-accent/5">
+        <div className="flex items-start space-x-6">
+          <div className="p-4 bg-accent/10 border-2 border-accent/30 rounded-2xl">
+            <Sparkles className="h-10 w-10 text-accent" />
           </div>
           <div className="flex-1">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-xl font-semibold">FleetCopilot™ Recommendation</h3>
-              <Badge className="bg-success text-success-foreground border-transparent shadow-sm">
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <h3 className="text-2xl font-semibold mb-1">FleetCopilot™ Recommendation</h3>
+                <p className="text-sm text-muted-foreground">AI-powered pricing insight</p>
+              </div>
+              <Badge className="bg-success text-success-foreground border-transparent shadow-sm text-base px-4 py-1">
                 +$2,250/mo potential
               </Badge>
             </div>
-            <p className="text-muted-foreground mb-4">
+            <p className="text-muted-foreground mb-6 text-base leading-relaxed">
               Consider increasing the rate for your Ferrari 488 by 15% for weekend bookings. 
-              Market demand shows 89% probability of maintaining bookings at this price point.
+              Market demand shows <span className="font-semibold text-foreground">89% probability</span> of maintaining bookings at this price point.
             </p>
-            <div className="flex space-x-3">
+            <div className="flex flex-wrap gap-3">
               <Button 
+                size="lg"
                 className="hover-scale"
                 onClick={() => setShowOptimizationDialog(true)}
               >
@@ -133,17 +128,30 @@ export const DashboardOverview = ({ modules, onModuleClick }: DashboardOverviewP
                 Apply Optimization
               </Button>
               <Button 
+                size="lg"
                 variant="outline" 
                 className="hover-scale"
                 onClick={() => onModuleClick('motoriq')}
               >
-                View Analysis
+                View Full Analysis
                 <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+              <Button 
+                size="lg"
+                variant="ghost"
+              >
+                Dismiss
               </Button>
             </div>
           </div>
         </div>
       </Card>
+
+      {/* New Widgets Row */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <LiveFleetStatusWidget onViewAll={() => onModuleClick('motoriq')} />
+        <UpcomingScheduleWidget onViewCalendar={() => onModuleClick('book')} />
+      </div>
 
       {/* Module Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

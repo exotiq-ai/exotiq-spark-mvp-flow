@@ -163,7 +163,7 @@ export const DashboardBanner = () => {
 
   return (
     <div 
-      className="relative h-48 rounded-2xl overflow-hidden group shadow-lg"
+      className="relative h-32 rounded-2xl overflow-hidden group shadow-lg"
       onMouseEnter={() => setShowUploadButton(true)}
       onMouseLeave={() => setShowUploadButton(false)}
     >
@@ -222,8 +222,8 @@ export const DashboardBanner = () => {
       )}
 
       {/* Welcome Text */}
-      <div className="absolute bottom-6 left-6 text-white">
-        <h1 className="text-3xl font-bold drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">Welcome to Your Command Center</h1>
+      <div className="absolute bottom-4 left-6 text-white">
+        <h1 className="text-2xl font-bold drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">Welcome to Your Command Center</h1>
         <p 
           key={currentLineIndex}
           className="text-sm mt-1 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] animate-fade-in"
