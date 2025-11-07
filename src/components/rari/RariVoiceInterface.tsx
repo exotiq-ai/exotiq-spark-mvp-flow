@@ -7,10 +7,19 @@ import { useToast } from '@/hooks/use-toast';
 import { useConversation } from '@11labs/react';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { supabase } from '@/integrations/supabase/client';
+import ReactMarkdown from 'react-markdown';
+import { ScrollArea } from '@/components/ui/scroll-area';
+
+interface Message {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+}
 
 export const RariVoiceInterface = () => {
   const { toast } = useToast();
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
   
   const conversation = useConversation({
     onConnect: () => {
@@ -23,9 +32,18 @@ export const RariVoiceInterface = () => {
     onDisconnect: () => {
       console.log('Disconnected from Rari');
       setConversationId(null);
+      setMessages([]);
     },
     onMessage: (message) => {
       console.log('Rari message:', message);
+      // Safely add messages to history for display
+      if (message.message) {
+        setMessages(prev => [...prev, {
+          role: message.source === 'ai' ? 'assistant' : 'user',
+          content: String(message.message),
+          timestamp: new Date()
+        }]);
+      }
     },
     onError: (error) => {
       console.error('Rari error:', error);
@@ -86,7 +104,33 @@ export const RariVoiceInterface = () => {
 
   return (
     <Card className="p-6 glass-card">
-      <div className="text-center space-y-4">
+      <div className="space-y-4">
+        {/* Message History */}
+        {messages.length > 0 && (
+          <ScrollArea className="h-[200px] rounded-md border p-4">
+            <div className="space-y-3">
+              {messages.map((msg, idx) => (
+                <div 
+                  key={idx} 
+                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div className={`max-w-[80%] rounded-lg p-3 ${
+                    msg.role === 'user' 
+                      ? 'bg-primary text-primary-foreground' 
+                      : 'bg-muted'
+                  }`}>
+                    <ReactMarkdown className="text-sm prose prose-sm dark:prose-invert max-w-none">
+                      {msg.content}
+                    </ReactMarkdown>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+        )}
+
+        {/* Voice Interface */}
+        <div className="text-center space-y-4">
         <div className="flex items-center justify-center">
           <div className={`p-4 rounded-full transition-all ${
             isSpeaking 
@@ -170,6 +214,7 @@ export const RariVoiceInterface = () => {
             Session: {conversationId.slice(0, 8)}...
           </p>
         )}
+        </div>
       </div>
     </Card>
   );
