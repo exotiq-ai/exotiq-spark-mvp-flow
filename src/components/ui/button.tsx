@@ -13,13 +13,13 @@ const buttonVariants = cva(
         destructive:
           "bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow-md hover:shadow-lg",
         outline:
-          "border border-input bg-background hover:bg-accent hover:text-accent-foreground hover:border-accent",
+          "border-2 border-border bg-card text-foreground hover:bg-accent hover:text-accent-foreground hover:border-accent dark:border-border dark:bg-card dark:text-foreground",
         secondary:
           "bg-secondary text-secondary-foreground hover:bg-secondary/80 shadow-sm hover:shadow-md",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
+        ghost: "text-foreground hover:bg-accent hover:text-accent-foreground dark:text-foreground dark:hover:bg-accent",
         link: "text-primary underline-offset-4 hover:underline",
-        premium: "bg-gradient-to-r from-primary to-primary-light text-primary-foreground hover:from-primary-dark hover:to-primary shadow-lg hover:shadow-xl hover:scale-105",
-        accent: "bg-gradient-to-r from-accent to-accent/80 text-accent-foreground hover:from-accent/90 hover:to-accent/70 shadow-lg hover:shadow-xl",
+        premium: "bg-primary text-primary-foreground hover:bg-primary-dark shadow-lg hover:shadow-xl hover:scale-105",
+        accent: "bg-accent text-accent-foreground hover:bg-accent/90 shadow-lg hover:shadow-xl",
         success: "bg-success text-success-foreground hover:bg-success/90 shadow-md hover:shadow-lg",
         warning: "bg-warning text-warning-foreground hover:bg-warning/90 shadow-md hover:shadow-lg",
       },
