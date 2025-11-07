@@ -348,15 +348,19 @@ export const AIAlertsFeed = ({ onNavigate, className }: AIAlertsFeedProps) => {
   }
 
   return (
-    <Card className={cn(
-      "fixed bottom-20 left-6 md:bottom-6 z-50 w-[380px] max-w-[calc(100vw-3rem)]",
-      "shadow-xl border-2 border-border",
-      className
-    )}>
+    <Card 
+      className={cn(
+        "fixed bottom-20 left-6 md:bottom-6 z-50 w-[380px] max-w-[calc(100vw-3rem)]",
+        "shadow-xl border-2 border-border",
+        className
+      )}
+      role="region"
+      aria-label="AI alerts and insights panel"
+    >
       <div className="p-4 border-b border-border bg-muted/30">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-accent" />
+            <Sparkles className="w-5 h-5 text-accent" aria-hidden="true" />
             <h3 className="text-h3">AI Insights</h3>
           </div>
           <div className="flex items-center gap-2">
@@ -370,8 +374,9 @@ export const AIAlertsFeed = ({ onNavigate, className }: AIAlertsFeedProps) => {
               size="sm"
               onClick={() => setCollapsed(true)}
               className="h-8 w-8 p-0"
+              aria-label="Collapse AI alerts panel"
             >
-              <X className="w-4 h-4" />
+              <X className="w-4 h-4" aria-hidden="true" />
             </Button>
           </div>
         </div>
@@ -383,9 +388,9 @@ export const AIAlertsFeed = ({ onNavigate, className }: AIAlertsFeedProps) => {
           <div className="flex items-center gap-2">
             <Label htmlFor="voice-alerts" className="text-xs text-muted-foreground cursor-pointer">
               {voiceAlertsEnabled ? (
-                <Volume2 className="w-4 h-4 text-primary" />
+                <Volume2 className="w-4 h-4 text-primary" aria-hidden="true" />
               ) : (
-                <VolumeX className="w-4 h-4" />
+                <VolumeX className="w-4 h-4" aria-hidden="true" />
               )}
             </Label>
             <Switch
@@ -393,13 +398,14 @@ export const AIAlertsFeed = ({ onNavigate, className }: AIAlertsFeedProps) => {
               checked={voiceAlertsEnabled}
               onCheckedChange={setVoiceAlertsEnabled}
               className="scale-75"
+              aria-label="Toggle voice alerts"
             />
           </div>
         </div>
         
         {isPlayingAudio && (
-          <div className="mt-2 flex items-center gap-2 text-xs text-primary">
-            <Volume2 className="w-3 h-3 animate-pulse" />
+          <div className="mt-2 flex items-center gap-2 text-xs text-primary" aria-live="polite">
+            <Volume2 className="w-3 h-3 animate-pulse" aria-hidden="true" />
             <span>Playing alert...</span>
           </div>
         )}
@@ -408,12 +414,18 @@ export const AIAlertsFeed = ({ onNavigate, className }: AIAlertsFeedProps) => {
       <ScrollArea className="h-[400px]">
         {alerts.length === 0 ? (
           <div className="p-8 text-center text-muted-foreground">
-            <Bell className="w-12 h-12 mx-auto mb-3 opacity-50" />
+            <Bell className="w-12 h-12 mx-auto mb-3 opacity-50" aria-hidden="true" />
             <p className="text-sm">No active alerts</p>
             <p className="text-xs mt-1">Your fleet is running smoothly!</p>
           </div>
         ) : (
-          <div className="p-4 space-y-3">
+          <div 
+            className="p-4 space-y-3"
+            role="log"
+            aria-live="polite"
+            aria-atomic="false"
+            aria-label="Fleet alerts and notifications"
+          >
             {alerts.map((alert) => {
               const Icon = getCategoryIcon(alert.category);
               const typeColor = getTypeColor(alert.type);
@@ -428,16 +440,21 @@ export const AIAlertsFeed = ({ onNavigate, className }: AIAlertsFeedProps) => {
                     typeColor === 'primary' && "border-primary/30 bg-primary/5",
                     typeColor === 'secondary' && "border-border bg-muted/30"
                   )}
+                  role="article"
+                  aria-label={`${alert.type} priority alert: ${alert.title}`}
                 >
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <Icon className={cn(
-                        "w-4 h-4",
-                        typeColor === 'destructive' && "text-destructive",
-                        typeColor === 'warning' && "text-warning",
-                        typeColor === 'primary' && "text-primary",
-                        typeColor === 'secondary' && "text-muted-foreground"
-                      )} />
+                      <Icon 
+                        className={cn(
+                          "w-4 h-4",
+                          typeColor === 'destructive' && "text-destructive",
+                          typeColor === 'warning' && "text-warning",
+                          typeColor === 'primary' && "text-primary",
+                          typeColor === 'secondary' && "text-muted-foreground"
+                        )}
+                        aria-hidden="true"
+                      />
                       <Badge variant="outline" className="text-xs capitalize">
                         {alert.type}
                       </Badge>
@@ -447,8 +464,9 @@ export const AIAlertsFeed = ({ onNavigate, className }: AIAlertsFeedProps) => {
                       size="sm"
                       onClick={() => dismissAlert(alert.id)}
                       className="h-6 w-6 p-0"
+                      aria-label={`Dismiss alert: ${alert.title}`}
                     >
-                      <X className="w-3 h-3" />
+                      <X className="w-3 h-3" aria-hidden="true" />
                     </Button>
                   </div>
 
@@ -470,9 +488,10 @@ export const AIAlertsFeed = ({ onNavigate, className }: AIAlertsFeedProps) => {
                           dismissAlert(alert.id);
                         }}
                         className="h-7 text-xs"
+                        aria-label={`${alert.action.label} for ${alert.title}`}
                       >
                         {alert.action.label}
-                        <ArrowRight className="w-3 h-3 ml-1" />
+                        <ArrowRight className="w-3 h-3 ml-1" aria-hidden="true" />
                       </Button>
                     )}
                   </div>

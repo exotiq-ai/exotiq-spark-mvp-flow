@@ -54,7 +54,11 @@ export const PriceUtilizationScatterPlot = () => {
   };
 
   return (
-    <Card className="p-6 border-2 border-border shadow-sm">
+    <Card 
+      className="p-6 border-2 border-border shadow-sm"
+      role="region"
+      aria-label="Price versus utilization analysis chart"
+    >
       <div className="mb-6">
         <h3 className="text-xl font-semibold mb-2">Price vs Utilization Analysis</h3>
         <p className="text-sm text-muted-foreground mb-4">
@@ -62,28 +66,29 @@ export const PriceUtilizationScatterPlot = () => {
         </p>
         
         {/* Legend */}
-        <div className="flex flex-wrap gap-3">
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-success" />
+        <div className="flex flex-wrap gap-3" role="list" aria-label="Chart legend">
+          <div className="flex items-center gap-2" role="listitem">
+            <div className="w-3 h-3 rounded-full bg-success" aria-hidden="true" />
             <span className="text-xs text-muted-foreground">Sweet Spot (High Util + Good Rate)</span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-warning" />
+          <div className="flex items-center gap-2" role="listitem">
+            <div className="w-3 h-3 rounded-full bg-warning" aria-hidden="true" />
             <span className="text-xs text-muted-foreground">Underpriced (High Util + Low Rate)</span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-destructive" />
+          <div className="flex items-center gap-2" role="listitem">
+            <div className="w-3 h-3 rounded-full bg-destructive" aria-hidden="true" />
             <span className="text-xs text-muted-foreground">Overpriced (Low Util + High Rate)</span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-primary" />
+          <div className="flex items-center gap-2" role="listitem">
+            <div className="w-3 h-3 rounded-full bg-primary" aria-hidden="true" />
             <span className="text-xs text-muted-foreground">Balanced</span>
           </div>
         </div>
       </div>
       
-      <ResponsiveContainer width="100%" height={400}>
-        <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+      <div role="img" aria-label="Scatter plot showing the relationship between vehicle utilization percentage and daily rate in dollars. Vehicles are color-coded by pricing zone: green for optimal, orange for underpriced, red for overpriced, and blue for balanced.">
+        <ResponsiveContainer width="100%" height={400}>
+          <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
           <XAxis 
             type="number" 
@@ -116,7 +121,8 @@ export const PriceUtilizationScatterPlot = () => {
             ))}
           </Scatter>
         </ScatterChart>
-      </ResponsiveContainer>
+        </ResponsiveContainer>
+      </div>
       
       <div className="mt-4 p-4 bg-muted/30 rounded-lg">
         <p className="text-sm text-muted-foreground">

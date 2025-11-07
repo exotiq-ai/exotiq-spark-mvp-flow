@@ -70,13 +70,16 @@ export const ComplianceStackedBar = () => {
     return null;
   };
 
-  // Calculate overall compliance percentage
   const totalItems = complianceData.reduce((sum, cat) => sum + cat.total, 0);
   const totalCompliant = complianceData.reduce((sum, cat) => sum + cat.compliant, 0);
   const compliancePercentage = Math.round((totalCompliant / totalItems) * 100);
 
   return (
-    <Card className="p-6 border-2 border-border shadow-sm">
+    <Card 
+      className="p-6 border-2 border-border shadow-sm"
+      role="region"
+      aria-label="Compliance distribution chart"
+    >
       <div className="flex items-start justify-between mb-6">
         <div>
           <h3 className="text-xl font-semibold mb-2">Compliance Distribution</h3>
@@ -89,38 +92,40 @@ export const ComplianceStackedBar = () => {
         </Badge>
       </div>
 
-      <ResponsiveContainer width="100%" height={300}>
-        <BarChart data={complianceData} layout="vertical">
-          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-          <XAxis 
-            type="number" 
-            stroke="hsl(var(--muted-foreground))"
-            tick={{ fill: 'hsl(var(--muted-foreground))' }}
-          />
-          <YAxis 
-            dataKey="category" 
-            type="category"
-            stroke="hsl(var(--muted-foreground))"
-            tick={{ fill: 'hsl(var(--muted-foreground))' }}
-            width={100}
-          />
-          <Tooltip content={<CustomTooltip />} />
-          <Legend 
-            wrapperStyle={{ paddingTop: '20px' }}
-            formatter={(value) => {
-              const labels: { [key: string]: string } = {
-                compliant: 'Compliant',
-                expiringSoon: 'Expiring Soon',
-                expired: 'Expired'
-              };
-              return labels[value] || value;
-            }}
-          />
-          <Bar dataKey="compliant" stackId="a" fill="hsl(var(--success))" radius={[0, 4, 4, 0]} />
-          <Bar dataKey="expiringSoon" stackId="a" fill="hsl(var(--warning))" />
-          <Bar dataKey="expired" stackId="a" fill="hsl(var(--destructive))" radius={[0, 4, 4, 0]} />
-        </BarChart>
-      </ResponsiveContainer>
+      <div role="img" aria-label="Stacked bar chart showing compliance status across insurance, registration, inspections, and licenses categories">
+        <ResponsiveContainer width="100%" height={300}>
+          <BarChart data={complianceData} layout="vertical">
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+            <XAxis 
+              type="number" 
+              stroke="hsl(var(--muted-foreground))"
+              tick={{ fill: 'hsl(var(--muted-foreground))' }}
+            />
+            <YAxis 
+              dataKey="category" 
+              type="category"
+              stroke="hsl(var(--muted-foreground))"
+              tick={{ fill: 'hsl(var(--muted-foreground))' }}
+              width={100}
+            />
+            <Tooltip content={<CustomTooltip />} />
+            <Legend 
+              wrapperStyle={{ paddingTop: '20px' }}
+              formatter={(value) => {
+                const labels: { [key: string]: string } = {
+                  compliant: 'Compliant',
+                  expiringSoon: 'Expiring Soon',
+                  expired: 'Expired'
+                };
+                return labels[value] || value;
+              }}
+            />
+            <Bar dataKey="compliant" stackId="a" fill="hsl(var(--success))" radius={[0, 4, 4, 0]} />
+            <Bar dataKey="expiringSoon" stackId="a" fill="hsl(var(--warning))" />
+            <Bar dataKey="expired" stackId="a" fill="hsl(var(--destructive))" radius={[0, 4, 4, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
 
       {/* Category Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6">
@@ -132,11 +137,14 @@ export const ComplianceStackedBar = () => {
             <div 
               key={category.category} 
               className="p-4 rounded-lg border border-border hover:border-primary/50 transition-all cursor-pointer"
+              role="button"
+              tabIndex={0}
+              aria-label={`${category.category}: ${complianceRate}% compliant, ${category.compliant} of ${category.total} items`}
             >
               <CategoryIcon className={`h-5 w-5 mb-2 ${
                 complianceRate >= 80 ? 'text-success' :
                 complianceRate >= 60 ? 'text-warning' : 'text-destructive'
-              }`} />
+              }`} aria-hidden="true" />
               <div className="font-semibold text-sm mb-1">{category.category}</div>
               <div className="text-2xl font-bold mb-1">{complianceRate}%</div>
               <div className="text-xs text-muted-foreground">

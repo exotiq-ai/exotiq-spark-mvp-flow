@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { FocusTrap } from "@/components/ui/focus-trap";
 import { cn } from "@/lib/utils";
 
 interface AskRariButtonProps {
@@ -56,18 +57,20 @@ export const AskRariButton = ({
         
         <Dialog open={showRari} onOpenChange={setShowRari}>
           <DialogContent className="sm:max-w-[600px]">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-accent" />
-                Rari AI Assistant - {moduleName}
-              </DialogTitle>
-              <DialogDescription>
-                {getModuleContext()}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="mt-4">
-              <RariVoiceInterface />
-            </div>
+            <FocusTrap active={showRari}>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-accent" aria-hidden="true" />
+                  Rari AI Assistant - {moduleName}
+                </DialogTitle>
+                <DialogDescription>
+                  {getModuleContext()}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="mt-4">
+                <RariVoiceInterface />
+              </div>
+            </FocusTrap>
           </DialogContent>
         </Dialog>
       </>
@@ -94,18 +97,20 @@ export const AskRariButton = ({
 
       <Dialog open={showRari} onOpenChange={setShowRari}>
         <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-accent" />
-              Rari AI Assistant - {moduleName}
-            </DialogTitle>
-            <DialogDescription>
-              {getModuleContext()}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="mt-4">
-            <RariVoiceInterface />
-          </div>
+          <FocusTrap active={showRari}>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-accent" aria-hidden="true" />
+                Rari AI Assistant - {moduleName}
+              </DialogTitle>
+              <DialogDescription>
+                {getModuleContext()}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="mt-4">
+              <RariVoiceInterface />
+            </div>
+          </FocusTrap>
         </DialogContent>
       </Dialog>
     </>

@@ -28,13 +28,18 @@ const data = generateRevenueData();
 
 export const RevenueLineChart = () => {
   return (
-    <Card className="p-6 border-2 border-border shadow-sm">
+    <Card 
+      className="p-6 border-2 border-border shadow-sm"
+      role="region"
+      aria-label="Revenue trend chart for last 30 days"
+    >
       <div className="mb-4">
         <h3 className="text-xl font-semibold mb-1">Revenue Trend</h3>
         <p className="text-sm text-muted-foreground">Last 30 days performance</p>
       </div>
       
-      <ResponsiveContainer width="100%" height={200}>
+      <div role="img" aria-label="Area chart showing daily revenue over the last 30 days, with weekend peaks visible">
+        <ResponsiveContainer width="100%" height={200}>
         <AreaChart data={data}>
           <defs>
             <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
@@ -77,7 +82,8 @@ export const RevenueLineChart = () => {
             fill="url(#revenueGradient)"
           />
         </AreaChart>
-      </ResponsiveContainer>
+        </ResponsiveContainer>
+      </div>
     </Card>
   );
 };

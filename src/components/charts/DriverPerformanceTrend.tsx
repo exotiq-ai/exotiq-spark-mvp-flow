@@ -81,7 +81,11 @@ export const DriverPerformanceTrend = ({ driverName, currentScore, vehicle, stat
   }
 
   return (
-    <Card className="mt-4 p-4 border border-border bg-muted/20">
+    <Card 
+      className="mt-4 p-4 border border-border bg-muted/20"
+      role="region"
+      aria-label={`Performance history for ${driverName}`}
+    >
       <div className="flex items-center justify-between mb-4">
         <div>
           <h4 className="text-sm font-semibold mb-1">Performance History</h4>
@@ -134,8 +138,9 @@ export const DriverPerformanceTrend = ({ driverName, currentScore, vehicle, stat
         </Button>
       </div>
 
-      <ResponsiveContainer width="100%" height={200}>
-        <LineChart data={trendData}>
+      <div role="img" aria-label={`Line chart showing ${driverName}'s performance trend over the last 7 days`}>
+        <ResponsiveContainer width="100%" height={200}>
+          <LineChart data={trendData}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
           <XAxis 
             dataKey="period" 
@@ -169,7 +174,8 @@ export const DriverPerformanceTrend = ({ driverName, currentScore, vehicle, stat
             activeDot={{ r: 6 }}
           />
         </LineChart>
-      </ResponsiveContainer>
+        </ResponsiveContainer>
+      </div>
 
       <div className="mt-3 p-2 bg-muted/50 rounded text-xs text-muted-foreground">
         {trendDirection === 'up' && (

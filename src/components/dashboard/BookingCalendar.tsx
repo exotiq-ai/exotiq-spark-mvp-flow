@@ -26,6 +26,7 @@ export const BookingCalendar = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedVehicle, setSelectedVehicle] = useState<string>("all");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
+  const [focusedDateIndex, setFocusedDateIndex] = useState<number>(0);
   const [showVehicleImage, setShowVehicleImage] = useState(false);
   const [selectedVehicleDetails, setSelectedVehicleDetails] = useState<{
     name: string;
@@ -98,6 +99,53 @@ export const BookingCalendar = () => {
 
   const selectedDayBookings = selectedDate ? getBookingsForDay(selectedDate) : [];
 
+  // Keyboard navigation handler for calendar
+  const handleKeyDown = (e: React.KeyboardEvent, dayIndex: number, day: Date) => {
+    const totalDays = daysInMonth.length;
+    let newIndex = dayIndex;
+
+    switch (e.key) {
+      case 'ArrowRight':
+        e.preventDefault();
+        newIndex = Math.min(dayIndex + 1, totalDays - 1);
+        break;
+      case 'ArrowLeft':
+        e.preventDefault();
+        newIndex = Math.max(dayIndex - 1, 0);
+        break;
+      case 'ArrowDown':
+        e.preventDefault();
+        newIndex = Math.min(dayIndex + 7, totalDays - 1);
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        newIndex = Math.max(dayIndex - 7, 0);
+        break;
+      case 'Enter':
+      case ' ':
+        e.preventDefault();
+        setSelectedDate(day);
+        return;
+      case 'Home':
+        e.preventDefault();
+        newIndex = 0;
+        break;
+      case 'End':
+        e.preventDefault();
+        newIndex = totalDays - 1;
+        break;
+      default:
+        return;
+    }
+
+    setFocusedDateIndex(newIndex);
+    // Focus the new cell
+    const cells = document.querySelectorAll('[data-calendar-day]');
+    if (cells[newIndex]) {
+      (cells[newIndex] as HTMLElement).focus();
+    }
+  };
+
   return (
     <>
       {selectedVehicleDetails && (
@@ -111,24 +159,41 @@ export const BookingCalendar = () => {
 
       <div className="space-y-6">
       {/* Calendar Controls */}
-      <Card className="card-premium p-4 sm:p-6">
+      <Card 
+        className="card-premium p-4 sm:p-6"
+        role="region"
+        aria-label="Booking calendar"
+      >
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
           <div className="flex items-center space-x-2 sm:space-x-4">
-            <Button variant="outline" size="icon" onClick={previousMonth}>
-              <ChevronLeft className="h-4 w-4" />
+            <Button 
+              variant="outline" 
+              size="icon" 
+              onClick={previousMonth}
+              aria-label="Previous month"
+            >
+              <ChevronLeft className="h-4 w-4" aria-hidden="true" />
             </Button>
-            <h3 className="text-lg sm:text-2xl font-bold">
+            <h3 className="text-lg sm:text-2xl font-bold" aria-live="polite">
               {format(currentDate, 'MMMM yyyy')}
             </h3>
-            <Button variant="outline" size="icon" onClick={nextMonth}>
-              <ChevronRight className="h-4 w-4" />
+            <Button 
+              variant="outline" 
+              size="icon" 
+              onClick={nextMonth}
+              aria-label="Next month"
+            >
+              <ChevronRight className="h-4 w-4" aria-hidden="true" />
             </Button>
           </div>
 
           <div className="flex items-center space-x-2 w-full sm:w-auto">
-            <Filter className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            <Filter className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
             <Select value={selectedVehicle} onValueChange={setSelectedVehicle}>
-              <SelectTrigger className="w-full sm:w-[200px]">
+              <SelectTrigger 
+                className="w-full sm:w-[200px]"
+                aria-label="Filter by vehicle"
+              >
                 <SelectValue placeholder="All Vehicles" />
               </SelectTrigger>
               <SelectContent>
@@ -144,11 +209,20 @@ export const BookingCalendar = () => {
         </div>
 
         {/* Calendar Grid */}
-        <div className="grid grid-cols-7 gap-1 sm:gap-2">
+        <div 
+          className="grid grid-cols-7 gap-1 sm:gap-2"
+          role="grid"
+          aria-label="Calendar grid"
+        >
           {/* Day Headers */}
-          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-            <div key={day} className="text-center font-semibold text-xs sm:text-sm text-muted-foreground p-1 sm:p-2">
-              {day}
+          {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((day, index) => (
+            <div 
+              key={day} 
+              className="text-center font-semibold text-xs sm:text-sm text-muted-foreground p-1 sm:p-2"
+              role="columnheader"
+              aria-label={day}
+            >
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][index]}
             </div>
           ))}
 
@@ -158,7 +232,7 @@ export const BookingCalendar = () => {
           ))}
 
           {/* Day Cells */}
-          {daysInMonth.map((day) => {
+          {daysInMonth.map((day, dayIndex) => {
             const bookingsCount = getDayBookingsCount(day);
             const hasConflict = hasConflicts(day);
             const isSelected = selectedDate && isSameDay(day, selectedDate);
@@ -175,13 +249,20 @@ export const BookingCalendar = () => {
             return (
               <div
                 key={day.toISOString()}
+                data-calendar-day
+                role="gridcell"
+                tabIndex={dayIndex === focusedDateIndex ? 0 : -1}
                 onClick={() => setSelectedDate(day)}
+                onKeyDown={(e) => handleKeyDown(e, dayIndex, day)}
+                aria-label={`${format(day, 'MMMM d, yyyy')}${isToday ? ' (today)' : ''}${bookingsCount > 0 ? `, ${bookingsCount} booking${bookingsCount > 1 ? 's' : ''}` : ', no bookings'}${hasConflict ? ', conflict detected' : ''}`}
+                aria-selected={isSelected}
                 className={`
                   relative p-1 sm:p-2 min-h-[60px] sm:min-h-[80px] rounded-lg border-2 cursor-pointer transition-all
                   ${isSelected ? 'border-primary bg-primary/20 scale-105' : getDensityClass() || 'border-border hover:border-primary/50'}
                   ${isToday ? 'ring-2 ring-accent ring-offset-2' : ''}
                   ${hasConflict ? 'border-destructive bg-destructive/10' : ''}
                   hover:shadow-md transform hover:-translate-y-0.5
+                  focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2
                 `}
               >
                 <div className="flex items-center justify-between mb-1">
@@ -193,7 +274,10 @@ export const BookingCalendar = () => {
                     {format(day, 'd')}
                   </span>
                   {hasConflict && (
-                    <AlertTriangle className="h-3 w-3 text-destructive flex-shrink-0 animate-pulse" />
+                    <AlertTriangle 
+                      className="h-3 w-3 text-destructive flex-shrink-0 animate-pulse" 
+                      aria-label="Booking conflict"
+                    />
                   )}
                 </div>
 
@@ -211,7 +295,7 @@ export const BookingCalendar = () => {
                     </Badge>
                     
                     {/* Visual density dots */}
-                    <div className="flex gap-0.5 mt-1">
+                    <div className="flex gap-0.5 mt-1" aria-hidden="true">
                       {Array.from({ length: Math.min(bookingsCount, 3) }).map((_, i) => (
                         <div 
                           key={i} 
