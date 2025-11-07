@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useFleet } from "@/contexts/FleetContext";
+import { AskRariButton } from "@/components/common/AskRariButton";
 import { 
   Brain, 
   Zap, 
@@ -158,7 +159,15 @@ export const CoreEnhanced = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <>
+      {/* Ask Rari Floating Button */}
+      <AskRariButton 
+        moduleId="core" 
+        moduleName="FleetCopilot™"
+        contextPrompt="Ask me anything about fleet operations, business intelligence, AI features, or system controls."
+      />
+      
+      <div className="space-y-6">
       {/* AI Command Center Header */}
       <Card className="card-premium p-6 border-border">
         <div className="flex items-center justify-between mb-6">
@@ -397,6 +406,7 @@ export const CoreEnhanced = () => {
         vehicles={vehicles}
         onApply={applyPriceOptimization}
       />
-    </div>
+      </div>
+    </>
   );
 };

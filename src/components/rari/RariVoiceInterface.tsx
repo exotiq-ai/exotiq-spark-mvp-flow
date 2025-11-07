@@ -168,7 +168,7 @@ export const RariVoiceInterface = () => {
         
         {!isConnected ? (
           <>
-            <div className="text-xs text-left text-muted-foreground space-y-2 max-w-sm mx-auto">
+            <div className="text-xs text-left text-muted-foreground space-y-2 max-w-sm mx-auto mb-4">
               <p className="font-medium">Rari can help you with:</p>
               <ul className="list-disc list-inside space-y-1 pl-2">
                 <li>Fleet performance metrics</li>
@@ -178,6 +178,22 @@ export const RariVoiceInterface = () => {
                 <li>Customer insights</li>
                 <li>Maintenance scheduling</li>
               </ul>
+            </div>
+
+            {/* Quick Action Suggestions */}
+            <div className="mb-4">
+              <p className="text-xs font-medium text-muted-foreground mb-2">Quick Commands:</p>
+              <div className="flex flex-wrap gap-2 justify-center">
+                <Badge variant="outline" className="cursor-default text-xs">
+                  "Show me today's revenue"
+                </Badge>
+                <Badge variant="outline" className="cursor-default text-xs">
+                  "Check Ferrari availability"
+                </Badge>
+                <Badge variant="outline" className="cursor-default text-xs">
+                  "List upcoming bookings"
+                </Badge>
+              </div>
             </div>
             
             <Button 

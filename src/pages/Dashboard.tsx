@@ -6,6 +6,7 @@ import { Logo } from "@/components/ui/logo";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { SkipNavigation } from "@/components/common/SkipNavigation";
 import { SEOHead } from "@/components/common/SEOHead";
+import { AIAlertsFeed } from "@/components/dashboard/AIAlertsFeed";
 import { useAnalytics } from "@/lib/analytics";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useSwipeGesture } from "@/hooks/useSwipeGesture";
@@ -338,6 +339,9 @@ const Dashboard = () => {
           </div>
         </div>
         </main>
+
+        {/* AI Alerts Feed - Fixed Position */}
+        <AIAlertsFeed onNavigate={handleModuleChange} />
       </div>
     </div>
   );

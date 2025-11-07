@@ -9,6 +9,7 @@ import { RevenueLineChart } from "@/components/charts/RevenueLineChart";
 import { MiniSparkline } from "@/components/charts/MiniSparkline";
 import { LiveFleetStatusWidget } from "@/components/dashboard/LiveFleetStatusWidget";
 import { UpcomingScheduleWidget } from "@/components/dashboard/UpcomingScheduleWidget";
+import { AskRariButton } from "@/components/common/AskRariButton";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Calendar,
@@ -53,6 +54,16 @@ export const DashboardOverview = ({ modules, onModuleClick }: DashboardOverviewP
         onApply={(vehicleId, newRate) => applyPriceOptimization(vehicleId, newRate)}
       />
     <div className="space-y-6">
+      {/* Ask Rari Inline Button for Dashboard Overview */}
+      <div className="flex justify-end">
+        <AskRariButton 
+          moduleId="dashboard" 
+          moduleName="Dashboard"
+          contextPrompt="Ask me anything about your fleet operations, performance metrics, or general insights."
+          variant="inline"
+        />
+      </div>
+      
       {/* Dashboard Banner */}
       <DashboardBanner />
 

@@ -6,6 +6,7 @@ import { useFleet } from "@/contexts/FleetContext";
 import { PriceOptimizationDialog } from "@/components/dialogs/PriceOptimizationDialog";
 import { VehicleImageDialog } from "@/components/dialogs/VehicleImageDialog";
 import { PriceUtilizationScatterPlot } from "@/components/charts/PriceUtilizationScatterPlot";
+import { AskRariButton } from "@/components/common/AskRariButton";
 import { SkeletonMetric, SkeletonCard } from "@/components/ui/skeleton-card";
 import { EmptyState } from "@/components/common/EmptyState";
 import { 
@@ -109,6 +110,13 @@ export const MotorIQEnhanced = () => {
       )}
 
       <div className="space-y-6 overflow-x-hidden">
+        {/* Ask Rari Floating Button */}
+        <AskRariButton 
+          moduleId="motoriq" 
+          moduleName="MotorIQ"
+          contextPrompt="Ask me about pricing strategies, revenue optimization, or underpriced vehicles in your fleet."
+        />
+        
         {/* Hero Section - Top Priority AI Insight */}
         {topRecommendation && potentialIncrease > 0 ? (
           <Card className="card-premium bg-gradient-to-br from-success/10 via-primary/5 to-accent/10 border-success/20 p-8">
