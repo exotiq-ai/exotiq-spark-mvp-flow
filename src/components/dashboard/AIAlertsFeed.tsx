@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +14,8 @@ import {
   Sparkles
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useFleet } from "@/contexts/FleetContext";
+import { differenceInDays, differenceInHours, isBefore, addDays } from "date-fns";
 
 interface AIAlert {
   id: string;
@@ -33,61 +35,174 @@ interface AIAlertsFeedProps {
   className?: string;
 }
 
-// Mock alerts - in production, these would come from an AI service
-const mockAlerts: AIAlert[] = [
-  {
-    id: '1',
-    type: 'critical',
-    category: 'compliance',
-    title: 'Driver License Expiring',
-    description: 'Sarah M.\'s license expires in 5 days. Vehicle (Porsche 911 GT3) will be unavailable.',
-    action: { label: 'Renew Document', moduleId: 'vault' },
-    timestamp: new Date(Date.now() - 10 * 60 * 1000)
-  },
-  {
-    id: '2',
-    type: 'high',
-    category: 'revenue',
-    title: 'Pricing Opportunity',
-    description: 'Ferrari 488 has 89% utilization but rate is 15% below market. Potential +$2,250/mo.',
-    action: { label: 'Optimize Price', moduleId: 'motoriq' },
-    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000)
-  },
-  {
-    id: '3',
-    type: 'medium',
-    category: 'performance',
-    title: 'Driver Performance Alert',
-    description: 'Marcus Chen\'s safety score dropped 12% this week. Consider review.',
-    action: { label: 'View Analytics', moduleId: 'pulse' },
-    timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000)
-  },
-  {
-    id: '4',
-    type: 'high',
-    category: 'booking',
-    title: 'Weekend Demand Spike',
-    description: 'Booking requests 30% higher than usual for next weekend. Consider dynamic pricing.',
-    action: { label: 'View Bookings', moduleId: 'book' },
-    timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000)
-  },
-  {
-    id: '5',
-    type: 'medium',
-    category: 'maintenance',
-    title: 'Service Due Soon',
-    description: 'Lamborghini Huracán needs scheduled maintenance in 500 miles.',
-    action: { label: 'Schedule Service', moduleId: 'vault' },
-    timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000)
+// Helper function to generate alerts from real fleet data
+const generateAlertsFromData = (
+  vehicles: any[],
+  bookings: any[],
+  customers: any[],
+  documents: any[],
+  damageClaims: any[]
+): AIAlert[] => {
+  const alerts: AIAlert[] = [];
+  const now = new Date();
+
+  // CRITICAL: Document expiry alerts
+  documents.forEach(doc => {
+    if (doc.expires_at) {
+      const expiryDate = new Date(doc.expires_at);
+      const daysUntilExpiry = differenceInDays(expiryDate, now);
+      
+      if (daysUntilExpiry <= 7 && daysUntilExpiry >= 0) {
+        const vehicle = vehicles.find(v => v.id === doc.vehicle_id);
+        const customer = customers.find(c => c.id === doc.customer_id);
+        
+        alerts.push({
+          id: `doc-expiry-${doc.id}`,
+          type: daysUntilExpiry <= 3 ? 'critical' : 'high',
+          category: 'compliance',
+          title: `${doc.type} Expiring Soon`,
+          description: `${customer?.full_name || vehicle?.name || 'Document'} ${doc.type} expires in ${daysUntilExpiry} days. ${vehicle ? `Vehicle (${vehicle.name}) may be unavailable.` : ''}`,
+          action: { label: 'Renew Document', moduleId: 'vault' },
+          timestamp: new Date(doc.created_at)
+        });
+      }
+    }
+  });
+
+  // HIGH: Pricing optimization opportunities
+  vehicles.forEach(vehicle => {
+    if (vehicle.utilization && vehicle.utilization > 75) {
+      const marketRate = vehicle.suggested_rate || vehicle.current_rate * 1.15;
+      const rateDifference = ((marketRate - vehicle.current_rate) / vehicle.current_rate) * 100;
+      
+      if (rateDifference > 10) {
+        const potentialIncrease = (marketRate - vehicle.current_rate) * 30; // Monthly estimate
+        alerts.push({
+          id: `pricing-${vehicle.id}`,
+          type: 'high',
+          category: 'revenue',
+          title: 'Pricing Opportunity Detected',
+          description: `${vehicle.name} has ${vehicle.utilization}% utilization but rate is ${rateDifference.toFixed(0)}% below market. Potential +$${potentialIncrease.toFixed(0)}/mo.`,
+          action: { label: 'Optimize Price', moduleId: 'motoriq' },
+          timestamp: new Date(vehicle.updated_at)
+        });
+      }
+    }
+  });
+
+  // HIGH: Upcoming bookings concentration
+  const upcomingBookings = bookings.filter(b => {
+    const startDate = new Date(b.start_date);
+    return isBefore(now, startDate) && differenceInDays(startDate, now) <= 7;
+  });
+  
+  if (upcomingBookings.length > 5) {
+    const weekdayCount = upcomingBookings.filter(b => {
+      const day = new Date(b.start_date).getDay();
+      return day === 0 || day === 6; // Weekend
+    }).length;
+    
+    if (weekdayCount > upcomingBookings.length * 0.6) {
+      alerts.push({
+        id: 'weekend-demand',
+        type: 'high',
+        category: 'booking',
+        title: 'Weekend Demand Spike',
+        description: `${weekdayCount} weekend bookings in next 7 days (${((weekdayCount/upcomingBookings.length)*100).toFixed(0)}% of total). Consider dynamic pricing.`,
+        action: { label: 'View Bookings', moduleId: 'book' },
+        timestamp: now
+      });
+    }
   }
-];
+
+  // CRITICAL: Open damage claims
+  const openClaims = damageClaims.filter(c => c.claim_status === 'open' || c.claim_status === 'in_progress');
+  if (openClaims.length > 0) {
+    openClaims.forEach(claim => {
+      const vehicle = vehicles.find(v => v.id === claim.vehicle_id);
+      const hoursOpen = differenceInHours(now, new Date(claim.reported_date));
+      
+      if (hoursOpen > 48) {
+        alerts.push({
+          id: `claim-${claim.id}`,
+          type: 'critical',
+          category: 'maintenance',
+          title: 'Unresolved Damage Claim',
+          description: `${vehicle?.name || 'Vehicle'} has ${claim.severity} damage (${claim.claim_type}) open for ${Math.floor(hoursOpen/24)} days. Est. cost: $${claim.estimated_cost?.toFixed(0) || 'TBD'}`,
+          action: { label: 'Review Claim', moduleId: 'vault' },
+          timestamp: new Date(claim.reported_date)
+        });
+      }
+    });
+  }
+
+  // MEDIUM: Low utilization vehicles
+  vehicles.forEach(vehicle => {
+    if (vehicle.status === 'available' && vehicle.utilization !== null && vehicle.utilization < 30) {
+      alerts.push({
+        id: `low-util-${vehicle.id}`,
+        type: 'medium',
+        category: 'performance',
+        title: 'Low Utilization Alert',
+        description: `${vehicle.name} only ${vehicle.utilization}% utilized. Consider marketing or pricing adjustment.`,
+        action: { label: 'View Analytics', moduleId: 'motoriq' },
+        timestamp: new Date(vehicle.updated_at)
+      });
+    }
+  });
+
+  // Sort by priority and timestamp
+  return alerts.sort((a, b) => {
+    const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+    const priorityDiff = priorityOrder[a.type] - priorityOrder[b.type];
+    if (priorityDiff !== 0) return priorityDiff;
+    return b.timestamp.getTime() - a.timestamp.getTime();
+  }).slice(0, 10); // Limit to 10 most important alerts
+};
 
 export const AIAlertsFeed = ({ onNavigate, className }: AIAlertsFeedProps) => {
-  const [alerts, setAlerts] = useState<AIAlert[]>(mockAlerts);
+  const { 
+    vehicles, 
+    bookings, 
+    customers, 
+    documents, 
+    damageClaims
+  } = useFleet();
+  
   const [collapsed, setCollapsed] = useState(false);
+  const [dismissedAlertIds, setDismissedAlertIds] = useState<Set<string>>(new Set());
+
+  // Generate alerts from real data
+  const generatedAlerts = useMemo(() => {
+    return generateAlertsFromData(
+      vehicles,
+      bookings,
+      customers,
+      documents,
+      damageClaims
+    );
+  }, [vehicles, bookings, customers, documents, damageClaims]);
+
+  // Filter out dismissed alerts
+  const alerts = useMemo(() => {
+    return generatedAlerts.filter(alert => !dismissedAlertIds.has(alert.id));
+  }, [generatedAlerts, dismissedAlertIds]);
+
+  // Reset dismissed alerts when new data comes in
+  useEffect(() => {
+    // Clear dismissed alerts older than 24 hours
+    const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const validDismissed = new Set(
+      Array.from(dismissedAlertIds).filter(id => {
+        const alert = generatedAlerts.find(a => a.id === id);
+        return alert && alert.timestamp > dayAgo;
+      })
+    );
+    setDismissedAlertIds(validDismissed);
+  }, [generatedAlerts]);
 
   const dismissAlert = (id: string) => {
-    setAlerts(alerts.filter(alert => alert.id !== id));
+    setDismissedAlertIds(prev => new Set(prev).add(id));
   };
 
   const getTypeColor = (type: AIAlert['type']) => {
