@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useFleet } from "@/contexts/FleetContext";
 import { PriceOptimizationDialog } from "@/components/dialogs/PriceOptimizationDialog";
+import { DashboardBanner } from "@/components/dashboard/DashboardBanner";
 import { useToast } from "@/hooks/use-toast";
 import { 
   DollarSign, 
@@ -46,6 +47,9 @@ export const DashboardOverview = ({ modules, onModuleClick }: DashboardOverviewP
         onApply={(vehicleId, newRate) => applyPriceOptimization(vehicleId, newRate)}
       />
     <div className="space-y-6">
+      {/* Dashboard Banner */}
+      <DashboardBanner />
+
       {/* Hero Metric */}
       <Card className="card-premium bg-gradient-to-br from-primary/10 via-accent/5 to-success/10 border-primary/20 p-8">
         <div className="flex items-start justify-between mb-6">

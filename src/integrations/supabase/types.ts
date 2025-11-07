@@ -761,6 +761,33 @@ export type Database = {
         }
         Relationships: []
       }
+      user_dashboard_preferences: {
+        Row: {
+          banner_url: string | null
+          created_at: string | null
+          id: string
+          logo_url: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          banner_url?: string | null
+          created_at?: string | null
+          id?: string
+          logo_url?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          banner_url?: string | null
+          created_at?: string | null
+          id?: string
+          logo_url?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       vehicle_inspections: {
         Row: {
           booking_id: string | null
