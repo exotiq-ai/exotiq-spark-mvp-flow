@@ -1,6 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { DriverPerformanceTrend } from "@/components/charts/DriverPerformanceTrend";
 import { useNavigate } from "react-router-dom";
 import { 
   Activity, 
@@ -151,6 +152,14 @@ export const PulseEnhanced = () => {
                 </div>
               </div>
             </div>
+            
+            {/* Driver Performance Trend */}
+            <DriverPerformanceTrend
+              driverName="Marcus Chen"
+              currentScore={86}
+              vehicle="Lamborghini Huracán"
+              status="excellent"
+            />
           </div>
 
           {/* Driver 2 - Needs Improvement */}
@@ -187,6 +196,14 @@ export const PulseEnhanced = () => {
                 </div>
               </div>
             </div>
+            
+            {/* Driver Performance Trend */}
+            <DriverPerformanceTrend
+              driverName="Sarah Mitchell"
+              currentScore={72}
+              vehicle="Ferrari 488"
+              status="needs-improvement"
+            />
           </div>
         </div>
 

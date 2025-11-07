@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { useFleet } from "@/contexts/FleetContext";
 import { PriceOptimizationDialog } from "@/components/dialogs/PriceOptimizationDialog";
 import { VehicleImageDialog } from "@/components/dialogs/VehicleImageDialog";
+import { PriceUtilizationScatterPlot } from "@/components/charts/PriceUtilizationScatterPlot";
 import { SkeletonMetric, SkeletonCard } from "@/components/ui/skeleton-card";
 import { EmptyState } from "@/components/common/EmptyState";
 import { 
@@ -200,16 +201,19 @@ export const MotorIQEnhanced = () => {
 
           <Card className="card-module p-6">
             <div className="flex items-center justify-between mb-2">
-              <div className="p-3 bg-info/10 rounded-lg">
-                <Brain className="h-5 w-5 text-info" />
+              <div className="p-3 bg-primary/10 rounded-lg">
+                <Brain className="h-5 w-5 text-primary" />
               </div>
-              <Badge className="bg-info/20 text-info">78%</Badge>
+              <Badge className="bg-primary/20 text-primary">78%</Badge>
             </div>
             <div className="text-2xl font-bold mb-1">Average</div>
             <div className="text-sm text-muted-foreground">Fleet Utilization</div>
             <div className="text-xs text-muted-foreground mt-1">Past 30 days</div>
           </Card>
         </div>
+
+        {/* Price vs Utilization Scatter Plot */}
+        <PriceUtilizationScatterPlot />
 
         {/* Fleet Performance Details */}
         <Card className="card-premium p-6">

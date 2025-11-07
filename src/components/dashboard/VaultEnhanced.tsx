@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useFleet } from "@/contexts/FleetContext";
 import { DocumentUploadDialog } from "@/components/dialogs/DocumentUploadDialog";
 import { DamageClaimsSection } from "@/components/dashboard/DamageClaimsSection";
+import { ComplianceStackedBar } from "@/components/charts/ComplianceStackedBar";
 import { useToast } from "@/hooks/use-toast";
 import { SkeletonCard, SkeletonMetric } from "@/components/ui/skeleton-card";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -166,7 +167,7 @@ export const VaultEnhanced = () => {
       {/* Compliance Score */}
       <Card className="card-premium p-6">
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-xl font-semibold">Compliance Score</h3>
+          <h3 className="text-xl font-semibold">Compliance Overview</h3>
           <Badge className={complianceScore.status === 'good' ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'}>
             {complianceScore.status.toUpperCase()}
           </Badge>
@@ -197,6 +198,9 @@ export const VaultEnhanced = () => {
           ))}
         </div>
       </Card>
+
+      {/* Compliance Distribution Chart */}
+      <ComplianceStackedBar />
 
       {/* Recent Documents */}
       <Card className="card-premium p-6">

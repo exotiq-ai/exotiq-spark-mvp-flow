@@ -163,32 +163,68 @@ export const BookingCalendar = () => {
             const hasConflict = hasConflicts(day);
             const isSelected = selectedDate && isSameDay(day, selectedDate);
             const isToday = isSameDay(day, new Date());
+            
+            // Density indicator (color intensity based on bookings count)
+            const getDensityClass = () => {
+              if (bookingsCount === 0) return '';
+              if (bookingsCount >= 5) return 'bg-success/30 border-success/40';
+              if (bookingsCount >= 3) return 'bg-warning/20 border-warning/30';
+              return 'bg-primary/10 border-primary/20';
+            };
 
             return (
               <div
                 key={day.toISOString()}
                 onClick={() => setSelectedDate(day)}
                 className={`
-                  relative p-1 sm:p-2 min-h-[60px] sm:min-h-[80px] rounded-lg border cursor-pointer transition-all
-                  ${isSelected ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'}
-                  ${isToday ? 'bg-accent/5' : 'bg-background'}
-                  ${hasConflict ? 'border-destructive' : ''}
+                  relative p-1 sm:p-2 min-h-[60px] sm:min-h-[80px] rounded-lg border-2 cursor-pointer transition-all
+                  ${isSelected ? 'border-primary bg-primary/20 scale-105' : getDensityClass() || 'border-border hover:border-primary/50'}
+                  ${isToday ? 'ring-2 ring-accent ring-offset-2' : ''}
+                  ${hasConflict ? 'border-destructive bg-destructive/10' : ''}
+                  hover:shadow-md transform hover:-translate-y-0.5
                 `}
               >
                 <div className="flex items-center justify-between mb-1">
-                  <span className={`text-xs sm:text-sm font-medium ${isToday ? 'text-primary' : ''}`}>
+                  <span className={`text-xs sm:text-sm font-semibold ${
+                    isToday ? 'text-accent' : 
+                    bookingsCount >= 5 ? 'text-success' :
+                    bookingsCount >= 3 ? 'text-warning' : ''
+                  }`}>
                     {format(day, 'd')}
                   </span>
                   {hasConflict && (
-                    <AlertTriangle className="h-3 w-3 text-destructive flex-shrink-0" />
+                    <AlertTriangle className="h-3 w-3 text-destructive flex-shrink-0 animate-pulse" />
                   )}
                 </div>
 
                 {bookingsCount > 0 && (
                   <div className="space-y-1">
-                    <Badge variant="outline" className="text-[10px] sm:text-xs px-1 sm:px-2 truncate block max-w-full">
-                      {bookingsCount}
+                    <Badge 
+                      variant="outline" 
+                      className={`text-[10px] sm:text-xs px-1 sm:px-2 truncate block max-w-full font-semibold ${
+                        bookingsCount >= 5 ? 'bg-success/20 text-success border-success' :
+                        bookingsCount >= 3 ? 'bg-warning/20 text-warning border-warning' :
+                        'bg-primary/20 text-primary border-primary'
+                      }`}
+                    >
+                      {bookingsCount} {bookingsCount === 1 ? 'booking' : 'bookings'}
                     </Badge>
+                    
+                    {/* Visual density dots */}
+                    <div className="flex gap-0.5 mt-1">
+                      {Array.from({ length: Math.min(bookingsCount, 3) }).map((_, i) => (
+                        <div 
+                          key={i} 
+                          className={`w-1 h-1 rounded-full ${
+                            bookingsCount >= 5 ? 'bg-success' :
+                            bookingsCount >= 3 ? 'bg-warning' : 'bg-primary'
+                          }`}
+                        />
+                      ))}
+                      {bookingsCount > 3 && (
+                        <span className="text-[8px] text-muted-foreground ml-0.5">+{bookingsCount - 3}</span>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -199,15 +235,23 @@ export const BookingCalendar = () => {
         {/* Legend */}
         <div className="flex flex-wrap items-center gap-4 mt-6 pt-4 border-t">
           <div className="flex items-center space-x-2 text-sm">
-            <div className="w-3 h-3 rounded bg-primary"></div>
+            <div className="w-4 h-4 rounded border-2 border-primary bg-primary/20"></div>
             <span className="text-muted-foreground">Selected</span>
           </div>
           <div className="flex items-center space-x-2 text-sm">
-            <div className="w-3 h-3 rounded bg-accent/50"></div>
+            <div className="w-4 h-4 rounded ring-2 ring-accent ring-offset-2"></div>
             <span className="text-muted-foreground">Today</span>
           </div>
           <div className="flex items-center space-x-2 text-sm">
-            <AlertTriangle className="h-3 w-3 text-destructive" />
+            <div className="w-4 h-4 rounded border-2 border-success/40 bg-success/30"></div>
+            <span className="text-muted-foreground">High Demand (5+)</span>
+          </div>
+          <div className="flex items-center space-x-2 text-sm">
+            <div className="w-4 h-4 rounded border-2 border-warning/30 bg-warning/20"></div>
+            <span className="text-muted-foreground">Moderate (3-4)</span>
+          </div>
+          <div className="flex items-center space-x-2 text-sm">
+            <AlertTriangle className="h-4 w-4 text-destructive" />
             <span className="text-muted-foreground">Conflict Detected</span>
           </div>
         </div>
