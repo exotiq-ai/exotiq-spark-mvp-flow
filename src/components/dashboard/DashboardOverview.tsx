@@ -51,15 +51,15 @@ export const DashboardOverview = ({ modules, onModuleClick }: DashboardOverviewP
       <DashboardBanner />
 
       {/* Hero Metric */}
-      <Card className="card-premium bg-gradient-to-br from-primary/10 via-accent/5 to-success/10 border-primary/20 p-8">
-        <div className="flex items-start justify-between mb-6">
+      <Card className="p-8 border-2 border-border shadow-sm hover:shadow-md transition-all">
+        <div className="flex items-start justify-between mb-8">
           <div>
-            <Badge className="bg-success/20 text-success border-success/30 mb-3">
+            <Badge className="bg-success text-success-foreground border-transparent mb-4 shadow-sm">
               <Activity className="w-3 h-3 mr-1" />
               Live Today
             </Badge>
             <h2 className="text-6xl font-bold mb-2">${revenue.month.toLocaleString()}</h2>
-            <p className="text-2xl text-muted-foreground">Total Revenue This Month</p>
+            <p className="text-xl text-muted-foreground">Total Revenue This Month</p>
           </div>
           <div className="text-right">
             <div className="flex items-center text-success text-3xl font-semibold mb-2">
@@ -71,39 +71,39 @@ export const DashboardOverview = ({ modules, onModuleClick }: DashboardOverviewP
         </div>
 
         <div className="grid grid-cols-4 gap-4 mt-6">
-          <div className="bg-card/50 backdrop-blur-sm rounded-xl p-4">
-            <DollarSign className="h-5 w-5 text-success mb-2" />
+          <div className="bg-background border-2 border-border rounded-xl p-4 hover:border-success/50 transition-colors">
+            <DollarSign className="h-6 w-6 text-success mb-3" />
             <div className="text-2xl font-bold">${revenue.today.toLocaleString()}</div>
-            <div className="text-xs text-muted-foreground">Today</div>
+            <div className="text-sm text-muted-foreground mt-1">Today</div>
           </div>
-          <div className="bg-card/50 backdrop-blur-sm rounded-xl p-4">
-            <Calendar className="h-5 w-5 text-primary mb-2" />
+          <div className="bg-background border-2 border-border rounded-xl p-4 hover:border-primary/50 transition-colors">
+            <Calendar className="h-6 w-6 text-primary mb-3" />
             <div className="text-2xl font-bold">18</div>
-            <div className="text-xs text-muted-foreground">Active Bookings</div>
+            <div className="text-sm text-muted-foreground mt-1">Active Bookings</div>
           </div>
-          <div className="bg-card/50 backdrop-blur-sm rounded-xl p-4">
-            <Car className="h-5 w-5 text-accent mb-2" />
+          <div className="bg-background border-2 border-border rounded-xl p-4 hover:border-accent/50 transition-colors">
+            <Car className="h-6 w-6 text-accent mb-3" />
             <div className="text-2xl font-bold">78%</div>
-            <div className="text-xs text-muted-foreground">Utilization</div>
+            <div className="text-sm text-muted-foreground mt-1">Utilization</div>
           </div>
-          <div className="bg-card/50 backdrop-blur-sm rounded-xl p-4">
-            <TrendingUp className="h-5 w-5 text-warning mb-2" />
+          <div className="bg-background border-2 border-border rounded-xl p-4 hover:border-warning/50 transition-colors">
+            <TrendingUp className="h-6 w-6 text-warning mb-3" />
             <div className="text-2xl font-bold">$342</div>
-            <div className="text-xs text-muted-foreground">Avg Rate</div>
+            <div className="text-sm text-muted-foreground mt-1">Avg Rate</div>
           </div>
         </div>
       </Card>
 
       {/* AI Insight Widget */}
-      <Card className="card-premium bg-gradient-to-br from-accent/10 to-primary/5 border-accent/20 p-6">
+      <Card className="p-6 border-2 border-accent/30 shadow-sm hover:shadow-md transition-all">
         <div className="flex items-start space-x-4">
-          <div className="p-3 bg-accent/20 rounded-xl animate-pulse-glow">
+          <div className="p-3 bg-accent/10 border-2 border-accent/30 rounded-xl">
             <Sparkles className="h-8 w-8 text-accent" />
           </div>
           <div className="flex-1">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-xl font-semibold">FleetCopilot™ Recommendation</h3>
-              <Badge className="bg-success/20 text-success border-success/30">
+              <Badge className="bg-success text-success-foreground border-transparent shadow-sm">
                 +$2,250/mo potential
               </Badge>
             </div>
@@ -113,7 +113,7 @@ export const DashboardOverview = ({ modules, onModuleClick }: DashboardOverviewP
             </p>
             <div className="flex space-x-3">
               <Button 
-                className="btn-premium hover-scale"
+                className="hover-scale"
                 onClick={() => setShowOptimizationDialog(true)}
               >
                 <Zap className="w-4 h-4 mr-2" />
@@ -137,7 +137,7 @@ export const DashboardOverview = ({ modules, onModuleClick }: DashboardOverviewP
         {modules.map((module) => (
           <Card 
             key={module.id} 
-            className="card-module cursor-pointer hover-scale focus-visible"
+            className="p-6 border-2 border-border hover:border-primary/50 shadow-sm hover:shadow-md transition-all cursor-pointer focus-visible transform hover:-translate-y-1"
             onClick={() => onModuleClick(module.id)}
             tabIndex={0}
             role="button"
@@ -149,7 +149,7 @@ export const DashboardOverview = ({ modules, onModuleClick }: DashboardOverviewP
               }
             }}
           >
-            <div className={`p-4 rounded-xl ${module.bgColor} mb-4 w-fit`}>
+            <div className={`p-4 rounded-xl border-2 ${module.color.replace('text-', 'border-')} bg-background mb-4 w-fit`}>
               <module.icon className={`h-8 w-8 ${module.color}`} />
             </div>
             <h3 className="text-xl font-semibold mb-2">{module.name}</h3>

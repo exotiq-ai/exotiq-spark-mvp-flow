@@ -80,7 +80,7 @@ export const DashboardSidebar = ({ activeModule, onModuleChange }: DashboardSide
       <div className="p-4 border-b border-sidebar-border">
         {collapsed ? (
           <div className="flex justify-center">
-            <div className="w-10 h-10 bg-gradient-primary rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center shadow-sm">
               <span className="text-xl font-bold text-primary-foreground">E</span>
             </div>
           </div>
@@ -103,8 +103,8 @@ export const DashboardSidebar = ({ activeModule, onModuleChange }: DashboardSide
                 "w-full flex items-center rounded-xl transition-all duration-200 group relative",
                 collapsed ? "justify-center p-3" : "justify-start p-3 space-x-3",
                 isActive 
-                  ? "bg-gradient-to-r from-primary/20 to-primary/10 text-primary shadow-md" 
-                  : "hover:bg-sidebar-accent text-sidebar-foreground"
+                  ? "bg-primary text-primary-foreground shadow-md" 
+                  : "hover:bg-muted text-foreground"
               )}
               title={collapsed ? module.name : undefined}
             >
