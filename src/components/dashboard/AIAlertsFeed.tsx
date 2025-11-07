@@ -1,8 +1,10 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { 
   AlertTriangle, 
   TrendingUp, 
@@ -11,11 +13,15 @@ import {
   Bell,
   X,
   ArrowRight,
-  Sparkles
+  Sparkles,
+  Volume2,
+  VolumeX
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFleet } from "@/contexts/FleetContext";
 import { differenceInDays, differenceInHours, isBefore, addDays } from "date-fns";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface AIAlert {
   id: string;
@@ -168,9 +174,16 @@ export const AIAlertsFeed = ({ onNavigate, className }: AIAlertsFeedProps) => {
     documents, 
     damageClaims
   } = useFleet();
+  const { toast } = useToast();
   
   const [collapsed, setCollapsed] = useState(false);
   const [dismissedAlertIds, setDismissedAlertIds] = useState<Set<string>>(new Set());
+  const [voiceAlertsEnabled, setVoiceAlertsEnabled] = useState(() => {
+    return localStorage.getItem('voiceAlertsEnabled') === 'true';
+  });
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const announcedAlertsRef = useRef<Set<string>>(new Set());
+  const audioQueueRef = useRef<string[]>([]);
 
   // Generate alerts from real data
   const generatedAlerts = useMemo(() => {
@@ -188,6 +201,74 @@ export const AIAlertsFeed = ({ onNavigate, className }: AIAlertsFeedProps) => {
     return generatedAlerts.filter(alert => !dismissedAlertIds.has(alert.id));
   }, [generatedAlerts, dismissedAlertIds]);
 
+  // Save voice alerts preference
+  useEffect(() => {
+    localStorage.setItem('voiceAlertsEnabled', voiceAlertsEnabled.toString());
+  }, [voiceAlertsEnabled]);
+
+  // Play audio from queue
+  const playNextInQueue = async () => {
+    if (audioQueueRef.current.length === 0) {
+      setIsPlayingAudio(false);
+      return;
+    }
+
+    const text = audioQueueRef.current.shift()!;
+    setIsPlayingAudio(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('text-to-speech', {
+        body: { text, voice: 'Aria' }
+      });
+
+      if (error) throw error;
+
+      if (data?.audioContent) {
+        const audio = new Audio(`data:audio/mpeg;base64,${data.audioContent}`);
+        audio.onended = () => playNextInQueue();
+        audio.onerror = () => {
+          console.error('Error playing audio');
+          playNextInQueue();
+        };
+        await audio.play();
+      } else {
+        playNextInQueue();
+      }
+    } catch (error) {
+      console.error('Error generating speech:', error);
+      toast({
+        title: "Voice Alert Error",
+        description: "Could not play voice alert. Check console for details.",
+        variant: "destructive"
+      });
+      playNextInQueue();
+    }
+  };
+
+  // Announce new critical/high alerts
+  useEffect(() => {
+    if (!voiceAlertsEnabled) return;
+
+    const criticalAndHighAlerts = alerts.filter(
+      alert => (alert.type === 'critical' || alert.type === 'high') && 
+               !announcedAlertsRef.current.has(alert.id)
+    );
+
+    if (criticalAndHighAlerts.length === 0) return;
+
+    // Mark alerts as announced
+    criticalAndHighAlerts.forEach(alert => {
+      announcedAlertsRef.current.add(alert.id);
+      const announcement = `${alert.type === 'critical' ? 'Critical alert' : 'High priority alert'}. ${alert.title}. ${alert.description}`;
+      audioQueueRef.current.push(announcement);
+    });
+
+    // Start playing if not already playing
+    if (!isPlayingAudio && audioQueueRef.current.length > 0) {
+      playNextInQueue();
+    }
+  }, [alerts, voiceAlertsEnabled, isPlayingAudio]);
+
   // Reset dismissed alerts when new data comes in
   useEffect(() => {
     // Clear dismissed alerts older than 24 hours
@@ -199,6 +280,12 @@ export const AIAlertsFeed = ({ onNavigate, className }: AIAlertsFeedProps) => {
       })
     );
     setDismissedAlertIds(validDismissed);
+    
+    // Clear old announced alerts
+    const currentAlertIds = new Set(generatedAlerts.map(a => a.id));
+    announcedAlertsRef.current = new Set(
+      Array.from(announcedAlertsRef.current).filter(id => currentAlertIds.has(id))
+    );
   }, [generatedAlerts]);
 
   const dismissAlert = (id: string) => {
@@ -267,7 +354,7 @@ export const AIAlertsFeed = ({ onNavigate, className }: AIAlertsFeedProps) => {
       className
     )}>
       <div className="p-4 border-b border-border bg-muted/30">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-accent" />
             <h3 className="text-h3">AI Insights</h3>
@@ -288,9 +375,34 @@ export const AIAlertsFeed = ({ onNavigate, className }: AIAlertsFeedProps) => {
             </Button>
           </div>
         </div>
-        <p className="text-small text-muted-foreground mt-1">
-          Proactive recommendations for your fleet
-        </p>
+        
+        <div className="flex items-center justify-between">
+          <p className="text-small text-muted-foreground">
+            Proactive recommendations for your fleet
+          </p>
+          <div className="flex items-center gap-2">
+            <Label htmlFor="voice-alerts" className="text-xs text-muted-foreground cursor-pointer">
+              {voiceAlertsEnabled ? (
+                <Volume2 className="w-4 h-4 text-primary" />
+              ) : (
+                <VolumeX className="w-4 h-4" />
+              )}
+            </Label>
+            <Switch
+              id="voice-alerts"
+              checked={voiceAlertsEnabled}
+              onCheckedChange={setVoiceAlertsEnabled}
+              className="scale-75"
+            />
+          </div>
+        </div>
+        
+        {isPlayingAudio && (
+          <div className="mt-2 flex items-center gap-2 text-xs text-primary">
+            <Volume2 className="w-3 h-3 animate-pulse" />
+            <span>Playing alert...</span>
+          </div>
+        )}
       </div>
 
       <ScrollArea className="h-[400px]">
