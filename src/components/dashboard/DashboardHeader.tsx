@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { GlobalSearch } from "@/components/common/GlobalSearch";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 // import { NotificationCenter } from "@/components/common/NotificationCenter";
 
 export const DashboardHeader = () => {
@@ -32,6 +33,7 @@ export const DashboardHeader = () => {
 
         <div className="flex items-center space-x-2">
           {/* <NotificationCenter /> */}
+          <ThemeToggle />
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

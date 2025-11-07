@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Logo } from "@/components/ui/logo";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Menu } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
@@ -44,10 +45,11 @@ export const Navigation = ({ onRequestAccess, onTryDemo, scrollToSection }: Navi
           </div>
           
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-8">
-            <button onClick={() => handleNavClick('features')} className="text-muted-foreground hover:text-foreground transition-smooth focus-visible">Features</button>
-            <button onClick={() => handleNavClick('pricing')} className="text-muted-foreground hover:text-foreground transition-smooth focus-visible">Pricing</button>
-            <button onClick={() => handleNavClick('testimonials')} className="text-muted-foreground hover:text-foreground transition-smooth focus-visible">Testimonials</button>
+          <div className="hidden md:flex items-center space-x-4">
+            <button onClick={() => handleNavClick('features')} className="text-muted-foreground hover:text-foreground transition-smooth focus-visible px-3">Features</button>
+            <button onClick={() => handleNavClick('pricing')} className="text-muted-foreground hover:text-foreground transition-smooth focus-visible px-3">Pricing</button>
+            <button onClick={() => handleNavClick('testimonials')} className="text-muted-foreground hover:text-foreground transition-smooth focus-visible px-3">Testimonials</button>
+            <ThemeToggle />
             <Link to="/dashboard">
               <Button variant="outline" className="mr-2">Sign In</Button>
             </Link>
@@ -91,7 +93,11 @@ export const Navigation = ({ onRequestAccess, onTryDemo, scrollToSection }: Navi
                   >
                     Testimonials
                   </button>
-                  <div className="flex flex-col space-y-4 pt-4">
+                  <div className="flex items-center justify-between pt-4 pb-2 border-t">
+                    <span className="text-sm text-muted-foreground">Theme</span>
+                    <ThemeToggle />
+                  </div>
+                  <div className="flex flex-col space-y-4">
                     <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)}>
                       <Button variant="outline" className="w-full">Sign In</Button>
                     </Link>
