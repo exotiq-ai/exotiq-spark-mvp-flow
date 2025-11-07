@@ -100,11 +100,11 @@ export const DashboardSidebar = ({ activeModule, onModuleChange }: DashboardSide
               key={module.id}
               onClick={() => onModuleChange(module.id)}
               className={cn(
-                "w-full flex items-center rounded-xl transition-all duration-200 group relative",
+                "w-full flex items-center rounded-xl transition-all duration-200 group relative backdrop-blur-xl",
                 collapsed ? "justify-center p-3" : "justify-start p-3 space-x-3",
                 isActive 
-                  ? "bg-primary text-primary-foreground shadow-md" 
-                  : "hover:bg-muted text-foreground"
+                  ? "bg-primary/10 border border-primary/30 shadow-lg dark:bg-primary/20 dark:border-primary/40 dark:shadow-[0_0_20px_rgba(59,130,246,0.3)]" 
+                  : "hover:bg-white/5 dark:hover:bg-white/5 border border-transparent hover:border-white/10"
               )}
               title={collapsed ? module.name : undefined}
             >
