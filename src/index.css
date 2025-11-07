@@ -7,33 +7,54 @@
 
 @layer base {
   :root {
-    /* Core Brand Colors - Modern Sophisticated Palette */
+    /* ============================================
+       RATIONALIZED COLOR SYSTEM
+       ============================================
+       USE THESE COLORS SEMANTICALLY:
+       
+       PRIMARY: Main brand actions, primary CTAs, key features
+       SECONDARY: Less prominent actions, supporting UI elements
+       ACCENT: Special highlights (AI features, premium elements)
+       SUCCESS: Positive states, confirmations, completed actions
+       WARNING: Cautionary states, pending items, attention needed
+       DESTRUCTIVE: Errors, deletions, critical warnings
+       ============================================ */
+    
+    /* Core Surfaces */
     --background: 0 0% 100%;
     --foreground: 220 13% 9%;
     
-    /* Primary - Deep Slate Blue */
+    /* Primary Brand - Deep Slate Blue
+       USE FOR: Main navigation, primary buttons, key actions, module highlights */
     --primary: 221 83% 53%;
     --primary-foreground: 0 0% 100%;
     --primary-dark: 221 83% 43%;
     --primary-light: 221 83% 63%;
     
-    /* Secondary - Refined Gray */
+    /* Secondary - Refined Gray
+       USE FOR: Secondary buttons, less prominent actions, supporting UI */
     --secondary: 220 9% 46%;
     --secondary-foreground: 0 0% 100%;
     
-    /* Accent - Vibrant Blue */
-    --accent: 217 91% 60%;
+    /* Accent - Vibrant Highlight
+       USE FOR: AI features, special promotions, premium highlights only */
+    --accent: 262 83% 58%;
     --accent-foreground: 0 0% 100%;
     
-    /* Success - Modern Green */
-    --success: 142 76% 36%;
+    /* Semantic Colors - State Indicators */
+    
+    /* Success - Green
+       USE FOR: Success states, confirmations, positive metrics only */
+    --success: 142 71% 45%;
     --success-foreground: 0 0% 100%;
     
-    /* Warning - Warm Orange */
-    --warning: 32 95% 44%;
+    /* Warning - Orange
+       USE FOR: Warnings, pending states, caution notices only */
+    --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
     
-    /* Destructive - Modern Red */
+    /* Destructive - Red
+       USE FOR: Errors, deletions, critical warnings only */
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
@@ -86,6 +107,7 @@
     --popover: 220 15% 12%;
     --popover-foreground: 210 40% 98%;
 
+    /* Same color strategy applies in dark mode */
     --primary: 221 83% 53%;
     --primary-foreground: 0 0% 100%;
     --primary-dark: 221 83% 43%;
@@ -94,13 +116,13 @@
     --secondary: 220 13% 25%;
     --secondary-foreground: 210 40% 98%;
 
-    --accent: 217 91% 60%;
+    --accent: 262 83% 58%;
     --accent-foreground: 0 0% 100%;
 
-    --success: 142 76% 36%;
+    --success: 142 71% 45%;
     --success-foreground: 0 0% 100%;
 
-    --warning: 32 95% 44%;
+    --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
 
     --destructive: 0 84% 60%;
@@ -138,17 +160,57 @@
 }
 
 @layer components {
-  /* Typography */
+  /* ============================================
+     TYPOGRAPHY HIERARCHY
+     ============================================ */
+  
   .font-inter {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
   }
   
-  /* Shadows */
+  /* Hero - For main dashboard metrics and hero sections */
+  .text-hero {
+    @apply text-6xl font-bold tracking-tight;
+  }
+  
+  /* H1 - Page titles and main headings */
+  .text-h1 {
+    @apply text-4xl font-bold tracking-tight;
+  }
+  
+  /* H2 - Section headers within pages */
+  .text-h2 {
+    @apply text-2xl font-semibold tracking-tight;
+  }
+  
+  /* H3 - Card titles and subsection headers */
+  .text-h3 {
+    @apply text-xl font-semibold tracking-tight;
+  }
+  
+  /* Body - Base text (default, no class needed) */
+  /* Small - Secondary information */
+  .text-small {
+    @apply text-sm;
+  }
+  
+  /* Tiny - Labels and minimal text */
+  .text-tiny {
+    @apply text-xs;
+  }
+  
+  /* ============================================
+     SHADOWS & EFFECTS
+     ============================================ */
+  
   .shadow-premium {
     box-shadow: var(--shadow-premium);
   }
   
-  /* Transitions */
+  /* ============================================
+     TRANSITIONS
+     ============================================ */
+  
   .transition-smooth {
     transition: var(--transition-smooth);
   }
@@ -157,22 +219,24 @@
     transition: var(--transition-fast);
   }
   
-  /* Button Variants */
+  /* ============================================
+     BUTTON PATTERNS (Use shadcn variants instead)
+     ============================================ */
+  
   .btn-premium {
     @apply bg-primary text-primary-foreground px-6 py-3 rounded-xl font-medium shadow-md hover:shadow-lg transition-smooth hover:bg-primary-dark;
   }
   
-  .btn-accent {
-    @apply bg-accent text-accent-foreground px-6 py-3 rounded-xl font-medium shadow-md hover:shadow-lg transition-smooth hover:brightness-110;
-  }
+  /* ============================================
+     CARD PATTERNS
+     ============================================ */
   
-  /* Cards */
   .card-premium {
-    @apply bg-card border border-border rounded-2xl p-6 shadow-md hover:shadow-lg transition-smooth;
+    @apply bg-card border-2 border-border rounded-2xl p-6 shadow-sm hover:shadow-md transition-smooth;
   }
   
   .card-module {
-    @apply bg-card border border-border rounded-2xl p-8 shadow-lg hover:shadow-xl transition-smooth transform hover:-translate-y-1;
+    @apply bg-card border-2 border-border rounded-2xl p-8 shadow-md hover:shadow-lg transition-smooth transform hover:-translate-y-1;
   }
 
   /* Glassmorphism Components */
@@ -185,11 +249,15 @@
     @apply bg-background/80 backdrop-blur-lg border-b border-border/50;
   }
   
-  /* Dashboard Elements */
+  /* ============================================
+     DASHBOARD PATTERNS
+     ============================================ */
+  
   .stat-card {
-    @apply bg-card border border-border rounded-xl p-6 shadow-sm hover:shadow-md transition-smooth;
+    @apply bg-card border-2 border-border rounded-xl p-6 shadow-sm hover:shadow-md transition-smooth;
   }
   
+  /* Use semantic colors for metrics */
   .metric-positive {
     @apply text-success;
   }
