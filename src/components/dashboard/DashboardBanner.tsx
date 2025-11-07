@@ -5,14 +5,30 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import defaultBanner from "@/assets/dashboard-banner.jpg";
 
+const motivationalLines = [
+  "Keep optimizing. Every insight brings your fleet closer to peak performance.",
+  "Momentum matters—your business is growing. Let's keep the throttle open.",
+  "Steady growth ahead. You're building something incredible, one trip at a time.",
+  "Precision. Performance. Progress."
+];
+
 export const DashboardBanner = () => {
   const [bannerUrl, setBannerUrl] = useState<string>(defaultBanner);
   const [isUploading, setIsUploading] = useState(false);
   const [showUploadButton, setShowUploadButton] = useState(false);
+  const [currentLineIndex, setCurrentLineIndex] = useState(0);
   const { toast } = useToast();
 
   useEffect(() => {
     loadUserBanner();
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentLineIndex((prev) => (prev + 1) % motivationalLines.length);
+    }, 5000); // Change every 5 seconds
+
+    return () => clearInterval(interval);
   }, []);
 
   const loadUserBanner = async () => {
@@ -158,7 +174,7 @@ export const DashboardBanner = () => {
           alt="Dashboard Banner" 
           className="w-full h-full object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-background/20 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/40 to-background/10" />
       </div>
 
       {/* Upload Controls */}
@@ -207,8 +223,13 @@ export const DashboardBanner = () => {
 
       {/* Welcome Text */}
       <div className="absolute bottom-6 left-6 text-white">
-        <h1 className="text-3xl font-bold drop-shadow-lg">Welcome to Your Fleet</h1>
-        <p className="text-sm mt-1 drop-shadow-md">Manage your luxury vehicle collection with ExotIQ.ai</p>
+        <h1 className="text-3xl font-bold drop-shadow-lg">Welcome to Your Command Center</h1>
+        <p 
+          key={currentLineIndex}
+          className="text-sm mt-1 drop-shadow-md animate-fade-in"
+        >
+          {motivationalLines[currentLineIndex]}
+        </p>
       </div>
     </div>
   );

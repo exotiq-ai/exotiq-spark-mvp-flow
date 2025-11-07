@@ -54,9 +54,10 @@ export const DashboardOverview = ({ modules, onModuleClick }: DashboardOverviewP
       <Card className="p-8 border-2 border-border shadow-sm hover:shadow-md transition-all">
         <div className="flex items-start justify-between mb-8">
           <div>
-            <Badge className="bg-success text-success-foreground border-transparent mb-4 shadow-sm">
-              <Activity className="w-3 h-3 mr-1" />
-              Live Today
+            <Badge className="bg-success text-success-foreground border-transparent mb-4 shadow-sm relative">
+              <Activity className="w-3 h-3 mr-1 animate-pulse" />
+              System Live
+              <div className="absolute -bottom-1 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-green-400 to-transparent animate-pulse" />
             </Badge>
             <h2 className="text-6xl font-bold mb-2">${revenue.month.toLocaleString()}</h2>
             <p className="text-xl text-muted-foreground">Total Revenue This Month</p>
@@ -71,25 +72,37 @@ export const DashboardOverview = ({ modules, onModuleClick }: DashboardOverviewP
         </div>
 
         <div className="grid grid-cols-4 gap-4 mt-6">
-          <div className="bg-background border-2 border-border rounded-xl p-4 hover:border-success/50 transition-colors">
+          <div className="bg-background border-2 border-border rounded-xl p-4 hover:border-success/50 transition-all group cursor-pointer">
             <DollarSign className="h-6 w-6 text-success mb-3" />
             <div className="text-2xl font-bold">${revenue.today.toLocaleString()}</div>
             <div className="text-sm text-muted-foreground mt-1">Today</div>
+            <div className="h-1 w-full bg-muted rounded-full mt-3 overflow-hidden opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="h-full bg-success rounded-full animate-fade-in" style={{ width: '67%' }} />
+            </div>
           </div>
-          <div className="bg-background border-2 border-border rounded-xl p-4 hover:border-primary/50 transition-colors">
+          <div className="bg-background border-2 border-border rounded-xl p-4 hover:border-primary/50 transition-all group cursor-pointer">
             <Calendar className="h-6 w-6 text-primary mb-3" />
             <div className="text-2xl font-bold">18</div>
             <div className="text-sm text-muted-foreground mt-1">Active Bookings</div>
+            <div className="h-1 w-full bg-muted rounded-full mt-3 overflow-hidden opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="h-full bg-primary rounded-full animate-fade-in" style={{ width: '72%' }} />
+            </div>
           </div>
-          <div className="bg-background border-2 border-border rounded-xl p-4 hover:border-accent/50 transition-colors">
+          <div className="bg-background border-2 border-border rounded-xl p-4 hover:border-accent/50 transition-all group cursor-pointer">
             <Car className="h-6 w-6 text-accent mb-3" />
             <div className="text-2xl font-bold">78%</div>
             <div className="text-sm text-muted-foreground mt-1">Utilization</div>
+            <div className="h-1 w-full bg-muted rounded-full mt-3 overflow-hidden opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="h-full bg-accent rounded-full animate-fade-in" style={{ width: '78%' }} />
+            </div>
           </div>
-          <div className="bg-background border-2 border-border rounded-xl p-4 hover:border-warning/50 transition-colors">
+          <div className="bg-background border-2 border-border rounded-xl p-4 hover:border-warning/50 transition-all group cursor-pointer">
             <TrendingUp className="h-6 w-6 text-warning mb-3" />
             <div className="text-2xl font-bold">$342</div>
             <div className="text-sm text-muted-foreground mt-1">Avg Rate</div>
+            <div className="h-1 w-full bg-muted rounded-full mt-3 overflow-hidden opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="h-full bg-warning rounded-full animate-fade-in" style={{ width: '85%' }} />
+            </div>
           </div>
         </div>
       </Card>
