@@ -108,10 +108,19 @@ export const DashboardSidebar = ({ activeModule, onModuleChange }: DashboardSide
               )}
               title={collapsed ? module.name : undefined}
             >
-              <module.icon className={cn(
-                "h-5 w-5 transition-colors",
-                isActive ? "text-primary" : module.color
-              )} />
+              <div className={cn(
+                "relative p-2 rounded-lg transition-all duration-300",
+                "dark:bg-white/5 dark:backdrop-blur-sm dark:border dark:border-white/10",
+                "dark:shadow-[0_0_15px_rgba(255,255,255,0.1)]",
+                "group-hover:dark:bg-white/10 group-hover:dark:shadow-[0_0_20px_rgba(255,255,255,0.15)]",
+                isActive && "dark:bg-primary/20 dark:border-primary/30 dark:shadow-[0_0_20px_rgba(59,130,246,0.3)]"
+              )}>
+                <module.icon className={cn(
+                  "h-5 w-5 transition-colors relative z-10",
+                  isActive ? "text-primary dark:drop-shadow-[0_0_8px_rgba(59,130,246,0.8)]" : module.color,
+                  "dark:drop-shadow-[0_0_6px_rgba(255,255,255,0.3)]"
+                )} />
+              </div>
               
               {!collapsed && (
                 <>
@@ -151,8 +160,15 @@ export const DashboardSidebar = ({ activeModule, onModuleChange }: DashboardSide
           "flex items-center rounded-xl p-3 hover:bg-sidebar-accent transition-colors cursor-pointer",
           collapsed ? "justify-center" : "space-x-3"
         )}>
-          <div className="w-8 h-8 bg-gradient-primary rounded-full flex items-center justify-center flex-shrink-0">
-            <User className="h-4 w-4 text-primary-foreground" />
+          <div className={cn(
+            "w-8 h-8 bg-primary rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-300",
+            "dark:bg-white/10 dark:backdrop-blur-sm dark:border dark:border-white/20",
+            "dark:shadow-[0_0_15px_rgba(255,255,255,0.15)]"
+          )}>
+            <User className={cn(
+              "h-4 w-4 text-primary-foreground",
+              "dark:drop-shadow-[0_0_6px_rgba(255,255,255,0.4)]"
+            )} />
           </div>
           
           {!collapsed && (
