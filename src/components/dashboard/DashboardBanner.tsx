@@ -174,7 +174,7 @@ export const DashboardBanner = () => {
           alt="Dashboard Banner" 
           className="w-full h-full object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/40 to-background/10" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
       </div>
 
       {/* Upload Controls */}
@@ -223,10 +223,10 @@ export const DashboardBanner = () => {
 
       {/* Welcome Text */}
       <div className="absolute bottom-6 left-6 text-white">
-        <h1 className="text-3xl font-bold drop-shadow-lg">Welcome to Your Command Center</h1>
+        <h1 className="text-3xl font-bold drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">Welcome to Your Command Center</h1>
         <p 
           key={currentLineIndex}
-          className="text-sm mt-1 drop-shadow-md animate-fade-in"
+          className="text-sm mt-1 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] animate-fade-in"
         >
           {motivationalLines[currentLineIndex]}
         </p>
