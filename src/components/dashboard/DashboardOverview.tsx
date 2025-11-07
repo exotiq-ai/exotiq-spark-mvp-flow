@@ -158,7 +158,7 @@ export const DashboardOverview = ({ modules, onModuleClick }: DashboardOverviewP
         {modules.map((module) => (
           <Card 
             key={module.id} 
-            className="p-6 border-2 border-border hover:border-primary/50 shadow-sm hover:shadow-md transition-all cursor-pointer focus-visible transform hover:-translate-y-1"
+            className="p-6 border-2 border-border hover:border-primary/50 shadow-sm hover:shadow-md transition-all cursor-pointer transform hover:-translate-y-1"
             onClick={() => onModuleClick(module.id)}
             tabIndex={0}
             role="button"
@@ -170,11 +170,13 @@ export const DashboardOverview = ({ modules, onModuleClick }: DashboardOverviewP
               }
             }}
           >
-            <div className={`p-4 rounded-xl border-2 ${module.color.replace('text-', 'border-')} bg-background mb-4 w-fit`}>
+            <div className={`p-4 rounded-xl border-2 ${
+              module.color === 'text-primary' ? 'border-primary bg-primary/10' : 'border-secondary bg-secondary/10'
+            } mb-4 w-fit`}>
               <module.icon className={`h-8 w-8 ${module.color}`} />
             </div>
-            <h3 className="text-xl font-semibold mb-2">{module.name}</h3>
-            <p className="text-muted-foreground mb-4">{module.description}</p>
+            <h3 className="text-h3 mb-2">{module.name}</h3>
+            <p className="text-small text-muted-foreground mb-4">{module.description}</p>
             <Button variant="outline" className="w-full">
               Open Module
               <ArrowRight className="w-4 h-4 ml-2" />

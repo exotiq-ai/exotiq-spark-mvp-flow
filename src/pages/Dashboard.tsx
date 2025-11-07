@@ -88,15 +88,15 @@ const Dashboard = () => {
       name: "MotorIQ",
       icon: TrendingUp,
       description: "AI Pricing Optimization",
-      color: "text-success",
-      bgColor: "bg-success/10"
+      color: "text-primary", // Primary - Core Operations
+      bgColor: "bg-primary/10"
     },
     {
       id: "pulse",
       name: "Pulse",
       icon: BarChart3,
       description: "Live Analytics & Telematics",
-      color: "text-primary",
+      color: "text-primary", // Primary - Core Operations
       bgColor: "bg-primary/10"
     },
     {
@@ -104,24 +104,24 @@ const Dashboard = () => {
       name: "Book",
       icon: Calendar,
       description: "Booking Management",
-      color: "text-accent",
-      bgColor: "bg-accent/10"
+      color: "text-secondary", // Secondary - Management
+      bgColor: "bg-secondary/10"
     },
     {
       id: "vault",
       name: "Vault",
       icon: Shield,
       description: "Compliance & Docs",
-      color: "text-warning",
-      bgColor: "bg-warning/10"
+      color: "text-secondary", // Secondary - Management
+      bgColor: "bg-secondary/10"
     },
     {
       id: "core",
       name: "FleetCopilot™",
       icon: Brain,
       description: "AI Control Center",
-      color: "text-destructive",
-      bgColor: "bg-destructive/10"
+      color: "text-primary", // Primary - Core Operations (AI)
+      bgColor: "bg-primary/10"
     }
   ];
 

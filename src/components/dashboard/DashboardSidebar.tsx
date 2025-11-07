@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Logo } from "@/components/ui/logo";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { 
@@ -29,43 +28,37 @@ export const DashboardSidebar = ({ activeModule, onModuleChange }: DashboardSide
       id: "dashboard", 
       name: "Dashboard", 
       icon: Home, 
-      badge: null,
       color: "text-primary"
     },
     { 
       id: "core", 
       name: "FleetCopilot™", 
       icon: Brain, 
-      badge: "AI",
-      color: "text-destructive"
-    },
-    { 
-      id: "book", 
-      name: "Book", 
-      icon: Calendar, 
-      badge: "8",
-      color: "text-accent"
+      color: "text-primary" // Primary - Core Operations
     },
     { 
       id: "pulse", 
       name: "Pulse", 
       icon: BarChart3, 
-      badge: "Live",
-      color: "text-primary"
+      color: "text-primary" // Primary - Core Operations
     },
     { 
       id: "motoriq", 
       name: "MotorIQ", 
       icon: TrendingUp, 
-      badge: "+12%",
-      color: "text-success"
+      color: "text-primary" // Primary - Core Operations
+    },
+    { 
+      id: "book", 
+      name: "Book", 
+      icon: Calendar, 
+      color: "text-secondary" // Secondary - Management
     },
     { 
       id: "vault", 
       name: "Vault", 
       icon: Shield, 
-      badge: "24",
-      color: "text-warning"
+      color: "text-secondary" // Secondary - Management
     }
   ];
 
@@ -100,54 +93,32 @@ export const DashboardSidebar = ({ activeModule, onModuleChange }: DashboardSide
               key={module.id}
               onClick={() => onModuleChange(module.id)}
               className={cn(
-                "w-full flex items-center rounded-xl transition-all duration-200 group relative backdrop-blur-xl",
+                "w-full flex items-center rounded-lg transition-all duration-200 group relative",
+                "min-h-[44px]", // Touch-friendly 44px minimum
                 collapsed ? "justify-center p-3" : "justify-start p-3 space-x-3",
                 isActive 
-                  ? "bg-primary/10 border border-primary/30 shadow-lg dark:bg-primary/20 dark:border-primary/40 dark:shadow-[0_0_20px_rgba(59,130,246,0.3)]" 
-                  : "hover:bg-white/5 dark:hover:bg-white/5 border border-transparent hover:border-white/10"
+                  ? "bg-sidebar-accent border-l-4 border-primary" 
+                  : "hover:bg-sidebar-accent/50 border-l-4 border-transparent hover:border-border"
               )}
               title={collapsed ? module.name : undefined}
             >
               <div className={cn(
-                "relative p-2 rounded-lg transition-all duration-300",
-                "dark:bg-white/5 dark:backdrop-blur-sm dark:border dark:border-white/10",
-                "dark:shadow-[0_0_15px_rgba(255,255,255,0.1)]",
-                "group-hover:dark:bg-white/10 group-hover:dark:shadow-[0_0_20px_rgba(255,255,255,0.15)]",
-                isActive && "dark:bg-primary/20 dark:border-primary/30 dark:shadow-[0_0_20px_rgba(59,130,246,0.3)]"
+                "p-2 rounded-lg transition-all",
+                isActive && "bg-primary/10"
               )}>
                 <module.icon className={cn(
-                  "h-5 w-5 transition-colors relative z-10",
-                  isActive ? "text-primary dark:drop-shadow-[0_0_8px_rgba(59,130,246,0.8)]" : module.color,
-                  "dark:drop-shadow-[0_0_6px_rgba(255,255,255,0.3)]"
+                  "h-5 w-5 transition-colors",
+                  isActive ? "text-primary" : module.color
                 )} />
               </div>
               
               {!collapsed && (
-                <>
-                  <span className="flex-1 text-left font-medium text-sm">
-                    {module.name}
-                  </span>
-                  
-                  {module.badge && (
-                    <Badge 
-                      variant="secondary" 
-                      className={cn(
-                        "text-xs px-2 py-0",
-                        isActive && "bg-primary/20 text-primary border-primary/30"
-                      )}
-                    >
-                      {module.badge}
-                    </Badge>
-                  )}
-                </>
-              )}
-
-              {collapsed && module.badge && (
-                <div className="absolute -top-1 -right-1 w-4 h-4 bg-primary rounded-full flex items-center justify-center">
-                  <span className="text-[8px] text-primary-foreground font-bold">
-                    {module.badge.length > 2 ? '9+' : module.badge}
-                  </span>
-                </div>
+                <span className={cn(
+                  "flex-1 text-left font-medium text-sm",
+                  isActive && "text-primary"
+                )}>
+                  {module.name}
+                </span>
               )}
             </button>
           );
