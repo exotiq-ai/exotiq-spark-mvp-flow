@@ -25,7 +25,8 @@ import {
   Users,
   Plus,
   Receipt,
-  ClipboardCheck
+  ClipboardCheck,
+  ZoomIn
 } from "lucide-react";
 import { Tables } from "@/integrations/supabase/types";
 
@@ -203,17 +204,24 @@ export const BookEnhanced = () => {
           </div>
 
           <div className="space-y-4">
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-4">
               {getVehicleImage("Audi S8 Plus") ? (
-                <img 
-                  src={getVehicleImage("Audi S8 Plus")} 
-                  alt="Audi S8"
-                  className="h-14 w-14 rounded-lg object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                <div 
+                  className="relative group cursor-pointer"
                   onClick={() => handleVehicleClick(nextBooking.vehicle_id)}
-                />
+                >
+                  <img 
+                    src={getVehicleImage("Audi S8 Plus")} 
+                    alt="Audi S8"
+                    className="h-24 w-24 rounded-xl object-cover transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg"
+                  />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-xl transition-all duration-300 flex items-center justify-center">
+                    <ZoomIn className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  </div>
+                </div>
               ) : (
-                <div className="p-2 bg-primary/20 rounded-lg">
-                  <Car className="h-6 w-6 text-primary" />
+                <div className="p-3 bg-primary/20 rounded-xl">
+                  <Car className="h-8 w-8 text-primary" />
                 </div>
               )}
               <div className="min-w-0 flex-1">
