@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useFleet } from "@/contexts/FleetContext";
 import { AskRariButton } from "@/components/common/AskRariButton";
 import { AskRariQuickAction } from "@/components/common/AskRariQuickAction";
+import { SkeletonCard, SkeletonMetric } from "@/components/ui/skeleton-card";
 import { 
   Brain, 
   Zap, 
@@ -32,7 +33,7 @@ import { UserManagementSection } from "@/components/dashboard/UserManagementSect
 import { SystemSettingsSection } from "@/components/dashboard/SystemSettingsSection";
 
 export const CoreEnhanced = () => {
-  const { vehicles, bookings, createVehicle, createBooking, createMaintenance, sendMessage, generateReport, applyPriceOptimization } = useFleet();
+  const { vehicles, bookings, createVehicle, createBooking, createMaintenance, sendMessage, generateReport, applyPriceOptimization, loading } = useFleet();
   
   const [showAddVehicle, setShowAddVehicle] = useState(false);
   const [showCreateBooking, setShowCreateBooking] = useState(false);
@@ -158,6 +159,20 @@ export const CoreEnhanced = () => {
       default: return 'bg-muted/10 text-muted-foreground border-muted/20';
     }
   };
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <SkeletonCard />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <SkeletonMetric />
+          <SkeletonMetric />
+          <SkeletonMetric />
+        </div>
+        <SkeletonCard />
+      </div>
+    );
+  }
 
   return (
     <>

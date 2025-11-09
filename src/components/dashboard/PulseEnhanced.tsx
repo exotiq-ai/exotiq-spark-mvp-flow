@@ -4,6 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { DriverPerformanceTrend } from "@/components/charts/DriverPerformanceTrend";
 import { AskRariButton } from "@/components/common/AskRariButton";
 import { AskRariQuickAction } from "@/components/common/AskRariQuickAction";
+import { SkeletonCard, SkeletonMetric } from "@/components/ui/skeleton-card";
+import { useFleet } from "@/contexts/FleetContext";
 import { useNavigate } from "react-router-dom";
 import { 
   Activity, 
@@ -17,6 +19,7 @@ import {
 } from "lucide-react";
 
 export const PulseEnhanced = () => {
+  const { loading } = useFleet();
   const navigate = useNavigate();
   
   const todayRevenue = {
@@ -70,10 +73,27 @@ export const PulseEnhanced = () => {
     }
   ];
 
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <SkeletonCard />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <SkeletonMetric />
+          <SkeletonMetric />
+          <SkeletonMetric />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <SkeletonCard />
+          <SkeletonCard />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Ask Rari Floating Button */}
-      <AskRariButton 
+      <AskRariButton
         moduleId="pulse" 
         moduleName="Pulse"
         contextPrompt="Ask me about driver performance metrics, live analytics, or real-time fleet monitoring."
