@@ -761,6 +761,33 @@ export type Database = {
         }
         Relationships: []
       }
+      user_dashboard_layouts: {
+        Row: {
+          created_at: string
+          id: string
+          layout_data: Json
+          updated_at: string
+          user_id: string
+          visible_widgets: Json
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          layout_data?: Json
+          updated_at?: string
+          user_id: string
+          visible_widgets?: Json
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          layout_data?: Json
+          updated_at?: string
+          user_id?: string
+          visible_widgets?: Json
+        }
+        Relationships: []
+      }
       user_dashboard_preferences: {
         Row: {
           banner_url: string | null
