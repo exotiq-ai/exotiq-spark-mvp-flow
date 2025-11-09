@@ -127,25 +127,25 @@ export const VaultEnhanced = () => {
 
         <TabsContent value="documents" className="space-y-6">
       {/* Hero - Urgent Alert */}
-      <Card className="card-premium bg-gradient-to-br from-warning/10 to-destructive/10 border-warning/20 p-8">
-        <div className="flex items-start justify-between mb-6">
+      <Card className="card-premium bg-gradient-to-br from-warning/10 to-destructive/10 border-warning/20 p-6">
+        <div className="flex items-start justify-between mb-4">
           <div>
             <Badge className="bg-destructive/20 text-destructive border-destructive/30 mb-3">
               <AlertTriangle className="w-3 h-3 mr-1" />
               Urgent Action Required
             </Badge>
-            <h2 className="text-4xl font-bold mb-2">{urgentAlert.daysLeft} Days</h2>
-            <p className="text-xl text-muted-foreground">Until Expiration</p>
+            <h2 className="text-3xl font-bold mb-2">{urgentAlert.daysLeft} Days</h2>
+            <p className="text-base text-muted-foreground">Until Expiration</p>
           </div>
-          <div className="p-4 bg-destructive/10 rounded-2xl">
-            <AlertTriangle className="h-12 w-12 text-destructive" />
+          <div className="p-3 bg-destructive/10 rounded-2xl">
+            <AlertTriangle className="h-10 w-10 text-destructive" />
           </div>
         </div>
 
-        <div className="bg-card/50 backdrop-blur-sm rounded-xl p-6 mb-4">
-          <h3 className="text-2xl font-semibold mb-2">{urgentAlert.title}</h3>
+        <div className="bg-card/50 backdrop-blur-sm rounded-xl p-4 mb-3">
+          <h3 className="text-xl font-semibold mb-2">{urgentAlert.title}</h3>
           <div className="space-y-2">
-            <p className="text-lg">{urgentAlert.document}</p>
+            <p className="text-base">{urgentAlert.document}</p>
             <p className="text-sm text-muted-foreground">Vehicle: {urgentAlert.vehicle}</p>
           </div>
         </div>
