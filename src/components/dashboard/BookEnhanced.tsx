@@ -46,10 +46,19 @@ export const BookEnhanced = () => {
     year: number;
     status: string;
     dailyRate: number;
+    utilization?: number;
+    revenue?: number;
+    returnDate?: string;
+    maintenanceAlerts?: Array<{
+      type: string;
+      description: string;
+      severity: 'low' | 'medium' | 'high';
+    }>;
   } | null>(null);
 
-  const handleVehicleClick = (vehicleId: string) => {
+  const handleVehicleClick = (vehicleId: string, returnDate?: string) => {
     const vehicle = vehicles.find(v => v.id === vehicleId);
+    
     if (vehicle) {
       setSelectedVehicle({
         name: vehicle.name,
@@ -58,6 +67,25 @@ export const BookEnhanced = () => {
         year: vehicle.year,
         status: vehicle.status,
         dailyRate: Number(vehicle.current_rate),
+        utilization: vehicle.utilization || 0,
+        revenue: Number(vehicle.revenue || 0),
+        returnDate,
+        maintenanceAlerts: [],
+      });
+      setShowVehicleImage(true);
+    } else if (vehicleId === 'f067336b-a039-429b-9d64-a17b6cce06c7') {
+      // Fallback for mock Audi S8 Plus
+      setSelectedVehicle({
+        name: 'Audi S8 Plus',
+        make: 'Audi',
+        model: 'S8 Plus',
+        year: 2017,
+        status: 'rented',
+        dailyRate: 450,
+        utilization: 85,
+        revenue: 12500,
+        returnDate,
+        maintenanceAlerts: [],
       });
       setShowVehicleImage(true);
     }
@@ -208,7 +236,7 @@ export const BookEnhanced = () => {
               {getVehicleImage("Audi S8 Plus") ? (
                 <div 
                   className="relative group cursor-pointer"
-                  onClick={() => handleVehicleClick(nextBooking.vehicle_id)}
+                  onClick={() => handleVehicleClick(nextBooking.vehicle_id, nextBooking.end_date)}
                 >
                   <img 
                     src={getVehicleImage("Audi S8 Plus")} 
@@ -227,7 +255,7 @@ export const BookEnhanced = () => {
               <div className="min-w-0 flex-1">
                 <div 
                   className="font-semibold text-base truncate cursor-pointer hover:text-primary transition-colors"
-                  onClick={() => handleVehicleClick(nextBooking.vehicle_id)}
+                  onClick={() => handleVehicleClick(nextBooking.vehicle_id, nextBooking.end_date)}
                 >
                   {getVehicleDisplay(nextBooking.vehicle_id)}
                 </div>
