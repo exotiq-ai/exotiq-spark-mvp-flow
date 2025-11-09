@@ -233,25 +233,31 @@ export const BookEnhanced = () => {
 
           <div className="space-y-4">
             <div className="flex items-center space-x-4">
-              {getVehicleImage("Audi S8 Plus") ? (
-                <div 
-                  className="relative group cursor-pointer"
-                  onClick={() => handleVehicleClick(nextBooking.vehicle_id, nextBooking.end_date)}
-                >
-                  <img 
-                    src={getVehicleImage("Audi S8 Plus")} 
-                    alt="Audi S8"
-                    className="h-24 w-24 rounded-xl object-cover transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg"
-                  />
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-xl transition-all duration-300 flex items-center justify-center">
-                    <ZoomIn className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              {(() => {
+                const vehicle = vehicles.find(v => v.id === nextBooking.vehicle_id);
+                const vehicleName = vehicle ? vehicle.name : 'Unknown Vehicle';
+                const vehicleImageUrl = getVehicleImage(vehicleName);
+                
+                return vehicleImageUrl ? (
+                  <div 
+                    className="relative group cursor-pointer"
+                    onClick={() => handleVehicleClick(nextBooking.vehicle_id, nextBooking.end_date)}
+                  >
+                    <img 
+                      src={vehicleImageUrl} 
+                      alt={vehicleName}
+                      className="h-24 w-24 rounded-xl object-cover transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg"
+                    />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-xl transition-all duration-300 flex items-center justify-center">
+                      <ZoomIn className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <div className="p-3 bg-primary/20 rounded-xl">
-                  <Car className="h-8 w-8 text-primary" />
-                </div>
-              )}
+                ) : (
+                  <div className="p-3 bg-primary/20 rounded-xl">
+                    <Car className="h-8 w-8 text-primary" />
+                  </div>
+                );
+              })()}
               <div className="min-w-0 flex-1">
                 <div 
                   className="font-semibold text-base truncate cursor-pointer hover:text-primary transition-colors"
