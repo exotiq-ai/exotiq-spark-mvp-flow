@@ -1,24 +1,81 @@
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ZAxis, Cell } from "recharts";
+import { ScatterChart, Scatter, XAxis, YAxis, ZAxis, Tooltip, ResponsiveContainer, Cell, CartesianGrid } from "recharts";
 import { useFleet } from "@/contexts/FleetContext";
+import { exportToCSV } from "@/utils/chartExport";
+import { Download, TrendingUp, AlertTriangle } from "lucide-react";
+import { PriceOptimizationDialog } from "@/components/dialogs/PriceOptimizationDialog";
+import { useToast } from "@/hooks/use-toast";
 
 export const PriceUtilizationScatterPlot = () => {
-  const { vehicles } = useFleet();
-  
+  const { vehicles, applyPriceOptimization } = useFleet();
+  const { toast } = useToast();
+  const [zoneFilter, setZoneFilter] = useState<string>('all');
+  const [selectedVehicle, setSelectedVehicle] = useState<any>(null);
+  const [showOptimization, setShowOptimization] = useState(false);
+
   // Transform vehicle data for scatter plot
-  const scatterData = vehicles
+  const allData = vehicles
     .filter(v => v.name !== 'Lotus Evija')
-    .map(vehicle => ({
-      name: `${vehicle.make} ${vehicle.model}`,
-      utilization: vehicle.utilization,
-      dailyRate: vehicle.current_rate,
-      // Determine pricing zone
-      zone: vehicle.utilization >= 70 && vehicle.current_rate >= 300 ? 'optimal' :
-            vehicle.utilization < 60 && vehicle.current_rate >= 350 ? 'overpriced' :
-            vehicle.utilization >= 70 && vehicle.current_rate < 300 ? 'underpriced' : 'balanced',
-      size: 100 // Uniform size for all points
+    .map(vehicle => {
+      const utilization = vehicle.utilization || 0;
+      const dailyRate = Number(vehicle.current_rate);
+      const suggestedRate = Number(vehicle.suggested_rate || dailyRate);
+      
+      let zone = 'balanced';
+      if (utilization > 70 && dailyRate < 400) zone = 'underpriced';
+      else if (utilization < 50 && dailyRate > 450) zone = 'overpriced';
+      else if (utilization > 70 && dailyRate > 450) zone = 'optimal';
+      
+      return {
+        name: vehicle.name,
+        utilization,
+        dailyRate,
+        suggestedRate,
+        zone,
+        vehicleData: vehicle
+      };
+    });
+
+  // Apply zone filter
+  const data = zoneFilter === 'all' 
+    ? allData 
+    : allData.filter(d => d.zone === zoneFilter);
+
+  const handleExportCSV = () => {
+    const exportData = allData.map(d => ({
+      Vehicle: d.name,
+      'Utilization %': d.utilization,
+      'Daily Rate': d.dailyRate,
+      'Suggested Rate': d.suggestedRate,
+      Zone: d.zone,
+      Revenue: d.vehicleData.revenue || 0
     }));
+    
+    exportToCSV(exportData, 'price_utilization_data');
+    
+    toast({
+      title: "Export Successful",
+      description: "Price & utilization data has been exported to CSV",
+    });
+  };
+
+  const handlePointClick = (data: any) => {
+    if (data && data.vehicleData) {
+      setSelectedVehicle(data.vehicleData);
+      setShowOptimization(true);
+    }
+  };
+
+  const zones = [
+    { value: 'all', label: 'All Zones', count: allData.length },
+    { value: 'underpriced', label: 'Underpriced', count: allData.filter(d => d.zone === 'underpriced').length, icon: TrendingUp },
+    { value: 'overpriced', label: 'Overpriced', count: allData.filter(d => d.zone === 'overpriced').length, icon: AlertTriangle },
+    { value: 'optimal', label: 'Optimal', count: allData.filter(d => d.zone === 'optimal').length },
+    { value: 'balanced', label: 'Balanced', count: allData.filter(d => d.zone === 'balanced').length }
+  ];
 
   const getZoneColor = (zone: string) => {
     switch (zone) {
@@ -31,22 +88,33 @@ export const PriceUtilizationScatterPlot = () => {
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
-      const data = payload[0].payload;
+      const dataPoint = payload[0].payload;
+      const priceDiff = dataPoint.suggestedRate - dataPoint.dailyRate;
+      
       return (
-        <div className="bg-card border border-border rounded-lg p-3 shadow-lg">
-          <p className="font-semibold mb-2">{data.name}</p>
-          <p className="text-sm text-muted-foreground">Utilization: {data.utilization}%</p>
-          <p className="text-sm text-muted-foreground">Daily Rate: ${data.dailyRate}</p>
+        <div className="bg-card border border-border rounded-lg p-3 shadow-lg max-w-xs">
+          <p className="font-semibold mb-2">{dataPoint.name}</p>
+          <div className="space-y-1 text-sm">
+            <p className="text-muted-foreground">Utilization: {dataPoint.utilization}%</p>
+            <p className="text-muted-foreground">Daily Rate: ${dataPoint.dailyRate}</p>
+            {Math.abs(priceDiff) > 5 && (
+              <p className="text-primary font-medium">
+                AI suggests: ${dataPoint.suggestedRate} 
+                {priceDiff > 0 ? ` (+$${priceDiff.toFixed(0)})` : ` ($${priceDiff.toFixed(0)})`}
+              </p>
+            )}
+          </div>
           <Badge className={`mt-2 ${
-            data.zone === 'optimal' ? 'bg-success/20 text-success' :
-            data.zone === 'overpriced' ? 'bg-destructive/20 text-destructive' :
-            data.zone === 'underpriced' ? 'bg-warning/20 text-warning' :
-            'bg-primary/20 text-primary'
+            dataPoint.zone === 'optimal' ? 'bg-success/20 text-success border-success/30' :
+            dataPoint.zone === 'overpriced' ? 'bg-destructive/20 text-destructive border-destructive/30' :
+            dataPoint.zone === 'underpriced' ? 'bg-warning/20 text-warning border-warning/30' :
+            'bg-primary/20 text-primary border-primary/30'
           }`}>
-            {data.zone === 'optimal' ? 'Sweet Spot' :
-             data.zone === 'overpriced' ? 'Overpriced' :
-             data.zone === 'underpriced' ? 'Underpriced' : 'Balanced'}
+            {dataPoint.zone === 'optimal' ? 'Sweet Spot' :
+             dataPoint.zone === 'overpriced' ? 'Overpriced' :
+             dataPoint.zone === 'underpriced' ? 'Underpriced' : 'Balanced'}
           </Badge>
+          <p className="text-xs text-muted-foreground mt-2">Click to optimize</p>
         </div>
       );
     }
@@ -54,83 +122,112 @@ export const PriceUtilizationScatterPlot = () => {
   };
 
   return (
-    <Card 
-      className="p-6 border-2 border-border shadow-sm"
-      role="region"
-      aria-label="Price versus utilization analysis chart"
-    >
-      <div className="mb-6">
-        <h3 className="text-xl font-semibold mb-2">Price vs Utilization Analysis</h3>
-        <p className="text-sm text-muted-foreground mb-4">
-          Identify pricing opportunities by analyzing the relationship between vehicle utilization and daily rates
-        </p>
-        
+    <>
+      {selectedVehicle && (
+        <PriceOptimizationDialog
+          open={showOptimization}
+          onOpenChange={setShowOptimization}
+          vehicles={[selectedVehicle]}
+          onApply={applyPriceOptimization}
+        />
+      )}
+      
+      <Card className="p-6 border-2 border-border shadow-sm">
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <h3 className="text-xl font-semibold mb-1">Price vs. Utilization</h3>
+            <p className="text-sm text-muted-foreground">Click any point to optimize • Filter by zone</p>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleExportCSV}
+            className="gap-2"
+          >
+            <Download className="h-4 w-4" />
+            Export CSV
+          </Button>
+        </div>
+
+        {/* Filter Chips */}
+        <div className="flex flex-wrap gap-2 mb-4">
+          {zones.map(zone => (
+            <Badge
+              key={zone.value}
+              variant={zoneFilter === zone.value ? "default" : "outline"}
+              className="cursor-pointer hover:bg-primary/20 transition-colors"
+              onClick={() => setZoneFilter(zone.value)}
+            >
+              {zone.icon && <zone.icon className="h-3 w-3 mr-1" />}
+              {zone.label} ({zone.count})
+            </Badge>
+          ))}
+        </div>
+
+        <div role="img" aria-label="Scatter plot showing price vs utilization">
+          <ResponsiveContainer width="100%" height={300}>
+            <ScatterChart onClick={handlePointClick}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis 
+                type="number" 
+                dataKey="utilization" 
+                name="Utilization" 
+                unit="%"
+                domain={[0, 100]}
+                stroke="hsl(var(--muted-foreground))"
+                tick={{ fill: 'hsl(var(--muted-foreground))' }}
+              />
+              <YAxis 
+                type="number" 
+                dataKey="dailyRate" 
+                name="Daily Rate" 
+                unit="$"
+                stroke="hsl(var(--muted-foreground))"
+                tick={{ fill: 'hsl(var(--muted-foreground))' }}
+              />
+              <ZAxis range={[100, 400]} />
+              <Tooltip content={<CustomTooltip />} />
+              <Scatter 
+                data={data} 
+                fill="hsl(var(--primary))"
+                style={{ cursor: 'pointer' }}
+              >
+                {data.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={getZoneColor(entry.zone)} />
+                ))}
+              </Scatter>
+            </ScatterChart>
+          </ResponsiveContainer>
+        </div>
+
         {/* Legend */}
-        <div className="flex flex-wrap gap-3" role="list" aria-label="Chart legend">
-          <div className="flex items-center gap-2" role="listitem">
-            <div className="w-3 h-3 rounded-full bg-success" aria-hidden="true" />
-            <span className="text-xs text-muted-foreground">Sweet Spot (High Util + Good Rate)</span>
+        <div className="flex flex-wrap gap-3 mt-4 justify-center">
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-success" />
+            <span className="text-xs text-muted-foreground">Sweet Spot</span>
           </div>
-          <div className="flex items-center gap-2" role="listitem">
-            <div className="w-3 h-3 rounded-full bg-warning" aria-hidden="true" />
-            <span className="text-xs text-muted-foreground">Underpriced (High Util + Low Rate)</span>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-warning" />
+            <span className="text-xs text-muted-foreground">Underpriced</span>
           </div>
-          <div className="flex items-center gap-2" role="listitem">
-            <div className="w-3 h-3 rounded-full bg-destructive" aria-hidden="true" />
-            <span className="text-xs text-muted-foreground">Overpriced (Low Util + High Rate)</span>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-destructive" />
+            <span className="text-xs text-muted-foreground">Overpriced</span>
           </div>
-          <div className="flex items-center gap-2" role="listitem">
-            <div className="w-3 h-3 rounded-full bg-primary" aria-hidden="true" />
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-primary" />
             <span className="text-xs text-muted-foreground">Balanced</span>
           </div>
         </div>
-      </div>
-      
-      <div role="img" aria-label="Scatter plot showing the relationship between vehicle utilization percentage and daily rate in dollars. Vehicles are color-coded by pricing zone: green for optimal, orange for underpriced, red for overpriced, and blue for balanced.">
-        <ResponsiveContainer width="100%" height={400}>
-          <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-          <XAxis 
-            type="number" 
-            dataKey="utilization" 
-            name="Utilization"
-            unit="%"
-            domain={[0, 100]}
-            stroke="hsl(var(--muted-foreground))"
-            tick={{ fill: 'hsl(var(--muted-foreground))' }}
-            label={{ value: 'Utilization (%)', position: 'insideBottom', offset: -10, fill: 'hsl(var(--foreground))' }}
-          />
-          <YAxis 
-            type="number" 
-            dataKey="dailyRate" 
-            name="Daily Rate"
-            unit="$"
-            stroke="hsl(var(--muted-foreground))"
-            tick={{ fill: 'hsl(var(--muted-foreground))' }}
-            label={{ value: 'Daily Rate ($)', angle: -90, position: 'insideLeft', fill: 'hsl(var(--foreground))' }}
-          />
-          <ZAxis type="number" dataKey="size" range={[100, 100]} />
-          <Tooltip content={<CustomTooltip />} />
-          
-          {/* Sweet spot zone overlay */}
-          <rect x="70%" y="0" width="30%" height="50%" fill="hsl(var(--success))" opacity={0.05} />
-          
-          <Scatter name="Vehicles" data={scatterData}>
-            {scatterData.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={getZoneColor(entry.zone)} />
-            ))}
-          </Scatter>
-        </ScatterChart>
-        </ResponsiveContainer>
-      </div>
-      
-      <div className="mt-4 p-4 bg-muted/30 rounded-lg">
-        <p className="text-sm text-muted-foreground">
-          <strong className="text-foreground">Insight:</strong> Vehicles in the green zone (top-right) are optimally priced. 
-          Orange zone vehicles (top-left) have high demand but low rates - consider increasing prices.
-          Red zone vehicles (bottom-right) may need price adjustments to improve utilization.
-        </p>
-      </div>
-    </Card>
+
+        <div className="mt-4 p-4 bg-muted/30 rounded-lg">
+          <p className="text-sm text-muted-foreground">
+            <strong className="text-foreground">Insight:</strong> Vehicles in the green zone (top-right) are optimally priced. 
+            Orange zone vehicles (top-left) have high demand but low rates - consider increasing prices.
+            Red zone vehicles (bottom-right) may need price adjustments to improve utilization.
+          </p>
+        </div>
+      </Card>
+    </>
   );
 };

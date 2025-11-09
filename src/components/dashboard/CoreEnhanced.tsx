@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useFleet } from "@/contexts/FleetContext";
 import { AskRariButton } from "@/components/common/AskRariButton";
+import { AskRariQuickAction } from "@/components/common/AskRariQuickAction";
 import { 
   Brain, 
   Zap, 
@@ -284,7 +285,13 @@ export const CoreEnhanced = () => {
               <div key={index} className="p-4 rounded-lg bg-muted/30 border border-primary/20">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1">
-                    <h4 className="font-semibold text-sm mb-1">{insight.title}</h4>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h4 className="font-semibold text-sm">{insight.title}</h4>
+                      <AskRariQuickAction
+                        variant="icon"
+                        prompt={`Explain this AI insight in detail: ${insight.title}. ${insight.description}. Expected impact: ${insight.impact}. What should I do?`}
+                      />
+                    </div>
                     <p className="text-xs text-muted-foreground mb-2">{insight.description}</p>
                     <div className="flex items-center space-x-4 text-xs">
                       <span className="font-medium text-success">{insight.impact}</span>

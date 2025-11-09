@@ -8,6 +8,7 @@ import { DocumentUploadDialog } from "@/components/dialogs/DocumentUploadDialog"
 import { DamageClaimsSection } from "@/components/dashboard/DamageClaimsSection";
 import { ComplianceStackedBar } from "@/components/charts/ComplianceStackedBar";
 import { AskRariButton } from "@/components/common/AskRariButton";
+import { AskRariQuickAction } from "@/components/common/AskRariQuickAction";
 import { useToast } from "@/hooks/use-toast";
 import { SkeletonCard, SkeletonMetric } from "@/components/ui/skeleton-card";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -143,7 +144,13 @@ export const VaultEnhanced = () => {
         </div>
 
         <div className="bg-card/50 backdrop-blur-sm rounded-xl p-4 mb-3">
-          <h3 className="text-xl font-semibold mb-2">{urgentAlert.title}</h3>
+          <div className="flex items-start justify-between gap-2 mb-2">
+            <h3 className="text-xl font-semibold">{urgentAlert.title}</h3>
+            <AskRariQuickAction
+              variant="icon"
+              prompt={`Help me handle this urgent compliance issue: ${urgentAlert.title} for ${urgentAlert.document} on ${urgentAlert.vehicle}. What are my options and next steps?`}
+            />
+          </div>
           <div className="space-y-2">
             <p className="text-base">{urgentAlert.document}</p>
             <p className="text-sm text-muted-foreground">Vehicle: {urgentAlert.vehicle}</p>

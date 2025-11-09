@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DriverPerformanceTrend } from "@/components/charts/DriverPerformanceTrend";
 import { AskRariButton } from "@/components/common/AskRariButton";
+import { AskRariQuickAction } from "@/components/common/AskRariQuickAction";
 import { useNavigate } from "react-router-dom";
 import { 
   Activity, 
@@ -82,10 +83,16 @@ export const PulseEnhanced = () => {
       <Card className="card-premium bg-gradient-to-br from-primary/10 to-accent/10 border-primary/20 p-8">
         <div className="flex items-start justify-between mb-4">
           <div>
-            <Badge className="bg-primary/20 text-primary border-primary/30 mb-3">
-              <Activity className="w-3 h-3 mr-1" />
-              Live Now
-            </Badge>
+            <div className="flex items-center gap-2 mb-3">
+              <Badge className="bg-primary/20 text-primary border-primary/30">
+                <Activity className="w-3 h-3 mr-1" />
+                Live Now
+              </Badge>
+              <AskRariQuickAction
+                variant="icon"
+                prompt="Analyze today's revenue performance. What's driving the increase? Any concerns or opportunities I should know about?"
+              />
+            </div>
             <h2 className="text-5xl font-bold mb-2">{todayRevenue.amount}</h2>
             <p className="text-xl text-muted-foreground">Today's Revenue</p>
           </div>

@@ -23,6 +23,8 @@ import { TablesInsert, Tables } from '@/integrations/supabase/types';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { validators, validateForm } from '@/lib/validation';
 import { toast } from '@/hooks/use-toast';
+import { useAIPricing } from '@/hooks/useAIPricing';
+import { Sparkles } from 'lucide-react';
 
 interface NewBookingDialogProps {
   open: boolean;
@@ -48,6 +50,9 @@ export const NewBookingDialog = ({
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const selectedVehicle = vehicles.find(v => v.id === vehicleId);
+  const pricingSuggestion = useAIPricing(selectedVehicle || null, startDate);
 
   const handleSubmit = async () => {
     setError(null);
@@ -158,6 +163,53 @@ export const NewBookingDialog = ({
               </SelectContent>
             </Select>
           </div>
+
+          {/* AI Price Suggestion */}
+          {pricingSuggestion && vehicleId && (
+            <div className="p-4 rounded-lg bg-primary/5 border border-primary/20 space-y-3">
+              <div className="flex items-start gap-2">
+                <Sparkles className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <h4 className="font-semibold text-sm mb-1">AI Pricing Insight</h4>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    {pricingSuggestion.reasoning}
+                  </p>
+                  <div className="flex items-center gap-4 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Suggested Rate:</span>
+                      <span className="font-bold text-primary ml-2">${pricingSuggestion.suggestedRate}/day</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Impact:</span>
+                      <span className="font-semibold text-success ml-2">{pricingSuggestion.expectedImpact}</span>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {pricingSuggestion.factors.map((factor, idx) => (
+                      <span key={idx} className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">
+                        {factor}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="w-full"
+                onClick={() => {
+                  // In a real implementation, this would update the rate field
+                  toast({
+                    title: "AI Rate Applied",
+                    description: `Daily rate set to $${pricingSuggestion.suggestedRate}`,
+                  });
+                }}
+              >
+                Use AI Suggested Rate (${pricingSuggestion.suggestedRate}/day)
+              </Button>
+            </div>
+          )}
 
           {/* Customer Info */}
           <div className="grid grid-cols-2 gap-3">

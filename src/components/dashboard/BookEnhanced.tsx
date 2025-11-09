@@ -12,6 +12,7 @@ import { PaymentTracker } from "@/components/dashboard/PaymentTracker";
 import { InspectionForm } from "@/components/dashboard/InspectionForm";
 import { VehicleImageDialog } from "@/components/dialogs/VehicleImageDialog";
 import { AskRariButton } from "@/components/common/AskRariButton";
+import { AskRariQuickAction } from "@/components/common/AskRariQuickAction";
 import { SkeletonCard, SkeletonMetric } from "@/components/ui/skeleton-card";
 import { EmptyState } from "@/components/common/EmptyState";
 import { getVehicleImage } from "@/lib/vehicleImageMapping";
@@ -309,10 +310,16 @@ export const BookEnhanced = () => {
         {/* Today's Schedule */}
         <Card className="card-module p-4 sm:p-6">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
-            <h3 className="text-base sm:text-lg font-semibold flex items-center">
-              <CalendarIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-primary flex-shrink-0" />
-              Today's Schedule
-            </h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-base sm:text-lg font-semibold flex items-center">
+                <CalendarIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-primary flex-shrink-0" />
+                Today's Schedule
+              </h3>
+              <AskRariQuickAction
+                variant="icon"
+                prompt="Help me optimize today's booking schedule. Show me any conflicts, suggest better time slots, or identify opportunities for additional bookings."
+              />
+            </div>
             <Button onClick={() => setShowNewBooking(true)} size="sm" className="w-full sm:w-auto">
               <Plus className="h-4 w-4 mr-2" />
               New Booking
@@ -337,12 +344,18 @@ export const BookEnhanced = () => {
                 className="p-3 sm:p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors"
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
-                  <span 
-                    className="font-semibold truncate cursor-pointer hover:text-primary transition-colors"
-                    onClick={() => handleVehicleClick(booking.vehicle_id)}
-                  >
-                    {getVehicleDisplay(booking.vehicle_id)}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span 
+                      className="font-semibold truncate cursor-pointer hover:text-primary transition-colors"
+                      onClick={() => handleVehicleClick(booking.vehicle_id)}
+                    >
+                      {getVehicleDisplay(booking.vehicle_id)}
+                    </span>
+                    <AskRariQuickAction
+                      variant="icon"
+                      prompt={`Tell me about this booking: ${getVehicleDisplay(booking.vehicle_id)} for ${booking.customer_name}. Start: ${formatDate(booking.start_date)}, Status: ${booking.status}, Value: $${booking.total_value}`}
+                    />
+                  </div>
                   <Badge className={`flex-shrink-0 ${
                     booking.status === 'confirmed' ? 'bg-success/20 text-success border-success/30' :
                     booking.status === 'pending' ? 'bg-warning/20 text-warning border-warning/30' :
