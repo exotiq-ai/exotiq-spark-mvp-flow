@@ -64,7 +64,10 @@ export const BookEnhanced = () => {
 
   const getVehicleDisplay = (vehicleId: string) => {
     const vehicle = vehicles.find(v => v.id === vehicleId);
-    if (!vehicle) return 'Unknown Vehicle';
+    if (!vehicle) {
+      // Fallback for mock data
+      return vehicleId === 'f067336b-a039-429b-9d64-a17b6cce06c7' ? 'Audi S8 Plus' : 'Unknown Vehicle';
+    }
     return `${vehicle.year} ${vehicle.make} ${vehicle.model}`;
   };
 
