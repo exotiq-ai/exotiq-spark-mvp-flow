@@ -18,6 +18,16 @@ Deno.serve(async (req) => {
     const body = await req.json();
     console.log('Raw body:', JSON.stringify(body, null, 2));
     
+    // Extract user_id from conversation metadata
+    let userId: string | null = null;
+    if (body.conversation_metadata?.user_id) {
+      userId = body.conversation_metadata.user_id;
+      console.log('Found user_id in conversation metadata:', userId);
+    } else if (body.metadata?.user_id) {
+      userId = body.metadata.user_id;
+      console.log('Found user_id in metadata:', userId);
+    }
+    
     // ElevenLabs sends data in format: { "toolName": "param_string" } or { "toolName": {...} }
     let toolName: string | undefined;
     let parameters: any = {};
@@ -29,7 +39,7 @@ Deno.serve(async (req) => {
       parameters = body.parameters || body.args || {};
     } else {
       // ElevenLabs webhook format: { "get_fleet_vehicles": "status:available" }
-      const keys = Object.keys(body);
+      const keys = Object.keys(body).filter(k => !['conversation_metadata', 'metadata'].includes(k));
       if (keys.length > 0) {
         toolName = keys[0];
         const paramValue = body[toolName];
@@ -54,27 +64,40 @@ Deno.serve(async (req) => {
     console.log(`Tool called: ${toolName}`);
     console.log('Parameters:', JSON.stringify(parameters, null, 2));
 
-    // Validate request is from ElevenLabs (optional security layer)
-    const elevenLabsKey = Deno.env.get('ELEVENLABS_API_KEY');
-    if (!elevenLabsKey) {
-      console.error('ELEVENLABS_API_KEY not configured');
-    }
-
     // Initialize Supabase with service role for backend operations
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // For demo: use first user or demo user
-    // In production, you'd pass user_id through conversation context
-    const { data: users } = await supabase
+    // If no user_id in metadata, fall back to first user for demo
+    if (!userId) {
+      console.warn('No user_id in conversation metadata, falling back to first user');
+      const { data: users } = await supabase
+        .from('profiles')
+        .select('id')
+        .limit(1)
+        .single();
+      userId = users?.id || 'demo-user-id';
+    }
+    
+    console.log('Using user_id:', userId);
+    
+    // Verify user exists
+    const { data: userProfile, error: userError } = await supabase
       .from('profiles')
-      .select('id')
-      .limit(1)
+      .select('id, full_name, email')
+      .eq('id', userId)
       .single();
     
-    const userId = users?.id || 'demo-user-id';
-    console.log('Using user_id:', userId);
+    if (userError || !userProfile) {
+      console.error('User not found:', userId, userError);
+      return {
+        error: 'User not found',
+        summary: 'I could not find your profile. Please make sure you are logged in.'
+      };
+    }
+    
+    console.log('User verified:', userProfile.full_name || userProfile.email);
 
     // Execute the requested tool
     const result = await executeFunction(toolName, parameters, supabase, userId);
@@ -113,46 +136,68 @@ function getTimeAgo(date: Date): string {
 }
 
 async function executeFunction(functionName: string, args: any, supabase: any, userId: string) {
-  console.log(`Executing function: ${functionName}`, args);
+  console.log(`[TOOL] Executing: ${functionName} | User: ${userId} | Args:`, JSON.stringify(args));
 
   try {
     switch (functionName) {
       case "get_fleet_vehicles": {
         const { status } = args;
+        console.log(`[get_fleet_vehicles] Querying vehicles for user ${userId}, status: ${status || 'all'}`);
+        
         let query = supabase
           .from('vehicles')
           .select('*')
           .eq('user_id', userId);
 
-        if (status) {
+        if (status && status !== 'all') {
           query = query.eq('status', status);
         }
 
-        const { data: vehicles } = await query.order('created_at', { ascending: false });
+        const { data: vehicles, error } = await query.order('created_at', { ascending: false });
         
-        const vehicleList = vehicles?.map(v => ({
+        if (error) {
+          console.error('[get_fleet_vehicles] Database error:', error);
+          return {
+            error: 'Failed to fetch vehicles',
+            summary: 'I encountered an error retrieving your vehicle data. Please try again.'
+          };
+        }
+        
+        console.log(`[get_fleet_vehicles] Found ${vehicles?.length || 0} vehicles`);
+        
+        if (!vehicles || vehicles.length === 0) {
+          return {
+            count: 0,
+            vehicles: [],
+            summary: `You don't have any vehicles${status && status !== 'all' ? ` that are ${status}` : ' in your fleet yet'}. Would you like to add your first vehicle?`
+          };
+        }
+        
+        const vehicleList = vehicles.map(v => ({
           name: `${v.year} ${v.make} ${v.model}`,
           status: v.status,
           rate: `$${v.current_rate} per day`,
-          utilization: `${v.utilization}% utilized`,
+          utilization: `${v.utilization || 0}% utilized`,
           revenue: `$${Number(v.revenue || 0).toFixed(0)} total revenue`
-        })) || [];
+        }));
 
         return {
-          count: vehicles?.length || 0,
+          count: vehicles.length,
           vehicles: vehicleList,
-          summary: `You have ${vehicles?.length || 0} vehicles${status ? ` that are ${status}` : ' in your fleet'}. ${vehicleList.slice(0, 3).map(v => v.name).join(', ')}${vehicles && vehicles.length > 3 ? ' and others' : ''}.`
+          summary: `You have ${vehicles.length} vehicles${status && status !== 'all' ? ` that are ${status}` : ' in your fleet'}. ${vehicleList.slice(0, 3).map(v => v.name).join(', ')}${vehicles.length > 3 ? ' and others' : ''}.`
         };
       }
 
       case "get_bookings": {
         const { status, start_date, end_date } = args;
+        console.log(`[get_bookings] User: ${userId}, Status: ${status || 'all'}, Dates: ${start_date || 'any'} to ${end_date || 'any'}`);
+        
         let query = supabase
           .from('bookings')
           .select('*, vehicles(name, make, model, year), customers(full_name, email)')
           .eq('user_id', userId);
 
-        if (status) {
+        if (status && status !== 'all') {
           query = query.eq('status', status);
         }
         if (start_date) {
@@ -162,9 +207,28 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
           query = query.lte('end_date', end_date);
         }
 
-        const { data: bookings } = await query.order('start_date', { ascending: false}).limit(20);
+        const { data: bookings, error } = await query.order('start_date', { ascending: false}).limit(20);
         
-        const bookingList = bookings?.map(b => {
+        if (error) {
+          console.error('[get_bookings] Database error:', error);
+          return {
+            error: 'Failed to fetch bookings',
+            summary: 'I encountered an error retrieving your booking data.'
+          };
+        }
+        
+        console.log(`[get_bookings] Found ${bookings?.length || 0} bookings`);
+        
+        if (!bookings || bookings.length === 0) {
+          return {
+            count: 0,
+            bookings: [],
+            totalRevenue: '$0',
+            summary: `You don't have any bookings${status && status !== 'all' ? ` that are ${status}` : ''} matching your criteria.`
+          };
+        }
+        
+        const bookingList = bookings.map(b => {
           const startDate = new Date(b.start_date).toLocaleDateString();
           const endDate = new Date(b.end_date).toLocaleDateString();
           const vehicleName = b.vehicles ? `${b.vehicles.year} ${b.vehicles.make} ${b.vehicles.model}` : 'Unknown vehicle';
@@ -177,15 +241,15 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
             total: `$${Number(b.total_value || 0).toFixed(0)}`,
             payment: b.payment_status
           };
-        }) || [];
+        });
 
-        const totalRevenue = bookings?.reduce((sum, b) => sum + Number(b.total_value || 0), 0) || 0;
+        const totalRevenue = bookings.reduce((sum, b) => sum + Number(b.total_value || 0), 0);
         
         return {
-          count: bookings?.length || 0,
+          count: bookings.length,
           bookings: bookingList,
           totalRevenue: `$${totalRevenue.toFixed(0)}`,
-          summary: `You have ${bookings?.length || 0} bookings${status ? ` that are ${status}` : ''}${bookings && bookings.length > 0 ? `. Total value: $${totalRevenue.toFixed(0)}` : ''}.`
+          summary: `You have ${bookings.length} bookings${status && status !== 'all' ? ` that are ${status}` : ''}. Total value: $${totalRevenue.toFixed(0)}.`
         };
       }
 
@@ -220,6 +284,8 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
 
       case "getFleetMetrics": {
         const { timeframe } = args;
+        console.log(`[getFleetMetrics] User: ${userId}, Timeframe: ${timeframe}`);
+        
         let dateFilter = new Date();
         
         if (timeframe === 'today') dateFilter.setHours(0, 0, 0, 0);
@@ -236,12 +302,15 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
         const totalRevenue = revenue.data?.reduce((sum: number, b: any) => sum + Number(b.total_value || 0), 0) || 0;
         const activeBookings = bookings.data?.filter((b: any) => b.status === 'active' || b.status === 'confirmed').length || 0;
 
+        console.log(`[getFleetMetrics] Results - Vehicles: ${vehicles.data?.length || 0}, Active Bookings: ${activeBookings}, Revenue: $${totalRevenue}`);
+
         return {
           totalVehicles: vehicles.data?.length || 0,
           activeBookings,
           totalBookings: bookings.data?.length || 0,
           revenue: totalRevenue,
-          timeframe
+          timeframe,
+          summary: `Your fleet has ${vehicles.data?.length || 0} vehicles with ${activeBookings} active bookings and $${totalRevenue.toFixed(0)} in revenue for the ${timeframe}.`
         };
       }
 

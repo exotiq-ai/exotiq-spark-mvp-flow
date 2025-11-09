@@ -17,17 +17,31 @@ serve(async (req) => {
       throw new Error('ELEVENLABS_API_KEY not configured');
     }
 
+    // Get user ID from request body
+    const { userId } = await req.json();
+    
+    if (!userId) {
+      throw new Error('userId is required');
+    }
+
     const agentId = 'agent_0001k9d5pvdwfmvv7aq0mhaexgd6';
     
-    console.log('Generating signed URL for agent:', agentId);
+    console.log('Generating signed URL for agent:', agentId, 'user:', userId);
 
+    // Pass user_id as metadata to ElevenLabs conversation
     const response = await fetch(
       `https://api.elevenlabs.io/v1/convai/conversation/get_signed_url?agent_id=${agentId}`,
       {
-        method: 'GET',
+        method: 'POST',
         headers: {
           'xi-api-key': ELEVENLABS_API_KEY,
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          metadata: {
+            user_id: userId
+          }
+        })
       }
     );
 

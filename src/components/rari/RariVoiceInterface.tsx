@@ -9,6 +9,7 @@ import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { supabase } from '@/integrations/supabase/client';
 import ReactMarkdown from 'react-markdown';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -18,6 +19,7 @@ interface Message {
 
 export const RariVoiceInterface = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   
@@ -57,13 +59,19 @@ export const RariVoiceInterface = () => {
 
   const handleStartConversation = async () => {
     try {
+      if (!user) {
+        throw new Error('You must be logged in to use Rari');
+      }
+
       // Request microphone access first
       await navigator.mediaDevices.getUserMedia({ audio: true });
       
-      console.log('Microphone access granted, fetching session...');
+      console.log('Microphone access granted, fetching session for user:', user.id);
       
-      // Get signed URL from backend
-      const { data, error } = await supabase.functions.invoke('elevenlabs-session');
+      // Get signed URL from backend with user context
+      const { data, error } = await supabase.functions.invoke('elevenlabs-session', {
+        body: { userId: user.id }
+      });
       
       console.log('Edge function response:', { data, error });
       
