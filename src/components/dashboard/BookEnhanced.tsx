@@ -14,6 +14,7 @@ import { VehicleImageDialog } from "@/components/dialogs/VehicleImageDialog";
 import { AskRariButton } from "@/components/common/AskRariButton";
 import { SkeletonCard, SkeletonMetric } from "@/components/ui/skeleton-card";
 import { EmptyState } from "@/components/common/EmptyState";
+import { getVehicleImage } from "@/lib/vehicleImageMapping";
 import { 
   Calendar as CalendarIcon, 
   Clock, 
@@ -74,7 +75,7 @@ export const BookEnhanced = () => {
     pickup_location: 'Downtown',
     status: 'confirmed',
     total_value: 1350,
-    vehicle_id: '1',
+    vehicle_id: 'f067336b-a039-429b-9d64-a17b6cce06c7',
     end_date: new Date(Date.now() + 86400000).toISOString(),
     daily_rate: 450,
     user_id: ''
@@ -190,9 +191,9 @@ export const BookEnhanced = () => {
 
         <TabsContent value="overview" className="space-y-6">
         {/* Next Pickup Card */}
-        <Card className="card-premium bg-gradient-to-br from-primary/10 to-accent/5 border-primary/20 p-6">
+        <Card className="card-premium bg-gradient-to-br from-primary/10 to-accent/5 border-primary/20 p-4">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold">Next Pickup</h3>
+            <h3 className="text-base font-semibold">Next Pickup</h3>
             <Badge className="bg-success/20 text-success border-success/30">
               {nextBooking.status?.toUpperCase()}
             </Badge>
@@ -200,12 +201,21 @@ export const BookEnhanced = () => {
 
           <div className="space-y-4">
             <div className="flex items-center space-x-3">
-              <div className="p-3 bg-primary/20 rounded-xl">
-                <Car className="h-6 w-6 text-primary" />
-              </div>
+              {getVehicleImage("Audi S8 Plus") ? (
+                <img 
+                  src={getVehicleImage("Audi S8 Plus")} 
+                  alt="Audi S8"
+                  className="h-14 w-14 rounded-lg object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                  onClick={() => handleVehicleClick(nextBooking.vehicle_id)}
+                />
+              ) : (
+                <div className="p-2 bg-primary/20 rounded-lg">
+                  <Car className="h-6 w-6 text-primary" />
+                </div>
+              )}
               <div className="min-w-0 flex-1">
                 <div 
-                  className="font-semibold text-lg truncate cursor-pointer hover:text-primary transition-colors"
+                  className="font-semibold text-base truncate cursor-pointer hover:text-primary transition-colors"
                   onClick={() => handleVehicleClick(nextBooking.vehicle_id)}
                 >
                   {getVehicleDisplay(nextBooking.vehicle_id)}
@@ -215,14 +225,14 @@ export const BookEnhanced = () => {
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <div className="flex items-center space-x-2 p-3 rounded-lg bg-card/50 min-w-0">
+              <div className="flex items-center space-x-2 p-2 rounded-lg bg-card/50 min-w-0">
                 <Clock className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                 <div className="min-w-0 flex-1">
                   <div className="text-xs text-muted-foreground">Time</div>
                   <div className="font-medium truncate">{formatTime(nextBooking.start_date)}</div>
                 </div>
               </div>
-              <div className="flex items-center space-x-2 p-3 rounded-lg bg-card/50 min-w-0">
+              <div className="flex items-center space-x-2 p-2 rounded-lg bg-card/50 min-w-0">
                 <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                 <div className="min-w-0 flex-1">
                   <div className="text-xs text-muted-foreground">Location</div>
@@ -232,7 +242,7 @@ export const BookEnhanced = () => {
             </div>
 
             <div className="pt-2">
-              <div className="text-2xl font-bold text-primary">${nextBooking.total_value}</div>
+              <div className="text-xl font-bold text-primary">${nextBooking.total_value}</div>
               <div className="text-sm text-muted-foreground">Booking Value</div>
             </div>
           </div>
