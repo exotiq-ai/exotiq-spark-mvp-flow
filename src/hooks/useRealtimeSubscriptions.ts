@@ -8,6 +8,8 @@ export const useRealtimeSubscriptions = () => {
   const { toast } = useToast();
 
   useEffect(() => {
+    console.log('🔄 Initializing realtime subscriptions...');
+    
     // Subscribe to bookings changes
     const bookingsChannel = supabase
       .channel('bookings-changes')
@@ -15,13 +17,20 @@ export const useRealtimeSubscriptions = () => {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'bookings' },
         (payload) => {
-          console.log('Booking change detected:', payload);
+          console.log('📅 Booking change detected:', payload);
           refreshBookings();
           
           if (payload.eventType === 'INSERT') {
+            const newBooking = payload.new as any;
             toast({
-              title: "New Booking Created",
-              description: "A new booking has been added to the system.",
+              title: "🎉 New Booking Created",
+              description: `${newBooking.customer_name || 'New customer'} has booked a vehicle.`,
+            });
+          } else if (payload.eventType === 'UPDATE') {
+            const updatedBooking = payload.new as any;
+            toast({
+              title: "📝 Booking Updated",
+              description: `Booking status changed to ${updatedBooking.status || 'updated'}.`,
             });
           }
         }
@@ -35,13 +44,19 @@ export const useRealtimeSubscriptions = () => {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'payments' },
         (payload) => {
-          console.log('Payment change detected:', payload);
+          console.log('💳 Payment change detected:', payload);
           refreshPayments();
           
           if (payload.eventType === 'INSERT') {
+            const newPayment = payload.new as any;
+            const amount = new Intl.NumberFormat('en-US', { 
+              style: 'currency', 
+              currency: 'USD' 
+            }).format(newPayment.amount || 0);
+            
             toast({
-              title: "Payment Recorded",
-              description: "A new payment has been recorded.",
+              title: "💰 Payment Recorded",
+              description: `${amount} payment received (${newPayment.payment_type || 'payment'}).`,
             });
           }
         }
@@ -76,13 +91,14 @@ export const useRealtimeSubscriptions = () => {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'customers' },
         (payload) => {
-          console.log('Customer change detected:', payload);
+          console.log('👤 Customer change detected:', payload);
           refreshCustomers();
           
           if (payload.eventType === 'INSERT') {
+            const newCustomer = payload.new as any;
             toast({
-              title: "New Customer Added",
-              description: "A new customer has been added to the system.",
+              title: "🤝 New Customer Added",
+              description: `${newCustomer.full_name || 'New customer'} has been added to your fleet.`,
             });
           }
         }
@@ -103,8 +119,11 @@ export const useRealtimeSubscriptions = () => {
       )
       .subscribe();
 
+    console.log('✅ Realtime subscriptions active');
+
     // Cleanup function
     return () => {
+      console.log('🔴 Cleaning up realtime subscriptions...');
       supabase.removeChannel(bookingsChannel);
       supabase.removeChannel(paymentsChannel);
       supabase.removeChannel(damageClaimsChannel);

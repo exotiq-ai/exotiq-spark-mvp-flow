@@ -58,7 +58,7 @@ export const DocumentUploadDialog = ({
       type,
       expires_at: expiryDateObj.toISOString(),
       status: daysUntilExpiry <= 30 ? 'expiring' : 'active',
-      file_url: 'https://placeholder.com/document', // Placeholder for now
+      file_url: `${Date.now()}_${name.replace(/\s+/g, '_')}.pdf`,
       user_id: '' // Will be set by context
     });
 

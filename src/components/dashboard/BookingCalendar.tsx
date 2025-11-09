@@ -1,16 +1,18 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useFleet } from "@/contexts/FleetContext";
 import { generateVehicleColors } from "@/lib/conflictDetection";
 import { VehicleImageDialog } from "@/components/dialogs/VehicleImageDialog";
+import { RealtimeIndicator } from "@/components/common/RealtimeIndicator";
 import { 
   ChevronLeft, 
   ChevronRight, 
   Calendar as CalendarIcon,
   Filter,
-  AlertTriangle
+  AlertTriangle,
+  RefreshCw
 } from "lucide-react";
 import {
   Select,
@@ -22,12 +24,13 @@ import {
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isWithinInterval } from "date-fns";
 
 export const BookingCalendar = () => {
-  const { bookings, vehicles } = useFleet();
+  const { bookings, vehicles, refreshBookings } = useFleet();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedVehicle, setSelectedVehicle] = useState<string>("all");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [focusedDateIndex, setFocusedDateIndex] = useState<number>(0);
   const [showVehicleImage, setShowVehicleImage] = useState(false);
+  const [showRealtimeUpdate, setShowRealtimeUpdate] = useState(false);
   const [selectedVehicleDetails, setSelectedVehicleDetails] = useState<{
     name: string;
     make: string;
@@ -36,6 +39,16 @@ export const BookingCalendar = () => {
     status: string;
     dailyRate: number;
   } | null>(null);
+
+  // Watch for booking changes and show indicator
+  useEffect(() => {
+    const previousCount = bookings.length;
+    return () => {
+      if (bookings.length !== previousCount) {
+        setShowRealtimeUpdate(true);
+      }
+    };
+  }, [bookings.length]);
 
   const handleVehicleClick = (vehicleId: string) => {
     const vehicle = vehicles.find(v => v.id === vehicleId);
@@ -148,6 +161,8 @@ export const BookingCalendar = () => {
 
   return (
     <>
+      <RealtimeIndicator show={showRealtimeUpdate} message="📅 Calendar updated" />
+      
       {selectedVehicleDetails && (
         <VehicleImageDialog
           open={showVehicleImage}
@@ -184,6 +199,15 @@ export const BookingCalendar = () => {
               aria-label="Next month"
             >
               <ChevronRight className="h-4 w-4" aria-hidden="true" />
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => refreshBookings()}
+              aria-label="Refresh bookings"
+              title="Refresh bookings"
+            >
+              <RefreshCw className="h-4 w-4" />
             </Button>
           </div>
 
