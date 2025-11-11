@@ -38,7 +38,7 @@ export const CustomizableDashboard = ({ modules, onModuleClick }: CustomizableDa
   const [showWidgetLibrary, setShowWidgetLibrary] = useState(false);
   const [showOptimizationDialog, setShowOptimizationDialog] = useState(false);
   const [containerWidth, setContainerWidth] = useState(window.innerWidth > 1200 ? 1200 : window.innerWidth - 32);
-  const [gridReady, setGridReady] = useState(false);
+  
   const containerRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
   const { vehicles, applyPriceOptimization } = useFleet();
@@ -49,19 +49,15 @@ export const CustomizableDashboard = ({ modules, onModuleClick }: CustomizableDa
       if (containerRef.current) {
         const newWidth = containerRef.current.offsetWidth;
         setContainerWidth(newWidth);
-        if (!gridReady) setGridReady(true);
       }
     };
-    
-    // Small delay to ensure ref is available
-    const timer = setTimeout(updateWidth, 50);
-    
+
+    updateWidth();
     window.addEventListener('resize', updateWidth);
     return () => {
-      clearTimeout(timer);
       window.removeEventListener('resize', updateWidth);
     };
-  }, [gridReady]);
+  }, []);
 
   const handleLayoutChange = (newLayout: Layout[]) => {
     if (isEditMode) {
@@ -96,7 +92,7 @@ export const CustomizableDashboard = ({ modules, onModuleClick }: CustomizableDa
     return widgetComponents[widgetId] || null;
   };
 
-  if (loading || !gridReady) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]" role="status" aria-live="polite">
         <span className="sr-only">Loading dashboard layout...</span>
