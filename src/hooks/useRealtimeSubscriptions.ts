@@ -130,5 +130,5 @@ export const useRealtimeSubscriptions = () => {
       supabase.removeChannel(customersChannel);
       supabase.removeChannel(inspectionsChannel);
     };
-  }, [refreshBookings, refreshPayments, refreshDamageClaims, refreshCustomers, toast]);
+  }, [refreshBookings, refreshPayments, refreshDamageClaims, refreshCustomers]);
 };
