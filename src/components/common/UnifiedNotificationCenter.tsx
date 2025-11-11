@@ -33,10 +33,12 @@ import {
   DollarSign,
   Wrench,
   FileText,
+  Settings,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useFleet } from "@/contexts/FleetContext";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { NotificationPreferences, useNotificationPreferences } from "./NotificationPreferences";
 
 interface SystemNotification {
   id: string;
@@ -69,6 +71,7 @@ export const UnifiedNotificationCenter = ({ onNavigate }: { onNavigate?: (module
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const { vehicles, bookings, customers, damageClaims, inspections } = useFleet();
+  const { prefs, isInQuietHours } = useNotificationPreferences();
   
   const [systemNotifications, setSystemNotifications] = useState<SystemNotification[]>([
     {
@@ -112,6 +115,7 @@ export const UnifiedNotificationCenter = ({ onNavigate }: { onNavigate?: (module
   const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<string>("all");
   const [open, setOpen] = useState(false);
+  const [prefsOpen, setPrefsOpen] = useState(false);
 
   // Haptic feedback when opening/closing
   useEffect(() => {
@@ -119,6 +123,33 @@ export const UnifiedNotificationCenter = ({ onNavigate }: { onNavigate?: (module
       navigator.vibrate(5);
     }
   }, [open, isMobile]);
+
+  const shouldShowNotification = (notification: UnifiedNotification): boolean => {
+    // Always show critical alerts
+    if (isAIAlert(notification) && notification.type === 'critical' && prefs.enableCriticalAlerts) {
+      return true;
+    }
+
+    // Check quiet hours for non-critical
+    if (isInQuietHours()) {
+      return false;
+    }
+
+    // Check preferences
+    if (isAIAlert(notification)) {
+      if (!prefs.enableAIInsights) return false;
+      if (notification.type === 'high' && !prefs.enableWarnings) return false;
+      if (notification.type === 'medium' && !prefs.enableInfoAlerts) return false;
+      if (notification.type === 'info' && !prefs.enableInfoAlerts) return false;
+    } else {
+      if (!prefs.enableSystemNotifications) return false;
+      if (notification.type === 'warning' && !prefs.enableWarnings) return false;
+      if (notification.type === 'info' && !prefs.enableInfoAlerts) return false;
+      if (notification.type === 'error' && !prefs.enableCriticalAlerts) return false;
+    }
+
+    return true;
+  };
 
   // Generate AI alerts from fleet data
   const aiAlerts = useMemo(() => {
@@ -183,8 +214,19 @@ export const UnifiedNotificationCenter = ({ onNavigate }: { onNavigate?: (module
     });
   }, [systemNotifications, aiAlerts]);
 
-  const unreadCount = allNotifications.filter((n) => !n.read).length;
-  const criticalCount = aiAlerts.filter(a => a.type === 'critical' && !a.read).length;
+  const unreadCount = allNotifications.filter((n) => !n.read && shouldShowNotification(n)).length;
+  const criticalCount = aiAlerts.filter(a => a.type === 'critical' && !a.read && shouldShowNotification(a)).length;
+
+  // Update app badge count
+  useEffect(() => {
+    if ('setAppBadge' in navigator) {
+      if (unreadCount > 0) {
+        (navigator as any).setAppBadge(unreadCount);
+      } else {
+        (navigator as any).clearAppBadge();
+      }
+    }
+  }, [unreadCount]);
 
   const getSystemIcon = (type: string) => {
     switch (type) {
@@ -303,18 +345,23 @@ export const UnifiedNotificationCenter = ({ onNavigate }: { onNavigate?: (module
   };
 
   const renderNotificationContent = (notifications: UnifiedNotification[]) => {
-    if (notifications.length === 0) {
+    const filteredNotifications = notifications.filter(shouldShowNotification);
+    
+    if (filteredNotifications.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
           <Bell className="w-12 h-12 mb-2 opacity-20" />
           <p className="text-sm">No notifications</p>
+          {isInQuietHours() && (
+            <p className="text-xs mt-2">Quiet hours active</p>
+          )}
         </div>
       );
     }
 
     return (
       <div className="divide-y">
-        {notifications.map((notification) => {
+        {filteredNotifications.map((notification) => {
           const isAI = isAIAlert(notification);
 
           return (
@@ -408,6 +455,18 @@ export const UnifiedNotificationCenter = ({ onNavigate }: { onNavigate?: (module
       <div className="flex items-center justify-between p-4 border-b">
         <h3 className="font-semibold">Notifications</h3>
         <div className="flex items-center space-x-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              if (navigator.vibrate) navigator.vibrate(5);
+              setPrefsOpen(true);
+            }}
+            className="text-xs"
+          >
+            <Settings className="w-3 h-3 mr-1" />
+            Settings
+          </Button>
           {unreadCount > 0 && (
             <Button
               variant="ghost"
@@ -419,7 +478,7 @@ export const UnifiedNotificationCenter = ({ onNavigate }: { onNavigate?: (module
               Mark all read
             </Button>
           )}
-          {allNotifications.length > 0 && (
+          {allNotifications.filter(shouldShowNotification).length > 0 && (
             <Button
               variant="ghost"
               size="sm"
@@ -446,17 +505,17 @@ export const UnifiedNotificationCenter = ({ onNavigate }: { onNavigate?: (module
           <TabsTrigger value="ai" className="flex-1">
             <Sparkles className="w-3 h-3 mr-1" />
             AI Insights
-            {aiAlerts.filter(a => !a.read).length > 0 && (
+            {aiAlerts.filter(a => !a.read && shouldShowNotification(a)).length > 0 && (
               <Badge className="ml-2 h-5 w-5 rounded-full p-0 flex items-center justify-center bg-gulf-blue text-white text-[10px]">
-                {aiAlerts.filter(a => !a.read).length}
+                {aiAlerts.filter(a => !a.read && shouldShowNotification(a)).length}
               </Badge>
             )}
           </TabsTrigger>
           <TabsTrigger value="system" className="flex-1">
             System
-            {systemNotifications.filter(n => !n.read).length > 0 && (
+            {systemNotifications.filter(n => !n.read && shouldShowNotification(n)).length > 0 && (
               <Badge className="ml-2 h-5 w-5 rounded-full p-0 flex items-center justify-center bg-gulf-blue text-white text-[10px]">
-                {systemNotifications.filter(n => !n.read).length}
+                {systemNotifications.filter(n => !n.read && shouldShowNotification(n)).length}
               </Badge>
             )}
           </TabsTrigger>
@@ -500,28 +559,34 @@ export const UnifiedNotificationCenter = ({ onNavigate }: { onNavigate?: (module
 
   if (isMobile) {
     return (
-      <Drawer open={open} onOpenChange={setOpen}>
-        <DrawerTrigger asChild>
-          {triggerButton}
-        </DrawerTrigger>
-        <DrawerContent className="max-h-[85vh]">
-          <DrawerHeader>
-            <DrawerTitle>Notifications & AI Insights</DrawerTitle>
-          </DrawerHeader>
-          {contentComponent}
-        </DrawerContent>
-      </Drawer>
+      <>
+        <Drawer open={open} onOpenChange={setOpen}>
+          <DrawerTrigger asChild>
+            {triggerButton}
+          </DrawerTrigger>
+          <DrawerContent className="max-h-[85vh]">
+            <DrawerHeader>
+              <DrawerTitle>Notifications & AI Insights</DrawerTitle>
+            </DrawerHeader>
+            {contentComponent}
+          </DrawerContent>
+        </Drawer>
+        <NotificationPreferences open={prefsOpen} onOpenChange={setPrefsOpen} />
+      </>
     );
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        {triggerButton}
-      </PopoverTrigger>
-      <PopoverContent className="w-[480px] p-0" align="end">
-        {contentComponent}
-      </PopoverContent>
-    </Popover>
+    <>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          {triggerButton}
+        </PopoverTrigger>
+        <PopoverContent className="w-[480px] p-0" align="end">
+          {contentComponent}
+        </PopoverContent>
+      </Popover>
+      <NotificationPreferences open={prefsOpen} onOpenChange={setPrefsOpen} />
+    </>
   );
 };
