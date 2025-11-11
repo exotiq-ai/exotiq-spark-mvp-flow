@@ -52,7 +52,7 @@ export const performance = {
 
   // Lazy loading utility
   lazyLoad: (importFn: () => Promise<{ default: React.ComponentType<any> }>) => {
-    return import('react').then(({ lazy }) => lazy(importFn));
+    return React.lazy(importFn);
   },
 
   // Preload critical resources
