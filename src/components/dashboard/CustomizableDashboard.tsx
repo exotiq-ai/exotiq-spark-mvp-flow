@@ -37,7 +37,8 @@ export const CustomizableDashboard = ({ modules, onModuleClick }: CustomizableDa
   const [isEditMode, setIsEditMode] = useState(false);
   const [showWidgetLibrary, setShowWidgetLibrary] = useState(false);
   const [showOptimizationDialog, setShowOptimizationDialog] = useState(false);
-  const [containerWidth, setContainerWidth] = useState(1200);
+  const [containerWidth, setContainerWidth] = useState(window.innerWidth > 1200 ? 1200 : window.innerWidth - 32);
+  const [gridReady, setGridReady] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
   const { vehicles, applyPriceOptimization } = useFleet();
@@ -46,13 +47,21 @@ export const CustomizableDashboard = ({ modules, onModuleClick }: CustomizableDa
   useEffect(() => {
     const updateWidth = () => {
       if (containerRef.current) {
-        setContainerWidth(containerRef.current.offsetWidth);
+        const newWidth = containerRef.current.offsetWidth;
+        setContainerWidth(newWidth);
+        if (!gridReady) setGridReady(true);
       }
     };
-    updateWidth();
+    
+    // Small delay to ensure ref is available
+    const timer = setTimeout(updateWidth, 50);
+    
     window.addEventListener('resize', updateWidth);
-    return () => window.removeEventListener('resize', updateWidth);
-  }, []);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', updateWidth);
+    };
+  }, [gridReady]);
 
   const handleLayoutChange = (newLayout: Layout[]) => {
     if (isEditMode) {
@@ -87,7 +96,7 @@ export const CustomizableDashboard = ({ modules, onModuleClick }: CustomizableDa
     return widgetComponents[widgetId] || null;
   };
 
-  if (loading) {
+  if (loading || !gridReady) {
     return (
       <div className="flex items-center justify-center min-h-[400px]" role="status" aria-live="polite">
         <span className="sr-only">Loading dashboard layout...</span>
@@ -222,21 +231,22 @@ export const CustomizableDashboard = ({ modules, onModuleClick }: CustomizableDa
         )}
 
         {/* Grid Layout */}
-        <GridLayout
-          className="layout"
-          layout={finalLayout}
-          cols={12}
-          rowHeight={isMobile ? 60 : 80}
-          width={containerWidth}
-          isDraggable={isEditMode && !isMobile}
-          isResizable={isEditMode && !isMobile}
-          onLayoutChange={handleLayoutChange}
-          compactType="vertical"
-          preventCollision={false}
-          margin={isMobile ? [8, 8] : [16, 16]}
-          containerPadding={[0, 0]}
-          draggableHandle=".drag-handle"
-        >
+        <div style={{ width: '100%' }}>
+          <GridLayout
+            className="layout"
+            layout={finalLayout}
+            cols={12}
+            rowHeight={isMobile ? 60 : 80}
+            width={containerWidth}
+            isDraggable={isEditMode && !isMobile}
+            isResizable={isEditMode && !isMobile}
+            onLayoutChange={handleLayoutChange}
+            compactType="vertical"
+            preventCollision={false}
+            margin={isMobile ? [8, 8] : [16, 16]}
+            containerPadding={[0, 0]}
+            draggableHandle=".drag-handle"
+          >
           {filteredLayout.map((item) => {
             const widget = availableWidgets.find(w => w.id === item.i);
             return (
@@ -257,7 +267,8 @@ export const CustomizableDashboard = ({ modules, onModuleClick }: CustomizableDa
               </div>
             );
           })}
-        </GridLayout>
+          </GridLayout>
+        </div>
       </div>
     </>
   );
