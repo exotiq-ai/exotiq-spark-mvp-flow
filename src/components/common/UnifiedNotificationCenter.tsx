@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { motion, PanInfo, useMotionValue, useTransform } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -111,6 +112,13 @@ export const UnifiedNotificationCenter = ({ onNavigate }: { onNavigate?: (module
   const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<string>("all");
   const [open, setOpen] = useState(false);
+
+  // Haptic feedback when opening/closing
+  useEffect(() => {
+    if (open && isMobile && navigator.vibrate) {
+      navigator.vibrate(5);
+    }
+  }, [open, isMobile]);
 
   // Generate AI alerts from fleet data
   const aiAlerts = useMemo(() => {
@@ -232,6 +240,7 @@ export const UnifiedNotificationCenter = ({ onNavigate }: { onNavigate?: (module
   };
 
   const markAllAsRead = () => {
+    if (navigator.vibrate) navigator.vibrate(5);
     setSystemNotifications(prev => prev.map(n => ({ ...n, read: true })));
     toast({
       title: "All notifications marked as read",
@@ -247,6 +256,7 @@ export const UnifiedNotificationCenter = ({ onNavigate }: { onNavigate?: (module
   };
 
   const clearAll = () => {
+    if (navigator.vibrate) navigator.vibrate([10, 50, 10]);
     setSystemNotifications([]);
     setDismissedAlerts(new Set(aiAlerts.map(a => a.id)));
     toast({
@@ -277,6 +287,21 @@ export const UnifiedNotificationCenter = ({ onNavigate }: { onNavigate?: (module
     return `${days}d ago`;
   };
 
+  const handleSwipeDismiss = (notificationId: string, info: PanInfo) => {
+    const swipeThreshold = 100;
+    const velocity = info.velocity.x;
+    const offset = info.offset.x;
+
+    // Dismiss if swiped more than threshold or with high velocity
+    if (Math.abs(offset) > swipeThreshold || Math.abs(velocity) > 500) {
+      // Haptic feedback
+      if (navigator.vibrate) {
+        navigator.vibrate(10);
+      }
+      deleteNotification(notificationId);
+    }
+  };
+
   const renderNotificationContent = (notifications: UnifiedNotification[]) => {
     if (notifications.length === 0) {
       return (
@@ -291,12 +316,18 @@ export const UnifiedNotificationCenter = ({ onNavigate }: { onNavigate?: (module
       <div className="divide-y">
         {notifications.map((notification) => {
           const isAI = isAIAlert(notification);
+
           return (
-            <div
+            <motion.div
               key={notification.id}
+              drag={isMobile ? "x" : false}
+              dragConstraints={{ left: 0, right: 0 }}
+              dragElastic={0.2}
+              onDragEnd={isMobile ? (_: any, info: PanInfo) => handleSwipeDismiss(notification.id, info) : undefined}
+              whileDrag={isMobile ? { cursor: "grabbing", scale: 0.98 } : undefined}
               className={`p-4 hover:bg-muted/30 transition-smooth ${
-                !notification.read ? "bg-gulf-blue/5" : ""
-              }`}
+                isMobile ? "cursor-grab active:cursor-grabbing touch-manipulation" : ""
+              } ${!notification.read ? "bg-gulf-blue/5" : ""}`}
             >
               <div className="flex items-start justify-between">
                 <div className="flex items-start space-x-3 flex-1">
@@ -328,7 +359,10 @@ export const UnifiedNotificationCenter = ({ onNavigate }: { onNavigate?: (module
                         variant="outline"
                         size="sm"
                         className="mt-2 h-7 text-xs"
-                        onClick={() => handleAlertAction(notification)}
+                        onClick={() => {
+                          if (navigator.vibrate) navigator.vibrate(5);
+                          handleAlertAction(notification);
+                        }}
                       >
                         View Details
                       </Button>
@@ -341,7 +375,10 @@ export const UnifiedNotificationCenter = ({ onNavigate }: { onNavigate?: (module
                       variant="ghost"
                       size="icon"
                       className="h-6 w-6"
-                      onClick={() => markAsRead(notification.id)}
+                      onClick={() => {
+                        if (navigator.vibrate) navigator.vibrate(5);
+                        markAsRead(notification.id);
+                      }}
                     >
                       <Check className="h-3 w-3" />
                     </Button>
@@ -350,13 +387,16 @@ export const UnifiedNotificationCenter = ({ onNavigate }: { onNavigate?: (module
                     variant="ghost"
                     size="icon"
                     className="h-6 w-6"
-                    onClick={() => deleteNotification(notification.id)}
+                    onClick={() => {
+                      if (navigator.vibrate) navigator.vibrate(10);
+                      deleteNotification(notification.id);
+                    }}
                   >
                     <X className="h-3 w-3" />
                   </Button>
                 </div>
               </div>
-            </div>
+            </motion.div>
           );
         })}
       </div>
