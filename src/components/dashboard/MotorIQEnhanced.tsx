@@ -109,7 +109,7 @@ export const MotorIQEnhanced = () => {
         />
       )}
 
-      <div className="space-y-6 overflow-x-hidden">
+      <div className="space-y-4 sm:space-y-6 overflow-x-hidden w-full">
         {/* Ask Rari Floating Button */}
         <AskRariButton 
           moduleId="motoriq" 
@@ -119,8 +119,8 @@ export const MotorIQEnhanced = () => {
         
         {/* Hero Section - Top Priority AI Insight */}
         {topRecommendation && potentialIncrease > 0 ? (
-          <Card className="card-premium bg-gradient-to-br from-success/10 via-primary/5 to-accent/10 border-success/20 p-8">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+          <Card className="card-premium bg-gradient-to-br from-success/10 via-primary/5 to-accent/10 border-success/20 p-4 sm:p-6 md:p-8">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 sm:gap-6">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-3">
                   <Brain className="h-6 w-6 text-success animate-pulse" />
@@ -182,8 +182,8 @@ export const MotorIQEnhanced = () => {
         )}
 
         {/* Key Fleet Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="card-module p-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
+          <Card className="card-module p-4 sm:p-6">
             <div className="flex items-center justify-between mb-2">
               <div className="p-3 bg-primary/10 rounded-lg">
                 <TrendingUp className="h-5 w-5 text-primary" />
@@ -195,7 +195,7 @@ export const MotorIQEnhanced = () => {
             <div className="text-xs text-muted-foreground mt-1">This week</div>
           </Card>
 
-          <Card className="card-module p-6">
+          <Card className="card-module p-4 sm:p-6">
             <div className="flex items-center justify-between mb-2">
               <div className="p-3 bg-warning/10 rounded-lg">
                 <Zap className="h-5 w-5 text-warning" />
@@ -207,7 +207,7 @@ export const MotorIQEnhanced = () => {
             <div className="text-xs text-muted-foreground mt-1">Ready to apply</div>
           </Card>
 
-          <Card className="card-module p-6">
+          <Card className="card-module p-4 sm:p-6">
             <div className="flex items-center justify-between mb-2">
               <div className="p-3 bg-primary/10 rounded-lg">
                 <Brain className="h-5 w-5 text-primary" />
@@ -224,8 +224,8 @@ export const MotorIQEnhanced = () => {
         <PriceUtilizationScatterPlot />
 
         {/* Fleet Performance Details */}
-        <Card className="card-premium p-6">
-          <div className="flex items-center justify-between mb-6">
+        <Card className="card-premium p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-6 mb-4 sm:mb-6">
             <div>
               <h3 className="text-xl font-semibold">Fleet Performance</h3>
               <p className="text-sm text-muted-foreground">Individual vehicle insights</p>

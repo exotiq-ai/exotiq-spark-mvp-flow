@@ -332,7 +332,7 @@ export const AIAlertsFeed = ({ onNavigate, className }: AIAlertsFeedProps) => {
         variant="outline"
         size="sm"
         className={cn(
-          "fixed bottom-20 left-6 md:bottom-6 z-50 shadow-lg",
+          "fixed bottom-24 left-4 md:bottom-6 md:left-6 z-40 shadow-lg",
           "bg-background hover:bg-muted",
           className
         )}
@@ -350,7 +350,7 @@ export const AIAlertsFeed = ({ onNavigate, className }: AIAlertsFeedProps) => {
   return (
     <Card 
       className={cn(
-        "fixed bottom-20 left-6 md:bottom-6 z-50 w-[380px] max-w-[calc(100vw-3rem)]",
+        "fixed bottom-24 left-4 right-4 md:bottom-6 md:left-6 md:right-auto z-40 w-auto md:w-[380px] max-w-[calc(100vw-2rem)] md:max-w-[380px]",
         "shadow-xl border-2 border-border",
         className
       )}

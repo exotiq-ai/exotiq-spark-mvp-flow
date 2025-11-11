@@ -322,7 +322,7 @@ const Dashboard = () => {
         <main
         id="main-content" 
         ref={containerRef}
-        className="mobile-padding py-4 sm:py-6 pb-24 md:pb-6" 
+        className="mobile-padding py-4 sm:py-6 pb-28 md:pb-6 overflow-x-hidden" 
         tabIndex={-1}
         {...handlers}
       >
@@ -330,7 +330,7 @@ const Dashboard = () => {
           {renderModuleContent()}
           
           {/* Pagination Dots - Mobile Only */}
-          <div className="md:hidden mt-6">
+          <div className="md:hidden mt-6 mb-4">
             <ModulePagination 
               total={moduleOrder.length} 
               current={currentIndex}
