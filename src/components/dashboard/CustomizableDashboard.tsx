@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import GridLayout, { Layout } from "react-grid-layout";
@@ -34,13 +35,33 @@ interface CustomizableDashboardProps {
 }
 
 export const CustomizableDashboard = ({ modules, onModuleClick }: CustomizableDashboardProps) => {
+  const [searchParams] = useSearchParams();
+  const safeMode = searchParams.get('safe') === '1';
+  
   const [isEditMode, setIsEditMode] = useState(false);
   const [showWidgetLibrary, setShowWidgetLibrary] = useState(false);
   const [showOptimizationDialog, setShowOptimizationDialog] = useState(false);
+  const [containerWidth, setContainerWidth] = useState<number>(1200);
   
+  const containerRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
   const { vehicles, applyPriceOptimization } = useFleet();
   const { layout, visibleWidgets, loading, saveLayout, resetLayout, toggleWidget, setLayout } = useDashboardLayout();
+
+  // Responsive width with ResizeObserver
+  useEffect(() => {
+    if (!containerRef.current) return;
+    
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const width = entry.contentRect.width;
+        setContainerWidth(width > 0 ? width : 1200);
+      }
+    });
+    
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
 
   const handleLayoutChange = (newLayout: Layout[]) => {
     if (isEditMode) {
@@ -86,7 +107,7 @@ export const CustomizableDashboard = ({ modules, onModuleClick }: CustomizableDa
 
   const filteredLayout = layout.filter(item => visibleWidgets.includes(item.i));
   
-  // Mobile: force single column, full width for all widgets
+  // Mobile: force single column, full width for all widgets (data-only, GridLayout will position them)
   const mobileLayout = filteredLayout.map(item => ({
     ...item,
     x: 0,
@@ -95,6 +116,33 @@ export const CustomizableDashboard = ({ modules, onModuleClick }: CustomizableDa
   }));
 
   const finalLayout = isMobile ? mobileLayout : filteredLayout;
+
+  // Safe mode: render widgets in simple vertical stack (no grid engine)
+  if (safeMode) {
+    return (
+      <>
+        <PriceOptimizationDialog
+          open={showOptimizationDialog}
+          onOpenChange={setShowOptimizationDialog}
+          vehicles={vehicles}
+          onApply={(vehicleId, newRate) => applyPriceOptimization(vehicleId, newRate)}
+        />
+        <div className="space-y-4 md:space-y-6">
+          <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border-2">
+            <h2 className="text-lg md:text-xl font-semibold">Your Dashboard (Safe Mode)</h2>
+            <Badge variant="secondary">Grid Disabled</Badge>
+          </div>
+          <div className="space-y-4">
+            {filteredLayout.map((item) => (
+              <div key={item.i} className="w-full">
+                {renderWidget(item.i)}
+              </div>
+            ))}
+          </div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
@@ -210,21 +258,22 @@ export const CustomizableDashboard = ({ modules, onModuleClick }: CustomizableDa
         )}
 
         {/* Grid Layout */}
-        <GridLayout
-          className="layout"
-          layout={finalLayout}
-          cols={12}
-          rowHeight={isMobile ? 60 : 80}
-          width={1200}
-          isDraggable={isEditMode && !isMobile}
-          isResizable={isEditMode && !isMobile}
-          onLayoutChange={handleLayoutChange}
-          compactType="vertical"
-          preventCollision={false}
-          margin={isMobile ? [8, 8] : [16, 16]}
-          containerPadding={[0, 0]}
-          draggableHandle=".drag-handle"
-        >
+        <div ref={containerRef} className="w-full">
+          <GridLayout
+            className="layout"
+            layout={finalLayout}
+            cols={12}
+            rowHeight={isMobile ? 60 : 80}
+            width={containerWidth}
+            isDraggable={isEditMode && !isMobile}
+            isResizable={isEditMode && !isMobile}
+            onLayoutChange={handleLayoutChange}
+            compactType="vertical"
+            preventCollision={false}
+            margin={isMobile ? [8, 8] : [16, 16]}
+            containerPadding={[0, 0]}
+            draggableHandle=".drag-handle"
+          >
           {filteredLayout.map((item) => {
             const widget = availableWidgets.find(w => w.id === item.i);
             return (
@@ -245,7 +294,8 @@ export const CustomizableDashboard = ({ modules, onModuleClick }: CustomizableDa
               </div>
             );
           })}
-        </GridLayout>
+          </GridLayout>
+        </div>
       </div>
     </>
   );

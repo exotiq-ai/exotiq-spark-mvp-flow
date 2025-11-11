@@ -509,24 +509,6 @@
     background: hsl(var(--muted));
   }
   
-  /* Responsive Grid Layout for Mobile */
-  @media (max-width: 768px) {
-    .react-grid-layout {
-      width: 100% !important;
-    }
-    
-    .react-grid-item {
-      position: relative !important;
-      width: 100% !important;
-      left: 0 !important;
-      transform: none !important;
-    }
-    
-    .react-grid-item > .react-resizable-handle {
-      display: none !important;
-    }
-  }
-  
   /* Screen Reader Only utilities */
   .sr-only {
     position: absolute;
