@@ -24,9 +24,13 @@ export const DashboardBanner = () => {
   }, []);
 
   useEffect(() => {
+    // Respect user's motion preferences
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReducedMotion) return;
+
     const interval = setInterval(() => {
       setCurrentLineIndex((prev) => (prev + 1) % motivationalLines.length);
-    }, 5000); // Change every 5 seconds
+    }, 12000); // Change every 12 seconds for calmer experience
 
     return () => clearInterval(interval);
   }, []);

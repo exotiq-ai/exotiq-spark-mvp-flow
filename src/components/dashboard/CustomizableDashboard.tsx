@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import GridLayout, { Layout } from "react-grid-layout";
 import { Edit3, Save, RotateCcw, Plus, X } from "lucide-react";
 import { useDashboardLayout, availableWidgets } from "@/hooks/useDashboardLayout";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { WidgetLibrary } from "./WidgetLibrary";
 import { BannerWidget } from "./widgets/BannerWidget";
 import { RevenueWidget } from "./widgets/RevenueWidget";
@@ -36,8 +37,22 @@ export const CustomizableDashboard = ({ modules, onModuleClick }: CustomizableDa
   const [isEditMode, setIsEditMode] = useState(false);
   const [showWidgetLibrary, setShowWidgetLibrary] = useState(false);
   const [showOptimizationDialog, setShowOptimizationDialog] = useState(false);
+  const [containerWidth, setContainerWidth] = useState(1200);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const isMobile = useIsMobile();
   const { vehicles, applyPriceOptimization } = useFleet();
   const { layout, visibleWidgets, loading, saveLayout, resetLayout, toggleWidget, setLayout } = useDashboardLayout();
+
+  useEffect(() => {
+    const updateWidth = () => {
+      if (containerRef.current) {
+        setContainerWidth(containerRef.current.offsetWidth);
+      }
+    };
+    updateWidth();
+    window.addEventListener('resize', updateWidth);
+    return () => window.removeEventListener('resize', updateWidth);
+  }, []);
 
   const handleLayoutChange = (newLayout: Layout[]) => {
     if (isEditMode) {
@@ -82,6 +97,16 @@ export const CustomizableDashboard = ({ modules, onModuleClick }: CustomizableDa
   }
 
   const filteredLayout = layout.filter(item => visibleWidgets.includes(item.i));
+  
+  // Mobile: force single column, full width for all widgets
+  const mobileLayout = filteredLayout.map(item => ({
+    ...item,
+    x: 0,
+    w: 12,
+    static: !isEditMode
+  }));
+
+  const finalLayout = isMobile ? mobileLayout : filteredLayout;
 
   return (
     <>
@@ -92,7 +117,7 @@ export const CustomizableDashboard = ({ modules, onModuleClick }: CustomizableDa
         onApply={(vehicleId, newRate) => applyPriceOptimization(vehicleId, newRate)}
       />
 
-      <div className="space-y-4 md:space-y-6">
+      <div className="space-y-4 md:space-y-6" ref={containerRef}>
         {/* Customize Controls */}
         <div 
           className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-muted/50 rounded-lg border-2"
@@ -181,7 +206,7 @@ export const CustomizableDashboard = ({ modules, onModuleClick }: CustomizableDa
             aria-live="polite"
           >
             <p className="text-sm text-muted-foreground">
-              <strong className="text-foreground">Edit Mode:</strong> Drag widgets to rearrange, resize by dragging corners. 
+              <strong className="text-foreground">Edit Mode:</strong> {isMobile ? "Widgets are arranged in a single column on mobile. " : "Drag widgets to rearrange, resize by dragging corners. "}
               Click "Add Widgets" to show/hide widgets, or "Reset" to restore defaults.
             </p>
           </div>
@@ -199,16 +224,16 @@ export const CustomizableDashboard = ({ modules, onModuleClick }: CustomizableDa
         {/* Grid Layout */}
         <GridLayout
           className="layout"
-          layout={filteredLayout}
+          layout={finalLayout}
           cols={12}
-          rowHeight={80}
-          width={1200}
-          isDraggable={isEditMode}
-          isResizable={isEditMode}
+          rowHeight={isMobile ? 60 : 80}
+          width={containerWidth}
+          isDraggable={isEditMode && !isMobile}
+          isResizable={isEditMode && !isMobile}
           onLayoutChange={handleLayoutChange}
           compactType="vertical"
           preventCollision={false}
-          margin={[16, 16]}
+          margin={isMobile ? [8, 8] : [16, 16]}
           containerPadding={[0, 0]}
           draggableHandle=".drag-handle"
         >
