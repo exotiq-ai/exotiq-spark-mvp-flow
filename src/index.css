@@ -41,6 +41,12 @@
     --accent: 262 83% 58%;
     --accent-foreground: 0 0% 100%;
     
+    /* Gulf Blue - Apple-inspired glass effects
+       USE FOR: Rari AI button, premium glass effects */
+    --gulf-blue: 200 72% 49%;
+    --gulf-blue-light: 200 72% 65%;
+    --gulf-blue-dark: 200 72% 35%;
+    
     /* Semantic Colors - State Indicators */
     
     /* Success - Green
@@ -118,6 +124,10 @@
 
     --accent: 262 83% 58%;
     --accent-foreground: 0 0% 100%;
+
+    --gulf-blue: 200 72% 49%;
+    --gulf-blue-light: 200 72% 65%;
+    --gulf-blue-dark: 200 72% 35%;
 
     --success: 142 71% 45%;
     --success-foreground: 0 0% 100%;

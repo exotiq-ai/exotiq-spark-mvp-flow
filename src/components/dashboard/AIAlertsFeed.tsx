@@ -176,12 +176,14 @@ export const AIAlertsFeed = ({ onNavigate, className }: AIAlertsFeedProps) => {
   } = useFleet();
   const { toast } = useToast();
   
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true); // Start collapsed by default
   const [dismissedAlertIds, setDismissedAlertIds] = useState<Set<string>>(new Set());
   const [voiceAlertsEnabled, setVoiceAlertsEnabled] = useState(() => {
     return localStorage.getItem('voiceAlertsEnabled') === 'true';
   });
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
   const announcedAlertsRef = useRef<Set<string>>(new Set());
   const audioQueueRef = useRef<string[]>([]);
 
@@ -269,6 +271,25 @@ export const AIAlertsFeed = ({ onNavigate, className }: AIAlertsFeedProps) => {
     }
   }, [alerts, voiceAlertsEnabled, isPlayingAudio]);
 
+  // Detect scroll position
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 100);
+    };
+    
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Delayed appearance on load (Apple-style)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsVisible(true);
+    }, 3000);
+    
+    return () => clearTimeout(timer);
+  }, []);
+
   // Reset dismissed alerts when new data comes in
   useEffect(() => {
     // Clear dismissed alerts older than 24 hours
@@ -325,6 +346,11 @@ export const AIAlertsFeed = ({ onNavigate, className }: AIAlertsFeedProps) => {
   const criticalCount = alerts.filter(a => a.type === 'critical').length;
   const highCount = alerts.filter(a => a.type === 'high').length;
 
+  // Don't show anything until after delay
+  if (!isVisible) {
+    return null;
+  }
+
   if (collapsed) {
     return (
       <Button
@@ -332,8 +358,10 @@ export const AIAlertsFeed = ({ onNavigate, className }: AIAlertsFeedProps) => {
         variant="outline"
         size="sm"
         className={cn(
-          "fixed bottom-24 left-4 md:bottom-6 md:left-6 z-40 shadow-lg",
-          "bg-background hover:bg-muted",
+          "fixed bottom-32 left-4 md:bottom-6 md:left-6 z-40 shadow-lg",
+          "bg-background/80 hover:bg-muted backdrop-blur-sm",
+          "transition-all duration-300 ease-out animate-fade-in",
+          isScrolled && "scale-75 opacity-60",
           className
         )}
       >
@@ -350,8 +378,10 @@ export const AIAlertsFeed = ({ onNavigate, className }: AIAlertsFeedProps) => {
   return (
     <Card 
       className={cn(
-        "fixed bottom-24 left-4 right-4 md:bottom-6 md:left-6 md:right-auto z-40 w-auto md:w-[380px] max-w-[calc(100vw-2rem)] md:max-w-[380px]",
-        "shadow-xl border-2 border-border",
+        "fixed left-4 right-4 md:left-6 md:right-auto z-40 w-auto md:w-[340px] max-w-[calc(100vw-2rem)] md:max-w-[340px]",
+        "shadow-xl border-2 border-border animate-fade-in",
+        "transition-all duration-300 ease-out",
+        isScrolled ? "bottom-32 md:bottom-8 scale-75 opacity-60" : "bottom-32 md:bottom-6",
         className
       )}
       role="region"
@@ -411,7 +441,7 @@ export const AIAlertsFeed = ({ onNavigate, className }: AIAlertsFeedProps) => {
         )}
       </div>
 
-      <ScrollArea className="h-[400px]">
+      <ScrollArea className="h-[280px] md:h-[320px]">
         {alerts.length === 0 ? (
           <div className="p-8 text-center text-muted-foreground">
             <Bell className="w-12 h-12 mx-auto mb-3 opacity-50" aria-hidden="true" />

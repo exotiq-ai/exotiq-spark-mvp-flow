@@ -83,16 +83,18 @@ export const AskRariButton = ({
         onClick={() => setShowRari(true)}
         size="lg"
         className={cn(
-          "fixed bottom-20 right-6 md:bottom-6 z-50 shadow-xl",
-          "bg-accent hover:bg-accent/90 text-accent-foreground",
-          "rounded-full w-14 h-14 p-0",
-          "hover:scale-110 transition-all duration-200",
-          "animate-pulse-glow",
+          "fixed bottom-20 right-6 md:bottom-6 z-50",
+          "bg-[#2596BE]/20 hover:bg-[#2596BE]/30 backdrop-blur-xl",
+          "border border-[#2596BE]/30 hover:border-[#2596BE]/50",
+          "text-[#2596BE] hover:text-[#1A7193]",
+          "rounded-full w-12 h-12 md:w-14 md:h-14 p-0",
+          "shadow-[0_0_20px_rgba(37,150,190,0.25)] hover:shadow-[0_0_30px_rgba(37,150,190,0.35)]",
+          "hover:scale-105 active:scale-95 transition-all duration-300 ease-out",
           className
         )}
         aria-label="Ask Rari AI"
       >
-        <Sparkles className="w-6 h-6" />
+        <Sparkles className="w-5 h-5 md:w-6 md:h-6" />
       </Button>
 
       <Dialog open={showRari} onOpenChange={setShowRari}>

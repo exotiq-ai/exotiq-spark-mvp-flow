@@ -46,6 +46,11 @@ export default {
 					DEFAULT: 'hsl(var(--accent))',
 					foreground: 'hsl(var(--accent-foreground))'
 				},
+				'gulf-blue': {
+					DEFAULT: 'hsl(var(--gulf-blue))',
+					light: 'hsl(var(--gulf-blue-light))',
+					dark: 'hsl(var(--gulf-blue-dark))'
+				},
 				success: {
 					DEFAULT: 'hsl(var(--success))',
 					foreground: 'hsl(var(--success-foreground))'
