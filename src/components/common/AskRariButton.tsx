@@ -83,11 +83,11 @@ export const AskRariButton = ({
         onClick={() => setShowRari(true)}
         size="lg"
         className={cn(
-          "fixed bottom-20 right-6 md:bottom-6 z-50",
+          "fixed bottom-[88px] right-4 md:bottom-6 md:right-6 z-50",
           "bg-[#2596BE]/20 hover:bg-[#2596BE]/30 backdrop-blur-xl",
           "border border-[#2596BE]/30 hover:border-[#2596BE]/50",
           "text-[#2596BE] hover:text-[#1A7193]",
-          "rounded-full w-12 h-12 md:w-14 md:h-14 p-0",
+          "rounded-full w-14 h-14 md:w-16 md:h-16 p-0",
           "shadow-[0_0_20px_rgba(37,150,190,0.25)] hover:shadow-[0_0_30px_rgba(37,150,190,0.35)]",
           "hover:scale-105 active:scale-95 transition-all duration-300 ease-out",
           className

@@ -13,7 +13,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { GlobalSearch } from "@/components/common/GlobalSearch";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
-// import { NotificationCenter } from "@/components/common/NotificationCenter";
+import { UnifiedNotificationCenter } from "@/components/common/UnifiedNotificationCenter";
 
 export const DashboardHeader = () => {
   const { user, signOut } = useAuth();
@@ -32,7 +32,7 @@ export const DashboardHeader = () => {
         </div>
 
         <div className="flex items-center space-x-2">
-          {/* <NotificationCenter /> */}
+          <UnifiedNotificationCenter />
           <ThemeToggle />
           
           <DropdownMenu>

@@ -6,7 +6,7 @@ import { Logo } from "@/components/ui/logo";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { SkipNavigation } from "@/components/common/SkipNavigation";
 import { SEOHead } from "@/components/common/SEOHead";
-import { AIAlertsFeed } from "@/components/dashboard/AIAlertsFeed";
+import { UnifiedNotificationCenter } from "@/components/common/UnifiedNotificationCenter";
 import { useAnalytics } from "@/lib/analytics";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useSwipeGesture } from "@/hooks/useSwipeGesture";
@@ -212,9 +212,7 @@ const Dashboard = () => {
               )}
             </div>
             <div className="flex items-center space-x-2 sm:space-x-4">
-              <Button variant="ghost" size="sm" className="touch-target">
-                <Bell className="h-4 w-4" />
-              </Button>
+              <UnifiedNotificationCenter onNavigate={handleModuleChange} />
               <Button variant="ghost" size="sm" className="touch-target">
                 <Settings className="h-4 w-4" />
               </Button>
@@ -339,9 +337,6 @@ const Dashboard = () => {
           </div>
         </div>
         </main>
-
-        {/* AI Alerts Feed - Fixed Position */}
-        <AIAlertsFeed onNavigate={handleModuleChange} />
       </div>
     </div>
   );
