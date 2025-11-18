@@ -80,6 +80,7 @@ export const AskRariButton = ({
   return (
     <>
       <Button
+        data-tour="rari-button"
         onClick={() => setShowRari(true)}
         size="lg"
         className={cn(

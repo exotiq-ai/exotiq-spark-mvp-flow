@@ -28,20 +28,14 @@ serve(async (req) => {
     
     console.log('Generating signed URL for agent:', agentId, 'user:', userId);
 
-    // Pass user_id as metadata to ElevenLabs conversation
+    // Get signed URL from ElevenLabs (GET request only)
     const response = await fetch(
       `https://api.elevenlabs.io/v1/convai/conversation/get_signed_url?agent_id=${agentId}`,
       {
-        method: 'POST',
+        method: 'GET',
         headers: {
           'xi-api-key': ELEVENLABS_API_KEY,
-          'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          metadata: {
-            user_id: userId
-          }
-        })
       }
     );
 
