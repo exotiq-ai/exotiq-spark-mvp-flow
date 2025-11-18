@@ -19,10 +19,12 @@ interface ModuleGridWidgetProps {
 export const ModuleGridWidget = ({ modules, onModuleClick }: ModuleGridWidgetProps) => {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 h-full">
-      {modules.map((module) => (
+      {modules.map((module, index) => (
         <Card 
-          key={module.id} 
-          className="p-4 md:p-6 border-2 border-border hover:border-primary/50 shadow-sm hover:shadow-md transition-all cursor-pointer transform hover:-translate-y-1 touch-target"
+          key={module.id}
+          data-tour={module.id === 'motoriq' ? 'motoriq-module' : module.id === 'core' ? 'crm-module' : undefined}
+          className="p-4 md:p-6 border-2 border-border hover:border-primary/50 shadow-sm hover:shadow-md transition-all cursor-pointer transform hover:-translate-y-1 touch-target animate-fade-in"
+          style={{ animationDelay: `${index * 0.1}s`, animationFillMode: 'both' }}
           onClick={() => onModuleClick(module.id)}
           tabIndex={0}
           role="button"

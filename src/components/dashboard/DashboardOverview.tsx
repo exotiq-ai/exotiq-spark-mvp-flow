@@ -8,6 +8,7 @@ import { ScheduleWidget } from "./widgets/ScheduleWidget";
 import { ModuleGridWidget } from "./widgets/ModuleGridWidget";
 import { PriceOptimizationDialog } from "@/components/dialogs/PriceOptimizationDialog";
 import { useFleet } from "@/contexts/FleetContext";
+import { DemoOnboarding } from "@/components/demo/DemoOnboarding";
 
 interface Module {
   id: string;
@@ -29,6 +30,8 @@ export const DashboardOverview = ({ modules, onModuleClick }: DashboardOverviewP
 
   return (
     <>
+      <DemoOnboarding />
+      
       <PriceOptimizationDialog
         open={showOptimizationDialog}
         onOpenChange={setShowOptimizationDialog}
@@ -38,7 +41,9 @@ export const DashboardOverview = ({ modules, onModuleClick }: DashboardOverviewP
 
       <div className="space-y-4 md:space-y-6">
         <BannerWidget />
-        <RevenueWidget />
+        <div data-tour="revenue-widget">
+          <RevenueWidget />
+        </div>
         <MetricsWidget />
         <AIInsightWidget 
           onApplyOptimization={() => setShowOptimizationDialog(true)}
