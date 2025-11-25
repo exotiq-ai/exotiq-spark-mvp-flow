@@ -122,6 +122,43 @@ export default {
 				'pulse-glow': {
 					'0%, 100%': { boxShadow: '0 0 15px hsl(var(--accent) / 0.2)' },
 					'50%': { boxShadow: '0 0 25px hsl(var(--accent) / 0.35)' }
+				},
+				// Enhanced Apple-level animations
+				'shimmer': {
+					'0%': { backgroundPosition: '-1000px 0' },
+					'100%': { backgroundPosition: '1000px 0' }
+				},
+				'gradient-flow': {
+					'0%, 100%': { backgroundPosition: '0% 50%' },
+					'50%': { backgroundPosition: '100% 50%' }
+				},
+				'breathing-glow': {
+					'0%, 100%': { 
+						boxShadow: '0 0 20px rgba(37, 150, 190, 0.3), 0 0 40px rgba(37, 150, 190, 0.1)',
+						transform: 'scale(1)'
+					},
+					'50%': { 
+						boxShadow: '0 0 30px rgba(37, 150, 190, 0.5), 0 0 60px rgba(37, 150, 190, 0.2)',
+						transform: 'scale(1.02)'
+					}
+				},
+				'slide-up-fade': {
+					'0%': { opacity: '0', transform: 'translateY(20px)' },
+					'100%': { opacity: '1', transform: 'translateY(0)' }
+				},
+				'scale-spring': {
+					'0%': { transform: 'scale(0.9)' },
+					'50%': { transform: 'scale(1.05)' },
+					'100%': { transform: 'scale(1)' }
+				},
+				'pulse-soft': {
+					'0%, 100%': { opacity: '0.6' },
+					'50%': { opacity: '1' }
+				},
+				'wave': {
+					'0%': { transform: 'scaleY(0.5)' },
+					'50%': { transform: 'scaleY(1)' },
+					'100%': { transform: 'scaleY(0.5)' }
 				}
 			},
 			animation: {
@@ -135,7 +172,15 @@ export default {
 				'slide-out-right': 'slide-out-right 0.3s ease-out',
 				'pulse-glow': 'pulse-glow 3.5s ease-in-out infinite',
 				'enter': 'fade-in 0.3s ease-out, scale-in 0.2s ease-out',
-				'exit': 'fade-out 0.3s ease-out, scale-out 0.2s ease-out'
+				'exit': 'fade-out 0.3s ease-out, scale-out 0.2s ease-out',
+				// Enhanced Apple-level animations
+				'shimmer': 'shimmer 2s linear infinite',
+				'gradient-flow': 'gradient-flow 3s ease infinite',
+				'breathing-glow': 'breathing-glow 3s ease-in-out infinite',
+				'slide-up-fade': 'slide-up-fade 0.4s ease-out',
+				'scale-spring': 'scale-spring 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)',
+				'pulse-soft': 'pulse-soft 2s ease-in-out infinite',
+				'wave': 'wave 1s ease-in-out infinite'
 			}
 		}
 	},
