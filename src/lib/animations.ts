@@ -174,6 +174,44 @@ export const aiThinking = {
 };
 
 // ============================================
+// SUCCESS & ERROR ANIMATIONS
+// ============================================
+
+export const successCheckmark = {
+  initial: { scale: 0, rotate: -180, opacity: 0 },
+  animate: { 
+    scale: 1, 
+    rotate: 0, 
+    opacity: 1,
+    transition: springs.bouncy
+  }
+};
+
+export const errorShake = {
+  animate: {
+    x: [-10, 10, -8, 8, -5, 5, 0],
+  },
+  transition: {
+    duration: 0.5,
+    ease: "easeInOut"
+  }
+};
+
+export const slideInFromRight = {
+  initial: { x: "100%", opacity: 0 },
+  animate: { x: 0, opacity: 1 },
+  exit: { x: "100%", opacity: 0 },
+  transition: springs.snappy
+};
+
+export const slideInFromTop = {
+  initial: { y: -100, opacity: 0 },
+  animate: { y: 0, opacity: 1 },
+  exit: { y: -100, opacity: 0 },
+  transition: springs.smooth
+};
+
+// ============================================
 // UTILITY FUNCTIONS
 // ============================================
 

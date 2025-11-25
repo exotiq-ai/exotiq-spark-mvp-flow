@@ -159,6 +159,28 @@ export default {
 					'0%': { transform: 'scaleY(0.5)' },
 					'50%': { transform: 'scaleY(1)' },
 					'100%': { transform: 'scaleY(0.5)' }
+				},
+				'shake': {
+					'0%, 100%': { transform: 'translateX(0)' },
+					'10%, 30%, 50%, 70%, 90%': { transform: 'translateX(-10px)' },
+					'20%, 40%, 60%, 80%': { transform: 'translateX(10px)' }
+				},
+				'success-scale': {
+					'0%': { transform: 'scale(0) rotate(-180deg)', opacity: '0' },
+					'50%': { transform: 'scale(1.1) rotate(10deg)' },
+					'100%': { transform: 'scale(1) rotate(0deg)', opacity: '1' }
+				},
+				'draw-check': {
+					'0%': { strokeDashoffset: '50' },
+					'100%': { strokeDashoffset: '0' }
+				},
+				'toast-slide-in': {
+					'0%': { transform: 'translateX(100%)', opacity: '0' },
+					'100%': { transform: 'translateX(0)', opacity: '1' }
+				},
+				'toast-slide-out': {
+					'0%': { transform: 'translateX(0)', opacity: '1' },
+					'100%': { transform: 'translateX(100%)', opacity: '0' }
 				}
 			},
 			animation: {
@@ -180,7 +202,12 @@ export default {
 				'slide-up-fade': 'slide-up-fade 0.4s ease-out',
 				'scale-spring': 'scale-spring 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)',
 				'pulse-soft': 'pulse-soft 2s ease-in-out infinite',
-				'wave': 'wave 1s ease-in-out infinite'
+				'wave': 'wave 1s ease-in-out infinite',
+				'shake': 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both',
+				'success-scale': 'success-scale 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55)',
+				'draw-check': 'draw-check 0.5s ease-in-out forwards',
+				'toast-slide-in': 'toast-slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+				'toast-slide-out': 'toast-slide-out 0.2s ease-in forwards'
 			}
 		}
 	},
