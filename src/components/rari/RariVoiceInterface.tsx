@@ -10,6 +10,8 @@ import { supabase } from '@/integrations/supabase/client';
 import ReactMarkdown from 'react-markdown';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth } from '@/contexts/AuthContext';
+import { AIThinking } from '@/components/ui/ai-thinking';
+import { RariVoiceWaveform } from './RariVoiceWaveform';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -139,16 +141,27 @@ export const RariVoiceInterface = () => {
 
         {/* Voice Interface */}
         <div className="text-center space-y-4">
+        
+        {/* Animated Waveform */}
         <div className="flex items-center justify-center">
-          <div className={`p-4 rounded-full transition-all ${
+          <RariVoiceWaveform 
+            isActive={isConnected} 
+            isSpeaking={isSpeaking}
+            className="w-32"
+          />
+        </div>
+        
+        {/* Connection Status Icon */}
+        <div className="flex items-center justify-center">
+          <div className={`p-4 rounded-full transition-all duration-300 ${
             isSpeaking 
-              ? 'bg-primary/20 animate-pulse' 
+              ? 'bg-gulf-blue/30 shadow-[0_0_30px_rgba(37,150,190,0.4)]' 
               : isConnected 
-                ? 'bg-primary/10' 
+                ? 'bg-gulf-blue/20 shadow-[0_0_20px_rgba(37,150,190,0.2)]' 
                 : 'bg-muted'
           }`}>
             {isConnected ? (
-              <Phone className={`w-8 h-8 ${isSpeaking ? 'text-primary animate-pulse' : 'text-primary'}`} />
+              <Phone className={`w-8 h-8 text-gulf-blue transition-all ${isSpeaking ? 'animate-pulse-soft' : ''}`} />
             ) : (
               <PhoneOff className="w-8 h-8 text-muted-foreground" />
             )}
@@ -157,13 +170,17 @@ export const RariVoiceInterface = () => {
         
         <div>
           <h3 className="font-semibold mb-2">Rari AI Assistant</h3>
-          <p className="text-sm text-muted-foreground mb-4">
-            {isConnected 
-              ? isSpeaking 
-                ? "Rari is speaking..."
-                : "Listening... speak naturally"
-              : "Voice-powered fleet management assistant"}
-          </p>
+          
+          {/* AI Thinking State */}
+          {isConnected && isSpeaking ? (
+            <AIThinking variant="gradient" text="Rari is speaking..." className="mb-4" />
+          ) : isConnected ? (
+            <AIThinking variant="wave" text="Listening... speak naturally" className="mb-4" />
+          ) : (
+            <p className="text-sm text-muted-foreground mb-4">
+              Voice-powered fleet management assistant
+            </p>
+          )}
           
           <Badge className={
             isConnected 
@@ -204,27 +221,21 @@ export const RariVoiceInterface = () => {
               </div>
             </div>
             
-            <Button 
-              className="w-full" 
-              onClick={handleStartConversation}
-              disabled={status === 'connecting'}
-            >
-              {status === 'connecting' ? (
-                <>
-                  <LoadingSpinner size="sm" className="mr-2" />
-                  Connecting...
-                </>
-              ) : (
-                <>
-                  <Mic className="w-4 h-4 mr-2" />
-                  Start Conversation
-                </>
-              )}
-            </Button>
+            {status === 'connecting' ? (
+              <AIThinking variant="gradient" text="Connecting to Rari..." />
+            ) : (
+              <Button 
+                className="w-full group hover:scale-105 active:scale-95 transition-all duration-300" 
+                onClick={handleStartConversation}
+              >
+                <Mic className="w-4 h-4 mr-2 group-hover:animate-pulse-soft" />
+                Start Conversation
+              </Button>
+            )}
           </>
         ) : (
           <Button 
-            className="w-full" 
+            className="w-full hover:scale-105 active:scale-95 transition-all duration-300" 
             variant="destructive"
             onClick={handleEndConversation}
           >

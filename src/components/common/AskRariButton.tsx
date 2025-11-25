@@ -47,11 +47,13 @@ export const AskRariButton = ({
           onClick={() => setShowRari(true)}
           variant="outline"
           className={cn(
-            "border-accent/30 hover:border-accent hover:bg-accent/10 transition-all",
+            "border-gulf-blue/30 hover:border-gulf-blue hover:bg-gulf-blue/10",
+            "transition-all duration-300 hover:scale-105 active:scale-95",
+            "hover:shadow-[0_0_20px_rgba(37,150,190,0.2)]",
             className
           )}
         >
-          <Sparkles className="w-4 h-4 mr-2 text-accent" />
+          <Sparkles className="w-4 h-4 mr-2 text-gulf-blue animate-pulse-soft" />
           Ask Rari AI
         </Button>
         
@@ -85,17 +87,18 @@ export const AskRariButton = ({
         size="lg"
         className={cn(
           "fixed bottom-[88px] right-4 md:bottom-6 md:right-6 z-50",
-          "bg-[#2596BE]/20 hover:bg-[#2596BE]/30 backdrop-blur-xl",
-          "border border-[#2596BE]/30 hover:border-[#2596BE]/50",
-          "text-[#2596BE] hover:text-[#1A7193]",
+          "bg-gulf-blue/20 hover:bg-gulf-blue/30 backdrop-blur-xl",
+          "border border-gulf-blue/30 hover:border-gulf-blue/50",
+          "text-gulf-blue hover:text-gulf-blue-dark",
           "rounded-full w-14 h-14 md:w-16 md:h-16 p-0",
-          "shadow-[0_0_20px_rgba(37,150,190,0.25)] hover:shadow-[0_0_30px_rgba(37,150,190,0.35)]",
+          "animate-breathing-glow",
           "hover:scale-105 active:scale-95 transition-all duration-300 ease-out",
+          "will-change-transform",
           className
         )}
         aria-label="Ask Rari AI"
       >
-        <Sparkles className="w-5 h-5 md:w-6 md:h-6" />
+        <Sparkles className="w-5 h-5 md:w-6 md:h-6 animate-pulse-soft" />
       </Button>
 
       <Dialog open={showRari} onOpenChange={setShowRari}>
