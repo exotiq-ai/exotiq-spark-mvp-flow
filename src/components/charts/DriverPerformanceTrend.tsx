@@ -2,8 +2,9 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface DriverTrendProps {
   driverName: string;
@@ -81,6 +82,13 @@ export const DriverPerformanceTrend = ({ driverName, currentScore, vehicle, stat
   }
 
   return (
+    <AnimatePresence>
+    <motion.div
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: 'auto' }}
+      exit={{ opacity: 0, height: 0 }}
+      transition={{ duration: 0.3 }}
+    >
     <Card 
       className="mt-4 p-4 border border-border bg-muted/20"
       role="region"
@@ -169,9 +177,11 @@ export const DriverPerformanceTrend = ({ driverName, currentScore, vehicle, stat
             type="monotone" 
             dataKey="score" 
             stroke={getTrendColor()}
-            strokeWidth={2}
-            dot={{ fill: getTrendColor(), r: 4 }}
-            activeDot={{ r: 6 }}
+            strokeWidth={2.5}
+            dot={{ fill: getTrendColor(), r: 4, strokeWidth: 2, stroke: 'hsl(var(--card))' }}
+            activeDot={{ r: 6, stroke: getTrendColor(), strokeWidth: 2 }}
+            animationDuration={1200}
+            animationEasing="ease-out"
           />
         </LineChart>
         </ResponsiveContainer>
@@ -189,5 +199,7 @@ export const DriverPerformanceTrend = ({ driverName, currentScore, vehicle, stat
         )}
       </div>
     </Card>
+    </motion.div>
+    </AnimatePresence>
   );
 };

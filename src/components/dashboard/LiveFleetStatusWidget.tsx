@@ -1,65 +1,42 @@
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Car, ArrowRight } from "lucide-react";
-import { useFleet } from "@/contexts/FleetContext";
+import { FleetStatusDonut } from "@/components/charts/FleetStatusDonut";
+import { motion } from "framer-motion";
 
 interface LiveFleetStatusWidgetProps {
   onViewAll: () => void;
 }
 
 export const LiveFleetStatusWidget = ({ onViewAll }: LiveFleetStatusWidgetProps) => {
-  const { vehicles } = useFleet();
-  
-  // Calculate status counts
-  const available = vehicles.filter(v => v.status === 'available').length;
-  const booked = vehicles.filter(v => v.status === 'booked').length;
-  const maintenance = vehicles.filter(v => v.status === 'maintenance').length;
-  
   return (
-    <Card className="p-6 border-2 border-border shadow-sm">
-      <div className="flex items-center justify-between mb-4">
+    <Card className="p-6 border-2 border-border shadow-sm h-full">
+      <motion.div 
+        className="flex items-center justify-between mb-6"
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+      >
         <div className="flex items-center gap-2">
-          <Car className="h-5 w-5 text-primary" />
+          <div className="p-2 bg-primary/10 rounded-xl">
+            <Car className="h-5 w-5 text-primary" />
+          </div>
           <h3 className="text-lg font-semibold">Live Fleet Status</h3>
         </div>
-        <Button variant="ghost" size="sm" onClick={onViewAll}>
+        <Button variant="ghost" size="sm" onClick={onViewAll} className="group">
           View All
-          <ArrowRight className="w-4 h-4 ml-1" />
+          <ArrowRight className="w-4 h-4 ml-1 transition-transform group-hover:translate-x-1" />
         </Button>
-      </div>
+      </motion.div>
       
-      <div className="space-y-3">
-        <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-            <span className="text-sm font-medium">Available</span>
-          </div>
-          <Badge variant="outline" className="bg-success/10 text-success border-success/20">
-            {available}
-          </Badge>
-        </div>
-        
-        <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-primary" />
-            <span className="text-sm font-medium">Booked</span>
-          </div>
-          <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
-            {booked}
-          </Badge>
-        </div>
-        
-        <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-warning" />
-            <span className="text-sm font-medium">Maintenance</span>
-          </div>
-          <Badge variant="outline" className="bg-warning/10 text-warning border-warning/20">
-            {maintenance}
-          </Badge>
-        </div>
-      </div>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+        className="flex justify-center"
+      >
+        <FleetStatusDonut />
+      </motion.div>
     </Card>
   );
 };
