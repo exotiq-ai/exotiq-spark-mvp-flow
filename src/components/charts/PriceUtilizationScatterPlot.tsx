@@ -8,12 +8,18 @@ import { exportToCSV } from "@/utils/chartExport";
 import { Download, TrendingUp, AlertTriangle } from "lucide-react";
 import { PriceOptimizationDialog } from "@/components/dialogs/PriceOptimizationDialog";
 import { useToast } from "@/hooks/use-toast";
+import { useChartHeight } from "@/components/ui/adaptive-chart";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export const PriceUtilizationScatterPlot = () => {
   const { vehicles, applyPriceOptimization } = useFleet();
   const { toast } = useToast();
   const [zoneFilter, setZoneFilter] = useState<string>('all');
   const [selectedVehicle, setSelectedVehicle] = useState<any>(null);
+  const [showOptimization, setShowOptimization] = useState(false);
+  
+  const isMobile = useIsMobile();
+  const chartHeight = useChartHeight(220, 260, 300);
   const [showOptimization, setShowOptimization] = useState(false);
 
   // Transform vehicle data for scatter plot
@@ -132,40 +138,44 @@ export const PriceUtilizationScatterPlot = () => {
         />
       )}
       
-      <Card className="p-6 border-2 border-border shadow-sm">
-        <div className="flex items-start justify-between mb-4">
+      <Card className="p-4 sm:p-6 border-2 border-border shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-4">
           <div>
-            <h3 className="text-xl font-semibold mb-1">Price vs. Utilization</h3>
-            <p className="text-sm text-muted-foreground">Click any point to optimize • Filter by zone</p>
+            <h3 className="text-lg sm:text-xl font-semibold mb-1">Price vs. Utilization</h3>
+            <p className="text-xs sm:text-sm text-muted-foreground">
+              {isMobile ? 'Tap to optimize' : 'Click any point to optimize • Filter by zone'}
+            </p>
           </div>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleExportCSV}
-            className="gap-2"
-          >
-            <Download className="h-4 w-4" />
-            Export CSV
-          </Button>
+          {!isMobile && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleExportCSV}
+              className="gap-2"
+            >
+              <Download className="h-4 w-4" />
+              Export
+            </Button>
+          )}
         </div>
 
         {/* Filter Chips */}
-        <div className="flex flex-wrap gap-2 mb-4">
+        <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-4">
           {zones.map(zone => (
             <Badge
               key={zone.value}
               variant={zoneFilter === zone.value ? "default" : "outline"}
-              className="cursor-pointer hover:bg-primary/20 transition-colors"
+              className="cursor-pointer hover:bg-primary/20 transition-colors text-xs"
               onClick={() => setZoneFilter(zone.value)}
             >
               {zone.icon && <zone.icon className="h-3 w-3 mr-1" />}
-              {zone.label} ({zone.count})
+              {isMobile ? zone.label.slice(0, 5) : zone.label} ({zone.count})
             </Badge>
           ))}
         </div>
 
         <div role="img" aria-label="Scatter plot showing price vs utilization">
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={chartHeight}>
             <ScatterChart onClick={handlePointClick}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis 
@@ -175,7 +185,7 @@ export const PriceUtilizationScatterPlot = () => {
                 unit="%"
                 domain={[0, 100]}
                 stroke="hsl(var(--muted-foreground))"
-                tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: isMobile ? 10 : 12 }}
               />
               <YAxis 
                 type="number" 
@@ -183,9 +193,10 @@ export const PriceUtilizationScatterPlot = () => {
                 name="Daily Rate" 
                 unit="$"
                 stroke="hsl(var(--muted-foreground))"
-                tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: isMobile ? 10 : 12 }}
+                width={isMobile ? 40 : 50}
               />
-              <ZAxis range={[100, 400]} />
+              <ZAxis range={isMobile ? [60, 200] : [100, 400]} />
               <Tooltip content={<CustomTooltip />} />
               <Scatter 
                 data={data} 

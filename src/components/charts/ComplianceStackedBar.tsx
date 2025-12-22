@@ -3,6 +3,8 @@ import { Badge } from "@/components/ui/badge";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { Shield, FileText, CheckCircle, AlertTriangle } from "lucide-react";
 import { motion } from "framer-motion";
+import { useChartHeight, getResponsiveAxisConfig, getMobileLegendProps } from "@/components/ui/adaptive-chart";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const complianceData = [
   {
@@ -40,6 +42,11 @@ const complianceData = [
 ];
 
 export const ComplianceStackedBar = () => {
+  const isMobile = useIsMobile();
+  const chartHeight = useChartHeight(200, 260, 300);
+  const axisConfig = getResponsiveAxisConfig(isMobile);
+  const legendProps = getMobileLegendProps(isMobile);
+
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       const total = payload.reduce((sum: number, entry: any) => sum + entry.value, 0);
@@ -63,7 +70,7 @@ export const ComplianceStackedBar = () => {
             <div className="flex items-center justify-between gap-4">
               <span className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-warning" />
-                Expiring Soon:
+                Expiring:
               </span>
               <span className="font-semibold">{payload[1]?.value}</span>
             </div>
@@ -96,20 +103,20 @@ export const ComplianceStackedBar = () => {
       transition={{ duration: 0.5 }}
     >
       <Card 
-        className="p-6 border-2 border-border shadow-sm"
+        className="p-4 sm:p-6 border-2 border-border shadow-sm"
         role="region"
         aria-label="Compliance distribution chart"
       >
         <motion.div 
-          className="flex items-start justify-between mb-6"
+          className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-4"
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.4, delay: 0.1 }}
         >
           <div>
-            <h3 className="text-xl font-semibold mb-2">Compliance Distribution</h3>
-            <p className="text-sm text-muted-foreground">
-              Track document status across all compliance categories
+            <h3 className="text-lg sm:text-xl font-semibold mb-1">Compliance</h3>
+            <p className="text-xs sm:text-sm text-muted-foreground">
+              {isMobile ? 'Document status' : 'Track document status across categories'}
             </p>
           </div>
           <motion.div
@@ -117,7 +124,7 @@ export const ComplianceStackedBar = () => {
             animate={{ scale: 1, opacity: 1 }}
             transition={{ duration: 0.3, delay: 0.3 }}
           >
-            <Badge className={compliancePercentage >= 80 ? 'bg-success/20 text-success' : 'bg-warning/20 text-warning'}>
+            <Badge className={`text-xs ${compliancePercentage >= 80 ? 'bg-success/20 text-success' : 'bg-warning/20 text-warning'}`}>
               {compliancePercentage}% Compliant
             </Badge>
           </motion.div>
@@ -125,33 +132,35 @@ export const ComplianceStackedBar = () => {
 
         <motion.div 
           role="img" 
-          aria-label="Stacked bar chart showing compliance status across insurance, registration, inspections, and licenses categories"
+          aria-label="Stacked bar chart showing compliance status"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6, delay: 0.2 }}
         >
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={chartHeight}>
             <BarChart data={complianceData} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
               <XAxis 
                 type="number" 
                 stroke="hsl(var(--muted-foreground))"
-                tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: isMobile ? 10 : 12 }}
+                tickLine={false}
               />
               <YAxis 
                 dataKey="category" 
                 type="category"
                 stroke="hsl(var(--muted-foreground))"
-                tick={{ fill: 'hsl(var(--muted-foreground))' }}
-                width={100}
+                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: isMobile ? 10 : 12 }}
+                width={isMobile ? 55 : 90}
+                tickFormatter={(value) => isMobile ? value.slice(0, 5) : value}
               />
               <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--muted) / 0.3)' }} />
               <Legend 
-                wrapperStyle={{ paddingTop: '20px' }}
+                {...legendProps}
                 formatter={(value) => {
                   const labels: { [key: string]: string } = {
-                    compliant: 'Compliant',
-                    expiringSoon: 'Expiring Soon',
+                    compliant: isMobile ? 'OK' : 'Compliant',
+                    expiringSoon: isMobile ? 'Soon' : 'Expiring',
                     expired: 'Expired'
                   };
                   return labels[value] || value;
@@ -184,8 +193,8 @@ export const ComplianceStackedBar = () => {
           </ResponsiveContainer>
         </motion.div>
 
-        {/* Category Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6">
+        {/* Category Cards - Hidden on mobile */}
+        <div className="hidden sm:grid grid-cols-2 md:grid-cols-4 gap-3 mt-6">
           {complianceData.map((category, index) => {
             const complianceRate = Math.round((category.compliant / category.total) * 100);
             const CategoryIcon = category.icon;
@@ -196,7 +205,7 @@ export const ComplianceStackedBar = () => {
                 className="p-4 rounded-lg border border-border hover:border-primary/50 transition-all cursor-pointer group"
                 role="button"
                 tabIndex={0}
-                aria-label={`${category.category}: ${complianceRate}% compliant, ${category.compliant} of ${category.total} items`}
+                aria-label={`${category.category}: ${complianceRate}% compliant`}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.4 + index * 0.1 }}
@@ -210,22 +219,23 @@ export const ComplianceStackedBar = () => {
                 <div className="font-semibold text-sm mb-1">{category.category}</div>
                 <div className="text-2xl font-bold mb-1">{complianceRate}%</div>
                 <div className="text-xs text-muted-foreground">
-                  {category.compliant}/{category.total} items
+                  {category.compliant}/{category.total}
                 </div>
               </motion.div>
             );
           })}
         </div>
 
+        {/* Action summary */}
         <motion.div 
-          className="mt-4 p-3 bg-muted/30 rounded-lg text-xs text-muted-foreground"
+          className="mt-4 p-2 sm:p-3 bg-muted/30 rounded-lg text-xs text-muted-foreground"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.8 }}
         >
-          <strong className="text-foreground">Action Required:</strong> {
+          <strong className="text-foreground">Action:</strong> {
             complianceData.reduce((sum, cat) => sum + cat.expiringSoon + cat.expired, 0)
-          } documents need immediate attention to maintain compliance.
+          } documents need attention.
         </motion.div>
       </Card>
     </motion.div>
