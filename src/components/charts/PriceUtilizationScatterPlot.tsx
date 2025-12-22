@@ -20,7 +20,6 @@ export const PriceUtilizationScatterPlot = () => {
   
   const isMobile = useIsMobile();
   const chartHeight = useChartHeight(220, 260, 300);
-  const [showOptimization, setShowOptimization] = useState(false);
 
   // Transform vehicle data for scatter plot
   const allData = vehicles
