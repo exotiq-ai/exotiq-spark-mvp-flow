@@ -7,9 +7,12 @@ import { useFleet } from "@/contexts/FleetContext";
 import { useChartData } from "@/hooks/useChartData";
 import { RevenueBreakdownDialog } from "@/components/dialogs/RevenueBreakdownDialog";
 import { exportToCSV } from "@/utils/chartExport";
-import { Download, TrendingUp } from "lucide-react";
+import { Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
+import { useChartHeight, getResponsiveAxisConfig, formatCompactNumber } from "@/components/ui/adaptive-chart";
+import { TouchTooltip, getTouchActiveDot } from "@/components/ui/touch-tooltip";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export const RevenueLineChart = () => {
   const { bookings, vehicles, payments } = useFleet();
@@ -19,6 +22,10 @@ export const RevenueLineChart = () => {
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [comparePeriod, setComparePeriod] = useState(false);
   const [isAnimated, setIsAnimated] = useState(false);
+  
+  const isMobile = useIsMobile();
+  const chartHeight = useChartHeight(160, 200, 240);
+  const axisConfig = getResponsiveAxisConfig(isMobile);
 
   // Trigger animation on mount
   useEffect(() => {
@@ -87,61 +94,65 @@ export const RevenueLineChart = () => {
           aria-label="Revenue trend chart for last 30 days"
         >
           <motion.div 
-            className="flex items-start justify-between mb-4"
+            className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-4"
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.4, delay: 0.1 }}
           >
             <div>
-              <h3 className="text-xl font-semibold mb-1">Revenue Trend</h3>
-              <p className="text-sm text-muted-foreground">Last 30 days • Click any point for details</p>
+              <h3 className="text-lg sm:text-xl font-semibold mb-1">Revenue Trend</h3>
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                {isMobile ? 'Tap for details' : 'Last 30 days • Click any point for details'}
+              </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <Badge 
                 variant="outline" 
-                className="cursor-pointer hover:bg-primary/10 transition-colors"
+                className="cursor-pointer hover:bg-primary/10 transition-colors text-xs"
                 onClick={() => setComparePeriod(!comparePeriod)}
               >
-                {comparePeriod ? 'Hide' : 'Show'} Comparison
+                {comparePeriod ? 'Hide' : 'Compare'}
               </Badge>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleExportCSV}
-                className="gap-2"
-              >
-                <Download className="h-4 w-4" />
-                Export CSV
-              </Button>
+              {!isMobile && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleExportCSV}
+                  className="gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  Export
+                </Button>
+              )}
             </div>
           </motion.div>
 
           <motion.div 
-            className="grid grid-cols-2 gap-4 mb-4"
+            className="grid grid-cols-2 gap-2 sm:gap-4 mb-4"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.2 }}
           >
-            <div className="p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
-              <p className="text-xs text-muted-foreground mb-1">Total Revenue</p>
+            <div className="p-2 sm:p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+              <p className="text-[10px] sm:text-xs text-muted-foreground mb-1">Total Revenue</p>
               <motion.p 
-                className="text-2xl font-bold text-primary"
+                className="text-lg sm:text-2xl font-bold text-primary"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.5 }}
               >
-                ${totalRevenue.toLocaleString()}
+                ${isMobile ? formatCompactNumber(totalRevenue) : totalRevenue.toLocaleString()}
               </motion.p>
             </div>
-            <div className="p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
-              <p className="text-xs text-muted-foreground mb-1">Avg per Day</p>
+            <div className="p-2 sm:p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+              <p className="text-[10px] sm:text-xs text-muted-foreground mb-1">Avg/Day</p>
               <motion.p 
-                className="text-2xl font-bold"
+                className="text-lg sm:text-2xl font-bold"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.6 }}
               >
-                ${Math.round(avgRevenue).toLocaleString()}
+                ${isMobile ? formatCompactNumber(Math.round(avgRevenue)) : Math.round(avgRevenue).toLocaleString()}
               </motion.p>
             </div>
           </motion.div>
@@ -154,7 +165,7 @@ export const RevenueLineChart = () => {
             animate={{ opacity: 1 }}
             transition={{ duration: 0.6, delay: 0.3 }}
           >
-            <ResponsiveContainer width="100%" height={200}>
+            <ResponsiveContainer width="100%" height={chartHeight}>
               <AreaChart data={animatedData} onClick={handlePointClick}>
                 <defs>
                   <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
@@ -174,55 +185,36 @@ export const RevenueLineChart = () => {
                 <XAxis 
                   dataKey="date" 
                   stroke="hsl(var(--muted-foreground))"
-                  fontSize={12}
-                  tickLine={false}
-                  interval="preserveStartEnd"
-                  tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                  {...axisConfig.xAxis}
+                  interval={isMobile ? 'preserveStartEnd' : 'preserveStartEnd'}
                 />
                 <YAxis 
                   stroke="hsl(var(--muted-foreground))"
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
-                  tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                  {...axisConfig.yAxis}
+                  tickFormatter={(value) => `$${formatCompactNumber(value)}`}
                 />
                 <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '12px',
-                    padding: '12px 16px',
-                    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)'
-                  }}
-                  formatter={(value: number) => [`$${value.toLocaleString()}`, 'Revenue']}
-                  labelStyle={{ color: 'hsl(var(--foreground))', fontWeight: 600, marginBottom: 4 }}
+                  content={<TouchTooltip formatter={(value) => [`$${value.toLocaleString()}`, 'Revenue']} />}
                   cursor={{ stroke: 'hsl(var(--primary))', strokeWidth: 1, strokeDasharray: '4 4' }}
                 />
                 <Area 
                   type="monotone" 
                   dataKey="revenue" 
                   stroke="hsl(var(--success))" 
-                  strokeWidth={2.5}
+                  strokeWidth={isMobile ? 2 : 2.5}
                   fill="url(#revenueGradient)"
                   style={{ cursor: 'pointer' }}
                   animationDuration={1500}
                   animationEasing="ease-out"
                   dot={false}
-                  activeDot={{
-                    r: 6,
-                    stroke: 'hsl(var(--success))',
-                    strokeWidth: 2,
-                    fill: 'hsl(var(--card))',
-                    filter: 'url(#chartGlow)'
-                  }}
+                  activeDot={getTouchActiveDot('hsl(var(--success))')}
                 />
                 {comparePeriod && (
                   <Line
                     type="monotone"
                     dataKey="previousRevenue"
                     stroke="hsl(var(--muted-foreground))"
-                    strokeWidth={2}
+                    strokeWidth={isMobile ? 1.5 : 2}
                     strokeDasharray="5 5"
                     dot={false}
                     animationDuration={1500}

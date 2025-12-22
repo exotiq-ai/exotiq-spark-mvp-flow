@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { useFleet } from "@/contexts/FleetContext";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface DonutSegment {
   label: string;
@@ -13,6 +14,7 @@ export const FleetStatusDonut = () => {
   const { vehicles } = useFleet();
   const [animationProgress, setAnimationProgress] = useState(0);
   const [hoveredSegment, setHoveredSegment] = useState<string | null>(null);
+  const isMobile = useIsMobile();
 
   const segments: DonutSegment[] = useMemo(() => {
     const available = vehicles.filter(v => v.status === 'available').length;
@@ -27,8 +29,8 @@ export const FleetStatusDonut = () => {
   }, [vehicles]);
 
   const total = segments.reduce((sum, seg) => sum + seg.value, 0);
-  const size = 180;
-  const strokeWidth = 24;
+  const size = isMobile ? 140 : 180;
+  const strokeWidth = isMobile ? 20 : 24;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const center = size / 2;
