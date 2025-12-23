@@ -91,6 +91,15 @@
     
     --radius: 0.75rem;
     
+    /* Chart Colors - Data Visualization Palette */
+    --chart-1: 221 83% 53%;
+    --chart-2: 142 71% 45%;
+    --chart-3: 38 92% 50%;
+    --chart-4: 262 83% 58%;
+    --chart-5: 200 72% 49%;
+    --chart-gradient-start: 221 83% 53%;
+    --chart-gradient-end: 262 83% 58%;
+    
     /* Sidebar */
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
@@ -144,6 +153,15 @@
     --border: 220 13% 20%;
     --input: 220 13% 20%;
     --ring: 221 83% 53%;
+    
+    /* Chart Colors - Data Visualization Palette (Dark) */
+    --chart-1: 221 83% 60%;
+    --chart-2: 142 71% 50%;
+    --chart-3: 38 92% 55%;
+    --chart-4: 262 83% 65%;
+    --chart-5: 200 72% 55%;
+    --chart-gradient-start: 221 83% 60%;
+    --chart-gradient-end: 262 83% 65%;
     
     --sidebar-background: 220 15% 10%;
     --sidebar-foreground: 210 40% 98%;
