@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Logo } from "@/components/ui/logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
-import { Menu } from "lucide-react";
+import { Menu, Calendar } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useAnalytics } from "@/lib/analytics";
@@ -11,9 +11,10 @@ interface NavigationProps {
   onRequestAccess: () => void;
   onTryDemo: () => void;
   scrollToSection: (sectionId: string) => void;
+  onScheduleDemo?: () => void;
 }
 
-export const Navigation = ({ onRequestAccess, onTryDemo, scrollToSection }: NavigationProps) => {
+export const Navigation = ({ onRequestAccess, onTryDemo, scrollToSection, onScheduleDemo }: NavigationProps) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const { track } = useAnalytics();
@@ -50,10 +51,13 @@ export const Navigation = ({ onRequestAccess, onTryDemo, scrollToSection }: Navi
             <button onClick={() => handleNavClick('pricing')} className="text-muted-foreground hover:text-foreground transition-smooth focus-visible px-3">Pricing</button>
             <button onClick={() => handleNavClick('testimonials')} className="text-muted-foreground hover:text-foreground transition-smooth focus-visible px-3">Testimonials</button>
             <ThemeToggle />
-            <Link to="/dashboard">
-              <Button variant="outline" className="mr-2">Sign In</Button>
+            <Button variant="outline" onClick={onScheduleDemo} className="mr-2">
+              <Calendar className="mr-2 h-4 w-4" />
+              Schedule Demo
+            </Button>
+            <Link to="/auth">
+              <Button className="btn-premium">Start Free Trial</Button>
             </Link>
-            <Button className="btn-premium" onClick={onRequestAccess}>Request Access</Button>
           </div>
           
           {/* Mobile Navigation */}
@@ -98,15 +102,16 @@ export const Navigation = ({ onRequestAccess, onTryDemo, scrollToSection }: Navi
                     <ThemeToggle />
                   </div>
                   <div className="flex flex-col space-y-4">
-                    <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)}>
-                      <Button variant="outline" className="w-full">Sign In</Button>
-                    </Link>
-                    <Button className="btn-premium w-full" onClick={() => {
-                      onRequestAccess();
+                    <Button variant="outline" className="w-full" onClick={() => {
+                      onScheduleDemo?.();
                       setMobileMenuOpen(false);
                     }}>
-                      Request Access
+                      <Calendar className="mr-2 h-4 w-4" />
+                      Schedule Demo
                     </Button>
+                    <Link to="/auth" onClick={() => setMobileMenuOpen(false)}>
+                      <Button className="btn-premium w-full">Start Free Trial</Button>
+                    </Link>
                   </div>
                 </div>
               </SheetContent>
