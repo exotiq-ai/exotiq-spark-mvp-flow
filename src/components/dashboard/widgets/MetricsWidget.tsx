@@ -3,8 +3,13 @@ import { AnimatedMiniSparkline } from "@/components/charts/AnimatedMiniSparkline
 import { Calendar, Car, BarChart3, TrendingUp } from "lucide-react";
 import { useCountUp } from "@/hooks/useCountUp";
 import { motion } from "framer-motion";
+import { SkeletonHeroMetric } from "@/components/ui/skeleton-specialized";
 
-export const MetricsWidget = () => {
+interface MetricsWidgetProps {
+  isLoading?: boolean;
+}
+
+export const MetricsWidget = ({ isLoading }: MetricsWidgetProps) => {
   const bookingsSparkline = [12, 15, 13, 18, 16, 17, 18];
   const utilizationSparkline = [72, 75, 78, 76, 79, 77, 78];
   const rateSparkline = [320, 330, 325, 342, 338, 340, 342];
@@ -26,6 +31,16 @@ export const MetricsWidget = () => {
       }
     })
   };
+
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 h-full">
+        <SkeletonHeroMetric />
+        <SkeletonHeroMetric />
+        <SkeletonHeroMetric />
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 h-full">
