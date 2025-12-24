@@ -38,3 +38,6 @@ verify_jwt = false
 
 [functions.export-payments]
 verify_jwt = false
+
+[functions.create-payment-checkout]
+verify_jwt = false
