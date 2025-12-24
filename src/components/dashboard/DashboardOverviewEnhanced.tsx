@@ -150,29 +150,30 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
         />
       )}
 
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         {/* Hero Banner - Always visible */}
         <BannerWidget />
 
         {/* Quick Actions Bar - Streamlined horizontal bar */}
-        <Card className="p-4 border border-border/50">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-2 overflow-x-auto pb-1">
+        <Card className="p-3 sm:p-4 border border-border/50">
+          <div className="flex items-center justify-between gap-2 sm:gap-4">
+            <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 flex-1 min-w-0 scrollbar-hide">
               {quickActions.map((action, index) => (
                 <motion.div
                   key={action.id}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
+                  className="flex-shrink-0"
                 >
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={action.onClick}
-                    className={`flex items-center gap-2 rounded-full px-4 py-2 ${action.bgColor} whitespace-nowrap`}
+                    className={`flex items-center gap-1.5 sm:gap-2 rounded-full px-2.5 sm:px-4 py-1.5 sm:py-2 ${action.bgColor} whitespace-nowrap touch-target`}
                   >
-                    <action.icon className={`h-4 w-4 ${action.color}`} />
-                    <span className="text-sm font-medium">{action.label}</span>
+                    <action.icon className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${action.color}`} />
+                    <span className="text-xs sm:text-sm font-medium">{action.label}</span>
                   </Button>
                 </motion.div>
               ))}
@@ -181,10 +182,10 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
             {/* Rari Quick Access */}
             <Button
               onClick={() => onModuleClick('core')}
-              className="flex items-center gap-2 bg-gradient-to-r from-gulf-blue to-accent text-white rounded-full px-4 py-2 shadow-md hover:shadow-lg transition-all shrink-0"
+              className="flex items-center gap-1.5 sm:gap-2 bg-gradient-to-r from-gulf-blue to-accent text-white rounded-full px-3 sm:px-4 py-1.5 sm:py-2 shadow-md hover:shadow-lg transition-all shrink-0"
             >
-              <Sparkles className="h-4 w-4" />
-              <span className="text-sm font-medium hidden sm:inline">Ask Rari</span>
+              <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="text-xs sm:text-sm font-medium hidden xs:inline">Ask Rari</span>
             </Button>
           </div>
         </Card>
@@ -234,14 +235,14 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
           defaultOpen={isSectionExpanded("fleet-schedule")}
           badge={<Badge variant="outline" className="text-xs">Today</Badge>}
         >
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pt-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 pt-4">
             <FleetStatusWidget onViewAll={() => onModuleClick('motoriq')} />
             <ScheduleWidget onViewCalendar={() => onModuleClick('book')} />
           </div>
         </CollapsibleSection>
 
         {/* Module Navigation Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-4">
           {[
             { id: 'book', name: 'Bookings', icon: Calendar, color: 'text-primary' },
             { id: 'motoriq', name: 'MotorIQ', icon: TrendingUp, color: 'text-success' },
@@ -251,11 +252,11 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
             <button
               key={module.id}
               onClick={() => onModuleClick(module.id)}
-              className="flex items-center justify-between p-4 rounded-xl border border-border bg-card hover:bg-muted/50 hover:border-primary/30 transition-all group"
+              className="flex items-center justify-between p-3 sm:p-4 rounded-lg sm:rounded-xl border border-border bg-card hover:bg-muted/50 hover:border-primary/30 transition-all group touch-target"
             >
-              <div className="flex items-center gap-3">
-                <module.icon className={`h-5 w-5 ${module.color}`} />
-                <span className="font-medium text-sm">{module.name}</span>
+              <div className="flex items-center gap-2 sm:gap-3">
+                <module.icon className={`h-4 w-4 sm:h-5 sm:w-5 ${module.color}`} />
+                <span className="font-medium text-xs sm:text-sm">{module.name}</span>
               </div>
               <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
             </button>
