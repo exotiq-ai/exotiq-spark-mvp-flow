@@ -2,19 +2,19 @@
 export const STRIPE_PRICES = {
   starter: {
     monthly: 'price_1ShmMlHO7nC3pJiPxcbd7vlL',
-    annual: 'price_1ShjP6HO7nC3pJiP9QBawM60', // Legacy annual
+    annual: 'price_1ShmRHHO7nC3pJiPtU6o3AMC',
   },
   professional: {
     monthly: 'price_1ShmMmHO7nC3pJiPPYhhXT1o',
-    annual: 'price_1ShjPBHO7nC3pJiP6KR4QvWc', // Legacy annual
+    annual: 'price_1ShmRJHO7nC3pJiP05J4DdvQ',
   },
   business: {
     monthly: 'price_1ShmMoHO7nC3pJiPzUH0wSP3',
-    annual: 'price_1ShjPEHO7nC3pJiPdIX5VJuc', // Legacy annual
+    annual: 'price_1ShmRKHO7nC3pJiPSxuuBWtO',
   },
   enterprise: {
     monthly: 'price_1ShmMqHO7nC3pJiPV04rgXRX',
-    annual: 'price_1ShjPHHO7nC3pJiPoU8XyhuH', // Legacy annual
+    annual: 'price_1ShmRMHO7nC3pJiPYawYJ13O',
   },
 } as const;
 
