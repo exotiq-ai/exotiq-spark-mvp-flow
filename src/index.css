@@ -551,7 +551,7 @@
   }
 
   /* ============================================
-     APPLE-INSPIRED POLISH
+     APPLE-INSPIRED MICRO-INTERACTIONS
      ============================================ */
   
   /* Refined card hover states */
@@ -563,14 +563,62 @@
     @apply shadow-lg -translate-y-0.5;
   }
   
+  /* Interactive card with subtle glow */
+  .card-interactive {
+    @apply transition-all duration-300 ease-out cursor-pointer;
+  }
+  
+  .card-interactive:hover {
+    @apply shadow-lg -translate-y-0.5 border-primary/20;
+  }
+  
+  .card-interactive:active {
+    @apply scale-[0.99] shadow-md;
+  }
+  
   /* Subtle press effect */
   .press-effect {
-    @apply active:scale-[0.98] transition-transform duration-100;
+    @apply active:scale-[0.97] transition-transform duration-150 ease-out;
+  }
+  
+  /* Button press animation */
+  .btn-press {
+    @apply transition-all duration-150 ease-out active:scale-[0.96] active:shadow-sm;
   }
   
   /* Premium gradient text */
   .gradient-text {
     @apply bg-gradient-to-r from-primary via-accent to-gulf-blue bg-clip-text text-transparent;
+  }
+  
+  /* Icon hover effects */
+  .icon-hover {
+    @apply transition-all duration-200 ease-out hover:scale-110 hover:text-primary;
+  }
+  
+  .icon-bounce {
+    @apply transition-transform duration-200;
+  }
+  
+  .icon-bounce:hover {
+    animation: iconBounce 0.4s ease-out;
+  }
+  
+  @keyframes iconBounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+  }
+  
+  /* Ripple effect for buttons */
+  @keyframes ripple {
+    0% {
+      transform: scale(0);
+      opacity: 1;
+    }
+    100% {
+      transform: scale(4);
+      opacity: 0;
+    }
   }
   
   /* Smooth content reveal */
@@ -582,6 +630,30 @@
     from {
       opacity: 0;
       transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  /* Staggered reveal for lists */
+  .stagger-reveal > * {
+    opacity: 0;
+    animation: staggerFadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  
+  .stagger-reveal > *:nth-child(1) { animation-delay: 0.05s; }
+  .stagger-reveal > *:nth-child(2) { animation-delay: 0.1s; }
+  .stagger-reveal > *:nth-child(3) { animation-delay: 0.15s; }
+  .stagger-reveal > *:nth-child(4) { animation-delay: 0.2s; }
+  .stagger-reveal > *:nth-child(5) { animation-delay: 0.25s; }
+  .stagger-reveal > *:nth-child(6) { animation-delay: 0.3s; }
+  
+  @keyframes staggerFadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
     }
     to {
       opacity: 1;
@@ -624,5 +696,69 @@
     0% { background-position: 0% 50%; }
     50% { background-position: 100% 50%; }
     100% { background-position: 0% 50%; }
+  }
+  
+  /* Glow effect on focus */
+  .focus-glow:focus {
+    box-shadow: 0 0 0 3px hsl(var(--primary) / 0.2);
+  }
+  
+  /* Magnetic hover effect */
+  .magnetic-hover {
+    @apply transition-transform duration-300 ease-out;
+  }
+  
+  /* Shine effect on hover */
+  .shine-effect {
+    @apply relative overflow-hidden;
+  }
+  
+  .shine-effect::after {
+    content: '';
+    @apply absolute top-0 -left-full w-1/2 h-full;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.2),
+      transparent
+    );
+    transition: left 0.5s ease-out;
+  }
+  
+  .shine-effect:hover::after {
+    left: 100%;
+  }
+  
+  /* Smooth number counter animation */
+  .counter-animate {
+    @apply tabular-nums;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  
+  /* Badge pop animation */
+  .badge-pop {
+    animation: badgePop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  
+  @keyframes badgePop {
+    0% { transform: scale(0); }
+    70% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+  }
+  
+  /* Tooltip fade */
+  .tooltip-fade {
+    @apply transition-opacity duration-200 ease-out;
+  }
+  
+  /* Success checkmark animation */
+  .success-check {
+    stroke-dasharray: 50;
+    stroke-dashoffset: 50;
+    animation: drawCheck 0.5s ease-out forwards;
+  }
+  
+  @keyframes drawCheck {
+    to { stroke-dashoffset: 0; }
   }
 }

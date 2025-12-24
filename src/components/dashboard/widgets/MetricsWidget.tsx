@@ -36,14 +36,19 @@ export const MetricsWidget = () => {
         animate="visible"
       >
         <Card 
-          className="p-4 md:p-6 border-2 border-border hover:border-primary/50 transition-all touch-target h-full group"
+          variant="interactive"
+          className="p-4 md:p-6 border-2 border-border hover:border-primary/50 h-full group"
           role="article"
           aria-label="Active Bookings Metric"
         >
           <div className="flex items-start justify-between mb-4">
-            <div className="p-3 bg-primary/10 rounded-xl group-hover:bg-primary/20 transition-colors">
+            <motion.div 
+              className="p-3 bg-primary/10 rounded-xl group-hover:bg-primary/20 transition-colors"
+              whileHover={{ scale: 1.1, rotate: 5 }}
+              whileTap={{ scale: 0.95 }}
+            >
               <Calendar className="h-5 w-5 md:h-6 md:w-6 text-primary" aria-hidden="true" />
-            </div>
+            </motion.div>
             <motion.div
               animate={{ rotate: [0, 10, 0] }}
               transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
@@ -51,9 +56,15 @@ export const MetricsWidget = () => {
               <TrendingUp className="h-4 w-4 md:h-5 md:w-5 text-success" aria-label="Trending up" />
             </motion.div>
           </div>
-          <div className="text-2xl md:text-3xl font-bold mb-1" aria-label={`${bookingsCount.value} active bookings`}>
+          <motion.div 
+            className="text-2xl md:text-3xl font-bold mb-1 tabular-nums" 
+            aria-label={`${bookingsCount.value} active bookings`}
+            initial={{ scale: 0.5, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.3, type: "spring", stiffness: 200 }}
+          >
             {bookingsCount.value}
-          </div>
+          </motion.div>
           <div className="text-xs md:text-sm text-muted-foreground mb-4">Active Bookings</div>
           <div className="h-10">
             <AnimatedMiniSparkline 
@@ -77,14 +88,19 @@ export const MetricsWidget = () => {
         animate="visible"
       >
         <Card 
-          className="p-4 md:p-6 border-2 border-border hover:border-success/50 transition-all touch-target h-full group"
+          variant="interactive"
+          className="p-4 md:p-6 border-2 border-border hover:border-success/50 h-full group"
           role="article"
           aria-label="Fleet Utilization Metric"
         >
           <div className="flex items-start justify-between mb-4">
-            <div className="p-3 bg-success/10 rounded-xl group-hover:bg-success/20 transition-colors">
+            <motion.div 
+              className="p-3 bg-success/10 rounded-xl group-hover:bg-success/20 transition-colors"
+              whileHover={{ scale: 1.1, rotate: -5 }}
+              whileTap={{ scale: 0.95 }}
+            >
               <Car className="h-5 w-5 md:h-6 md:w-6 text-success" aria-hidden="true" />
-            </div>
+            </motion.div>
             <motion.div
               animate={{ rotate: [0, 10, 0] }}
               transition={{ duration: 2, repeat: Infinity, repeatDelay: 4 }}
@@ -92,9 +108,15 @@ export const MetricsWidget = () => {
               <TrendingUp className="h-4 w-4 md:h-5 md:w-5 text-success" aria-label="Trending up" />
             </motion.div>
           </div>
-          <div className="text-2xl md:text-3xl font-bold mb-1" aria-label={`${utilizationCount.value} fleet utilization`}>
+          <motion.div 
+            className="text-2xl md:text-3xl font-bold mb-1 tabular-nums" 
+            aria-label={`${utilizationCount.value} fleet utilization`}
+            initial={{ scale: 0.5, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.4, type: "spring", stiffness: 200 }}
+          >
             {utilizationCount.value}
-          </div>
+          </motion.div>
           <div className="text-xs md:text-sm text-muted-foreground mb-4">Fleet Utilization</div>
           <div className="h-10">
             <AnimatedMiniSparkline 
@@ -118,14 +140,19 @@ export const MetricsWidget = () => {
         animate="visible"
       >
         <Card 
-          className="p-4 md:p-6 border-2 border-border hover:border-warning/50 transition-all touch-target h-full group"
+          variant="interactive"
+          className="p-4 md:p-6 border-2 border-border hover:border-warning/50 h-full group"
           role="article"
           aria-label="Average Daily Rate Metric"
         >
           <div className="flex items-start justify-between mb-4">
-            <div className="p-3 bg-warning/10 rounded-xl group-hover:bg-warning/20 transition-colors">
+            <motion.div 
+              className="p-3 bg-warning/10 rounded-xl group-hover:bg-warning/20 transition-colors"
+              whileHover={{ scale: 1.1, rotate: 5 }}
+              whileTap={{ scale: 0.95 }}
+            >
               <BarChart3 className="h-5 w-5 md:h-6 md:w-6 text-warning" aria-hidden="true" />
-            </div>
+            </motion.div>
             <motion.div
               animate={{ rotate: [0, 10, 0] }}
               transition={{ duration: 2, repeat: Infinity, repeatDelay: 5 }}
@@ -133,9 +160,15 @@ export const MetricsWidget = () => {
               <TrendingUp className="h-4 w-4 md:h-5 md:w-5 text-success" aria-label="Trending up" />
             </motion.div>
           </div>
-          <div className="text-2xl md:text-3xl font-bold mb-1" aria-label={`${rateCount.value} average daily rate`}>
+          <motion.div 
+            className="text-2xl md:text-3xl font-bold mb-1 tabular-nums" 
+            aria-label={`${rateCount.value} average daily rate`}
+            initial={{ scale: 0.5, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.5, type: "spring", stiffness: 200 }}
+          >
             {rateCount.value}
-          </div>
+          </motion.div>
           <div className="text-xs md:text-sm text-muted-foreground mb-4">Average Daily Rate</div>
           <div className="h-10">
             <AnimatedMiniSparkline 
