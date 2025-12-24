@@ -1,20 +1,59 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 
+// Subscription tier types
+export type SubscriptionTier = 'starter' | 'growth' | 'professional' | 'enterprise' | null;
+
+export interface SubscriptionStatus {
+  subscribed: boolean;
+  tier: SubscriptionTier;
+  tierName: string | null;
+  interval: 'monthly' | 'annual' | null;
+  subscriptionEnd: string | null;
+  customerId: string | null;
+  priceId: string | null;
+  loading: boolean;
+  error: string | null;
+}
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  subscription: SubscriptionStatus;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signInWithMagicLink: (email: string) => Promise<{ error: any }>;
   resetPassword: (email: string) => Promise<{ error: any }>;
   signInAsDemo: () => Promise<{ error: any }>;
   signOut: () => Promise<void>;
+  checkSubscription: () => Promise<void>;
+  openCustomerPortal: () => Promise<void>;
+  isFeatureAvailable: (requiredTier: SubscriptionTier) => boolean;
 }
+
+const defaultSubscription: SubscriptionStatus = {
+  subscribed: false,
+  tier: null,
+  tierName: null,
+  interval: null,
+  subscriptionEnd: null,
+  customerId: null,
+  priceId: null,
+  loading: true,
+  error: null,
+};
+
+// Tier hierarchy for feature gating
+const TIER_HIERARCHY: Record<string, number> = {
+  starter: 1,
+  growth: 2,
+  professional: 3,
+  enterprise: 4,
+};
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -22,12 +61,118 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [subscription, setSubscription] = useState<SubscriptionStatus>(defaultSubscription);
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  // Check subscription status
+  const checkSubscription = useCallback(async () => {
+    if (!session?.access_token) {
+      setSubscription({ ...defaultSubscription, loading: false });
+      return;
+    }
+
+    try {
+      setSubscription(prev => ({ ...prev, loading: true, error: null }));
+      
+      const { data, error } = await supabase.functions.invoke('check-subscription', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (error) throw error;
+
+      setSubscription({
+        subscribed: data.subscribed ?? false,
+        tier: data.tier ?? null,
+        tierName: data.tierName ?? null,
+        interval: data.interval ?? null,
+        subscriptionEnd: data.subscriptionEnd ?? null,
+        customerId: data.customerId ?? null,
+        priceId: data.priceId ?? null,
+        loading: false,
+        error: null,
+      });
+    } catch (error: any) {
+      console.error('Error checking subscription:', error);
+      setSubscription(prev => ({
+        ...prev,
+        loading: false,
+        error: error.message || 'Failed to check subscription',
+      }));
+    }
+  }, [session?.access_token]);
+
+  // Open Stripe customer portal
+  const openCustomerPortal = useCallback(async () => {
+    if (!session?.access_token) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to manage your subscription.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.functions.invoke('customer-portal', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.url) {
+        window.open(data.url, '_blank');
+      } else {
+        throw new Error('No portal URL returned');
+      }
+    } catch (error: any) {
+      console.error('Error opening customer portal:', error);
+      toast({
+        title: "Unable to Open Billing Portal",
+        description: error.message || "Please try again or contact support.",
+        variant: "destructive",
+      });
+    }
+  }, [session?.access_token, toast]);
+
+  // Check if a feature is available based on subscription tier
+  const isFeatureAvailable = useCallback((requiredTier: SubscriptionTier): boolean => {
+    if (!requiredTier) return true;
+    if (!subscription.subscribed || !subscription.tier) return false;
+    
+    const userTierLevel = TIER_HIERARCHY[subscription.tier] ?? 0;
+    const requiredTierLevel = TIER_HIERARCHY[requiredTier] ?? 0;
+    
+    return userTierLevel >= requiredTierLevel;
+  }, [subscription.subscribed, subscription.tier]);
+
+  // Check subscription on session change
+  useEffect(() => {
+    if (session) {
+      checkSubscription();
+    } else {
+      setSubscription({ ...defaultSubscription, loading: false });
+    }
+  }, [session, checkSubscription]);
+
+  // Set up periodic subscription check (every 60 seconds)
+  useEffect(() => {
+    if (!session) return;
+
+    const interval = setInterval(() => {
+      checkSubscription();
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, [session, checkSubscription]);
+
   useEffect(() => {
     // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+    const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
@@ -48,7 +193,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => authSubscription.unsubscribe();
   }, []);
 
   const checkOnboardingStatus = async (userId: string | undefined) => {
@@ -210,6 +355,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signOut = async () => {
     await supabase.auth.signOut();
+    setSubscription({ ...defaultSubscription, loading: false });
     navigate('/auth');
     toast({
       title: "Signed Out",
@@ -222,12 +368,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       user,
       session,
       loading,
+      subscription,
       signUp,
       signIn,
       signInWithMagicLink,
       resetPassword,
       signInAsDemo,
-      signOut
+      signOut,
+      checkSubscription,
+      openCustomerPortal,
+      isFeatureAvailable,
     }}>
       {children}
     </AuthContext.Provider>
