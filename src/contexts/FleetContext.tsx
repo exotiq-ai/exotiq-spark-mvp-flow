@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -840,8 +840,8 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Individual refresh methods for real-time updates
-  const refreshBookings = () => {
+  // Memoized individual refresh methods for real-time updates (prevents infinite loops)
+  const refreshBookings = useCallback(() => {
     if (!user) return;
     supabase
       .from('bookings')
@@ -849,9 +849,9 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       .eq('user_id', user.id)
       .order('start_date', { ascending: false })
       .then(({ data }) => setBookings(data || []));
-  };
+  }, [user]);
 
-  const refreshPayments = () => {
+  const refreshPayments = useCallback(() => {
     if (!user) return;
     supabase
       .from('payments')
@@ -859,9 +859,9 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .then(({ data }) => setPayments(data || []));
-  };
+  }, [user]);
 
-  const refreshDamageClaims = () => {
+  const refreshDamageClaims = useCallback(() => {
     if (!user) return;
     supabase
       .from('damage_claims')
@@ -869,9 +869,9 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       .eq('user_id', user.id)
       .order('reported_date', { ascending: false })
       .then(({ data }) => setDamageClaims(data || []));
-  };
+  }, [user]);
 
-  const refreshCustomers = () => {
+  const refreshCustomers = useCallback(() => {
     if (!user) return;
     supabase
       .from('customers')
@@ -879,7 +879,48 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .then(({ data }) => setCustomers(data || []));
-  };
+  }, [user]);
+
+  // Realtime subscriptions - initialized once per user session
+  const realtimeInitialized = useRef(false);
+  
+  useEffect(() => {
+    if (!user || realtimeInitialized.current) return;
+    
+    realtimeInitialized.current = true;
+    console.log('🔄 Initializing realtime subscriptions...');
+    
+    const bookingsChannel = supabase
+      .channel('bookings-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, () => refreshBookings())
+      .subscribe();
+
+    const paymentsChannel = supabase
+      .channel('payments-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, () => refreshPayments())
+      .subscribe();
+
+    const damageClaimsChannel = supabase
+      .channel('damage-claims-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'damage_claims' }, () => refreshDamageClaims())
+      .subscribe();
+
+    const customersChannel = supabase
+      .channel('customers-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'customers' }, () => refreshCustomers())
+      .subscribe();
+
+    console.log('✅ Realtime subscriptions active');
+
+    return () => {
+      console.log('🔴 Cleaning up realtime subscriptions...');
+      realtimeInitialized.current = false;
+      supabase.removeChannel(bookingsChannel);
+      supabase.removeChannel(paymentsChannel);
+      supabase.removeChannel(damageClaimsChannel);
+      supabase.removeChannel(customersChannel);
+    };
+  }, [user, refreshBookings, refreshPayments, refreshDamageClaims, refreshCustomers]);
 
   return (
     <FleetContext.Provider value={{
