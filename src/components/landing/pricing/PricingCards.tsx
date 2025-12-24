@@ -3,8 +3,14 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { Check, Sparkles, ArrowRight } from 'lucide-react';
+import { Check, Sparkles, ArrowRight, Info } from 'lucide-react';
 import { pricingTiers, type PricingTier } from './PricingData';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface PricingCardsProps {
   onSelectPlan: (tier: PricingTier, isAnnual: boolean) => void;
@@ -14,17 +20,31 @@ interface PricingCardsProps {
 export const PricingCards = ({ onSelectPlan, onStartTrial }: PricingCardsProps) => {
   const [isAnnual, setIsAnnual] = useState(true);
 
-  const getAnnualPrice = (monthlyPrice: number) => {
-    return Math.round(monthlyPrice * 10); // 10 months = 2 months free
+  const getDisplayPrice = (tier: PricingTier) => {
+    if (tier.priceType === 'per-vehicle') {
+      return tier.perVehicleRate || tier.price;
+    }
+    return tier.price;
   };
 
-  const getAnnualSavings = (monthlyPrice: number) => {
-    return monthlyPrice * 2; // 2 months free
+  const getAnnualPrice = (tier: PricingTier) => {
+    return getDisplayPrice(tier) * 10; // 10 months = 2 months free
+  };
+
+  const getAnnualSavings = (tier: PricingTier) => {
+    return tier.price * 2; // 2 months saved on flat rate
+  };
+
+  const getPriceLabel = (tier: PricingTier) => {
+    if (tier.priceType === 'per-vehicle') {
+      return `/vehicle/${isAnnual ? 'year' : 'month'}`;
+    }
+    return `/${isAnnual ? 'year' : 'month'}`;
   };
 
   return (
     <div className="space-y-12">
-      {/* Billing Toggle - Stripe style */}
+      {/* Billing Toggle */}
       <div className="flex items-center justify-center gap-4">
         <span className={`text-sm transition-colors ${!isAnnual ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
           Monthly
@@ -71,25 +91,64 @@ export const PricingCards = ({ onSelectPlan, onStartTrial }: PricingCardsProps) 
 
             {/* Pricing */}
             <div className="mb-6">
-              <div className="flex items-baseline gap-1">
-                <span className="text-4xl font-bold">
-                  ${isAnnual ? getAnnualPrice(tier.founderPrice) : tier.founderPrice}
-                </span>
-                <span className="text-muted-foreground text-sm">
-                  /vehicle/{isAnnual ? 'year' : 'month'}
-                </span>
-              </div>
-              <div className="flex items-center gap-2 mt-2">
-                <span className="text-sm text-muted-foreground line-through">
-                  ${isAnnual ? getAnnualPrice(tier.regularPrice) : tier.regularPrice}
-                </span>
-                <Badge variant="outline" className="text-xs text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/5">
-                  Founder Price
-                </Badge>
-              </div>
-              {isAnnual && (
+              {tier.priceType === 'per-vehicle' ? (
+                <>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-4xl font-bold">
+                      ${isAnnual ? getAnnualPrice(tier) : tier.perVehicleRate}
+                    </span>
+                    <span className="text-muted-foreground text-sm">
+                      {getPriceLabel(tier)}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="text-xs text-muted-foreground">
+                      ${tier.minPrice} minimum
+                    </span>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <Info className="h-3 w-3 text-muted-foreground" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Minimum of ${tier.minPrice}/month regardless of fleet size</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-4xl font-bold">
+                      ${isAnnual ? tier.price * 10 : tier.price}
+                    </span>
+                    <span className="text-muted-foreground text-sm">
+                      {getPriceLabel(tier)}
+                    </span>
+                  </div>
+                  {tier.overageRate && (
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className="text-xs text-muted-foreground">
+                        ${tier.overageRate}/vehicle overage
+                      </span>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <Info className="h-3 w-3 text-muted-foreground" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Additional ${tier.overageRate}/vehicle beyond {tier.maxVehicles} vehicles</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                  )}
+                </>
+              )}
+              {isAnnual && tier.priceType === 'flat' && (
                 <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-1">
-                  Save ${getAnnualSavings(tier.founderPrice)} per vehicle
+                  Save ${getAnnualSavings(tier)} per year
                 </p>
               )}
             </div>
@@ -112,22 +171,20 @@ export const PricingCards = ({ onSelectPlan, onStartTrial }: PricingCardsProps) 
               </span>
             </div>
 
-            {/* CTA Buttons */}
-            <div className="space-y-2">
-              <Button
-                className={`w-full rounded-full h-11 ${tier.popular ? 'shadow-lg shadow-primary/25' : ''}`}
-                variant={tier.popular ? 'default' : 'outline'}
-                onClick={() => onSelectPlan(tier, isAnnual)}
-              >
-                Get Started
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </div>
+            {/* CTA Button */}
+            <Button
+              className={`w-full rounded-full h-11 ${tier.popular ? 'shadow-lg shadow-primary/25' : ''}`}
+              variant={tier.popular ? 'default' : 'outline'}
+              onClick={() => onSelectPlan(tier, isAnnual)}
+            >
+              Get Started
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
 
-            {/* Onboarding Offer */}
-            {tier.onboardingOffer && isAnnual && (
+            {/* Value Proposition */}
+            {tier.valueProposition && (
               <p className="text-xs text-center text-muted-foreground mt-4">
-                {tier.onboardingOffer}
+                {tier.valueProposition}
               </p>
             )}
           </Card>

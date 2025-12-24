@@ -16,9 +16,9 @@ const features: FeatureRow[] = [
   {
     feature: 'Vehicles',
     starter: '1-10',
-    professional: '11-30',
-    business: '31-75',
-    enterprise: '76+',
+    professional: 'Up to 25',
+    business: 'Up to 75',
+    enterprise: 'Up to 150',
   },
   {
     feature: 'Fleet Dashboard',
@@ -177,7 +177,10 @@ export const FeatureComparison = () => {
                       <div className="space-y-1">
                         <span className={tier.popular ? 'text-primary' : ''}>{tier.name}</span>
                         <p className="text-xs font-normal text-muted-foreground">
-                          ${tier.founderPrice}/veh/mo
+                          {tier.priceType === 'per-vehicle' 
+                            ? `$${tier.perVehicleRate}/veh/mo`
+                            : `$${tier.price}/mo flat`
+                          }
                         </p>
                       </div>
                     </th>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -28,27 +28,44 @@ export const PlanSelectionModal = ({
   selectedTier,
   isAnnual,
 }: PlanSelectionModalProps) => {
-  const [fleetSize, setFleetSize] = useState(selectedTier?.minVehicles || 1);
+  const [fleetSize, setFleetSize] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
+  // Reset fleet size when tier changes
+  useEffect(() => {
+    if (selectedTier) {
+      setFleetSize(selectedTier.priceType === 'per-vehicle' ? 3 : 10);
+    }
+  }, [selectedTier]);
+
   if (!selectedTier) return null;
 
-  const pricePerVehicle = isAnnual
-    ? Math.round(selectedTier.founderPrice * 10)
-    : selectedTier.founderPrice;
+  // Calculate total price based on tier type
+  const calculateMonthlyPrice = () => {
+    if (selectedTier.priceType === 'per-vehicle') {
+      const basePrice = (selectedTier.perVehicleRate || 29) * fleetSize;
+      return Math.max(basePrice, selectedTier.minPrice || 79);
+    }
+    // Flat rate with potential overage
+    if (fleetSize > selectedTier.maxVehicles && selectedTier.overageRate) {
+      const overageVehicles = fleetSize - selectedTier.maxVehicles;
+      return selectedTier.price + (overageVehicles * selectedTier.overageRate);
+    }
+    return selectedTier.price;
+  };
 
-  const totalPrice = pricePerVehicle * fleetSize;
+  const monthlyPrice = calculateMonthlyPrice();
+  const totalPrice = isAnnual ? monthlyPrice * 10 : monthlyPrice; // 10 months for annual (2 free)
   const billingPeriod = isAnnual ? 'year' : 'month';
 
-  const isValidFleetSize =
-    fleetSize >= selectedTier.minVehicles && fleetSize <= selectedTier.maxVehicles;
+  const isValidFleetSize = fleetSize >= 1 && fleetSize <= 200;
 
   const handleCheckout = async () => {
     if (!isValidFleetSize) {
       toast({
         title: 'Invalid fleet size',
-        description: `The ${selectedTier.name} plan supports ${selectedTier.vehicleRange}.`,
+        description: 'Please enter a valid number of vehicles.',
         variant: 'destructive',
       });
       return;
@@ -86,9 +103,9 @@ export const PlanSelectionModal = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Lock in {selectedTier.name} Plan</DialogTitle>
+          <DialogTitle>Get Started with {selectedTier.name}</DialogTitle>
           <DialogDescription>
-            Secure your founder pricing before it expires
+            {selectedTier.valueProposition}
           </DialogDescription>
         </DialogHeader>
 
@@ -97,9 +114,11 @@ export const PlanSelectionModal = ({
           <div className="p-4 rounded-lg bg-muted/50 space-y-2">
             <div className="flex items-center justify-between">
               <span className="font-semibold">{selectedTier.name} Plan</span>
-              <Badge variant="outline" className="text-success border-success/30">
-                Founder Price
-              </Badge>
+              {selectedTier.popular && (
+                <Badge variant="outline" className="text-primary border-primary/30">
+                  Most Popular
+                </Badge>
+              )}
             </div>
             <p className="text-sm text-muted-foreground">{selectedTier.vehicleRange}</p>
           </div>
@@ -110,14 +129,14 @@ export const PlanSelectionModal = ({
             <Input
               id="fleetSize"
               type="number"
-              min={selectedTier.minVehicles}
-              max={selectedTier.maxVehicles}
+              min={1}
+              max={200}
               value={fleetSize}
               onChange={(e) => setFleetSize(parseInt(e.target.value) || 1)}
             />
-            {!isValidFleetSize && (
-              <p className="text-xs text-destructive">
-                This plan supports {selectedTier.vehicleRange}
+            {selectedTier.priceType === 'flat' && fleetSize > selectedTier.maxVehicles && (
+              <p className="text-xs text-amber-600">
+                {fleetSize - selectedTier.maxVehicles} vehicles over limit (${selectedTier.overageRate}/each)
               </p>
             )}
           </div>
@@ -132,12 +151,33 @@ export const PlanSelectionModal = ({
 
           {/* Price Calculation */}
           <div className="space-y-2 p-4 rounded-lg bg-primary/5 border border-primary/20">
-            <div className="flex justify-between text-sm">
-              <span>
-                ${selectedTier.founderPrice}/vehicle/{isAnnual ? 'month' : 'month'}
-              </span>
-              <span>x {fleetSize} vehicles</span>
-            </div>
+            {selectedTier.priceType === 'per-vehicle' ? (
+              <>
+                <div className="flex justify-between text-sm">
+                  <span>${selectedTier.perVehicleRate}/vehicle</span>
+                  <span>x {fleetSize} vehicles</span>
+                </div>
+                {monthlyPrice === selectedTier.minPrice && fleetSize * (selectedTier.perVehicleRate || 29) < (selectedTier.minPrice || 79) && (
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>Minimum applies</span>
+                    <span>${selectedTier.minPrice}/month</span>
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <div className="flex justify-between text-sm">
+                  <span>Base rate</span>
+                  <span>${selectedTier.price}/month</span>
+                </div>
+                {fleetSize > selectedTier.maxVehicles && selectedTier.overageRate && (
+                  <div className="flex justify-between text-sm text-amber-600">
+                    <span>Overage ({fleetSize - selectedTier.maxVehicles} vehicles)</span>
+                    <span>+${(fleetSize - selectedTier.maxVehicles) * selectedTier.overageRate}/month</span>
+                  </div>
+                )}
+              </>
+            )}
             {isAnnual && (
               <div className="flex justify-between text-sm text-muted-foreground">
                 <span>x 10 months (2 free)</span>

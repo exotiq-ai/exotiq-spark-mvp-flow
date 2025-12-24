@@ -21,10 +21,28 @@ export const ROICalculator = () => {
 
   // Calculate tier based on fleet size
   const getTier = (size: number) => {
-    return pricingTiers.find(t => size >= t.minVehicles && size <= t.maxVehicles) || pricingTiers[0];
+    if (size <= 10) return pricingTiers[0]; // Starter
+    if (size <= 25) return pricingTiers[1]; // Professional
+    if (size <= 75) return pricingTiers[2]; // Business
+    return pricingTiers[3]; // Enterprise
   };
 
   const tier = getTier(fleetSize);
+
+  // Calculate monthly Exotiq cost based on hybrid pricing
+  const getMonthlyExotiqCost = (size: number) => {
+    const currentTier = getTier(size);
+    if (currentTier.priceType === 'per-vehicle') {
+      const basePrice = (currentTier.perVehicleRate || 29) * size;
+      return Math.max(basePrice, currentTier.minPrice || 79);
+    }
+    // Flat rate with potential overage
+    if (size > currentTier.maxVehicles && currentTier.overageRate) {
+      const overageVehicles = size - currentTier.maxVehicles;
+      return currentTier.price + (overageVehicles * currentTier.overageRate);
+    }
+    return currentTier.price;
+  };
 
   // Calculate ROI metrics using realistic exotic car data
   const currentAnnualRevenue = fleetSize * roiDefaults.avgDailyRate * 365 * (roiDefaults.avgUtilization / 100);
@@ -35,10 +53,18 @@ export const ROICalculator = () => {
   const maintenanceSavings = currentMaintenanceCost * (roiDefaults.maintenanceSavingsPercent / 100);
 
   const totalAnnualGain = revenueIncrease + maintenanceSavings;
-  const annualExotiqCost = fleetSize * tier.founderPrice * 12;
+  const annualExotiqCost = getMonthlyExotiqCost(fleetSize) * 12;
   const netGain = totalAnnualGain - annualExotiqCost;
   const roi = Math.round((netGain / annualExotiqCost) * 100);
   const paybackMonths = Math.max(1, Math.ceil((annualExotiqCost / totalAnnualGain) * 12));
+
+  // Get price display for tier
+  const getPriceDisplay = () => {
+    if (tier.priceType === 'per-vehicle') {
+      return `$${tier.perVehicleRate}/vehicle/month`;
+    }
+    return `$${tier.price}/month flat`;
+  };
 
   const formatCurrency = (value: number) => {
     if (value >= 1000000) {
@@ -83,16 +109,15 @@ export const ROICalculator = () => {
               value={[fleetSize]}
               onValueChange={(value) => setFleetSize(value[0])}
               min={1}
-              max={100}
+              max={150}
               step={1}
               className="w-full"
             />
             <div className="flex justify-between text-sm text-muted-foreground mt-3">
               <span>1 vehicle</span>
               <span>25</span>
-              <span>50</span>
               <span>75</span>
-              <span>100+</span>
+              <span>150</span>
             </div>
           </div>
 
@@ -104,7 +129,7 @@ export const ROICalculator = () => {
                 {tier.name}
               </p>
               <p className="text-sm text-muted-foreground">
-                ${tier.founderPrice}/vehicle/month
+                {getPriceDisplay()}
               </p>
             </div>
             <div className="p-5 rounded-xl bg-muted/50 border border-border">
@@ -187,7 +212,7 @@ export const ROICalculator = () => {
                 {formatCurrency(netGain)}
               </p>
               <p className="text-xs text-muted-foreground mt-2">
-                After ${formatCurrency(annualExotiqCost)} Exotiq cost
+                After {formatCurrency(annualExotiqCost)} Exotiq cost
               </p>
             </Card>
 

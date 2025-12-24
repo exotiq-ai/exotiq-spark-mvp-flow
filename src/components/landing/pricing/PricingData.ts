@@ -1,48 +1,51 @@
-// Stripe Price IDs
+// Stripe Price IDs - Hybrid Pricing Model
 export const STRIPE_PRICES = {
   starter: {
-    monthly: 'price_1ShjP0HO7nC3pJiP4ExcElvZ',
-    annual: 'price_1ShjP6HO7nC3pJiP9QBawM60',
+    monthly: 'price_1ShmMlHO7nC3pJiPxcbd7vlL',
+    annual: 'price_1ShjP6HO7nC3pJiP9QBawM60', // Legacy annual
   },
   professional: {
-    monthly: 'price_1ShjP8HO7nC3pJiPQyJ3HFB4',
-    annual: 'price_1ShjPBHO7nC3pJiP6KR4QvWc',
+    monthly: 'price_1ShmMmHO7nC3pJiPPYhhXT1o',
+    annual: 'price_1ShjPBHO7nC3pJiP6KR4QvWc', // Legacy annual
   },
   business: {
-    monthly: 'price_1ShjPCHO7nC3pJiP3e6FjmV9',
-    annual: 'price_1ShjPEHO7nC3pJiPdIX5VJuc',
+    monthly: 'price_1ShmMoHO7nC3pJiPzUH0wSP3',
+    annual: 'price_1ShjPEHO7nC3pJiPdIX5VJuc', // Legacy annual
   },
   enterprise: {
-    monthly: 'price_1ShjPFHO7nC3pJiPDFbyAUZF',
-    annual: 'price_1ShjPHHO7nC3pJiPoU8XyhuH',
+    monthly: 'price_1ShmMqHO7nC3pJiPV04rgXRX',
+    annual: 'price_1ShjPHHO7nC3pJiPoU8XyhuH', // Legacy annual
   },
 } as const;
 
 export interface PricingTier {
   id: 'starter' | 'professional' | 'business' | 'enterprise';
   name: string;
-  founderPrice: number;
-  regularPrice: number;
+  price: number; // Monthly flat price
+  priceType: 'per-vehicle' | 'flat';
+  perVehicleRate?: number; // For starter tier
+  minPrice?: number; // For starter tier minimum
   vehicleRange: string;
-  minVehicles: number;
   maxVehicles: number;
+  overageRate?: number; // Per vehicle overage fee
   popular: boolean;
   features: string[];
   aiForecasting: string;
   apiAccess: boolean;
   locations: string;
   supportSLA: string;
-  onboardingOffer: string;
+  valueProposition: string;
 }
 
 export const pricingTiers: PricingTier[] = [
   {
     id: 'starter',
     name: 'Starter',
-    founderPrice: 29,
-    regularPrice: 39,
+    price: 79, // Minimum price
+    priceType: 'per-vehicle',
+    perVehicleRate: 29,
+    minPrice: 79,
     vehicleRange: '1-10 vehicles',
-    minVehicles: 1,
     maxVehicles: 10,
     popular: false,
     features: [
@@ -50,68 +53,68 @@ export const pricingTiers: PricingTier[] = [
       'Document vault with auto-alerts',
       'Basic booking calendar',
       'Customer CRM',
-      'Email support',
+      'Email support (48hr)',
     ],
     aiForecasting: '7-day',
     apiAccess: false,
     locations: '1 location',
     supportSLA: 'Email (48hr)',
-    onboardingOffer: 'Free white-glove setup (annual)',
+    valueProposition: 'Perfect for small fleets just getting started',
   },
   {
     id: 'professional',
     name: 'Professional',
-    founderPrice: 24,
-    regularPrice: 34,
-    vehicleRange: '11-30 vehicles',
-    minVehicles: 11,
-    maxVehicles: 30,
+    price: 399,
+    priceType: 'flat',
+    vehicleRange: 'Up to 25 vehicles',
+    maxVehicles: 25,
+    overageRate: 22,
     popular: true,
     features: [
       'Everything in Starter, plus:',
       'MotorIQ AI pricing engine',
       'Advanced analytics & reports',
-      'Multi-location support',
-      'Priority chat support',
+      'Multi-location support (up to 3)',
+      'Priority chat support (24hr)',
       'Custom integrations',
     ],
     aiForecasting: '30-day',
     apiAccess: true,
     locations: 'Up to 3 locations',
     supportSLA: 'Chat (24hr)',
-    onboardingOffer: '50% off setup (annual)',
+    valueProposition: 'Most popular for growing operations',
   },
   {
     id: 'business',
     name: 'Business',
-    founderPrice: 19,
-    regularPrice: 29,
-    vehicleRange: '31-75 vehicles',
-    minVehicles: 31,
+    price: 899,
+    priceType: 'flat',
+    vehicleRange: 'Up to 75 vehicles',
     maxVehicles: 75,
+    overageRate: 18,
     popular: false,
     features: [
       'Everything in Professional, plus:',
       'Full AI suite with Rari copilot',
       'White-label booking portal',
       'Dedicated success manager',
-      'Phone support',
+      'Phone support (4hr)',
       'SLA guarantee',
     ],
     aiForecasting: '90-day',
     apiAccess: true,
     locations: 'Unlimited locations',
     supportSLA: 'Phone (4hr)',
-    onboardingOffer: '50% off setup (annual)',
+    valueProposition: 'For established multi-location fleets',
   },
   {
     id: 'enterprise',
     name: 'Enterprise',
-    founderPrice: 16,
-    regularPrice: 24,
-    vehicleRange: '76+ vehicles',
-    minVehicles: 76,
-    maxVehicles: 999,
+    price: 1799,
+    priceType: 'flat',
+    vehicleRange: 'Up to 150 vehicles',
+    maxVehicles: 150,
+    overageRate: 15,
     popular: false,
     features: [
       'Everything in Business, plus:',
@@ -125,22 +128,22 @@ export const pricingTiers: PricingTier[] = [
     apiAccess: true,
     locations: 'Unlimited + custom',
     supportSLA: 'Dedicated (1hr)',
-    onboardingOffer: 'Custom enterprise setup',
+    valueProposition: 'Full-service for large operations',
   },
 ];
 
 export const faqItems = [
   {
     question: 'What happens after the 14-day free trial?',
-    answer: 'Your trial converts to a paid subscription at the founder rate you locked in. You can cancel anytime during the trial with no charges. Credit card is required upfront to lock in founder pricing, but you will not be charged until day 15.',
+    answer: 'Your trial converts to a paid subscription. You can cancel anytime during the trial with no charges. Credit card is required upfront to lock in founder pricing, but you will not be charged until day 15.',
   },
   {
-    question: 'Is this pricing per vehicle or per account?',
-    answer: 'Pricing is per vehicle per month. For example, a 15-vehicle fleet on the Professional plan would be $24 x 15 = $360/month. Volume discounts are built into the tier structure.',
+    question: 'How does pricing work?',
+    answer: 'Starter is $29/vehicle/month with a $79 minimum. Professional ($399), Business ($899), and Enterprise ($1,799) are flat monthly rates with included vehicle limits. If you exceed your limit, overage rates apply ($22, $18, or $15 per additional vehicle).',
   },
   {
-    question: 'What is founder pricing and how long does it last?',
-    answer: 'Founder pricing is our early-adopter discount, available until March 31, 2026 or until 250 spots are filled. Once you lock in founder pricing, your rate stays the same forever, even as we add new features and raise prices for new customers.',
+    question: 'What are founder pricing and how long does it last?',
+    answer: 'Founder pricing is our early-adopter discount, available until March 31, 2026 or until 250 spots are filled. Once you lock in founder pricing, your rate stays the same forever, even as we add new features and raise prices.',
   },
   {
     question: 'Can I switch plans later?',
@@ -152,7 +155,7 @@ export const faqItems = [
   },
   {
     question: 'Is there a setup fee?',
-    answer: 'Annual prepay customers with 1-10 vehicles get free white-glove onboarding. Larger fleets on annual plans get 50% off setup. Monthly billing includes a standard $2,500 onboarding fee, which covers data migration, training, and dedicated setup support.',
+    answer: 'No setup fees! We include white-glove onboarding with all plans - data migration, training, and dedicated setup support are included in your subscription.',
   },
   {
     question: 'What if I need custom features or integrations?',
@@ -188,30 +191,14 @@ export const coreFeatures = [
 ];
 
 // ROI Calculator defaults based on exotic car rental industry benchmarks
-// Sources: Industry reports 2024-2025, exotic rental fleet operator surveys
 export const roiDefaults = {
-  // Exotic car daily rates typically range $1,000-$3,000+ (Ferrari, Lamborghini, etc.)
-  // Using $1,800 as conservative mid-market average for mixed exotic fleet
   avgDailyRate: 1800,
-  
-  // Exotic car utilization is lower than standard rentals due to:
-  // - Higher price point = fewer qualified renters
-  // - Seasonal demand fluctuations
-  // - Longer booking lead times
-  // Industry average: 45-55% for well-managed exotic fleets
   avgUtilization: 48,
-  
-  // AI-powered dynamic pricing typically yields 15-25% revenue increase
-  // Based on demand optimization, surge pricing, and reduced idle time
   revenueIncreasePercent: 22,
-  
-  // Proactive maintenance scheduling reduces reactive repairs by 30-40%
-  // Exotic cars: avg $8,000-15,000/year in maintenance per vehicle
   maintenanceSavingsPercent: 32,
   avgMaintenanceCostPerVehicle: 12000,
 };
 
-// ROI methodology explanation for transparency
 export const roiMethodology = {
   dailyRateExplanation: 'Based on average exotic rental rates for Ferrari, Lamborghini, McLaren, and Porsche models across major US markets (Miami, LA, Las Vegas, NYC)',
   utilizationExplanation: 'Reflects typical exotic car fleet utilization, accounting for seasonal demand, premium pricing barriers, and extended booking windows',
@@ -223,3 +210,26 @@ export const roiMethodology = {
 export const founderDeadline = new Date('2026-03-31T23:59:59');
 export const founderSpotsTotal = 250;
 export const founderSpotsRemaining = 73;
+
+// Competitive positioning data
+export const competitiveAdvantages = {
+  vsTuro: {
+    annualSavings: 62712,
+    feeComparison: '2.5% vs 25%',
+    headline: 'Save $62K/year, own your customers',
+  },
+  vsHQRental: {
+    extraCost: 249,
+    extraValue: 627000,
+    roi: '13,000%',
+    headline: '$249 more but $627K more value',
+  },
+  vsCoastr: {
+    headline: 'IoT tells you WHERE, AI tells you WHAT PRICE',
+  },
+  vsCustomEnterprise: {
+    ourCost: 21000,
+    theirCost: 100000,
+    implementationTime: '7 days vs 6-12 months',
+  },
+};
