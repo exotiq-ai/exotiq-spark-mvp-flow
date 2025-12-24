@@ -1,0 +1,354 @@
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
+import { 
+  ShieldCheck, 
+  IdCard, 
+  FileCheck, 
+  AlertTriangle,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  Search,
+  Upload,
+  Eye,
+  RefreshCw,
+  Users
+} from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useFleet } from "@/contexts/FleetContext";
+import { toast } from "sonner";
+import { format, differenceInDays } from "date-fns";
+import { IDUploadDialog } from "@/components/dialogs/IDUploadDialog";
+import { InsuranceUploadDialog } from "@/components/dialogs/InsuranceUploadDialog";
+
+interface CustomerVerification {
+  id: string;
+  full_name: string;
+  email: string;
+  phone: string | null;
+  drivers_license: string | null;
+  license_expiry: string | null;
+  insurance_provider: string | null;
+  insurance_policy: string | null;
+  insurance_expiry: string | null;
+  id_verified: boolean;
+  id_document_url: string | null;
+  id_verified_at: string | null;
+  insurance_verified: boolean;
+  insurance_document_url: string | null;
+  insurance_verified_at: string | null;
+  total_bookings: number | null;
+}
+
+export const VerificationSection = () => {
+  const { customers, loading: fleetLoading, refreshCustomers } = useFleet();
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerVerification | null>(null);
+  const [idUploadOpen, setIdUploadOpen] = useState(false);
+  const [insuranceUploadOpen, setInsuranceUploadOpen] = useState(false);
+
+  useEffect(() => {
+    if (!fleetLoading) {
+      setLoading(false);
+    }
+  }, [fleetLoading]);
+
+  const customerList = customers as unknown as CustomerVerification[];
+
+  // Calculate verification stats
+  const verifiedCount = customerList.filter(c => c.id_verified && c.insurance_verified).length;
+  const partialCount = customerList.filter(c => c.id_verified !== c.insurance_verified).length;
+  const unverifiedCount = customerList.filter(c => !c.id_verified && !c.insurance_verified).length;
+  const expiringCount = customerList.filter(c => {
+    if (!c.license_expiry && !c.insurance_expiry) return false;
+    const licenseExpiring = c.license_expiry && differenceInDays(new Date(c.license_expiry), new Date()) <= 30;
+    const insuranceExpiring = c.insurance_expiry && differenceInDays(new Date(c.insurance_expiry), new Date()) <= 30;
+    return licenseExpiring || insuranceExpiring;
+  }).length;
+
+  const verificationRate = customerList.length > 0 
+    ? Math.round((verifiedCount / customerList.length) * 100) 
+    : 0;
+
+  const filteredCustomers = customerList.filter(customer => 
+    customer.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    customer.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    customer.drivers_license?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const getVerificationStatus = (customer: CustomerVerification) => {
+    if (customer.id_verified && customer.insurance_verified) {
+      return { label: "Verified", variant: "default" as const, icon: CheckCircle2 };
+    }
+    if (customer.id_verified || customer.insurance_verified) {
+      return { label: "Partial", variant: "secondary" as const, icon: Clock };
+    }
+    return { label: "Unverified", variant: "outline" as const, icon: XCircle };
+  };
+
+  const getExpiryStatus = (expiryDate: string | null) => {
+    if (!expiryDate) return null;
+    const days = differenceInDays(new Date(expiryDate), new Date());
+    if (days < 0) return { label: "Expired", variant: "destructive" as const };
+    if (days <= 30) return { label: `${days}d left`, variant: "secondary" as const };
+    return { label: "Valid", variant: "default" as const };
+  };
+
+  const handleUploadComplete = async () => {
+    await refreshCustomers();
+    setIdUploadOpen(false);
+    setInsuranceUploadOpen(false);
+    setSelectedCustomer(null);
+    toast.success("Document uploaded successfully");
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="grid gap-4 md:grid-cols-4">
+          {[...Array(4)].map((_, i) => (
+            <Skeleton key={i} className="h-32" />
+          ))}
+        </div>
+        <Skeleton className="h-96" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Summary Cards */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card className="border-l-4 border-l-emerald-500">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Fully Verified</CardTitle>
+            <ShieldCheck className="h-4 w-4 text-emerald-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-emerald-600">{verifiedCount}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              ID & Insurance verified
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-l-4 border-l-amber-500">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Partial Verification</CardTitle>
+            <Clock className="h-4 w-4 text-amber-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-amber-600">{partialCount}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Missing documents
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-l-4 border-l-red-500">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Unverified</CardTitle>
+            <XCircle className="h-4 w-4 text-red-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">{unverifiedCount}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              No documents on file
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-l-4 border-l-orange-500">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Expiring Soon</CardTitle>
+            <AlertTriangle className="h-4 w-4 text-orange-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-orange-600">{expiringCount}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Within 30 days
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Verification Progress */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Fleet Verification Rate</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Customer verification progress</span>
+              <span className="font-medium">{verificationRate}%</span>
+            </div>
+            <Progress value={verificationRate} className="h-3" />
+            <p className="text-xs text-muted-foreground">
+              {verifiedCount} of {customerList.length} customers fully verified
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Customer Verification List */}
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Customer Verification Status
+            </CardTitle>
+            <div className="flex gap-2">
+              <div className="relative flex-1 md:w-64">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search customers..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <Button variant="outline" size="icon" onClick={() => refreshCustomers()}>
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {filteredCustomers.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>No customers found</p>
+              <p className="text-sm">Add customers to start verification</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredCustomers.map((customer) => {
+                const status = getVerificationStatus(customer);
+                const StatusIcon = status.icon;
+                const licenseStatus = getExpiryStatus(customer.license_expiry);
+                const insuranceStatus = getExpiryStatus(customer.insurance_expiry);
+
+                return (
+                  <div
+                    key={customer.id}
+                    className="flex flex-col md:flex-row md:items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors gap-4"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className={`h-10 w-10 rounded-full flex items-center justify-center ${
+                        status.variant === "default" ? "bg-emerald-100 text-emerald-600" :
+                        status.variant === "secondary" ? "bg-amber-100 text-amber-600" :
+                        "bg-muted text-muted-foreground"
+                      }`}>
+                        <StatusIcon className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="font-medium">{customer.full_name}</p>
+                        <p className="text-sm text-muted-foreground">{customer.email}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2 md:gap-4">
+                      {/* ID Status */}
+                      <div className="flex items-center gap-2">
+                        <IdCard className="h-4 w-4 text-muted-foreground" />
+                        {customer.id_verified ? (
+                          <Badge variant="default" className="gap-1">
+                            <CheckCircle2 className="h-3 w-3" />
+                            ID Verified
+                          </Badge>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedCustomer(customer);
+                              setIdUploadOpen(true);
+                            }}
+                          >
+                            <Upload className="h-3 w-3 mr-1" />
+                            Upload ID
+                          </Button>
+                        )}
+                        {licenseStatus && (
+                          <Badge variant={licenseStatus.variant} className="text-xs">
+                            {licenseStatus.label}
+                          </Badge>
+                        )}
+                      </div>
+
+                      {/* Insurance Status */}
+                      <div className="flex items-center gap-2">
+                        <FileCheck className="h-4 w-4 text-muted-foreground" />
+                        {customer.insurance_verified ? (
+                          <Badge variant="default" className="gap-1">
+                            <CheckCircle2 className="h-3 w-3" />
+                            Insurance
+                          </Badge>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedCustomer(customer);
+                              setInsuranceUploadOpen(true);
+                            }}
+                          >
+                            <Upload className="h-3 w-3 mr-1" />
+                            Upload Insurance
+                          </Button>
+                        )}
+                        {insuranceStatus && (
+                          <Badge variant={insuranceStatus.variant} className="text-xs">
+                            {insuranceStatus.label}
+                          </Badge>
+                        )}
+                      </div>
+
+                      {/* View Documents */}
+                      {(customer.id_document_url || customer.insurance_document_url) && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            // Open document preview
+                            const url = customer.id_document_url || customer.insurance_document_url;
+                            if (url) window.open(url, "_blank");
+                          }}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Dialogs */}
+      <IDUploadDialog
+        open={idUploadOpen}
+        onOpenChange={setIdUploadOpen}
+        customer={selectedCustomer}
+        onComplete={handleUploadComplete}
+      />
+
+      <InsuranceUploadDialog
+        open={insuranceUploadOpen}
+        onOpenChange={setInsuranceUploadOpen}
+        customer={selectedCustomer}
+        onComplete={handleUploadComplete}
+      />
+    </div>
+  );
+};

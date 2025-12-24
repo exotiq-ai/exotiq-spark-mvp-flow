@@ -276,14 +276,21 @@ export type Database = {
           email: string
           full_name: string
           id: string
+          id_document_url: string | null
+          id_verified: boolean | null
+          id_verified_at: string | null
+          insurance_document_url: string | null
           insurance_expiry: string | null
           insurance_policy: string | null
           insurance_provider: string | null
+          insurance_verified: boolean | null
+          insurance_verified_at: string | null
           license_expiry: string | null
           lifetime_value: number | null
           notes: string | null
           phone: string | null
           preferences: Json | null
+          stripe_customer_id: string | null
           total_bookings: number | null
           updated_at: string | null
           user_id: string
@@ -298,14 +305,21 @@ export type Database = {
           email: string
           full_name: string
           id?: string
+          id_document_url?: string | null
+          id_verified?: boolean | null
+          id_verified_at?: string | null
+          insurance_document_url?: string | null
           insurance_expiry?: string | null
           insurance_policy?: string | null
           insurance_provider?: string | null
+          insurance_verified?: boolean | null
+          insurance_verified_at?: string | null
           license_expiry?: string | null
           lifetime_value?: number | null
           notes?: string | null
           phone?: string | null
           preferences?: Json | null
+          stripe_customer_id?: string | null
           total_bookings?: number | null
           updated_at?: string | null
           user_id: string
@@ -320,14 +334,21 @@ export type Database = {
           email?: string
           full_name?: string
           id?: string
+          id_document_url?: string | null
+          id_verified?: boolean | null
+          id_verified_at?: string | null
+          insurance_document_url?: string | null
           insurance_expiry?: string | null
           insurance_policy?: string | null
           insurance_provider?: string | null
+          insurance_verified?: boolean | null
+          insurance_verified_at?: string | null
           license_expiry?: string | null
           lifetime_value?: number | null
           notes?: string | null
           phone?: string | null
           preferences?: Json | null
+          stripe_customer_id?: string | null
           total_bookings?: number | null
           updated_at?: string | null
           user_id?: string
@@ -736,6 +757,44 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_receipts: {
+        Row: {
+          created_at: string | null
+          export_format: string | null
+          exported_at: string | null
+          id: string
+          payment_id: string | null
+          receipt_number: string | null
+          receipt_url: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          export_format?: string | null
+          exported_at?: string | null
+          id?: string
+          payment_id?: string | null
+          receipt_number?: string | null
+          receipt_url?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          export_format?: string | null
+          exported_at?: string | null
+          id?: string
+          payment_id?: string | null
+          receipt_number?: string | null
+          receipt_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_receipts_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payments: {
         Row: {
           amount: number
@@ -805,6 +864,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      payouts: {
+        Row: {
+          amount: number
+          arrival_date: string | null
+          created_at: string | null
+          currency: string | null
+          description: string | null
+          id: string
+          status: string | null
+          stripe_payout_id: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          arrival_date?: string | null
+          created_at?: string | null
+          currency?: string | null
+          description?: string | null
+          id?: string
+          status?: string | null
+          stripe_payout_id?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          arrival_date?: string | null
+          created_at?: string | null
+          currency?: string | null
+          description?: string | null
+          id?: string
+          status?: string | null
+          stripe_payout_id?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
