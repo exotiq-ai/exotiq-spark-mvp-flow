@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useFleet } from "@/contexts/FleetContext";
-import { AskRariButton } from "@/components/common/AskRariButton";
 import { AskRariQuickAction } from "@/components/common/AskRariQuickAction";
 import { SkeletonCard, SkeletonMetric } from "@/components/ui/skeleton-card";
 import { 
@@ -14,11 +13,7 @@ import {
   TrendingUp,
   MessageSquare,
   Settings,
-  BarChart3,
   Users,
-  Car,
-  DollarSign,
-  Clock,
   CheckCircle
 } from "lucide-react";
 import { AddVehicleDialog } from "@/components/dialogs/AddVehicleDialog";
@@ -96,45 +91,6 @@ export const CoreEnhanced = () => {
     }
   ];
 
-  const quickActions = [
-    { 
-      title: "Add New Vehicle", 
-      icon: Car, 
-      color: "text-primary",
-      onClick: () => setShowAddVehicle(true)
-    },
-    { 
-      title: "Create Booking", 
-      icon: Users, 
-      color: "text-success",
-      onClick: () => setShowCreateBooking(true)
-    },
-    { 
-      title: "Generate Report", 
-      icon: BarChart3, 
-      color: "text-accent",
-      onClick: () => setShowGenerateReport(true)
-    },
-    { 
-      title: "Update Pricing", 
-      icon: DollarSign, 
-      color: "text-warning",
-      onClick: () => setShowUpdatePricing(true)
-    },
-    { 
-      title: "Schedule Maintenance", 
-      icon: Settings, 
-      color: "text-destructive",
-      onClick: () => setShowScheduleMaintenance(true)
-    },
-    { 
-      title: "Send Message", 
-      icon: MessageSquare, 
-      color: "text-purple-500",
-      onClick: () => setShowSendMessage(true)
-    }
-  ];
-
   const performanceMetrics = [
     { label: "AI Accuracy", value: "94.2%", change: "+2.1%", trend: "up" },
     { label: "Automation Rate", value: "87%", change: "+5%", trend: "up" },
@@ -176,97 +132,69 @@ export const CoreEnhanced = () => {
 
   return (
     <>
-      {/* Ask Rari Floating Button */}
-      <AskRariButton 
-        moduleId="core" 
-        moduleName="FleetCopilot™"
-        contextPrompt="Ask me anything about fleet operations, business intelligence, AI features, or system controls."
-      />
-      
       <div className="space-y-6">
-      {/* AI Command Center Header */}
+      {/* AI Command Center Header - Simplified */}
       <Card className="card-premium p-6 border-border">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-3xl font-bold">FleetCopilot™</h2>
-            <p className="text-xl text-muted-foreground mt-1">AI Command Center & CRM</p>
+            <h2 className="text-2xl md:text-3xl font-bold">FleetCopilot™</h2>
+            <p className="text-muted-foreground mt-1">AI Command Center</p>
           </div>
-          <Badge className="bg-primary text-primary-foreground border-transparent text-lg px-4 py-2 shadow-md dark:shadow-[0_0_20px_rgba(59,130,246,0.3)]">
-            <Brain className="w-5 h-5 mr-2" />
-            Rari FleetCopilot™ Active
+          <Badge className="bg-primary text-primary-foreground border-transparent px-3 py-1.5 shadow-md">
+            <Brain className="w-4 h-4 mr-2" />
+            Active
           </Badge>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="text-center p-6 rounded-xl bg-card border-2 border-primary/20 shadow-sm hover:shadow-md transition-all hover:border-primary/40 dark:bg-card/50 dark:border-primary/30">
-            <div className="relative inline-block mb-4">
-              <div className="absolute inset-0 bg-primary/10 dark:bg-primary/20 rounded-full blur-xl"></div>
-              <Brain className="relative w-10 h-10 text-primary mx-auto dark:drop-shadow-[0_0_8px_rgba(59,130,246,0.6)]" />
-            </div>
-            <div className="text-2xl font-bold text-foreground">24/7</div>
-            <div className="text-sm text-muted-foreground mt-1">AI Monitoring</div>
+        {/* Compact Stats Row */}
+        <div className="grid grid-cols-3 gap-4">
+          <div className="text-center p-4 rounded-xl bg-primary/5 border border-primary/10">
+            <div className="text-xl font-bold">24/7</div>
+            <div className="text-xs text-muted-foreground mt-0.5">Monitoring</div>
           </div>
-          
-          <div className="text-center p-6 rounded-xl bg-card border-2 border-success/20 shadow-sm hover:shadow-md transition-all hover:border-success/40 dark:bg-card/50 dark:border-success/30">
-            <div className="relative inline-block mb-4">
-              <div className="absolute inset-0 bg-success/10 dark:bg-success/20 rounded-full blur-xl"></div>
-              <Zap className="relative w-10 h-10 text-success mx-auto dark:drop-shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
-            </div>
-            <div className="text-2xl font-bold text-foreground">87%</div>
-            <div className="text-sm text-muted-foreground mt-1">Tasks Automated</div>
+          <div className="text-center p-4 rounded-xl bg-success/5 border border-success/10">
+            <div className="text-xl font-bold">87%</div>
+            <div className="text-xs text-muted-foreground mt-0.5">Automated</div>
           </div>
-          
-          <div className="text-center p-6 rounded-xl bg-card border-2 border-accent/20 shadow-sm hover:shadow-md transition-all hover:border-accent/40 dark:bg-card/50 dark:border-accent/30">
-            <div className="relative inline-block mb-4">
-              <div className="absolute inset-0 bg-accent/10 dark:bg-accent/20 rounded-full blur-xl"></div>
-              <Clock className="relative w-10 h-10 text-accent mx-auto dark:drop-shadow-[0_0_8px_rgba(96,165,250,0.6)]" />
-            </div>
-            <div className="text-2xl font-bold text-foreground">4.2h</div>
-            <div className="text-sm text-muted-foreground mt-1">Time Saved Daily</div>
+          <div className="text-center p-4 rounded-xl bg-accent/5 border border-accent/10">
+            <div className="text-xl font-bold">4.2h</div>
+            <div className="text-xs text-muted-foreground mt-0.5">Saved Daily</div>
           </div>
         </div>
       </Card>
 
-      {/* Tabbed Interface for Rari, AI Insights & CRM */}
+      {/* Streamlined Tabs - 4 instead of 6 */}
       <Tabs defaultValue="rari" className="w-full">
-        <TabsList className="grid w-full grid-cols-6 gap-1">
-          <TabsTrigger value="rari" className="text-primary text-xs sm:text-sm">
-            <Brain className="w-4 h-4 mr-1 sm:mr-2" />
-            <span className="hidden sm:inline">Talk to</span> Rari
+        <TabsList className="grid w-full grid-cols-4 gap-1 h-auto p-1">
+          <TabsTrigger value="rari" className="py-2.5 text-sm">
+            <Brain className="w-4 h-4 mr-2" />
+            Rari
           </TabsTrigger>
-          <TabsTrigger value="crm" className="text-xs sm:text-sm">
-            <Users className="w-4 h-4 mr-1 sm:mr-2" />
-            <span className="hidden sm:inline">Customer</span> CRM
+          <TabsTrigger value="crm" className="py-2.5 text-sm">
+            <Users className="w-4 h-4 mr-2" />
+            CRM
           </TabsTrigger>
-          <TabsTrigger value="insights" className="text-xs sm:text-sm">
-            <Brain className="w-4 h-4 mr-1 sm:mr-2" />
-            <span className="hidden sm:inline">AI</span> Insights
+          <TabsTrigger value="insights" className="py-2.5 text-sm">
+            <Zap className="w-4 h-4 mr-2" />
+            Insights
           </TabsTrigger>
-          <TabsTrigger value="actions" className="text-xs sm:text-sm">
-            <Zap className="w-4 h-4 mr-1 sm:mr-2" />
-            <span className="hidden sm:inline">Quick</span> Actions
-          </TabsTrigger>
-          <TabsTrigger value="users" className="text-xs sm:text-sm">
-            <Users className="w-4 h-4 mr-1 sm:mr-2" />
-            <span className="hidden sm:inline">User</span> Mgmt
-          </TabsTrigger>
-          <TabsTrigger value="settings" className="text-xs sm:text-sm">
-            <Settings className="w-4 h-4 mr-1 sm:mr-2" />
-            <span className="hidden sm:inline">System</span> Settings
+          <TabsTrigger value="settings" className="py-2.5 text-sm">
+            <Settings className="w-4 h-4 mr-2" />
+            Settings
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="rari">
+        <TabsContent value="rari" className="mt-4">
           <Card className="card-premium p-0 overflow-hidden">
             <RariVoiceInterface />
           </Card>
         </TabsContent>
 
-        <TabsContent value="crm">
+        <TabsContent value="crm" className="mt-4">
           <CRMSection />
         </TabsContent>
 
-        <TabsContent value="insights" className="space-y-6">
+        <TabsContent value="insights" className="space-y-6 mt-4">
 
       {/* Performance Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -356,34 +284,8 @@ export const CoreEnhanced = () => {
 
         </TabsContent>
 
-        <TabsContent value="actions">
-          <Card className="card-premium p-6">
-            <h3 className="text-xl font-semibold mb-6">Quick Actions</h3>
-            
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              {quickActions.map((action, index) => (
-                <div 
-                  key={index} 
-                  onClick={action.onClick}
-                  className="p-4 rounded-lg bg-muted/30 border border-primary/10 hover-scale cursor-pointer group"
-                >
-                  <div className="text-center">
-                    <div className="p-3 rounded-lg bg-primary/10 mb-3 group-hover:bg-primary/20 transition-smooth">
-                      <action.icon className={`w-6 h-6 ${action.color} mx-auto`} />
-                    </div>
-                    <div className="text-sm font-medium">{action.title}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="users">
+        <TabsContent value="settings" className="mt-4 space-y-6">
           <UserManagementSection />
-        </TabsContent>
-
-        <TabsContent value="settings">
           <SystemSettingsSection />
         </TabsContent>
       </Tabs>

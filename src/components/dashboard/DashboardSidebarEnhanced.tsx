@@ -1,0 +1,259 @@
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Logo } from "@/components/ui/logo";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { 
+  Home,
+  Brain,
+  Calendar,
+  BarChart3,
+  TrendingUp,
+  Shield,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
+  User,
+  Settings,
+  Sparkles
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { motion, AnimatePresence } from "framer-motion";
+
+interface DashboardSidebarEnhancedProps {
+  activeModule: string;
+  onModuleChange: (moduleId: string) => void;
+}
+
+interface NavGroup {
+  id: string;
+  name: string;
+  items: NavItem[];
+}
+
+interface NavItem {
+  id: string;
+  name: string;
+  icon: React.ComponentType<{ className?: string }>;
+}
+
+export const DashboardSidebarEnhanced = ({ activeModule, onModuleChange }: DashboardSidebarEnhancedProps) => {
+  const [collapsed, setCollapsed] = useLocalStorage("sidebarCollapsed", false);
+  const [expandedGroups, setExpandedGroups] = useLocalStorage<string[]>("sidebarExpandedGroups", ["operations", "intelligence"]);
+
+  const navGroups: NavGroup[] = [
+    {
+      id: "operations",
+      name: "Operations",
+      items: [
+        { id: "dashboard", name: "Dashboard", icon: Home },
+        { id: "book", name: "Bookings", icon: Calendar },
+      ]
+    },
+    {
+      id: "intelligence",
+      name: "Intelligence",
+      items: [
+        { id: "core", name: "FleetCopilot™", icon: Brain },
+        { id: "motoriq", name: "MotorIQ", icon: TrendingUp },
+        { id: "pulse", name: "Pulse", icon: BarChart3 },
+      ]
+    },
+    {
+      id: "management",
+      name: "Management",
+      items: [
+        { id: "vault", name: "Vault", icon: Shield },
+        { id: "settings", name: "Settings", icon: Settings },
+      ]
+    }
+  ];
+
+  const toggleGroup = (groupId: string) => {
+    setExpandedGroups(prev => 
+      prev.includes(groupId) 
+        ? prev.filter(id => id !== groupId)
+        : [...prev, groupId]
+    );
+  };
+
+  const isGroupExpanded = (groupId: string) => expandedGroups.includes(groupId);
+
+  return (
+    <aside 
+      className={cn(
+        "hidden md:flex flex-col h-screen bg-sidebar-background border-r border-sidebar-border transition-all duration-300 sticky top-0",
+        collapsed ? "w-[72px]" : "w-[240px]"
+      )}
+    >
+      {/* Logo Section */}
+      <div className="p-4 border-b border-sidebar-border">
+        {collapsed ? (
+          <div className="flex justify-center">
+            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center shadow-sm">
+              <span className="text-xl font-bold text-primary-foreground">E</span>
+            </div>
+          </div>
+        ) : (
+          <Logo size="md" className="h-8" />
+        )}
+      </div>
+
+      {/* Navigation Groups */}
+      <nav className="flex-1 p-3 space-y-2 overflow-y-auto">
+        {navGroups.map((group) => {
+          const isExpanded = isGroupExpanded(group.id);
+          const hasActiveItem = group.items.some(
+            item => activeModule === item.id || (item.id === "motoriq" && activeModule === "optimize")
+          );
+
+          return (
+            <div key={group.id} className="space-y-1">
+              {/* Group Header - Only show when not collapsed */}
+              {!collapsed && (
+                <button
+                  onClick={() => toggleGroup(group.id)}
+                  className={cn(
+                    "w-full flex items-center justify-between px-3 py-2 text-xs font-semibold uppercase tracking-wider rounded-lg transition-colors",
+                    hasActiveItem ? "text-primary" : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/50"
+                  )}
+                >
+                  <span>{group.name}</span>
+                  <motion.div
+                    animate={{ rotate: isExpanded ? 180 : 0 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <ChevronDown className="h-3 w-3" />
+                  </motion.div>
+                </button>
+              )}
+
+              {/* Group Items */}
+              <AnimatePresence initial={false}>
+                {(collapsed || isExpanded) && (
+                  <motion.div
+                    initial={collapsed ? false : { height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="space-y-0.5"
+                  >
+                    {group.items.map((item) => {
+                      const isActive = activeModule === item.id || 
+                        (item.id === "motoriq" && activeModule === "optimize");
+                      
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => onModuleChange(item.id)}
+                          className={cn(
+                            "w-full flex items-center rounded-lg transition-all duration-200 group relative",
+                            "min-h-[40px]",
+                            collapsed ? "justify-center p-2.5" : "justify-start p-2.5 pl-6 space-x-3",
+                            isActive 
+                              ? "bg-primary/10 text-primary" 
+                              : "hover:bg-sidebar-accent/50 text-muted-foreground hover:text-foreground"
+                          )}
+                          title={collapsed ? item.name : undefined}
+                        >
+                          {/* Active indicator */}
+                          {isActive && (
+                            <motion.div
+                              layoutId="activeIndicator"
+                              className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-primary rounded-full"
+                              transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                            />
+                          )}
+                          
+                          <item.icon className={cn(
+                            "h-4 w-4 transition-colors flex-shrink-0",
+                            isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
+                          )} />
+                          
+                          {!collapsed && (
+                            <span className={cn(
+                              "text-sm font-medium",
+                              isActive && "text-primary"
+                            )}>
+                              {item.name}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          );
+        })}
+      </nav>
+
+      {/* Rari Quick Access - Single source */}
+      <div className="p-3 border-t border-sidebar-border">
+        <button
+          onClick={() => onModuleChange("core")}
+          className={cn(
+            "w-full flex items-center rounded-xl p-3 transition-all",
+            "bg-gradient-to-r from-gulf-blue/10 to-accent/10 hover:from-gulf-blue/20 hover:to-accent/20",
+            "border border-gulf-blue/20 hover:border-gulf-blue/40",
+            collapsed ? "justify-center" : "space-x-3"
+          )}
+        >
+          <div className="relative">
+            <div className="absolute inset-0 bg-gulf-blue/30 rounded-full blur-md" />
+            <Sparkles className="relative h-5 w-5 text-gulf-blue" />
+          </div>
+          {!collapsed && (
+            <div className="flex-1 text-left">
+              <p className="text-sm font-medium">Ask Rari</p>
+              <p className="text-xs text-muted-foreground">AI Assistant</p>
+            </div>
+          )}
+        </button>
+      </div>
+
+      {/* User Profile Section */}
+      <div className="p-3 border-t border-sidebar-border">
+        <div className={cn(
+          "flex items-center rounded-xl p-2.5 hover:bg-sidebar-accent transition-colors cursor-pointer",
+          collapsed ? "justify-center" : "space-x-3"
+        )}>
+          <div className={cn(
+            "w-8 h-8 bg-primary rounded-full flex items-center justify-center flex-shrink-0"
+          )}>
+            <User className="h-4 w-4 text-primary-foreground" />
+          </div>
+          
+          {!collapsed && (
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">John Doe</p>
+              <p className="text-xs text-muted-foreground truncate">Fleet Manager</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Collapse Toggle */}
+      <div className="p-3 border-t border-sidebar-border">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setCollapsed(!collapsed)}
+          className={cn(
+            "w-full flex items-center justify-center hover:bg-sidebar-accent",
+            collapsed ? "px-2" : "px-3"
+          )}
+        >
+          {collapsed ? (
+            <ChevronRight className="h-4 w-4" />
+          ) : (
+            <>
+              <ChevronLeft className="h-4 w-4 mr-2" />
+              <span className="text-xs">Collapse</span>
+            </>
+          )}
+        </Button>
+      </div>
+    </aside>
+  );
+};

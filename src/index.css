@@ -549,4 +549,80 @@
     clip: auto;
     white-space: normal;
   }
+
+  /* ============================================
+     APPLE-INSPIRED POLISH
+     ============================================ */
+  
+  /* Refined card hover states */
+  .card-hover-lift {
+    @apply transition-all duration-300 ease-out;
+  }
+  
+  .card-hover-lift:hover {
+    @apply shadow-lg -translate-y-0.5;
+  }
+  
+  /* Subtle press effect */
+  .press-effect {
+    @apply active:scale-[0.98] transition-transform duration-100;
+  }
+  
+  /* Premium gradient text */
+  .gradient-text {
+    @apply bg-gradient-to-r from-primary via-accent to-gulf-blue bg-clip-text text-transparent;
+  }
+  
+  /* Smooth content reveal */
+  .reveal-content {
+    animation: revealContent 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  
+  @keyframes revealContent {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  /* Apple-style section dividers */
+  .section-divider {
+    @apply h-px bg-gradient-to-r from-transparent via-border to-transparent;
+  }
+  
+  /* Breathing animation for AI elements */
+  .animate-breathe {
+    animation: breathe 3s ease-in-out infinite;
+  }
+  
+  @keyframes breathe {
+    0%, 100% { opacity: 0.8; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.02); }
+  }
+  
+  /* Soft pulse for notifications */
+  .animate-pulse-soft {
+    animation: pulseSoft 2s ease-in-out infinite;
+  }
+  
+  @keyframes pulseSoft {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+  
+  /* Gradient flow animation */
+  .animate-gradient-flow {
+    animation: gradientFlow 8s ease infinite;
+    background-size: 200% 200%;
+  }
+  
+  @keyframes gradientFlow {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
 }

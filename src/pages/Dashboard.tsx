@@ -31,9 +31,9 @@ import { PulseEnhanced } from "@/components/dashboard/PulseEnhanced";
 import { BookEnhanced } from "@/components/dashboard/BookEnhanced";
 import { VaultEnhanced } from "@/components/dashboard/VaultEnhanced";
 import { CoreEnhanced } from "@/components/dashboard/CoreEnhanced";
-import { DashboardOverview } from "@/components/dashboard/DashboardOverview";
+import { DashboardOverviewEnhanced } from "@/components/dashboard/DashboardOverviewEnhanced";
 import { ModulePagination } from "@/components/dashboard/ModulePagination";
-import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
+import { DashboardSidebarEnhanced } from "@/components/dashboard/DashboardSidebarEnhanced";
 import { SettingsLayout } from "@/components/dashboard/settings/SettingsLayout";
 import { KeyboardShortcutsHelp } from "@/components/common/KeyboardShortcutsHelp";
 
@@ -161,7 +161,7 @@ const Dashboard = () => {
         content = <SettingsLayout />;
         break;
       default:
-        content = <DashboardOverview onModuleClick={handleModuleChange} />;
+        content = <DashboardOverviewEnhanced onModuleClick={handleModuleChange} />;
     }
 
     return (
@@ -190,8 +190,8 @@ const Dashboard = () => {
       />
       <SkipNavigation />
       
-      {/* Desktop Sidebar */}
-      <DashboardSidebar 
+      {/* Desktop Sidebar - Enhanced with grouped navigation */}
+      <DashboardSidebarEnhanced 
         activeModule={activeModule}
         onModuleChange={handleModuleChange}
       />
