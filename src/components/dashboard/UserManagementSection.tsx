@@ -130,61 +130,61 @@ export const UserManagementSection = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header with Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="card-premium p-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+        <Card className="card-premium p-3 sm:p-4">
           <div className="flex items-center justify-between">
-            <div>
-              <div className="text-2xl font-bold">{users.length}</div>
-              <div className="text-sm text-muted-foreground">Total Users</div>
+            <div className="min-w-0">
+              <div className="text-xl sm:text-2xl font-bold">{users.length}</div>
+              <div className="text-xs sm:text-sm text-muted-foreground truncate">Total Users</div>
             </div>
-            <Users className="w-8 h-8 text-primary" />
+            <Users className="w-6 h-6 sm:w-8 sm:h-8 text-primary flex-shrink-0" />
           </div>
         </Card>
 
-        <Card className="card-premium p-4">
+        <Card className="card-premium p-3 sm:p-4">
           <div className="flex items-center justify-between">
-            <div>
-              <div className="text-2xl font-bold">{users.filter(u => u.status === "active").length}</div>
-              <div className="text-sm text-muted-foreground">Active Users</div>
+            <div className="min-w-0">
+              <div className="text-xl sm:text-2xl font-bold">{users.filter(u => u.status === "active").length}</div>
+              <div className="text-xs sm:text-sm text-muted-foreground truncate">Active</div>
             </div>
-            <Shield className="w-8 h-8 text-success" />
+            <Shield className="w-6 h-6 sm:w-8 sm:h-8 text-success flex-shrink-0" />
           </div>
         </Card>
 
-        <Card className="card-premium p-4">
+        <Card className="card-premium p-3 sm:p-4">
           <div className="flex items-center justify-between">
-            <div>
-              <div className="text-2xl font-bold">{users.filter(u => u.role === "Admin").length}</div>
-              <div className="text-sm text-muted-foreground">Admins</div>
+            <div className="min-w-0">
+              <div className="text-xl sm:text-2xl font-bold">{users.filter(u => u.role === "Admin").length}</div>
+              <div className="text-xs sm:text-sm text-muted-foreground truncate">Admins</div>
             </div>
-            <Shield className="w-8 h-8 text-destructive" />
+            <Shield className="w-6 h-6 sm:w-8 sm:h-8 text-destructive flex-shrink-0" />
           </div>
         </Card>
 
-        <Card className="card-premium p-4">
+        <Card className="card-premium p-3 sm:p-4">
           <div className="flex items-center justify-between">
-            <div>
-              <div className="text-2xl font-bold">{users.filter(u => u.role === "Manager").length}</div>
-              <div className="text-sm text-muted-foreground">Managers</div>
+            <div className="min-w-0">
+              <div className="text-xl sm:text-2xl font-bold">{users.filter(u => u.role === "Manager").length}</div>
+              <div className="text-xs sm:text-sm text-muted-foreground truncate">Managers</div>
             </div>
-            <Shield className="w-8 h-8 text-accent" />
+            <Shield className="w-6 h-6 sm:w-8 sm:h-8 text-accent flex-shrink-0" />
           </div>
         </Card>
       </div>
 
       {/* User List */}
-      <Card className="card-premium p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-xl font-semibold">User Management</h3>
-          <Button onClick={handleAddUser} className="btn-premium">
+      <Card className="card-premium p-4 sm:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-6">
+          <h3 className="text-lg sm:text-xl font-semibold">User Management</h3>
+          <Button onClick={handleAddUser} className="btn-premium w-full sm:w-auto">
             <UserPlus className="w-4 h-4 mr-2" />
             Add User
           </Button>
         </div>
 
-        <div className="relative mb-6">
+        <div className="relative mb-4 sm:mb-6">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
           <Input
             placeholder="Search users by name, email, or role..."
@@ -195,51 +195,60 @@ export const UserManagementSection = () => {
           />
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {filteredUsers.map((user) => (
-            <div key={user.id} className="p-4 rounded-lg bg-muted/30 border border-primary/10 hover:border-primary/20 transition-smooth">
-              <div className="flex items-start justify-between">
-                <div className="flex items-start space-x-4 flex-1">
-                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Users className="w-6 h-6 text-primary" />
+            <div key={user.id} className="p-3 sm:p-4 rounded-lg bg-muted/30 border border-primary/10 hover:border-primary/20 transition-smooth">
+              <div className="flex items-start gap-3">
+                {/* Avatar */}
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <Users className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
+                </div>
+                
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                  {/* Name and badges */}
+                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-1.5">
+                    <h4 className="font-semibold text-sm sm:text-base truncate">{user.name}</h4>
+                    <Badge className={`${getRoleBadgeColor(user.role)} text-xs`}>
+                      {user.role}
+                    </Badge>
+                    <Badge className={`${getStatusBadgeColor(user.status)} text-xs`}>
+                      {user.status}
+                    </Badge>
                   </div>
                   
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-3 mb-2">
-                      <h4 className="font-semibold">{user.name}</h4>
-                      <Badge className={getRoleBadgeColor(user.role)}>
-                        {user.role}
-                      </Badge>
-                      <Badge className={getStatusBadgeColor(user.status)}>
-                        {user.status}
-                      </Badge>
+                  {/* Email and last active - stacked on mobile */}
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-xs sm:text-sm text-muted-foreground mb-2">
+                    <div className="flex items-center gap-1.5 truncate">
+                      <Mail className="w-3.5 h-3.5 flex-shrink-0" />
+                      <span className="truncate">{user.email}</span>
                     </div>
-                    
-                    <div className="flex items-center space-x-6 text-sm text-muted-foreground">
-                      <div className="flex items-center space-x-2">
-                        <Mail className="w-4 h-4" />
-                        <span>{user.email}</span>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Calendar className="w-4 h-4" />
-                        <span>Last active: {user.lastActive}</span>
-                      </div>
+                    <div className="flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5 flex-shrink-0" />
+                      <span className="whitespace-nowrap">Last active: {user.lastActive}</span>
                     </div>
+                  </div>
 
-                    <div className="flex items-center space-x-2 mt-3">
-                      <span className="text-xs text-muted-foreground">Permissions:</span>
-                      {user.permissions.map((permission, idx) => (
-                        <Badge key={idx} variant="outline" className="text-xs">
-                          {permission.replace(/_/g, " ")}
-                        </Badge>
-                      ))}
-                    </div>
+                  {/* Permissions - wrap on mobile */}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-xs text-muted-foreground">Permissions:</span>
+                    {user.permissions.slice(0, 2).map((permission, idx) => (
+                      <Badge key={idx} variant="outline" className="text-xs">
+                        {permission.replace(/_/g, " ")}
+                      </Badge>
+                    ))}
+                    {user.permissions.length > 2 && (
+                      <Badge variant="outline" className="text-xs">
+                        +{user.permissions.length - 2}
+                      </Badge>
+                    )}
                   </div>
                 </div>
 
+                {/* Actions */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon">
+                    <Button variant="ghost" size="icon" className="flex-shrink-0 h-8 w-8">
                       <MoreVertical className="w-4 h-4" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -262,7 +271,7 @@ export const UserManagementSection = () => {
           ))}
 
           {filteredUsers.length === 0 && (
-            <div className="text-center py-12 text-muted-foreground">
+            <div className="text-center py-8 sm:py-12 text-muted-foreground">
               No users found matching your search criteria.
             </div>
           )}
