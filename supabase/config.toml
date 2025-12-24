@@ -23,3 +23,9 @@ verify_jwt = false
 
 [functions.text-to-speech]
 verify_jwt = false
+
+[functions.generate-report]
+verify_jwt = false
+
+[functions.demo-login]
+verify_jwt = false

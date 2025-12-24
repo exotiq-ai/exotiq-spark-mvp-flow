@@ -4,12 +4,19 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { BarChart3, FileText, TrendingUp, FolderOpen } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useFleet } from "@/contexts/FleetContext";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { format } from "date-fns";
+import { BarChart3, FileText, TrendingUp, FolderOpen, Users, Download, Sparkles, Loader2 } from "lucide-react";
 
 interface GenerateReportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onGenerate: (reportType: string, dateRange: { start: string; end: string }, format: string) => Promise<void>;
+  onGenerate?: (reportType: string, dateRange: { start: string; end: string }, format: string) => Promise<void>;
 }
 
 export const GenerateReportDialog = ({ 
@@ -17,120 +24,250 @@ export const GenerateReportDialog = ({
   onOpenChange, 
   onGenerate 
 }: GenerateReportDialogProps) => {
+  const { bookings, vehicles, customers, payments, documents } = useFleet();
+  const { toast } = useToast();
+  
   const [reportType, setReportType] = useState("revenue");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [format, setFormat] = useState("pdf");
+  const [exportFormat, setExportFormat] = useState("csv");
   const [loading, setLoading] = useState(false);
+  const [reportData, setReportData] = useState<any>(null);
+  const [aiInsights, setAiInsights] = useState<string | null>(null);
 
   const reportTypes = [
-    { value: "revenue", label: "Revenue Report", icon: TrendingUp },
-    { value: "utilization", label: "Fleet Utilization", icon: BarChart3 },
-    { value: "bookings", label: "Booking History", icon: FileText },
-    { value: "documents", label: "Document Status", icon: FolderOpen }
+    { value: "revenue", label: "Revenue Report", icon: TrendingUp, description: "Revenue breakdown and payment analytics" },
+    { value: "utilization", label: "Fleet Utilization", icon: BarChart3, description: "Vehicle usage and performance metrics" },
+    { value: "bookings", label: "Booking History", icon: FileText, description: "Complete booking records and status" },
+    { value: "customers", label: "Customer Analytics", icon: Users, description: "Customer lifetime value and activity" },
+    { value: "documents", label: "Document Status", icon: FolderOpen, description: "Compliance and document expiry tracking" }
   ];
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!reportType || !startDate || !endDate) {
-      return;
-    }
+    if (!reportType || !startDate || !endDate) return;
 
     setLoading(true);
+    setReportData(null);
+    setAiInsights(null);
+
     try {
-      await onGenerate(reportType, { start: startDate, end: endDate }, format);
-      onOpenChange(false);
+      // Call edge function with data
+      const { data, error } = await supabase.functions.invoke("generate-report", {
+        body: {
+          reportType,
+          dateRange: { start: startDate, end: endDate },
+          format: exportFormat,
+          data: { bookings, vehicles, customers, payments, documents },
+        },
+      });
+
+      if (error) throw error;
+
+      setReportData(data.content);
+      setAiInsights(data.aiInsights);
+
+      toast({ title: "Report generated successfully" });
     } catch (error) {
-      console.error("Error generating report:", error);
+      console.error("Report generation error:", error);
+      toast({ title: "Failed to generate report", variant: "destructive" });
     } finally {
       setLoading(false);
     }
   };
 
+  const handleExport = () => {
+    if (!reportData) return;
+
+    const fileName = `${reportType}-report-${format(new Date(), "yyyy-MM-dd")}`;
+
+    if (exportFormat === "csv") {
+      exportToCSV(reportData.details || [], fileName);
+    } else if (exportFormat === "json") {
+      exportToJSON(reportData, fileName);
+    }
+  };
+
+  const exportToCSV = (data: any[], fileName: string) => {
+    if (!data.length) return;
+    
+    const headers = Object.keys(data[0]);
+    const csvContent = [
+      headers.join(","),
+      ...data.map(row => headers.map(h => `"${row[h] || ""}"`).join(","))
+    ].join("\n");
+
+    downloadFile(csvContent, `${fileName}.csv`, "text/csv");
+    toast({ title: "CSV exported successfully" });
+  };
+
+  const exportToJSON = (data: any, fileName: string) => {
+    const jsonContent = JSON.stringify(data, null, 2);
+    downloadFile(jsonContent, `${fileName}.json`, "application/json");
+    toast({ title: "JSON exported successfully" });
+  };
+
+  const downloadFile = (content: string, fileName: string, mimeType: string) => {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const selectedReport = reportTypes.find(r => r.value === reportType);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh]">
         <DialogHeader>
-          <DialogTitle>Generate Report</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            Generate Report
+          </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="reportType">Report Type *</Label>
-            <Select value={reportType} onValueChange={setReportType}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
+        <ScrollArea className="max-h-[calc(90vh-200px)]">
+          <form onSubmit={handleGenerate} className="space-y-4 px-1">
+            {/* Report Type Selection */}
+            <div className="space-y-2">
+              <Label>Report Type</Label>
+              <div className="grid grid-cols-1 gap-2">
                 {reportTypes.map((type) => {
                   const Icon = type.icon;
+                  const isSelected = reportType === type.value;
                   return (
-                    <SelectItem key={type.value} value={type.value}>
-                      <div className="flex items-center">
-                        <Icon className="w-4 h-4 mr-2" />
-                        {type.label}
+                    <div
+                      key={type.value}
+                      onClick={() => setReportType(type.value)}
+                      className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                        isSelected 
+                          ? "border-primary bg-primary/10" 
+                          : "border-border hover:border-primary/50"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Icon className={`h-5 w-5 ${isSelected ? "text-primary" : "text-muted-foreground"}`} />
+                        <div className="flex-1">
+                          <div className="font-medium">{type.label}</div>
+                          <div className="text-xs text-muted-foreground">{type.description}</div>
+                        </div>
+                        {isSelected && <Badge>Selected</Badge>}
                       </div>
-                    </SelectItem>
+                    </div>
                   );
                 })}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="startDate">Start Date *</Label>
-              <Input
-                id="startDate"
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                required
-              />
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="endDate">End Date *</Label>
-              <Input
-                id="endDate"
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                required
-              />
+            {/* Date Range */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="startDate">Start Date</Label>
+                <Input
+                  id="startDate"
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="endDate">End Date</Label>
+                <Input
+                  id="endDate"
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  required
+                />
+              </div>
             </div>
-          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="format">Export Format</Label>
-            <Select value={format} onValueChange={setFormat}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="pdf">PDF Document</SelectItem>
-                <SelectItem value="csv">CSV Spreadsheet</SelectItem>
-                <SelectItem value="excel">Excel Workbook</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+            {/* Export Format */}
+            <div className="space-y-2">
+              <Label>Export Format</Label>
+              <Select value={exportFormat} onValueChange={setExportFormat}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="csv">CSV Spreadsheet</SelectItem>
+                  <SelectItem value="json">JSON Data</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-          <div className="p-4 rounded-lg bg-muted/30 border border-primary/20">
-            <p className="text-sm text-muted-foreground">
-              The report will include detailed insights and analytics for the selected date range.
-            </p>
-          </div>
-
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+            <Button type="submit" disabled={loading} className="w-full btn-premium">
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  Generate Report
+                </>
+              )}
             </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? "Generating..." : "Generate Report"}
-            </Button>
-          </DialogFooter>
-        </form>
+
+            {/* Report Results */}
+            {reportData && (
+              <>
+                <Separator />
+                
+                {/* Summary */}
+                <div className="space-y-3">
+                  <h4 className="font-semibold">Report Summary</h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    {reportData.summary && Object.entries(reportData.summary).map(([key, value]) => (
+                      <div key={key} className="p-3 rounded-lg bg-muted/30 border">
+                        <div className="text-xs text-muted-foreground capitalize">
+                          {key.replace(/([A-Z])/g, " $1").trim()}
+                        </div>
+                        <div className="text-lg font-bold">
+                          {typeof value === "number" && key.toLowerCase().includes("value") 
+                            ? `$${(value as number).toLocaleString()}`
+                            : typeof value === "number" && key.toLowerCase().includes("rate")
+                              ? `${value}%`
+                              : String(value)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* AI Insights */}
+                {aiInsights && (
+                  <div className="p-4 rounded-lg bg-gradient-to-r from-primary/10 to-accent/10 border border-primary/20">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Sparkles className="h-4 w-4 text-primary" />
+                      <span className="font-semibold text-sm">AI Insights</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{aiInsights}</p>
+                  </div>
+                )}
+
+                {/* Export Button */}
+                <Button onClick={handleExport} variant="outline" className="w-full">
+                  <Download className="h-4 w-4 mr-2" />
+                  Export as {exportFormat.toUpperCase()}
+                </Button>
+              </>
+            )}
+          </form>
+        </ScrollArea>
+
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            Close
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

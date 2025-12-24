@@ -2,10 +2,13 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useFleet } from "@/contexts/FleetContext";
 import { PriceOptimizationDialog } from "@/components/dialogs/PriceOptimizationDialog";
 import { VehicleImageDialog } from "@/components/dialogs/VehicleImageDialog";
 import { PriceUtilizationScatterPlot } from "@/components/charts/PriceUtilizationScatterPlot";
+import { DynamicPricingCard } from "@/components/dashboard/DynamicPricingCard";
+import { DemandForecastCard } from "@/components/dashboard/DemandForecastCard";
 import { AskRariButton } from "@/components/common/AskRariButton";
 import { SkeletonMetric, SkeletonCard } from "@/components/ui/skeleton-card";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -16,12 +19,14 @@ import {
   ArrowRight,
   Sparkles,
   Brain,
-  Car
+  Car,
+  DollarSign,
+  BarChart3
 } from "lucide-react";
 
 export const MotorIQEnhanced = () => {
   const { vehicles, applyPriceOptimization, loading } = useFleet();
-  
+  const [activeTab, setActiveTab] = useState("overview");
   const [showOptimizationDialog, setShowOptimizationDialog] = useState(false);
   const [showVehicleImage, setShowVehicleImage] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<{
@@ -116,8 +121,25 @@ export const MotorIQEnhanced = () => {
           moduleName="MotorIQ"
           contextPrompt="Ask me about pricing strategies, revenue optimization, or underpriced vehicles in your fleet."
         />
-        
-        {/* Hero Section - Top Priority AI Insight */}
+
+        {/* Module Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-3 mb-6">
+            <TabsTrigger value="overview" className="flex items-center gap-2">
+              <Brain className="h-4 w-4" />
+              <span className="hidden sm:inline">Overview</span>
+            </TabsTrigger>
+            <TabsTrigger value="pricing" className="flex items-center gap-2">
+              <DollarSign className="h-4 w-4" />
+              <span className="hidden sm:inline">Dynamic Pricing</span>
+            </TabsTrigger>
+            <TabsTrigger value="forecast" className="flex items-center gap-2">
+              <BarChart3 className="h-4 w-4" />
+              <span className="hidden sm:inline">Demand Forecast</span>
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview" className="space-y-6">
         {topRecommendation && potentialIncrease > 0 ? (
           <Card className="card-premium bg-gradient-to-br from-success/10 via-primary/5 to-accent/10 border-success/20 p-4 sm:p-6 md:p-8">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 sm:gap-6">
@@ -292,6 +314,16 @@ export const MotorIQEnhanced = () => {
             ))}
           </div>
         </Card>
+          </TabsContent>
+
+          <TabsContent value="pricing" className="space-y-6">
+            <DynamicPricingCard onApplyOptimization={() => setShowOptimizationDialog(true)} />
+          </TabsContent>
+
+          <TabsContent value="forecast" className="space-y-6">
+            <DemandForecastCard />
+          </TabsContent>
+        </Tabs>
       </div>
     </>
   );
