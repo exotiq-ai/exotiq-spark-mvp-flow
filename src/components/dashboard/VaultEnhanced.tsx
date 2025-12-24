@@ -55,7 +55,7 @@ export const VaultEnhanced = () => {
     { name: "Licenses", status: "urgent", items: 6, expiring: 1, icon: AlertTriangle }
   ];
 
-  const recentDocuments = documents.slice(0, 5);
+  const recentDocuments = Array.isArray(documents) ? documents.slice(0, 5) : [];
 
   const handleDownload = (docName: string) => {
     toast({
