@@ -152,7 +152,10 @@ export const ComplianceStackedBar = () => {
                 stroke="hsl(var(--muted-foreground))"
                 tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: isMobile ? 10 : 12 }}
                 width={isMobile ? 55 : 90}
-                tickFormatter={(value) => isMobile ? value.slice(0, 5) : value}
+                tickFormatter={(value) => {
+                  const strValue = String(value ?? '');
+                  return isMobile ? strValue.slice(0, 5) : strValue;
+                }}
               />
               <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--muted) / 0.3)' }} />
               <Legend 
