@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { GlobalSearch } from "@/components/common/GlobalSearch";
+import { EnhancedGlobalSearch } from "@/components/common/EnhancedGlobalSearch";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { UnifiedNotificationCenter } from "@/components/common/UnifiedNotificationCenter";
 
@@ -28,7 +28,7 @@ export const DashboardHeader = () => {
         <Logo />
         
         <div className="hidden md:flex flex-1 max-w-md mx-4">
-          <GlobalSearch />
+          <EnhancedGlobalSearch />
         </div>
 
         <div className="flex items-center space-x-2">
