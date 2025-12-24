@@ -979,6 +979,45 @@ export type Database = {
         }
         Relationships: []
       }
+      role_audit_log: {
+        Row: {
+          action: string
+          changed_by: string | null
+          created_at: string | null
+          id: string
+          metadata: Json | null
+          new_permissions: string[] | null
+          new_role: string | null
+          old_permissions: string[] | null
+          old_role: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          changed_by?: string | null
+          created_at?: string | null
+          id?: string
+          metadata?: Json | null
+          new_permissions?: string[] | null
+          new_role?: string | null
+          old_permissions?: string[] | null
+          old_role?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          changed_by?: string | null
+          created_at?: string | null
+          id?: string
+          metadata?: Json | null
+          new_permissions?: string[] | null
+          new_role?: string | null
+          old_permissions?: string[] | null
+          old_role?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_dashboard_layouts: {
         Row: {
           created_at: string
@@ -1030,6 +1069,42 @@ export type Database = {
           logo_url?: string | null
           updated_at?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      user_invitations: {
+        Row: {
+          created_at: string | null
+          email: string
+          expires_at: string | null
+          id: string
+          invited_by: string
+          permissions: string[] | null
+          role: string | null
+          status: string | null
+          token: string
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          expires_at?: string | null
+          id?: string
+          invited_by: string
+          permissions?: string[] | null
+          role?: string | null
+          status?: string | null
+          token: string
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          expires_at?: string | null
+          id?: string
+          invited_by?: string
+          permissions?: string[] | null
+          role?: string | null
+          status?: string | null
+          token?: string
         }
         Relationships: []
       }
