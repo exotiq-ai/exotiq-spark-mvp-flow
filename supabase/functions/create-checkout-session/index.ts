@@ -7,23 +7,23 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Stripe Price IDs
+// Stripe Price IDs - Hybrid Pricing Model
 const STRIPE_PRICES = {
   starter: {
-    monthly: 'price_1ShjP0HO7nC3pJiP4ExcElvZ',
-    annual: 'price_1ShjP6HO7nC3pJiP9QBawM60',
+    monthly: 'price_1ShmMlHO7nC3pJiPxcbd7vlL',
+    annual: 'price_1ShmRHHO7nC3pJiPtU6o3AMC',
   },
   professional: {
-    monthly: 'price_1ShjP8HO7nC3pJiPQyJ3HFB4',
-    annual: 'price_1ShjPBHO7nC3pJiP6KR4QvWc',
+    monthly: 'price_1ShmMmHO7nC3pJiPPYhhXT1o',
+    annual: 'price_1ShmRJHO7nC3pJiP05J4DdvQ',
   },
   business: {
-    monthly: 'price_1ShjPCHO7nC3pJiP3e6FjmV9',
-    annual: 'price_1ShjPEHO7nC3pJiPdIX5VJuc',
+    monthly: 'price_1ShmMoHO7nC3pJiPzUH0wSP3',
+    annual: 'price_1ShmRKHO7nC3pJiPSxuuBWtO',
   },
   enterprise: {
-    monthly: 'price_1ShjPFHO7nC3pJiPDFbyAUZF',
-    annual: 'price_1ShjPHHO7nC3pJiPoU8XyhuH',
+    monthly: 'price_1ShmMqHO7nC3pJiPV04rgXRX',
+    annual: 'price_1ShmRMHO7nC3pJiPYawYJ13O',
   },
 };
 
