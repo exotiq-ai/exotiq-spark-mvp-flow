@@ -34,6 +34,8 @@ import { CoreEnhanced } from "@/components/dashboard/CoreEnhanced";
 import { DashboardOverview } from "@/components/dashboard/DashboardOverview";
 import { ModulePagination } from "@/components/dashboard/ModulePagination";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
+import { SettingsLayout } from "@/components/dashboard/settings/SettingsLayout";
+import { KeyboardShortcutsHelp } from "@/components/common/KeyboardShortcutsHelp";
 
 const Dashboard = () => {
   const [activeModule, setActiveModule] = useLocalStorage("activeModule", "dashboard");
@@ -157,6 +159,9 @@ const Dashboard = () => {
       case "core":
         content = <CoreEnhanced />;
         break;
+      case "settings":
+        content = <SettingsLayout />;
+        break;
       default:
         content = <DashboardOverview onModuleClick={handleModuleChange} />;
     }
@@ -179,6 +184,7 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-background mobile-friendly flex">
+      <KeyboardShortcutsHelp />
       <SEOHead
         title="Fleet Management Dashboard"
         description="Manage your luxury fleet with comprehensive analytics, AI-powered insights, and real-time monitoring."
