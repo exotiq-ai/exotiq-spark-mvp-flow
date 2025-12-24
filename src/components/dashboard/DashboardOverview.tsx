@@ -5,26 +5,16 @@ import { MetricsWidget } from "./widgets/MetricsWidget";
 import { AIInsightWidget } from "./widgets/AIInsightWidget";
 import { FleetStatusWidget } from "./widgets/FleetStatusWidget";
 import { ScheduleWidget } from "./widgets/ScheduleWidget";
-import { ModuleGridWidget } from "./widgets/ModuleGridWidget";
+import { QuickActionsWidget } from "./widgets/QuickActionsWidget";
 import { PriceOptimizationDialog } from "@/components/dialogs/PriceOptimizationDialog";
 import { useFleet } from "@/contexts/FleetContext";
 import { DemoOnboarding } from "@/components/demo/DemoOnboarding";
 
-interface Module {
-  id: string;
-  name: string;
-  icon: React.ElementType;
-  description: string;
-  color: string;
-  bgColor: string;
-}
-
 interface DashboardOverviewProps {
-  modules: Module[];
   onModuleClick: (moduleId: string) => void;
 }
 
-export const DashboardOverview = ({ modules, onModuleClick }: DashboardOverviewProps) => {
+export const DashboardOverview = ({ onModuleClick }: DashboardOverviewProps) => {
   const [showOptimizationDialog, setShowOptimizationDialog] = useState(false);
   const { vehicles, applyPriceOptimization } = useFleet();
 
@@ -53,7 +43,7 @@ export const DashboardOverview = ({ modules, onModuleClick }: DashboardOverviewP
           <FleetStatusWidget onViewAll={() => onModuleClick('motoriq')} />
           <ScheduleWidget onViewCalendar={() => onModuleClick('book')} />
         </div>
-        <ModuleGridWidget modules={modules} onModuleClick={onModuleClick} />
+        <QuickActionsWidget onModuleClick={onModuleClick} />
       </div>
     </>
   );

@@ -5,14 +5,19 @@ import { Badge } from "@/components/ui/badge";
 import { useFleet } from "@/contexts/FleetContext";
 import { generateVehicleColors } from "@/lib/conflictDetection";
 import { VehicleImageDialog } from "@/components/dialogs/VehicleImageDialog";
+import { EnhancedBookingDialog } from "@/components/dialogs/EnhancedBookingDialog";
 import { RealtimeIndicator } from "@/components/common/RealtimeIndicator";
+import { downloadICS, bookingsToCalendarEvents } from "@/lib/calendarExport";
+import { useToast } from "@/hooks/use-toast";
 import { 
   ChevronLeft, 
   ChevronRight, 
   Calendar as CalendarIcon,
   Filter,
   AlertTriangle,
-  RefreshCw
+  RefreshCw,
+  Download,
+  ExternalLink
 } from "lucide-react";
 import {
   Select,
@@ -23,14 +28,20 @@ import {
 } from "@/components/ui/select";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isWithinInterval } from "date-fns";
 
-export const BookingCalendar = () => {
+interface BookingCalendarProps {
+  onNavigateToModule?: (moduleId: string, context?: Record<string, any>) => void;
+}
+
+export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) => {
   const { bookings, vehicles, refreshBookings } = useFleet();
+  const { toast } = useToast();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedVehicle, setSelectedVehicle] = useState<string>("all");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [focusedDateIndex, setFocusedDateIndex] = useState<number>(0);
   const [showVehicleImage, setShowVehicleImage] = useState(false);
   const [showRealtimeUpdate, setShowRealtimeUpdate] = useState(false);
+  const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [selectedVehicleDetails, setSelectedVehicleDetails] = useState<{
     name: string;
     make: string;
@@ -40,7 +51,6 @@ export const BookingCalendar = () => {
     dailyRate: number;
   } | null>(null);
 
-  // Watch for booking changes and show indicator
   useEffect(() => {
     const previousCount = bookings.length;
     return () => {
@@ -58,11 +68,23 @@ export const BookingCalendar = () => {
         make: vehicle.make,
         model: vehicle.model,
         year: vehicle.year,
-        status: vehicle.status,
+        status: vehicle.status || "available",
         dailyRate: Number(vehicle.current_rate),
       });
       setShowVehicleImage(true);
     }
+  };
+
+  const handleBookingClick = (bookingId: string) => {
+    setSelectedBookingId(bookingId);
+  };
+
+  const handleExportCalendar = () => {
+    const vehicleMap = vehicles.reduce((acc, v) => ({ ...acc, [v.id]: v.name }), {} as Record<string, string>);
+    const events = bookingsToCalendarEvents(filteredBookings, vehicleMap);
+    const monthName = format(currentDate, "MMMM-yyyy");
+    downloadICS(events, `bookings-${monthName}.ics`);
+    toast({ title: "Calendar exported", description: `${events.length} bookings exported to .ics file` });
   };
 
   const monthStart = startOfMonth(currentDate);
@@ -72,9 +94,7 @@ export const BookingCalendar = () => {
   const vehicleColors = generateVehicleColors(vehicles.map(v => v.id));
 
   const filteredBookings = bookings.filter(booking => {
-    if (selectedVehicle !== "all" && booking.vehicle_id !== selectedVehicle) {
-      return false;
-    }
+    if (selectedVehicle !== "all" && booking.vehicle_id !== selectedVehicle) return false;
     const bookingStart = new Date(booking.start_date);
     const bookingEnd = new Date(booking.end_date);
     return isWithinInterval(monthStart, { start: bookingStart, end: bookingEnd }) ||
@@ -86,77 +106,39 @@ export const BookingCalendar = () => {
     return filteredBookings.filter(booking => {
       const bookingStart = new Date(booking.start_date);
       const bookingEnd = new Date(booking.end_date);
-      return isSameDay(day, bookingStart) || 
-             isSameDay(day, bookingEnd) ||
-             isWithinInterval(day, { start: bookingStart, end: bookingEnd });
+      return isSameDay(day, bookingStart) || isSameDay(day, bookingEnd) || isWithinInterval(day, { start: bookingStart, end: bookingEnd });
     });
   };
 
-  const getDayBookingsCount = (day: Date) => {
-    return getBookingsForDay(day).length;
-  };
+  const getDayBookingsCount = (day: Date) => getBookingsForDay(day).length;
 
   const hasConflicts = (day: Date) => {
     const dayBookings = getBookingsForDay(day);
     const vehicleIds = new Set(dayBookings.map(b => b.vehicle_id));
-    return dayBookings.length > vehicleIds.size; // Multiple bookings for same vehicle
+    return dayBookings.length > vehicleIds.size;
   };
 
-  const previousMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1));
-  };
-
-  const nextMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1));
-  };
+  const previousMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1));
+  const nextMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1));
 
   const selectedDayBookings = selectedDate ? getBookingsForDay(selectedDate) : [];
 
-  // Keyboard navigation handler for calendar
   const handleKeyDown = (e: React.KeyboardEvent, dayIndex: number, day: Date) => {
     const totalDays = daysInMonth.length;
     let newIndex = dayIndex;
-
     switch (e.key) {
-      case 'ArrowRight':
-        e.preventDefault();
-        newIndex = Math.min(dayIndex + 1, totalDays - 1);
-        break;
-      case 'ArrowLeft':
-        e.preventDefault();
-        newIndex = Math.max(dayIndex - 1, 0);
-        break;
-      case 'ArrowDown':
-        e.preventDefault();
-        newIndex = Math.min(dayIndex + 7, totalDays - 1);
-        break;
-      case 'ArrowUp':
-        e.preventDefault();
-        newIndex = Math.max(dayIndex - 7, 0);
-        break;
-      case 'Enter':
-      case ' ':
-        e.preventDefault();
-        setSelectedDate(day);
-        return;
-      case 'Home':
-        e.preventDefault();
-        newIndex = 0;
-        break;
-      case 'End':
-        e.preventDefault();
-        newIndex = totalDays - 1;
-        break;
-      default:
-        return;
+      case 'ArrowRight': e.preventDefault(); newIndex = Math.min(dayIndex + 1, totalDays - 1); break;
+      case 'ArrowLeft': e.preventDefault(); newIndex = Math.max(dayIndex - 1, 0); break;
+      case 'ArrowDown': e.preventDefault(); newIndex = Math.min(dayIndex + 7, totalDays - 1); break;
+      case 'ArrowUp': e.preventDefault(); newIndex = Math.max(dayIndex - 7, 0); break;
+      case 'Enter': case ' ': e.preventDefault(); setSelectedDate(day); return;
+      case 'Home': e.preventDefault(); newIndex = 0; break;
+      case 'End': e.preventDefault(); newIndex = totalDays - 1; break;
+      default: return;
     }
-
     setFocusedDateIndex(newIndex);
-    // Focus the new cell
     const cells = document.querySelectorAll('[data-calendar-day]');
-    if (cells[newIndex]) {
-      (cells[newIndex] as HTMLElement).focus();
-    }
+    if (cells[newIndex]) (cells[newIndex] as HTMLElement).focus();
   };
 
   return (
@@ -172,265 +154,150 @@ export const BookingCalendar = () => {
         />
       )}
 
+      <EnhancedBookingDialog
+        open={!!selectedBookingId}
+        onOpenChange={(open) => !open && setSelectedBookingId(null)}
+        bookingId={selectedBookingId}
+        onNavigateToModule={onNavigateToModule}
+      />
+
       <div className="space-y-6">
-      {/* Calendar Controls */}
-      <Card 
-        className="card-premium p-4 sm:p-6"
-        role="region"
-        aria-label="Booking calendar"
-      >
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-          <div className="flex items-center space-x-2 sm:space-x-4">
-            <Button 
-              variant="outline" 
-              size="icon" 
-              onClick={previousMonth}
-              aria-label="Previous month"
-            >
-              <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-            </Button>
-            <h3 className="text-lg sm:text-2xl font-bold" aria-live="polite">
-              {format(currentDate, 'MMMM yyyy')}
-            </h3>
-            <Button 
-              variant="outline" 
-              size="icon" 
-              onClick={nextMonth}
-              aria-label="Next month"
-            >
-              <ChevronRight className="h-4 w-4" aria-hidden="true" />
-            </Button>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={() => refreshBookings()}
-              aria-label="Refresh bookings"
-              title="Refresh bookings"
-            >
-              <RefreshCw className="h-4 w-4" />
-            </Button>
-          </div>
-
-          <div className="flex items-center space-x-2 w-full sm:w-auto">
-            <Filter className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
-            <Select value={selectedVehicle} onValueChange={setSelectedVehicle}>
-              <SelectTrigger 
-                className="w-full sm:w-[200px]"
-                aria-label="Filter by vehicle"
-              >
-                <SelectValue placeholder="All Vehicles" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Vehicles</SelectItem>
-                {vehicles.map((vehicle) => (
-                  <SelectItem key={vehicle.id} value={vehicle.id}>
-                    {vehicle.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        {/* Calendar Grid */}
-        <div 
-          className="grid grid-cols-7 gap-1 sm:gap-2"
-          role="grid"
-          aria-label="Calendar grid"
-        >
-          {/* Day Headers */}
-          {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((day, index) => (
-            <div 
-              key={day} 
-              className="text-center font-semibold text-xs sm:text-sm text-muted-foreground p-1 sm:p-2"
-              role="columnheader"
-              aria-label={day}
-            >
-              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][index]}
+        <Card className="card-premium p-4 sm:p-6" role="region" aria-label="Booking calendar">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+            <div className="flex items-center space-x-2 sm:space-x-4">
+              <Button variant="outline" size="icon" onClick={previousMonth} aria-label="Previous month">
+                <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+              </Button>
+              <h3 className="text-lg sm:text-2xl font-bold" aria-live="polite">{format(currentDate, 'MMMM yyyy')}</h3>
+              <Button variant="outline" size="icon" onClick={nextMonth} aria-label="Next month">
+                <ChevronRight className="h-4 w-4" aria-hidden="true" />
+              </Button>
+              <Button variant="ghost" size="icon" onClick={() => refreshBookings()} aria-label="Refresh" title="Refresh">
+                <RefreshCw className="h-4 w-4" />
+              </Button>
             </div>
-          ))}
 
-          {/* Empty cells for days before month start */}
-          {Array.from({ length: monthStart.getDay() }).map((_, i) => (
-            <div key={`empty-${i}`} className="p-2" />
-          ))}
+            <div className="flex items-center space-x-2 w-full sm:w-auto">
+              <Button variant="outline" size="sm" onClick={handleExportCalendar} className="flex items-center gap-2">
+                <Download className="h-4 w-4" />
+                <span className="hidden sm:inline">Export .ics</span>
+              </Button>
+              <Filter className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
+              <Select value={selectedVehicle} onValueChange={setSelectedVehicle}>
+                <SelectTrigger className="w-full sm:w-[200px]" aria-label="Filter by vehicle">
+                  <SelectValue placeholder="All Vehicles" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Vehicles</SelectItem>
+                  {vehicles.map((vehicle) => <SelectItem key={vehicle.id} value={vehicle.id}>{vehicle.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
 
-          {/* Day Cells */}
-          {daysInMonth.map((day, dayIndex) => {
-            const bookingsCount = getDayBookingsCount(day);
-            const hasConflict = hasConflicts(day);
-            const isSelected = selectedDate && isSameDay(day, selectedDate);
-            const isToday = isSameDay(day, new Date());
-            
-            // Density indicator (color intensity based on bookings count)
-            const getDensityClass = () => {
-              if (bookingsCount === 0) return '';
-              if (bookingsCount >= 5) return 'bg-success/30 border-success/40';
-              if (bookingsCount >= 3) return 'bg-warning/20 border-warning/30';
-              return 'bg-primary/10 border-primary/20';
-            };
-
-            return (
-              <div
-                key={day.toISOString()}
-                data-calendar-day
-                role="gridcell"
-                tabIndex={dayIndex === focusedDateIndex ? 0 : -1}
-                onClick={() => setSelectedDate(day)}
-                onKeyDown={(e) => handleKeyDown(e, dayIndex, day)}
-                aria-label={`${format(day, 'MMMM d, yyyy')}${isToday ? ' (today)' : ''}${bookingsCount > 0 ? `, ${bookingsCount} booking${bookingsCount > 1 ? 's' : ''}` : ', no bookings'}${hasConflict ? ', conflict detected' : ''}`}
-                aria-selected={isSelected}
-                className={`
-                  relative p-1 sm:p-2 min-h-[60px] sm:min-h-[80px] rounded-lg border-2 cursor-pointer transition-all
-                  ${isSelected ? 'border-primary bg-primary/20 scale-105' : getDensityClass() || 'border-border hover:border-primary/50'}
-                  ${isToday ? 'ring-2 ring-accent ring-offset-2' : ''}
-                  ${hasConflict ? 'border-destructive bg-destructive/10' : ''}
-                  hover:shadow-md transform hover:-translate-y-0.5
-                  focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2
-                `}
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <span className={`text-xs sm:text-sm font-semibold ${
-                    isToday ? 'text-accent' : 
-                    bookingsCount >= 5 ? 'text-success' :
-                    bookingsCount >= 3 ? 'text-warning' : ''
-                  }`}>
-                    {format(day, 'd')}
-                  </span>
-                  {hasConflict && (
-                    <AlertTriangle 
-                      className="h-3 w-3 text-destructive flex-shrink-0 animate-pulse" 
-                      aria-label="Booking conflict"
-                    />
+          <div className="grid grid-cols-7 gap-1 sm:gap-2" role="grid" aria-label="Calendar grid">
+            {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((day, index) => (
+              <div key={day} className="text-center font-semibold text-xs sm:text-sm text-muted-foreground p-1 sm:p-2" role="columnheader" aria-label={day}>
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][index]}
+              </div>
+            ))}
+            {Array.from({ length: monthStart.getDay() }).map((_, i) => <div key={`empty-${i}`} className="p-2" />)}
+            {daysInMonth.map((day, dayIndex) => {
+              const bookingsCount = getDayBookingsCount(day);
+              const hasConflict = hasConflicts(day);
+              const isSelected = selectedDate && isSameDay(day, selectedDate);
+              const isToday = isSameDay(day, new Date());
+              const getDensityClass = () => {
+                if (bookingsCount === 0) return '';
+                if (bookingsCount >= 5) return 'bg-success/30 border-success/40';
+                if (bookingsCount >= 3) return 'bg-warning/20 border-warning/30';
+                return 'bg-primary/10 border-primary/20';
+              };
+              return (
+                <div key={day.toISOString()} data-calendar-day role="gridcell" tabIndex={dayIndex === focusedDateIndex ? 0 : -1}
+                  onClick={() => setSelectedDate(day)} onKeyDown={(e) => handleKeyDown(e, dayIndex, day)}
+                  aria-label={`${format(day, 'MMMM d, yyyy')}${isToday ? ' (today)' : ''}${bookingsCount > 0 ? `, ${bookingsCount} booking${bookingsCount > 1 ? 's' : ''}` : ', no bookings'}${hasConflict ? ', conflict' : ''}`}
+                  aria-selected={isSelected}
+                  className={`relative p-1 sm:p-2 min-h-[60px] sm:min-h-[80px] rounded-lg border-2 cursor-pointer transition-all
+                    ${isSelected ? 'border-primary bg-primary/20 scale-105' : getDensityClass() || 'border-border hover:border-primary/50'}
+                    ${isToday ? 'ring-2 ring-accent ring-offset-2' : ''} ${hasConflict ? 'border-destructive bg-destructive/10' : ''}
+                    hover:shadow-md transform hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2`}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className={`text-xs sm:text-sm font-semibold ${isToday ? 'text-accent' : bookingsCount >= 5 ? 'text-success' : bookingsCount >= 3 ? 'text-warning' : ''}`}>{format(day, 'd')}</span>
+                    {hasConflict && <AlertTriangle className="h-3 w-3 text-destructive flex-shrink-0 animate-pulse" aria-label="Conflict" />}
+                  </div>
+                  {bookingsCount > 0 && (
+                    <div className="space-y-1">
+                      <Badge variant="outline" className={`text-[10px] sm:text-xs px-1 sm:px-2 truncate block max-w-full font-semibold ${bookingsCount >= 5 ? 'bg-success/20 text-success border-success' : bookingsCount >= 3 ? 'bg-warning/20 text-warning border-warning' : 'bg-primary/20 text-primary border-primary'}`}>
+                        {bookingsCount} {bookingsCount === 1 ? 'booking' : 'bookings'}
+                      </Badge>
+                      <div className="flex gap-0.5 mt-1" aria-hidden="true">
+                        {Array.from({ length: Math.min(bookingsCount, 3) }).map((_, i) => (
+                          <div key={i} className={`w-1 h-1 rounded-full ${bookingsCount >= 5 ? 'bg-success' : bookingsCount >= 3 ? 'bg-warning' : 'bg-primary'}`} />
+                        ))}
+                        {bookingsCount > 3 && <span className="text-[8px] text-muted-foreground ml-0.5">+{bookingsCount - 3}</span>}
+                      </div>
+                    </div>
                   )}
                 </div>
-
-                {bookingsCount > 0 && (
-                  <div className="space-y-1">
-                    <Badge 
-                      variant="outline" 
-                      className={`text-[10px] sm:text-xs px-1 sm:px-2 truncate block max-w-full font-semibold ${
-                        bookingsCount >= 5 ? 'bg-success/20 text-success border-success' :
-                        bookingsCount >= 3 ? 'bg-warning/20 text-warning border-warning' :
-                        'bg-primary/20 text-primary border-primary'
-                      }`}
-                    >
-                      {bookingsCount} {bookingsCount === 1 ? 'booking' : 'bookings'}
-                    </Badge>
-                    
-                    {/* Visual density dots */}
-                    <div className="flex gap-0.5 mt-1" aria-hidden="true">
-                      {Array.from({ length: Math.min(bookingsCount, 3) }).map((_, i) => (
-                        <div 
-                          key={i} 
-                          className={`w-1 h-1 rounded-full ${
-                            bookingsCount >= 5 ? 'bg-success' :
-                            bookingsCount >= 3 ? 'bg-warning' : 'bg-primary'
-                          }`}
-                        />
-                      ))}
-                      {bookingsCount > 3 && (
-                        <span className="text-[8px] text-muted-foreground ml-0.5">+{bookingsCount - 3}</span>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Legend */}
-        <div className="flex flex-wrap items-center gap-4 mt-6 pt-4 border-t">
-          <div className="flex items-center space-x-2 text-sm">
-            <div className="w-4 h-4 rounded border-2 border-primary bg-primary/20"></div>
-            <span className="text-muted-foreground">Selected</span>
+              );
+            })}
           </div>
-          <div className="flex items-center space-x-2 text-sm">
-            <div className="w-4 h-4 rounded ring-2 ring-accent ring-offset-2"></div>
-            <span className="text-muted-foreground">Today</span>
-          </div>
-          <div className="flex items-center space-x-2 text-sm">
-            <div className="w-4 h-4 rounded border-2 border-success/40 bg-success/30"></div>
-            <span className="text-muted-foreground">High Demand (5+)</span>
-          </div>
-          <div className="flex items-center space-x-2 text-sm">
-            <div className="w-4 h-4 rounded border-2 border-warning/30 bg-warning/20"></div>
-            <span className="text-muted-foreground">Moderate (3-4)</span>
-          </div>
-          <div className="flex items-center space-x-2 text-sm">
-            <AlertTriangle className="h-4 w-4 text-destructive" />
-            <span className="text-muted-foreground">Conflict Detected</span>
-          </div>
-        </div>
-      </Card>
 
-      {/* Selected Day Details */}
-      {selectedDate && (
-        <Card className="card-premium p-4 sm:p-6">
-          <h4 className="text-base sm:text-lg font-semibold mb-4">
-            Bookings for {format(selectedDate, 'MMMM d, yyyy')}
-          </h4>
-
-          {selectedDayBookings.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <CalendarIcon className="w-8 h-8 mx-auto mb-2 opacity-50" />
-              <p>No bookings for this day</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {selectedDayBookings.map((booking) => {
-                const vehicle = vehicles.find(v => v.id === booking.vehicle_id);
-                const vehicleColor = vehicleColors[booking.vehicle_id];
-
-                return (
-                  <div
-                    key={booking.id}
-                    className="p-3 sm:p-4 rounded-lg border"
-                    style={{ borderLeftWidth: '4px', borderLeftColor: vehicleColor }}
-                  >
-                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-2">
-                      <div className="min-w-0 flex-1">
-                        <h5 
-                          className="font-semibold truncate cursor-pointer hover:text-primary transition-colors"
-                          onClick={() => handleVehicleClick(booking.vehicle_id)}
-                        >
-                          {vehicle?.name || 'Unknown Vehicle'}
-                        </h5>
-                        <p className="text-sm text-muted-foreground truncate">{booking.customer_name}</p>
-                      </div>
-                      <Badge className={`flex-shrink-0 ${
-                        booking.status === 'confirmed' ? 'bg-success/10 text-success' :
-                        booking.status === 'completed' ? 'bg-primary/10 text-primary' :
-                        booking.status === 'cancelled' ? 'bg-destructive/10 text-destructive' :
-                        'bg-warning/10 text-warning'
-                      }`}>
-                        {booking.status}
-                      </Badge>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                      <div>
-                        <span className="text-muted-foreground">Pickup:</span>
-                        <span className="ml-2">{format(new Date(booking.start_date), 'h:mm a')}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Return:</span>
-                        <span className="ml-2">{format(new Date(booking.end_date), 'h:mm a')}</span>
-                      </div>
-                      <div className="col-span-1 sm:col-span-2 min-w-0">
-                        <span className="text-muted-foreground">Location:</span>
-                        <span className="ml-2 truncate">{booking.pickup_location}</span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          <div className="flex flex-wrap items-center gap-4 mt-6 pt-4 border-t">
+            <div className="flex items-center space-x-2 text-sm"><div className="w-4 h-4 rounded border-2 border-primary bg-primary/20"></div><span className="text-muted-foreground">Selected</span></div>
+            <div className="flex items-center space-x-2 text-sm"><div className="w-4 h-4 rounded ring-2 ring-accent ring-offset-2"></div><span className="text-muted-foreground">Today</span></div>
+            <div className="flex items-center space-x-2 text-sm"><div className="w-4 h-4 rounded border-2 border-success/40 bg-success/30"></div><span className="text-muted-foreground">High (5+)</span></div>
+            <div className="flex items-center space-x-2 text-sm"><div className="w-4 h-4 rounded border-2 border-warning/30 bg-warning/20"></div><span className="text-muted-foreground">Moderate (3-4)</span></div>
+            <div className="flex items-center space-x-2 text-sm"><AlertTriangle className="h-4 w-4 text-destructive" /><span className="text-muted-foreground">Conflict</span></div>
+          </div>
         </Card>
-      )}
-    </div>
+
+        {selectedDate && (
+          <Card className="card-premium p-4 sm:p-6 animate-fade-in">
+            <h4 className="text-base sm:text-lg font-semibold mb-4">Bookings for {format(selectedDate, 'MMMM d, yyyy')}</h4>
+            {selectedDayBookings.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <CalendarIcon className="w-8 h-8 mx-auto mb-2 opacity-50" /><p>No bookings for this day</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {selectedDayBookings.map((booking) => {
+                  const vehicle = vehicles.find(v => v.id === booking.vehicle_id);
+                  const vehicleColor = vehicleColors[booking.vehicle_id];
+                  return (
+                    <div key={booking.id} onClick={() => handleBookingClick(booking.id)}
+                      className="p-3 sm:p-4 rounded-lg border cursor-pointer hover:bg-muted/30 hover:shadow-md transition-all group"
+                      style={{ borderLeftWidth: '4px', borderLeftColor: vehicleColor }}>
+                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-2">
+                        <div className="min-w-0 flex-1">
+                          <h5 className="font-semibold truncate group-hover:text-primary transition-colors flex items-center gap-2">
+                            {vehicle?.name || 'Unknown Vehicle'}
+                            <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </h5>
+                          <p className="text-sm text-muted-foreground truncate">{booking.customer_name}</p>
+                        </div>
+                        <Badge className={`flex-shrink-0 ${booking.status === 'confirmed' ? 'bg-success/10 text-success' : booking.status === 'completed' ? 'bg-primary/10 text-primary' : booking.status === 'cancelled' ? 'bg-destructive/10 text-destructive' : 'bg-warning/10 text-warning'}`}>
+                          {booking.status}
+                        </Badge>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                        <div><span className="text-muted-foreground">Pickup:</span><span className="ml-2">{format(new Date(booking.start_date), 'h:mm a')}</span></div>
+                        <div><span className="text-muted-foreground">Return:</span><span className="ml-2">{format(new Date(booking.end_date), 'h:mm a')}</span></div>
+                        <div className="col-span-1 sm:col-span-2 min-w-0"><span className="text-muted-foreground">Location:</span><span className="ml-2 truncate">{booking.pickup_location}</span></div>
+                      </div>
+                      <div className="mt-2 pt-2 border-t border-dashed flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Total: <span className="font-semibold text-foreground">${Number(booking.total_value).toLocaleString()}</span></span>
+                        <span className="text-xs text-primary group-hover:underline">Click for details →</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </Card>
+        )}
+      </div>
     </>
   );
 };
