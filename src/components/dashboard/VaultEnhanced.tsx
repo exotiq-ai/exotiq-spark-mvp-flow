@@ -6,6 +6,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useFleet } from "@/contexts/FleetContext";
 import { DocumentUploadDialog } from "@/components/dialogs/DocumentUploadDialog";
 import { DamageClaimsSection } from "@/components/dashboard/DamageClaimsSection";
+import { PaymentsSection } from "@/components/dashboard/PaymentsSection";
+import { VerificationSection } from "@/components/dashboard/VerificationSection";
 import { ComplianceStackedBar } from "@/components/charts/ComplianceStackedBar";
 import { AskRariButton } from "@/components/common/AskRariButton";
 import { AskRariQuickAction } from "@/components/common/AskRariQuickAction";
@@ -21,7 +23,9 @@ import {
   Eye,
   Download,
   Calendar,
-  ArrowRight
+  ArrowRight,
+  CreditCard,
+  UserCheck
 } from "lucide-react";
 
 export const VaultEnhanced = () => {
@@ -76,14 +80,22 @@ export const VaultEnhanced = () => {
   if (loading) {
     return (
       <Tabs defaultValue="documents" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="documents">
             <FileText className="w-4 h-4 mr-2" />
             Documents
           </TabsTrigger>
+          <TabsTrigger value="payments">
+            <CreditCard className="w-4 h-4 mr-2" />
+            Payments
+          </TabsTrigger>
+          <TabsTrigger value="verification">
+            <UserCheck className="w-4 h-4 mr-2" />
+            Verification
+          </TabsTrigger>
           <TabsTrigger value="claims">
             <AlertTriangle className="w-4 h-4 mr-2" />
-            Damage Claims
+            Claims
           </TabsTrigger>
         </TabsList>
         <TabsContent value="documents" className="space-y-6">
@@ -115,14 +127,22 @@ export const VaultEnhanced = () => {
       />
 
       <Tabs defaultValue="documents" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="documents">
             <FileText className="w-4 h-4 mr-2" />
             Documents
           </TabsTrigger>
+          <TabsTrigger value="payments">
+            <CreditCard className="w-4 h-4 mr-2" />
+            Payments
+          </TabsTrigger>
+          <TabsTrigger value="verification">
+            <UserCheck className="w-4 h-4 mr-2" />
+            Verification
+          </TabsTrigger>
           <TabsTrigger value="claims">
             <AlertTriangle className="w-4 h-4 mr-2" />
-            Damage Claims
+            Claims
           </TabsTrigger>
         </TabsList>
 
@@ -286,6 +306,14 @@ export const VaultEnhanced = () => {
           )}
         </div>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="payments">
+          <PaymentsSection />
+        </TabsContent>
+
+        <TabsContent value="verification">
+          <VerificationSection />
         </TabsContent>
 
         <TabsContent value="claims">
