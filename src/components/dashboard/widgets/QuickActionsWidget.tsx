@@ -8,6 +8,7 @@ import { GenerateReportDialog } from "@/components/dialogs/GenerateReportDialog"
 import { ScheduleMaintenanceDialog } from "@/components/dialogs/ScheduleMaintenanceDialog";
 import { RariVoiceInterface } from "@/components/rari/RariVoiceInterface";
 import { useFleet } from "@/contexts/FleetContext";
+import { motion } from "framer-motion";
 import {
   CalendarPlus,
   CreditCard,
@@ -94,29 +95,70 @@ export const QuickActionsWidget = ({ onModuleClick }: QuickActionsWidgetProps) =
       color: "text-primary",
       bgColor: "bg-gradient-to-br from-primary/20 to-accent/20 hover:from-primary/30 hover:to-accent/30",
       onClick: () => setShowRariDialog(true),
+      special: true,
     },
   ];
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.05,
+      },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20, scale: 0.9 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      scale: 1,
+      transition: {
+        type: "spring" as const,
+        stiffness: 300,
+        damping: 24,
+      },
+    },
+  };
+
   return (
     <>
-      <Card className="card-premium p-4 md:p-6">
+      <Card variant="elevated" className="p-4 md:p-6">
         <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          {actions.map((action, index) => (
-            <Button
-              key={action.id}
-              variant="ghost"
-              onClick={action.onClick}
-              className={`flex flex-col items-center justify-center h-24 p-3 rounded-xl border-2 border-transparent transition-all hover:border-primary/30 hover:shadow-md ${action.bgColor} animate-fade-in`}
-              style={{ animationDelay: `${index * 0.05}s`, animationFillMode: "both" }}
-            >
-              <action.icon className={`h-6 w-6 mb-2 ${action.color}`} />
-              <span className="text-xs font-medium text-center leading-tight">
-                {action.label}
-              </span>
-            </Button>
+        <motion.div 
+          className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3"
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+        >
+          {actions.map((action) => (
+            <motion.div key={action.id} variants={itemVariants}>
+              <motion.button
+                onClick={action.onClick}
+                className={`flex flex-col items-center justify-center w-full h-24 p-3 rounded-xl border-2 border-transparent transition-colors ${action.bgColor} ${action.special ? 'animate-pulse-soft' : ''}`}
+                whileHover={{ 
+                  scale: 1.05, 
+                  borderColor: 'hsl(var(--primary) / 0.3)',
+                  boxShadow: '0 8px 20px -8px hsl(var(--primary) / 0.3)'
+                }}
+                whileTap={{ scale: 0.95 }}
+                transition={{ type: "spring", stiffness: 400, damping: 17 }}
+              >
+                <motion.div
+                  whileHover={{ rotate: [0, -10, 10, 0] }}
+                  transition={{ duration: 0.4 }}
+                >
+                  <action.icon className={`h-6 w-6 mb-2 ${action.color}`} />
+                </motion.div>
+                <span className="text-xs font-medium text-center leading-tight">
+                  {action.label}
+                </span>
+              </motion.button>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       </Card>
 
       {/* Dialogs */}
