@@ -41,6 +41,8 @@ interface FleetContextType {
   createVehicle: (vehicle: Omit<Database['public']['Tables']['vehicles']['Insert'], 'user_id'>) => Promise<void>;
   createBooking: (booking: Omit<Database['public']['Tables']['bookings']['Insert'], 'user_id'>) => Promise<void>;
   updateBookingStatus: (bookingId: string, status: Booking['status']) => Promise<void>;
+  updateBookingVehicle: (bookingId: string, newVehicleId: string) => Promise<void>;
+  updateBookingDetails: (bookingId: string, updates: Partial<Booking>) => Promise<void>;
   uploadDocument: (document: Omit<Database['public']['Tables']['documents']['Insert'], 'user_id'>) => Promise<void>;
   deleteDocument: (documentId: string) => Promise<void>;
   createMaintenance: (maintenance: Omit<Database['public']['Tables']['maintenance_schedules']['Insert'], 'user_id'>) => Promise<void>;
@@ -354,6 +356,59 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     toast({
       title: "Booking Updated",
       description: `Booking status changed to ${status}.`,
+    });
+  };
+
+  const updateBookingVehicle = async (bookingId: string, newVehicleId: string) => {
+    if (!user) return;
+
+    const vehicle = vehicles.find(v => v.id === newVehicleId);
+    const { error } = await supabase
+      .from('bookings')
+      .update({ vehicle_id: newVehicleId })
+      .eq('id', bookingId)
+      .eq('user_id', user.id);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    await refreshData();
+    
+    toast({
+      title: "Vehicle Changed",
+      description: `Booking updated to ${vehicle?.name || 'new vehicle'}.`,
+    });
+  };
+
+  const updateBookingDetails = async (bookingId: string, updates: Partial<Booking>) => {
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('bookings')
+      .update(updates)
+      .eq('id', bookingId)
+      .eq('user_id', user.id);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    await refreshData();
+    
+    toast({
+      title: "Booking Updated",
+      description: "Booking details have been updated.",
     });
   };
 
@@ -844,6 +899,8 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       createVehicle,
       createBooking,
       updateBookingStatus,
+      updateBookingVehicle,
+      updateBookingDetails,
       uploadDocument,
       deleteDocument,
       createMaintenance,

@@ -8,7 +8,10 @@ import { VehicleImageDialog } from "@/components/dialogs/VehicleImageDialog";
 import { EnhancedBookingDialog } from "@/components/dialogs/EnhancedBookingDialog";
 import { RealtimeIndicator } from "@/components/common/RealtimeIndicator";
 import { downloadICS, bookingsToCalendarEvents } from "@/lib/calendarExport";
+import { openGoogleCalendar } from "@/lib/googleCalendar";
+import { getVehicleImage } from "@/lib/vehicleImageMapping";
 import { useToast } from "@/hooks/use-toast";
+import { motion, AnimatePresence } from "framer-motion";
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -17,7 +20,11 @@ import {
   AlertTriangle,
   RefreshCw,
   Download,
-  ExternalLink
+  ExternalLink,
+  X,
+  Phone,
+  Mail,
+  CreditCard,
 } from "lucide-react";
 import {
   Select,
@@ -181,6 +188,16 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
               <Button variant="outline" size="sm" onClick={handleExportCalendar} className="flex items-center gap-2">
                 <Download className="h-4 w-4" />
                 <span className="hidden sm:inline">Export .ics</span>
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => {
+                const vehicleMap = vehicles.reduce((acc, v) => ({ ...acc, [v.id]: v.name }), {} as Record<string, string>);
+                if (filteredBookings.length > 0) {
+                  openGoogleCalendar(filteredBookings[0], vehicleMap[filteredBookings[0].vehicle_id]);
+                }
+                toast({ title: "Opening Google Calendar" });
+              }} className="flex items-center gap-2">
+                <CalendarIcon className="h-4 w-4" />
+                <span className="hidden sm:inline">Google Cal</span>
               </Button>
               <Filter className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
               <Select value={selectedVehicle} onValueChange={setSelectedVehicle}>
