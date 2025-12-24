@@ -1,7 +1,7 @@
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Popover,
   PopoverContent,
@@ -14,60 +14,35 @@ import {
   Info,
   CheckCircle,
   X,
-  Trash2
+  Trash2,
+  Calendar,
+  CreditCard,
+  Car,
 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-
-interface Notification {
-  id: string;
-  type: "info" | "warning" | "success" | "error";
-  title: string;
-  message: string;
-  timestamp: string;
-  read: boolean;
-}
+import { useNotifications } from "@/hooks/useNotifications";
 
 export const NotificationCenter = () => {
-  const { toast } = useToast();
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: "1",
-      type: "warning",
-      title: "Maintenance Due",
-      message: "Lamborghini Huracán requires scheduled maintenance in 3 days",
-      timestamp: "2 hours ago",
-      read: false
-    },
-    {
-      id: "2",
-      type: "success",
-      title: "Payment Received",
-      message: "Payment of $2,100 has been received for booking #12345",
-      timestamp: "3 hours ago",
-      read: false
-    },
-    {
-      id: "3",
-      type: "info",
-      title: "New Booking Request",
-      message: "New booking inquiry for Ferrari 488 - Weekend rental",
-      timestamp: "5 hours ago",
-      read: true
-    },
-    {
-      id: "4",
-      type: "error",
-      title: "Insurance Expiring",
-      message: "Insurance for Porsche 911 GT3 expires in 5 days",
-      timestamp: "1 day ago",
-      read: true
-    }
-  ]);
-
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const {
+    notifications,
+    loading,
+    unreadCount,
+    markAsRead,
+    markAllAsRead,
+    deleteNotification,
+    clearAll,
+  } = useNotifications();
 
   const getIcon = (type: string) => {
     switch (type) {
+      case "booking":
+      case "booking_update":
+        return <Calendar className="w-4 h-4 text-primary" />;
+      case "payment":
+        return <CreditCard className="w-4 h-4 text-success" />;
+      case "damage":
+        return <AlertTriangle className="w-4 h-4 text-destructive" />;
+      case "maintenance":
+        return <Car className="w-4 h-4 text-warning" />;
       case "warning":
         return <AlertTriangle className="w-4 h-4 text-warning" />;
       case "error":
@@ -77,33 +52,6 @@ export const NotificationCenter = () => {
       default:
         return <Info className="w-4 h-4 text-primary" />;
     }
-  };
-
-  const markAsRead = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-    );
-  };
-
-  const markAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-    toast({
-      title: "All notifications marked as read",
-    });
-  };
-
-  const deleteNotification = (id: string) => {
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
-    toast({
-      title: "Notification deleted",
-    });
-  };
-
-  const clearAll = () => {
-    setNotifications([]);
-    toast({
-      title: "All notifications cleared",
-    });
   };
 
   return (
@@ -116,7 +64,7 @@ export const NotificationCenter = () => {
               className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 bg-destructive text-white"
               variant="destructive"
             >
-              {unreadCount}
+              {unreadCount > 9 ? "9+" : unreadCount}
             </Badge>
           )}
         </Button>
@@ -151,7 +99,19 @@ export const NotificationCenter = () => {
         </div>
 
         <ScrollArea className="h-96">
-          {notifications.length === 0 ? (
+          {loading ? (
+            <div className="p-4 space-y-4">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex space-x-3">
+                  <Skeleton className="w-8 h-8 rounded-full" />
+                  <div className="space-y-2 flex-1">
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-3 w-full" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : notifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
               <Bell className="w-12 h-12 mb-2 opacity-20" />
               <p className="text-sm">No notifications</p>
