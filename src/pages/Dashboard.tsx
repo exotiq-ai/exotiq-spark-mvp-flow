@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from "react";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Logo } from "@/components/ui/logo";
@@ -9,19 +8,14 @@ import { SEOHead } from "@/components/common/SEOHead";
 import { UnifiedNotificationCenter } from "@/components/common/UnifiedNotificationCenter";
 import { useAnalytics } from "@/lib/analytics";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
-// Removed swipe gesture - conflicts with internal module interactions
 import { performance } from "@/lib/performance";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  TrendingUp, 
   Calendar, 
-  Shield, 
   Brain, 
   Users,
-  Bell,
   Settings,
   BarChart3,
-  MoreHorizontal,
   Home
 } from "lucide-react";
 import { MotorIQEnhanced } from "@/components/dashboard/MotorIQEnhanced";
@@ -30,18 +24,17 @@ import { BookEnhanced } from "@/components/dashboard/BookEnhanced";
 import { VaultEnhanced } from "@/components/dashboard/VaultEnhanced";
 import { CoreEnhanced } from "@/components/dashboard/CoreEnhanced";
 import { DashboardOverviewEnhanced } from "@/components/dashboard/DashboardOverviewEnhanced";
-import { ModulePagination } from "@/components/dashboard/ModulePagination";
 import { DashboardSidebarEnhanced } from "@/components/dashboard/DashboardSidebarEnhanced";
 import { SettingsLayout } from "@/components/dashboard/settings/SettingsLayout";
 import { KeyboardShortcutsHelp } from "@/components/common/KeyboardShortcutsHelp";
+import { MobileMoreMenu } from "@/components/mobile/MobileMoreMenu";
+import { FloatingActionMenu } from "@/components/mobile/FloatingActionMenu";
+import { Calendar as CalendarIcon, DollarSign, UserPlus, FileText } from "lucide-react";
 
 const Dashboard = () => {
   const [activeModule, setActiveModule] = useLocalStorage("activeModule", "dashboard");
   const { track, page } = useAnalytics();
   const containerRef = useRef<HTMLDivElement>(null);
-
-  const moduleOrder = ["dashboard", "core", "book", "pulse", "motoriq", "vault"];
-  const currentIndex = moduleOrder.indexOf(activeModule);
 
   useEffect(() => {
     performance.mark('dashboard-load-start');
@@ -58,47 +51,38 @@ const Dashboard = () => {
     setActiveModule(moduleId);
   };
 
-  const modules = [
+  const moduleNames: Record<string, string> = {
+    dashboard: "Dashboard",
+    core: "FleetCopilot™",
+    book: "Book",
+    pulse: "Pulse",
+    motoriq: "MotorIQ",
+    vault: "Vault",
+    settings: "Settings",
+  };
+
+  const fabActions = [
     {
-      id: "motoriq",
-      name: "MotorIQ",
-      icon: TrendingUp,
-      description: "AI Pricing Optimization",
-      color: "text-primary", // Primary - Core Operations
-      bgColor: "bg-primary/10"
+      id: "new-booking",
+      label: "New Booking",
+      icon: <CalendarIcon className="h-4 w-4" />,
+      onClick: () => handleModuleChange("book"),
+      color: "bg-primary text-primary-foreground",
     },
     {
-      id: "pulse",
-      name: "Pulse",
-      icon: BarChart3,
-      description: "Live Analytics & Telematics",
-      color: "text-primary", // Primary - Core Operations
-      bgColor: "bg-primary/10"
+      id: "ai-assistant",
+      label: "Ask AI",
+      icon: <Brain className="h-4 w-4" />,
+      onClick: () => handleModuleChange("core"),
+      color: "bg-secondary text-secondary-foreground",
     },
     {
-      id: "book",
-      name: "Book",
-      icon: Calendar,
-      description: "Booking Management",
-      color: "text-secondary", // Secondary - Management
-      bgColor: "bg-secondary/10"
+      id: "insights",
+      label: "View Insights",
+      icon: <BarChart3 className="h-4 w-4" />,
+      onClick: () => handleModuleChange("pulse"),
+      color: "bg-accent text-accent-foreground",
     },
-    {
-      id: "vault",
-      name: "Vault",
-      icon: Shield,
-      description: "Compliance & Docs",
-      color: "text-secondary", // Secondary - Management
-      bgColor: "bg-secondary/10"
-    },
-    {
-      id: "core",
-      name: "FleetCopilot™",
-      icon: Brain,
-      description: "AI Control Center",
-      color: "text-primary", // Primary - Core Operations (AI)
-      bgColor: "bg-primary/10"
-    }
   ];
 
   const renderModuleContent = () => {
@@ -186,7 +170,7 @@ const Dashboard = () => {
               <Logo size="md" className="h-8 sm:h-10" />
               {activeModule !== "dashboard" && (
                 <Badge variant="outline" className="ml-2 sm:ml-4 text-xs sm:text-sm">
-                  {modules.find(m => m.id === activeModule)?.name || "Dashboard"}
+                  {moduleNames[activeModule] || "Dashboard"}
                 </Badge>
               )}
             </div>
@@ -206,49 +190,49 @@ const Dashboard = () => {
         </div>
       </nav>
 
-        {/* Mobile Bottom Navigation - 6 Items */}
+        {/* Mobile Bottom Navigation - 5 Items (simplified) */}
         <div className="mobile-nav">
-          <div className="grid grid-cols-6 gap-1.5 p-2">
+          <div className="grid grid-cols-5 gap-2 p-2">
             <button
               onClick={() => {
                 handleModuleChange("dashboard");
                 if (navigator.vibrate) navigator.vibrate(10);
               }}
-              className={`flex flex-col items-center justify-center py-2 px-1.5 rounded-lg transition-all hover-scale touch-target focus-visible ${
+              className={`flex flex-col items-center justify-center py-2.5 px-2 rounded-xl transition-all touch-target focus-visible ${
                 activeModule === "dashboard" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"
               }`}
-              aria-label="Dashboard"
+              aria-label="Home"
             >
               <Home className="h-5 w-5 mb-1" />
-              <span className="text-[10px] font-medium truncate max-w-full">Dashboard</span>
+              <span className="text-[11px] font-medium">Home</span>
             </button>
             
-            <button
-              onClick={() => {
-                handleModuleChange("core");
-                if (navigator.vibrate) navigator.vibrate(10);
-              }}
-              className={`flex flex-col items-center justify-center py-2 px-1.5 rounded-lg transition-all hover-scale touch-target focus-visible ${
-                activeModule === "core" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"
-              }`}
-              aria-label="FleetCopilot"
-            >
-              <Brain className="h-5 w-5 mb-1" />
-              <span className="text-[10px] font-medium truncate max-w-full">Copilot</span>
-            </button>
-
             <button
               onClick={() => {
                 handleModuleChange("book");
                 if (navigator.vibrate) navigator.vibrate(10);
               }}
-              className={`flex flex-col items-center justify-center py-2 px-1.5 rounded-lg transition-all hover-scale touch-target focus-visible ${
+              className={`flex flex-col items-center justify-center py-2.5 px-2 rounded-xl transition-all touch-target focus-visible ${
                 activeModule === "book" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"
               }`}
               aria-label="Book"
             >
               <Calendar className="h-5 w-5 mb-1" />
-              <span className="text-[10px] font-medium truncate max-w-full">Book</span>
+              <span className="text-[11px] font-medium">Book</span>
+            </button>
+
+            <button
+              onClick={() => {
+                handleModuleChange("core");
+                if (navigator.vibrate) navigator.vibrate(10);
+              }}
+              className={`flex flex-col items-center justify-center py-2.5 px-2 rounded-xl transition-all touch-target focus-visible ${
+                activeModule === "core" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"
+              }`}
+              aria-label="AI Assistant"
+            >
+              <Brain className="h-5 w-5 mb-1" />
+              <span className="text-[11px] font-medium">AI</span>
             </button>
 
             <button
@@ -256,46 +240,27 @@ const Dashboard = () => {
                 handleModuleChange("pulse");
                 if (navigator.vibrate) navigator.vibrate(10);
               }}
-              className={`flex flex-col items-center justify-center py-2 px-1.5 rounded-lg transition-all hover-scale touch-target focus-visible ${
-                activeModule === "pulse" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"
+              className={`flex flex-col items-center justify-center py-2.5 px-2 rounded-xl transition-all touch-target focus-visible ${
+                (activeModule === "pulse" || activeModule === "motoriq" || activeModule === "optimize") ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"
               }`}
-              aria-label="Pulse"
+              aria-label="Analytics"
             >
               <BarChart3 className="h-5 w-5 mb-1" />
-              <span className="text-[10px] font-medium truncate max-w-full">Pulse</span>
+              <span className="text-[11px] font-medium">Insights</span>
             </button>
 
-            <button
-              onClick={() => {
-                handleModuleChange("motoriq");
-                if (navigator.vibrate) navigator.vibrate(10);
-              }}
-              className={`flex flex-col items-center justify-center py-2 px-1.5 rounded-lg transition-all hover-scale touch-target focus-visible ${
-                (activeModule === "motoriq" || activeModule === "optimize") ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"
-              }`}
-              aria-label="MotorIQ"
-            >
-              <TrendingUp className="h-5 w-5 mb-1" />
-              <span className="text-[10px] font-medium truncate max-w-full">MotorIQ</span>
-            </button>
-
-            <button
-              onClick={() => {
-                handleModuleChange("vault");
-                if (navigator.vibrate) navigator.vibrate(10);
-              }}
-              className={`flex flex-col items-center justify-center py-2 px-1.5 rounded-lg transition-all hover-scale touch-target focus-visible ${
-                activeModule === "vault" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"
-              }`}
-              aria-label="Vault"
-            >
-              <Shield className="h-5 w-5 mb-1" />
-              <span className="text-[10px] font-medium truncate max-w-full">Vault</span>
-            </button>
+            {/* More Menu - Contains Vault, Settings, Profile */}
+            <MobileMoreMenu 
+              activeModule={activeModule}
+              onModuleChange={handleModuleChange}
+            />
           </div>
         </div>
 
-        {/* Main Content - No swipe gestures to avoid conflicts */}
+        {/* Floating Action Button for quick actions */}
+        <FloatingActionMenu actions={fabActions} />
+
+        {/* Main Content */}
         <main
           id="main-content" 
           ref={containerRef}
