@@ -20,18 +20,18 @@ export const FloatingActionMenu = ({ actions, className }: FloatingActionMenuPro
   const [isOpen, setIsOpen] = useState(false);
 
   const toggleMenu = () => {
-    if (navigator.vibrate) navigator.vibrate(10);
+    if (navigator.vibrate) navigator.vibrate(isOpen ? 5 : 15);
     setIsOpen(!isOpen);
   };
 
   const handleAction = (action: ActionItem) => {
-    if (navigator.vibrate) navigator.vibrate(5);
+    if (navigator.vibrate) navigator.vibrate(10);
     action.onClick();
     setIsOpen(false);
   };
 
   return (
-    <div className={cn("fixed bottom-24 right-4 z-50 md:hidden", className)}>
+    <div className={cn("fixed bottom-28 right-4 z-40 md:hidden", className)}>
       {/* Backdrop */}
       <AnimatePresence>
         {isOpen && (
@@ -39,7 +39,8 @@ export const FloatingActionMenu = ({ actions, className }: FloatingActionMenuPro
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-background/80 backdrop-blur-sm"
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-background/60 backdrop-blur-sm"
             onClick={() => setIsOpen(false)}
           />
         )}
@@ -48,7 +49,7 @@ export const FloatingActionMenu = ({ actions, className }: FloatingActionMenuPro
       {/* Action Items */}
       <AnimatePresence>
         {isOpen && (
-          <div className="absolute bottom-16 right-0 flex flex-col-reverse gap-3">
+          <div className="absolute bottom-16 right-0 flex flex-col-reverse gap-2.5">
             {actions.map((action, index) => (
               <motion.button
                 key={action.id}
@@ -57,24 +58,29 @@ export const FloatingActionMenu = ({ actions, className }: FloatingActionMenuPro
                   opacity: 1, 
                   y: 0, 
                   scale: 1,
-                  transition: { delay: index * 0.05 }
                 }}
                 exit={{ 
                   opacity: 0, 
                   y: 10, 
                   scale: 0.8,
-                  transition: { delay: (actions.length - index) * 0.03 }
+                }}
+                transition={{
+                  type: "spring",
+                  stiffness: 400,
+                  damping: 25,
+                  delay: index * 0.04,
                 }}
                 onClick={() => handleAction(action)}
-                className="flex items-center gap-3 pl-4 pr-5 py-3 bg-background rounded-full shadow-lg border border-border hover:bg-muted transition-colors"
+                whileTap={{ scale: 0.95 }}
+                className="flex items-center gap-3 pl-3 pr-4 py-2.5 bg-card rounded-full shadow-lg border border-border/80 active:bg-muted"
               >
                 <div className={cn(
-                  "w-8 h-8 rounded-full flex items-center justify-center",
+                  "w-9 h-9 rounded-full flex items-center justify-center shadow-sm",
                   action.color || "bg-primary text-primary-foreground"
                 )}>
                   {action.icon}
                 </div>
-                <span className="text-sm font-medium whitespace-nowrap">{action.label}</span>
+                <span className="text-sm font-medium whitespace-nowrap pr-1">{action.label}</span>
               </motion.button>
             ))}
           </div>
@@ -83,22 +89,23 @@ export const FloatingActionMenu = ({ actions, className }: FloatingActionMenuPro
 
       {/* Main FAB Button */}
       <motion.button
-        animate={{ rotate: isOpen ? 45 : 0 }}
-        transition={{ duration: 0.2 }}
+        whileTap={{ scale: 0.9 }}
         onClick={toggleMenu}
         className={cn(
-          "w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-colors",
+          "w-14 h-14 rounded-full shadow-xl flex items-center justify-center",
+          "ring-4 ring-background",
           isOpen
             ? "bg-muted text-foreground"
             : "bg-primary text-primary-foreground"
         )}
         aria-label={isOpen ? "Close menu" : "Open quick actions"}
       >
-        {isOpen ? (
-          <X className="h-6 w-6" />
-        ) : (
-          <Plus className="h-6 w-6" />
-        )}
+        <motion.div
+          animate={{ rotate: isOpen ? 45 : 0 }}
+          transition={{ type: "spring", stiffness: 300, damping: 20 }}
+        >
+          <Plus className="h-6 w-6" strokeWidth={2.5} />
+        </motion.div>
       </motion.button>
     </div>
   );
