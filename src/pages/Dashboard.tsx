@@ -10,7 +10,7 @@ import { UnifiedNotificationCenter } from "@/components/common/UnifiedNotificati
 import { useAnalytics } from "@/lib/analytics";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useSwipeGesture } from "@/hooks/useSwipeGesture";
-import { useRealtimeSubscriptions } from "@/hooks/useRealtimeSubscriptions";
+// Realtime subscriptions now managed directly in FleetContext
 // import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { performance } from "@/lib/performance";
 import { motion, AnimatePresence } from "framer-motion";
@@ -42,11 +42,9 @@ const Dashboard = () => {
   const { track, page } = useAnalytics();
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Enable real-time subscriptions
-  useRealtimeSubscriptions();
+  // Realtime subscriptions are now handled automatically in FleetContext
 
   // Enable keyboard shortcuts
-  // useKeyboardShortcuts();
 
   const moduleOrder = ["dashboard", "core", "book", "pulse", "motoriq", "vault"];
   const currentIndex = moduleOrder.indexOf(activeModule);

@@ -42,39 +42,61 @@ serve(async (req) => {
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
 
-    // Get account balance
-    const balance = await stripe.balance.retrieve();
-    logStep("Retrieved balance", { 
-      available: balance.available,
-      pending: balance.pending 
-    });
+    let availableBalance = 0;
+    let pendingBalance = 0;
+    let formattedPayouts: Array<{
+      id: string;
+      amount: number;
+      currency: string;
+      status: string;
+      arrival_date: string;
+      created: string;
+      description: string;
+      method: string;
+    }> = [];
+    let stripeError: string | null = null;
 
-    // Get upcoming payouts
-    const payouts = await stripe.payouts.list({ limit: 10 });
-    logStep("Retrieved payouts", { count: payouts.data.length });
+    try {
+      // Get account balance
+      const balance = await stripe.balance.retrieve();
+      logStep("Retrieved balance", { 
+        available: balance.available,
+        pending: balance.pending 
+      });
 
-    // Format balance data
-    const availableBalance = balance.available.reduce((sum, b) => {
-      if (b.currency === "usd") return sum + b.amount;
-      return sum;
-    }, 0) / 100;
+      // Get upcoming payouts
+      const payouts = await stripe.payouts.list({ limit: 10 });
+      logStep("Retrieved payouts", { count: payouts.data.length });
 
-    const pendingBalance = balance.pending.reduce((sum, b) => {
-      if (b.currency === "usd") return sum + b.amount;
-      return sum;
-    }, 0) / 100;
+      // Format balance data
+      availableBalance = balance.available.reduce((sum, b) => {
+        if (b.currency === "usd") return sum + b.amount;
+        return sum;
+      }, 0) / 100;
 
-    // Format payouts
-    const formattedPayouts = payouts.data.map((payout) => ({
-      id: payout.id,
-      amount: payout.amount / 100,
-      currency: payout.currency.toUpperCase(),
-      status: payout.status,
-      arrival_date: new Date(payout.arrival_date * 1000).toISOString(),
-      created: new Date(payout.created * 1000).toISOString(),
-      description: payout.description || "Payout",
-      method: payout.method,
-    }));
+      pendingBalance = balance.pending.reduce((sum, b) => {
+        if (b.currency === "usd") return sum + b.amount;
+        return sum;
+      }, 0) / 100;
+
+      // Format payouts
+      formattedPayouts = payouts.data.map((payout) => ({
+        id: payout.id,
+        amount: payout.amount / 100,
+        currency: payout.currency.toUpperCase(),
+        status: payout.status,
+        arrival_date: new Date(payout.arrival_date * 1000).toISOString(),
+        created: new Date(payout.created * 1000).toISOString(),
+        description: payout.description || "Payout",
+        method: payout.method,
+      }));
+    } catch (stripeErr) {
+      // Handle Stripe API permission errors gracefully
+      const errMsg = stripeErr instanceof Error ? stripeErr.message : String(stripeErr);
+      logStep("Stripe API error (using fallback data)", { error: errMsg });
+      stripeError = errMsg;
+      // Continue with fallback data from database
+    }
 
     // Calculate totals from local database
     const { data: totalRevenue } = await supabaseClient
@@ -101,12 +123,20 @@ serve(async (req) => {
       .eq("security_deposit_status", "held")
       .not("security_deposit_amount", "is", null);
 
+    // If Stripe failed, estimate balance from local payments
+    if (stripeError && totalCollected > 0) {
+      // Estimate ~85% of collected is available (after fees and processing)
+      availableBalance = Math.round(totalCollected * 0.85);
+      pendingBalance = Math.round(totalCollected * 0.10);
+    }
+
     return new Response(
       JSON.stringify({
         balance: {
           available: availableBalance,
           pending: pendingBalance,
           currency: "USD",
+          using_fallback: !!stripeError,
         },
         payouts: formattedPayouts,
         summary: {
@@ -114,6 +144,7 @@ serve(async (req) => {
           pending_deposits_count: pendingDeposits?.length || 0,
           held_security_deposits: activeBookingsWithDeposits || [],
         },
+        stripe_error: stripeError,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
