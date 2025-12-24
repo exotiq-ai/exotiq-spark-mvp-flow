@@ -10,7 +10,8 @@ import { PriceUtilizationScatterPlot } from "@/components/charts/PriceUtilizatio
 import { DynamicPricingCard } from "@/components/dashboard/DynamicPricingCard";
 import { DemandForecastCard } from "@/components/dashboard/DemandForecastCard";
 import { AskRariButton } from "@/components/common/AskRariButton";
-import { SkeletonMetric, SkeletonCard } from "@/components/ui/skeleton-card";
+import { SkeletonMetric, SkeletonCard, SkeletonBarChart, SkeletonTable } from "@/components/ui/skeleton-card";
+import { SkeletonAIInsight, SkeletonVehicleCard, SkeletonStatsRow } from "@/components/ui/skeleton-specialized";
 import { EmptyState } from "@/components/common/EmptyState";
 import { 
   TrendingUp, 
@@ -71,13 +72,30 @@ export const MotorIQEnhanced = () => {
   if (loading) {
     return (
       <div className="space-y-6">
-        <SkeletonCard />
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <SkeletonMetric />
-          <SkeletonMetric />
-          <SkeletonMetric />
-        </div>
-        <SkeletonCard />
+        {/* AI Recommendation skeleton */}
+        <SkeletonAIInsight />
+        
+        {/* Metrics skeleton */}
+        <SkeletonStatsRow count={3} />
+        
+        {/* Chart skeleton */}
+        <SkeletonBarChart height={200} bars={8} />
+        
+        {/* Fleet list skeleton */}
+        <Card className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div className="space-y-2">
+              <div className="h-6 w-40 bg-muted rounded animate-pulse" />
+              <div className="h-4 w-32 bg-muted/60 rounded animate-pulse" />
+            </div>
+            <div className="h-9 w-28 bg-muted rounded animate-pulse" />
+          </div>
+          <div className="space-y-3">
+            <SkeletonVehicleCard />
+            <SkeletonVehicleCard />
+            <SkeletonVehicleCard />
+          </div>
+        </Card>
       </div>
     );
   }

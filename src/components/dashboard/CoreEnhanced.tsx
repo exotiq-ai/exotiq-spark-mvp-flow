@@ -5,7 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useFleet } from "@/contexts/FleetContext";
 import { AskRariQuickAction } from "@/components/common/AskRariQuickAction";
-import { SkeletonCard, SkeletonMetric } from "@/components/ui/skeleton-card";
+import { SkeletonCard, SkeletonMetric, SkeletonLineChart } from "@/components/ui/skeleton-card";
+import { SkeletonAIInsight, SkeletonStatsRow } from "@/components/ui/skeleton-specialized";
 import { 
   Brain, 
   Zap, 
@@ -119,13 +120,28 @@ export const CoreEnhanced = () => {
   if (loading) {
     return (
       <div className="space-y-6">
-        <SkeletonCard />
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <SkeletonMetric />
-          <SkeletonMetric />
-          <SkeletonMetric />
+        {/* AI Command Center skeleton */}
+        <Card className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div className="space-y-2">
+              <div className="h-8 w-48 bg-muted rounded animate-pulse" />
+              <div className="h-4 w-32 bg-muted/60 rounded animate-pulse" />
+            </div>
+            <div className="h-8 w-20 bg-primary/20 rounded-full animate-pulse" />
+          </div>
+          <SkeletonStatsRow count={3} />
+        </Card>
+        
+        {/* Tabs skeleton */}
+        <div className="h-12 bg-muted/50 rounded-lg animate-pulse" />
+        
+        {/* Content skeleton */}
+        <SkeletonAIInsight />
+        
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <SkeletonLineChart height={200} />
+          <SkeletonCard />
         </div>
-        <SkeletonCard />
       </div>
     );
   }

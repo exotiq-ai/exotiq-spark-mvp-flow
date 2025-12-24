@@ -1,8 +1,17 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RevenueLineChart } from "@/components/charts/RevenueLineChart";
 import { TrendingUp } from "lucide-react";
+import { SkeletonLineChart } from "@/components/ui/skeleton-card";
 
-export const RevenueWidget = () => {
+interface RevenueWidgetProps {
+  isLoading?: boolean;
+}
+
+export const RevenueWidget = ({ isLoading }: RevenueWidgetProps) => {
+  if (isLoading) {
+    return <SkeletonLineChart height={200} />;
+  }
+
   return (
     <Card className="h-full" role="region" aria-label="Revenue Analytics Widget">
       <CardHeader>

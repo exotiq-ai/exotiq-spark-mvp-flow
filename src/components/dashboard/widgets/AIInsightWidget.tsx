@@ -5,13 +5,15 @@ import { Sparkles, Zap, ArrowRight } from "lucide-react";
 import { useCountUp } from "@/hooks/useCountUp";
 import { motion } from "framer-motion";
 import { fadeInUp, hoverLift } from "@/lib/animations";
+import { SkeletonAIInsight } from "@/components/ui/skeleton-specialized";
 
 interface AIInsightWidgetProps {
   onApplyOptimization: () => void;
   onViewAnalysis: () => void;
+  isLoading?: boolean;
 }
 
-export const AIInsightWidget = ({ onApplyOptimization, onViewAnalysis }: AIInsightWidgetProps) => {
+export const AIInsightWidget = ({ onApplyOptimization, onViewAnalysis, isLoading }: AIInsightWidgetProps) => {
   // Animated counting for potential revenue
   const { value: potentialValue } = useCountUp({
     end: 2250,
@@ -28,6 +30,10 @@ export const AIInsightWidget = ({ onApplyOptimization, onViewAnalysis }: AIInsig
     decimals: 0,
     suffix: '% probability'
   });
+
+  if (isLoading) {
+    return <SkeletonAIInsight />;
+  }
 
   return (
     <motion.div

@@ -4,7 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { DriverPerformanceTrend } from "@/components/charts/DriverPerformanceTrend";
 import { AskRariButton } from "@/components/common/AskRariButton";
 import { AskRariQuickAction } from "@/components/common/AskRariQuickAction";
-import { SkeletonCard, SkeletonMetric } from "@/components/ui/skeleton-card";
+import { SkeletonCard, SkeletonMetric, SkeletonLineChart, SkeletonTable } from "@/components/ui/skeleton-card";
+import { SkeletonHeroMetric, SkeletonStatsRow, SkeletonScheduleItem } from "@/components/ui/skeleton-specialized";
 import { useFleet } from "@/contexts/FleetContext";
 import { useNavigate } from "react-router-dom";
 import { 
@@ -76,16 +77,48 @@ export const PulseEnhanced = () => {
   if (loading) {
     return (
       <div className="space-y-6">
-        <SkeletonCard />
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <SkeletonMetric />
-          <SkeletonMetric />
-          <SkeletonMetric />
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <SkeletonCard />
-          <SkeletonCard />
-        </div>
+        {/* Hero metric skeleton */}
+        <Card className="p-8 bg-gradient-to-br from-primary/5 to-accent/5">
+          <div className="flex items-start justify-between mb-4">
+            <div className="space-y-3">
+              <div className="h-6 w-20 bg-primary/20 rounded-full animate-pulse" />
+              <div className="h-12 w-32 bg-muted rounded animate-shimmer" />
+              <div className="h-5 w-28 bg-muted/60 rounded animate-pulse" />
+            </div>
+            <div className="text-right space-y-2">
+              <div className="h-8 w-16 bg-success/20 rounded animate-pulse" />
+              <div className="h-4 w-20 bg-muted/60 rounded animate-pulse" />
+            </div>
+          </div>
+          <SkeletonStatsRow count={3} />
+        </Card>
+        
+        {/* Telematics skeleton */}
+        <Card className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div className="space-y-2">
+              <div className="h-6 w-40 bg-muted rounded animate-pulse" />
+              <div className="h-4 w-56 bg-muted/60 rounded animate-pulse" />
+            </div>
+            <div className="h-6 w-16 bg-primary/20 rounded-full animate-pulse" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <SkeletonLineChart height={180} />
+            <SkeletonLineChart height={180} />
+          </div>
+        </Card>
+        
+        {/* Activity skeleton */}
+        <SkeletonTable rows={3} />
+        
+        {/* Events skeleton */}
+        <Card className="p-6">
+          <div className="h-6 w-32 bg-muted rounded mb-6 animate-pulse" />
+          <div className="space-y-4">
+            <SkeletonScheduleItem />
+            <SkeletonScheduleItem />
+          </div>
+        </Card>
       </div>
     );
   }

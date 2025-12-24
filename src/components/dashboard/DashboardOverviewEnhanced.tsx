@@ -20,6 +20,14 @@ import { DemoOnboarding } from "@/components/demo/DemoOnboarding";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { motion } from "framer-motion";
 import { 
+  SkeletonBanner, 
+  SkeletonQuickActions, 
+  SkeletonAIInsight, 
+  SkeletonModuleNav 
+} from "@/components/ui/skeleton-specialized";
+import { SkeletonLineChart, SkeletonDonutChart, SkeletonTable } from "@/components/ui/skeleton-card";
+import { SkeletonHeroMetric } from "@/components/ui/skeleton-specialized";
+import { 
   TrendingUp, 
   Calendar, 
   Car,
@@ -45,7 +53,7 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
   const [showMaintenanceDialog, setShowMaintenanceDialog] = useState(false);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   
-  const { vehicles, bookings, applyPriceOptimization, createBooking, createCustomer, generateReport, createMaintenance, createPayment } = useFleet();
+  const { vehicles, bookings, loading, applyPriceOptimization, createBooking, createCustomer, generateReport, createMaintenance, createPayment } = useFleet();
   
   // Collapsible state persistence
   const [expandedSections, setExpandedSections] = useLocalStorage<string[]>("dashboardSections", [
@@ -107,6 +115,38 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
   ];
 
   const firstBooking = bookings[0];
+
+  // Loading state with comprehensive skeletons
+  if (loading) {
+    return (
+      <div className="space-y-4 sm:space-y-6">
+        <SkeletonBanner />
+        <SkeletonQuickActions count={5} />
+        
+        {/* Metrics skeleton */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <SkeletonHeroMetric />
+          <SkeletonHeroMetric />
+          <SkeletonHeroMetric />
+        </div>
+        
+        {/* AI Insight skeleton */}
+        <SkeletonAIInsight />
+        
+        {/* Revenue Chart skeleton */}
+        <SkeletonLineChart height={200} />
+        
+        {/* Fleet & Schedule skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
+          <SkeletonDonutChart size={160} />
+          <SkeletonTable rows={3} />
+        </div>
+        
+        {/* Module nav skeleton */}
+        <SkeletonModuleNav count={4} />
+      </div>
+    );
+  }
 
   return (
     <>
