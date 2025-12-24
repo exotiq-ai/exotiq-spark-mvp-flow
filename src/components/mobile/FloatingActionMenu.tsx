@@ -1,0 +1,142 @@
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Plus, X, Calendar, DollarSign, UserPlus, FileText } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+interface ActionItem {
+  id: string;
+  label: string;
+  icon: React.ReactNode;
+  onClick: () => void;
+  color?: string;
+}
+
+interface FloatingActionMenuProps {
+  actions: ActionItem[];
+  className?: string;
+}
+
+export const FloatingActionMenu = ({ actions, className }: FloatingActionMenuProps) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const toggleMenu = () => {
+    if (navigator.vibrate) navigator.vibrate(10);
+    setIsOpen(!isOpen);
+  };
+
+  const handleAction = (action: ActionItem) => {
+    if (navigator.vibrate) navigator.vibrate(5);
+    action.onClick();
+    setIsOpen(false);
+  };
+
+  return (
+    <div className={cn("fixed bottom-24 right-4 z-50 md:hidden", className)}>
+      {/* Backdrop */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-background/80 backdrop-blur-sm"
+            onClick={() => setIsOpen(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Action Items */}
+      <AnimatePresence>
+        {isOpen && (
+          <div className="absolute bottom-16 right-0 flex flex-col-reverse gap-3">
+            {actions.map((action, index) => (
+              <motion.button
+                key={action.id}
+                initial={{ opacity: 0, y: 20, scale: 0.8 }}
+                animate={{ 
+                  opacity: 1, 
+                  y: 0, 
+                  scale: 1,
+                  transition: { delay: index * 0.05 }
+                }}
+                exit={{ 
+                  opacity: 0, 
+                  y: 10, 
+                  scale: 0.8,
+                  transition: { delay: (actions.length - index) * 0.03 }
+                }}
+                onClick={() => handleAction(action)}
+                className="flex items-center gap-3 pl-4 pr-5 py-3 bg-background rounded-full shadow-lg border border-border hover:bg-muted transition-colors"
+              >
+                <div className={cn(
+                  "w-8 h-8 rounded-full flex items-center justify-center",
+                  action.color || "bg-primary text-primary-foreground"
+                )}>
+                  {action.icon}
+                </div>
+                <span className="text-sm font-medium whitespace-nowrap">{action.label}</span>
+              </motion.button>
+            ))}
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Main FAB Button */}
+      <motion.button
+        animate={{ rotate: isOpen ? 45 : 0 }}
+        transition={{ duration: 0.2 }}
+        onClick={toggleMenu}
+        className={cn(
+          "w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-colors",
+          isOpen
+            ? "bg-muted text-foreground"
+            : "bg-primary text-primary-foreground"
+        )}
+        aria-label={isOpen ? "Close menu" : "Open quick actions"}
+      >
+        {isOpen ? (
+          <X className="h-6 w-6" />
+        ) : (
+          <Plus className="h-6 w-6" />
+        )}
+      </motion.button>
+    </div>
+  );
+};
+
+// Pre-configured action sets for different contexts
+export const getDefaultActions = (handlers: {
+  onNewBooking?: () => void;
+  onRecordPayment?: () => void;
+  onAddCustomer?: () => void;
+  onGenerateReport?: () => void;
+}): ActionItem[] => [
+  {
+    id: "new-booking",
+    label: "New Booking",
+    icon: <Calendar className="h-4 w-4" />,
+    onClick: handlers.onNewBooking || (() => {}),
+    color: "bg-primary text-primary-foreground",
+  },
+  {
+    id: "record-payment",
+    label: "Record Payment",
+    icon: <DollarSign className="h-4 w-4" />,
+    onClick: handlers.onRecordPayment || (() => {}),
+    color: "bg-success text-success-foreground",
+  },
+  {
+    id: "add-customer",
+    label: "Add Customer",
+    icon: <UserPlus className="h-4 w-4" />,
+    onClick: handlers.onAddCustomer || (() => {}),
+    color: "bg-secondary text-secondary-foreground",
+  },
+  {
+    id: "generate-report",
+    label: "Generate Report",
+    icon: <FileText className="h-4 w-4" />,
+    onClick: handlers.onGenerateReport || (() => {}),
+    color: "bg-accent text-accent-foreground",
+  },
+];
