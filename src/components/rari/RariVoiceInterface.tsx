@@ -89,7 +89,12 @@ export const RariVoiceInterface = () => {
       
       console.log('Starting session with signed URL...');
       const id = await conversation.startSession({ 
-        signedUrl: data.signed_url 
+        signedUrl: data.signed_url,
+        overrides: {
+          agent: {
+            language: 'en',
+          }
+        }
       });
       
       console.log('Session started successfully:', id);
