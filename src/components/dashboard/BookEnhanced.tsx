@@ -139,16 +139,16 @@ export const BookEnhanced = () => {
 
   if (loading) {
     return (
-      <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="calendar">Calendar</TabsTrigger>
-          <TabsTrigger value="payments">Payments</TabsTrigger>
-          <TabsTrigger value="inspections">Inspections</TabsTrigger>
+      <Tabs defaultValue="overview" className="space-y-4 sm:space-y-6">
+        <TabsList className="w-full overflow-x-auto flex flex-nowrap gap-1 sm:grid sm:grid-cols-4 bg-muted/50 p-1 rounded-lg">
+          <TabsTrigger value="overview" className="flex-shrink-0 px-3 py-2 text-xs sm:text-sm">Overview</TabsTrigger>
+          <TabsTrigger value="calendar" className="flex-shrink-0 px-3 py-2 text-xs sm:text-sm">Calendar</TabsTrigger>
+          <TabsTrigger value="payments" className="flex-shrink-0 px-3 py-2 text-xs sm:text-sm">Payments</TabsTrigger>
+          <TabsTrigger value="inspections" className="flex-shrink-0 px-3 py-2 text-xs sm:text-sm">Inspect</TabsTrigger>
         </TabsList>
-        <TabsContent value="overview" className="space-y-6">
+        <TabsContent value="overview" className="space-y-4 sm:space-y-6">
           <SkeletonCard />
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6">
             <SkeletonMetric />
             <SkeletonMetric />
             <SkeletonMetric />

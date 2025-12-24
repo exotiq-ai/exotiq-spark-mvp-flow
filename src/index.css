@@ -389,6 +389,16 @@
     @apply transition-transform duration-200 ease-out hover:scale-105 active:scale-95;
   }
 
+  /* Hide scrollbar utility */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
   /* Print styles */
   @media print {
     .no-print {

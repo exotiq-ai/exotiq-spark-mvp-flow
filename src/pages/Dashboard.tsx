@@ -9,9 +9,7 @@ import { SEOHead } from "@/components/common/SEOHead";
 import { UnifiedNotificationCenter } from "@/components/common/UnifiedNotificationCenter";
 import { useAnalytics } from "@/lib/analytics";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
-import { useSwipeGesture } from "@/hooks/useSwipeGesture";
-// Realtime subscriptions now managed directly in FleetContext
-// import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+// Removed swipe gesture - conflicts with internal module interactions
 import { performance } from "@/lib/performance";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -42,10 +40,6 @@ const Dashboard = () => {
   const { track, page } = useAnalytics();
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Realtime subscriptions are now handled automatically in FleetContext
-
-  // Enable keyboard shortcuts
-
   const moduleOrder = ["dashboard", "core", "book", "pulse", "motoriq", "vault"];
   const currentIndex = moduleOrder.indexOf(activeModule);
 
@@ -63,25 +57,6 @@ const Dashboard = () => {
     track('module_switch', { from: activeModule, to: moduleId });
     setActiveModule(moduleId);
   };
-
-  const handleSwipeLeft = () => {
-    if (currentIndex < moduleOrder.length - 1) {
-      handleModuleChange(moduleOrder[currentIndex + 1]);
-    }
-  };
-
-  const handleSwipeRight = () => {
-    if (currentIndex > 0) {
-      handleModuleChange(moduleOrder[currentIndex - 1]);
-    }
-  };
-
-  const { handlers } = useSwipeGesture({
-    onSwipeLeft: handleSwipeLeft,
-    onSwipeRight: handleSwipeRight,
-    threshold: 50,
-    velocityThreshold: 0.5,
-  });
 
   const modules = [
     {
@@ -320,26 +295,16 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Main Content with Swipe Support */}
+        {/* Main Content - No swipe gestures to avoid conflicts */}
         <main
-        id="main-content" 
-        ref={containerRef}
-        className="mobile-padding py-4 sm:py-6 pb-28 md:pb-6 overflow-x-hidden" 
-        tabIndex={-1}
-        {...handlers}
-      >
-        <div className="max-w-7xl mx-auto mobile-spacing">
-          {renderModuleContent()}
-          
-          {/* Pagination Dots - Mobile Only */}
-          <div className="md:hidden mt-6 mb-4">
-            <ModulePagination 
-              total={moduleOrder.length} 
-              current={currentIndex}
-              onDotClick={(index) => handleModuleChange(moduleOrder[index])}
-            />
+          id="main-content" 
+          ref={containerRef}
+          className="mobile-padding py-4 sm:py-6 pb-28 md:pb-6 overflow-x-hidden flex-1" 
+          tabIndex={-1}
+        >
+          <div className="max-w-7xl mx-auto mobile-spacing">
+            {renderModuleContent()}
           </div>
-        </div>
         </main>
       </div>
     </div>
