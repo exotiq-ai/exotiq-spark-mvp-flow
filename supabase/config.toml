@@ -47,3 +47,6 @@ verify_jwt = false
 
 [functions.predicthq-events]
 verify_jwt = false
+
+[functions.invite-user]
+verify_jwt = false
