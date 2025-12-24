@@ -15,6 +15,11 @@ import {
   Music,
   Trophy,
   Building2,
+  Filter,
+  Tent,
+  Theater,
+  Star,
+  Info,
 } from "lucide-react";
 import {
   Tooltip,
@@ -29,6 +34,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { format, addDays } from "date-fns";
 
 interface EventData {
@@ -41,8 +52,11 @@ interface EventData {
   labels?: string[];
 }
 
+// Luxury car rental hub cities - Miami as default for demo
 const CITIES = [
-  { value: 'miami', label: 'Miami, FL', lat: 25.7617, lon: -80.1918 },
+  { value: 'miami', label: 'Miami, FL', lat: 25.7617, lon: -80.1918, isDefault: true },
+  { value: 'scottsdale', label: 'Scottsdale, AZ', lat: 33.4942, lon: -111.9261 },
+  { value: 'denver', label: 'Denver, CO', lat: 39.7392, lon: -104.9903 },
   { value: 'los-angeles', label: 'Los Angeles, CA', lat: 34.0522, lon: -118.2437 },
   { value: 'new-york', label: 'New York, NY', lat: 40.7128, lon: -74.0060 },
   { value: 'las-vegas', label: 'Las Vegas, NV', lat: 36.1699, lon: -115.1398 },
@@ -56,16 +70,37 @@ const FORECAST_RANGES = [
   { value: '7', label: '7 Days' },
   { value: '14', label: '14 Days' },
   { value: '30', label: '30 Days' },
+  { value: '60', label: '60 Days' },
+];
+
+const EVENT_CATEGORIES = [
+  { id: 'concerts', label: 'Concerts', icon: Music, color: 'text-pink-500' },
+  { id: 'sports', label: 'Sports', icon: Trophy, color: 'text-orange-500' },
+  { id: 'conferences', label: 'Conferences', icon: Building2, color: 'text-blue-500' },
+  { id: 'festivals', label: 'Festivals', icon: Tent, color: 'text-purple-500' },
+  { id: 'performing-arts', label: 'Performing Arts', icon: Theater, color: 'text-indigo-500' },
+  { id: 'expos', label: 'Expos', icon: Star, color: 'text-amber-500' },
+  { id: 'community', label: 'Community', icon: Users, color: 'text-green-500' },
 ];
 
 const getCategoryIcon = (category: string) => {
-  switch (category.toLowerCase()) {
-    case 'concert': return <Music className="h-3 w-3" />;
-    case 'sports': return <Trophy className="h-3 w-3" />;
-    case 'conference': return <Building2 className="h-3 w-3" />;
-    case 'festival': return <Sparkles className="h-3 w-3" />;
-    default: return <Calendar className="h-3 w-3" />;
+  const cat = EVENT_CATEGORIES.find(c => 
+    c.label.toLowerCase() === category.toLowerCase() || 
+    c.id === category.toLowerCase()
+  );
+  if (cat) {
+    const Icon = cat.icon;
+    return <Icon className={`h-3 w-3 ${cat.color}`} />;
   }
+  return <Calendar className="h-3 w-3" />;
+};
+
+const getCategoryColor = (category: string) => {
+  const cat = EVENT_CATEGORIES.find(c => 
+    c.label.toLowerCase() === category.toLowerCase() || 
+    c.id === category.toLowerCase()
+  );
+  return cat?.color || 'text-muted-foreground';
 };
 
 export const DemandForecastCard = () => {
@@ -75,6 +110,10 @@ export const DemandForecastCard = () => {
   const [peakDate, setPeakDate] = useState<string | null>(null);
   const [selectedCity, setSelectedCity] = useState('miami');
   const [forecastDays, setForecastDays] = useState('14');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(
+    EVENT_CATEGORIES.map(c => c.id)
+  );
+  const [showLegend, setShowLegend] = useState(false);
 
   const fetchEvents = async () => {
     setLoading(true);
@@ -89,6 +128,7 @@ export const DemandForecastCard = () => {
           location: city ? { lat: city.lat, lon: city.lon, radius: 50 } : undefined,
           startDate,
           endDate,
+          categories: selectedCategories,
         },
       });
       
@@ -106,14 +146,30 @@ export const DemandForecastCard = () => {
 
   useEffect(() => {
     fetchEvents();
-  }, [selectedCity, forecastDays]);
+  }, [selectedCity, forecastDays, selectedCategories]);
+
+  const toggleCategory = (categoryId: string) => {
+    setSelectedCategories(prev => 
+      prev.includes(categoryId)
+        ? prev.filter(c => c !== categoryId)
+        : [...prev, categoryId]
+    );
+  };
+
+  // Filter events by selected categories
+  const filteredEvents = events.filter(e => {
+    const categoryId = EVENT_CATEGORIES.find(c => 
+      c.label.toLowerCase() === e.category.toLowerCase()
+    )?.id || e.category.toLowerCase().replace(' ', '-');
+    return selectedCategories.includes(categoryId);
+  });
 
   // Generate forecast data based on events
   const forecastData = Array.from({ length: Math.min(parseInt(forecastDays), 7) }, (_, i) => {
     const date = new Date();
     date.setDate(date.getDate() + i);
     const dateStr = date.toISOString().split('T')[0];
-    const dayEvents = events.filter(e => e.date.startsWith(dateStr));
+    const dayEvents = filteredEvents.filter(e => e.date.startsWith(dateStr));
     const baseDemand = 65 + Math.random() * 10;
     const eventBoost = dayEvents.reduce((sum, e) => sum + (e.impactScore / 10), 0);
     const demand = Math.min(98, Math.round(baseDemand + eventBoost));
@@ -130,8 +186,8 @@ export const DemandForecastCard = () => {
 
   const avgDemand = Math.round(forecastData.reduce((sum, d) => sum + d.demand, 0) / forecastData.length);
   const peakDay = forecastData.reduce((max, d) => d.demand > max.demand ? d : max, forecastData[0]);
-  const totalAttendance = events.reduce((sum, e) => sum + e.attendance, 0);
-  const highImpactEvents = events.filter(e => e.impactScore >= 70);
+  const totalAttendance = filteredEvents.reduce((sum, e) => sum + e.attendance, 0);
+  const highImpactEvents = filteredEvents.filter(e => e.impactScore >= 70);
 
   return (
     <Card className="card-premium p-6">
@@ -162,16 +218,21 @@ export const DemandForecastCard = () => {
       </div>
 
       {/* Controls */}
-      <div className="flex gap-3 mb-6">
+      <div className="flex flex-wrap gap-3 mb-4">
         <Select value={selectedCity} onValueChange={setSelectedCity}>
-          <SelectTrigger className="flex-1">
+          <SelectTrigger className="w-[180px]">
             <MapPin className="h-4 w-4 mr-2 text-muted-foreground" />
             <SelectValue placeholder="Select city..." />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="bg-background border">
             {CITIES.map((city) => (
               <SelectItem key={city.value} value={city.value}>
-                {city.label}
+                <span className="flex items-center gap-2">
+                  {city.label}
+                  {city.isDefault && (
+                    <Badge variant="outline" className="text-[10px] py-0 px-1">Default</Badge>
+                  )}
+                </span>
               </SelectItem>
             ))}
           </SelectContent>
@@ -182,7 +243,7 @@ export const DemandForecastCard = () => {
             <CalendarDays className="h-4 w-4 mr-2 text-muted-foreground" />
             <SelectValue />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="bg-background border">
             {FORECAST_RANGES.map((range) => (
               <SelectItem key={range.value} value={range.value}>
                 {range.label}
@@ -190,6 +251,55 @@ export const DemandForecastCard = () => {
             ))}
           </SelectContent>
         </Select>
+
+        {/* Category Filter */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="gap-2">
+              <Filter className="h-4 w-4" />
+              <span>Categories</span>
+              <Badge variant="secondary" className="text-xs">
+                {selectedCategories.length}/{EVENT_CATEGORIES.length}
+              </Badge>
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-56 p-3 bg-background border" align="start">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between pb-2 border-b">
+                <span className="text-sm font-medium">Event Categories</span>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-6 text-xs"
+                  onClick={() => setSelectedCategories(
+                    selectedCategories.length === EVENT_CATEGORIES.length 
+                      ? [] 
+                      : EVENT_CATEGORIES.map(c => c.id)
+                  )}
+                >
+                  {selectedCategories.length === EVENT_CATEGORIES.length ? 'Clear' : 'All'}
+                </Button>
+              </div>
+              {EVENT_CATEGORIES.map((cat) => {
+                const Icon = cat.icon;
+                return (
+                  <div 
+                    key={cat.id} 
+                    className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-1 rounded"
+                    onClick={() => toggleCategory(cat.id)}
+                  >
+                    <Checkbox 
+                      checked={selectedCategories.includes(cat.id)} 
+                      onCheckedChange={() => toggleCategory(cat.id)}
+                    />
+                    <Icon className={`h-4 w-4 ${cat.color}`} />
+                    <span className="text-sm">{cat.label}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </PopoverContent>
+        </Popover>
 
         <Button 
           variant="outline" 
@@ -199,7 +309,52 @@ export const DemandForecastCard = () => {
         >
           <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
         </Button>
+
+        {/* Legend Toggle */}
+        <Button
+          variant={showLegend ? "secondary" : "outline"}
+          size="icon"
+          onClick={() => setShowLegend(!showLegend)}
+        >
+          <Info className="h-4 w-4" />
+        </Button>
       </div>
+
+      {/* Event Legend */}
+      {showLegend && (
+        <div className="mb-4 p-3 rounded-lg border bg-muted/20">
+          <div className="text-sm font-medium mb-2">Event Legend & Metrics</div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              <span><strong>Attendance</strong>: Expected headcount</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-success" />
+              <span><strong>Impact</strong>: 0-100 demand score</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-primary" />
+              <span><strong>Multiplier</strong>: Price adjustment</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge className="bg-warning/20 text-warning text-[10px]">70+</Badge>
+              <span><strong>High Impact</strong>: Major event</span>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2 mt-3 pt-2 border-t">
+            {EVENT_CATEGORIES.map((cat) => {
+              const Icon = cat.icon;
+              return (
+                <Badge key={cat.id} variant="outline" className="text-xs gap-1">
+                  <Icon className={`h-3 w-3 ${cat.color}`} />
+                  {cat.label}
+                </Badge>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Forecast Visualization */}
       <div className="grid grid-cols-7 gap-2 mb-6">
@@ -277,7 +432,7 @@ export const DemandForecastCard = () => {
       </div>
 
       {/* Upcoming Events */}
-      {events.length > 0 ? (
+      {filteredEvents.length > 0 ? (
         <div className="p-4 rounded-lg border bg-muted/20">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
@@ -296,8 +451,8 @@ export const DemandForecastCard = () => {
               )}
             </div>
           </div>
-          <div className="space-y-2 max-h-[180px] overflow-y-auto">
-            {events.slice(0, 6).map((event) => (
+          <div className="space-y-2 max-h-[200px] overflow-y-auto">
+            {filteredEvents.slice(0, 8).map((event) => (
               <div 
                 key={event.id} 
                 className={`flex items-center justify-between p-2 rounded transition-colors ${
@@ -317,14 +472,26 @@ export const DemandForecastCard = () => {
                     <div className="text-xs text-muted-foreground flex items-center gap-2">
                       <span>{format(new Date(event.date), 'MMM d, h:mm a')}</span>
                       <span>•</span>
-                      <span>{event.category}</span>
+                      <span className={getCategoryColor(event.category)}>{event.category}</span>
                     </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 ml-2">
-                  <Badge variant="outline" className="text-xs">
-                    {event.attendance.toLocaleString()}
-                  </Badge>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <Badge variant="outline" className="text-xs gap-1">
+                          <Users className="h-3 w-3" />
+                          {event.attendance >= 1000 
+                            ? `${(event.attendance / 1000).toFixed(1)}K` 
+                            : event.attendance.toLocaleString()}
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Expected Attendance: {event.attendance.toLocaleString()}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger>
@@ -342,6 +509,11 @@ export const DemandForecastCard = () => {
                       </TooltipTrigger>
                       <TooltipContent>
                         <p>Impact Score: {event.impactScore}/100</p>
+                        <p className="text-xs text-muted-foreground">
+                          {event.impactScore >= 80 ? 'Very High Demand' 
+                            : event.impactScore >= 60 ? 'High Demand' 
+                            : 'Moderate Demand'}
+                        </p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -349,10 +521,10 @@ export const DemandForecastCard = () => {
               </div>
             ))}
           </div>
-          {events.length > 6 && (
+          {filteredEvents.length > 8 && (
             <div className="text-center mt-2">
               <span className="text-xs text-muted-foreground">
-                +{events.length - 6} more events
+                +{filteredEvents.length - 8} more events
               </span>
             </div>
           )}
