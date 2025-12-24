@@ -10,6 +10,7 @@ import { useAnalytics } from "@/lib/analytics";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { performance } from "@/lib/performance";
 import { motion, AnimatePresence } from "framer-motion";
+import { cn } from "@/lib/utils";
 import {
   Calendar, 
   Brain, 
@@ -192,62 +193,39 @@ const Dashboard = () => {
 
         {/* Mobile Bottom Navigation - 5 Items (simplified) */}
         <div className="mobile-nav">
-          <div className="grid grid-cols-5 gap-2 p-2">
-            <button
-              onClick={() => {
-                handleModuleChange("dashboard");
-                if (navigator.vibrate) navigator.vibrate(10);
-              }}
-              className={`flex flex-col items-center justify-center py-2.5 px-2 rounded-xl transition-all touch-target focus-visible ${
-                activeModule === "dashboard" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"
-              }`}
-              aria-label="Home"
-            >
-              <Home className="h-5 w-5 mb-1" />
-              <span className="text-[11px] font-medium">Home</span>
-            </button>
-            
-            <button
-              onClick={() => {
-                handleModuleChange("book");
-                if (navigator.vibrate) navigator.vibrate(10);
-              }}
-              className={`flex flex-col items-center justify-center py-2.5 px-2 rounded-xl transition-all touch-target focus-visible ${
-                activeModule === "book" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"
-              }`}
-              aria-label="Book"
-            >
-              <Calendar className="h-5 w-5 mb-1" />
-              <span className="text-[11px] font-medium">Book</span>
-            </button>
-
-            <button
-              onClick={() => {
-                handleModuleChange("core");
-                if (navigator.vibrate) navigator.vibrate(10);
-              }}
-              className={`flex flex-col items-center justify-center py-2.5 px-2 rounded-xl transition-all touch-target focus-visible ${
-                activeModule === "core" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"
-              }`}
-              aria-label="AI Assistant"
-            >
-              <Brain className="h-5 w-5 mb-1" />
-              <span className="text-[11px] font-medium">AI</span>
-            </button>
-
-            <button
-              onClick={() => {
-                handleModuleChange("pulse");
-                if (navigator.vibrate) navigator.vibrate(10);
-              }}
-              className={`flex flex-col items-center justify-center py-2.5 px-2 rounded-xl transition-all touch-target focus-visible ${
-                (activeModule === "pulse" || activeModule === "motoriq" || activeModule === "optimize") ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"
-              }`}
-              aria-label="Analytics"
-            >
-              <BarChart3 className="h-5 w-5 mb-1" />
-              <span className="text-[11px] font-medium">Insights</span>
-            </button>
+          <div className="grid grid-cols-5 gap-1 px-2 py-2.5">
+            {[
+              { id: "dashboard", label: "Home", icon: Home },
+              { id: "book", label: "Book", icon: Calendar },
+              { id: "core", label: "AI", icon: Brain },
+              { id: "pulse", label: "Insights", icon: BarChart3, aliases: ["motoriq", "optimize"] },
+            ].map((item) => {
+              const Icon = item.icon;
+              const isActive = item.aliases 
+                ? [item.id, ...item.aliases].includes(activeModule)
+                : activeModule === item.id;
+              
+              return (
+                <motion.button
+                  key={item.id}
+                  onClick={() => {
+                    handleModuleChange(item.id);
+                    if (navigator.vibrate) navigator.vibrate(10);
+                  }}
+                  whileTap={{ scale: 0.92 }}
+                  className={cn(
+                    "flex flex-col items-center justify-center py-2 px-1 rounded-2xl transition-colors min-h-[56px]",
+                    isActive 
+                      ? "bg-primary text-primary-foreground shadow-sm" 
+                      : "text-muted-foreground active:bg-muted/50"
+                  )}
+                  aria-label={item.label}
+                >
+                  <Icon className="h-5 w-5 mb-0.5" strokeWidth={isActive ? 2.5 : 2} />
+                  <span className="text-[10px] font-semibold tracking-tight">{item.label}</span>
+                </motion.button>
+              );
+            })}
 
             {/* More Menu - Contains Vault, Settings, Profile */}
             <MobileMoreMenu 

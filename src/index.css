@@ -301,15 +301,23 @@
   /* Mobile Optimizations */
   .mobile-friendly {
     @apply touch-manipulation scroll-smooth;
+    -webkit-tap-highlight-color: transparent;
   }
   
   .mobile-nav {
-    @apply fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-sm border-t border-border z-50 md:hidden safe-area-bottom;
+    @apply fixed bottom-0 left-0 right-0 backdrop-blur-md border-t z-50 md:hidden;
+    background-color: hsl(var(--background) / 0.98);
+    border-color: hsl(var(--border) / 0.6);
+    padding-bottom: max(env(safe-area-inset-bottom), 8px);
   }
   
   /* Safe area for notched devices */
   .safe-area-bottom {
     padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  .pb-safe {
+    padding-bottom: max(env(safe-area-inset-bottom), 16px);
   }
   
   .mobile-grid {
@@ -325,10 +333,10 @@
   }
   
   .mobile-spacing {
-    @apply space-y-4 sm:space-y-6;
+    @apply space-y-5 sm:space-y-6;
   }
   
-  /* Touch-friendly interactive elements */
+  /* Touch-friendly interactive elements - Apple HIG minimum 44pt */
   .touch-target {
     @apply min-h-[44px] min-w-[44px];
   }
@@ -376,17 +384,25 @@
 
   /* Mobile Navigation Improvements */
   .mobile-nav-button {
-    @apply flex flex-col items-center justify-center py-2 px-1.5 rounded-lg transition-all hover-scale touch-target focus-visible;
+    @apply flex flex-col items-center justify-center py-2 px-1 rounded-2xl transition-colors min-h-[56px];
     min-width: 0;
   }
 
   .mobile-nav-button span {
-    @apply truncate max-w-full text-[10px] font-medium;
+    @apply truncate max-w-full text-[10px] font-semibold tracking-tight;
   }
 
   /* Hover and scale effects */
   .hover-scale {
-    @apply transition-transform duration-200 ease-out hover:scale-105 active:scale-95;
+    @apply transition-transform duration-200 ease-out;
+  }
+  
+  .hover-scale:hover {
+    transform: scale(1.02);
+  }
+  
+  .hover-scale:active {
+    transform: scale(0.98);
   }
 
   /* Hide scrollbar utility */
