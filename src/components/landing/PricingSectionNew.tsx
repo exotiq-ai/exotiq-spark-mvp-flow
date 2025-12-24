@@ -47,13 +47,14 @@ export const PricingSectionNew = () => {
       <FounderBanner />
 
       {/* Pricing Hero */}
-      <section className="py-16 px-4 text-center">
+      <section className="py-20 lg:py-28 px-4 text-center">
         <div className="container mx-auto max-w-3xl">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">
-            Simple, Per-Vehicle Pricing
+          <p className="text-primary font-medium mb-4">Simple, Transparent Pricing</p>
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 tracking-tight">
+            Per-vehicle pricing that scales with you
           </h1>
-          <p className="text-xl text-muted-foreground mb-6">
-            Lock in founder pricing today. Your rate stays the same forever, even as we add features and grow.
+          <p className="text-xl text-muted-foreground">
+            Lock in founder rates today. Your price stays the same forever, even as we add features.
           </p>
         </div>
       </section>
