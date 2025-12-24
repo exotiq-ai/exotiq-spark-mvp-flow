@@ -51,6 +51,7 @@ interface FleetContextType {
   addCustomerNote: (customerId: string, note: string, createdBy: string) => Promise<void>;
   blacklistCustomer: (customerId: string, reason: string) => Promise<void>;
   createInspection: (inspection: Omit<Database['public']['Tables']['vehicle_inspections']['Insert'], 'user_id'>) => Promise<void>;
+  createInspectionWithPhotos: (inspection: Omit<Database['public']['Tables']['vehicle_inspections']['Insert'], 'user_id'>, photos: Array<{ photo_url: string; photo_type: string; storage_path: string }>) => Promise<void>;
   createDamageClaim: (claim: Omit<Database['public']['Tables']['damage_claims']['Insert'], 'user_id'>) => Promise<void>;
   createPayment: (payment: Omit<Database['public']['Tables']['payments']['Insert'], 'user_id'>) => Promise<void>;
   refreshData: () => Promise<void>;
@@ -646,6 +647,61 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
+  const createInspectionWithPhotos = async (
+    inspection: Omit<Database['public']['Tables']['vehicle_inspections']['Insert'], 'user_id'>,
+    photos: Array<{ photo_url: string; photo_type: string; storage_path: string }>
+  ) => {
+    if (!user) return;
+
+    // Create inspection first
+    const { data: inspectionData, error: inspectionError } = await supabase
+      .from('vehicle_inspections')
+      .insert({
+        ...inspection,
+        user_id: user.id
+      })
+      .select('id')
+      .single();
+
+    if (inspectionError || !inspectionData) {
+      toast({
+        title: "Error",
+        description: inspectionError?.message || "Failed to create inspection",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Insert photos if any
+    if (photos.length > 0) {
+      const photoRecords = photos.map(photo => ({
+        inspection_id: inspectionData.id,
+        photo_url: photo.photo_url,
+        photo_type: photo.photo_type,
+      }));
+
+      const { error: photoError } = await supabase
+        .from('inspection_photos')
+        .insert(photoRecords);
+
+      if (photoError) {
+        console.error('Failed to save photos:', photoError);
+        toast({
+          title: "Warning",
+          description: "Inspection saved but some photos failed to link.",
+          variant: "destructive"
+        });
+      }
+    }
+
+    await refreshData();
+    
+    toast({
+      title: "Inspection Complete",
+      description: `Inspection logged with ${photos.length} photo(s).`,
+    });
+  };
+
   const createDamageClaim = async (claim: Omit<Database['public']['Tables']['damage_claims']['Insert'], 'user_id'>) => {
     if (!user) return;
 
@@ -798,6 +854,7 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       addCustomerNote,
       blacklistCustomer,
       createInspection,
+      createInspectionWithPhotos,
       createDamageClaim,
       createPayment,
       refreshData,

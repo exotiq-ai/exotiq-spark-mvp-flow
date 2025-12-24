@@ -41,3 +41,9 @@ verify_jwt = false
 
 [functions.create-payment-checkout]
 verify_jwt = false
+
+[functions.ai-pricing]
+verify_jwt = false
+
+[functions.predicthq-events]
+verify_jwt = false

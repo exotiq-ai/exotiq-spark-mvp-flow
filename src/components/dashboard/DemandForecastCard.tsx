@@ -1,6 +1,8 @@
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
 import {
   TrendingUp,
   TrendingDown,
@@ -8,6 +10,7 @@ import {
   Sparkles,
   ExternalLink,
   Info,
+  RefreshCw,
 } from "lucide-react";
 import {
   Tooltip,
@@ -15,18 +18,62 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { format } from "date-fns";
+
+interface EventData {
+  id: string;
+  name: string;
+  date: string;
+  category: string;
+  attendance: number;
+  impactScore: number;
+}
 
 export const DemandForecastCard = () => {
-  // Simulated 7-day forecast data
-  const forecastData = [
-    { day: "Mon", demand: 72, trend: "up" },
-    { day: "Tue", demand: 68, trend: "down" },
-    { day: "Wed", demand: 75, trend: "up" },
-    { day: "Thu", demand: 82, trend: "up" },
-    { day: "Fri", demand: 95, trend: "up" },
-    { day: "Sat", demand: 98, trend: "up" },
-    { day: "Sun", demand: 88, trend: "down" },
-  ];
+  const [events, setEvents] = useState<EventData[]>([]);
+  const [demandMultiplier, setDemandMultiplier] = useState(1.0);
+  const [loading, setLoading] = useState(false);
+  const [peakDate, setPeakDate] = useState<string | null>(null);
+
+  const fetchEvents = async () => {
+    setLoading(true);
+    try {
+      const response = await supabase.functions.invoke('predicthq-events', {
+        body: { city: 'miami' },
+      });
+      if (!response.error && response.data) {
+        setEvents(response.data.events || []);
+        setDemandMultiplier(response.data.demandMultiplier || 1.0);
+        setPeakDate(response.data.summary?.peakDate || null);
+      }
+    } catch (err) {
+      console.error('Failed to fetch events:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchEvents();
+  }, []);
+
+  // Generate 7-day forecast based on events
+  const forecastData = Array.from({ length: 7 }, (_, i) => {
+    const date = new Date();
+    date.setDate(date.getDate() + i);
+    const dateStr = date.toISOString().split('T')[0];
+    const dayEvents = events.filter(e => e.date.startsWith(dateStr));
+    const baseDemand = 65 + Math.random() * 10;
+    const eventBoost = dayEvents.reduce((sum, e) => sum + (e.impactScore / 10), 0);
+    const demand = Math.min(98, Math.round(baseDemand + eventBoost));
+    return {
+      day: format(date, 'EEE'),
+      date: dateStr,
+      demand,
+      trend: demand > 75 ? 'up' : 'down',
+      hasEvent: dayEvents.length > 0,
+    };
+  });
 
   const avgDemand = Math.round(forecastData.reduce((sum, d) => sum + d.demand, 0) / forecastData.length);
   const peakDay = forecastData.reduce((max, d) => d.demand > max.demand ? d : max, forecastData[0]);
@@ -110,32 +157,62 @@ export const DemandForecastCard = () => {
         </div>
       </div>
 
-      {/* Event Calendar Integration - Coming Soon */}
-      <div className="p-4 rounded-lg border border-dashed bg-muted/20">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Calendar className="h-5 w-5 text-muted-foreground" />
-            <div>
-              <div className="font-medium">Event Calendar Integration</div>
-              <div className="text-sm text-muted-foreground">
-                Cross-reference local events for demand spikes
+      {/* Upcoming Events */}
+      {events.length > 0 ? (
+        <div className="p-4 rounded-lg border bg-muted/20">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-primary" />
+              <span className="font-medium">Upcoming Events</span>
+            </div>
+            <Badge className="bg-success/20 text-success border-success/30">
+              {demandMultiplier.toFixed(2)}x demand
+            </Badge>
+          </div>
+          <div className="space-y-2 max-h-[150px] overflow-y-auto">
+            {events.slice(0, 4).map((event) => (
+              <div key={event.id} className="flex items-center justify-between p-2 rounded bg-background/50">
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-sm truncate">{event.name}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {format(new Date(event.date), 'MMM d')} • {event.category}
+                  </div>
+                </div>
+                <Badge variant="outline" className="text-xs ml-2">
+                  {event.attendance.toLocaleString()}
+                </Badge>
+              </div>
+            ))}
+          </div>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="w-full mt-2"
+            onClick={fetchEvents}
+            disabled={loading}
+          >
+            <RefreshCw className={`h-3 w-3 mr-1 ${loading ? 'animate-spin' : ''}`} />
+            Refresh Events
+          </Button>
+        </div>
+      ) : (
+        <div className="p-4 rounded-lg border border-dashed bg-muted/20">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Calendar className="h-5 w-5 text-muted-foreground" />
+              <div>
+                <div className="font-medium">Event Calendar</div>
+                <div className="text-sm text-muted-foreground">
+                  {loading ? 'Loading events...' : 'No upcoming events found'}
+                </div>
               </div>
             </div>
-          </div>
-          <Badge variant="outline" className="bg-muted/50">
-            Coming Soon
-          </Badge>
-        </div>
-        <div className="mt-3 p-3 rounded bg-muted/30 text-sm text-muted-foreground">
-          <div className="flex items-start gap-2">
-            <Info className="h-4 w-4 flex-shrink-0 mt-0.5" />
-            <div>
-              Planned integration with PredictHQ for real-time event data including concerts, 
-              sports events, conferences, and holidays that impact rental demand.
-            </div>
+            <Button variant="outline" size="sm" onClick={fetchEvents} disabled={loading}>
+              <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />
+            </Button>
           </div>
         </div>
-      </div>
+      )}
     </Card>
   );
 };
