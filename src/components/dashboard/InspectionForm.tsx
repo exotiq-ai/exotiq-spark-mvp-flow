@@ -21,8 +21,11 @@ import {
   Fuel, 
   Gauge,
   CheckCircle,
-  AlertTriangle
+  AlertTriangle,
+  Images
 } from "lucide-react";
+import { InspectionPhotoUpload, InspectionPhoto } from "./InspectionPhotoUpload";
+import { InspectionPhotoGallery } from "./InspectionPhotoGallery";
 
 type Vehicle = Database['public']['Tables']['vehicles']['Row'];
 
@@ -39,9 +42,11 @@ export const InspectionForm = ({
   inspectionType,
   onComplete
 }: InspectionFormProps) => {
-  const { vehicles, createInspection } = useFleet();
+  const { vehicles, createInspectionWithPhotos } = useFleet();
   const [loading, setLoading] = useState(false);
   const [showVehicleImage, setShowVehicleImage] = useState(false);
+  const [showPhotoGallery, setShowPhotoGallery] = useState(false);
+  const [photos, setPhotos] = useState<InspectionPhoto[]>([]);
   
   const vehicle = vehicles.find(v => v.id === vehicleId);
   
@@ -62,18 +67,30 @@ export const InspectionForm = ({
     setLoading(true);
 
     try {
-      await createInspection({
-        vehicle_id: vehicleId,
-        booking_id: bookingId || null,
-        inspection_type: inspectionType,
-        inspector_name: formData.inspector_name,
-        odometer_reading: formData.odometer_reading,
-        fuel_level: fuelLevel[0],
-        exterior_condition: formData.exterior_condition,
-        interior_condition: formData.interior_condition,
-        tire_condition: formData.tire_condition,
-        notes: formData.notes,
-      });
+      // Prepare photo data for uploaded photos
+      const uploadedPhotos = photos
+        .filter(p => p.status === 'uploaded' && p.path)
+        .map(p => ({
+          photo_url: p.url,
+          photo_type: p.type,
+          storage_path: p.path,
+        }));
+
+      await createInspectionWithPhotos(
+        {
+          vehicle_id: vehicleId,
+          booking_id: bookingId || null,
+          inspection_type: inspectionType,
+          inspector_name: formData.inspector_name,
+          odometer_reading: formData.odometer_reading,
+          fuel_level: fuelLevel[0],
+          exterior_condition: formData.exterior_condition,
+          interior_condition: formData.interior_condition,
+          tire_condition: formData.tire_condition,
+          notes: formData.notes,
+        },
+        uploadedPhotos
+      );
 
       // Reset form
       setFormData({
@@ -86,6 +103,7 @@ export const InspectionForm = ({
         notes: "",
       });
       setFuelLevel([100]);
+      setPhotos([]);
 
       if (onComplete) onComplete();
     } catch (error) {
@@ -297,13 +315,37 @@ export const InspectionForm = ({
         </div>
 
         {/* Photos */}
-        <div className="space-y-2">
-          <Label>Inspection Photos</Label>
-          <Button type="button" variant="outline" className="w-full">
-            <Camera className="w-4 h-4 mr-2" />
-            Take Photos (Coming Soon)
-          </Button>
+        <div className="space-y-4">
+          <InspectionPhotoUpload
+            photos={photos}
+            onPhotosChange={setPhotos}
+            maxPhotos={8}
+          />
+          
+          {photos.filter(p => p.status === 'uploaded').length > 0 && (
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => setShowPhotoGallery(true)}
+              className="w-full"
+            >
+              <Images className="w-4 h-4 mr-2" />
+              View All Photos ({photos.filter(p => p.status === 'uploaded').length})
+            </Button>
+          )}
         </div>
+
+        <InspectionPhotoGallery
+          open={showPhotoGallery}
+          onOpenChange={setShowPhotoGallery}
+          photos={photos.filter(p => p.status === 'uploaded').map(p => ({
+            id: p.id,
+            url: p.url,
+            type: p.type,
+          }))}
+          inspectionType={inspectionType}
+          vehicleName={vehicle?.name}
+        />
 
         {/* Notes */}
         <div className="space-y-2">
