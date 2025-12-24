@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
-import { Clock, Users, Zap } from 'lucide-react';
+import { useState } from 'react';
+import { Clock, Users, Zap, ChevronDown } from 'lucide-react';
 import { founderDeadline, founderSpotsRemaining, founderSpotsTotal } from './PricingData';
+import { useEffect } from 'react';
 
 export const FounderBanner = () => {
   const [timeLeft, setTimeLeft] = useState({
@@ -31,49 +32,67 @@ export const FounderBanner = () => {
     return () => clearInterval(timer);
   }, []);
 
-  return (
-    <div className="bg-gradient-to-r from-primary via-primary-dark to-primary text-primary-foreground py-3 px-4">
-      <div className="container mx-auto">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-          {/* Urgency Message */}
-          <div className="flex items-center gap-2">
-            <Zap className="h-5 w-5 text-warning" />
-            <span className="font-semibold">Founder Pricing Ends March 31, 2025</span>
-          </div>
+  const scrollToPricing = () => {
+    const pricingSection = document.getElementById('pricing-cards');
+    if (pricingSection) {
+      pricingSection.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
 
-          {/* Countdown Timer */}
-          <div className="flex items-center gap-4">
-            <Clock className="h-4 w-4 opacity-80" />
-            <div className="flex gap-3 text-sm">
-              <div className="text-center">
-                <span className="font-bold text-lg">{timeLeft.days}</span>
-                <span className="text-xs opacity-80 ml-1">days</span>
+  return (
+    <div className="bg-gradient-to-r from-zinc-900 via-zinc-800 to-zinc-900 text-white py-3 px-4 sticky top-0 z-50">
+      <div className="container mx-auto">
+        <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-8">
+          {/* Timer Section */}
+          <div className="flex items-center gap-3">
+            <div className="hidden sm:flex items-center gap-1.5">
+              <Zap className="h-4 w-4 text-amber-400" />
+              <span className="text-sm font-medium">Founder Pricing</span>
+            </div>
+            
+            <div className="flex items-center gap-1 font-mono text-sm">
+              <div className="bg-white/10 px-2 py-1 rounded">
+                <span className="font-bold">{timeLeft.days}</span>
+                <span className="text-white/60 ml-1 text-xs">d</span>
               </div>
-              <span className="opacity-50">:</span>
-              <div className="text-center">
-                <span className="font-bold text-lg">{String(timeLeft.hours).padStart(2, '0')}</span>
-                <span className="text-xs opacity-80 ml-1">hrs</span>
+              <span className="text-white/40">:</span>
+              <div className="bg-white/10 px-2 py-1 rounded">
+                <span className="font-bold">{String(timeLeft.hours).padStart(2, '0')}</span>
+                <span className="text-white/60 ml-1 text-xs">h</span>
               </div>
-              <span className="opacity-50">:</span>
-              <div className="text-center">
-                <span className="font-bold text-lg">{String(timeLeft.minutes).padStart(2, '0')}</span>
-                <span className="text-xs opacity-80 ml-1">min</span>
+              <span className="text-white/40">:</span>
+              <div className="bg-white/10 px-2 py-1 rounded">
+                <span className="font-bold">{String(timeLeft.minutes).padStart(2, '0')}</span>
+                <span className="text-white/60 ml-1 text-xs">m</span>
               </div>
-              <span className="opacity-50">:</span>
-              <div className="text-center">
-                <span className="font-bold text-lg">{String(timeLeft.seconds).padStart(2, '0')}</span>
-                <span className="text-xs opacity-80 ml-1">sec</span>
+              <span className="text-white/40">:</span>
+              <div className="bg-white/10 px-2 py-1 rounded">
+                <span className="font-bold">{String(timeLeft.seconds).padStart(2, '0')}</span>
+                <span className="text-white/60 ml-1 text-xs">s</span>
               </div>
             </div>
           </div>
 
+          {/* Divider */}
+          <div className="hidden md:block w-px h-4 bg-white/20" />
+
           {/* Spots Remaining */}
-          <div className="flex items-center gap-2">
-            <Users className="h-4 w-4 opacity-80" />
-            <span className="font-medium">
-              <span className="text-warning font-bold">{founderSpotsRemaining}</span> of {founderSpotsTotal} spots remaining
+          <div className="flex items-center gap-2 text-sm">
+            <Users className="h-4 w-4 text-white/60" />
+            <span>
+              <span className="text-amber-400 font-bold">{founderSpotsRemaining}</span>
+              <span className="text-white/60"> of {founderSpotsTotal} spots left</span>
             </span>
           </div>
+
+          {/* CTA */}
+          <button 
+            onClick={scrollToPricing}
+            className="hidden md:flex items-center gap-1 text-sm font-medium text-amber-400 hover:text-amber-300 transition-colors"
+          >
+            Lock in your rate
+            <ChevronDown className="h-4 w-4" />
+          </button>
         </div>
       </div>
     </div>
