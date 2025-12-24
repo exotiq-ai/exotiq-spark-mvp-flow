@@ -85,6 +85,10 @@ export default {
 					'5': 'hsl(var(--chart-5))'
 				}
 			},
+			backgroundImage: {
+				'gradient-primary': 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)))',
+				'gradient-gulf': 'linear-gradient(135deg, hsl(var(--gulf-blue)), hsl(var(--accent)))',
+			},
 			fontFamily: {
 				inter: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
 			},
