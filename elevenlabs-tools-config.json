@@ -372,6 +372,53 @@
         },
         "required": []
       }
+    },
+    {
+      "name": "logFeedback",
+      "description": "Log user feedback when a feature doesn't work or isn't available. Use this when you can't fulfill a user's request.",
+      "webhook_url": "https://jlgwbbqydjeokypoenoc.supabase.co/functions/v1/elevenlabs-tools",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "feedbackType": {
+            "type": "string",
+            "enum": ["feature_request", "not_working", "other"],
+            "description": "Type of feedback being logged"
+          },
+          "keywords": {
+            "type": "string",
+            "description": "Comma-separated keywords related to the feedback"
+          },
+          "userQuery": {
+            "type": "string",
+            "description": "What the user asked for"
+          },
+          "rariResponse": {
+            "type": "string",
+            "description": "Brief description of why this couldn't be fulfilled"
+          }
+        },
+        "required": ["feedbackType", "userQuery"]
+      }
+    },
+    {
+      "name": "featureComingSoon",
+      "description": "Use when a user asks for a feature that isn't available yet. This logs the request and tells the user it's coming soon.",
+      "webhook_url": "https://jlgwbbqydjeokypoenoc.supabase.co/functions/v1/elevenlabs-tools",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "featureName": {
+            "type": "string",
+            "description": "Name of the feature that's not yet available"
+          },
+          "userRequest": {
+            "type": "string",
+            "description": "What the user specifically asked for"
+          }
+        },
+        "required": ["featureName", "userRequest"]
+      }
     }
   ]
 }

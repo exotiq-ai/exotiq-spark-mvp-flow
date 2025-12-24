@@ -376,6 +376,7 @@ export type Database = {
           id: string
           inspection_id: string | null
           insurance_claim_number: string | null
+          photo_urls: string[] | null
           reported_date: string | null
           resolution_notes: string | null
           resolved_date: string | null
@@ -396,6 +397,7 @@ export type Database = {
           id?: string
           inspection_id?: string | null
           insurance_claim_number?: string | null
+          photo_urls?: string[] | null
           reported_date?: string | null
           resolution_notes?: string | null
           resolved_date?: string | null
@@ -416,6 +418,7 @@ export type Database = {
           id?: string
           inspection_id?: string | null
           insurance_claim_number?: string | null
+          photo_urls?: string[] | null
           reported_date?: string | null
           resolution_notes?: string | null
           resolved_date?: string | null
@@ -937,6 +940,42 @@ export type Database = {
           onboarding_completed?: boolean | null
           phone?: string | null
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      rari_feedback: {
+        Row: {
+          context: Json | null
+          created_at: string
+          feedback_type: string
+          id: string
+          keywords: string[] | null
+          rari_response: string | null
+          resolved: boolean | null
+          user_id: string
+          user_query: string | null
+        }
+        Insert: {
+          context?: Json | null
+          created_at?: string
+          feedback_type?: string
+          id?: string
+          keywords?: string[] | null
+          rari_response?: string | null
+          resolved?: boolean | null
+          user_id: string
+          user_query?: string | null
+        }
+        Update: {
+          context?: Json | null
+          created_at?: string
+          feedback_type?: string
+          id?: string
+          keywords?: string[] | null
+          rari_response?: string | null
+          resolved?: boolean | null
+          user_id?: string
+          user_query?: string | null
         }
         Relationships: []
       }

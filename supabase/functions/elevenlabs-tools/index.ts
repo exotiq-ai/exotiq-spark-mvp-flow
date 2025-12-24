@@ -792,8 +792,77 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
         return { error: "Vehicle specs not found in database", searched: vehicleName };
       }
 
+      case "logFeedback": {
+        const { feedbackType, keywords, userQuery, rariResponse, context } = args;
+        console.log(`[logFeedback] Logging feedback: ${feedbackType}`);
+        
+        const { error } = await supabase
+          .from('rari_feedback')
+          .insert({
+            user_id: userId,
+            feedback_type: feedbackType || 'feature_request',
+            keywords: keywords ? keywords.split(',').map((k: string) => k.trim()) : [],
+            user_query: userQuery,
+            rari_response: rariResponse,
+            context: context ? JSON.parse(context) : null
+          });
+
+        if (error) {
+          console.error('[logFeedback] Error:', error);
+          return { 
+            success: false, 
+            error: error.message,
+            summary: "I apologize, I couldn't save that feedback. But I've noted your request."
+          };
+        }
+
+        return { 
+          success: true,
+          summary: "I've logged your feedback. This feature is coming soon, and the team will review your request. Is there anything else I can help you with?"
+        };
+      }
+
+      case "featureComingSoon": {
+        const { featureName, userRequest } = args;
+        console.log(`[featureComingSoon] Feature requested: ${featureName}`);
+        
+        // Log as feature request
+        await supabase
+          .from('rari_feedback')
+          .insert({
+            user_id: userId,
+            feedback_type: 'feature_request',
+            keywords: [featureName],
+            user_query: userRequest,
+            rari_response: `Feature coming soon: ${featureName}`,
+            context: { requested_feature: featureName }
+          });
+
+        return {
+          feature: featureName,
+          status: 'coming_soon',
+          summary: `That's a great idea! The ${featureName} feature is coming soon. I've logged your request so the team knows you need this. In the meantime, is there something else I can help you with?`
+        };
+      }
+
       default:
-        return { error: `Unknown function: ${functionName}` };
+        // Log unknown requests as potential feature needs
+        console.log(`[UNKNOWN] Function not found: ${functionName}`);
+        await supabase
+          .from('rari_feedback')
+          .insert({
+            user_id: userId,
+            feedback_type: 'not_working',
+            keywords: [functionName],
+            user_query: JSON.stringify(args),
+            rari_response: `Unknown function: ${functionName}`,
+            context: { function_name: functionName, args }
+          });
+        
+        return { 
+          error: `I don't have that capability yet, but I've noted your request.`,
+          summary: `That feature isn't available yet, but I've logged it for the team. Is there something else I can help you with?`
+        };
     }
   } catch (error) {
     console.error(`Error in ${functionName}:`, error);
