@@ -158,7 +158,7 @@ const Dashboard = () => {
         content = <CoreEnhanced />;
         break;
       default:
-        content = <DashboardOverview modules={modules} onModuleClick={handleModuleChange} />;
+        content = <DashboardOverview onModuleClick={handleModuleChange} />;
     }
 
     return (
