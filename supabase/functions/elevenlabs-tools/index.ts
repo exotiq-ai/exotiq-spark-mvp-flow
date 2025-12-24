@@ -569,6 +569,181 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
         };
       }
 
+      case "getDemandForecast": {
+        const { city = 'miami', days = 14 } = args;
+        console.log(`[getDemandForecast] City: ${city}, Days: ${days}`);
+        
+        // Call the PredictHQ events edge function
+        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+        const predicthqKey = Deno.env.get('PREDICTHQ_API_KEY');
+        
+        let events: any[] = [];
+        let demandMultiplier = 1.0;
+        
+        if (predicthqKey) {
+          try {
+            const response = await fetch(`${supabaseUrl}/functions/v1/predicthq-events`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ city, days })
+            });
+            const data = await response.json();
+            events = data.events || [];
+            demandMultiplier = data.demandMultiplier || 1.0;
+          } catch (e) {
+            console.error('Error fetching events:', e);
+          }
+        }
+        
+        // Get historical bookings for demand context
+        const { data: bookings } = await supabase
+          .from('bookings')
+          .select('start_date, total_value')
+          .eq('user_id', userId)
+          .gte('start_date', new Date().toISOString())
+          .order('start_date', { ascending: true })
+          .limit(20);
+        
+        const upcomingBookings = bookings?.length || 0;
+        const upcomingRevenue = bookings?.reduce((sum, b) => sum + Number(b.total_value || 0), 0) || 0;
+        
+        return {
+          city,
+          forecastDays: days,
+          demandMultiplier,
+          upcomingEvents: events.slice(0, 5).map((e: any) => ({
+            name: e.name,
+            date: e.date,
+            category: e.category,
+            attendance: e.attendance
+          })),
+          totalEvents: events.length,
+          upcomingBookings,
+          upcomingRevenue: `$${upcomingRevenue.toFixed(0)}`,
+          summary: events.length > 0 
+            ? `For ${city}, there are ${events.length} upcoming events with a ${demandMultiplier.toFixed(2)}x demand multiplier. Top events include ${events.slice(0, 2).map((e: any) => e.name).join(' and ')}. You have ${upcomingBookings} bookings worth $${upcomingRevenue.toFixed(0)} coming up.`
+            : `No major events found for ${city} in the next ${days} days. You have ${upcomingBookings} bookings worth $${upcomingRevenue.toFixed(0)} coming up.`
+        };
+      }
+
+      case "getPricingRecommendation": {
+        const { vehicleName } = args;
+        console.log(`[getPricingRecommendation] Vehicle: ${vehicleName}`);
+        
+        // Find the vehicle
+        const { data: vehicle } = await supabase
+          .from('vehicles')
+          .select('*')
+          .eq('user_id', userId)
+          .or(`name.ilike.%${vehicleName}%,make.ilike.%${vehicleName}%,model.ilike.%${vehicleName}%`)
+          .maybeSingle();
+
+        if (!vehicle) {
+          return { 
+            error: "Vehicle not found",
+            summary: `I couldn't find a vehicle matching "${vehicleName}" in your fleet.`
+          };
+        }
+
+        const currentRate = Number(vehicle.current_rate);
+        const utilization = vehicle.utilization || 0;
+        
+        // Calculate AI-style recommendation
+        let suggestedRate = currentRate;
+        const factors: string[] = [];
+        
+        // Utilization-based pricing
+        if (utilization > 80) {
+          suggestedRate *= 1.15;
+          factors.push(`high demand at ${utilization}% utilization`);
+        } else if (utilization < 50) {
+          suggestedRate *= 0.95;
+          factors.push(`low utilization at ${utilization}%`);
+        }
+        
+        // Seasonal adjustment
+        const month = new Date().getMonth();
+        if ([5, 6, 7, 11].includes(month)) {
+          suggestedRate *= 1.10;
+          factors.push('peak season premium');
+        }
+        
+        suggestedRate = Math.round(suggestedRate / 5) * 5;
+        const difference = suggestedRate - currentRate;
+        const percentChange = ((difference / currentRate) * 100).toFixed(1);
+        
+        return {
+          vehicle: `${vehicle.year} ${vehicle.make} ${vehicle.model}`,
+          currentRate: `$${currentRate}`,
+          suggestedRate: `$${suggestedRate}`,
+          difference: difference > 0 ? `+$${difference}` : `$${difference}`,
+          percentChange: difference > 0 ? `+${percentChange}%` : `${percentChange}%`,
+          factors,
+          monthlyImpact: `$${Math.abs(difference * 20).toFixed(0)}/month`,
+          summary: suggestedRate > currentRate 
+            ? `I recommend increasing the rate for your ${vehicle.year} ${vehicle.make} ${vehicle.model} from $${currentRate} to $${suggestedRate} per day, a ${percentChange}% increase. This is based on ${factors.join(' and ')}. This could add approximately $${Math.abs(difference * 20).toFixed(0)} per month in revenue.`
+            : suggestedRate < currentRate
+              ? `Consider reducing the rate for your ${vehicle.year} ${vehicle.make} ${vehicle.model} from $${currentRate} to $${suggestedRate} per day to boost bookings. This is based on ${factors.join(' and ')}.`
+              : `The current rate of $${currentRate} for your ${vehicle.year} ${vehicle.make} ${vehicle.model} appears optimal given current market conditions.`
+        };
+      }
+
+      case "getFleetPricingOverview": {
+        console.log(`[getFleetPricingOverview] User: ${userId}`);
+        
+        const { data: vehicles } = await supabase
+          .from('vehicles')
+          .select('*')
+          .eq('user_id', userId);
+        
+        if (!vehicles || vehicles.length === 0) {
+          return {
+            summary: "You don't have any vehicles in your fleet yet to analyze pricing for."
+          };
+        }
+        
+        const totalVehicles = vehicles.length;
+        const avgRate = vehicles.reduce((sum, v) => sum + Number(v.current_rate), 0) / totalVehicles;
+        const avgUtilization = vehicles.reduce((sum, v) => sum + (v.utilization || 0), 0) / totalVehicles;
+        const totalRevenue = vehicles.reduce((sum, v) => sum + Number(v.revenue || 0), 0);
+        
+        // Find under and over-utilized vehicles
+        const underUtilized = vehicles.filter(v => (v.utilization || 0) < 50);
+        const highPerformers = vehicles.filter(v => (v.utilization || 0) > 75);
+        
+        return {
+          totalVehicles,
+          averageRate: `$${avgRate.toFixed(0)}`,
+          averageUtilization: `${avgUtilization.toFixed(0)}%`,
+          totalFleetRevenue: `$${totalRevenue.toFixed(0)}`,
+          underUtilizedCount: underUtilized.length,
+          highPerformerCount: highPerformers.length,
+          topPerformers: highPerformers.slice(0, 3).map(v => ({
+            name: `${v.year} ${v.make} ${v.model}`,
+            utilization: `${v.utilization}%`,
+            rate: `$${v.current_rate}`
+          })),
+          recommendations: underUtilized.length > 0 
+            ? `${underUtilized.length} vehicles are under-utilized and may benefit from price adjustments.`
+            : 'Fleet pricing looks healthy!',
+          summary: `Your fleet of ${totalVehicles} vehicles has an average daily rate of $${avgRate.toFixed(0)} and ${avgUtilization.toFixed(0)}% average utilization. Total fleet revenue is $${totalRevenue.toFixed(0)}. ${highPerformers.length} vehicles are performing above 75% utilization, while ${underUtilized.length} are below 50%.`
+        };
+      }
+
+      case "getEventImpact": {
+        const { eventName } = args;
+        console.log(`[getEventImpact] Searching for event: ${eventName}`);
+        
+        // This would typically call PredictHQ to search for a specific event
+        // For now, return helpful context
+        return {
+          searched: eventName,
+          impact: "Events typically increase demand by 15-30% in the surrounding area",
+          recommendation: "Consider adjusting rates 2-3 days before major events to capture increased demand",
+          summary: `For events like "${eventName}", you can expect increased demand for luxury vehicle rentals. I recommend raising rates by 15-25% during peak event days and ensuring your highest-demand vehicles are available.`
+        };
+      }
+
       case "getWeatherInfo": {
         const { location } = args;
         
