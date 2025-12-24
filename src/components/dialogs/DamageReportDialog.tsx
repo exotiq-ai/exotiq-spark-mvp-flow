@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,8 @@ import { useFleet } from "@/contexts/FleetContext";
 import { toast } from "sonner";
 import { Tables } from "@/integrations/supabase/types";
 import { z } from "zod";
+import { supabase } from "@/integrations/supabase/client";
+import { Upload, X, Image, Loader2 } from "lucide-react";
 
 const damageClaimSchema = z.object({
   vehicle_id: z.string().uuid({ message: "Valid vehicle selection required" }),
@@ -46,6 +48,9 @@ interface DamageReportDialogProps {
 export const DamageReportDialog = ({ open, onOpenChange, vehicles }: DamageReportDialogProps) => {
   const { createDamageClaim } = useFleet();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadedPhotos, setUploadedPhotos] = useState<{ url: string; name: string }[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [formData, setFormData] = useState({
     vehicle_id: "",
@@ -56,10 +61,73 @@ export const DamageReportDialog = ({ open, onOpenChange, vehicles }: DamageRepor
     insurance_claim_number: ""
   });
 
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsUploading(true);
+    const newPhotos: { url: string; name: string }[] = [];
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error("You must be logged in to upload photos");
+        return;
+      }
+
+      for (const file of Array.from(files)) {
+        if (!file.type.startsWith('image/')) {
+          toast.error(`${file.name} is not an image file`);
+          continue;
+        }
+
+        if (file.size > 10 * 1024 * 1024) {
+          toast.error(`${file.name} is too large (max 10MB)`);
+          continue;
+        }
+
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('damage-photos')
+          .upload(fileName, file);
+
+        if (uploadError) {
+          console.error('Upload error:', uploadError);
+          toast.error(`Failed to upload ${file.name}`);
+          continue;
+        }
+
+        const { data: urlData } = supabase.storage
+          .from('damage-photos')
+          .getPublicUrl(fileName);
+
+        newPhotos.push({ url: urlData.publicUrl, name: file.name });
+      }
+
+      setUploadedPhotos(prev => [...prev, ...newPhotos]);
+      if (newPhotos.length > 0) {
+        toast.success(`Uploaded ${newPhotos.length} photo(s)`);
+      }
+    } catch (error) {
+      console.error('Photo upload error:', error);
+      toast.error("Failed to upload photos");
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const removePhoto = (index: number) => {
+    setUploadedPhotos(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate form data with zod schema
     const validation = damageClaimSchema.safeParse(formData);
     
     if (!validation.success) {
@@ -76,7 +144,8 @@ export const DamageReportDialog = ({ open, onOpenChange, vehicles }: DamageRepor
         severity: validation.data.severity,
         description: validation.data.description,
         estimated_cost: validation.data.estimated_cost ? parseFloat(validation.data.estimated_cost) : undefined,
-        insurance_claim_number: validation.data.insurance_claim_number || undefined
+        insurance_claim_number: validation.data.insurance_claim_number || undefined,
+        photo_urls: uploadedPhotos.map(p => p.url)
       });
 
       // Reset form
@@ -88,6 +157,7 @@ export const DamageReportDialog = ({ open, onOpenChange, vehicles }: DamageRepor
         estimated_cost: "",
         insurance_claim_number: ""
       });
+      setUploadedPhotos([]);
       
       toast.success("Damage claim created successfully");
       onOpenChange(false);
@@ -176,6 +246,63 @@ export const DamageReportDialog = ({ open, onOpenChange, vehicles }: DamageRepor
             </p>
           </div>
 
+          {/* Photo Upload */}
+          <div className="space-y-2">
+            <Label>Damage Photos</Label>
+            <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-4 text-center hover:border-primary/50 transition-colors">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handlePhotoUpload}
+                className="hidden"
+                id="damage-photo-upload"
+              />
+              <label
+                htmlFor="damage-photo-upload"
+                className="cursor-pointer flex flex-col items-center gap-2"
+              >
+                {isUploading ? (
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                ) : (
+                  <Upload className="h-8 w-8 text-muted-foreground" />
+                )}
+                <span className="text-sm text-muted-foreground">
+                  {isUploading ? "Uploading..." : "Click to upload damage photos"}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  JPG, PNG up to 10MB each
+                </span>
+              </label>
+            </div>
+
+            {/* Uploaded Photos Preview */}
+            {uploadedPhotos.length > 0 && (
+              <div className="grid grid-cols-3 gap-2 mt-2">
+                {uploadedPhotos.map((photo, index) => (
+                  <div key={index} className="relative group">
+                    <img
+                      src={photo.url}
+                      alt={photo.name}
+                      className="w-full h-24 object-cover rounded-md border"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removePhoto(index)}
+                      className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Photos stored securely in SOC2-compliant Supabase Storage
+            </p>
+          </div>
+
           {/* Estimated Cost */}
           <div className="space-y-2">
             <Label htmlFor="estimated_cost">Estimated Cost</Label>
@@ -208,7 +335,7 @@ export const DamageReportDialog = ({ open, onOpenChange, vehicles }: DamageRepor
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" disabled={isSubmitting || isUploading}>
               {isSubmitting ? "Creating..." : "Create Claim"}
             </Button>
           </div>
