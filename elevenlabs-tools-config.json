@@ -210,6 +210,67 @@
       }
     },
     {
+      "name": "getDemandForecast",
+      "description": "Get AI-powered demand forecast with upcoming events data from PredictHQ for a specific city and time period",
+      "webhook_url": "https://jlgwbbqydjeokypoenoc.supabase.co/functions/v1/elevenlabs-tools",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "city": {
+            "type": "string",
+            "description": "City name for the forecast (e.g., 'miami', 'los-angeles', 'new-york')",
+            "default": "miami"
+          },
+          "days": {
+            "type": "integer",
+            "description": "Number of days to forecast (7, 14, or 30)",
+            "default": 14
+          }
+        },
+        "required": []
+      }
+    },
+    {
+      "name": "getPricingRecommendation",
+      "description": "Get AI-powered pricing recommendation for a specific vehicle based on utilization, demand, and seasonal factors",
+      "webhook_url": "https://jlgwbbqydjeokypoenoc.supabase.co/functions/v1/elevenlabs-tools",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "vehicleName": {
+            "type": "string",
+            "description": "Name or partial name of the vehicle to get pricing recommendation for"
+          }
+        },
+        "required": ["vehicleName"]
+      }
+    },
+    {
+      "name": "getFleetPricingOverview",
+      "description": "Get comprehensive pricing overview for the entire fleet including average rates, utilization, and optimization recommendations",
+      "webhook_url": "https://jlgwbbqydjeokypoenoc.supabase.co/functions/v1/elevenlabs-tools",
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      }
+    },
+    {
+      "name": "getEventImpact",
+      "description": "Get information about how a specific event might impact rental demand and pricing",
+      "webhook_url": "https://jlgwbbqydjeokypoenoc.supabase.co/functions/v1/elevenlabs-tools",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "eventName": {
+            "type": "string",
+            "description": "Name of the event to analyze (e.g., 'Super Bowl', 'Miami Music Festival')"
+          }
+        },
+        "required": ["eventName"]
+      }
+    },
+    {
       "name": "getWeatherInfo",
       "description": "Get simulated weather information for a location (demo purposes)",
       "webhook_url": "https://jlgwbbqydjeokypoenoc.supabase.co/functions/v1/elevenlabs-tools",
@@ -247,6 +308,69 @@
           }
         },
         "required": ["vehicleName"]
+      }
+    },
+    {
+      "name": "get_fleet_vehicles",
+      "description": "Get all vehicles in the fleet, optionally filtered by status",
+      "webhook_url": "https://jlgwbbqydjeokypoenoc.supabase.co/functions/v1/elevenlabs-tools",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["all", "available", "rented", "maintenance"],
+            "description": "Filter vehicles by status"
+          }
+        },
+        "required": []
+      }
+    },
+    {
+      "name": "get_bookings",
+      "description": "Get bookings with optional filters for status and date range",
+      "webhook_url": "https://jlgwbbqydjeokypoenoc.supabase.co/functions/v1/elevenlabs-tools",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["all", "pending", "confirmed", "active", "completed", "cancelled"],
+            "description": "Filter by booking status"
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "description": "Filter bookings starting from this date"
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date",
+            "description": "Filter bookings ending before this date"
+          }
+        },
+        "required": []
+      }
+    },
+    {
+      "name": "get_recent_activity",
+      "description": "Get recent activity feed including bookings, payments, and other events",
+      "webhook_url": "https://jlgwbbqydjeokypoenoc.supabase.co/functions/v1/elevenlabs-tools",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "description": "Number of activities to return",
+            "default": 10
+          },
+          "activity_type": {
+            "type": "string",
+            "enum": ["all", "bookings", "payments", "maintenance"],
+            "description": "Filter by activity type"
+          }
+        },
+        "required": []
       }
     }
   ]
