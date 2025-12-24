@@ -1,0 +1,134 @@
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import Stripe from "https://esm.sh/stripe@18.5.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+// Stripe Price IDs
+const STRIPE_PRICES = {
+  starter: {
+    monthly: 'price_1ShjP0HO7nC3pJiP4ExcElvZ',
+    annual: 'price_1ShjP6HO7nC3pJiP9QBawM60',
+  },
+  professional: {
+    monthly: 'price_1ShjP8HO7nC3pJiPQyJ3HFB4',
+    annual: 'price_1ShjPBHO7nC3pJiP6KR4QvWc',
+  },
+  business: {
+    monthly: 'price_1ShjPCHO7nC3pJiP3e6FjmV9',
+    annual: 'price_1ShjPEHO7nC3pJiPdIX5VJuc',
+  },
+  enterprise: {
+    monthly: 'price_1ShjPFHO7nC3pJiPDFbyAUZF',
+    annual: 'price_1ShjPHHO7nC3pJiPoU8XyhuH',
+  },
+};
+
+serve(async (req) => {
+  // Handle CORS preflight requests
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const { tierId, isAnnual, fleetSize } = await req.json();
+    
+    console.log('Creating checkout session:', { tierId, isAnnual, fleetSize });
+
+    // Validate tier
+    if (!STRIPE_PRICES[tierId as keyof typeof STRIPE_PRICES]) {
+      throw new Error(`Invalid tier: ${tierId}`);
+    }
+
+    // Initialize Stripe
+    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
+      apiVersion: "2025-08-27.basil",
+    });
+
+    // Get the correct price ID
+    const priceId = isAnnual 
+      ? STRIPE_PRICES[tierId as keyof typeof STRIPE_PRICES].annual
+      : STRIPE_PRICES[tierId as keyof typeof STRIPE_PRICES].monthly;
+
+    // Create Supabase client to check for authenticated user
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? ""
+    );
+
+    let customerId: string | undefined;
+    let customerEmail: string | undefined;
+
+    // Try to get authenticated user
+    const authHeader = req.headers.get("Authorization");
+    if (authHeader) {
+      const token = authHeader.replace("Bearer ", "");
+      const { data } = await supabaseClient.auth.getUser(token);
+      
+      if (data.user?.email) {
+        customerEmail = data.user.email;
+        
+        // Check if customer already exists in Stripe
+        const customers = await stripe.customers.list({ 
+          email: customerEmail, 
+          limit: 1 
+        });
+        
+        if (customers.data.length > 0) {
+          customerId = customers.data[0].id;
+        }
+      }
+    }
+
+    // Create checkout session
+    const session = await stripe.checkout.sessions.create({
+      customer: customerId,
+      customer_email: customerId ? undefined : customerEmail,
+      line_items: [
+        {
+          price: priceId,
+          quantity: fleetSize,
+        },
+      ],
+      mode: "subscription",
+      subscription_data: {
+        trial_period_days: 14,
+        metadata: {
+          tierId,
+          fleetSize: String(fleetSize),
+          isFounderPricing: 'true',
+        },
+      },
+      metadata: {
+        tierId,
+        fleetSize: String(fleetSize),
+        isFounderPricing: 'true',
+      },
+      success_url: `${req.headers.get("origin")}/welcome?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${req.headers.get("origin")}/?canceled=true#pricing`,
+      allow_promotion_codes: true,
+    });
+
+    console.log('Checkout session created:', session.id);
+
+    return new Response(
+      JSON.stringify({ url: session.url, sessionId: session.id }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      }
+    );
+  } catch (error) {
+    console.error('Checkout error:', error);
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500,
+      }
+    );
+  }
+});

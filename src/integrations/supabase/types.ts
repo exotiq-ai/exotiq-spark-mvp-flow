@@ -655,6 +655,54 @@ export type Database = {
           },
         ]
       }
+      onboarding_responses: {
+        Row: {
+          business_name: string | null
+          created_at: string
+          current_software: string | null
+          fleet_size: string | null
+          id: string
+          location: string | null
+          pain_points: string | null
+          phone: string | null
+          referral_source: string | null
+          session_id: string | null
+          updated_at: string
+          user_id: string | null
+          vehicle_types: string | null
+        }
+        Insert: {
+          business_name?: string | null
+          created_at?: string
+          current_software?: string | null
+          fleet_size?: string | null
+          id?: string
+          location?: string | null
+          pain_points?: string | null
+          phone?: string | null
+          referral_source?: string | null
+          session_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+          vehicle_types?: string | null
+        }
+        Update: {
+          business_name?: string | null
+          created_at?: string
+          current_software?: string | null
+          fleet_size?: string | null
+          id?: string
+          location?: string | null
+          pain_points?: string | null
+          phone?: string | null
+          referral_source?: string | null
+          session_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+          vehicle_types?: string | null
+        }
+        Relationships: []
+      }
       payments: {
         Row: {
           amount: number

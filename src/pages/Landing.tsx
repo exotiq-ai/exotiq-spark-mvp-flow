@@ -1,4 +1,3 @@
-
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -6,9 +5,8 @@ import { SEOHead } from "@/components/common/SEOHead";
 import { Navigation } from "@/components/landing/Navigation";
 import { HeroSection } from "@/components/landing/HeroSection";
 import { FeaturesSection } from "@/components/landing/FeaturesSection";
-import { PricingSection } from "@/components/landing/PricingSection";
+import { PricingSectionNew } from "@/components/landing/PricingSectionNew";
 import { TestimonialsSection } from "@/components/landing/TestimonialsSection";
-import { CTASection } from "@/components/landing/CTASection";
 import { Footer } from "@/components/landing/Footer";
 
 const Landing = () => {
@@ -16,14 +14,15 @@ const Landing = () => {
   const navigate = useNavigate();
 
   const handleRequestAccess = () => {
-    window.open('https://exotiq.ai/contact', '_blank');
+    // Scroll to pricing
+    const pricingSection = document.getElementById('pricing-cards');
+    if (pricingSection) {
+      pricingSection.scrollIntoView({ behavior: 'smooth' });
+    }
   };
 
   const handleGetStarted = () => {
-    toast({
-      title: "Coming Soon",
-      description: "We're preparing your premium experience!",
-    });
+    navigate('/auth?trial=true');
   };
 
   const handleTryDemo = () => {
@@ -56,13 +55,10 @@ const Landing = () => {
         onTryDemo={handleTryDemo}
       />
       <FeaturesSection />
-      <PricingSection onGetStarted={handleGetStarted} />
+      <section id="pricing">
+        <PricingSectionNew />
+      </section>
       <TestimonialsSection />
-      <CTASection 
-        onRequestAccess={handleRequestAccess}
-        onGetStarted={handleGetStarted}
-        onTryDemo={handleTryDemo}
-      />
       <Footer />
     </div>
   );
