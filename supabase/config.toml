@@ -29,3 +29,12 @@ verify_jwt = false
 
 [functions.demo-login]
 verify_jwt = false
+
+[functions.stripe-payment-history]
+verify_jwt = false
+
+[functions.stripe-get-balance]
+verify_jwt = false
+
+[functions.export-payments]
+verify_jwt = false
