@@ -8,10 +8,12 @@ import { FeaturesSection } from "@/components/landing/FeaturesSection";
 import { PricingSectionNew } from "@/components/landing/PricingSectionNew";
 import { TestimonialsSection } from "@/components/landing/TestimonialsSection";
 import { Footer } from "@/components/landing/Footer";
+import { CalendlyModal } from "@/components/landing/CalendlyModal";
 
 const Landing = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [calendlyOpen, setCalendlyOpen] = useState(false);
 
   const handleRequestAccess = () => {
     // Scroll to pricing
@@ -27,6 +29,10 @@ const Landing = () => {
 
   const handleTryDemo = () => {
     navigate('/demo-landing');
+  };
+
+  const handleScheduleDemo = () => {
+    setCalendlyOpen(true);
   };
 
   const scrollToSection = (sectionId: string) => {
@@ -48,11 +54,17 @@ const Landing = () => {
         onRequestAccess={handleRequestAccess}
         onTryDemo={handleTryDemo}
         scrollToSection={scrollToSection}
+        onScheduleDemo={handleScheduleDemo}
       />
       <HeroSection 
         onRequestAccess={handleRequestAccess}
         onGetStarted={handleGetStarted}
         onTryDemo={handleTryDemo}
+        onScheduleDemo={handleScheduleDemo}
+      />
+      <CalendlyModal 
+        open={calendlyOpen} 
+        onOpenChange={setCalendlyOpen} 
       />
       <FeaturesSection />
       <section id="pricing">

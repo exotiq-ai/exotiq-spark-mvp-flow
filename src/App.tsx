@@ -17,6 +17,7 @@ import Demo from "./pages/Demo";
 import DemoLanding from "./pages/DemoLanding";
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
+import Welcome from "./pages/Welcome";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -48,6 +49,7 @@ const App = () => (
                     } />
                     <Route path="/demo-landing" element={<DemoLanding />} />
                     <Route path="/demo" element={<Demo />} />
+                    <Route path="/welcome" element={<Welcome />} />
                     {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                     <Route path="*" element={<NotFound />} />
                   </Routes>

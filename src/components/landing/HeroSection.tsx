@@ -1,14 +1,15 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Zap, ArrowRight } from "lucide-react";
+import { Zap, ArrowRight, Calendar } from "lucide-react";
 
 interface HeroSectionProps {
   onRequestAccess: () => void;
   onGetStarted: () => void;
   onTryDemo: () => void;
+  onScheduleDemo?: () => void;
 }
 
-export const HeroSection = ({ onRequestAccess, onGetStarted, onTryDemo }: HeroSectionProps) => {
+export const HeroSection = ({ onRequestAccess, onGetStarted, onTryDemo, onScheduleDemo }: HeroSectionProps) => {
   return (
     <section className="relative py-12 sm:py-16 lg:py-20 px-4 sm:px-6 overflow-hidden">
       {/* Animated background gradient */}
@@ -37,7 +38,7 @@ export const HeroSection = ({ onRequestAccess, onGetStarted, onTryDemo }: HeroSe
             className="btn-premium h-12 sm:h-14 text-base sm:text-lg px-6 sm:px-8 hover:scale-105 transition-all shadow-elegant relative overflow-hidden group" 
             onClick={onRequestAccess}
           >
-            <span className="relative z-10">Request Access</span>
+            <span className="relative z-10">Start Free Trial</span>
             <ArrowRight className="ml-2 h-5 w-5 relative z-10 group-hover:translate-x-1 transition-transform" />
             <div className="absolute inset-0 bg-gradient-to-r from-primary via-primary-glow to-primary opacity-0 group-hover:opacity-100 transition-opacity" />
           </Button>
@@ -45,10 +46,11 @@ export const HeroSection = ({ onRequestAccess, onGetStarted, onTryDemo }: HeroSe
           <Button 
             size="lg" 
             variant="outline" 
-            className="h-12 sm:h-14 text-base sm:text-lg px-6 sm:px-8 hover:scale-105 transition-all" 
-            onClick={onGetStarted}
+            className="h-12 sm:h-14 text-base sm:text-lg px-6 sm:px-8 hover:scale-105 transition-all group" 
+            onClick={onScheduleDemo}
           >
-            Watch Demo
+            <Calendar className="mr-2 h-5 w-5 group-hover:scale-110 transition-transform" />
+            Schedule Demo
           </Button>
         </div>
 

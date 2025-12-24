@@ -1,5 +1,8 @@
 project_id = "jlgwbbqydjeokypoenoc"
 
+[functions.create-checkout-session]
+verify_jwt = false
+
 [functions.elevenlabs-session]
 verify_jwt = false
 
