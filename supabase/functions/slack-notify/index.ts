@@ -7,13 +7,15 @@ const corsHeaders = {
 };
 
 interface SlackNotifyRequest {
-  user_id: string;
-  event_type: string;
-  title: string;
+  user_id?: string;
+  webhookUrl?: string;
+  event_type?: string;
+  title?: string;
   message: string;
   fields?: { title: string; value: string; short?: boolean }[];
   color?: string;
   link?: { url: string; text: string };
+  test?: boolean;
 }
 
 serve(async (req) => {
@@ -28,33 +30,83 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    const { user_id, event_type, title, message, fields, color, link }: SlackNotifyRequest = await req.json();
+    const body: SlackNotifyRequest = await req.json();
+    const { user_id, webhookUrl, event_type, title, message, fields, color, link, test } = body;
 
-    // Get user's Slack integration config
-    const { data: integrationConfig, error: configError } = await supabaseClient
-      .from("integration_configs")
-      .select("*")
-      .eq("user_id", user_id)
-      .eq("integration_type", "slack")
-      .eq("is_active", true)
-      .single();
+    // Handle test messages with direct webhook URL
+    if (test && webhookUrl) {
+      const slackPayload = {
+        text: message,
+        attachments: [
+          {
+            color: "#d4a847",
+            text: message,
+            footer: "ExotIQ Fleet Management",
+            ts: Math.floor(Date.now() / 1000)
+          }
+        ]
+      };
 
-    if (configError || !integrationConfig) {
-      console.log("No active Slack integration found for user:", user_id);
+      const slackResponse = await fetch(webhookUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(slackPayload)
+      });
+
+      if (!slackResponse.ok) {
+        const errorText = await slackResponse.text();
+        console.error("Slack API error:", errorText);
+        return new Response(
+          JSON.stringify({ success: false, message: "Failed to send to Slack" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+        );
+      }
+
       return new Response(
-        JSON.stringify({ success: false, message: "No active Slack integration" }),
+        JSON.stringify({ success: true }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
       );
     }
 
-    const config = integrationConfig.config as {
-      webhook_url?: string;
-      enabled_events?: string[];
-      channel?: string;
-    };
+    if (!user_id) {
+      return new Response(
+        JSON.stringify({ success: false, message: "user_id required" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+      );
+    }
+
+    // Get user's notification preferences
+    const { data: prefs, error: prefsError } = await supabaseClient
+      .from("notification_preferences")
+      .select("*")
+      .eq("user_id", user_id)
+      .single();
+
+    if (prefsError || !prefs) {
+      console.log("No notification preferences found for user:", user_id);
+      return new Response(
+        JSON.stringify({ success: false, message: "No notification preferences" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+      );
+    }
+
+    // Check if Slack is enabled
+    if (!prefs.slack_enabled || !prefs.slack_webhook_url) {
+      console.log("Slack not enabled for user:", user_id);
+      return new Response(
+        JSON.stringify({ success: false, message: "Slack not enabled" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+      );
+    }
 
     // Check if this event type is enabled
-    if (config.enabled_events && !config.enabled_events.includes(event_type) && !config.enabled_events.includes("all")) {
+    const eventTypeEnabled = {
+      mention: prefs.slack_mentions,
+      booking: prefs.slack_bookings,
+      payment: prefs.slack_payments,
+    }[event_type || ""] ?? true;
+
+    if (!eventTypeEnabled) {
       console.log("Event type not enabled:", event_type);
       return new Response(
         JSON.stringify({ success: false, message: "Event type not enabled" }),
@@ -62,20 +114,13 @@ serve(async (req) => {
       );
     }
 
-    if (!config.webhook_url) {
-      return new Response(
-        JSON.stringify({ success: false, message: "Webhook URL not configured" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
-      );
-    }
-
     // Build Slack message payload
     const slackPayload = {
-      text: title,
+      text: title || message,
       attachments: [
         {
-          color: color || "#1E3A5F", // Default to primary color
-          title,
+          color: color || "#d4a847",
+          title: title,
           text: message,
           fields: fields?.map(f => ({
             title: f.title,
@@ -89,19 +134,16 @@ serve(async (req) => {
               url: link.url
             }
           ] : undefined,
-          footer: "Exotiq Fleet Management",
-          footer_icon: "https://exotiq.io/logo.png",
+          footer: "ExotIQ Fleet Management",
           ts: Math.floor(Date.now() / 1000)
         }
       ]
     };
 
     // Send to Slack
-    const slackResponse = await fetch(config.webhook_url, {
+    const slackResponse = await fetch(prefs.slack_webhook_url, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(slackPayload)
     });
 
@@ -113,12 +155,6 @@ serve(async (req) => {
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
       );
     }
-
-    // Update last_used_at
-    await supabaseClient
-      .from("integration_configs")
-      .update({ last_used_at: new Date().toISOString() })
-      .eq("id", integrationConfig.id);
 
     console.log("Successfully sent Slack notification for event:", event_type);
 
