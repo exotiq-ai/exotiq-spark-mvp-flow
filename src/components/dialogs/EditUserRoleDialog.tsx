@@ -17,8 +17,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Users, Shield, Info, Loader2 } from "lucide-react";
+import { Users, Shield, Info, Loader2, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 export type AppRole = 'admin' | 'manager' | 'operator' | 'viewer';
 
@@ -90,9 +93,22 @@ export const EditUserRoleDialog = ({
   user,
   onSave 
 }: EditUserRoleDialogProps) => {
+  const { user: currentUser } = useAuth();
   const [selectedRole, setSelectedRole] = useState<AppRole>('viewer');
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [adminCount, setAdminCount] = useState<number>(0);
+
+  // Check if this is editing your own role
+  const isEditingSelf = user?.user_id === currentUser?.id;
+  const isCurrentlyAdmin = user?.role === 'admin';
+  const isDemotingFromAdmin = isCurrentlyAdmin && selectedRole !== 'admin';
+  const isLastAdmin = adminCount <= 1;
+
+  // Determine if save should be blocked
+  const isSelfDemotion = isEditingSelf && isDemotingFromAdmin;
+  const isRemovingLastAdmin = isDemotingFromAdmin && isLastAdmin;
+  const isSaveBlocked = isSelfDemotion || isRemovingLastAdmin;
 
   useEffect(() => {
     if (user) {
@@ -100,6 +116,20 @@ export const EditUserRoleDialog = ({
       setSelectedPermissions(user.permissions);
     }
   }, [user]);
+
+  // Fetch admin count when dialog opens
+  useEffect(() => {
+    if (open) {
+      const fetchAdminCount = async () => {
+        const { count } = await supabase
+          .from('user_roles')
+          .select('*', { count: 'exact', head: true })
+          .eq('role', 'admin');
+        setAdminCount(count || 0);
+      };
+      fetchAdminCount();
+    }
+  }, [open]);
 
   const handleRoleChange = (role: AppRole) => {
     setSelectedRole(role);
@@ -116,7 +146,7 @@ export const EditUserRoleDialog = ({
   };
 
   const handleSave = async () => {
-    if (!user) return;
+    if (!user || isSaveBlocked) return;
     
     setIsSaving(true);
     try {
@@ -143,13 +173,38 @@ export const EditUserRoleDialog = ({
         </DialogHeader>
 
         <div className="space-y-6 py-4">
+          {/* Self-demotion Warning */}
+          {isSelfDemotion && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                You cannot remove your own admin role. Ask another admin to change your role.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Last Admin Warning */}
+          {isRemovingLastAdmin && !isSelfDemotion && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                This is the last admin. At least one admin must exist at all times.
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* User Info Header */}
           <div className="flex items-center gap-4 p-4 rounded-lg bg-muted/30 border border-primary/10">
             <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
               <Users className="w-6 h-6 text-primary" />
             </div>
             <div className="flex-1 min-w-0">
-              <h4 className="font-semibold truncate">{user.name}</h4>
+              <h4 className="font-semibold truncate">
+                {user.name}
+                {isEditingSelf && (
+                  <Badge variant="outline" className="ml-2 text-xs">You</Badge>
+                )}
+              </h4>
               <p className="text-sm text-muted-foreground truncate">{user.email}</p>
             </div>
             <Badge className={ROLE_CONFIG[user.role].color}>
@@ -213,7 +268,11 @@ export const EditUserRoleDialog = ({
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={isSaving} className="btn-premium">
+          <Button 
+            onClick={handleSave} 
+            disabled={isSaving || isSaveBlocked} 
+            className="btn-premium"
+          >
             {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
             Save Changes
           </Button>

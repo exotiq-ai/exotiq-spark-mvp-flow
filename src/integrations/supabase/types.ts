@@ -1278,6 +1278,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      count_admins: { Args: never; Returns: number }
       get_my_role: {
         Args: never
         Returns: {
