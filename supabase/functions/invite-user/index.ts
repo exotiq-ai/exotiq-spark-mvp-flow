@@ -133,7 +133,7 @@ serve(async (req: Request) => {
 
     // Send invitation email
     const emailResponse = await resend.emails.send({
-      from: `${companyName} <onboarding@resend.dev>`,
+      from: "Exotiq <noreply@mail.exotiq.ai>",
       to: [email],
       subject: `You've been invited to join ${companyName}`,
       html: `
