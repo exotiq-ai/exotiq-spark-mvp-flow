@@ -189,8 +189,9 @@ export const UserManagementSection = () => {
         .eq('user_id', userId)
         .single();
 
-      const oldRole = existingRole?.role;
+      const oldRole = existingRole?.role || 'viewer';
       const oldPermissions = existingRole?.permissions || [];
+      const roleChanged = oldRole !== role;
 
       if (existingRole) {
         // Update existing role
@@ -210,7 +211,7 @@ export const UserManagementSection = () => {
       }
 
       // Log to audit
-      const action = oldRole !== role ? 'role_change' : 'permissions_updated';
+      const action = roleChanged ? 'role_change' : 'permissions_updated';
       await supabase.from('role_audit_log').insert({
         user_id: userId,
         changed_by: currentUser.id,
@@ -221,18 +222,39 @@ export const UserManagementSection = () => {
         new_permissions: permissions,
       });
 
+      // Send role change notification email if role changed
+      if (roleChanged) {
+        try {
+          await supabase.functions.invoke('role-change-notification', {
+            body: {
+              userId,
+              oldRole,
+              newRole: role,
+              oldPermissions,
+              newPermissions: permissions,
+              changedBy: currentUser.id,
+            }
+          });
+        } catch (notifError) {
+          console.error('Failed to send role change notification:', notifError);
+          // Don't fail the whole operation if notification fails
+        }
+      }
+
       toast({
         title: "Role Updated",
-        description: "User role and permissions have been updated successfully.",
+        description: roleChanged 
+          ? "User role has been updated and they've been notified via email."
+          : "User permissions have been updated successfully.",
       });
 
       // Refresh user list
       fetchUsers();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating role:', error);
       toast({
         title: "Error",
-        description: "Failed to update user role. You may not have admin permissions.",
+        description: error.message || "Failed to update user role. You may not have admin permissions.",
         variant: "destructive"
       });
     }
