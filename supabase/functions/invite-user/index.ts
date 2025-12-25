@@ -15,6 +15,14 @@ interface InviteRequest {
   permissions: string[];
 }
 
+// Role hierarchy - higher number = more permissions
+const roleHierarchy: Record<string, number> = {
+  admin: 4,
+  manager: 3,
+  operator: 2,
+  viewer: 1,
+};
+
 serve(async (req: Request) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -45,21 +53,43 @@ serve(async (req: Request) => {
     // Create admin client for operations
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Check if user is admin using the has_role function
-    const { data: isAdmin, error: roleError } = await supabaseAdmin.rpc("has_role", {
-      _user_id: user.id,
-      _role: "admin",
-    });
+    // Get inviter's role
+    const { data: inviterRole, error: roleError } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .single();
 
-    if (roleError || !isAdmin) {
+    if (roleError || !inviterRole) {
       console.error("Role check failed:", roleError);
-      throw new Error("Only admins can invite users");
+      throw new Error("You don't have permission to invite users");
+    }
+
+    const inviterRoleLevel = roleHierarchy[inviterRole.role] || 0;
+    
+    // Only admins and managers can invite users
+    if (inviterRoleLevel < roleHierarchy.manager) {
+      throw new Error("Only admins and managers can invite users");
     }
 
     const { email, role, permissions }: InviteRequest = await req.json();
 
     if (!email) {
       throw new Error("Email is required");
+    }
+
+    const targetRoleLevel = roleHierarchy[role] || 1;
+
+    // Managers can only invite operators and viewers (roles below them)
+    if (inviterRole.role === "manager") {
+      if (targetRoleLevel >= roleHierarchy.manager) {
+        throw new Error("Managers can only invite operators and viewers");
+      }
+    }
+
+    // Non-admins cannot invite admins
+    if (role === "admin" && inviterRole.role !== "admin") {
+      throw new Error("Only admins can invite other admins");
     }
 
     // Generate secure invitation token
@@ -124,7 +154,7 @@ serve(async (req: Request) => {
       .eq("id", user.id)
       .single();
 
-    const inviterName = inviterProfile?.full_name || "An administrator";
+    const inviterName = inviterProfile?.full_name || "Your team";
     const companyName = inviterProfile?.company_name || "Exotiq";
 
     // Get the app URL from the request origin or use a default

@@ -56,3 +56,6 @@ verify_jwt = false
 
 [functions.resend-invite]
 verify_jwt = false
+
+[functions.role-change-notification]
+verify_jwt = false
