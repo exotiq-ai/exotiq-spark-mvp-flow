@@ -25,6 +25,7 @@ interface AuthContextType {
   loading: boolean;
   subscription: SubscriptionStatus;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: any }>;
+  signUpWithInvite: (email: string, password: string, fullName: string, inviteToken: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signInWithMagicLink: (email: string) => Promise<{ error: any }>;
   resetPassword: (email: string) => Promise<{ error: any }>;
@@ -62,6 +63,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [subscription, setSubscription] = useState<SubscriptionStatus>(defaultSubscription);
+  const [pendingInviteToken, setPendingInviteToken] = useState<string | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -170,18 +172,57 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => clearInterval(interval);
   }, [session, checkSubscription]);
 
+  // Process pending invite after user is created
+  const processPendingInvite = useCallback(async (userId: string, token: string) => {
+    try {
+      console.log('Processing pending invite for user:', userId);
+      
+      const { data, error } = await supabase.functions.invoke('accept-invite?action=accept', {
+        body: { token, userId },
+        method: 'POST',
+      });
+
+      if (error || data?.error) {
+        console.error('Error accepting invite:', error || data?.error);
+        // Don't throw - user is already created, just log the error
+        toast({
+          title: "Warning",
+          description: "Account created but there was an issue with the invitation. Please contact support.",
+          variant: "destructive",
+        });
+      } else {
+        console.log('Invite accepted successfully:', data);
+        toast({
+          title: `Welcome to ${data.companyName || 'the team'}!`,
+          description: `You've joined as a ${data.role || 'team member'}.`,
+        });
+      }
+    } catch (err) {
+      console.error('Error processing invite:', err);
+    } finally {
+      setPendingInviteToken(null);
+    }
+  }, [toast]);
+
   useEffect(() => {
     // Set up auth state listener
     const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         
-        if (event === 'SIGNED_IN') {
-          // Check if onboarding is complete
-          setTimeout(() => {
-            checkOnboardingStatus(session?.user?.id);
-          }, 0);
+        if (event === 'SIGNED_IN' && session?.user) {
+          // Check if there's a pending invite to process
+          if (pendingInviteToken) {
+            await processPendingInvite(session.user.id, pendingInviteToken);
+            // Invited users go directly to dashboard (onboarding_completed is set by edge function)
+            navigate('/dashboard');
+          } else {
+            // Check if onboarding is complete
+            setTimeout(() => {
+              checkOnboardingStatus(session?.user?.id);
+            }, 0);
+          }
         }
       }
     );
@@ -194,7 +235,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
 
     return () => authSubscription.unsubscribe();
-  }, []);
+  }, [pendingInviteToken, processPendingInvite, navigate]);
 
   const checkOnboardingStatus = async (userId: string | undefined) => {
     if (!userId) return;
@@ -238,6 +279,36 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         description: "Your account has been created successfully.",
       });
     }
+
+    return { error };
+  };
+
+  const signUpWithInvite = async (email: string, password: string, fullName: string, inviteToken: string) => {
+    // Store the invite token to process after signup
+    setPendingInviteToken(inviteToken);
+    
+    const redirectUrl = `${window.location.origin}/dashboard`;
+    
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: redirectUrl,
+        data: {
+          full_name: fullName
+        }
+      }
+    });
+
+    if (error) {
+      setPendingInviteToken(null);
+      toast({
+        title: "Sign Up Failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+    // Success toast and invite processing handled in onAuthStateChange
 
     return { error };
   };
@@ -370,6 +441,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       loading,
       subscription,
       signUp,
+      signUpWithInvite,
       signIn,
       signInWithMagicLink,
       resetPassword,
