@@ -1,17 +1,18 @@
-import { useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
-export const useMessageActions = (conversationId?: string | null) => {
+export const useMessageActions = () => {
   const { user } = useAuth();
+  const [isEditing, setIsEditing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  // Edit a message
   const editMessage = useCallback(async (messageId: string, newContent: string): Promise<boolean> => {
-    if (!user || !conversationId) return false;
+    if (!user) return false;
+    setIsEditing(true);
 
     try {
-      // First check if user owns the message
       const { data: msg } = await supabase
         .from('team_messages')
         .select('sender_id')
@@ -34,22 +35,22 @@ export const useMessageActions = (conversationId?: string | null) => {
         .eq('sender_id', user.id);
 
       if (error) throw error;
-
       toast.success('Message updated');
       return true;
     } catch (error) {
       console.error('Error editing message:', error);
       toast.error('Failed to edit message');
       return false;
+    } finally {
+      setIsEditing(false);
     }
-  }, [user, conversationId]);
+  }, [user]);
 
-  // Delete a message
   const deleteMessage = useCallback(async (messageId: string): Promise<boolean> => {
-    if (!user || !conversationId) return false;
+    if (!user) return false;
+    setIsDeleting(true);
 
     try {
-      // First check if user owns the message
       const { data: msg } = await supabase
         .from('team_messages')
         .select('sender_id')
@@ -68,18 +69,21 @@ export const useMessageActions = (conversationId?: string | null) => {
         .eq('sender_id', user.id);
 
       if (error) throw error;
-
       toast.success('Message deleted');
       return true;
     } catch (error) {
       console.error('Error deleting message:', error);
       toast.error('Failed to delete message');
       return false;
+    } finally {
+      setIsDeleting(false);
     }
-  }, [user, conversationId]);
+  }, [user]);
 
   return {
     editMessage,
     deleteMessage,
+    isEditing,
+    isDeleting,
   };
 };

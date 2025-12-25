@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Conversation } from '@/hooks/useTeamMessaging';
+import { OnlineIndicator } from './OnlineIndicator';
+import { usePresence } from '@/hooks/usePresence';
 import { formatDistanceToNow } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -15,7 +17,6 @@ import {
   Users,
   MessageCircle,
   Megaphone,
-  MoreHorizontal
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -35,6 +36,7 @@ export const ConversationList = ({
   loading
 }: ConversationListProps) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const { onlineUsers } = usePresence();
 
   const filteredConversations = conversations.filter(conv => {
     const searchLower = searchQuery.toLowerCase();
@@ -170,6 +172,14 @@ export const ConversationList = ({
                           {conv.type === 'direct' ? getAvatarInitials(conv) : <Icon className="h-4 w-4" />}
                         </AvatarFallback>
                       </Avatar>
+                      {/* Online indicator for DMs */}
+                      {conv.type === 'direct' && conv.other_user && (
+                        <OnlineIndicator 
+                          isOnline={onlineUsers.has(conv.other_user.id)}
+                          size="sm"
+                          className="absolute -bottom-0.5 -right-0.5"
+                        />
+                      )}
                       {conv.unread_count && conv.unread_count > 0 && (
                         <div className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center">
                           {conv.unread_count > 99 ? '99+' : conv.unread_count}
