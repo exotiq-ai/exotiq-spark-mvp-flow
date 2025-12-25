@@ -734,10 +734,19 @@ export const MessageThread = ({
       <AnimatePresence>
         {showSearch && (
           <MessageSearchBar
+            searchQuery={searchQuery}
+            searchResults={searchResults}
+            isSearching={isSearching}
             onSearch={searchMessages}
             onClear={clearSearch}
-            isSearching={isSearching}
-            resultCount={searchResults.length}
+            onResultClick={(messageId) => {
+              const element = document.getElementById(`message-${messageId}`);
+              if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                element.classList.add('bg-primary/20');
+                setTimeout(() => element.classList.remove('bg-primary/20'), 2000);
+              }
+            }}
           />
         )}
       </AnimatePresence>
@@ -745,8 +754,16 @@ export const MessageThread = ({
       {/* Pinned Messages */}
       {pinnedMessages.length > 0 && !showSearch && (
         <PinnedMessagesBar 
-          messages={pinnedMessages}
+          pinnedMessages={pinnedMessages}
           onUnpin={handleUnpinMessage}
+          onMessageClick={(messageId) => {
+            const element = document.getElementById(`message-${messageId}`);
+            if (element) {
+              element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              element.classList.add('bg-primary/20');
+              setTimeout(() => element.classList.remove('bg-primary/20'), 2000);
+            }
+          }}
         />
       )}
 
