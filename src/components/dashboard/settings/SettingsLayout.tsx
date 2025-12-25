@@ -19,6 +19,7 @@ import { MyAccountSection } from "./MyAccountSection";
 import { SubscriptionSection } from "./SubscriptionSection";
 import { IntegrationsSection } from "./IntegrationsSection";
 import { DataManagementSection } from "./DataManagementSection";
+import { NotificationSettingsSection } from "./NotificationSettingsSection";
 import { SystemSettingsSection } from "../SystemSettingsSection";
 import { UserManagementSection } from "../UserManagementSection";
 import { MyTeamSection } from "../MyTeamSection";
@@ -35,6 +36,7 @@ interface SettingsTab {
 const allSettingsTabs: SettingsTab[] = [
   { id: "account", label: "My Account", icon: User },
   { id: "team", label: "My Team", icon: Users },
+  { id: "notifications", label: "Notifications", icon: Bell },
   { id: "subscription", label: "Subscription", icon: CreditCard },
   { id: "integrations", label: "Integrations", icon: Plug },
   { id: "system", label: "System", icon: Settings },
@@ -61,6 +63,8 @@ export const SettingsLayout = () => {
         return <MyAccountSection />;
       case "team":
         return <MyTeamSection />;
+      case "notifications":
+        return <NotificationSettingsSection />;
       case "subscription":
         return <SubscriptionSection />;
       case "integrations":

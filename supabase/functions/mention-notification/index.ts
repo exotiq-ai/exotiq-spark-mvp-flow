@@ -34,7 +34,7 @@ serve(async (req) => {
 
     console.log("Processing mention notifications for users:", mentionedUserIds);
 
-    // Get mentioned users' profiles
+    // Get mentioned users' profiles and notification preferences
     const { data: mentionedUsers, error: usersError } = await supabaseAdmin
       .from("profiles")
       .select("id, email, full_name")
@@ -52,6 +52,14 @@ serve(async (req) => {
       });
     }
 
+    // Get notification preferences for all mentioned users
+    const { data: preferences } = await supabaseAdmin
+      .from("notification_preferences")
+      .select("user_id, email_mentions, slack_enabled, slack_mentions, slack_webhook_url")
+      .in("user_id", mentionedUserIds);
+
+    const prefsMap = new Map(preferences?.map(p => [p.user_id, p]) || []);
+
     // Get conversation details
     const { data: conversation } = await supabaseAdmin
       .from("team_conversations")
@@ -62,9 +70,14 @@ serve(async (req) => {
     const conversationName = conversation?.name || (conversation?.type === "direct" ? "Direct Message" : "Group Chat");
     const truncatedMessage = messageContent.length > 150 ? messageContent.substring(0, 150) + "..." : messageContent;
 
-    // Send emails to all mentioned users (except sender)
+    // Process email notifications
     const emailPromises = mentionedUsers
-      .filter(user => user.id !== senderId && user.email)
+      .filter(user => {
+        if (user.id === senderId || !user.email) return false;
+        const userPrefs = prefsMap.get(user.id);
+        // Default to true if no preferences exist
+        return userPrefs?.email_mentions !== false;
+      })
       .map(async (user) => {
         try {
           const emailResponse = await resend.emails.send({
@@ -102,6 +115,7 @@ serve(async (req) => {
                   <div style="padding: 20px 32px; background-color: #0d0d0d; border-top: 1px solid #262626;">
                     <p style="margin: 0; color: #666666; font-size: 12px; text-align: center;">
                       This notification was sent because you were @mentioned in a team message.
+                      <br/>You can manage your notification preferences in Settings.
                     </p>
                   </div>
                 </div>
@@ -110,20 +124,66 @@ serve(async (req) => {
             `,
           });
           console.log(`Email sent to ${user.email}:`, emailResponse);
-          return { userId: user.id, success: true };
+          return { userId: user.id, type: "email", success: true };
         } catch (emailError) {
           console.error(`Failed to send email to ${user.email}:`, emailError);
-          return { userId: user.id, success: false, error: emailError };
+          return { userId: user.id, type: "email", success: false, error: emailError };
         }
       });
 
-    const results = await Promise.all(emailPromises);
-    const successCount = results.filter(r => r.success).length;
+    // Process Slack notifications
+    const slackPromises = mentionedUsers
+      .filter(user => {
+        if (user.id === senderId) return false;
+        const userPrefs = prefsMap.get(user.id);
+        return userPrefs?.slack_enabled && userPrefs?.slack_mentions && userPrefs?.slack_webhook_url;
+      })
+      .map(async (user) => {
+        const userPrefs = prefsMap.get(user.id);
+        try {
+          const slackPayload = {
+            text: `📢 ${senderName || "Someone"} mentioned you in ${conversationName}`,
+            attachments: [
+              {
+                color: "#d4a847",
+                text: truncatedMessage,
+                footer: "ExotIQ Fleet Management",
+                ts: Math.floor(Date.now() / 1000)
+              }
+            ]
+          };
 
-    console.log(`Successfully sent ${successCount} mention notification emails`);
+          const slackResponse = await fetch(userPrefs!.slack_webhook_url!, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(slackPayload)
+          });
+
+          if (!slackResponse.ok) {
+            throw new Error(`Slack API error: ${await slackResponse.text()}`);
+          }
+
+          console.log(`Slack notification sent for user ${user.id}`);
+          return { userId: user.id, type: "slack", success: true };
+        } catch (slackError) {
+          console.error(`Failed to send Slack notification for user ${user.id}:`, slackError);
+          return { userId: user.id, type: "slack", success: false, error: slackError };
+        }
+      });
+
+    const allResults = await Promise.all([...emailPromises, ...slackPromises]);
+    const emailSuccess = allResults.filter(r => r.type === "email" && r.success).length;
+    const slackSuccess = allResults.filter(r => r.type === "slack" && r.success).length;
+
+    console.log(`Successfully sent ${emailSuccess} emails and ${slackSuccess} Slack notifications`);
 
     return new Response(
-      JSON.stringify({ success: true, notified: successCount, results }),
+      JSON.stringify({ 
+        success: true, 
+        emailsSent: emailSuccess, 
+        slackSent: slackSuccess,
+        results: allResults 
+      }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
