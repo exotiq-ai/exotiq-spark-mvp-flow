@@ -223,6 +223,44 @@ export type Database = {
           },
         ]
       }
+      conversation_members: {
+        Row: {
+          conversation_id: string
+          id: string
+          joined_at: string | null
+          last_read_at: string | null
+          notifications_enabled: boolean | null
+          role: string | null
+          user_id: string
+        }
+        Insert: {
+          conversation_id: string
+          id?: string
+          joined_at?: string | null
+          last_read_at?: string | null
+          notifications_enabled?: boolean | null
+          role?: string | null
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string
+          id?: string
+          joined_at?: string | null
+          last_read_at?: string | null
+          notifications_enabled?: boolean | null
+          role?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_members_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "team_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_notes: {
         Row: {
           created_at: string | null
@@ -541,6 +579,56 @@ export type Database = {
           },
         ]
       }
+      entity_comments: {
+        Row: {
+          attachments: Json | null
+          content: string
+          created_at: string | null
+          entity_id: string
+          entity_type: string
+          id: string
+          is_resolved: boolean | null
+          mentions: string[] | null
+          parent_id: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          attachments?: Json | null
+          content: string
+          created_at?: string | null
+          entity_id: string
+          entity_type: string
+          id?: string
+          is_resolved?: boolean | null
+          mentions?: string[] | null
+          parent_id?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          attachments?: Json | null
+          content?: string
+          created_at?: string | null
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          is_resolved?: boolean | null
+          mentions?: string[] | null
+          parent_id?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "entity_comments_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "entity_comments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inspection_photos: {
         Row: {
           description: string | null
@@ -575,6 +663,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      integration_configs: {
+        Row: {
+          config: Json
+          created_at: string | null
+          id: string
+          integration_type: string
+          is_active: boolean | null
+          last_used_at: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          config?: Json
+          created_at?: string | null
+          id?: string
+          integration_type: string
+          is_active?: boolean | null
+          last_used_at?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          config?: Json
+          created_at?: string | null
+          id?: string
+          integration_type?: string
+          is_active?: boolean | null
+          last_used_at?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       maintenance_schedules: {
         Row: {
@@ -1018,6 +1139,141 @@ export type Database = {
         }
         Relationships: []
       }
+      team_conversations: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          created_by: string
+          description: string | null
+          id: string
+          is_company_wide: boolean | null
+          name: string | null
+          type: string
+          updated_at: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string | null
+          created_by: string
+          description?: string | null
+          id?: string
+          is_company_wide?: boolean | null
+          name?: string | null
+          type?: string
+          updated_at?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          created_by?: string
+          description?: string | null
+          id?: string
+          is_company_wide?: boolean | null
+          name?: string | null
+          type?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      team_messages: {
+        Row: {
+          attachments: Json | null
+          content: string
+          conversation_id: string
+          created_at: string | null
+          edited_at: string | null
+          id: string
+          is_edited: boolean | null
+          is_pinned: boolean | null
+          mentions: string[] | null
+          message_type: string | null
+          reactions: Json | null
+          reply_to: string | null
+          sender_id: string
+        }
+        Insert: {
+          attachments?: Json | null
+          content: string
+          conversation_id: string
+          created_at?: string | null
+          edited_at?: string | null
+          id?: string
+          is_edited?: boolean | null
+          is_pinned?: boolean | null
+          mentions?: string[] | null
+          message_type?: string | null
+          reactions?: Json | null
+          reply_to?: string | null
+          sender_id: string
+        }
+        Update: {
+          attachments?: Json | null
+          content?: string
+          conversation_id?: string
+          created_at?: string | null
+          edited_at?: string | null
+          id?: string
+          is_edited?: boolean | null
+          is_pinned?: boolean | null
+          mentions?: string[] | null
+          message_type?: string | null
+          reactions?: Json | null
+          reply_to?: string | null
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "team_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_messages_reply_to_fkey"
+            columns: ["reply_to"]
+            isOneToOne: false
+            referencedRelation: "team_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_activity_log: {
+        Row: {
+          activity_type: string
+          created_at: string
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          ip_address: string | null
+          metadata: Json | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          activity_type: string
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          activity_type?: string
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_dashboard_layouts: {
         Row: {
           created_at: string
@@ -1296,6 +1552,15 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      log_user_activity: {
+        Args: {
+          p_activity_type: string
+          p_entity_id?: string
+          p_entity_type?: string
+          p_metadata?: Json
+        }
+        Returns: string
       }
       mark_expired_invitations: { Args: never; Returns: undefined }
       update_document_status: { Args: never; Returns: undefined }
