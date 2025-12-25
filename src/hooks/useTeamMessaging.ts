@@ -140,7 +140,7 @@ export const useTeamMessaging = () => {
           .limit(1)
           .single();
 
-        const lastMessage = lastMsg as TeamMessage | null;
+        const lastMessage = lastMsg as unknown as TeamMessage | null;
 
         // Get members
         const { data: members } = await supabase
@@ -313,7 +313,7 @@ export const useTeamMessaging = () => {
         sender_id: user.id,
         content,
         message_type: attachments.some(a => a.type.startsWith('image/')) ? 'image' : attachments.length > 0 ? 'file' : 'text',
-        attachments: attachments as unknown as Record<string, unknown>[],
+        attachments: JSON.parse(JSON.stringify(attachments)),
         mentions,
         reply_to: replyTo || null,
       }]);

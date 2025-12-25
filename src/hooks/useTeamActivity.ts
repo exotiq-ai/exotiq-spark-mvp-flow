@@ -114,7 +114,7 @@ export const useTeamActivity = (options: UseTeamActivityOptions = {}) => {
         activity_type: activityType,
         entity_type: entityType || null,
         entity_id: entityId || null,
-        metadata: metadata || {},
+        metadata: (metadata || {}) as unknown as null,
       }]);
     } catch (error) {
       console.error('Error logging activity:', error);
