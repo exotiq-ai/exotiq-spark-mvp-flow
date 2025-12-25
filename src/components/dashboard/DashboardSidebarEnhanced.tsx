@@ -17,7 +17,9 @@ import {
   ChevronDown,
   User,
   Settings,
-  Sparkles
+  Sparkles,
+  Activity,
+  MessageSquare
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -117,6 +119,14 @@ export const DashboardSidebarEnhanced = ({ activeModule, onModuleChange }: Dashb
         { id: "core", name: "FleetCopilot™", icon: Brain, minRole: 'operator' },
         { id: "motoriq", name: "MotorIQ", icon: TrendingUp, minRole: 'manager' },
         { id: "pulse", name: "Pulse", icon: BarChart3, minRole: 'operator' },
+      ]
+    },
+    {
+      id: "team",
+      name: "Team",
+      items: [
+        { id: "activity", name: "Team Activity", icon: Activity, minRole: 'manager' },
+        { id: "messages", name: "Messages", icon: MessageSquare, minRole: 'operator' },
       ]
     },
     {

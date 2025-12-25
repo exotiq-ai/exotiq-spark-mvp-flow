@@ -32,13 +32,22 @@ import { SettingsLayout } from "@/components/dashboard/settings/SettingsLayout";
 import { KeyboardShortcutsHelp } from "@/components/common/KeyboardShortcutsHelp";
 import { MobileMoreMenu } from "@/components/mobile/MobileMoreMenu";
 import { FloatingActionMenu } from "@/components/mobile/FloatingActionMenu";
+import { TeamActivityDashboard } from "@/components/dashboard/TeamActivityDashboard";
+import { TeamMessaging, TeamMessagingTrigger } from "@/components/messaging/TeamMessaging";
+import { useTeamMessaging } from "@/hooks/useTeamMessaging";
 import { Calendar as CalendarIcon, DollarSign, UserPlus, FileText } from "lucide-react";
 
 const Dashboard = () => {
   const [activeModule, setActiveModule] = useLocalStorage("activeModule", "dashboard");
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatMinimized, setChatMinimized] = useState(false);
   const { track, page } = useAnalytics();
   const { isReadOnly, hasRoleOrHigher, loading: roleLoading } = useUserRole();
+  const { conversations } = useTeamMessaging();
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Calculate total unread messages
+  const totalUnread = conversations.reduce((acc, c) => acc + (c.unread_count || 0), 0);
 
   useEffect(() => {
     performance.mark('dashboard-load-start');
@@ -50,7 +59,13 @@ const Dashboard = () => {
     };
   }, [page]);
 
+  // Handle module change - special case for messages opens chat instead
   const handleModuleChange = (moduleId: string) => {
+    if (moduleId === 'messages') {
+      setChatOpen(true);
+      setChatMinimized(false);
+      return;
+    }
     track('module_switch', { from: activeModule, to: moduleId });
     setActiveModule(moduleId);
   };
@@ -63,6 +78,8 @@ const Dashboard = () => {
     motoriq: "MotorIQ",
     vault: "Vault",
     settings: "Settings",
+    activity: "Team Activity",
+    messages: "Messages",
   };
 
   // FAB actions filtered by role
@@ -131,6 +148,10 @@ const Dashboard = () => {
         break;
       case "settings":
         content = <SettingsLayout />;
+        break;
+      case "activity":
+        content = <TeamActivityDashboard />;
+        break;
         break;
       default:
         content = <DashboardOverviewEnhanced onModuleClick={handleModuleChange} />;
@@ -272,6 +293,21 @@ const Dashboard = () => {
           </div>
         </main>
       </div>
+
+      {/* Team Messaging - Floating Chat */}
+      {!chatOpen && (
+        <TeamMessagingTrigger 
+          onClick={() => setChatOpen(true)} 
+          unreadCount={totalUnread} 
+        />
+      )}
+      
+      <TeamMessaging
+        isOpen={chatOpen}
+        onClose={() => setChatOpen(false)}
+        isMinimized={chatMinimized}
+        onToggleMinimize={() => setChatMinimized(!chatMinimized)}
+      />
     </div>
   );
 };
