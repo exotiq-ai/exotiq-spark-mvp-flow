@@ -1297,6 +1297,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      mark_expired_invitations: { Args: never; Returns: undefined }
       update_document_status: { Args: never; Returns: undefined }
     }
     Enums: {

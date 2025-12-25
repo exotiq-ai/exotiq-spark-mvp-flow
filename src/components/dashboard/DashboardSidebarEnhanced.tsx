@@ -1,9 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/ui/logo";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
-import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useProfile } from "@/hooks/useProfile";
 import { 
   Home,
   Brain,
@@ -49,11 +50,11 @@ const roleDisplayNames: Record<string, string> = {
 
 // User Profile Section Component
 const UserProfileSection = ({ collapsed }: { collapsed: boolean }) => {
-  const { user } = useAuth();
+  const { profile, displayName } = useProfile();
   const { role, loading } = useUserRole();
   
-  const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
   const roleLabel = role ? roleDisplayNames[role] : 'Loading...';
+  const initials = displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   
   return (
     <div className="p-3 border-t border-sidebar-border">
@@ -61,11 +62,12 @@ const UserProfileSection = ({ collapsed }: { collapsed: boolean }) => {
         "flex items-center rounded-xl p-2.5 hover:bg-sidebar-accent transition-colors cursor-pointer",
         collapsed ? "justify-center" : "space-x-3"
       )}>
-        <div className={cn(
-          "w-8 h-8 bg-primary rounded-full flex items-center justify-center flex-shrink-0"
-        )}>
-          <User className="h-4 w-4 text-primary-foreground" />
-        </div>
+        <Avatar className="w-8 h-8 flex-shrink-0">
+          <AvatarImage src={profile?.avatar_url || undefined} />
+          <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+            {initials}
+          </AvatarFallback>
+        </Avatar>
         
         {!collapsed && (
           <div className="flex-1 min-w-0">
