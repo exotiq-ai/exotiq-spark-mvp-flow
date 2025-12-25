@@ -6,6 +6,7 @@ import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { SkipNavigation } from "@/components/common/SkipNavigation";
 import { SEOHead } from "@/components/common/SEOHead";
 import { UnifiedNotificationCenter } from "@/components/common/UnifiedNotificationCenter";
+import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { useAnalytics } from "@/lib/analytics";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -152,7 +153,6 @@ const Dashboard = () => {
       case "activity":
         content = <TeamActivityDashboard />;
         break;
-        break;
       default:
         content = <DashboardOverviewEnhanced onModuleClick={handleModuleChange} />;
     }
@@ -294,20 +294,22 @@ const Dashboard = () => {
         </main>
       </div>
 
-      {/* Team Messaging - Floating Chat */}
-      {!chatOpen && (
-        <TeamMessagingTrigger 
-          onClick={() => setChatOpen(true)} 
-          unreadCount={totalUnread} 
+      {/* Team Messaging - Floating Chat with Error Boundary */}
+      <ErrorBoundary fallback={null}>
+        {!chatOpen && (
+          <TeamMessagingTrigger 
+            onClick={() => setChatOpen(true)} 
+            unreadCount={totalUnread} 
+          />
+        )}
+        
+        <TeamMessaging
+          isOpen={chatOpen}
+          onClose={() => setChatOpen(false)}
+          isMinimized={chatMinimized}
+          onToggleMinimize={() => setChatMinimized(!chatMinimized)}
         />
-      )}
-      
-      <TeamMessaging
-        isOpen={chatOpen}
-        onClose={() => setChatOpen(false)}
-        isMinimized={chatMinimized}
-        onToggleMinimize={() => setChatMinimized(!chatMinimized)}
-      />
+      </ErrorBoundary>
     </div>
   );
 };

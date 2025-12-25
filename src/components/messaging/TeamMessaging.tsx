@@ -206,7 +206,7 @@ export const TeamMessagingTrigger = ({
     whileHover={{ scale: 1.05 }}
     whileTap={{ scale: 0.95 }}
     onClick={onClick}
-    className="fixed bottom-4 right-4 z-40 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:shadow-xl transition-shadow"
+    className="fixed bottom-24 md:bottom-4 right-4 z-40 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:shadow-xl transition-shadow"
   >
     <MessageSquare className="h-6 w-6" />
     {unreadCount > 0 && (
