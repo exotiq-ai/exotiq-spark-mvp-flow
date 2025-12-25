@@ -10,8 +10,25 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
 import { Conversation, TeamMessage, Attachment } from '@/hooks/useTeamMessaging';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePresence } from '@/hooks/usePresence';
+import { useReadReceipts } from '@/hooks/useReadReceipts';
+import { usePinnedMessages } from '@/hooks/usePinnedMessages';
+import { useMessageSearch } from '@/hooks/useMessageSearch';
+import { useMessageActions } from '@/hooks/useMessageActions';
+import { TypingIndicator } from './TypingIndicator';
+import { OnlineIndicator } from './OnlineIndicator';
+import { ReadReceipts } from './ReadReceipts';
+import { PinnedMessagesBar } from './PinnedMessagesBar';
+import { MessageSearchBar } from './MessageSearchBar';
 import { formatDistanceToNow, format, isToday, isYesterday } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -22,6 +39,7 @@ import {
   Reply,
   MoreHorizontal,
   Pin,
+  PinOff,
   Trash2,
   Edit,
   Hash,
@@ -30,7 +48,10 @@ import {
   X,
   Download,
   FileText,
-  AtSign
+  AtSign,
+  Search,
+  Check,
+  CheckCheck
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -48,19 +69,16 @@ const EMOJI_LIST = ['👍', '❤️', '😂', '😮', '😢', '🎉', '🔥', '�
 
 // Helper to render message content with highlighted @mentions
 const renderMessageWithMentions = (content: string, teamMembers: { id: string; name: string }[], isOwn: boolean) => {
-  // Match @mentions pattern
   const mentionRegex = /@(\w+(?:\s+\w+)?)/g;
   const parts: (string | JSX.Element)[] = [];
   let lastIndex = 0;
   let match;
 
   while ((match = mentionRegex.exec(content)) !== null) {
-    // Add text before the mention
     if (match.index > lastIndex) {
       parts.push(content.slice(lastIndex, match.index));
     }
     
-    // Check if this matches a team member
     const mentionName = match[1];
     const matchedMember = teamMembers.find(m => 
       m.name.toLowerCase().includes(mentionName.toLowerCase())
@@ -85,7 +103,6 @@ const renderMessageWithMentions = (content: string, teamMembers: { id: string; n
     lastIndex = match.index + match[0].length;
   }
   
-  // Add remaining text
   if (lastIndex < content.length) {
     parts.push(content.slice(lastIndex));
   }
@@ -107,21 +124,37 @@ const DateDivider = ({ date }: { date: Date }) => {
   );
 };
 
+interface MessageBubbleProps {
+  message: TeamMessage;
+  isOwn: boolean;
+  showAvatar: boolean;
+  onReaction: (emoji: string) => void;
+  onReply: () => void;
+  onPin: () => void;
+  onUnpin: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  isPinned: boolean;
+  teamMembers: { id: string; name: string }[];
+  readers: { user_id: string; read_at: string }[];
+  currentUserId?: string;
+}
+
 const MessageBubble = ({
   message,
   isOwn,
   showAvatar,
   onReaction,
   onReply,
-  teamMembers
-}: {
-  message: TeamMessage;
-  isOwn: boolean;
-  showAvatar: boolean;
-  onReaction: (emoji: string) => void;
-  onReply: () => void;
-  teamMembers: { id: string; name: string }[];
-}) => {
+  onPin,
+  onUnpin,
+  onEdit,
+  onDelete,
+  isPinned,
+  teamMembers,
+  readers,
+  currentUserId
+}: MessageBubbleProps) => {
   const [showActions, setShowActions] = useState(false);
   const initials = message.sender_name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || '??';
 
@@ -161,6 +194,10 @@ const MessageBubble = ({
       </a>
     );
   };
+
+  // Get other readers (exclude self)
+  const otherReaders = readers.filter(r => r.user_id !== currentUserId);
+  const hasBeenRead = otherReaders.length > 0;
 
   return (
     <motion.div
@@ -210,7 +247,8 @@ const MessageBubble = ({
           "rounded-2xl px-3 py-2 relative",
           isOwn 
             ? "bg-primary text-primary-foreground rounded-tr-sm" 
-            : "bg-muted rounded-tl-sm"
+            : "bg-muted rounded-tl-sm",
+          isPinned && "ring-2 ring-warning/50"
         )}>
           {message.content && (
             <p className="text-sm whitespace-pre-wrap break-words">
@@ -229,27 +267,41 @@ const MessageBubble = ({
             <span className="text-[10px] opacity-60 ml-1">(edited)</span>
           )}
 
-          {message.is_pinned && (
+          {isPinned && (
             <Pin className="absolute -top-1 -right-1 h-3 w-3 text-warning fill-warning" />
           )}
         </div>
 
-        {/* Reactions */}
-        {Object.keys(message.reactions || {}).length > 0 && (
-          <div className={cn("flex flex-wrap gap-1 mt-1", isOwn && "justify-end")}>
-            {Object.entries(message.reactions).map(([emoji, userIds]) => (
-              <Button
-                key={emoji}
-                variant="outline"
-                size="sm"
-                className="h-6 px-1.5 text-xs hover:scale-105 transition-transform"
-                onClick={() => onReaction(emoji)}
-              >
-                {emoji} {userIds.length}
-              </Button>
-            ))}
-          </div>
-        )}
+        {/* Read receipts & Reactions row */}
+        <div className={cn("flex items-center gap-2 mt-1", isOwn && "flex-row-reverse")}>
+          {/* Read indicator for own messages */}
+          {isOwn && (
+            <div className="flex items-center">
+              {hasBeenRead ? (
+                <CheckCheck className="h-3 w-3 text-primary" />
+              ) : (
+                <Check className="h-3 w-3 text-muted-foreground" />
+              )}
+            </div>
+          )}
+          
+          {/* Reactions */}
+          {Object.keys(message.reactions || {}).length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {Object.entries(message.reactions).map(([emoji, userIds]) => (
+                <Button
+                  key={emoji}
+                  variant="outline"
+                  size="sm"
+                  className="h-5 px-1.5 text-xs hover:scale-105 transition-transform"
+                  onClick={() => onReaction(emoji)}
+                >
+                  {emoji} {userIds.length}
+                </Button>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* Actions */}
         <AnimatePresence>
@@ -286,9 +338,39 @@ const MessageBubble = ({
               <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onReply}>
                 <Reply className="h-3 w-3" />
               </Button>
-              <Button variant="ghost" size="icon" className="h-6 w-6">
-                <MoreHorizontal className="h-3 w-3" />
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-6 w-6">
+                    <MoreHorizontal className="h-3 w-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align={isOwn ? "end" : "start"} className="w-40">
+                  {isPinned ? (
+                    <DropdownMenuItem onClick={onUnpin}>
+                      <PinOff className="h-3 w-3 mr-2" />
+                      Unpin message
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem onClick={onPin}>
+                      <Pin className="h-3 w-3 mr-2" />
+                      Pin message
+                    </DropdownMenuItem>
+                  )}
+                  {isOwn && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={onEdit}>
+                        <Edit className="h-3 w-3 mr-2" />
+                        Edit message
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={onDelete} className="text-destructive">
+                        <Trash2 className="h-3 w-3 mr-2" />
+                        Delete message
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </motion.div>
           )}
         </AnimatePresence>
@@ -315,9 +397,25 @@ export const MessageThread = ({
   const [mentionSearch, setMentionSearch] = useState('');
   const [mentionIndex, setMentionIndex] = useState(0);
   const [cursorPosition, setCursorPosition] = useState(0);
+  const [showSearch, setShowSearch] = useState(false);
+  const [editingMessage, setEditingMessage] = useState<TeamMessage | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Use new hooks
+  const { setTyping, getTypingUsers, onlineUsers } = usePresence(conversation.id);
+  const { getReaders, markAsRead } = useReadReceipts(conversation.id);
+  const { pinnedMessages, pinMessage, unpinMessage } = usePinnedMessages(conversation.id);
+  const { searchResults, isSearching, searchQuery, searchMessages, clearSearch } = useMessageSearch(conversation.id);
+  const { editMessage, deleteMessage, isEditing, isDeleting } = useMessageActions();
+
+  // Get typing users for this conversation
+  const typingUsers = getTypingUsers(conversation.id);
+  const typingNames = typingUsers
+    .filter(id => id !== user?.id)
+    .map(id => teamMembers.find(m => m.id === id)?.name?.split(' ')[0] || 'Someone')
+    .filter(Boolean);
 
   // Filter team members for mention autocomplete
   const filteredMembers = useMemo(() => {
@@ -348,13 +446,40 @@ export const MessageThread = ({
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
-    if (scrollRef.current) {
+    if (scrollRef.current && !showSearch) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, showSearch]);
 
-  const handleSend = () => {
+  // Mark messages as read when viewing
+  useEffect(() => {
+    if (messages.length > 0 && user) {
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage.sender_id !== user.id) {
+        markAsRead(lastMessage.id);
+      }
+    }
+  }, [messages, user, markAsRead]);
+
+  // Handle typing indicator
+  useEffect(() => {
+    if (newMessage.length > 0) {
+      setTyping(true);
+    } else {
+      setTyping(false);
+    }
+  }, [newMessage, setTyping]);
+
+  const handleSend = async () => {
     if (!newMessage.trim() && attachments.length === 0) return;
+    
+    // Handle edit mode
+    if (editingMessage) {
+      await editMessage(editingMessage.id, newMessage.trim());
+      setEditingMessage(null);
+      setNewMessage('');
+      return;
+    }
     
     const mentions = parseMentions(newMessage);
     
@@ -369,6 +494,7 @@ export const MessageThread = ({
     setAttachments([]);
     setReplyTo(null);
     setShowMentionPopup(false);
+    setTyping(false);
   };
 
   const handleMessageChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -377,7 +503,6 @@ export const MessageThread = ({
     setNewMessage(value);
     setCursorPosition(cursor);
 
-    // Check for @mention trigger
     const textBeforeCursor = value.slice(0, cursor);
     const atMatch = textBeforeCursor.match(/@(\w*)$/);
     
@@ -395,7 +520,6 @@ export const MessageThread = ({
     const textBeforeCursor = newMessage.slice(0, cursorPosition);
     const textAfterCursor = newMessage.slice(cursorPosition);
     
-    // Find and replace the @search with @Name
     const atMatch = textBeforeCursor.match(/@(\w*)$/);
     if (atMatch) {
       const beforeMention = textBeforeCursor.slice(0, atMatch.index);
@@ -403,7 +527,6 @@ export const MessageThread = ({
       const newText = beforeMention + '@' + firstName + ' ' + textAfterCursor;
       setNewMessage(newText);
       
-      // Move cursor after the inserted mention
       const newCursorPos = beforeMention.length + firstName.length + 2;
       setTimeout(() => {
         if (textareaRef.current) {
@@ -444,6 +567,11 @@ export const MessageThread = ({
       e.preventDefault();
       handleSend();
     }
+
+    if (e.key === 'Escape' && editingMessage) {
+      setEditingMessage(null);
+      setNewMessage('');
+    }
   };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -471,11 +599,35 @@ export const MessageThread = ({
     setAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
-  // Group messages by date and consecutive sender
+  const handleEditMessage = (message: TeamMessage) => {
+    setEditingMessage(message);
+    setNewMessage(message.content);
+    textareaRef.current?.focus();
+  };
+
+  const handleDeleteMessage = async (messageId: string) => {
+    await deleteMessage(messageId);
+  };
+
+  const handlePinMessage = async (messageId: string) => {
+    await pinMessage(messageId);
+  };
+
+  const handleUnpinMessage = async (messageId: string) => {
+    await unpinMessage(messageId);
+  };
+
+  // Get pinned message IDs for quick lookup
+  const pinnedMessageIds = new Set(pinnedMessages.map(m => m.id));
+
+  // Decide which messages to display
+  const displayMessages = showSearch && searchQuery ? searchResults : messages;
+
+  // Group messages by date
   const groupedMessages: { date: Date; messages: TeamMessage[] }[] = [];
   let currentDate: string | null = null;
 
-  messages.forEach(msg => {
+  displayMessages.forEach(msg => {
     const msgDate = format(new Date(msg.created_at), 'yyyy-MM-dd');
     if (msgDate !== currentDate) {
       currentDate = msgDate;
@@ -493,6 +645,11 @@ export const MessageThread = ({
   };
 
   const Icon = getConversationIcon();
+
+  // Check if the other user in DM is online
+  const isOtherUserOnline = conversation.type === 'direct' && 
+    conversation.other_user?.id && 
+    onlineUsers.has(conversation.other_user.id);
 
   if (loading) {
     return (
@@ -517,12 +674,21 @@ export const MessageThread = ({
       {/* Header */}
       <div className="p-3 border-b border-border flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Avatar className="h-9 w-9">
-            <AvatarImage src={conversation.type === 'direct' ? conversation.other_user?.avatar_url || undefined : conversation.avatar_url || undefined} />
-            <AvatarFallback>
-              {Icon ? <Icon className="h-4 w-4" /> : conversation.other_user?.name?.charAt(0) || 'C'}
-            </AvatarFallback>
-          </Avatar>
+          <div className="relative">
+            <Avatar className="h-9 w-9">
+              <AvatarImage src={conversation.type === 'direct' ? conversation.other_user?.avatar_url || undefined : conversation.avatar_url || undefined} />
+              <AvatarFallback>
+                {Icon ? <Icon className="h-4 w-4" /> : conversation.other_user?.name?.charAt(0) || 'C'}
+              </AvatarFallback>
+            </Avatar>
+            {conversation.type === 'direct' && (
+              <OnlineIndicator 
+                isOnline={isOtherUserOnline}
+                size="sm"
+                className="absolute -bottom-0.5 -right-0.5"
+              />
+            )}
+          </div>
           <div>
             <h3 className="font-semibold text-sm flex items-center gap-2">
               {conversation.type === 'direct' 
@@ -539,12 +705,50 @@ export const MessageThread = ({
                 {conversation.members.length} members
               </p>
             )}
+            {conversation.type === 'direct' && (
+              <p className="text-xs text-muted-foreground">
+                {isOtherUserOnline ? 'Online' : 'Offline'}
+              </p>
+            )}
           </div>
         </div>
-        <Button variant="ghost" size="icon" className="h-8 w-8">
-          <MoreHorizontal className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button 
+            variant={showSearch ? "secondary" : "ghost"} 
+            size="icon" 
+            className="h-8 w-8"
+            onClick={() => {
+              setShowSearch(!showSearch);
+              if (showSearch) clearSearch();
+            }}
+          >
+            <Search className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8">
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
+
+      {/* Search Bar */}
+      <AnimatePresence>
+        {showSearch && (
+          <MessageSearchBar
+            onSearch={searchMessages}
+            onClear={clearSearch}
+            isSearching={isSearching}
+            resultCount={searchResults.length}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Pinned Messages */}
+      {pinnedMessages.length > 0 && !showSearch && (
+        <PinnedMessagesBar 
+          messages={pinnedMessages}
+          onUnpin={handleUnpinMessage}
+        />
+      )}
 
       {/* Messages */}
       <ScrollArea className="flex-1" ref={scrollRef}>
@@ -556,6 +760,7 @@ export const MessageThread = ({
                 {group.messages.map((msg, msgIndex) => {
                   const prevMsg = msgIndex > 0 ? group.messages[msgIndex - 1] : null;
                   const showAvatar = !prevMsg || prevMsg.sender_id !== msg.sender_id;
+                  const readers = getReaders(msg.id);
                   
                   return (
                     <MessageBubble
@@ -565,7 +770,14 @@ export const MessageThread = ({
                       showAvatar={showAvatar}
                       onReaction={(emoji) => onReaction(msg.id, emoji)}
                       onReply={() => setReplyTo(msg)}
+                      onPin={() => handlePinMessage(msg.id)}
+                      onUnpin={() => handleUnpinMessage(msg.id)}
+                      onEdit={() => handleEditMessage(msg)}
+                      onDelete={() => handleDeleteMessage(msg.id)}
+                      isPinned={pinnedMessageIds.has(msg.id)}
                       teamMembers={teamMembers}
+                      readers={readers}
+                      currentUserId={user?.id}
                     />
                   );
                 })}
@@ -573,15 +785,32 @@ export const MessageThread = ({
             </div>
           ))}
           
-          {messages.length === 0 && (
+          {displayMessages.length === 0 && (
             <div className="flex flex-col items-center justify-center h-[300px] text-muted-foreground">
-              <Send className="h-10 w-10 mb-3 opacity-50" />
-              <p className="text-sm">No messages yet</p>
-              <p className="text-xs">Start the conversation!</p>
+              {showSearch && searchQuery ? (
+                <>
+                  <Search className="h-10 w-10 mb-3 opacity-50" />
+                  <p className="text-sm">No messages found</p>
+                  <p className="text-xs">Try a different search term</p>
+                </>
+              ) : (
+                <>
+                  <Send className="h-10 w-10 mb-3 opacity-50" />
+                  <p className="text-sm">No messages yet</p>
+                  <p className="text-xs">Start the conversation!</p>
+                </>
+              )}
             </div>
           )}
         </div>
       </ScrollArea>
+
+      {/* Typing Indicator */}
+      <AnimatePresence>
+        {typingNames.length > 0 && (
+          <TypingIndicator names={typingNames} />
+        )}
+      </AnimatePresence>
 
       {/* Reply Preview */}
       <AnimatePresence>
@@ -603,6 +832,31 @@ export const MessageThread = ({
               </Button>
             </div>
             <p className="text-xs text-muted-foreground truncate ml-6">{replyTo.content}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Edit Preview */}
+      <AnimatePresence>
+        {editingMessage && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="px-4 py-2 bg-warning/10 border-t border-warning/30"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm">
+                <Edit className="h-4 w-4 text-warning" />
+                <span className="text-warning font-medium">Editing message</span>
+              </div>
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => {
+                setEditingMessage(null);
+                setNewMessage('');
+              }}>
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -660,24 +914,34 @@ export const MessageThread = ({
                   <AtSign className="h-3 w-3" />
                   Mention someone
                 </div>
-                {filteredMembers.slice(0, 6).map((member, index) => (
-                  <button
-                    key={member.id}
-                    onClick={() => insertMention(member)}
-                    className={cn(
-                      "w-full flex items-center gap-2 px-2 py-1.5 rounded text-left transition-colors",
-                      index === mentionIndex ? "bg-accent" : "hover:bg-muted"
-                    )}
-                  >
-                    <Avatar className="h-6 w-6">
-                      <AvatarImage src={member.avatar_url || undefined} />
-                      <AvatarFallback className="text-[10px]">
-                        {member.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="text-sm font-medium">{member.name}</span>
-                  </button>
-                ))}
+                {filteredMembers.slice(0, 6).map((member, index) => {
+                  const isOnline = onlineUsers.has(member.id);
+                  return (
+                    <button
+                      key={member.id}
+                      onClick={() => insertMention(member)}
+                      className={cn(
+                        "w-full flex items-center gap-2 px-2 py-1.5 rounded text-left transition-colors",
+                        index === mentionIndex ? "bg-accent" : "hover:bg-muted"
+                      )}
+                    >
+                      <div className="relative">
+                        <Avatar className="h-6 w-6">
+                          <AvatarImage src={member.avatar_url || undefined} />
+                          <AvatarFallback className="text-[10px]">
+                            {member.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <OnlineIndicator 
+                          isOnline={isOnline} 
+                          size="sm" 
+                          className="absolute -bottom-0.5 -right-0.5" 
+                        />
+                      </div>
+                      <span className="text-sm font-medium">{member.name}</span>
+                    </button>
+                  );
+                })}
               </div>
             </motion.div>
           )}
@@ -710,17 +974,20 @@ export const MessageThread = ({
             value={newMessage}
             onChange={handleMessageChange}
             onKeyDown={handleKeyDown}
-            placeholder="Type a message... (use @ to mention)"
-            className="min-h-[40px] max-h-[120px] resize-none"
+            placeholder={editingMessage ? "Edit your message..." : "Type a message... (use @ to mention)"}
+            className={cn(
+              "min-h-[40px] max-h-[120px] resize-none",
+              editingMessage && "border-warning focus-visible:ring-warning"
+            )}
             rows={1}
           />
           <Button
             size="icon"
-            className="h-9 w-9 flex-shrink-0"
+            className={cn("h-9 w-9 flex-shrink-0", editingMessage && "bg-warning hover:bg-warning/90")}
             onClick={handleSend}
-            disabled={!newMessage.trim() && attachments.length === 0}
+            disabled={(!newMessage.trim() && attachments.length === 0) || isEditing || isDeleting}
           >
-            <Send className="h-4 w-4" />
+            {editingMessage ? <Check className="h-4 w-4" /> : <Send className="h-4 w-4" />}
           </Button>
         </div>
       </div>

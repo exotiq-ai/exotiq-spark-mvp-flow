@@ -175,6 +175,20 @@ export const usePresence = (conversationId?: string | null) => {
     return presence?.status === 'online';
   }, [presenceMap]);
 
+  // Create a Set of online user IDs for easy lookup
+  const onlineUsers = new Set(
+    Array.from(presenceMap.entries())
+      .filter(([, p]) => p.status === 'online')
+      .map(([id]) => id)
+  );
+
+  // Get typing users for a specific conversation
+  const getTypingUsers = useCallback((convId: string): string[] => {
+    return Array.from(presenceMap.values())
+      .filter(p => p.typing_in_conversation === convId)
+      .map(p => p.user_id);
+  }, [presenceMap]);
+
   return {
     presenceMap,
     typingUsers,
@@ -182,5 +196,7 @@ export const usePresence = (conversationId?: string | null) => {
     getPresence,
     isOnline,
     updatePresence,
+    onlineUsers,
+    getTypingUsers,
   };
 };
