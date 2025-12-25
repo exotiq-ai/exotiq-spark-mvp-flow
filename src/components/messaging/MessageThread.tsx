@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -29,7 +29,8 @@ import {
   Megaphone,
   X,
   Download,
-  FileText
+  FileText,
+  AtSign
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -40,10 +41,57 @@ interface MessageThreadProps {
   onSendMessage: (content: string, attachments?: Attachment[], mentions?: string[], replyTo?: string) => void;
   onReaction: (messageId: string, emoji: string) => void;
   onUploadAttachment: (file: File) => Promise<Attachment | null>;
-  teamMembers: { id: string; name: string; avatar_url: string | null }[];
+  teamMembers: { id: string; name: string; email?: string; avatar_url: string | null }[];
 }
 
 const EMOJI_LIST = ['👍', '❤️', '😂', '😮', '😢', '🎉', '🔥', '✅'];
+
+// Helper to render message content with highlighted @mentions
+const renderMessageWithMentions = (content: string, teamMembers: { id: string; name: string }[], isOwn: boolean) => {
+  // Match @mentions pattern
+  const mentionRegex = /@(\w+(?:\s+\w+)?)/g;
+  const parts: (string | JSX.Element)[] = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = mentionRegex.exec(content)) !== null) {
+    // Add text before the mention
+    if (match.index > lastIndex) {
+      parts.push(content.slice(lastIndex, match.index));
+    }
+    
+    // Check if this matches a team member
+    const mentionName = match[1];
+    const matchedMember = teamMembers.find(m => 
+      m.name.toLowerCase().includes(mentionName.toLowerCase())
+    );
+    
+    if (matchedMember) {
+      parts.push(
+        <span 
+          key={match.index} 
+          className={cn(
+            "font-semibold px-1 rounded",
+            isOwn ? "bg-primary-foreground/20 text-primary-foreground" : "bg-primary/20 text-primary"
+          )}
+        >
+          @{mentionName}
+        </span>
+      );
+    } else {
+      parts.push(match[0]);
+    }
+    
+    lastIndex = match.index + match[0].length;
+  }
+  
+  // Add remaining text
+  if (lastIndex < content.length) {
+    parts.push(content.slice(lastIndex));
+  }
+  
+  return parts.length > 0 ? parts : content;
+};
 
 const DateDivider = ({ date }: { date: Date }) => {
   let label = format(date, 'MMMM d, yyyy');
@@ -64,13 +112,15 @@ const MessageBubble = ({
   isOwn,
   showAvatar,
   onReaction,
-  onReply
+  onReply,
+  teamMembers
 }: {
   message: TeamMessage;
   isOwn: boolean;
   showAvatar: boolean;
   onReaction: (emoji: string) => void;
   onReply: () => void;
+  teamMembers: { id: string; name: string }[];
 }) => {
   const [showActions, setShowActions] = useState(false);
   const initials = message.sender_name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || '??';
@@ -163,7 +213,9 @@ const MessageBubble = ({
             : "bg-muted rounded-tl-sm"
         )}>
           {message.content && (
-            <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+            <p className="text-sm whitespace-pre-wrap break-words">
+              {renderMessageWithMentions(message.content, teamMembers, isOwn)}
+            </p>
           )}
           
           {/* Attachments */}
@@ -259,8 +311,40 @@ export const MessageThread = ({
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [replyTo, setReplyTo] = useState<TeamMessage | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [showMentionPopup, setShowMentionPopup] = useState(false);
+  const [mentionSearch, setMentionSearch] = useState('');
+  const [mentionIndex, setMentionIndex] = useState(0);
+  const [cursorPosition, setCursorPosition] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Filter team members for mention autocomplete
+  const filteredMembers = useMemo(() => {
+    if (!mentionSearch) return teamMembers.filter(m => m.id !== user?.id);
+    return teamMembers
+      .filter(m => m.id !== user?.id)
+      .filter(m => m.name.toLowerCase().includes(mentionSearch.toLowerCase()));
+  }, [teamMembers, mentionSearch, user?.id]);
+
+  // Parse mentions from message content
+  const parseMentions = useCallback((content: string): string[] => {
+    const mentionRegex = /@(\w+(?:\s+\w+)?)/g;
+    const mentions: string[] = [];
+    let match;
+    
+    while ((match = mentionRegex.exec(content)) !== null) {
+      const mentionName = match[1];
+      const matchedMember = teamMembers.find(m => 
+        m.name.toLowerCase() === mentionName.toLowerCase() ||
+        m.name.toLowerCase().startsWith(mentionName.toLowerCase())
+      );
+      if (matchedMember && !mentions.includes(matchedMember.id)) {
+        mentions.push(matchedMember.id);
+      }
+    }
+    return mentions;
+  }, [teamMembers]);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -272,19 +356,90 @@ export const MessageThread = ({
   const handleSend = () => {
     if (!newMessage.trim() && attachments.length === 0) return;
     
+    const mentions = parseMentions(newMessage);
+    
     onSendMessage(
       newMessage.trim(),
       attachments,
-      [], // TODO: Parse mentions
+      mentions,
       replyTo?.id
     );
     
     setNewMessage('');
     setAttachments([]);
     setReplyTo(null);
+    setShowMentionPopup(false);
+  };
+
+  const handleMessageChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    const cursor = e.target.selectionStart || 0;
+    setNewMessage(value);
+    setCursorPosition(cursor);
+
+    // Check for @mention trigger
+    const textBeforeCursor = value.slice(0, cursor);
+    const atMatch = textBeforeCursor.match(/@(\w*)$/);
+    
+    if (atMatch) {
+      setMentionSearch(atMatch[1]);
+      setShowMentionPopup(true);
+      setMentionIndex(0);
+    } else {
+      setShowMentionPopup(false);
+      setMentionSearch('');
+    }
+  };
+
+  const insertMention = (member: { id: string; name: string }) => {
+    const textBeforeCursor = newMessage.slice(0, cursorPosition);
+    const textAfterCursor = newMessage.slice(cursorPosition);
+    
+    // Find and replace the @search with @Name
+    const atMatch = textBeforeCursor.match(/@(\w*)$/);
+    if (atMatch) {
+      const beforeMention = textBeforeCursor.slice(0, atMatch.index);
+      const firstName = member.name.split(' ')[0];
+      const newText = beforeMention + '@' + firstName + ' ' + textAfterCursor;
+      setNewMessage(newText);
+      
+      // Move cursor after the inserted mention
+      const newCursorPos = beforeMention.length + firstName.length + 2;
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
+          textareaRef.current.focus();
+        }
+      }, 0);
+    }
+    
+    setShowMentionPopup(false);
+    setMentionSearch('');
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (showMentionPopup && filteredMembers.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setMentionIndex(prev => (prev + 1) % filteredMembers.length);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setMentionIndex(prev => (prev - 1 + filteredMembers.length) % filteredMembers.length);
+        return;
+      }
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        insertMention(filteredMembers[mentionIndex]);
+        return;
+      }
+      if (e.key === 'Escape') {
+        setShowMentionPopup(false);
+        return;
+      }
+    }
+    
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -410,6 +565,7 @@ export const MessageThread = ({
                       showAvatar={showAvatar}
                       onReaction={(emoji) => onReaction(msg.id, emoji)}
                       onReply={() => setReplyTo(msg)}
+                      teamMembers={teamMembers}
                     />
                   );
                 })}
@@ -489,7 +645,44 @@ export const MessageThread = ({
       </AnimatePresence>
 
       {/* Input */}
-      <div className="p-3 border-t border-border">
+      <div className="p-3 border-t border-border relative">
+        {/* Mention Autocomplete Popup */}
+        <AnimatePresence>
+          {showMentionPopup && filteredMembers.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              className="absolute bottom-full left-3 right-3 mb-2 bg-popover border border-border rounded-lg shadow-lg max-h-[200px] overflow-y-auto z-50"
+            >
+              <div className="p-1">
+                <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground flex items-center gap-1">
+                  <AtSign className="h-3 w-3" />
+                  Mention someone
+                </div>
+                {filteredMembers.slice(0, 6).map((member, index) => (
+                  <button
+                    key={member.id}
+                    onClick={() => insertMention(member)}
+                    className={cn(
+                      "w-full flex items-center gap-2 px-2 py-1.5 rounded text-left transition-colors",
+                      index === mentionIndex ? "bg-accent" : "hover:bg-muted"
+                    )}
+                  >
+                    <Avatar className="h-6 w-6">
+                      <AvatarImage src={member.avatar_url || undefined} />
+                      <AvatarFallback className="text-[10px]">
+                        {member.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="text-sm font-medium">{member.name}</span>
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <div className="flex items-end gap-2">
           <input
             type="file"
@@ -513,10 +706,11 @@ export const MessageThread = ({
             )}
           </Button>
           <Textarea
+            ref={textareaRef}
             value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
+            onChange={handleMessageChange}
             onKeyDown={handleKeyDown}
-            placeholder="Type a message..."
+            placeholder="Type a message... (use @ to mention)"
             className="min-h-[40px] max-h-[120px] resize-none"
             rows={1}
           />
