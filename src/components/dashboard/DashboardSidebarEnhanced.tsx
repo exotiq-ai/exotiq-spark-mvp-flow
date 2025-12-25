@@ -36,6 +36,7 @@ interface NavItem {
   id: string;
   name: string;
   icon: React.ComponentType<{ className?: string }>;
+  minRole?: 'admin' | 'manager' | 'operator' | 'viewer';
 }
 
 // Role display mapping
@@ -88,34 +89,52 @@ const UserProfileSection = ({ collapsed }: { collapsed: boolean }) => {
 export const DashboardSidebarEnhanced = ({ activeModule, onModuleChange }: DashboardSidebarEnhancedProps) => {
   const [collapsed, setCollapsed] = useLocalStorage("sidebarCollapsed", false);
   const [expandedGroups, setExpandedGroups] = useLocalStorage<string[]>("sidebarExpandedGroups", ["operations", "intelligence"]);
+  const { hasRoleOrHigher, isReadOnly, loading: roleLoading } = useUserRole();
 
-  const navGroups: NavGroup[] = [
+  // Role hierarchy for filtering
+  const roleHierarchy: Record<string, number> = {
+    admin: 4,
+    manager: 3,
+    operator: 2,
+    viewer: 1,
+  };
+
+  const allNavGroups: NavGroup[] = [
     {
       id: "operations",
       name: "Operations",
       items: [
         { id: "dashboard", name: "Dashboard", icon: Home },
-        { id: "book", name: "Bookings", icon: Calendar },
+        { id: "book", name: "Bookings", icon: Calendar, minRole: 'operator' },
       ]
     },
     {
       id: "intelligence",
       name: "Intelligence",
       items: [
-        { id: "core", name: "FleetCopilot™", icon: Brain },
-        { id: "motoriq", name: "MotorIQ", icon: TrendingUp },
-        { id: "pulse", name: "Pulse", icon: BarChart3 },
+        { id: "core", name: "FleetCopilot™", icon: Brain, minRole: 'operator' },
+        { id: "motoriq", name: "MotorIQ", icon: TrendingUp, minRole: 'manager' },
+        { id: "pulse", name: "Pulse", icon: BarChart3, minRole: 'operator' },
       ]
     },
     {
       id: "management",
       name: "Management",
       items: [
-        { id: "vault", name: "Vault", icon: Shield },
-        { id: "settings", name: "Settings", icon: Settings },
+        { id: "vault", name: "Vault", icon: Shield, minRole: 'operator' },
+        { id: "settings", name: "Settings", icon: Settings, minRole: 'manager' },
       ]
     }
   ];
+
+  // Filter nav items based on user role
+  const navGroups = allNavGroups.map(group => ({
+    ...group,
+    items: group.items.filter(item => {
+      if (!item.minRole) return true; // No restriction
+      return hasRoleOrHigher(item.minRole);
+    })
+  })).filter(group => group.items.length > 0); // Remove empty groups
 
   const toggleGroup = (groupId: string) => {
     setExpandedGroups(prev => 

@@ -21,6 +21,7 @@ import { IntegrationsSection } from "./IntegrationsSection";
 import { DataManagementSection } from "./DataManagementSection";
 import { SystemSettingsSection } from "../SystemSettingsSection";
 import { UserManagementSection } from "../UserManagementSection";
+import { MyTeamSection } from "../MyTeamSection";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useUserRole } from "@/hooks/useUserRole";
 
@@ -33,6 +34,7 @@ interface SettingsTab {
 
 const allSettingsTabs: SettingsTab[] = [
   { id: "account", label: "My Account", icon: User },
+  { id: "team", label: "My Team", icon: Users },
   { id: "subscription", label: "Subscription", icon: CreditCard },
   { id: "integrations", label: "Integrations", icon: Plug },
   { id: "system", label: "System", icon: Settings },
@@ -57,6 +59,8 @@ export const SettingsLayout = () => {
     switch (activeTab) {
       case "account":
         return <MyAccountSection />;
+      case "team":
+        return <MyTeamSection />;
       case "subscription":
         return <SubscriptionSection />;
       case "integrations":

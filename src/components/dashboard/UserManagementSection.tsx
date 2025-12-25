@@ -274,11 +274,28 @@ export const UserManagementSection = () => {
   };
 
   const handleResendInvitation = async (invitation: PendingInvitation) => {
-    // TODO: Implement resend via edge function
-    toast({
-      title: "Coming soon",
-      description: "Resend functionality will be available soon.",
-    });
+    try {
+      const { data, error } = await supabase.functions.invoke('resend-invite', {
+        body: { invitationId: invitation.id }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Invitation Resent",
+        description: `A new invitation email has been sent to ${invitation.email}`,
+      });
+
+      // Refresh the list
+      fetchUsers();
+    } catch (error: any) {
+      console.error('Error resending invitation:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to resend invitation",
+        variant: "destructive"
+      });
+    }
   };
 
   const activeUsers = users.filter(u => u.status === "active").length;

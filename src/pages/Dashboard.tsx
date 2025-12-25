@@ -8,6 +8,7 @@ import { SEOHead } from "@/components/common/SEOHead";
 import { UnifiedNotificationCenter } from "@/components/common/UnifiedNotificationCenter";
 import { useAnalytics } from "@/lib/analytics";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { useUserRole } from "@/hooks/useUserRole";
 import { performance } from "@/lib/performance";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -17,7 +18,8 @@ import {
   Users,
   Settings,
   BarChart3,
-  Home
+  Home,
+  Eye
 } from "lucide-react";
 import { MotorIQEnhanced } from "@/components/dashboard/MotorIQEnhanced";
 import { PulseEnhanced } from "@/components/dashboard/PulseEnhanced";
@@ -35,6 +37,7 @@ import { Calendar as CalendarIcon, DollarSign, UserPlus, FileText } from "lucide
 const Dashboard = () => {
   const [activeModule, setActiveModule] = useLocalStorage("activeModule", "dashboard");
   const { track, page } = useAnalytics();
+  const { isReadOnly, hasRoleOrHigher, loading: roleLoading } = useUserRole();
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -62,13 +65,15 @@ const Dashboard = () => {
     settings: "Settings",
   };
 
-  const fabActions = [
+  // FAB actions filtered by role
+  const allFabActions = [
     {
       id: "new-booking",
       label: "New Booking",
       icon: <CalendarIcon className="h-4 w-4" />,
       onClick: () => handleModuleChange("book"),
       color: "bg-primary text-primary-foreground",
+      minRole: 'operator' as const,
     },
     {
       id: "ai-assistant",
@@ -76,6 +81,7 @@ const Dashboard = () => {
       icon: <Brain className="h-4 w-4" />,
       onClick: () => handleModuleChange("core"),
       color: "bg-secondary text-secondary-foreground",
+      minRole: 'operator' as const,
     },
     {
       id: "insights",
@@ -83,8 +89,14 @@ const Dashboard = () => {
       icon: <BarChart3 className="h-4 w-4" />,
       onClick: () => handleModuleChange("pulse"),
       color: "bg-accent text-accent-foreground",
+      minRole: 'operator' as const,
     },
   ];
+
+  // Filter FAB actions based on role
+  const fabActions = allFabActions.filter(action => 
+    !action.minRole || hasRoleOrHigher(action.minRole)
+  );
 
   const renderModuleContent = () => {
     const pageVariants = {
@@ -150,6 +162,16 @@ const Dashboard = () => {
       />
       <SkipNavigation />
       
+      {/* View Only Badge for Viewers */}
+      {isReadOnly && !roleLoading && (
+        <div className="fixed top-4 right-4 z-50 md:top-20">
+          <Badge variant="secondary" className="flex items-center gap-1.5 px-3 py-1.5 shadow-lg">
+            <Eye className="h-3.5 w-3.5" />
+            View Only Mode
+          </Badge>
+        </div>
+      )}
+      
       {/* Desktop Sidebar - Enhanced with grouped navigation */}
       <DashboardSidebarEnhanced 
         activeModule={activeModule}
@@ -195,11 +217,11 @@ const Dashboard = () => {
         <div className="mobile-nav">
           <div className="grid grid-cols-5 gap-1 px-2 py-2.5">
             {[
-              { id: "dashboard", label: "Home", icon: Home },
-              { id: "book", label: "Book", icon: Calendar },
-              { id: "core", label: "AI", icon: Brain },
-              { id: "pulse", label: "Insights", icon: BarChart3, aliases: ["motoriq", "optimize"] },
-            ].map((item) => {
+              { id: "dashboard", label: "Home", icon: Home, minRole: undefined },
+              { id: "book", label: "Book", icon: Calendar, minRole: 'operator' as const },
+              { id: "core", label: "AI", icon: Brain, minRole: 'operator' as const },
+              { id: "pulse", label: "Insights", icon: BarChart3, aliases: ["motoriq", "optimize"], minRole: 'operator' as const },
+            ].filter(item => !item.minRole || hasRoleOrHigher(item.minRole)).map((item) => {
               const Icon = item.icon;
               const isActive = item.aliases 
                 ? [item.id, ...item.aliases].includes(activeModule)
