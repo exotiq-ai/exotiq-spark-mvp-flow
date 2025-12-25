@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,26 +12,46 @@ import {
   Settings,
   Bell,
   Shield,
-  Zap
+  Zap,
+  Users
 } from "lucide-react";
 import { MyAccountSection } from "./MyAccountSection";
 import { SubscriptionSection } from "./SubscriptionSection";
 import { IntegrationsSection } from "./IntegrationsSection";
 import { DataManagementSection } from "./DataManagementSection";
 import { SystemSettingsSection } from "../SystemSettingsSection";
+import { UserManagementSection } from "../UserManagementSection";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useUserRole } from "@/hooks/useUserRole";
 
-const settingsTabs = [
+interface SettingsTab {
+  id: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  requiresAdmin?: boolean;
+}
+
+const allSettingsTabs: SettingsTab[] = [
   { id: "account", label: "My Account", icon: User },
   { id: "subscription", label: "Subscription", icon: CreditCard },
   { id: "integrations", label: "Integrations", icon: Plug },
   { id: "system", label: "System", icon: Settings },
+  { id: "users", label: "User Management", icon: Users, requiresAdmin: true },
   { id: "data", label: "Data", icon: Database },
 ];
 
 export const SettingsLayout = () => {
   const [activeTab, setActiveTab] = useState("account");
   const isMobile = useIsMobile();
+  const { isAdmin, loading: roleLoading } = useUserRole();
+
+  // Filter tabs based on user role
+  const settingsTabs = useMemo(() => {
+    return allSettingsTabs.filter(tab => {
+      if (tab.requiresAdmin && !isAdmin) return false;
+      return true;
+    });
+  }, [isAdmin]);
 
   const renderContent = () => {
     switch (activeTab) {
@@ -43,6 +63,8 @@ export const SettingsLayout = () => {
         return <IntegrationsSection />;
       case "system":
         return <SystemSettingsSection />;
+      case "users":
+        return isAdmin ? <UserManagementSection /> : null;
       case "data":
         return <DataManagementSection />;
       default:

@@ -1,7 +1,9 @@
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/ui/logo";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { useAuth } from "@/contexts/AuthContext";
+import { useUserRole } from "@/hooks/useUserRole";
+import { Badge } from "@/components/ui/badge";
 import { 
   Home,
   Brain,
@@ -19,6 +21,58 @@ interface DashboardSidebarProps {
   activeModule: string;
   onModuleChange: (moduleId: string) => void;
 }
+
+// Role display mapping
+const roleDisplayNames: Record<string, string> = {
+  admin: 'Administrator',
+  manager: 'Manager',
+  operator: 'Operator',
+  viewer: 'Viewer',
+};
+
+// User Profile Section Component
+const UserProfileSection = ({ collapsed }: { collapsed: boolean }) => {
+  const { user } = useAuth();
+  const { role, loading } = useUserRole();
+  
+  const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
+  const roleLabel = role ? roleDisplayNames[role] : 'Loading...';
+  
+  return (
+    <div className="p-3 border-t border-sidebar-border">
+      <div className={cn(
+        "flex items-center rounded-xl p-3 hover:bg-sidebar-accent transition-colors cursor-pointer",
+        collapsed ? "justify-center" : "space-x-3"
+      )}>
+        <div className={cn(
+          "w-8 h-8 bg-primary rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-300",
+          "dark:bg-white/10 dark:backdrop-blur-sm dark:border dark:border-white/20",
+          "dark:shadow-[0_0_15px_rgba(255,255,255,0.15)]"
+        )}>
+          <User className={cn(
+            "h-4 w-4 text-primary-foreground",
+            "dark:drop-shadow-[0_0_6px_rgba(255,255,255,0.4)]"
+          )} />
+        </div>
+        
+        {!collapsed && (
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium truncate">{displayName}</p>
+            <div className="flex items-center gap-1.5">
+              {loading ? (
+                <span className="text-xs text-muted-foreground">Loading...</span>
+              ) : (
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                  {roleLabel}
+                </Badge>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 export const DashboardSidebar = ({ activeModule, onModuleChange }: DashboardSidebarProps) => {
   const [collapsed, setCollapsed] = useLocalStorage("sidebarCollapsed", false);
@@ -126,30 +180,7 @@ export const DashboardSidebar = ({ activeModule, onModuleChange }: DashboardSide
       </nav>
 
       {/* User Profile Section */}
-      <div className="p-3 border-t border-sidebar-border">
-        <div className={cn(
-          "flex items-center rounded-xl p-3 hover:bg-sidebar-accent transition-colors cursor-pointer",
-          collapsed ? "justify-center" : "space-x-3"
-        )}>
-          <div className={cn(
-            "w-8 h-8 bg-primary rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-300",
-            "dark:bg-white/10 dark:backdrop-blur-sm dark:border dark:border-white/20",
-            "dark:shadow-[0_0_15px_rgba(255,255,255,0.15)]"
-          )}>
-            <User className={cn(
-              "h-4 w-4 text-primary-foreground",
-              "dark:drop-shadow-[0_0_6px_rgba(255,255,255,0.4)]"
-            )} />
-          </div>
-          
-          {!collapsed && (
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">John Doe</p>
-              <p className="text-xs text-muted-foreground truncate">Fleet Manager</p>
-            </div>
-          )}
-        </div>
-      </div>
+      <UserProfileSection collapsed={collapsed} />
 
       {/* Collapse Toggle */}
       <div className="p-3 border-t border-sidebar-border">
