@@ -308,7 +308,7 @@ export const useTeamMessaging = () => {
     if (!user || !activeConversation) return;
 
     try {
-      const { error } = await supabase.from('team_messages').insert([{
+      const { data: insertedMsg, error } = await supabase.from('team_messages').insert([{
         conversation_id: activeConversation.id,
         sender_id: user.id,
         content,
@@ -316,7 +316,7 @@ export const useTeamMessaging = () => {
         attachments: JSON.parse(JSON.stringify(attachments)),
         mentions,
         reply_to: replyTo || null,
-      }]);
+      }]).select().single();
 
       if (error) throw error;
 
@@ -326,11 +326,26 @@ export const useTeamMessaging = () => {
         .update({ updated_at: new Date().toISOString() })
         .eq('id', activeConversation.id);
 
+      // Send email notifications for mentions
+      if (mentions.length > 0 && insertedMsg) {
+        const senderProfile = teamMembers.find(m => m.id === user.id);
+        supabase.functions.invoke('mention-notification', {
+          body: {
+            mentionedUserIds: mentions,
+            senderId: user.id,
+            senderName: senderProfile?.name || user.email || 'Someone',
+            messageContent: content,
+            conversationId: activeConversation.id,
+            messageId: insertedMsg.id,
+          }
+        }).catch(err => console.error('Failed to send mention notifications:', err));
+      }
+
     } catch (error) {
       console.error('Error sending message:', error);
       toast.error('Failed to send message');
     }
-  }, [user, activeConversation]);
+  }, [user, activeConversation, teamMembers]);
 
   // Create new conversation
   const createConversation = useCallback(async (
