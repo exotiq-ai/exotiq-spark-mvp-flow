@@ -15,6 +15,100 @@ interface AcceptRequest {
   userId: string;
 }
 
+const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+
+async function notifyAdminsOfNewUser(
+  supabaseAdmin: any,
+  newUserEmail: string,
+  newUserName: string,
+  role: string,
+  companyName: string
+) {
+  try {
+    // Get all admin user IDs
+    const { data: adminRoles, error: adminError } = await supabaseAdmin
+      .from("user_roles")
+      .select("user_id")
+      .eq("role", "admin");
+
+    if (adminError || !adminRoles?.length) {
+      console.log("No admins found to notify");
+      return;
+    }
+
+    // Get admin profiles
+    const adminUserIds = adminRoles.map((r: any) => r.user_id);
+    const { data: adminProfiles, error: profilesError } = await supabaseAdmin
+      .from("profiles")
+      .select("id, email, full_name")
+      .in("id", adminUserIds);
+
+    if (profilesError || !adminProfiles?.length) {
+      console.log("No admin profiles found");
+      return;
+    }
+
+    // Send email to each admin
+    for (const admin of adminProfiles) {
+      if (!RESEND_API_KEY) {
+        console.log("RESEND_API_KEY not set, skipping email");
+        continue;
+      }
+
+      try {
+        await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${RESEND_API_KEY}`,
+          },
+          body: JSON.stringify({
+            from: "ExotIQ <notifications@exotiq.io>",
+            to: [admin.email],
+            subject: `New Team Member Joined: ${newUserName}`,
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #333;">New Team Member Alert</h2>
+                <p>Hi ${admin.full_name || 'Admin'},</p>
+                <p>A new team member has joined ${companyName || 'your organization'}:</p>
+                <div style="background-color: #f5f5f5; padding: 16px; border-radius: 8px; margin: 16px 0;">
+                  <p style="margin: 4px 0;"><strong>Name:</strong> ${newUserName}</p>
+                  <p style="margin: 4px 0;"><strong>Email:</strong> ${newUserEmail}</p>
+                  <p style="margin: 4px 0;"><strong>Role:</strong> ${role}</p>
+                </div>
+                <p>You can view and manage team members in the Settings → User Management section.</p>
+                <p style="color: #666; font-size: 12px; margin-top: 24px;">
+                  This is an automated notification from ExotIQ Fleet Management.
+                </p>
+              </div>
+            `,
+          }),
+        });
+        console.log(`Admin notification sent to ${admin.email}`);
+      } catch (emailError) {
+        console.error(`Failed to send email to ${admin.email}:`, emailError);
+      }
+
+      // Create in-app notification for admin
+      await supabaseAdmin.from("notifications").insert({
+        user_id: admin.id,
+        type: "team_member_joined",
+        title: "New Team Member Joined",
+        message: `${newUserName} (${newUserEmail}) has joined as ${role}`,
+        data: {
+          new_user_email: newUserEmail,
+          new_user_name: newUserName,
+          role: role,
+        },
+      });
+    }
+
+    console.log(`Notified ${adminProfiles.length} admins about new user`);
+  } catch (error) {
+    console.error("Error notifying admins:", error);
+  }
+}
+
 serve(async (req: Request) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -124,11 +218,22 @@ serve(async (req: Request) => {
         .eq("id", invitation.invited_by)
         .single();
 
+      // Get new user's profile
+      const { data: newUserProfile } = await supabaseAdmin
+        .from("profiles")
+        .select("full_name, email")
+        .eq("id", userId)
+        .single();
+
+      const companyName = inviterProfile?.company_name || "ExotIQ";
+      const newUserName = newUserProfile?.full_name || invitation.email;
+      const newUserEmail = newUserProfile?.email || invitation.email;
+
       // Update the new user's profile with company name and mark onboarding complete
       const { error: profileError } = await supabaseAdmin
         .from("profiles")
         .update({
-          company_name: inviterProfile?.company_name || null,
+          company_name: companyName,
           onboarding_completed: true,
           updated_at: new Date().toISOString(),
         })
@@ -177,12 +282,21 @@ serve(async (req: Request) => {
         },
       });
 
+      // Notify all admins about the new user
+      await notifyAdminsOfNewUser(
+        supabaseAdmin,
+        newUserEmail,
+        newUserName,
+        invitation.role || "viewer",
+        companyName
+      );
+
       console.log("Invitation accepted successfully for:", invitation.email);
 
       return new Response(
         JSON.stringify({
           success: true,
-          companyName: inviterProfile?.company_name,
+          companyName: companyName,
           role: invitation.role,
         }),
         {

@@ -3,14 +3,13 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { AvatarUpload } from "./AvatarUpload";
 import { 
   User, 
   Mail, 
   Phone, 
   Building, 
-  Camera,
   Save,
   Lock,
   LogOut,
@@ -162,16 +161,11 @@ export const MyAccountSection = () => {
         <div className="flex flex-col md:flex-row gap-8">
           {/* Avatar Section */}
           <div className="flex flex-col items-center space-y-4">
-            <Avatar className="w-24 h-24">
-              <AvatarImage src={profile?.avatar_url || undefined} />
-              <AvatarFallback className="text-2xl bg-primary text-primary-foreground">
-                {initials}
-              </AvatarFallback>
-            </Avatar>
-            <Button variant="outline" size="sm" className="gap-2">
-              <Camera className="w-4 h-4" />
-              Change Photo
-            </Button>
+            <AvatarUpload
+              currentAvatarUrl={profile?.avatar_url || null}
+              displayName={formData.fullName || 'User'}
+              onAvatarChange={(url) => setProfile(prev => prev ? { ...prev, avatar_url: url } : null)}
+            />
             <div className="flex items-center gap-2">
               <Badge variant="secondary" className="text-xs">
                 <Shield className="w-3 h-3 mr-1" />

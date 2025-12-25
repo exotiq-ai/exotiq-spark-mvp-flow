@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Users, 
@@ -16,7 +17,9 @@ import {
   Trash2,
   History,
   Clock,
-  Send
+  Send,
+  CheckSquare,
+  X
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -24,6 +27,23 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { EditUserRoleDialog, type AppRole } from "@/components/dialogs/EditUserRoleDialog";
@@ -64,6 +84,13 @@ export const UserManagementSection = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserWithRole | null>(null);
   const [userToDelete, setUserToDelete] = useState<{ id: string; name: string; email: string; role: string } | null>(null);
+  
+  // Bulk action state
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [bulkRoleDialogOpen, setBulkRoleDialogOpen] = useState(false);
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+  const [bulkRole, setBulkRole] = useState<AppRole>("viewer");
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false);
 
   const fetchUsers = async () => {
     setIsLoading(true);
@@ -116,6 +143,7 @@ export const UserManagementSection = () => {
       });
 
       setUsers(mergedUsers);
+      setSelectedUserIds([]); // Clear selection on refresh
 
       // Fetch pending invitations
       const { data: invitations } = await supabase
@@ -237,7 +265,6 @@ export const UserManagementSection = () => {
           });
         } catch (notifError) {
           console.error('Failed to send role change notification:', notifError);
-          // Don't fail the whole operation if notification fails
         }
       }
 
@@ -320,9 +347,100 @@ export const UserManagementSection = () => {
     }
   };
 
+  // Bulk selection handlers
+  const toggleUserSelection = (userId: string) => {
+    setSelectedUserIds(prev =>
+      prev.includes(userId)
+        ? prev.filter(id => id !== userId)
+        : [...prev, userId]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedUserIds.length === filteredUsers.length) {
+      setSelectedUserIds([]);
+    } else {
+      setSelectedUserIds(filteredUsers.map(u => u.user_id));
+    }
+  };
+
+  const handleBulkRoleChange = async () => {
+    if (selectedUserIds.length === 0) return;
+
+    setIsBulkUpdating(true);
+    try {
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (!currentUser) throw new Error("Not authenticated");
+
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const userId of selectedUserIds) {
+        try {
+          // Get current role
+          const { data: existingRole } = await supabase
+            .from('user_roles')
+            .select('id, role, permissions')
+            .eq('user_id', userId)
+            .single();
+
+          const oldRole = existingRole?.role || 'viewer';
+
+          if (existingRole) {
+            await supabase
+              .from('user_roles')
+              .update({ role: bulkRole })
+              .eq('user_id', userId);
+          } else {
+            await supabase
+              .from('user_roles')
+              .insert({ user_id: userId, role: bulkRole, permissions: [] });
+          }
+
+          // Log to audit
+          await supabase.from('role_audit_log').insert({
+            user_id: userId,
+            changed_by: currentUser.id,
+            action: 'bulk_role_change',
+            old_role: oldRole,
+            new_role: bulkRole,
+            metadata: { bulk_operation: true, total_users: selectedUserIds.length }
+          });
+
+          successCount++;
+        } catch (err) {
+          console.error(`Failed to update user ${userId}:`, err);
+          errorCount++;
+        }
+      }
+
+      toast({
+        title: "Bulk Update Complete",
+        description: `Updated ${successCount} users${errorCount > 0 ? `, ${errorCount} failed` : ''}.`,
+        variant: errorCount > 0 ? "destructive" : "default"
+      });
+
+      setBulkRoleDialogOpen(false);
+      setSelectedUserIds([]);
+      fetchUsers();
+    } catch (error: any) {
+      console.error('Error in bulk role change:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update user roles",
+        variant: "destructive"
+      });
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  };
+
   const activeUsers = users.filter(u => u.status === "active").length;
   const adminCount = users.filter(u => u.role === "admin").length;
   const managerCount = users.filter(u => u.role === "manager").length;
+
+  const selectedUsersInfo = users.filter(u => selectedUserIds.includes(u.user_id));
+  const hasAdminsSelected = selectedUsersInfo.some(u => u.role === "admin");
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -429,7 +547,48 @@ export const UserManagementSection = () => {
               />
             </div>
 
+            {/* Bulk Actions Bar */}
+            {selectedUserIds.length > 0 && (
+              <div className="flex items-center justify-between gap-2 p-3 mb-4 rounded-lg bg-primary/5 border border-primary/20">
+                <div className="flex items-center gap-2">
+                  <CheckSquare className="h-4 w-4 text-primary" />
+                  <span className="text-sm font-medium">
+                    {selectedUserIds.length} user{selectedUserIds.length > 1 ? 's' : ''} selected
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setBulkRoleDialogOpen(true)}
+                  >
+                    Change Role
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedUserIds([])}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+
             <div className="space-y-3 sm:space-y-4">
+              {/* Select All Header */}
+              {!isLoading && filteredUsers.length > 0 && (
+                <div className="flex items-center gap-3 px-3 py-2 border-b">
+                  <Checkbox
+                    checked={selectedUserIds.length === filteredUsers.length && filteredUsers.length > 0}
+                    onCheckedChange={toggleSelectAll}
+                  />
+                  <span className="text-sm text-muted-foreground">
+                    Select all ({filteredUsers.length})
+                  </span>
+                </div>
+              )}
+
               {isLoading ? (
                 Array.from({ length: 3 }).map((_, i) => (
                   <div key={i} className="p-3 sm:p-4 rounded-lg bg-muted/30 border border-primary/10">
@@ -453,6 +612,12 @@ export const UserManagementSection = () => {
                 filteredUsers.map((user) => (
                   <div key={user.id} className="p-3 sm:p-4 rounded-lg bg-muted/30 border border-primary/10 hover:border-primary/20 transition-smooth">
                     <div className="flex items-start gap-3">
+                      <Checkbox
+                        checked={selectedUserIds.includes(user.user_id)}
+                        onCheckedChange={() => toggleUserSelection(user.user_id)}
+                        className="mt-3"
+                      />
+                      
                       <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                         <Users className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
                       </div>
@@ -627,6 +792,47 @@ export const UserManagementSection = () => {
         user={userToDelete}
         onSuccess={fetchUsers}
       />
+
+      {/* Bulk Role Change Dialog */}
+      <AlertDialog open={bulkRoleDialogOpen} onOpenChange={setBulkRoleDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Change Role for {selectedUserIds.length} Users</AlertDialogTitle>
+            <AlertDialogDescription>
+              {hasAdminsSelected && (
+                <span className="text-destructive block mb-2">
+                  Warning: You have admin users selected. Changing their role will remove admin privileges.
+                </span>
+              )}
+              Select the new role to assign to all selected users.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          
+          <div className="py-4">
+            <Select value={bulkRole} onValueChange={(v) => setBulkRole(v as AppRole)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select role" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="admin">Admin</SelectItem>
+                <SelectItem value="manager">Manager</SelectItem>
+                <SelectItem value="operator">Operator</SelectItem>
+                <SelectItem value="viewer">Viewer</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isBulkUpdating}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleBulkRoleChange}
+              disabled={isBulkUpdating}
+            >
+              {isBulkUpdating ? "Updating..." : "Update Roles"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
