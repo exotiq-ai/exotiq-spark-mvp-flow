@@ -36,12 +36,22 @@ import { FloatingActionMenu } from "@/components/mobile/FloatingActionMenu";
 import { TeamActivityDashboard } from "@/components/dashboard/TeamActivityDashboard";
 import { TeamMessaging, TeamMessagingTrigger } from "@/components/messaging/TeamMessaging";
 import { useTeamMessaging } from "@/hooks/useTeamMessaging";
-import { Calendar as CalendarIcon, DollarSign, UserPlus, FileText } from "lucide-react";
+import { Calendar as CalendarIcon, DollarSign, UserPlus, FileText, Sparkles } from "lucide-react";
+import { RariVoiceInterface } from "@/components/rari/RariVoiceInterface";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { FocusTrap } from "@/components/ui/focus-trap";
 
 const Dashboard = () => {
   const [activeModule, setActiveModule] = useLocalStorage("activeModule", "dashboard");
   const [chatOpen, setChatOpen] = useState(false);
   const [chatMinimized, setChatMinimized] = useState(false);
+  const [showRari, setShowRari] = useState(false);
   const { track, page } = useAnalytics();
   const { isReadOnly, hasRoleOrHigher, loading: roleLoading } = useUserRole();
   const { conversations } = useTeamMessaging();
@@ -94,11 +104,11 @@ const Dashboard = () => {
       minRole: 'operator' as const,
     },
     {
-      id: "ai-assistant",
-      label: "Ask AI",
-      icon: <Brain className="h-4 w-4" />,
-      onClick: () => handleModuleChange("core"),
-      color: "bg-secondary text-secondary-foreground",
+      id: "ask-rari",
+      label: "Ask Rari",
+      icon: <Sparkles className="h-4 w-4" />,
+      onClick: () => setShowRari(true),
+      color: "bg-gulf-blue/20 text-gulf-blue border border-gulf-blue/30",
       minRole: 'operator' as const,
     },
     {
@@ -329,6 +339,26 @@ const Dashboard = () => {
           onToggleMinimize={() => setChatMinimized(!chatMinimized)}
         />
       </ErrorBoundary>
+
+      {/* Rari AI Assistant Dialog - triggered from FAB */}
+      <Dialog open={showRari} onOpenChange={setShowRari}>
+        <DialogContent className="sm:max-w-[600px]">
+          <FocusTrap active={showRari}>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-gulf-blue" aria-hidden="true" />
+                Rari AI Assistant
+              </DialogTitle>
+              <DialogDescription>
+                Ask me anything about your fleet operations, pricing, bookings, or analytics.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="mt-4">
+              <RariVoiceInterface />
+            </div>
+          </FocusTrap>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

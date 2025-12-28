@@ -16,7 +16,7 @@ import { ScheduleWidget } from "./widgets/ScheduleWidget";
 import { ModuleGridWidget } from "./widgets/ModuleGridWidget";
 import { PriceOptimizationDialog } from "@/components/dialogs/PriceOptimizationDialog";
 import { useFleet } from "@/contexts/FleetContext";
-import { AskRariButton } from "@/components/common/AskRariButton";
+import { AskRariQuickAction } from "@/components/common/AskRariQuickAction";
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
 
@@ -169,11 +169,9 @@ export const CustomizableDashboard = ({ modules, onModuleClick }: CustomizableDa
             )}
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            <AskRariButton 
-              moduleId="dashboard" 
-              moduleName="Dashboard"
-              contextPrompt="Ask me anything about your fleet operations, performance metrics, or general insights."
-              variant="inline"
+            <AskRariQuickAction 
+              variant="button"
+              prompt="Analyze my dashboard metrics and provide insights on fleet operations and performance."
             />
             {!isEditMode ? (
               <Button

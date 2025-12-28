@@ -2,7 +2,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DriverPerformanceTrend } from "@/components/charts/DriverPerformanceTrend";
-import { AskRariButton } from "@/components/common/AskRariButton";
+
 import { AskRariQuickAction } from "@/components/common/AskRariQuickAction";
 import { SkeletonCard, SkeletonMetric, SkeletonLineChart, SkeletonTable } from "@/components/ui/skeleton-card";
 import { SkeletonHeroMetric, SkeletonStatsRow, SkeletonScheduleItem } from "@/components/ui/skeleton-specialized";
@@ -125,13 +125,6 @@ export const PulseEnhanced = () => {
 
   return (
     <div className="space-y-6">
-      {/* Ask Rari Floating Button */}
-      <AskRariButton
-        moduleId="pulse" 
-        moduleName="Pulse"
-        contextPrompt="Ask me about driver performance metrics, live analytics, or real-time fleet monitoring."
-      />
-      
       {/* Hero Metric */}
       <Card className="card-premium bg-gradient-to-br from-primary/10 to-accent/10 border-primary/20 p-8">
         <div className="flex items-start justify-between mb-4">

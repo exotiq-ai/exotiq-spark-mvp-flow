@@ -31,7 +31,7 @@ export const FloatingActionMenu = ({ actions, className }: FloatingActionMenuPro
   };
 
   return (
-    <div className={cn("fixed bottom-28 right-4 z-40 md:hidden", className)}>
+    <div className={cn("fixed bottom-24 right-4 z-40 md:hidden", className)}>
       {/* Backdrop */}
       <AnimatePresence>
         {isOpen && (
