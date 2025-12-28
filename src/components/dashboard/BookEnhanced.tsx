@@ -11,7 +11,6 @@ import { BookingCalendar } from "@/components/dashboard/BookingCalendar";
 import { PaymentTracker } from "@/components/dashboard/PaymentTracker";
 import { InspectionForm } from "@/components/dashboard/InspectionForm";
 import { VehicleImageDialog } from "@/components/dialogs/VehicleImageDialog";
-import { AskRariButton } from "@/components/common/AskRariButton";
 import { AskRariQuickAction } from "@/components/common/AskRariQuickAction";
 import { SkeletonCard, SkeletonMetric } from "@/components/ui/skeleton-card";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -194,13 +193,6 @@ export const BookEnhanced = () => {
           onUpdateStatus={updateBookingStatus}
         />
       )}
-
-      {/* Ask Rari Floating Button */}
-      <AskRariButton 
-        moduleId="book" 
-        moduleName="Book"
-        contextPrompt="Ask me about bookings, vehicle availability, schedule optimization, or customer information."
-      />
 
       <Tabs defaultValue="overview" className="space-y-4 sm:space-y-6 w-full overflow-x-hidden">
         <TabsList className="sticky top-0 z-10 grid w-full grid-cols-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border/50">
