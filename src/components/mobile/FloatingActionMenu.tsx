@@ -31,7 +31,7 @@ export const FloatingActionMenu = ({ actions, className }: FloatingActionMenuPro
   };
 
   return (
-    <div className={cn("fixed bottom-24 right-4 z-40 md:hidden", className)}>
+    <div className={cn("fixed bottom-20 right-4 z-40 md:hidden", className)}>
       {/* Backdrop */}
       <AnimatePresence>
         {isOpen && (
@@ -92,11 +92,13 @@ export const FloatingActionMenu = ({ actions, className }: FloatingActionMenuPro
         whileTap={{ scale: 0.9 }}
         onClick={toggleMenu}
         className={cn(
-          "w-14 h-14 rounded-full shadow-xl flex items-center justify-center",
-          "ring-4 ring-background",
+          "w-14 h-14 rounded-full flex items-center justify-center",
+          "ring-2 ring-primary/20",
+          "shadow-[0_8px_30px_rgb(0,0,0,0.12)]",
+          "transition-all duration-300",
           isOpen
-            ? "bg-muted text-foreground"
-            : "bg-primary text-primary-foreground"
+            ? "bg-muted text-foreground shadow-lg"
+            : "bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-[0_8px_30px_hsl(var(--primary)/0.3)]"
         )}
         aria-label={isOpen ? "Close menu" : "Open quick actions"}
       >
@@ -104,7 +106,7 @@ export const FloatingActionMenu = ({ actions, className }: FloatingActionMenuPro
           animate={{ rotate: isOpen ? 45 : 0 }}
           transition={{ type: "spring", stiffness: 300, damping: 20 }}
         >
-          <Plus className="h-6 w-6" strokeWidth={2.5} />
+          <Plus className="h-6 w-6" strokeWidth={2} />
         </motion.div>
       </motion.button>
     </div>

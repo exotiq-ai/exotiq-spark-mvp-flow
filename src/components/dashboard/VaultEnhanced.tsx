@@ -9,7 +9,6 @@ import { DamageClaimsSection } from "@/components/dashboard/DamageClaimsSection"
 import { PaymentsSection } from "@/components/dashboard/PaymentsSection";
 import { VerificationSection } from "@/components/dashboard/VerificationSection";
 import { ComplianceStackedBar } from "@/components/charts/ComplianceStackedBar";
-import { AskRariButton } from "@/components/common/AskRariButton";
 import { AskRariQuickAction } from "@/components/common/AskRariQuickAction";
 import { useToast } from "@/hooks/use-toast";
 import { SkeletonCard, SkeletonMetric } from "@/components/ui/skeleton-card";
@@ -117,13 +116,6 @@ export const VaultEnhanced = () => {
         open={showUploadDialog}
         onOpenChange={setShowUploadDialog}
         onSubmit={uploadDocument}
-      />
-
-      {/* Ask Rari Floating Button */}
-      <AskRariButton 
-        moduleId="vault" 
-        moduleName="Vault"
-        contextPrompt="Ask me about compliance requirements, document management, or insurance policies."
       />
 
       <Tabs defaultValue="documents" className="space-y-4 sm:space-y-6">
