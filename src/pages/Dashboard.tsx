@@ -17,10 +17,10 @@ import {
   Calendar, 
   Brain, 
   Users,
-  Settings,
   BarChart3,
   Home,
-  Eye
+  Eye,
+  MessageSquare
 } from "lucide-react";
 import { MotorIQEnhanced } from "@/components/dashboard/MotorIQEnhanced";
 import { PulseEnhanced } from "@/components/dashboard/PulseEnhanced";
@@ -203,7 +203,10 @@ const Dashboard = () => {
       <div className="flex-1 flex flex-col min-w-0">
         {/* Desktop Header */}
         <div className="hidden md:block">
-          <DashboardHeader />
+          <DashboardHeader onOpenChat={() => {
+            setChatOpen(true);
+            setChatMinimized(false);
+          }} />
         </div>
 
         {/* Top Navigation - Mobile */}
@@ -220,8 +223,21 @@ const Dashboard = () => {
             </div>
             <div className="flex items-center space-x-2 sm:space-x-4">
               <UnifiedNotificationCenter onNavigate={handleModuleChange} />
-              <Button variant="ghost" size="sm" className="touch-target">
-                <Settings className="h-4 w-4" />
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="touch-target relative"
+                onClick={() => {
+                  setChatOpen(true);
+                  setChatMinimized(false);
+                }}
+              >
+                <MessageSquare className="h-4 w-4" />
+                {totalUnread > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-[10px] font-bold min-w-[16px] h-4 rounded-full flex items-center justify-center px-1">
+                    {totalUnread > 99 ? '99+' : totalUnread}
+                  </span>
+                )}
               </Button>
               <div className="hidden sm:flex items-center space-x-2">
                 <div className="w-8 h-8 bg-gradient-primary rounded-full flex items-center justify-center">
@@ -296,11 +312,14 @@ const Dashboard = () => {
 
       {/* Team Messaging - Floating Chat with Error Boundary */}
       <ErrorBoundary fallback={null}>
+        {/* Desktop-only floating trigger - mobile uses header button */}
         {!chatOpen && (
-          <TeamMessagingTrigger 
-            onClick={() => setChatOpen(true)} 
-            unreadCount={totalUnread} 
-          />
+          <div className="hidden md:block">
+            <TeamMessagingTrigger 
+              onClick={() => setChatOpen(true)} 
+              unreadCount={totalUnread} 
+            />
+          </div>
         )}
         
         <TeamMessaging

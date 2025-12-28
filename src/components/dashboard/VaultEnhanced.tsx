@@ -127,7 +127,7 @@ export const VaultEnhanced = () => {
       />
 
       <Tabs defaultValue="documents" className="space-y-4 sm:space-y-6">
-        <TabsList className="w-full overflow-x-auto flex flex-nowrap gap-1 sm:grid sm:grid-cols-4 bg-muted/50 p-1 rounded-lg">
+        <TabsList className="sticky top-0 z-10 w-full overflow-x-auto flex flex-nowrap gap-1 sm:grid sm:grid-cols-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-1 rounded-lg border-b border-border/50">
           <TabsTrigger value="documents" className="flex-shrink-0 flex items-center gap-1 sm:gap-2 px-3 py-2 text-xs sm:text-sm whitespace-nowrap">
             <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             <span className="hidden xs:inline">Documents</span>

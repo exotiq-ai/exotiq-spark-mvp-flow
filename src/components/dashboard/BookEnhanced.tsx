@@ -203,7 +203,7 @@ export const BookEnhanced = () => {
       />
 
       <Tabs defaultValue="overview" className="space-y-4 sm:space-y-6 w-full overflow-x-hidden">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="sticky top-0 z-10 grid w-full grid-cols-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border/50">
           <TabsTrigger value="overview">
             <Car className="w-4 h-4 mr-2" />
             Overview
