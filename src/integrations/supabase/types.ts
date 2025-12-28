@@ -1619,6 +1619,7 @@ export type Database = {
           id: string
           image_url: string | null
           license_plate: string | null
+          location: string | null
           make: string
           model: string
           name: string
@@ -1637,6 +1638,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           license_plate?: string | null
+          location?: string | null
           make: string
           model: string
           name: string
@@ -1655,6 +1657,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           license_plate?: string | null
+          location?: string | null
           make?: string
           model?: string
           name?: string
