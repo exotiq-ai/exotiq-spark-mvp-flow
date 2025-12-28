@@ -207,6 +207,19 @@ export const roiMethodology = {
   disclaimer: 'Results may vary based on fleet composition, location, and market conditions. Calculator provides estimates based on industry benchmarks.',
 };
 
+// Time savings defaults for operational efficiency
+export const timeSavingsDefaults = {
+  hoursPerVehiclePerWeek: 2.5, // Hours saved per vehicle per week on admin tasks
+  hourlyAdminRate: 45, // Average hourly rate for admin work
+  tasksAutomated: [
+    { task: 'Price updates & optimization', hoursSaved: 0.8 },
+    { task: 'Booking management & scheduling', hoursSaved: 0.6 },
+    { task: 'Document tracking & renewals', hoursSaved: 0.4 },
+    { task: 'Customer communications', hoursSaved: 0.4 },
+    { task: 'Reporting & analytics', hoursSaved: 0.3 },
+  ],
+};
+
 export const founderDeadline = new Date('2026-03-31T23:59:59');
 export const founderSpotsTotal = 250;
 export const founderSpotsRemaining = 73;
@@ -214,18 +227,17 @@ export const founderSpotsRemaining = 73;
 // Competitive positioning data
 export const competitiveAdvantages = {
   vsTuro: {
-    annualSavings: 62712,
-    feeComparison: '2.5% vs 25%',
-    headline: 'Save $62K/year, own your customers',
+    feePercent: 25,
+    ourFeePercent: 2.5,
+    headline: 'Keep 97.5% of your revenue, own your customers',
   },
   vsHQRental: {
-    extraCost: 249,
-    extraValue: 627000,
-    roi: '13,000%',
-    headline: '$249 more but $627K more value',
+    theirPrice: 150,
+    headline: 'Same features, but with AI that pays for itself',
   },
-  vsCoastr: {
-    headline: 'IoT tells you WHERE, AI tells you WHAT PRICE',
+  vsManual: {
+    hoursPerWeekManual: 15,
+    headline: 'Replace spreadsheets with automation',
   },
   vsCustomEnterprise: {
     ourCost: 21000,
