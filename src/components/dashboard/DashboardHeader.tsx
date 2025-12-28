@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/ui/logo";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
-import { LogOut } from "lucide-react";
+import { LogOut, MessageSquare } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,10 +15,19 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { EnhancedGlobalSearch } from "@/components/common/EnhancedGlobalSearch";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { UnifiedNotificationCenter } from "@/components/common/UnifiedNotificationCenter";
+import { useTeamMessaging } from "@/hooks/useTeamMessaging";
 
-export const DashboardHeader = () => {
+interface DashboardHeaderProps {
+  onOpenChat?: () => void;
+}
+
+export const DashboardHeader = ({ onOpenChat }: DashboardHeaderProps) => {
   const { user, signOut } = useAuth();
   const { profile, displayName } = useProfile();
+  const { conversations } = useTeamMessaging();
+
+  // Calculate total unread messages
+  const totalUnread = conversations.reduce((acc, c) => acc + (c.unread_count || 0), 0);
 
   const getInitials = () => {
     return displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
@@ -35,6 +44,22 @@ export const DashboardHeader = () => {
 
         <div className="flex items-center space-x-2">
           <UnifiedNotificationCenter />
+          
+          {/* Team Chat Button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="relative"
+            onClick={onOpenChat}
+          >
+            <MessageSquare className="h-5 w-5" />
+            {totalUnread > 0 && (
+              <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-[10px] font-bold min-w-[16px] h-4 rounded-full flex items-center justify-center px-1">
+                {totalUnread > 99 ? '99+' : totalUnread}
+              </span>
+            )}
+          </Button>
+          
           <ThemeToggle />
           
           <DropdownMenu>

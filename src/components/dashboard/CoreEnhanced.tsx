@@ -181,7 +181,7 @@ export const CoreEnhanced = () => {
 
       {/* Streamlined Tabs - 4 instead of 6 */}
       <Tabs defaultValue="rari" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 gap-1 h-auto p-1">
+        <TabsList className="sticky top-0 z-10 grid w-full grid-cols-4 gap-1 h-auto p-1 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border/50">
           <TabsTrigger value="rari" className="py-2.5 text-sm">
             <Brain className="w-4 h-4 mr-2" />
             Rari
