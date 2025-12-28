@@ -63,7 +63,7 @@ export const FinalCTA = ({ onLockPricing, onStartTrial, onScheduleDemo }: FinalC
           {/* Trust Elements */}
           <div className="flex flex-wrap items-center justify-center gap-6 mt-8 pt-8 border-t border-primary-foreground/20">
             <p className="text-sm opacity-80">14-day free trial</p>
-            <p className="text-sm opacity-80">No credit card required</p>
+            <p className="text-sm opacity-80">No charge until trial ends</p>
             <p className="text-sm opacity-80">Cancel anytime</p>
             <p className="text-sm opacity-80">30-day money-back guarantee</p>
           </div>
