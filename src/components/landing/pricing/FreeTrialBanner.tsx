@@ -19,7 +19,7 @@ export const FreeTrialBanner = ({ onStartTrial }: FreeTrialBannerProps) => {
         <div className="flex flex-wrap items-center justify-center gap-6 mb-8">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <CreditCard className="h-4 w-4 text-success" />
-            <span>No credit card required</span>
+            <span>No charge until trial ends</span>
           </div>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Shield className="h-4 w-4 text-success" />
