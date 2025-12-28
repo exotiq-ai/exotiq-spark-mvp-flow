@@ -13,7 +13,7 @@ export const FreeTrialBanner = ({ onStartTrial }: FreeTrialBannerProps) => {
           Not Ready to Commit? Start Your Free Trial
         </h2>
         <p className="text-lg text-muted-foreground mb-6">
-          14 days of full access to explore every feature. No credit card required.
+          14 days of full access to explore every feature. No charge until your trial ends.
         </p>
 
         <div className="flex flex-wrap items-center justify-center gap-6 mb-8">
