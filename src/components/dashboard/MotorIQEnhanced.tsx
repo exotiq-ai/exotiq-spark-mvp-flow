@@ -9,7 +9,7 @@ import { VehicleImageDialog } from "@/components/dialogs/VehicleImageDialog";
 import { PriceUtilizationScatterPlot } from "@/components/charts/PriceUtilizationScatterPlot";
 import { DynamicPricingCard } from "@/components/dashboard/DynamicPricingCard";
 import { DemandForecastCard } from "@/components/dashboard/DemandForecastCard";
-import { AskRariButton } from "@/components/common/AskRariButton";
+
 import { SkeletonMetric, SkeletonCard, SkeletonBarChart, SkeletonTable } from "@/components/ui/skeleton-card";
 import { SkeletonAIInsight, SkeletonVehicleCard, SkeletonStatsRow } from "@/components/ui/skeleton-specialized";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -133,13 +133,6 @@ export const MotorIQEnhanced = () => {
       )}
 
       <div className="space-y-4 sm:space-y-6 overflow-x-hidden w-full">
-        {/* Ask Rari Floating Button */}
-        <AskRariButton 
-          moduleId="motoriq" 
-          moduleName="MotorIQ"
-          contextPrompt="Ask me about pricing strategies, revenue optimization, or underpriced vehicles in your fleet."
-        />
-
         {/* Module Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-3 mb-6">
