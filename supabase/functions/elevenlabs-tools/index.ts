@@ -1416,6 +1416,191 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
         };
       }
 
+      case "createBooking": {
+        const { 
+          customerName, 
+          customerEmail, 
+          customerPhone, 
+          vehicleName, 
+          startDate, 
+          endDate, 
+          location, 
+          dropoffLocation,
+          status = 'pending',
+          notes 
+        } = args;
+        
+        console.log(`[createBooking] Creating booking for ${customerName}, vehicle: ${vehicleName}, dates: ${startDate} to ${endDate}`);
+        
+        // Validate required fields
+        if (!customerName || !vehicleName || !startDate || !endDate || !location) {
+          return {
+            error: 'Missing required fields',
+            summary: 'I need the customer name, vehicle name, start date, end date, and pickup location to create a booking.'
+          };
+        }
+
+        // Parse dates
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+
+        if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+          return {
+            error: 'Invalid date format',
+            summary: 'The dates provided are not in a valid format. Please use YYYY-MM-DD format.'
+          };
+        }
+
+        if (end <= start) {
+          return {
+            error: 'Invalid date range',
+            summary: 'The end date must be after the start date.'
+          };
+        }
+
+        // Find vehicle by name
+        const { data: vehicle, error: vehicleError } = await supabase
+          .from('vehicles')
+          .select('*')
+          .eq('user_id', userId)
+          .or(`name.ilike.%${vehicleName}%,make.ilike.%${vehicleName}%,model.ilike.%${vehicleName}%`)
+          .limit(1)
+          .maybeSingle();
+
+        if (vehicleError || !vehicle) {
+          return {
+            error: 'Vehicle not found',
+            summary: `I couldn't find a vehicle matching "${vehicleName}" in your fleet.`
+          };
+        }
+
+        // Check availability
+        const { data: conflicts } = await supabase
+          .from('bookings')
+          .select('id, customer_name, start_date, end_date')
+          .eq('vehicle_id', vehicle.id)
+          .in('status', ['pending', 'confirmed', 'active'])
+          .or(`and(start_date.lte.${endDate},end_date.gte.${startDate})`);
+
+        if (conflicts && conflicts.length > 0) {
+          const conflictInfo = conflicts.map(c => 
+            `${c.customer_name} (${new Date(c.start_date).toLocaleDateString()} - ${new Date(c.end_date).toLocaleDateString()})`
+          ).join(', ');
+          
+          return {
+            error: 'Vehicle not available',
+            available: false,
+            conflicts: conflicts.length,
+            summary: `The ${vehicle.year} ${vehicle.make} ${vehicle.model} is not available for those dates. Conflicting bookings: ${conflictInfo}.`
+          };
+        }
+
+        // Calculate duration and pricing
+        const durationMs = end.getTime() - start.getTime();
+        const durationDays = Math.ceil(durationMs / (1000 * 60 * 60 * 24));
+        const dailyRate = vehicle.current_rate || 0;
+        const totalValue = dailyRate * durationDays;
+        const depositAmount = totalValue * 0.2; // 20% deposit
+        const securityDeposit = dailyRate * 2; // 2 days as security
+
+        // Try to find or create customer record
+        let customerId = null;
+        if (customerEmail) {
+          const { data: existingCustomer } = await supabase
+            .from('customers')
+            .select('id')
+            .eq('user_id', userId)
+            .eq('email', customerEmail)
+            .maybeSingle();
+
+          if (existingCustomer) {
+            customerId = existingCustomer.id;
+          } else {
+            // Create new customer
+            const { data: newCustomer } = await supabase
+              .from('customers')
+              .insert({
+                user_id: userId,
+                email: customerEmail,
+                phone: customerPhone,
+                full_name: customerName,
+                customer_status: 'active',
+              })
+              .select()
+              .maybeSingle();
+
+            if (newCustomer) {
+              customerId = newCustomer.id;
+            }
+          }
+        }
+
+        // Create the booking
+        const { data: booking, error: bookingError } = await supabase
+          .from('bookings')
+          .insert({
+            user_id: userId,
+            vehicle_id: vehicle.id,
+            customer_id: customerId,
+            customer_name: customerName,
+            customer_email: customerEmail,
+            customer_phone: customerPhone,
+            start_date: start.toISOString(),
+            end_date: end.toISOString(),
+            pickup_location: location,
+            dropoff_location: dropoffLocation || location,
+            daily_rate: dailyRate,
+            total_value: totalValue,
+            status: status,
+            notes: notes,
+            deposit_amount: depositAmount,
+            balance_due: totalValue - depositAmount,
+            security_deposit_amount: securityDeposit,
+            security_deposit_status: 'pending',
+            payment_status: 'pending',
+          })
+          .select()
+          .single();
+
+        if (bookingError) {
+          console.error('[createBooking] Error:', bookingError);
+          return {
+            error: 'Failed to create booking',
+            summary: `I encountered an error while creating the booking: ${bookingError.message}`
+          };
+        }
+
+        // Update vehicle status if confirmed
+        if (status === 'confirmed' || status === 'active') {
+          await supabase
+            .from('vehicles')
+            .update({ status: 'booked' })
+            .eq('id', vehicle.id);
+        }
+
+        console.log(`[createBooking] Successfully created booking ${booking.id}`);
+
+        return {
+          success: true,
+          bookingId: booking.id,
+          customerName: booking.customer_name,
+          vehicle: `${vehicle.year} ${vehicle.make} ${vehicle.model}`,
+          vehicleLocation: vehicle.location || 'Miami',
+          startDate: new Date(booking.start_date).toLocaleDateString(),
+          endDate: new Date(booking.end_date).toLocaleDateString(),
+          durationDays,
+          pickupLocation: booking.pickup_location,
+          dropoffLocation: booking.dropoff_location,
+          dailyRate: `$${booking.daily_rate}`,
+          totalValue: `$${booking.total_value}`,
+          depositAmount: `$${booking.deposit_amount}`,
+          balanceDue: `$${booking.balance_due}`,
+          securityDeposit: `$${booking.security_deposit_amount}`,
+          status: booking.status,
+          summary: `Perfect! I've created a ${status} booking for ${customerName}. The ${vehicle.year} ${vehicle.make} ${vehicle.model} is reserved from ${new Date(booking.start_date).toLocaleDateString()} to ${new Date(booking.end_date).toLocaleDateString()} (${durationDays} days) at $${booking.daily_rate} per day for a total of $${booking.total_value}. A deposit of $${booking.deposit_amount} is required, with a balance due of $${booking.balance_due}. Pickup location: ${booking.pickup_location}. Booking ID: ${booking.id}.`
+        };
+      }
+
       default:
         // Log unknown requests as potential feature needs
         console.log(`[UNKNOWN] Function not found: ${functionName}`);
