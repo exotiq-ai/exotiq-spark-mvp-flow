@@ -62,5 +62,9 @@ verify_jwt = false
 
 [functions.mention-notification]
 verify_jwt = false
+
 [functions.slack-notify]
+verify_jwt = false
+
+[functions.rari-mcp-server]
 verify_jwt = false
