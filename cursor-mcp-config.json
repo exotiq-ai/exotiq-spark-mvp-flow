@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "rari-fleet-tools": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-everything"
+      ],
+      "env": {
+        "MCP_SERVER_URL": "https://jlgwbbqydjeokypoenoc.supabase.co/functions/v1/rari-mcp-server/sse"
+      }
+    }
+  }
+}

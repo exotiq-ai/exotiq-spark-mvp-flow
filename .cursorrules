@@ -1,0 +1,4 @@
+# Cursor MCP Server Configuration for Rari Fleet Tools
+
+# This file helps Cursor understand the MCP server integration
+# The actual MCP config should be in Cursor settings

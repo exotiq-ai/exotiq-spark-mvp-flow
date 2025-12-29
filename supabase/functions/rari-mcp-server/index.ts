@@ -16,7 +16,7 @@ const TOOL_MANIFEST = {
   // Fleet & Vehicle Tools
   get_fleet_vehicles: {
     name: "get_fleet_vehicles",
-    description: "Get a list of vehicles in the fleet. Filter by status (available, rented, maintenance) and/or location.",
+    description: "Get a list of all vehicles in the fleet with their status, location, daily rate, and utilization. Use this to see what vehicles are available, rented, or in maintenance. Can filter by status (available, rented, maintenance, all) and/or location (Miami, Scottsdale, etc.).",
     inputSchema: {
       type: "object",
       properties: {
@@ -34,7 +34,7 @@ const TOOL_MANIFEST = {
   },
   getFleetMetrics: {
     name: "getFleetMetrics",
-    description: "Get overall fleet performance metrics including total vehicles, active bookings, revenue, and utilization for a time period.",
+    description: "Get comprehensive fleet performance metrics including total vehicles, active bookings count, total revenue, average utilization percentage, and peak season status. Timeframe options: today, week, month, year. Can filter by location. Use this for overall fleet health and performance overview.",
     inputSchema: {
       type: "object",
       properties: {
@@ -260,7 +260,7 @@ const TOOL_MANIFEST = {
   // Pricing Tools
   getPricingRecommendation: {
     name: "getPricingRecommendation",
-    description: "Get AI-powered pricing recommendation for a vehicle based on utilization, season, and demand.",
+    description: "Get AI-powered pricing recommendations for a specific vehicle. Analyzes current utilization, peak season status, and demand patterns to suggest optimal daily rental rate. Returns current rate, suggested rate, difference, and reasoning factors. Use this when user asks about pricing adjustments or optimal rates.",
     inputSchema: {
       type: "object",
       properties: {
@@ -570,6 +570,58 @@ function validateAuth(req: Request): boolean {
   return false;
 }
 
+// Extract user ID from request context
+// ElevenLabs may pass user context in headers or we can use a default demo user
+async function extractUserId(req: Request, supabase: any): Promise<string> {
+  // Try to get user ID from custom header (if ElevenLabs passes it)
+  const userIdHeader = req.headers.get('x-user-id') || req.headers.get('x-elevenlabs-user-id');
+  if (userIdHeader) {
+    // Validate user exists
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', userIdHeader)
+      .single();
+    if (profile) {
+      console.log(`[MCP Server] Using user ID from header: ${userIdHeader}`);
+      return userIdHeader;
+    }
+  }
+
+  // Try to get from query parameter (for testing)
+  const url = new URL(req.url);
+  const userIdParam = url.searchParams.get('userId');
+  if (userIdParam) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', userIdParam)
+      .single();
+    if (profile) {
+      console.log(`[MCP Server] Using user ID from query param: ${userIdParam}`);
+      return userIdParam;
+    }
+  }
+
+  // Fallback: Use demo user ID from environment or first user
+  const demoUserId = Deno.env.get('DEMO_USER_ID');
+  if (demoUserId) {
+    console.log(`[MCP Server] Using demo user ID from env: ${demoUserId}`);
+    return demoUserId;
+  }
+
+  // Last resort: Get first user (for demo/testing only)
+  const { data: firstUser } = await supabase
+    .from('profiles')
+    .select('id')
+    .limit(1)
+    .single();
+  
+  const userId = firstUser?.id || 'demo-user-id';
+  console.log(`[MCP Server] Using fallback user ID: ${userId}`);
+  return userId;
+}
+
 // Main server handler
 Deno.serve(async (req) => {
   const url = new URL(req.url);
@@ -624,6 +676,7 @@ Deno.serve(async (req) => {
 
       const encoder = new TextEncoder();
       let controllerRef: ReadableStreamDefaultController | null = null;
+      let keepAliveInterval: number | null = null;
       
       const stream = new ReadableStream({
         start(controller) {
@@ -634,27 +687,38 @@ Deno.serve(async (req) => {
           console.log(`[MCP Server] Session ${sessionId} stored. Active sessions: ${sessions.size}`);
           
           // Send the endpoint event (MCP SSE transport requirement)
+          // ElevenLabs expects: event: endpoint\n followed by data: URL\n\n
           const endpointMessage = `event: endpoint\ndata: ${messagesEndpoint}\n\n`;
           controller.enqueue(encoder.encode(endpointMessage));
           console.log(`[MCP Server] Sent endpoint event: ${messagesEndpoint}`);
+          
+          // Also send a ready event for compatibility
+          const readyMessage = `event: ready\ndata: {"status":"connected"}\n\n`;
+          controller.enqueue(encoder.encode(readyMessage));
+          console.log(`[MCP Server] Sent ready event`);
+          
+          // Keep the connection alive with periodic pings
+          keepAliveInterval = setInterval(() => {
+            try {
+              if (controllerRef) {
+                controllerRef.enqueue(encoder.encode(': ping\n\n'));
+              }
+            } catch (e) {
+              console.log(`[MCP Server] Keep-alive ping failed for session ${sessionId}, cleaning up`);
+              if (keepAliveInterval) clearInterval(keepAliveInterval);
+              sessions.delete(sessionId);
+            }
+          }, 15000) as unknown as number;
         },
         cancel() {
-          sessions.delete(sessionId);
           console.log(`[MCP Server] Session ${sessionId} cancelled. Active sessions: ${sessions.size}`);
+          if (keepAliveInterval) {
+            clearInterval(keepAliveInterval);
+            keepAliveInterval = null;
+          }
+          sessions.delete(sessionId);
         }
       });
-
-      // Keep the connection alive with periodic pings
-      const keepAliveInterval = setInterval(() => {
-        try {
-          if (controllerRef) {
-            controllerRef.enqueue(encoder.encode(': ping\n\n'));
-          }
-        } catch (e) {
-          clearInterval(keepAliveInterval);
-          sessions.delete(sessionId);
-        }
-      }, 15000);
 
       return new Response(stream, {
         headers: {
@@ -764,25 +828,36 @@ Deno.serve(async (req) => {
           const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
           const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-          // Get a user ID for database queries
-          const { data: users } = await supabase
-            .from('profiles')
-            .select('id')
-            .limit(1)
-            .single();
-          const userId = users?.id || 'demo-user-id';
+          // Extract user ID from request context (supports ElevenLabs user context)
+          const userId = await extractUserId(req, supabase);
 
           // Execute the tool
           const result = await executeFunction(toolName, toolArgs || {}, supabase, userId);
           console.log('[MCP Server] Tool result:', JSON.stringify(result, null, 2));
 
-          response = createJSONRPCResponse(id, {
-            content: [{
-              type: "text",
-              text: typeof result === 'string' ? result : JSON.stringify(result)
-            }],
-            isError: !!result.error
-          });
+          // Format response for ElevenLabs - include summary for voice responses
+          const responseText = result.summary 
+            ? `${result.summary}\n\n${typeof result === 'string' ? result : JSON.stringify(result, null, 2)}`
+            : (typeof result === 'string' ? result : JSON.stringify(result, null, 2));
+
+          // Format response with proper error handling
+          if (result.error) {
+            response = createJSONRPCResponse(id, {
+              content: [{
+                type: "text",
+                text: `Error: ${result.error}\n${result.summary || 'An error occurred while executing the tool.'}`
+              }],
+              isError: true
+            });
+          } else {
+            response = createJSONRPCResponse(id, {
+              content: [{
+                type: "text",
+                text: responseText
+              }],
+              isError: false
+            });
+          }
           break;
         }
 
@@ -879,13 +954,16 @@ Deno.serve(async (req) => {
           const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
           const supabase = createClient(supabaseUrl, supabaseServiceKey);
           
-          const { data: users } = await supabase.from('profiles').select('id').limit(1).single();
-          const userId = users?.id || 'demo-user-id';
+          const userId = await extractUserId(req, supabase);
           
           const result = await executeFunction(toolName, toolArgs || {}, supabase, userId);
           
+          const responseText = result.summary 
+            ? `${result.summary}\n\n${JSON.stringify(result, null, 2)}`
+            : JSON.stringify(result, null, 2);
+          
           return new Response(JSON.stringify(createJSONRPCResponse(id, {
-            content: [{ type: "text", text: JSON.stringify(result) }],
+            content: [{ type: "text", text: responseText }],
             isError: !!result.error
           })), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -913,8 +991,7 @@ Deno.serve(async (req) => {
         const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
         const supabase = createClient(supabaseUrl, supabaseServiceKey);
         
-        const { data: users } = await supabase.from('profiles').select('id').limit(1).single();
-        const userId = users?.id || 'demo-user-id';
+        const userId = await extractUserId(req, supabase);
         
         const result = await executeFunction(toolName, parameters, supabase, userId);
         
