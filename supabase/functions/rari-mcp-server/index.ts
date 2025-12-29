@@ -524,192 +524,352 @@ function getTimeAgo(date: Date): string {
   return `${Math.floor(seconds / 86400)} days ago`;
 }
 
-// MCP Protocol Response Helpers
-function createMCPResponse(result: any, isError = false) {
+// ============================================================
+// MCP JSON-RPC 2.0 Protocol Implementation
+// ============================================================
+
+// Session storage for SSE connections (in-memory for edge function)
+const sessions = new Map<string, { controller: ReadableStreamDefaultController; encoder: TextEncoder }>();
+
+function generateSessionId(): string {
+  return crypto.randomUUID();
+}
+
+function createJSONRPCResponse(id: string | number | null, result: any): any {
   return {
     jsonrpc: "2.0",
-    result: isError ? { error: result } : result
+    id,
+    result
   };
 }
 
-function createSSEMessage(event: string, data: any): string {
-  return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+function createJSONRPCError(id: string | number | null, code: number, message: string): any {
+  return {
+    jsonrpc: "2.0",
+    id,
+    error: { code, message }
+  };
 }
 
 // Main server handler
 Deno.serve(async (req) => {
   const url = new URL(req.url);
+  const path = url.pathname;
   
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
-  console.log(`[MCP Server] ${req.method} ${url.pathname}`);
+  console.log(`[MCP Server] ${req.method} ${path}`);
 
   try {
-    // SSE endpoint for tool discovery (MCP protocol)
-    if (url.pathname.endsWith('/sse') || req.headers.get('accept')?.includes('text/event-stream')) {
+    // ============================================================
+    // SSE Endpoint - Establishes connection and sends message endpoint
+    // ============================================================
+    if (path.endsWith('/sse') && req.method === 'GET') {
       console.log('[MCP Server] SSE connection requested');
       
+      const sessionId = generateSessionId();
+      const baseUrl = url.origin + url.pathname.replace('/sse', '');
+      const messagesEndpoint = `${baseUrl}/messages?sessionId=${sessionId}`;
+      
+      console.log(`[MCP Server] Session: ${sessionId}, Messages endpoint: ${messagesEndpoint}`);
+
       const encoder = new TextEncoder();
+      let controllerRef: ReadableStreamDefaultController | null = null;
+      
       const stream = new ReadableStream({
         start(controller) {
-          // Send server info
-          controller.enqueue(encoder.encode(createSSEMessage('server_info', {
-            name: "Rari Fleet Assistant MCP Server",
-            version: "1.0.0",
-            description: "MCP server for Exotiq luxury fleet management",
-            capabilities: {
-              tools: true,
-              prompts: false,
-              resources: false
-            }
-          })));
-
-          // Send tool list
-          const tools = Object.values(TOOL_MANIFEST);
-          controller.enqueue(encoder.encode(createSSEMessage('tools_list', {
-            tools: tools.map(tool => ({
-              name: tool.name,
-              description: tool.description,
-              inputSchema: tool.inputSchema
-            }))
-          })));
-
-          // Keep connection alive
-          const keepAlive = setInterval(() => {
-            try {
-              controller.enqueue(encoder.encode(': keepalive\n\n'));
-            } catch {
-              clearInterval(keepAlive);
-            }
-          }, 30000);
+          controllerRef = controller;
+          
+          // Store session for later response routing
+          sessions.set(sessionId, { controller, encoder });
+          console.log(`[MCP Server] Session ${sessionId} stored. Active sessions: ${sessions.size}`);
+          
+          // Send the endpoint event (MCP SSE transport requirement)
+          const endpointMessage = `event: endpoint\ndata: ${messagesEndpoint}\n\n`;
+          controller.enqueue(encoder.encode(endpointMessage));
+          console.log(`[MCP Server] Sent endpoint event: ${messagesEndpoint}`);
+        },
+        cancel() {
+          sessions.delete(sessionId);
+          console.log(`[MCP Server] Session ${sessionId} cancelled. Active sessions: ${sessions.size}`);
         }
       });
+
+      // Keep the connection alive with periodic pings
+      const keepAliveInterval = setInterval(() => {
+        try {
+          if (controllerRef) {
+            controllerRef.enqueue(encoder.encode(': ping\n\n'));
+          }
+        } catch (e) {
+          clearInterval(keepAliveInterval);
+          sessions.delete(sessionId);
+        }
+      }, 15000);
 
       return new Response(stream, {
         headers: {
           ...corsHeaders,
           'Content-Type': 'text/event-stream',
           'Cache-Control': 'no-cache',
-          'Connection': 'keep-alive'
+          'Connection': 'keep-alive',
+          'X-Session-Id': sessionId
         }
       });
     }
 
-    // Tool discovery endpoint (REST fallback)
-    if (url.pathname.endsWith('/tools') && req.method === 'GET') {
-      console.log('[MCP Server] Tools list requested');
-      const tools = Object.values(TOOL_MANIFEST);
-      return new Response(JSON.stringify({
-        tools: tools.map(tool => ({
-          name: tool.name,
-          description: tool.description,
-          inputSchema: tool.inputSchema
-        }))
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
-
-    // Tool execution endpoint
-    if (req.method === 'POST') {
+    // ============================================================
+    // Messages Endpoint - Receives JSON-RPC requests via POST
+    // ============================================================
+    if (path.endsWith('/messages') && req.method === 'POST') {
+      const sessionId = url.searchParams.get('sessionId');
+      console.log(`[MCP Server] Message received for session: ${sessionId}`);
+      
       const body = await req.json();
-      console.log('[MCP Server] Tool call received:', JSON.stringify(body, null, 2));
-
-      // Extract tool name and parameters from various formats
-      let toolName: string | undefined;
-      let parameters: any = {};
-      let userId: string | null = null;
-
-      // MCP format: { method: "tools/call", params: { name: "...", arguments: {...} } }
-      if (body.method === 'tools/call' && body.params) {
-        toolName = body.params.name;
-        parameters = body.params.arguments || {};
-      }
-      // Direct format: { tool_name: "...", parameters: {...} }
-      else if (body.tool_name || body.name || body.function_name) {
-        toolName = body.tool_name || body.name || body.function_name;
-        parameters = body.parameters || body.args || body.arguments || {};
-      }
-      // ElevenLabs webhook format: { "toolName": {...} }
-      else {
-        const keys = Object.keys(body).filter(k => !['conversation_metadata', 'metadata', 'jsonrpc', 'id'].includes(k));
-        if (keys.length > 0) {
-          toolName = keys[0];
-          const paramValue = body[toolName];
-          if (typeof paramValue === 'string') {
-            const pairs = paramValue.split(' ');
-            parameters = {};
-            pairs.forEach(pair => {
-              const [key, value] = pair.split(':');
-              if (key && value) parameters[key] = value;
-            });
-          } else if (typeof paramValue === 'object') {
-            parameters = paramValue;
-          }
-        }
-      }
-
-      // Extract user_id from metadata
-      if (body.conversation_metadata?.user_id) {
-        userId = body.conversation_metadata.user_id;
-      } else if (body.metadata?.user_id) {
-        userId = body.metadata.user_id;
-      }
-
-      if (!toolName) {
-        return new Response(JSON.stringify(createMCPResponse({
-          code: -32600,
-          message: "Invalid request: no tool name provided"
-        }, true)), {
-          status: 400,
+      console.log('[MCP Server] JSON-RPC request:', JSON.stringify(body, null, 2));
+      
+      const { jsonrpc, id, method, params } = body;
+      
+      if (jsonrpc !== '2.0') {
+        return new Response(JSON.stringify(createJSONRPCError(id, -32600, 'Invalid JSON-RPC version')), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       }
 
-      console.log(`[MCP Server] Executing tool: ${toolName}`);
-      console.log('[MCP Server] Parameters:', JSON.stringify(parameters));
+      let response: any;
 
-      // Initialize Supabase
-      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-      const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-      const supabase = createClient(supabaseUrl, supabaseServiceKey);
+      switch (method) {
+        // ============================================================
+        // Initialize - Return server capabilities
+        // ============================================================
+        case 'initialize': {
+          console.log('[MCP Server] Handling initialize request');
+          response = createJSONRPCResponse(id, {
+            protocolVersion: "2024-11-05",
+            capabilities: {
+              tools: {}
+            },
+            serverInfo: {
+              name: "Rari Fleet Assistant",
+              version: "1.0.0"
+            }
+          });
+          break;
+        }
 
-      // Get user ID
-      if (!userId) {
-        const { data: users } = await supabase
-          .from('profiles')
-          .select('id')
-          .limit(1)
-          .single();
-        userId = users?.id || 'demo-user-id';
+        // ============================================================
+        // List Tools - Return all available tools
+        // ============================================================
+        case 'tools/list': {
+          console.log('[MCP Server] Handling tools/list request');
+          const tools = Object.values(TOOL_MANIFEST).map(tool => ({
+            name: tool.name,
+            description: tool.description,
+            inputSchema: tool.inputSchema
+          }));
+          response = createJSONRPCResponse(id, { tools });
+          break;
+        }
+
+        // ============================================================
+        // Call Tool - Execute a tool and return result
+        // ============================================================
+        case 'tools/call': {
+          const { name: toolName, arguments: toolArgs } = params || {};
+          console.log(`[MCP Server] Handling tools/call: ${toolName}`);
+          console.log('[MCP Server] Tool arguments:', JSON.stringify(toolArgs));
+
+          if (!toolName) {
+            response = createJSONRPCError(id, -32602, 'Missing tool name');
+            break;
+          }
+
+          // Initialize Supabase
+          const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+          const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+          const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+          // Get a user ID for database queries
+          const { data: users } = await supabase
+            .from('profiles')
+            .select('id')
+            .limit(1)
+            .single();
+          const userId = users?.id || 'demo-user-id';
+
+          // Execute the tool
+          const result = await executeFunction(toolName, toolArgs || {}, supabase, userId);
+          console.log('[MCP Server] Tool result:', JSON.stringify(result, null, 2));
+
+          response = createJSONRPCResponse(id, {
+            content: [{
+              type: "text",
+              text: typeof result === 'string' ? result : JSON.stringify(result)
+            }],
+            isError: !!result.error
+          });
+          break;
+        }
+
+        // ============================================================
+        // Notifications (no response needed)
+        // ============================================================
+        case 'notifications/initialized': {
+          console.log('[MCP Server] Client initialized notification received');
+          // No response for notifications
+          return new Response(null, {
+            status: 204,
+            headers: corsHeaders
+          });
+        }
+
+        default: {
+          console.log(`[MCP Server] Unknown method: ${method}`);
+          response = createJSONRPCError(id, -32601, `Method not found: ${method}`);
+        }
       }
 
-      // Execute the tool
-      const result = await executeFunction(toolName, parameters, supabase, userId);
-      
-      console.log('[MCP Server] Tool result:', JSON.stringify(result, null, 2));
+      console.log('[MCP Server] Sending response:', JSON.stringify(response, null, 2));
 
-      return new Response(JSON.stringify(createMCPResponse({
-        content: [{ type: "text", text: JSON.stringify(result) }],
-        isError: !!result.error
-      })), {
+      // Try to send response through SSE if session exists
+      const session = sessionId ? sessions.get(sessionId) : null;
+      if (session) {
+        try {
+          const sseMessage = `event: message\ndata: ${JSON.stringify(response)}\n\n`;
+          session.controller.enqueue(session.encoder.encode(sseMessage));
+          console.log(`[MCP Server] Response sent via SSE to session ${sessionId}`);
+        } catch (e) {
+          console.log('[MCP Server] SSE send failed, returning HTTP response');
+        }
+      }
+
+      // Always return HTTP response as well
+      return new Response(JSON.stringify(response), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
-    // Default: return server info
+    // ============================================================
+    // REST Fallback - Tool discovery endpoint
+    // ============================================================
+    if (path.endsWith('/tools') && req.method === 'GET') {
+      console.log('[MCP Server] Tools list requested (REST)');
+      const tools = Object.values(TOOL_MANIFEST).map(tool => ({
+        name: tool.name,
+        description: tool.description,
+        inputSchema: tool.inputSchema
+      }));
+      return new Response(JSON.stringify({ tools }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // ============================================================
+    // Direct POST - Support direct tool execution (legacy format)
+    // ============================================================
+    if (req.method === 'POST') {
+      const body = await req.json();
+      console.log('[MCP Server] Direct POST received:', JSON.stringify(body, null, 2));
+
+      // Check if it's a JSON-RPC request
+      if (body.jsonrpc === '2.0' && body.method) {
+        // Redirect to messages handler logic
+        const { id, method, params } = body;
+        
+        if (method === 'initialize') {
+          return new Response(JSON.stringify(createJSONRPCResponse(id, {
+            protocolVersion: "2024-11-05",
+            capabilities: { tools: {} },
+            serverInfo: { name: "Rari Fleet Assistant", version: "1.0.0" }
+          })), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+        
+        if (method === 'tools/list') {
+          const tools = Object.values(TOOL_MANIFEST).map(tool => ({
+            name: tool.name,
+            description: tool.description,
+            inputSchema: tool.inputSchema
+          }));
+          return new Response(JSON.stringify(createJSONRPCResponse(id, { tools })), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+        
+        if (method === 'tools/call') {
+          const { name: toolName, arguments: toolArgs } = params || {};
+          
+          const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+          const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+          const supabase = createClient(supabaseUrl, supabaseServiceKey);
+          
+          const { data: users } = await supabase.from('profiles').select('id').limit(1).single();
+          const userId = users?.id || 'demo-user-id';
+          
+          const result = await executeFunction(toolName, toolArgs || {}, supabase, userId);
+          
+          return new Response(JSON.stringify(createJSONRPCResponse(id, {
+            content: [{ type: "text", text: JSON.stringify(result) }],
+            isError: !!result.error
+          })), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+      }
+
+      // Legacy format support (ElevenLabs webhook format)
+      let toolName: string | undefined;
+      let parameters: any = {};
+
+      if (body.tool_name || body.name || body.function_name) {
+        toolName = body.tool_name || body.name || body.function_name;
+        parameters = body.parameters || body.args || body.arguments || {};
+      } else {
+        const keys = Object.keys(body).filter(k => !['conversation_metadata', 'metadata'].includes(k));
+        if (keys.length > 0) {
+          toolName = keys[0];
+          parameters = typeof body[toolName] === 'object' ? body[toolName] : {};
+        }
+      }
+
+      if (toolName) {
+        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+        const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+        const supabase = createClient(supabaseUrl, supabaseServiceKey);
+        
+        const { data: users } = await supabase.from('profiles').select('id').limit(1).single();
+        const userId = users?.id || 'demo-user-id';
+        
+        const result = await executeFunction(toolName, parameters, supabase, userId);
+        
+        return new Response(JSON.stringify(result), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      return new Response(JSON.stringify(createJSONRPCError(null, -32600, 'Invalid request format')), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // ============================================================
+    // Default: Return server info
+    // ============================================================
     return new Response(JSON.stringify({
       name: "Rari Fleet Assistant MCP Server",
       version: "1.0.0",
-      protocol: "MCP",
+      protocol: "MCP (JSON-RPC 2.0)",
       description: "MCP server for Exotiq luxury fleet management",
+      transport: "SSE",
       endpoints: {
         sse: "/rari-mcp-server/sse",
-        tools: "/rari-mcp-server/tools",
-        execute: "POST /rari-mcp-server"
+        messages: "/rari-mcp-server/messages",
+        tools: "/rari-mcp-server/tools"
       },
       toolCount: Object.keys(TOOL_MANIFEST).length
     }), {
@@ -718,10 +878,7 @@ Deno.serve(async (req) => {
 
   } catch (error) {
     console.error('[MCP Server] Error:', error);
-    return new Response(JSON.stringify(createMCPResponse({
-      code: -32603,
-      message: error instanceof Error ? error.message : 'Internal error'
-    }, true)), {
+    return new Response(JSON.stringify(createJSONRPCError(null, -32603, error instanceof Error ? error.message : 'Internal error')), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
