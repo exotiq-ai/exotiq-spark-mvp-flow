@@ -551,6 +551,25 @@ function createJSONRPCError(id: string | number | null, code: number, message: s
   };
 }
 
+// Supabase project configuration
+const SUPABASE_PROJECT_ID = 'jlgwbbqydjeokypoenoc';
+const FUNCTION_BASE_URL = `https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/rari-mcp-server`;
+
+// Optional token authentication
+function validateAuth(req: Request): boolean {
+  const expectedToken = Deno.env.get('MCP_SECRET_TOKEN');
+  if (!expectedToken) return true; // No token configured = open access
+  
+  const authHeader = req.headers.get('authorization');
+  if (authHeader === `Bearer ${expectedToken}`) return true;
+  
+  // Also check apikey header as fallback
+  const apiKey = req.headers.get('apikey');
+  if (apiKey === expectedToken) return true;
+  
+  return false;
+}
+
 // Main server handler
 Deno.serve(async (req) => {
   const url = new URL(req.url);
@@ -563,7 +582,34 @@ Deno.serve(async (req) => {
 
   console.log(`[MCP Server] ${req.method} ${path}`);
 
+  // Validate authentication (optional - only if MCP_SECRET_TOKEN is set)
+  if (!validateAuth(req)) {
+    console.log('[MCP Server] Unauthorized request');
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+
   try {
+    // ============================================================
+    // Manifest Endpoint - ElevenLabs compatible tool discovery
+    // ============================================================
+    if (path.endsWith('/manifest') && req.method === 'GET') {
+      console.log('[MCP Server] Manifest requested (ElevenLabs format)');
+      const tools = Object.values(TOOL_MANIFEST).map(tool => ({
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.inputSchema
+      }));
+      return new Response(JSON.stringify({
+        type: "mcp.tool_manifest",
+        tools
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
     // ============================================================
     // SSE Endpoint - Establishes connection and sends message endpoint
     // ============================================================
@@ -571,8 +617,8 @@ Deno.serve(async (req) => {
       console.log('[MCP Server] SSE connection requested');
       
       const sessionId = generateSessionId();
-      const baseUrl = url.origin + url.pathname.replace('/sse', '');
-      const messagesEndpoint = `${baseUrl}/messages?sessionId=${sessionId}`;
+      // Use the correctly constructed full HTTPS URL
+      const messagesEndpoint = `${FUNCTION_BASE_URL}/messages?sessionId=${sessionId}`;
       
       console.log(`[MCP Server] Session: ${sessionId}, Messages endpoint: ${messagesEndpoint}`);
 
@@ -613,7 +659,7 @@ Deno.serve(async (req) => {
       return new Response(stream, {
         headers: {
           ...corsHeaders,
-          'Content-Type': 'text/event-stream',
+          'Content-Type': 'text/event-stream; charset=utf-8',
           'Cache-Control': 'no-cache',
           'Connection': 'keep-alive',
           'X-Session-Id': sessionId

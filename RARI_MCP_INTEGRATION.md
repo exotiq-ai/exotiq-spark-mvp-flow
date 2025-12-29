@@ -1,106 +1,171 @@
 # Rari MCP Server Integration Guide
 
-## Overview
+## Quick Setup for ElevenLabs
 
-The Rari MCP Server implements the Model Context Protocol (MCP) for ElevenLabs integration, enabling automatic tool discovery and execution for the Rari fleet assistant.
+### Step 1: Add Custom MCP Server in ElevenLabs
 
-## Server URL
+1. Go to [ElevenLabs MCP Integrations](https://elevenlabs.io/app/conversational-ai/mcp-servers)
+2. Click **"Add MCP Server"** or **"Add Custom MCP Server"**
+3. Fill in these exact values:
 
-```
-https://jlgwbbqydjeokypoenoc.supabase.co/functions/v1/rari-mcp-server
-```
+| Field | Value |
+|-------|-------|
+| **Name** | `Exotiq Fleet Tools` |
+| **Description** | `Fleet management tools for Rari assistant` |
+| **Server URL** | `https://jlgwbbqydjeokypoenoc.supabase.co/functions/v1/rari-mcp-server/sse` |
+| **Secret Token** | *(leave empty - not required)* |
+| **Approval Mode** | `Auto-approved` or `Fine-grained` |
 
-## Endpoints
+4. Click **Save** or **Add**
+
+### Step 2: Add to Your Rari Agent
+
+1. Go to your Rari agent settings
+2. Under "Integrations" or "Tools", find `Exotiq Fleet Tools`
+3. Enable it
+
+### Step 3: Test
+
+Say to Rari: *"What vehicles do we have available?"*
+
+Rari should call `get_fleet_vehicles` and return your fleet data.
+
+---
+
+## Endpoints Reference
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/rari-mcp-server` | GET | Server info and capabilities |
-| `/rari-mcp-server/sse` | GET | SSE stream for tool discovery |
+| `/rari-mcp-server/sse` | GET | **Primary** - SSE connection for MCP |
+| `/rari-mcp-server/manifest` | GET | ElevenLabs-style tool manifest |
 | `/rari-mcp-server/tools` | GET | JSON list of all tools |
-| `/rari-mcp-server` | POST | Execute a tool |
+| `/rari-mcp-server/messages` | POST | JSON-RPC message handling |
+| `/rari-mcp-server` | POST | Direct tool execution (legacy) |
 
-## ElevenLabs Setup
-
-1. Go to [ElevenLabs MCP Integrations](https://elevenlabs.io/app/agents/integrations)
-2. Click **"Add Custom MCP Server"**
-3. Configure:
-   - **Name**: `Exotiq Fleet Tools`
-   - **Description**: `Complete fleet management tools for Rari`
-   - **Server URL**: `https://jlgwbbqydjeokypoenoc.supabase.co/functions/v1/rari-mcp-server`
-   - **Approval Mode**: Fine-grained (auto-approve read tools)
-4. Add to your Rari agent
+---
 
 ## Available Tools (25 Total)
 
 ### Fleet & Vehicle
-- `get_fleet_vehicles` - List vehicles by status/location
-- `getFleetMetrics` - Fleet performance metrics
-- `getLocationMetrics` - Metrics by location
-- `getVehicleDetails` - Vehicle details with bookings
-- `getVehicleSpecs` - Technical specifications
-- `checkAvailability` - Check date availability
+| Tool | Description |
+|------|-------------|
+| `get_fleet_vehicles` | List vehicles by status/location |
+| `getFleetMetrics` | Fleet performance metrics |
+| `getLocationMetrics` | Metrics by location |
+| `getVehicleDetails` | Vehicle details with bookings |
+| `getVehicleSpecs` | Technical specifications |
+| `checkAvailability` | Check date availability |
 
 ### Bookings
-- `get_bookings` - List bookings with filters
-- `searchBookings` - Search bookings
-- `get_recent_activity` - Recent booking activity
+| Tool | Description |
+|------|-------------|
+| `get_bookings` | List bookings with filters |
+| `searchBookings` | Search bookings |
+| `get_recent_activity` | Recent booking activity |
 
 ### Payments & Revenue
-- `getPaymentSummary` - Payment totals by status/method
-- `getRevenueAnalysis` - Revenue analysis
-- `getTopPerformers` - Top vehicles/customers
+| Tool | Description |
+|------|-------------|
+| `getPaymentSummary` | Payment totals by status/method |
+| `getRevenueAnalysis` | Revenue analysis |
+| `getTopPerformers` | Top vehicles/customers |
 
 ### Pricing
-- `getPricingRecommendation` - AI pricing suggestions
-- `getFleetPricingOverview` - Fleet pricing overview
-- `getDemandForecast` - Demand forecasting
-- `getEventImpact` - Event impact analysis
+| Tool | Description |
+|------|-------------|
+| `getPricingRecommendation` | AI pricing suggestions |
+| `getFleetPricingOverview` | Fleet pricing overview |
+| `getDemandForecast` | Demand forecasting |
+| `getEventImpact` | Event impact analysis |
 
 ### Customers
-- `getCustomerProfile` - Customer details
-- `getCustomerLifetimeValue` - Customer LTV
+| Tool | Description |
+|------|-------------|
+| `getCustomerProfile` | Customer details |
+| `getCustomerLifetimeValue` | Customer LTV |
 
 ### Operations
-- `getDamageReports` - Damage claims
-- `getUpcomingMaintenance` - Maintenance schedule
-- `getVaultDocuments` - Document vault
+| Tool | Description |
+|------|-------------|
+| `getDamageReports` | Damage claims |
+| `getUpcomingMaintenance` | Maintenance schedule |
+| `getVaultDocuments` | Document vault |
 
 ### Utility
-- `getWeatherInfo` - Weather info
-- `getCarJoke` - Car jokes
-- `logFeedback` - Log feedback
-- `featureComingSoon` - Log feature requests
+| Tool | Description |
+|------|-------------|
+| `getWeatherInfo` | Weather info |
+| `getCarJoke` | Car jokes |
+| `logFeedback` | Log feedback |
+| `featureComingSoon` | Log feature requests |
 
-## Benefits Over Webhook Configuration
+---
 
-| Before (Webhooks) | After (MCP) |
-|-------------------|-------------|
-| Manual config per tool | Auto-discovery |
-| Dashboard updates needed | Code-driven |
-| Error-prone | Version controlled |
-| Time consuming | Instant updates |
+## Optional: Secure with Token
 
-## Adding New Tools
+If you want to require authentication:
 
-1. Add tool definition to `TOOL_MANIFEST` in `rari-mcp-server/index.ts`
-2. Add execution logic to `executeFunction` switch
-3. Deploy - ElevenLabs discovers automatically!
+1. Add `MCP_SECRET_TOKEN` secret in Supabase with any secure value
+2. In ElevenLabs, add that same value to the **Secret Token** field
 
-## Testing
+---
+
+## Testing Endpoints
 
 ```bash
 # Get server info
 curl https://jlgwbbqydjeokypoenoc.supabase.co/functions/v1/rari-mcp-server
 
-# List tools
+# Get tool manifest (ElevenLabs format)
+curl https://jlgwbbqydjeokypoenoc.supabase.co/functions/v1/rari-mcp-server/manifest
+
+# List tools (MCP format)
 curl https://jlgwbbqydjeokypoenoc.supabase.co/functions/v1/rari-mcp-server/tools
 
-# Execute tool
+# Execute tool directly
 curl -X POST https://jlgwbbqydjeokypoenoc.supabase.co/functions/v1/rari-mcp-server \
   -H "Content-Type: application/json" \
   -d '{"tool_name": "getFleetMetrics", "parameters": {"timeframe": "month"}}'
 ```
 
-## Note
+---
 
-ElevenLabs MCP support is in **public alpha**. The existing webhook-based `elevenlabs-tools` function remains as a fallback.
+## Troubleshooting
+
+### "Connection failed" in ElevenLabs
+- Verify URL ends with `/sse`
+- Check no trailing slash after `/sse`
+- Try the `/manifest` endpoint to verify server is responding
+
+### Tools not appearing
+- Check ElevenLabs MCP server is "Connected" status
+- Verify the server is added to your specific agent
+- Try removing and re-adding the MCP server
+
+### "Unauthorized" errors
+- If using Secret Token, ensure it matches exactly
+- If not using auth, ensure `MCP_SECRET_TOKEN` is not set in Supabase
+
+---
+
+## How It Works
+
+```
+ElevenLabs Agent
+      │
+      ▼
+   GET /sse (SSE connection)
+      │
+      ├─► Receives: event: endpoint
+      │            data: https://.../messages?sessionId=xxx
+      │
+      ▼
+  POST /messages (JSON-RPC 2.0)
+      │
+      ├─► initialize → Server capabilities
+      ├─► tools/list → Available tools
+      └─► tools/call → Execute tool, get result
+```
+
+The server maintains the SSE connection for real-time communication while handling tool calls via POST requests.
