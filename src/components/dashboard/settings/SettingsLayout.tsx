@@ -13,7 +13,8 @@ import {
   Bell,
   Shield,
   Zap,
-  Users
+  Users,
+  MessageSquare
 } from "lucide-react";
 import { MyAccountSection } from "./MyAccountSection";
 import { SubscriptionSection } from "./SubscriptionSection";
@@ -23,6 +24,7 @@ import { NotificationSettingsSection } from "./NotificationSettingsSection";
 import { SystemSettingsSection } from "../SystemSettingsSection";
 import { UserManagementSection } from "../UserManagementSection";
 import { MyTeamSection } from "../MyTeamSection";
+import { FeedbackManagementDashboard } from "@/components/feedback/FeedbackManagementDashboard";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useUserRole } from "@/hooks/useUserRole";
 
@@ -41,6 +43,7 @@ const allSettingsTabs: SettingsTab[] = [
   { id: "integrations", label: "Integrations", icon: Plug },
   { id: "system", label: "System", icon: Settings },
   { id: "users", label: "User Management", icon: Users, requiresAdmin: true },
+  { id: "feedback", label: "User Feedback", icon: MessageSquare, requiresAdmin: true },
   { id: "data", label: "Data", icon: Database },
 ];
 
@@ -73,6 +76,8 @@ export const SettingsLayout = () => {
         return <SystemSettingsSection />;
       case "users":
         return isAdmin ? <UserManagementSection /> : null;
+      case "feedback":
+        return isAdmin ? <FeedbackManagementDashboard /> : null;
       case "data":
         return <DataManagementSection />;
       default:
