@@ -12,6 +12,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth } from '@/contexts/AuthContext';
 import { AIThinking } from '@/components/ui/ai-thinking';
 import { RariVoiceWaveform } from './RariVoiceWaveform';
+import { logHelpQuery } from '@/lib/requestAnalytics';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -42,11 +43,29 @@ export const RariVoiceInterface = () => {
       console.log('Rari message:', message);
       // Safely add messages to history for display
       if (message.message) {
-        setMessages(prev => [...prev, {
+        const newMessage = {
           role: message.source === 'ai' ? 'assistant' : 'user',
           content: String(message.message),
           timestamp: new Date()
-        }]);
+        };
+        setMessages(prev => [...prev, newMessage]);
+        
+        // Log user queries and AI responses for analytics
+        if (message.source === 'user') {
+          // Store user query to log with AI response later
+          const userQuery = String(message.message);
+          setMessages(prev => {
+            // Find next AI message and log the interaction
+            setTimeout(async () => {
+              const aiMessages = messages.filter(m => m.role === 'assistant');
+              const lastAiMessage = aiMessages[aiMessages.length - 1];
+              if (lastAiMessage) {
+                await logHelpQuery(userQuery, lastAiMessage.content, 'rari_voice');
+              }
+            }, 2000); // Wait for AI response
+            return prev;
+          });
+        }
       }
     },
     onError: (error) => {

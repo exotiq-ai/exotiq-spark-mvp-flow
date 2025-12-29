@@ -19,7 +19,8 @@ import {
   Settings,
   Sparkles,
   Activity,
-  MessageSquare
+  MessageSquare,
+  LineChart
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -134,6 +135,7 @@ export const DashboardSidebarEnhanced = ({ activeModule, onModuleChange }: Dashb
       name: "Management",
       items: [
         { id: "vault", name: "Vault", icon: Shield, minRole: 'operator' },
+        { id: "analytics", name: "Request Analytics", icon: LineChart, minRole: 'admin' },
         { id: "settings", name: "Settings", icon: Settings, minRole: 'manager' },
       ]
     }

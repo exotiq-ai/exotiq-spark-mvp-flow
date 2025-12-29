@@ -46,6 +46,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { FocusTrap } from "@/components/ui/focus-trap";
+import { FeedbackButton } from "@/components/common/FeedbackButton";
+import { RequestAnalyticsDashboard } from "@/components/dashboard/RequestAnalyticsDashboard";
 
 const Dashboard = () => {
   const [activeModule, setActiveModule] = useLocalStorage("activeModule", "dashboard");
@@ -91,6 +93,7 @@ const Dashboard = () => {
     settings: "Settings",
     activity: "Team Activity",
     messages: "Messages",
+    analytics: "Request Analytics",
   };
 
   // FAB actions filtered by role
@@ -162,6 +165,9 @@ const Dashboard = () => {
         break;
       case "activity":
         content = <TeamActivityDashboard />;
+        break;
+      case "analytics":
+        content = <RequestAnalyticsDashboard />;
         break;
       default:
         content = <DashboardOverviewEnhanced onModuleClick={handleModuleChange} />;
@@ -306,6 +312,9 @@ const Dashboard = () => {
 
         {/* Floating Action Button for quick actions */}
         <FloatingActionMenu actions={fabActions} />
+
+        {/* Floating Feedback Button */}
+        <FeedbackButton variant="floating" moduleId={activeModule} />
 
         {/* Main Content */}
         <main
