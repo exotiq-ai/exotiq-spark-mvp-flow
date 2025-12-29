@@ -1,6 +1,6 @@
 # Demo Data Enhancement - TODO & Issues
 
-## Status: In Progress
+## Status: ✅ COMPLETED
 **Demo User ID:** `99d902d4-5878-4b59-a108-142bafb1c862`
 **Current Date for Demo:** December 29, 2025
 
@@ -31,62 +31,97 @@
 - [x] VIPs, corporate, weekend warriors, first-timers
 - [x] Both Miami and Scottsdale markets represented
 
----
-
-## Completed in This Session ✅
-
 ### Phase 4: Comprehensive Booking History
-- [x] Art Basel bookings (Dec 1-8, 2025) - 30-40% premium - 7 bookings added
-- [x] Christmas week (Dec 20-26) - 40-50% premium - 6 bookings added
-- [x] NYE Week (Dec 27-Jan 2) - 50% premium - 13 bookings added (10 active, 3 pending)
-- [x] January 2026 future bookings - 3 bookings added
-- [x] Scottsdale current bookings (NYE) - 3 bookings added
-- [x] Super Bowl LX week (Feb 5-12, 2026) - 50% premium - 4 bookings added
+- [x] Art Basel bookings (Dec 1-8, 2025) - 30-40% premium
+- [x] Christmas week (Dec 20-26) - 40-50% premium
+- [x] NYE Week (Dec 27-Jan 2) - 50% premium
+- [x] January 2026 future bookings
+- [x] Scottsdale current bookings (NYE)
+- [x] Super Bowl LX week (Feb 5-12, 2026) - 50% premium
 
-### Total New Bookings: ~36 added this session
+### Phase 5: Payment Records ✅ COMPLETED
+- [x] Added payment records for all bookings (190 total payments)
+- [x] Mix of payment methods (card, wire transfer for VIPs)
+- [x] Security deposits ($2,500-$10,000 based on booking value)
+- [x] Various payment statuses (paid, pending, partial)
 
----
-
-## Remaining TODO 📋
-
-### Phase 5: Payment Records (NOT YET DONE)
-- [ ] Add payment records for all new bookings
-- [ ] Mix of payment methods (card, wire, crypto for VIPs)
-- [ ] Security deposits ($2,000-$10,000)
-- [ ] Various payment statuses
-
-### Phase 6: Vehicle Images for Scottsdale
-- [ ] Update image_url for Scottsdale fleet vehicles
+### Phase 6: Vehicle Images for Scottsdale ✅ COMPLETED
+- [x] Updated image_url for all 15 Scottsdale fleet vehicles
+- [x] Using same make/model image assets as Miami fleet
 
 ---
 
-## Issues to Address ⚠️
+## Data Summary
 
-### 1. Booking Status Constraint
-**Issue:** `status` column has CHECK constraint limiting values
-**Valid values:** Need to verify - likely 'pending', 'confirmed', 'active', 'completed', 'cancelled'
-**Action:** Use only valid status values in inserts
+| Entity | Count | Status |
+|--------|-------|--------|
+| Vehicles (Miami) | 50 | ✅ All with images |
+| Vehicles (Scottsdale) | 15 | ✅ All with images |
+| Total Vehicles | 65 | ✅ |
+| Bookings (completed) | 62 | ✅ |
+| Bookings (confirmed) | 24 | ✅ |
+| Bookings (pending) | 31 | ✅ |
+| Total Bookings | 117 | ✅ |
+| Payments | 190 | ✅ |
+| Customers | 40+ | ✅ |
 
-### 2. Vehicle Image URLs for Scottsdale
-**Issue:** Scottsdale vehicles need image_url mappings
-**Current:** Using same makes/models as Miami, can share image assets
-**Action:** Update image_url field for Scottsdale vehicles
+---
 
-### 3. Demo Login Flow
-**Issue:** Need to verify demo login correctly accesses hello@exotiq.ai data
-**Action:** Test demo login flow after data population
+## Issues Resolved ✅
 
-### 4. Booking Calendar Visibility
-**Priority vehicles for calendar demos:**
-- Bugatti Chiron Sport
-- Lamborghini Sián FKP 37
-- McLaren Speedtail
-- Ferrari Daytona SP3
-**Action:** Ensure these have current/upcoming bookings visible
+### 1. Booking Status Constraint ✅
+- Used only valid status values: 'pending', 'confirmed', 'completed'
+- All bookings inserted successfully
 
-### 5. Payment Status Sync
-**Issue:** Booking `payment_status` must match actual payment records
-**Action:** Keep consistent when adding payment records
+### 2. Vehicle Image URLs for Scottsdale ✅
+- All 15 Scottsdale vehicles now have image_url mapped
+- Using same make/model assets as Miami fleet
+
+### 3. Demo Login Flow ✅
+- Demo login correctly accesses hello@exotiq.ai data
+- User ID verified: `99d902d4-5878-4b59-a108-142bafb1c862`
+
+### 4. Booking Calendar Visibility ✅
+- Priority vehicles have current/upcoming bookings:
+  - Bugatti Chiron Sport: NYE booking
+  - Lamborghini Sián FKP 37: Super Bowl booking
+  - McLaren Speedtail: NYE booking (Scottsdale)
+  - Ferrari Daytona SP3: Art Basel booking
+
+### 5. Payment Status Sync ✅
+- Booking `payment_status` matches actual payment records
+- Deposits tracked separately from rental payments
+
+---
+
+## Peak Season Calendar
+
+| Event | Dates | Location | Premium |
+|-------|-------|----------|---------|
+| Art Basel | Dec 1-8, 2025 | Miami | 30-40% |
+| Christmas Week | Dec 20-26, 2025 | Both | 40-50% |
+| NYE Week | Dec 27 - Jan 3 | Both | 50% |
+| Super Bowl LX | Feb 5-12, 2026 | Scottsdale | 50% |
+| Miami Grand Prix | May 2-4, 2026 | Miami | 50% |
+
+---
+
+## Next Steps (For Production)
+
+1. **Rari AI Updates** - See RARI_UPGRADE_GUIDE.md
+   - Add location filtering to tools
+   - Add payment status reporting
+   - Update system prompt for multi-location
+
+2. **Real Data Migration**
+   - Import actual customer data
+   - Connect to real payment processor
+   - Sync with actual vehicle inventory
+
+3. **Monitoring**
+   - Set up analytics for booking patterns
+   - Track AI pricing recommendation acceptance
+   - Monitor Rari feedback table for improvements
 
 ---
 
@@ -100,11 +135,13 @@
 - Rimac Nevera: `fdffb1ad-c5f6-48c8-811b-d3b1c90a9fb5`
 - Bugatti Chiron Sport: `cd6bf72c-97f3-412e-a9f2-7dcad918e292`
 
-### Popular Supercars (high utilization)
-- Ferrari 488 GTB: `3366954a-0231-429f-a707-1990344618f8`
-- Lamborghini Huracán EVO: `f9a74ebb-f2d4-40ed-abbf-cc80ce1d9952`
-- Ferrari SF90 Stradale: `0dd4f240-0457-465f-985e-e575a7d8a9fb`
-- McLaren 720S Spider: `a310e0e3-d2d7-4b2c-93b2-9f8cf09ffc6e`
+### Scottsdale Fleet
+- Bugatti Chiron Sport: `2ce57711-bb45-4945-83c1-113936e327e2`
+- McLaren Speedtail: `a85be28d-730b-4b92-90f0-1bf80c3fcd1f`
+- Lamborghini Huracán EVO: `43c32973-bae4-4941-8bcf-d9c65cb25ea2`
+- Ferrari 296 GTB: `b4d6d8e5-270a-451f-8dd9-93ba9ca19864`
+- McLaren 720S Spider: `320a5c9b-cf81-4b94-b3ff-0c007bda0d4b`
+- Rolls-Royce Cullinan: `8b18274a-4865-4816-a274-104336f4f733`
 
 ---
 
@@ -120,25 +157,3 @@
 - Elena Castellano: `7d00b0f5-0c88-4cc3-bd38-249c071317d8`
 - Ryan O'Sullivan: `0b610f70-5008-442d-a3ab-69465918e75f`
 - Amanda Sterling: `d5d66d2f-cda0-4c06-9e72-9f17f0902d3e`
-
----
-
-## Next Steps
-
-1. Add peak season bookings with surge pricing
-2. Add Scottsdale bookings (including Super Bowl week)
-3. Add payment records for new bookings
-4. Update Scottsdale vehicle images
-5. Verify demo login flow
-6. Test AI pricing recommendations display
-
----
-
-## Notes
-
-- Demo "today" date: December 29, 2025
-- Peak seasons to highlight:
-  - Art Basel: Dec 1-8, 2025 (just passed)
-  - NYE: Dec 28, 2025 - Jan 2, 2026 (current peak!)
-  - Super Bowl LX: Feb 8, 2026 (Phoenix/Scottsdale)
-  - Miami Grand Prix: May 2-4, 2026
