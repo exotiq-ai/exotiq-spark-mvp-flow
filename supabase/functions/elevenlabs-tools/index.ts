@@ -135,14 +135,39 @@ function getTimeAgo(date: Date): string {
   return `${Math.floor(seconds / 86400)} days ago`;
 }
 
+// Peak season calendar for pricing context
+const PEAK_SEASONS = [
+  { name: 'Art Basel Miami', start: '12-01', end: '12-08', location: 'Miami', surge: 1.35 },
+  { name: 'Christmas Week', start: '12-20', end: '12-26', location: 'all', surge: 1.40 },
+  { name: 'New Years Eve', start: '12-27', end: '01-03', location: 'all', surge: 1.50 },
+  { name: 'Super Bowl', start: '02-05', end: '02-12', location: 'all', surge: 1.50 },
+  { name: 'Miami Grand Prix', start: '05-02', end: '05-04', location: 'Miami', surge: 1.40 },
+  { name: 'Spring Break', start: '03-10', end: '03-25', location: 'Miami', surge: 1.25 },
+  { name: 'Summer Peak', start: '06-15', end: '08-15', location: 'all', surge: 1.15 },
+];
+
+function getCurrentPeakSeason(location?: string): { name: string; surge: number } | null {
+  const now = new Date();
+  const monthDay = `${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  
+  for (const season of PEAK_SEASONS) {
+    const inRange = monthDay >= season.start && monthDay <= season.end;
+    const locationMatch = season.location === 'all' || !location || season.location.toLowerCase() === location.toLowerCase();
+    if (inRange && locationMatch) {
+      return { name: season.name, surge: season.surge };
+    }
+  }
+  return null;
+}
+
 async function executeFunction(functionName: string, args: any, supabase: any, userId: string) {
   console.log(`[TOOL] Executing: ${functionName} | User: ${userId} | Args:`, JSON.stringify(args));
 
   try {
     switch (functionName) {
       case "get_fleet_vehicles": {
-        const { status } = args;
-        console.log(`[get_fleet_vehicles] Querying vehicles for user ${userId}, status: ${status || 'all'}`);
+        const { status, location } = args;
+        console.log(`[get_fleet_vehicles] Querying vehicles for user ${userId}, status: ${status || 'all'}, location: ${location || 'all'}`);
         
         let query = supabase
           .from('vehicles')
@@ -151,6 +176,10 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
 
         if (status && status !== 'all') {
           query = query.eq('status', status);
+        }
+        
+        if (location && location !== 'all') {
+          query = query.eq('location', location);
         }
 
         const { data: vehicles, error } = await query.order('created_at', { ascending: false });
@@ -169,32 +198,45 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
           return {
             count: 0,
             vehicles: [],
-            summary: `You don't have any vehicles${status && status !== 'all' ? ` that are ${status}` : ' in your fleet yet'}. Would you like to add your first vehicle?`
+            summary: `You don't have any vehicles${location ? ` in ${location}` : ''}${status && status !== 'all' ? ` that are ${status}` : ''}.`
           };
         }
         
         const vehicleList = vehicles.map(v => ({
           name: `${v.year} ${v.make} ${v.model}`,
           status: v.status,
+          location: v.location || 'Miami',
           rate: `$${v.current_rate} per day`,
           utilization: `${v.utilization || 0}% utilized`,
           revenue: `$${Number(v.revenue || 0).toFixed(0)} total revenue`
         }));
 
+        // Group by location for summary
+        const locationGroups = vehicles.reduce((acc, v) => {
+          const loc = v.location || 'Miami';
+          acc[loc] = (acc[loc] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>);
+
+        const locationSummary = Object.entries(locationGroups)
+          .map(([loc, count]) => `${count} in ${loc}`)
+          .join(', ');
+
         return {
           count: vehicles.length,
           vehicles: vehicleList,
-          summary: `You have ${vehicles.length} vehicles${status && status !== 'all' ? ` that are ${status}` : ' in your fleet'}. ${vehicleList.slice(0, 3).map(v => v.name).join(', ')}${vehicles.length > 3 ? ' and others' : ''}.`
+          byLocation: locationGroups,
+          summary: `You have ${vehicles.length} vehicles${location ? ` in ${location}` : ` (${locationSummary})`}${status && status !== 'all' ? ` that are ${status}` : ''}. Top vehicles: ${vehicleList.slice(0, 3).map(v => v.name).join(', ')}.`
         };
       }
 
       case "get_bookings": {
-        const { status, start_date, end_date } = args;
-        console.log(`[get_bookings] User: ${userId}, Status: ${status || 'all'}, Dates: ${start_date || 'any'} to ${end_date || 'any'}`);
+        const { status, start_date, end_date, location } = args;
+        console.log(`[get_bookings] User: ${userId}, Status: ${status || 'all'}, Location: ${location || 'all'}`);
         
         let query = supabase
           .from('bookings')
-          .select('*, vehicles(name, make, model, year), customers(full_name, email)')
+          .select('*, vehicles(name, make, model, year, location), customers(full_name, email)')
           .eq('user_id', userId);
 
         if (status && status !== 'all') {
@@ -207,7 +249,7 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
           query = query.lte('end_date', end_date);
         }
 
-        const { data: bookings, error } = await query.order('start_date', { ascending: false}).limit(20);
+        const { data: bookings, error } = await query.order('start_date', { ascending: false}).limit(30);
         
         if (error) {
           console.error('[get_bookings] Database error:', error);
@@ -217,18 +259,26 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
           };
         }
         
-        console.log(`[get_bookings] Found ${bookings?.length || 0} bookings`);
+        // Filter by location if specified
+        let filteredBookings = bookings || [];
+        if (location && location !== 'all') {
+          filteredBookings = filteredBookings.filter((b: any) => 
+            b.vehicles?.location?.toLowerCase() === location.toLowerCase()
+          );
+        }
         
-        if (!bookings || bookings.length === 0) {
+        console.log(`[get_bookings] Found ${filteredBookings.length} bookings`);
+        
+        if (filteredBookings.length === 0) {
           return {
             count: 0,
             bookings: [],
             totalRevenue: '$0',
-            summary: `You don't have any bookings${status && status !== 'all' ? ` that are ${status}` : ''} matching your criteria.`
+            summary: `You don't have any bookings${status && status !== 'all' ? ` that are ${status}` : ''}${location ? ` in ${location}` : ''} matching your criteria.`
           };
         }
         
-        const bookingList = bookings.map(b => {
+        const bookingList = filteredBookings.map(b => {
           const startDate = new Date(b.start_date).toLocaleDateString();
           const endDate = new Date(b.end_date).toLocaleDateString();
           const vehicleName = b.vehicles ? `${b.vehicles.year} ${b.vehicles.make} ${b.vehicles.model}` : 'Unknown vehicle';
@@ -236,6 +286,7 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
           return {
             customer: b.customers?.full_name || b.customer_name || 'Unknown',
             vehicle: vehicleName,
+            location: b.vehicles?.location || 'Miami',
             dates: `${startDate} to ${endDate}`,
             status: b.status,
             total: `$${Number(b.total_value || 0).toFixed(0)}`,
@@ -243,13 +294,13 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
           };
         });
 
-        const totalRevenue = bookings.reduce((sum, b) => sum + Number(b.total_value || 0), 0);
+        const totalRevenue = filteredBookings.reduce((sum, b) => sum + Number(b.total_value || 0), 0);
         
         return {
-          count: bookings.length,
+          count: filteredBookings.length,
           bookings: bookingList,
           totalRevenue: `$${totalRevenue.toFixed(0)}`,
-          summary: `You have ${bookings.length} bookings${status && status !== 'all' ? ` that are ${status}` : ''}. Total value: $${totalRevenue.toFixed(0)}.`
+          summary: `You have ${filteredBookings.length} bookings${status && status !== 'all' ? ` that are ${status}` : ''}${location ? ` in ${location}` : ''}. Total value: $${totalRevenue.toFixed(0)}.`
         };
       }
 
@@ -258,7 +309,7 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
         
         const { data: recentBookings } = await supabase
           .from('bookings')
-          .select('*, vehicles(name, make, model, year), customers(full_name)')
+          .select('*, vehicles(name, make, model, year, location), customers(full_name)')
           .eq('user_id', userId)
           .order('created_at', { ascending: false })
           .limit(limit);
@@ -269,6 +320,7 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
           
           return {
             description: `${b.customers?.full_name || 'A customer'} booked ${vehicleName} for $${Number(b.total_value || 0).toFixed(0)}`,
+            location: b.vehicles?.location || 'Miami',
             timeAgo,
             status: b.status,
             amount: `$${Number(b.total_value || 0).toFixed(0)}`
@@ -283,8 +335,8 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
       }
 
       case "getFleetMetrics": {
-        const { timeframe } = args;
-        console.log(`[getFleetMetrics] User: ${userId}, Timeframe: ${timeframe}`);
+        const { timeframe, location } = args;
+        console.log(`[getFleetMetrics] User: ${userId}, Timeframe: ${timeframe}, Location: ${location || 'all'}`);
         
         let dateFilter = new Date();
         
@@ -293,24 +345,242 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
         else if (timeframe === 'month') dateFilter.setMonth(dateFilter.getMonth() - 1);
         else if (timeframe === 'year') dateFilter.setFullYear(dateFilter.getFullYear() - 1);
 
-        const [vehicles, bookings, revenue] = await Promise.all([
-          supabase.from('vehicles').select('*').eq('user_id', userId),
-          supabase.from('bookings').select('*').eq('user_id', userId).gte('created_at', dateFilter.toISOString()),
-          supabase.from('bookings').select('total_value').eq('user_id', userId).eq('status', 'completed').gte('created_at', dateFilter.toISOString())
+        // Get vehicles with optional location filter
+        let vehicleQuery = supabase.from('vehicles').select('*').eq('user_id', userId);
+        if (location && location !== 'all') {
+          vehicleQuery = vehicleQuery.eq('location', location);
+        }
+        
+        const [vehiclesResult, bookingsResult, revenueResult] = await Promise.all([
+          vehicleQuery,
+          supabase.from('bookings').select('*, vehicles(location)').eq('user_id', userId).gte('created_at', dateFilter.toISOString()),
+          supabase.from('bookings').select('total_value, vehicles(location)').eq('user_id', userId).eq('status', 'completed').gte('created_at', dateFilter.toISOString())
         ]);
 
-        const totalRevenue = revenue.data?.reduce((sum: number, b: any) => sum + Number(b.total_value || 0), 0) || 0;
-        const activeBookings = bookings.data?.filter((b: any) => b.status === 'active' || b.status === 'confirmed').length || 0;
+        const vehicles = vehiclesResult.data || [];
+        let bookings = bookingsResult.data || [];
+        let revenue = revenueResult.data || [];
+        
+        // Filter bookings by location if specified
+        if (location && location !== 'all') {
+          bookings = bookings.filter((b: any) => b.vehicles?.location?.toLowerCase() === location.toLowerCase());
+          revenue = revenue.filter((b: any) => b.vehicles?.location?.toLowerCase() === location.toLowerCase());
+        }
 
-        console.log(`[getFleetMetrics] Results - Vehicles: ${vehicles.data?.length || 0}, Active Bookings: ${activeBookings}, Revenue: $${totalRevenue}`);
+        const totalRevenue = revenue.reduce((sum: number, b: any) => sum + Number(b.total_value || 0), 0);
+        const activeBookings = bookings.filter((b: any) => b.status === 'active' || b.status === 'confirmed').length;
+        const avgUtilization = vehicles.length > 0 
+          ? vehicles.reduce((sum, v) => sum + (v.utilization || 0), 0) / vehicles.length 
+          : 0;
+
+        // Check for peak season
+        const peakSeason = getCurrentPeakSeason(location);
+
+        console.log(`[getFleetMetrics] Results - Vehicles: ${vehicles.length}, Active Bookings: ${activeBookings}, Revenue: $${totalRevenue}`);
 
         return {
-          totalVehicles: vehicles.data?.length || 0,
+          totalVehicles: vehicles.length,
           activeBookings,
-          totalBookings: bookings.data?.length || 0,
+          totalBookings: bookings.length,
           revenue: totalRevenue,
+          averageUtilization: `${avgUtilization.toFixed(0)}%`,
+          location: location || 'all',
           timeframe,
-          summary: `Your fleet has ${vehicles.data?.length || 0} vehicles with ${activeBookings} active bookings and $${totalRevenue.toFixed(0)} in revenue for the ${timeframe}.`
+          peakSeason: peakSeason?.name || null,
+          surgePricing: peakSeason?.surge || 1.0,
+          summary: `${location ? `${location} fleet` : 'Your fleet'} has ${vehicles.length} vehicles with ${activeBookings} active bookings and $${totalRevenue.toFixed(0)} in revenue for the ${timeframe}.${peakSeason ? ` Currently in ${peakSeason.name} with ${((peakSeason.surge - 1) * 100).toFixed(0)}% surge pricing recommended.` : ''}`
+        };
+      }
+
+      case "getLocationMetrics": {
+        const { location } = args;
+        console.log(`[getLocationMetrics] Location: ${location || 'all'}`);
+        
+        // Get all vehicles
+        const { data: allVehicles } = await supabase
+          .from('vehicles')
+          .select('*')
+          .eq('user_id', userId);
+        
+        if (!allVehicles || allVehicles.length === 0) {
+          return {
+            summary: "You don't have any vehicles in your fleet yet."
+          };
+        }
+        
+        // Group by location
+        const locationStats: Record<string, any> = {};
+        
+        for (const vehicle of allVehicles) {
+          const loc = vehicle.location || 'Miami';
+          if (!locationStats[loc]) {
+            locationStats[loc] = {
+              location: loc,
+              vehicleCount: 0,
+              totalRevenue: 0,
+              totalUtilization: 0,
+              avgRate: 0,
+              vehicles: []
+            };
+          }
+          locationStats[loc].vehicleCount++;
+          locationStats[loc].totalRevenue += Number(vehicle.revenue || 0);
+          locationStats[loc].totalUtilization += (vehicle.utilization || 0);
+          locationStats[loc].avgRate += Number(vehicle.current_rate || 0);
+          locationStats[loc].vehicles.push({
+            name: `${vehicle.year} ${vehicle.make} ${vehicle.model}`,
+            status: vehicle.status,
+            utilization: vehicle.utilization,
+            rate: vehicle.current_rate
+          });
+        }
+        
+        // Calculate averages
+        for (const loc of Object.keys(locationStats)) {
+          const stats = locationStats[loc];
+          stats.avgUtilization = stats.totalUtilization / stats.vehicleCount;
+          stats.avgRate = stats.avgRate / stats.vehicleCount;
+        }
+        
+        // Get bookings by location
+        const { data: bookings } = await supabase
+          .from('bookings')
+          .select('*, vehicles(location)')
+          .eq('user_id', userId)
+          .in('status', ['active', 'confirmed', 'pending']);
+        
+        for (const booking of (bookings || [])) {
+          const loc = booking.vehicles?.location || 'Miami';
+          if (locationStats[loc]) {
+            locationStats[loc].activeBookings = (locationStats[loc].activeBookings || 0) + 1;
+          }
+        }
+        
+        // Check peak season for each location
+        for (const loc of Object.keys(locationStats)) {
+          const peakSeason = getCurrentPeakSeason(loc);
+          locationStats[loc].peakSeason = peakSeason?.name || null;
+          locationStats[loc].surgePricing = peakSeason?.surge || 1.0;
+        }
+        
+        // If specific location requested
+        if (location && location !== 'all' && locationStats[location]) {
+          const stats = locationStats[location];
+          return {
+            location: stats.location,
+            vehicleCount: stats.vehicleCount,
+            totalRevenue: `$${stats.totalRevenue.toFixed(0)}`,
+            avgUtilization: `${stats.avgUtilization.toFixed(0)}%`,
+            avgRate: `$${stats.avgRate.toFixed(0)}`,
+            activeBookings: stats.activeBookings || 0,
+            peakSeason: stats.peakSeason,
+            surgePricing: stats.surgePricing,
+            topVehicles: stats.vehicles.slice(0, 5),
+            summary: `${location} has ${stats.vehicleCount} vehicles with $${stats.totalRevenue.toFixed(0)} total revenue, ${stats.avgUtilization.toFixed(0)}% average utilization, and ${stats.activeBookings || 0} active bookings.${stats.peakSeason ? ` Currently in ${stats.peakSeason} peak season.` : ''}`
+          };
+        }
+        
+        // Return all locations
+        const locations = Object.values(locationStats);
+        return {
+          locationCount: locations.length,
+          locations: locations.map((l: any) => ({
+            location: l.location,
+            vehicleCount: l.vehicleCount,
+            totalRevenue: `$${l.totalRevenue.toFixed(0)}`,
+            avgUtilization: `${l.avgUtilization.toFixed(0)}%`,
+            avgRate: `$${l.avgRate.toFixed(0)}`,
+            activeBookings: l.activeBookings || 0,
+            peakSeason: l.peakSeason
+          })),
+          summary: `Your fleet spans ${locations.length} location${locations.length > 1 ? 's' : ''}: ${locations.map((l: any) => `${l.location} (${l.vehicleCount} vehicles, $${l.totalRevenue.toFixed(0)} revenue)`).join('; ')}.`
+        };
+      }
+
+      case "getPaymentSummary": {
+        const { status, timeframe, location } = args;
+        console.log(`[getPaymentSummary] Status: ${status || 'all'}, Timeframe: ${timeframe || 'all'}, Location: ${location || 'all'}`);
+        
+        let dateFilter = new Date();
+        if (timeframe === 'today') dateFilter.setHours(0, 0, 0, 0);
+        else if (timeframe === 'week') dateFilter.setDate(dateFilter.getDate() - 7);
+        else if (timeframe === 'month') dateFilter.setMonth(dateFilter.getMonth() - 1);
+        else if (timeframe === 'year') dateFilter.setFullYear(dateFilter.getFullYear() - 1);
+        else dateFilter = new Date(0); // All time
+        
+        // Get payments with booking and vehicle info
+        const { data: payments, error } = await supabase
+          .from('payments')
+          .select('*, bookings(customer_name, vehicle_id, vehicles(location, name, make, model, year))')
+          .eq('user_id', userId)
+          .gte('transaction_date', dateFilter.toISOString())
+          .order('transaction_date', { ascending: false });
+        
+        if (error) {
+          console.error('[getPaymentSummary] Database error:', error);
+          return { error: 'Failed to fetch payments', summary: 'I encountered an error retrieving payment data.' };
+        }
+        
+        let filteredPayments = payments || [];
+        
+        // Filter by location
+        if (location && location !== 'all') {
+          filteredPayments = filteredPayments.filter((p: any) => 
+            p.bookings?.vehicles?.location?.toLowerCase() === location.toLowerCase()
+          );
+        }
+        
+        // Filter by status
+        if (status && status !== 'all') {
+          filteredPayments = filteredPayments.filter((p: any) => p.payment_status === status);
+        }
+        
+        // Calculate summaries
+        const totalAmount = filteredPayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+        const byStatus = filteredPayments.reduce((acc, p) => {
+          const s = p.payment_status || 'unknown';
+          acc[s] = (acc[s] || 0) + Number(p.amount || 0);
+          return acc;
+        }, {} as Record<string, number>);
+        
+        const byMethod = filteredPayments.reduce((acc, p) => {
+          const m = p.payment_method || 'unknown';
+          acc[m] = (acc[m] || 0) + Number(p.amount || 0);
+          return acc;
+        }, {} as Record<string, number>);
+        
+        const byType = filteredPayments.reduce((acc, p) => {
+          const t = p.payment_type || 'unknown';
+          acc[t] = (acc[t] || 0) + Number(p.amount || 0);
+          return acc;
+        }, {} as Record<string, number>);
+        
+        // Get outstanding (pending) amount
+        const pendingAmount = byStatus['pending'] || 0;
+        const completedAmount = byStatus['completed'] || 0;
+        
+        // Recent transactions
+        const recentPayments = filteredPayments.slice(0, 5).map(p => ({
+          customer: p.bookings?.customer_name || 'Unknown',
+          vehicle: p.bookings?.vehicles ? `${p.bookings.vehicles.year} ${p.bookings.vehicles.make} ${p.bookings.vehicles.model}` : 'Unknown',
+          amount: `$${Number(p.amount || 0).toFixed(0)}`,
+          method: p.payment_method,
+          status: p.payment_status,
+          date: new Date(p.transaction_date).toLocaleDateString()
+        }));
+        
+        return {
+          totalPayments: filteredPayments.length,
+          totalAmount: `$${totalAmount.toFixed(0)}`,
+          completedAmount: `$${completedAmount.toFixed(0)}`,
+          pendingAmount: `$${pendingAmount.toFixed(0)}`,
+          byStatus: Object.entries(byStatus).map(([s, a]) => ({ status: s, amount: `$${a.toFixed(0)}` })),
+          byMethod: Object.entries(byMethod).map(([m, a]) => ({ method: m, amount: `$${a.toFixed(0)}` })),
+          byType: Object.entries(byType).map(([t, a]) => ({ type: t, amount: `$${a.toFixed(0)}` })),
+          recentPayments,
+          timeframe: timeframe || 'all time',
+          location: location || 'all',
+          summary: `${timeframe ? `This ${timeframe}` : 'Total'} payments${location ? ` in ${location}` : ''}: $${totalAmount.toFixed(0)} across ${filteredPayments.length} transactions. Completed: $${completedAmount.toFixed(0)}, Pending: $${pendingAmount.toFixed(0)}.`
         };
       }
 
@@ -350,14 +620,16 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
           vehicle: {
             name: fullName,
             status: vehicle.status,
+            location: vehicle.location || 'Miami',
             rate: `$${vehicle.current_rate} per day`,
+            suggestedRate: vehicle.suggested_rate ? `$${vehicle.suggested_rate}` : null,
             utilization: `${vehicle.utilization}% utilization`,
             revenue: `$${Number(vehicle.revenue || 0).toFixed(0)} total revenue`,
             licensePlate: vehicle.license_plate,
             vin: vehicle.vin
           },
           bookings: bookingsData,
-          summary: `${fullName} is currently ${vehicle.status}, priced at $${vehicle.current_rate} per day with ${vehicle.utilization}% utilization and $${Number(vehicle.revenue || 0).toFixed(0)} in total revenue.`
+          summary: `${fullName} in ${vehicle.location || 'Miami'} is currently ${vehicle.status}, priced at $${vehicle.current_rate} per day with ${vehicle.utilization}% utilization and $${Number(vehicle.revenue || 0).toFixed(0)} in total revenue.`
         };
       }
 
@@ -371,48 +643,104 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
           .ilike('full_name', `%${customerName}%`)
           .maybeSingle();
 
-        if (!customer) return { error: "Customer not found" };
+        if (!customer) return { 
+          error: "Customer not found",
+          summary: `I couldn't find a customer matching "${customerName}".`
+        };
 
         let bookingsData = null;
         if (includeHistory) {
           const { data: bookings } = await supabase
             .from('bookings')
-            .select('*, vehicles(name)')
+            .select('*, vehicles(name, make, model, year, location)')
             .eq('customer_id', customer.id)
-            .order('start_date', { ascending: false });
-          bookingsData = bookings;
+            .order('start_date', { ascending: false })
+            .limit(10);
+          bookingsData = bookings?.map(b => ({
+            vehicle: b.vehicles ? `${b.vehicles.year} ${b.vehicles.make} ${b.vehicles.model}` : 'Unknown',
+            location: b.vehicles?.location || 'Miami',
+            dates: `${new Date(b.start_date).toLocaleDateString()} to ${new Date(b.end_date).toLocaleDateString()}`,
+            status: b.status,
+            total: `$${Number(b.total_value || 0).toFixed(0)}`
+          }));
         }
 
-        return { customer, bookings: bookingsData };
+        return { 
+          customer: {
+            name: customer.full_name,
+            email: customer.email,
+            phone: customer.phone,
+            status: customer.customer_status,
+            totalBookings: customer.total_bookings || 0,
+            lifetimeValue: `$${Number(customer.lifetime_value || 0).toFixed(0)}`,
+            idVerified: customer.id_verified,
+            insuranceVerified: customer.insurance_verified
+          },
+          bookings: bookingsData,
+          summary: `${customer.full_name} is a ${customer.customer_status || 'regular'} customer with ${customer.total_bookings || 0} bookings and $${Number(customer.lifetime_value || 0).toFixed(0)} lifetime value.`
+        };
       }
 
       case "checkAvailability": {
-        const { vehicleName, startDate, endDate } = args;
+        const { vehicleName, startDate, endDate, location } = args;
         
-        const { data: vehicle } = await supabase
+        let vehicleQuery = supabase
           .from('vehicles')
-          .select('id, name, status')
-          .eq('user_id', userId)
-          .ilike('name', `%${vehicleName}%`)
-          .maybeSingle();
-
-        if (!vehicle) return { error: "Vehicle not found" };
-
-        const { data: conflicts } = await supabase
-          .from('bookings')
-          .select('*')
-          .eq('vehicle_id', vehicle.id)
-          .or(`and(start_date.lte.${endDate},end_date.gte.${startDate})`);
-
+          .select('id, name, make, model, year, status, location, current_rate')
+          .eq('user_id', userId);
+        
+        if (vehicleName) {
+          vehicleQuery = vehicleQuery.or(`name.ilike.%${vehicleName}%,make.ilike.%${vehicleName}%,model.ilike.%${vehicleName}%`);
+        }
+        if (location) {
+          vehicleQuery = vehicleQuery.eq('location', location);
+        }
+        
+        const { data: vehicles } = await vehicleQuery;
+        
+        if (!vehicles || vehicles.length === 0) {
+          return { 
+            error: "No vehicles found",
+            summary: `I couldn't find any vehicles matching your criteria.`
+          };
+        }
+        
+        const availabilityResults = [];
+        for (const vehicle of vehicles) {
+          const { data: conflicts } = await supabase
+            .from('bookings')
+            .select('id, start_date, end_date, customer_name')
+            .eq('vehicle_id', vehicle.id)
+            .in('status', ['active', 'confirmed', 'pending'])
+            .or(`and(start_date.lte.${endDate},end_date.gte.${startDate})`);
+          
+          availabilityResults.push({
+            vehicle: `${vehicle.year} ${vehicle.make} ${vehicle.model}`,
+            location: vehicle.location,
+            rate: `$${vehicle.current_rate}`,
+            available: !conflicts || conflicts.length === 0,
+            conflicts: conflicts?.map(c => ({
+              dates: `${new Date(c.start_date).toLocaleDateString()} to ${new Date(c.end_date).toLocaleDateString()}`,
+              customer: c.customer_name
+            })) || []
+          });
+        }
+        
+        const available = availabilityResults.filter(r => r.available);
+        const unavailable = availabilityResults.filter(r => !r.available);
+        
         return {
-          vehicle: vehicle.name,
-          available: conflicts?.length === 0,
-          conflicts: conflicts || []
+          requestedDates: `${startDate} to ${endDate}`,
+          availableVehicles: available,
+          unavailableVehicles: unavailable,
+          summary: available.length > 0 
+            ? `${available.length} vehicle${available.length > 1 ? 's are' : ' is'} available for ${startDate} to ${endDate}: ${available.map(v => v.vehicle).join(', ')}.`
+            : `Unfortunately, no matching vehicles are available for those dates. ${unavailable.length} vehicle${unavailable.length > 1 ? 's have' : ' has'} conflicts.`
         };
       }
 
       case "getRevenueAnalysis": {
-        const { timeframe, vehicleName } = args;
+        const { timeframe, vehicleName, location } = args;
         let dateFilter = new Date();
         
         if (timeframe === 'today') dateFilter.setHours(0, 0, 0, 0);
@@ -422,61 +750,121 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
 
         let query = supabase
           .from('bookings')
-          .select('total_value, vehicles(name)')
+          .select('total_value, daily_rate, vehicles(name, make, model, year, location)')
           .eq('user_id', userId)
+          .eq('status', 'completed')
           .gte('created_at', dateFilter.toISOString());
 
-        if (vehicleName) {
-          const { data: vehicle } = await supabase
-            .from('vehicles')
-            .select('id')
-            .eq('user_id', userId)
-            .ilike('name', `%${vehicleName}%`)
-            .maybeSingle();
-          if (vehicle) query = query.eq('vehicle_id', vehicle.id);
-        }
-
         const { data: bookings } = await query;
-        const totalRevenue = bookings?.reduce((sum: number, b: any) => sum + Number(b.total_value || 0), 0) || 0;
+        
+        let filteredBookings = bookings || [];
+        
+        // Filter by location
+        if (location && location !== 'all') {
+          filteredBookings = filteredBookings.filter((b: any) => 
+            b.vehicles?.location?.toLowerCase() === location.toLowerCase()
+          );
+        }
+        
+        // Filter by vehicle name
+        if (vehicleName) {
+          filteredBookings = filteredBookings.filter((b: any) => {
+            const name = b.vehicles ? `${b.vehicles.make} ${b.vehicles.model}`.toLowerCase() : '';
+            return name.includes(vehicleName.toLowerCase());
+          });
+        }
+        
+        const totalRevenue = filteredBookings.reduce((sum: number, b: any) => sum + Number(b.total_value || 0), 0);
+        const avgDailyRate = filteredBookings.length > 0 
+          ? filteredBookings.reduce((sum: number, b: any) => sum + Number(b.daily_rate || 0), 0) / filteredBookings.length 
+          : 0;
 
-        return { totalRevenue, bookingCount: bookings?.length || 0, timeframe };
+        return { 
+          totalRevenue: `$${totalRevenue.toFixed(0)}`,
+          bookingCount: filteredBookings.length,
+          avgDailyRate: `$${avgDailyRate.toFixed(0)}`,
+          timeframe,
+          location: location || 'all',
+          summary: `${timeframe ? `This ${timeframe}` : 'Total'} revenue${location ? ` from ${location}` : ''}: $${totalRevenue.toFixed(0)} across ${filteredBookings.length} completed bookings with an average daily rate of $${avgDailyRate.toFixed(0)}.`
+        };
       }
 
       case "getTopPerformers": {
-        const { metric, limit } = args;
+        const { metric, limit = 5, location } = args;
         
         if (metric === 'revenue') {
-          const { data: vehicles } = await supabase
+          let query = supabase
             .from('vehicles')
-            .select('name, revenue')
-            .eq('user_id', userId)
-            .order('revenue', { ascending: false })
-            .limit(limit);
-          return { metric: 'revenue', performers: vehicles };
+            .select('name, make, model, year, revenue, location')
+            .eq('user_id', userId);
+          
+          if (location && location !== 'all') {
+            query = query.eq('location', location);
+          }
+          
+          const { data: vehicles } = await query.order('revenue', { ascending: false }).limit(limit);
+          
+          const performers = vehicles?.map(v => ({
+            name: `${v.year} ${v.make} ${v.model}`,
+            location: v.location,
+            revenue: `$${Number(v.revenue || 0).toFixed(0)}`
+          })) || [];
+          
+          return { 
+            metric: 'revenue', 
+            performers,
+            summary: `Top ${performers.length} vehicles by revenue${location ? ` in ${location}` : ''}: ${performers.map(p => `${p.name} ($${Number(p.revenue.replace('$', '')).toFixed(0)})`).join(', ')}.`
+          };
         } else if (metric === 'utilization') {
-          const { data: vehicles } = await supabase
+          let query = supabase
             .from('vehicles')
-            .select('name, utilization')
-            .eq('user_id', userId)
-            .order('utilization', { ascending: false })
-            .limit(limit);
-          return { metric: 'utilization', performers: vehicles };
+            .select('name, make, model, year, utilization, location')
+            .eq('user_id', userId);
+          
+          if (location && location !== 'all') {
+            query = query.eq('location', location);
+          }
+          
+          const { data: vehicles } = await query.order('utilization', { ascending: false }).limit(limit);
+          
+          const performers = vehicles?.map(v => ({
+            name: `${v.year} ${v.make} ${v.model}`,
+            location: v.location,
+            utilization: `${v.utilization || 0}%`
+          })) || [];
+          
+          return { 
+            metric: 'utilization', 
+            performers,
+            summary: `Top ${performers.length} vehicles by utilization${location ? ` in ${location}` : ''}: ${performers.map(p => `${p.name} (${p.utilization})`).join(', ')}.`
+          };
         } else {
           const { data: customers } = await supabase
             .from('customers')
-            .select('full_name, total_bookings')
+            .select('full_name, total_bookings, lifetime_value')
             .eq('user_id', userId)
-            .order('total_bookings', { ascending: false })
+            .order('lifetime_value', { ascending: false })
             .limit(limit);
-          return { metric: 'bookings', performers: customers };
+          
+          const performers = customers?.map(c => ({
+            name: c.full_name,
+            bookings: c.total_bookings || 0,
+            lifetimeValue: `$${Number(c.lifetime_value || 0).toFixed(0)}`
+          })) || [];
+          
+          return { 
+            metric: 'customers', 
+            performers,
+            summary: `Top ${performers.length} customers by lifetime value: ${performers.map(p => `${p.name} (${p.lifetimeValue})`).join(', ')}.`
+          };
         }
       }
 
       case "searchBookings": {
-        const { status, daysRange } = args;
+        const { status, daysRange, location } = args;
         let query = supabase
           .from('bookings')
-          .select('*, vehicles(name, make, model, year), customers(full_name)')
+          .select('*, vehicles(name, make, model, year, location), customers(full_name)')
           .eq('user_id', userId);
 
         if (status) query = query.eq('status', status);
@@ -487,56 +875,105 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
           query = query.gte('start_date', dateFilter.toISOString());
         }
 
-        const { data: bookings } = await query.order('start_date', { ascending: false }).limit(20);
+        const { data: bookings } = await query.order('start_date', { ascending: false }).limit(30);
         
-        const bookingList = bookings?.map(b => {
+        let filteredBookings = bookings || [];
+        if (location && location !== 'all') {
+          filteredBookings = filteredBookings.filter((b: any) => 
+            b.vehicles?.location?.toLowerCase() === location.toLowerCase()
+          );
+        }
+        
+        const bookingList = filteredBookings.map(b => {
           const vehicleName = b.vehicles ? `${b.vehicles.year} ${b.vehicles.make} ${b.vehicles.model}` : 'vehicle';
           return {
             customer: b.customers?.full_name || b.customer_name,
             vehicle: vehicleName,
+            location: b.vehicles?.location || 'Miami',
             dates: `${new Date(b.start_date).toLocaleDateString()} to ${new Date(b.end_date).toLocaleDateString()}`,
             status: b.status,
             total: `$${Number(b.total_value || 0).toFixed(0)}`
           };
-        }) || [];
+        });
 
-        const totalValue = bookings?.reduce((sum, b) => sum + Number(b.total_value || 0), 0) || 0;
+        const totalValue = filteredBookings.reduce((sum, b) => sum + Number(b.total_value || 0), 0);
 
         return { 
-          count: bookings?.length || 0,
+          count: filteredBookings.length,
           bookings: bookingList,
           totalValue: `$${totalValue.toFixed(0)}`,
-          summary: `Found ${bookings?.length || 0} bookings${status ? ` with ${status} status` : ''}${daysRange ? ` in the last ${daysRange} days` : ''}. Total value: $${totalValue.toFixed(0)}.`
+          summary: `Found ${filteredBookings.length} bookings${status ? ` with ${status} status` : ''}${location ? ` in ${location}` : ''}${daysRange ? ` in the last ${daysRange} days` : ''}. Total value: $${totalValue.toFixed(0)}.`
         };
       }
 
       case "getDamageReports": {
-        const { status } = args;
+        const { status, location } = args;
         let query = supabase
           .from('damage_claims')
-          .select('*, vehicles(name)')
+          .select('*, vehicles(name, make, model, year, location)')
           .eq('user_id', userId);
 
-        if (status !== 'all') query = query.eq('claim_status', status);
+        if (status && status !== 'all') query = query.eq('claim_status', status);
 
         const { data: claims } = await query.order('reported_date', { ascending: false });
-        return { claims: claims || [], count: claims?.length || 0 };
+        
+        let filteredClaims = claims || [];
+        if (location && location !== 'all') {
+          filteredClaims = filteredClaims.filter((c: any) => 
+            c.vehicles?.location?.toLowerCase() === location.toLowerCase()
+          );
+        }
+        
+        const claimList = filteredClaims.map(c => ({
+          vehicle: c.vehicles ? `${c.vehicles.year} ${c.vehicles.make} ${c.vehicles.model}` : 'Unknown',
+          location: c.vehicles?.location || 'Miami',
+          severity: c.severity,
+          status: c.claim_status,
+          estimatedCost: c.estimated_cost ? `$${c.estimated_cost}` : 'TBD',
+          reportedDate: new Date(c.reported_date).toLocaleDateString()
+        }));
+        
+        return { 
+          claims: claimList, 
+          count: filteredClaims.length,
+          summary: `You have ${filteredClaims.length} damage report${filteredClaims.length !== 1 ? 's' : ''}${status && status !== 'all' ? ` with ${status} status` : ''}${location ? ` in ${location}` : ''}.`
+        };
       }
 
       case "getUpcomingMaintenance": {
-        const { daysAhead } = args;
+        const { daysAhead = 30, location } = args;
         const futureDate = new Date();
         futureDate.setDate(futureDate.getDate() + daysAhead);
 
         const { data: maintenance } = await supabase
           .from('maintenance_schedules')
-          .select('*, vehicles(name)')
+          .select('*, vehicles(name, make, model, year, location)')
           .eq('user_id', userId)
           .lte('scheduled_date', futureDate.toISOString())
           .gte('scheduled_date', new Date().toISOString())
           .order('scheduled_date', { ascending: true });
 
-        return { maintenance: maintenance || [], count: maintenance?.length || 0 };
+        let filteredMaintenance = maintenance || [];
+        if (location && location !== 'all') {
+          filteredMaintenance = filteredMaintenance.filter((m: any) => 
+            m.vehicles?.location?.toLowerCase() === location.toLowerCase()
+          );
+        }
+        
+        const maintenanceList = filteredMaintenance.map(m => ({
+          vehicle: m.vehicles ? `${m.vehicles.year} ${m.vehicles.make} ${m.vehicles.model}` : 'Unknown',
+          location: m.vehicles?.location || 'Miami',
+          type: m.maintenance_type,
+          scheduledDate: new Date(m.scheduled_date).toLocaleDateString(),
+          estimatedCost: m.estimated_cost ? `$${m.estimated_cost}` : 'TBD',
+          status: m.status
+        }));
+
+        return { 
+          maintenance: maintenanceList, 
+          count: filteredMaintenance.length,
+          summary: `You have ${filteredMaintenance.length} maintenance task${filteredMaintenance.length !== 1 ? 's' : ''} scheduled in the next ${daysAhead} days${location ? ` in ${location}` : ''}.`
+        };
       }
 
       case "getCustomerLifetimeValue": {
@@ -544,14 +981,25 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
         
         const { data: customer } = await supabase
           .from('customers')
-          .select('full_name, lifetime_value, total_bookings')
+          .select('full_name, lifetime_value, total_bookings, customer_status')
           .eq('user_id', userId)
           .ilike('full_name', `%${customerName}%`)
           .maybeSingle();
 
-        if (!customer) return { error: "Customer not found" };
+        if (!customer) return { 
+          error: "Customer not found",
+          summary: `I couldn't find a customer matching "${customerName}".`
+        };
 
-        return { customer };
+        return { 
+          customer: {
+            name: customer.full_name,
+            status: customer.customer_status,
+            totalBookings: customer.total_bookings || 0,
+            lifetimeValue: `$${Number(customer.lifetime_value || 0).toFixed(0)}`
+          },
+          summary: `${customer.full_name} is a ${customer.customer_status || 'regular'} customer with ${customer.total_bookings || 0} bookings and $${Number(customer.lifetime_value || 0).toFixed(0)} lifetime value.`
+        };
       }
 
       case "getVaultDocuments": {
@@ -570,47 +1018,61 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
       }
 
       case "getDemandForecast": {
-        const { city = 'miami', days = 14 } = args;
-        console.log(`[getDemandForecast] City: ${city}, Days: ${days}`);
+        const { city = 'miami', days = 14, location } = args;
+        const effectiveLocation = location || city;
+        console.log(`[getDemandForecast] Location: ${effectiveLocation}, Days: ${days}`);
+        
+        // Check for peak season
+        const peakSeason = getCurrentPeakSeason(effectiveLocation);
         
         // Call the PredictHQ events edge function
         const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
         const predicthqKey = Deno.env.get('PREDICTHQ_API_KEY');
         
         let events: any[] = [];
-        let demandMultiplier = 1.0;
+        let demandMultiplier = peakSeason?.surge || 1.0;
         
         if (predicthqKey) {
           try {
             const response = await fetch(`${supabaseUrl}/functions/v1/predicthq-events`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ city, days })
+              body: JSON.stringify({ city: effectiveLocation, days })
             });
             const data = await response.json();
             events = data.events || [];
-            demandMultiplier = data.demandMultiplier || 1.0;
+            demandMultiplier = Math.max(demandMultiplier, data.demandMultiplier || 1.0);
           } catch (e) {
             console.error('Error fetching events:', e);
           }
         }
         
         // Get historical bookings for demand context
-        const { data: bookings } = await supabase
+        let bookingsQuery = supabase
           .from('bookings')
-          .select('start_date, total_value')
+          .select('start_date, total_value, vehicles(location)')
           .eq('user_id', userId)
           .gte('start_date', new Date().toISOString())
           .order('start_date', { ascending: true })
           .limit(20);
         
-        const upcomingBookings = bookings?.length || 0;
-        const upcomingRevenue = bookings?.reduce((sum, b) => sum + Number(b.total_value || 0), 0) || 0;
+        const { data: bookings } = await bookingsQuery;
+        
+        let filteredBookings = bookings || [];
+        if (effectiveLocation && effectiveLocation !== 'all') {
+          filteredBookings = filteredBookings.filter((b: any) => 
+            b.vehicles?.location?.toLowerCase().includes(effectiveLocation.toLowerCase())
+          );
+        }
+        
+        const upcomingBookings = filteredBookings.length;
+        const upcomingRevenue = filteredBookings.reduce((sum, b) => sum + Number(b.total_value || 0), 0);
         
         return {
-          city,
+          location: effectiveLocation,
           forecastDays: days,
           demandMultiplier,
+          peakSeason: peakSeason?.name || null,
           upcomingEvents: events.slice(0, 5).map((e: any) => ({
             name: e.name,
             date: e.date,
@@ -620,33 +1082,46 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
           totalEvents: events.length,
           upcomingBookings,
           upcomingRevenue: `$${upcomingRevenue.toFixed(0)}`,
-          summary: events.length > 0 
-            ? `For ${city}, there are ${events.length} upcoming events with a ${demandMultiplier.toFixed(2)}x demand multiplier. Top events include ${events.slice(0, 2).map((e: any) => e.name).join(' and ')}. You have ${upcomingBookings} bookings worth $${upcomingRevenue.toFixed(0)} coming up.`
-            : `No major events found for ${city} in the next ${days} days. You have ${upcomingBookings} bookings worth $${upcomingRevenue.toFixed(0)} coming up.`
+          summary: peakSeason 
+            ? `${effectiveLocation} is currently in ${peakSeason.name} peak season with a ${((peakSeason.surge - 1) * 100).toFixed(0)}% surge multiplier. You have ${upcomingBookings} bookings worth $${upcomingRevenue.toFixed(0)} coming up.`
+            : events.length > 0 
+              ? `For ${effectiveLocation}, there are ${events.length} upcoming events with a ${demandMultiplier.toFixed(2)}x demand multiplier. Top events include ${events.slice(0, 2).map((e: any) => e.name).join(' and ')}. You have ${upcomingBookings} bookings worth $${upcomingRevenue.toFixed(0)} coming up.`
+              : `No major events found for ${effectiveLocation} in the next ${days} days. You have ${upcomingBookings} bookings worth $${upcomingRevenue.toFixed(0)} coming up.`
         };
       }
 
       case "getPricingRecommendation": {
-        const { vehicleName } = args;
-        console.log(`[getPricingRecommendation] Vehicle: ${vehicleName}`);
+        const { vehicleName, location } = args;
+        console.log(`[getPricingRecommendation] Vehicle: ${vehicleName}, Location: ${location}`);
         
         // Find the vehicle
-        const { data: vehicle } = await supabase
+        let vehicleQuery = supabase
           .from('vehicles')
           .select('*')
-          .eq('user_id', userId)
-          .or(`name.ilike.%${vehicleName}%,make.ilike.%${vehicleName}%,model.ilike.%${vehicleName}%`)
-          .maybeSingle();
+          .eq('user_id', userId);
+        
+        if (vehicleName) {
+          vehicleQuery = vehicleQuery.or(`name.ilike.%${vehicleName}%,make.ilike.%${vehicleName}%,model.ilike.%${vehicleName}%`);
+        }
+        if (location) {
+          vehicleQuery = vehicleQuery.eq('location', location);
+        }
+        
+        const { data: vehicle } = await vehicleQuery.maybeSingle();
 
         if (!vehicle) {
           return { 
             error: "Vehicle not found",
-            summary: `I couldn't find a vehicle matching "${vehicleName}" in your fleet.`
+            summary: `I couldn't find a vehicle matching "${vehicleName}"${location ? ` in ${location}` : ''}.`
           };
         }
 
         const currentRate = Number(vehicle.current_rate);
         const utilization = vehicle.utilization || 0;
+        const vehicleLocation = vehicle.location || 'Miami';
+        
+        // Check for peak season
+        const peakSeason = getCurrentPeakSeason(vehicleLocation);
         
         // Calculate AI-style recommendation
         let suggestedRate = currentRate;
@@ -661,11 +1136,22 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
           factors.push(`low utilization at ${utilization}%`);
         }
         
-        // Seasonal adjustment
-        const month = new Date().getMonth();
-        if ([5, 6, 7, 11].includes(month)) {
-          suggestedRate *= 1.10;
-          factors.push('peak season premium');
+        // Peak season adjustment
+        if (peakSeason) {
+          suggestedRate *= peakSeason.surge;
+          factors.push(`${peakSeason.name} peak season (${((peakSeason.surge - 1) * 100).toFixed(0)}% surge)`);
+        } else {
+          // Basic seasonal adjustment
+          const month = new Date().getMonth();
+          if ([5, 6, 7, 11].includes(month)) {
+            suggestedRate *= 1.10;
+            factors.push('peak season premium');
+          }
+        }
+        
+        // Use suggested_rate from DB if available
+        if (vehicle.suggested_rate && Math.abs(vehicle.suggested_rate - suggestedRate) < 100) {
+          suggestedRate = vehicle.suggested_rate;
         }
         
         suggestedRate = Math.round(suggestedRate / 5) * 5;
@@ -674,31 +1160,40 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
         
         return {
           vehicle: `${vehicle.year} ${vehicle.make} ${vehicle.model}`,
+          location: vehicleLocation,
           currentRate: `$${currentRate}`,
           suggestedRate: `$${suggestedRate}`,
           difference: difference > 0 ? `+$${difference}` : `$${difference}`,
           percentChange: difference > 0 ? `+${percentChange}%` : `${percentChange}%`,
           factors,
+          peakSeason: peakSeason?.name || null,
           monthlyImpact: `$${Math.abs(difference * 20).toFixed(0)}/month`,
           summary: suggestedRate > currentRate 
-            ? `I recommend increasing the rate for your ${vehicle.year} ${vehicle.make} ${vehicle.model} from $${currentRate} to $${suggestedRate} per day, a ${percentChange}% increase. This is based on ${factors.join(' and ')}. This could add approximately $${Math.abs(difference * 20).toFixed(0)} per month in revenue.`
+            ? `I recommend increasing the rate for your ${vehicle.year} ${vehicle.make} ${vehicle.model} in ${vehicleLocation} from $${currentRate} to $${suggestedRate} per day, a ${percentChange}% increase. This is based on ${factors.join(' and ')}. This could add approximately $${Math.abs(difference * 20).toFixed(0)} per month in revenue.`
             : suggestedRate < currentRate
-              ? `Consider reducing the rate for your ${vehicle.year} ${vehicle.make} ${vehicle.model} from $${currentRate} to $${suggestedRate} per day to boost bookings. This is based on ${factors.join(' and ')}.`
-              : `The current rate of $${currentRate} for your ${vehicle.year} ${vehicle.make} ${vehicle.model} appears optimal given current market conditions.`
+              ? `Consider reducing the rate for your ${vehicle.year} ${vehicle.make} ${vehicle.model} in ${vehicleLocation} from $${currentRate} to $${suggestedRate} per day to boost bookings. This is based on ${factors.join(' and ')}.`
+              : `The current rate of $${currentRate} for your ${vehicle.year} ${vehicle.make} ${vehicle.model} in ${vehicleLocation} appears optimal given current market conditions.`
         };
       }
 
       case "getFleetPricingOverview": {
-        console.log(`[getFleetPricingOverview] User: ${userId}`);
+        const { location } = args;
+        console.log(`[getFleetPricingOverview] User: ${userId}, Location: ${location || 'all'}`);
         
-        const { data: vehicles } = await supabase
+        let query = supabase
           .from('vehicles')
           .select('*')
           .eq('user_id', userId);
         
+        if (location && location !== 'all') {
+          query = query.eq('location', location);
+        }
+        
+        const { data: vehicles } = await query;
+        
         if (!vehicles || vehicles.length === 0) {
           return {
-            summary: "You don't have any vehicles in your fleet yet to analyze pricing for."
+            summary: `You don't have any vehicles${location ? ` in ${location}` : ''} to analyze pricing for.`
           };
         }
         
@@ -711,6 +1206,25 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
         const underUtilized = vehicles.filter(v => (v.utilization || 0) < 50);
         const highPerformers = vehicles.filter(v => (v.utilization || 0) > 75);
         
+        // Check for peak season
+        const peakSeason = getCurrentPeakSeason(location);
+        
+        // Group by location if showing all
+        const byLocation = vehicles.reduce((acc, v) => {
+          const loc = v.location || 'Miami';
+          if (!acc[loc]) {
+            acc[loc] = { count: 0, revenue: 0, avgRate: 0 };
+          }
+          acc[loc].count++;
+          acc[loc].revenue += Number(v.revenue || 0);
+          acc[loc].avgRate += Number(v.current_rate || 0);
+          return acc;
+        }, {} as Record<string, { count: number; revenue: number; avgRate: number }>);
+        
+        for (const loc of Object.keys(byLocation)) {
+          byLocation[loc].avgRate = byLocation[loc].avgRate / byLocation[loc].count;
+        }
+        
         return {
           totalVehicles,
           averageRate: `$${avgRate.toFixed(0)}`,
@@ -718,24 +1232,51 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
           totalFleetRevenue: `$${totalRevenue.toFixed(0)}`,
           underUtilizedCount: underUtilized.length,
           highPerformerCount: highPerformers.length,
+          location: location || 'all',
+          peakSeason: peakSeason?.name || null,
+          surgePricing: peakSeason?.surge || 1.0,
+          byLocation: Object.entries(byLocation).map(([loc, stats]) => ({
+            location: loc,
+            vehicleCount: stats.count,
+            revenue: `$${stats.revenue.toFixed(0)}`,
+            avgRate: `$${stats.avgRate.toFixed(0)}`
+          })),
           topPerformers: highPerformers.slice(0, 3).map(v => ({
             name: `${v.year} ${v.make} ${v.model}`,
+            location: v.location,
             utilization: `${v.utilization}%`,
             rate: `$${v.current_rate}`
           })),
           recommendations: underUtilized.length > 0 
             ? `${underUtilized.length} vehicles are under-utilized and may benefit from price adjustments.`
             : 'Fleet pricing looks healthy!',
-          summary: `Your fleet of ${totalVehicles} vehicles has an average daily rate of $${avgRate.toFixed(0)} and ${avgUtilization.toFixed(0)}% average utilization. Total fleet revenue is $${totalRevenue.toFixed(0)}. ${highPerformers.length} vehicles are performing above 75% utilization, while ${underUtilized.length} are below 50%.`
+          summary: `Your fleet${location ? ` in ${location}` : ''} has ${totalVehicles} vehicles with an average daily rate of $${avgRate.toFixed(0)} and ${avgUtilization.toFixed(0)}% average utilization. Total fleet revenue is $${totalRevenue.toFixed(0)}. ${highPerformers.length} vehicles are performing above 75% utilization, while ${underUtilized.length} are below 50%.${peakSeason ? ` Currently in ${peakSeason.name} peak season.` : ''}`
         };
       }
 
       case "getEventImpact": {
-        const { eventName } = args;
-        console.log(`[getEventImpact] Searching for event: ${eventName}`);
+        const { eventName, location } = args;
+        console.log(`[getEventImpact] Searching for event: ${eventName}, Location: ${location}`);
         
-        // This would typically call PredictHQ to search for a specific event
-        // For now, return helpful context
+        // Check peak seasons calendar first
+        const peakSeason = PEAK_SEASONS.find(s => 
+          s.name.toLowerCase().includes(eventName.toLowerCase()) ||
+          eventName.toLowerCase().includes(s.name.toLowerCase())
+        );
+        
+        if (peakSeason) {
+          return {
+            searched: eventName,
+            eventName: peakSeason.name,
+            dates: `${peakSeason.start} to ${peakSeason.end}`,
+            location: peakSeason.location,
+            surgePricing: peakSeason.surge,
+            impact: `${((peakSeason.surge - 1) * 100).toFixed(0)}% surge pricing recommended`,
+            recommendation: `During ${peakSeason.name}, increase rates by ${((peakSeason.surge - 1) * 100).toFixed(0)}% to capture peak demand. Ensure high-value vehicles are available.`,
+            summary: `${peakSeason.name} runs from ${peakSeason.start} to ${peakSeason.end} in ${peakSeason.location}. I recommend a ${((peakSeason.surge - 1) * 100).toFixed(0)}% price surge during this period to maximize revenue.`
+          };
+        }
+        
         return {
           searched: eventName,
           impact: "Events typically increase demand by 15-30% in the surrounding area",
@@ -782,14 +1323,44 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
             make: "Lamborghini", model: "Aventador SVJ", engine: "6.5L V12",
             horsepower: "770 hp", torque: "531 lb-ft", acceleration: "2.8 sec (0-60 mph)",
             topSpeed: "217 mph", drivetrain: "AWD", weight: "3,362 lbs"
+          },
+          "mclaren 720s": {
+            make: "McLaren", model: "720S Spider", engine: "4.0L Twin-Turbo V8",
+            horsepower: "710 hp", torque: "568 lb-ft", acceleration: "2.8 sec (0-60 mph)",
+            topSpeed: "212 mph", drivetrain: "RWD", weight: "3,128 lbs"
+          },
+          "bugatti chiron": {
+            make: "Bugatti", model: "Chiron Sport", engine: "8.0L Quad-Turbo W16",
+            horsepower: "1,479 hp", torque: "1,180 lb-ft", acceleration: "2.4 sec (0-60 mph)",
+            topSpeed: "261 mph", drivetrain: "AWD", weight: "4,400 lbs"
+          },
+          "porsche 911": {
+            make: "Porsche", model: "911 Turbo S", engine: "3.7L Twin-Turbo Flat-6",
+            horsepower: "640 hp", torque: "590 lb-ft", acceleration: "2.6 sec (0-60 mph)",
+            topSpeed: "205 mph", drivetrain: "AWD", weight: "3,636 lbs"
+          },
+          "rolls-royce": {
+            make: "Rolls-Royce", model: "Phantom", engine: "6.75L Twin-Turbo V12",
+            horsepower: "563 hp", torque: "664 lb-ft", acceleration: "5.1 sec (0-60 mph)",
+            topSpeed: "155 mph", drivetrain: "RWD", weight: "5,644 lbs"
           }
         };
 
         const searchKey = vehicleName.toLowerCase();
-        const spec = Object.keys(specsDatabase).find(key => searchKey.includes(key));
+        const spec = Object.keys(specsDatabase).find(key => searchKey.includes(key) || key.includes(searchKey));
         
-        if (spec) return specsDatabase[spec];
-        return { error: "Vehicle specs not found in database", searched: vehicleName };
+        if (spec) {
+          const specData = specsDatabase[spec];
+          return {
+            ...specData,
+            summary: `The ${specData.make} ${specData.model} features a ${specData.engine} producing ${specData.horsepower} and ${specData.torque}. It does 0-60 in ${specData.acceleration} with a top speed of ${specData.topSpeed}.`
+          };
+        }
+        return { 
+          error: "Vehicle specs not found in database", 
+          searched: vehicleName,
+          summary: `I don't have detailed specs for "${vehicleName}" in my database. Try asking about Ferrari SF90, Lamborghini Aventador, McLaren 720S, Bugatti Chiron, Porsche 911, or Rolls-Royce.`
+        };
       }
 
       case "logFeedback": {
