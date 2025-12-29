@@ -693,14 +693,20 @@ Deno.serve(async (req) => {
         // ============================================================
         case 'initialize': {
           console.log('[MCP Server] Handling initialize request');
+          const requestedVersion = params?.protocolVersion;
+
           response = createJSONRPCResponse(id, {
-            protocolVersion: "2024-11-05",
+            // Echo the client's requested protocolVersion for compatibility
+            protocolVersion: requestedVersion || "2024-11-05",
             capabilities: {
-              tools: {}
+              tools: {},
+              // Some clients probe these even if empty
+              resources: {},
+              prompts: {}
             },
             serverInfo: {
               name: "Rari Fleet Assistant",
-              version: "1.0.0"
+              version: "1.0.1"
             }
           });
           break;
@@ -717,6 +723,26 @@ Deno.serve(async (req) => {
             inputSchema: tool.inputSchema
           }));
           response = createJSONRPCResponse(id, { tools });
+          break;
+        }
+
+        // ============================================================
+        // Some MCP clients call these during "Scan"; we return empty.
+        // ============================================================
+        case 'resources/list': {
+          console.log('[MCP Server] Handling resources/list request (empty)');
+          response = createJSONRPCResponse(id, { resources: [] });
+          break;
+        }
+
+        case 'prompts/list': {
+          console.log('[MCP Server] Handling prompts/list request (empty)');
+          response = createJSONRPCResponse(id, { prompts: [] });
+          break;
+        }
+
+        case 'ping': {
+          response = createJSONRPCResponse(id, {});
           break;
         }
 
