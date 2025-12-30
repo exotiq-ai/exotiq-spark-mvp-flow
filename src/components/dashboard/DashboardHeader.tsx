@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/ui/logo";
 import { useAuth } from "@/contexts/AuthContext";
@@ -16,6 +17,7 @@ import { EnhancedGlobalSearch } from "@/components/common/EnhancedGlobalSearch";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { UnifiedNotificationCenter } from "@/components/common/UnifiedNotificationCenter";
 import { useTeamMessaging } from "@/hooks/useTeamMessaging";
+import { FeedbackSubmissionDialog } from "@/components/feedback/FeedbackSubmissionDialog";
 
 interface DashboardHeaderProps {
   onOpenChat?: () => void;
@@ -25,6 +27,7 @@ export const DashboardHeader = ({ onOpenChat }: DashboardHeaderProps) => {
   const { user, signOut } = useAuth();
   const { profile, displayName } = useProfile();
   const { conversations } = useTeamMessaging();
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   // Calculate total unread messages
   const totalUnread = conversations.reduce((acc, c) => acc + (c.unread_count || 0), 0);
@@ -51,6 +54,7 @@ export const DashboardHeader = ({ onOpenChat }: DashboardHeaderProps) => {
             size="icon"
             className="relative"
             onClick={onOpenChat}
+            title="Team Chat"
           >
             <MessageSquare className="h-5 w-5" />
             {totalUnread > 0 && (
@@ -58,6 +62,18 @@ export const DashboardHeader = ({ onOpenChat }: DashboardHeaderProps) => {
                 {totalUnread > 99 ? '99+' : totalUnread}
               </span>
             )}
+          </Button>
+          
+          {/* Feedback Button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setFeedbackOpen(true)}
+            className="hidden sm:flex"
+            title="Send Feedback"
+          >
+            <MessageSquare className="h-4 w-4 mr-2" />
+            Feedback
           </Button>
           
           <ThemeToggle />
@@ -91,6 +107,12 @@ export const DashboardHeader = ({ onOpenChat }: DashboardHeaderProps) => {
           </DropdownMenu>
         </div>
       </div>
+      
+      {/* Feedback Dialog */}
+      <FeedbackSubmissionDialog 
+        open={feedbackOpen} 
+        onOpenChange={setFeedbackOpen}
+      />
     </header>
   );
 };
