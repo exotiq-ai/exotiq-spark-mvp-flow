@@ -36,10 +36,31 @@ export const RariVoiceInterface = () => {
       setConversationId(null);
       setMessages([]);
     },
-    onMessage: (message) => {
-      console.log('Rari message:', message);
-      // Safely add messages to history for display
-      if (message.message) {
+    onMessage: (message: any) => {
+      console.log('Rari message event:', message);
+      
+      // Handle user transcript (what user said)
+      if (message.type === 'user_transcript' && message.user_transcription_event?.user_transcript) {
+        const transcript = message.user_transcription_event.user_transcript;
+        setMessages(prev => [...prev, {
+          role: 'user',
+          content: transcript,
+          timestamp: new Date()
+        }]);
+      }
+      
+      // Handle agent response (what Rari said)
+      if (message.type === 'agent_response' && message.agent_response_event?.agent_response) {
+        const response = message.agent_response_event.agent_response;
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: response,
+          timestamp: new Date()
+        }]);
+      }
+      
+      // Fallback for legacy message format
+      if (message.message && !message.type) {
         setMessages(prev => [...prev, {
           role: message.source === 'ai' ? 'assistant' : 'user',
           content: String(message.message),
@@ -119,7 +140,7 @@ export const RariVoiceInterface = () => {
     <Card className="p-6 glass-card">
       <div className="space-y-4">
         {/* Enhanced Conversation Display */}
-        <RariConversation messages={messages} />
+        <RariConversation messages={messages} isConnected={isConnected} />
 
         {/* Voice Interface */}
         <div className="text-center space-y-4">
