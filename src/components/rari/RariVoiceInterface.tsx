@@ -5,13 +5,13 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useConversation } from '@11labs/react';
-import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { supabase } from '@/integrations/supabase/client';
-import ReactMarkdown from 'react-markdown';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth } from '@/contexts/AuthContext';
 import { AIThinking } from '@/components/ui/ai-thinking';
 import { RariVoiceWaveform } from './RariVoiceWaveform';
+import { RariTranscript } from './RariTranscript';
+import { useRariConversationPersistence } from '@/hooks/useRariConversationPersistence';
+import { useEntityDetection } from '@/hooks/useEntityDetection';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -23,11 +23,16 @@ export const RariVoiceInterface = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [conversationDbId, setConversationDbId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [conversationStartTime, setConversationStartTime] = useState<Date | undefined>();
+  
+  const { startConversation, saveMessage, endConversation } = useRariConversationPersistence();
   
   const conversation = useConversation({
     onConnect: () => {
       console.log('Connected to Rari');
+      setConversationStartTime(new Date());
       toast({
         title: "Connected to Rari",
         description: "Voice assistant is ready to help with your fleet.",
@@ -35,18 +40,39 @@ export const RariVoiceInterface = () => {
     },
     onDisconnect: () => {
       console.log('Disconnected from Rari');
+      
+      // End conversation in database
+      if (conversationDbId) {
+        endConversation(conversationDbId);
+      }
+      
       setConversationId(null);
-      setMessages([]);
+      setConversationDbId(null);
+      setConversationStartTime(undefined);
+      // Keep messages for viewing after disconnect
     },
     onMessage: (message) => {
       console.log('Rari message:', message);
       // Safely add messages to history for display
       if (message.message) {
-        setMessages(prev => [...prev, {
+        const newMessage: Message = {
           role: message.source === 'ai' ? 'assistant' : 'user',
           content: String(message.message),
           timestamp: new Date()
-        }]);
+        };
+        
+        setMessages(prev => [...prev, newMessage]);
+        
+        // Save message to database if we have a conversation ID
+        if (conversationDbId) {
+          // Detect entities in the message
+          const content = String(message.message);
+          // We'll detect entities inline here for simplicity
+          // In production, this would be in a useEffect or callback
+          setTimeout(() => {
+            saveMessage(conversationDbId, newMessage, []);
+          }, 0);
+        }
       }
     },
     onError: (error) => {
@@ -99,6 +125,12 @@ export const RariVoiceInterface = () => {
       
       console.log('Session started successfully:', id);
       setConversationId(id);
+      
+      // Start conversation in database
+      const dbId = await startConversation(id);
+      if (dbId) {
+        setConversationDbId(dbId);
+      }
     } catch (error: any) {
       console.error('Failed to start conversation:', error);
       toast({
@@ -110,41 +142,28 @@ export const RariVoiceInterface = () => {
   };
 
   const handleEndConversation = async () => {
+    // End conversation in database
+    if (conversationDbId) {
+      await endConversation(conversationDbId);
+    }
+    
     await conversation.endSession();
     setConversationId(null);
+    setConversationDbId(null);
+    setConversationStartTime(undefined);
+  };
+
+  const handleClearTranscript = () => {
+    setMessages([]);
   };
 
   const { status, isSpeaking } = conversation;
   const isConnected = status === 'connected';
 
   return (
-    <Card className="p-6 glass-card">
-      <div className="space-y-4">
-        {/* Message History */}
-        {messages.length > 0 && (
-          <ScrollArea className="h-[200px] rounded-md border p-4">
-            <div className="space-y-3">
-              {messages.map((msg, idx) => (
-                <div 
-                  key={idx} 
-                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div className={`max-w-[80%] rounded-lg p-3 ${
-                    msg.role === 'user' 
-                      ? 'bg-primary text-primary-foreground' 
-                      : 'bg-muted'
-                  }`}>
-                    <ReactMarkdown className="text-sm prose prose-sm dark:prose-invert max-w-none">
-                      {msg.content}
-                    </ReactMarkdown>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
-        )}
-
-        {/* Voice Interface */}
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      {/* Left: Voice Interface */}
+      <Card className="p-6 glass-card">
         <div className="text-center space-y-4">
         
         {/* Animated Waveform */}
@@ -255,7 +274,17 @@ export const RariVoiceInterface = () => {
           </p>
         )}
         </div>
-      </div>
-    </Card>
+      </Card>
+
+      {/* Right: Live Transcript */}
+      <RariTranscript
+        messages={messages}
+        isConnected={isConnected}
+        conversationId={conversationId}
+        conversationDbId={conversationDbId}
+        startTime={conversationStartTime}
+        onClear={!isConnected && messages.length > 0 ? handleClearTranscript : undefined}
+      />
+    </div>
   );
 };
