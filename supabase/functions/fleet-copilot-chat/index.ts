@@ -245,6 +245,27 @@ serve(async (req) => {
           },
           required: ["vehicleName"]
         }
+      },
+      {
+        type: "function",
+        name: "createBooking",
+        description: "Create a new customer booking/reservation for a vehicle",
+        parameters: {
+          type: "object",
+          properties: {
+            customerName: { type: "string", description: "Full name of the customer" },
+            customerEmail: { type: "string", description: "Email of the customer (optional)" },
+            customerPhone: { type: "string", description: "Phone number of the customer (optional)" },
+            vehicleName: { type: "string", description: "Name or model of the vehicle to book" },
+            startDate: { type: "string", description: "Start date in ISO format (YYYY-MM-DD)" },
+            endDate: { type: "string", description: "End date in ISO format (YYYY-MM-DD)" },
+            location: { type: "string", description: "Pickup location" },
+            dropoffLocation: { type: "string", description: "Dropoff location (optional)" },
+            status: { type: "string", enum: ["pending", "confirmed", "active"], description: "Booking status (default: pending)" },
+            notes: { type: "string", description: "Additional notes (optional)" }
+          },
+          required: ["customerName", "vehicleName", "startDate", "endDate", "location"]
+        }
       }
     ];
 
@@ -606,6 +627,155 @@ serve(async (req) => {
 
             return {
               note: `Performance specs for ${vehicleName} not found. Try: Ferrari SF90, Lamborghini Aventador, McLaren 720S, Porsche 911 Turbo S, or Bugatti Chiron.`
+            };
+          }
+
+          case "createBooking": {
+            const { 
+              customerName, 
+              customerEmail, 
+              customerPhone, 
+              vehicleName, 
+              startDate, 
+              endDate, 
+              location, 
+              dropoffLocation,
+              status = 'pending',
+              notes 
+            } = args;
+            
+            // Validate dates
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+
+            if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+              return { error: "Invalid date format. Use YYYY-MM-DD format." };
+            }
+
+            if (end <= start) {
+              return { error: "End date must be after start date" };
+            }
+
+            // Find vehicle
+            const { data: vehicle } = await supabase
+              .from('vehicles')
+              .select('*')
+              .eq('user_id', userId)
+              .or(`name.ilike.%${vehicleName}%,make.ilike.%${vehicleName}%,model.ilike.%${vehicleName}%`)
+              .limit(1)
+              .single();
+
+            if (!vehicle) {
+              return { error: `Vehicle "${vehicleName}" not found` };
+            }
+
+            // Check availability
+            const { data: conflicts } = await supabase
+              .from('bookings')
+              .select('customer_name, start_date, end_date')
+              .eq('vehicle_id', vehicle.id)
+              .in('status', ['pending', 'confirmed', 'active'])
+              .or(`and(start_date.lte.${endDate},end_date.gte.${startDate})`);
+
+            if (conflicts && conflicts.length > 0) {
+              return {
+                error: "Vehicle not available",
+                conflicts: conflicts.map(c => ({
+                  customer: c.customer_name,
+                  dates: `${new Date(c.start_date).toLocaleDateString()} - ${new Date(c.end_date).toLocaleDateString()}`
+                }))
+              };
+            }
+
+            // Calculate pricing
+            const durationMs = end.getTime() - start.getTime();
+            const durationDays = Math.ceil(durationMs / (1000 * 60 * 60 * 24));
+            const dailyRate = vehicle.current_rate || 0;
+            const totalValue = dailyRate * durationDays;
+            const depositAmount = totalValue * 0.2;
+            const securityDeposit = dailyRate * 2;
+
+            // Find or create customer
+            let customerId = null;
+            if (customerEmail) {
+              const { data: existingCustomer } = await supabase
+                .from('customers')
+                .select('id')
+                .eq('user_id', userId)
+                .eq('email', customerEmail)
+                .single();
+
+              if (existingCustomer) {
+                customerId = existingCustomer.id;
+              } else {
+                const { data: newCustomer } = await supabase
+                  .from('customers')
+                  .insert({
+                    user_id: userId,
+                    email: customerEmail,
+                    phone: customerPhone,
+                    full_name: customerName,
+                    customer_status: 'active',
+                  })
+                  .select()
+                  .single();
+
+                if (newCustomer) customerId = newCustomer.id;
+              }
+            }
+
+            // Create booking
+            const { data: booking, error: bookingError } = await supabase
+              .from('bookings')
+              .insert({
+                user_id: userId,
+                vehicle_id: vehicle.id,
+                customer_id: customerId,
+                customer_name: customerName,
+                customer_email: customerEmail,
+                customer_phone: customerPhone,
+                start_date: start.toISOString(),
+                end_date: end.toISOString(),
+                pickup_location: location,
+                dropoff_location: dropoffLocation || location,
+                daily_rate: dailyRate,
+                total_value: totalValue,
+                status: status,
+                notes: notes,
+                deposit_amount: depositAmount,
+                balance_due: totalValue - depositAmount,
+                security_deposit_amount: securityDeposit,
+                security_deposit_status: 'pending',
+                payment_status: 'pending',
+              })
+              .select()
+              .single();
+
+            if (bookingError) {
+              return { error: `Failed to create booking: ${bookingError.message}` };
+            }
+
+            // Update vehicle status
+            if (status === 'confirmed' || status === 'active') {
+              await supabase
+                .from('vehicles')
+                .update({ status: 'booked' })
+                .eq('id', vehicle.id);
+            }
+
+            return {
+              success: true,
+              bookingId: booking.id,
+              customer: customerName,
+              vehicle: `${vehicle.year} ${vehicle.make} ${vehicle.model}`,
+              dates: `${start.toLocaleDateString()} to ${end.toLocaleDateString()}`,
+              duration: `${durationDays} days`,
+              location: location,
+              dailyRate: `$${dailyRate}`,
+              totalValue: `$${totalValue}`,
+              deposit: `$${depositAmount}`,
+              balanceDue: `$${totalValue - depositAmount}`,
+              status: status
             };
           }
 

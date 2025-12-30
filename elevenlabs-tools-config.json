@@ -419,6 +419,61 @@
         },
         "required": ["featureName", "userRequest"]
       }
+    },
+    {
+      "name": "createBooking",
+      "description": "Create a new customer booking/reservation for a vehicle with specified dates, location, and pricing",
+      "webhook_url": "https://jlgwbbqydjeokypoenoc.supabase.co/functions/v1/elevenlabs-tools",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "customerName": {
+            "type": "string",
+            "description": "Full name of the customer making the booking"
+          },
+          "customerEmail": {
+            "type": "string",
+            "description": "Email address of the customer (optional)"
+          },
+          "customerPhone": {
+            "type": "string",
+            "description": "Phone number of the customer (optional)"
+          },
+          "vehicleName": {
+            "type": "string",
+            "description": "Name or model of the vehicle to book"
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date",
+            "description": "Booking start date in ISO format (YYYY-MM-DD)"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date",
+            "description": "Booking end date in ISO format (YYYY-MM-DD)"
+          },
+          "location": {
+            "type": "string",
+            "description": "Pickup location for the vehicle"
+          },
+          "dropoffLocation": {
+            "type": "string",
+            "description": "Dropoff location (optional, defaults to pickup location)"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "confirmed", "active"],
+            "description": "Initial booking status (default: pending)",
+            "default": "pending"
+          },
+          "notes": {
+            "type": "string",
+            "description": "Additional notes for the booking (optional)"
+          }
+        },
+        "required": ["customerName", "vehicleName", "startDate", "endDate", "location"]
+      }
     }
   ]
 }
