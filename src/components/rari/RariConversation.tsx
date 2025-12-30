@@ -12,14 +12,15 @@ interface Message {
 
 interface RariConversationProps {
   messages: Message[];
+  isConnected?: boolean;
   className?: string;
 }
 
-export const RariConversation = ({ messages, className }: RariConversationProps) => {
+export const RariConversation = ({ messages, isConnected = false, className }: RariConversationProps) => {
   const { scrollRef, contentRef, isAtBottom, scrollToBottom } = useStickToBottom();
 
-  // Empty state
-  if (messages.length === 0) {
+  // Only show empty state when disconnected
+  if (messages.length === 0 && !isConnected) {
     return (
       <div
         className={cn(
@@ -36,6 +37,25 @@ export const RariConversation = ({ messages, className }: RariConversationProps)
             Click the button below to connect with Rari and manage your fleet with voice
           </p>
         </div>
+      </div>
+    );
+  }
+
+  // When connected but no messages yet, show waiting state
+  if (messages.length === 0 && isConnected) {
+    return (
+      <div
+        className={cn(
+          "flex flex-col items-center justify-center py-6 text-center space-y-2",
+          className
+        )}
+      >
+        <div className="p-3 rounded-full bg-gulf-blue/10 border border-gulf-blue/20 animate-pulse">
+          <MessageSquare className="h-6 w-6 text-gulf-blue" />
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Speak to Rari — your words will appear here
+        </p>
       </div>
     );
   }
