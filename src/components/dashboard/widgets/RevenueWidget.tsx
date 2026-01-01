@@ -20,7 +20,7 @@ export const RevenueWidget = ({ isLoading }: RevenueWidgetProps) => {
   // Calculate revenue metrics
   const totalRevenue = bookings
     .filter(b => b.status === 'completed')
-    .reduce((sum, b) => sum + (b.total_amount || 0), 0);
+    .reduce((sum, b) => sum + (b.total_value || 0), 0);
 
   const monthlyRevenue = bookings
     .filter(b => {
@@ -30,7 +30,7 @@ export const RevenueWidget = ({ isLoading }: RevenueWidgetProps) => {
         bookingDate.getMonth() === now.getMonth() &&
         bookingDate.getFullYear() === now.getFullYear();
     })
-    .reduce((sum, b) => sum + (b.total_amount || 0), 0);
+    .reduce((sum, b) => sum + (b.total_value || 0), 0);
 
   const avgRevenuePerVehicle = vehicles.length > 0 ? totalRevenue / vehicles.length : 0;
   const utilizationRate = vehicles.length > 0 

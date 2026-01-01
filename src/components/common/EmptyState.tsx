@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
 interface EmptyStateProps {
-  icon: LucideIcon;
+  icon: LucideIcon | React.ReactNode;
   title: string;
   description: string;
   action?: {
@@ -67,6 +67,15 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
       {/* Icon or Illustration */}
       {illustration ? (
         <div className="mb-6">{illustration}</div>
+      ) : React.isValidElement(Icon) ? (
+        <div className={cn(
+          "rounded-full flex items-center justify-center mb-6",
+          "bg-gradient-to-br from-muted to-muted/50",
+          "shadow-inner",
+          variant === 'card' ? "w-20 h-20" : "w-16 h-16"
+        )}>
+          {Icon}
+        </div>
       ) : (
         <div className={cn(
           "rounded-full flex items-center justify-center mb-6",
@@ -74,10 +83,10 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
           "shadow-inner",
           variant === 'card' ? "w-20 h-20" : "w-16 h-16"
         )}>
-          <Icon className={cn(
+          {typeof Icon === 'function' && <Icon className={cn(
             "text-muted-foreground/60",
             variant === 'card' ? "h-10 w-10" : "h-8 w-8"
-          )} />
+          )} />}
         </div>
       )}
 

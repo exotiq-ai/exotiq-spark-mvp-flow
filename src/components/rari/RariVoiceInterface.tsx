@@ -104,7 +104,7 @@ export const RariVoiceInterface = () => {
           
           if (conversationDbId) {
             setTimeout(() => {
-              saveMessage(conversationDbId, newMessage, []).catch(err => {
+              saveMessage(conversationDbId, newMessage).catch(err => {
                 console.warn('Failed to save message to database:', err);
               });
             }, 0);
@@ -136,7 +136,7 @@ export const RariVoiceInterface = () => {
         
         if (conversationDbId) {
           setTimeout(() => {
-            saveMessage(conversationDbId, newMessage, []).catch(err => {
+            saveMessage(conversationDbId, newMessage).catch(err => {
               console.warn('Failed to save message to database:', err);
             });
           }, 0);
@@ -166,7 +166,7 @@ export const RariVoiceInterface = () => {
         
         if (conversationDbId) {
           setTimeout(() => {
-            saveMessage(conversationDbId, newMessage, []).catch(err => {
+            saveMessage(conversationDbId, newMessage).catch(err => {
               console.warn('Failed to save message to database:', err);
             });
           }, 0);

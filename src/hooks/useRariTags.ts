@@ -1,5 +1,4 @@
 import { useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 
 export type ConversationTag = 
   | 'booking_inquiry'
@@ -23,6 +22,11 @@ const TAG_KEYWORDS: Record<ConversationTag, string[]> = {
   general_information: ['help', 'what', 'how', 'when', 'info', 'information'],
 };
 
+/**
+ * In-memory Rari tags hook
+ * Database table (rari_conversations) doesn't exist yet
+ * Detects tags in-memory only
+ */
 export function useRariTags() {
   const detectTags = useCallback((content: string): ConversationTag[] => {
     const lowerContent = content.toLowerCase();
@@ -47,21 +51,8 @@ export function useRariTags() {
     conversationId: string,
     tags: ConversationTag[]
   ): Promise<void> => {
-    try {
-      const { error } = await supabase
-        .from('rari_conversations')
-        .update({
-          tags: tags,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', conversationId);
-
-      if (error) throw error;
-
-      console.log('[Rari Tags] Updated tags for conversation:', conversationId, tags);
-    } catch (error) {
-      console.error('[Rari Tags] Error updating tags:', error);
-    }
+    // No database table exists yet, just log
+    console.log('[Rari Tags] Would update tags for conversation:', conversationId, tags);
   }, []);
 
   const detectAndUpdateTags = useCallback(async (
@@ -72,7 +63,7 @@ export function useRariTags() {
     const allContent = messages.map(m => m.content).join(' ');
     const tags = detectTags(allContent);
 
-    // Update in database
+    // Would update in database if it existed
     await updateConversationTags(conversationId, tags);
 
     return tags;
