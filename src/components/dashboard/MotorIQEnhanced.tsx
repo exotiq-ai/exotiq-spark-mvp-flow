@@ -12,7 +12,8 @@ import { DemandForecastCard } from "@/components/dashboard/DemandForecastCard";
 
 import { SkeletonMetric, SkeletonCard, SkeletonBarChart, SkeletonTable } from "@/components/ui/skeleton-card";
 import { SkeletonAIInsight, SkeletonVehicleCard, SkeletonStatsRow } from "@/components/ui/skeleton-specialized";
-import { EmptyState } from "@/components/common/EmptyState";
+import { EmptyState, NoVehiclesState } from "@/components/common/EmptyState";
+import { AddVehicleDialog } from "@/components/dialogs/AddVehicleDialog";
 import { 
   TrendingUp, 
   Zap,
@@ -22,14 +23,19 @@ import {
   Brain,
   Car,
   DollarSign,
-  BarChart3
+  BarChart3,
+  Download
 } from "lucide-react";
+import { createExportActions } from "@/lib/exportUtils";
+import { useToast } from "@/hooks/use-toast";
 
 export const MotorIQEnhanced = () => {
-  const { vehicles, applyPriceOptimization, loading } = useFleet();
+  const { vehicles, applyPriceOptimization, loading, createVehicle } = useFleet();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("overview");
   const [showOptimizationDialog, setShowOptimizationDialog] = useState(false);
   const [showVehicleImage, setShowVehicleImage] = useState(false);
+  const [showAddVehicle, setShowAddVehicle] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<{
     name: string;
     make: string;
@@ -38,6 +44,24 @@ export const MotorIQEnhanced = () => {
     status: string;
     dailyRate: number;
   } | null>(null);
+
+  const handleExportFleetData = () => {
+    const exportData = vehicles.map(v => ({
+      name: v.name,
+      make: v.make,
+      model: v.model,
+      year: v.year,
+      status: v.status,
+      currentRate: v.current_rate,
+      suggestedRate: v.suggested_rate || v.current_rate,
+      utilization: v.utilization || 0,
+      revenue: v.revenue || 0,
+    }));
+
+    const actions = createExportActions(exportData, `fleet-data-${new Date().toISOString().split('T')[0]}`);
+    actions.exportCSV();
+    toast({ title: "Fleet data exported", description: "CSV file downloaded successfully" });
+  };
 
   const handleVehicleClick = (vehicle: typeof vehicles[0]) => {
     setSelectedVehicle({
@@ -68,6 +92,20 @@ export const MotorIQEnhanced = () => {
   const potentialIncrease = topRecommendation?.suggested_rate 
     ? (topRecommendation.suggested_rate - topRecommendation.current_rate) * 30 
     : 0;
+
+  // Show empty state if no vehicles
+  if (!loading && vehicles.length === 0) {
+    return (
+      <div className="space-y-6">
+        <NoVehiclesState onAddVehicle={() => setShowAddVehicle(true)} />
+        <AddVehicleDialog 
+          open={showAddVehicle}
+          onOpenChange={setShowAddVehicle}
+          onSubmit={createVehicle}
+        />
+      </div>
+    );
+  }
 
   if (loading) {
     return (

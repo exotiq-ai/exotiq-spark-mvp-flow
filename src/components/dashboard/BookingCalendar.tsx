@@ -382,7 +382,7 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
                     whileTap={{ scale: 0.98 }}
                     animate={isSelected ? { scale: 1.05 } : { scale: 1 }}
                     aria-selected={isSelected}
-                    className={`relative p-1 sm:p-2 min-h-[50px] sm:min-h-[70px] rounded-lg border-2 cursor-pointer transition-colors
+                    className={`relative p-1 sm:p-2 min-h-[50px] sm:min-h-[70px] rounded-lg border cursor-pointer transition-colors
                       ${isSelected ? 'border-primary bg-primary/20 shadow-lg shadow-primary/20' : getDensityClass() || 'border-border hover:border-primary/50'}
                       ${isToday ? 'ring-2 ring-accent ring-offset-1 ring-offset-background' : ''} 
                       ${hasConflict ? 'border-destructive bg-destructive/10' : ''}
@@ -442,10 +442,10 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
 
             {/* Legend */}
             <div className="flex flex-wrap items-center gap-3 mt-4 pt-4 border-t text-xs">
-              <div className="flex items-center space-x-1.5"><div className="w-3 h-3 rounded border-2 border-primary bg-primary/20" /><span className="text-muted-foreground">Selected</span></div>
+              <div className="flex items-center space-x-1.5"><div className="w-3 h-3 rounded border border-primary bg-primary/20" /><span className="text-muted-foreground">Selected</span></div>
               <div className="flex items-center space-x-1.5"><div className="w-3 h-3 rounded ring-2 ring-accent ring-offset-1" /><span className="text-muted-foreground">Today</span></div>
-              <div className="flex items-center space-x-1.5"><div className="w-3 h-3 rounded border-2 border-success/40 bg-success/30" /><span className="text-muted-foreground">High</span></div>
-              <div className="flex items-center space-x-1.5"><div className="w-3 h-3 rounded border-2 border-warning/30 bg-warning/20" /><span className="text-muted-foreground">Moderate</span></div>
+              <div className="flex items-center space-x-1.5"><div className="w-3 h-3 rounded border border-success/40 bg-success/30" /><span className="text-muted-foreground">High</span></div>
+              <div className="flex items-center space-x-1.5"><div className="w-3 h-3 rounded border border-warning/30 bg-warning/20" /><span className="text-muted-foreground">Moderate</span></div>
               <div className="flex items-center space-x-1.5"><AlertTriangle className="h-3 w-3 text-destructive" /><span className="text-muted-foreground">Conflict</span></div>
             </div>
           </Card>
@@ -537,7 +537,7 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: 0.1 + index * 0.05 }}
                           onClick={() => handleBookingClick(booking.id)}
-                          className="relative p-3 rounded-xl border-2 cursor-pointer hover:shadow-lg hover:border-primary/50 transition-all group overflow-hidden"
+                          className="relative p-3 rounded-xl border cursor-pointer hover:shadow-lg hover:border-primary/50 transition-all group overflow-hidden"
                           style={{ borderLeftWidth: '4px', borderLeftColor: vehicleColor }}
                           whileHover={{ scale: 1.01, y: -2 }}
                           whileTap={{ scale: 0.99 }}

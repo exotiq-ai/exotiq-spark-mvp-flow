@@ -140,7 +140,7 @@ export const Pulse = () => {
           
           <div className="space-y-4">
             {upcomingEvents.map((event, index) => (
-              <div key={index} className="p-3 rounded-lg bg-muted/30 border border-accent/20">
+              <div key={index} className="p-3 rounded-lg bg-muted/30 border border-gulf-blue/20">
                 <div className="flex items-start justify-between mb-2">
                   <h4 className="font-semibold text-sm">{event.title}</h4>
                   <Badge variant="outline" className="text-xs">
@@ -190,8 +190,8 @@ export const Pulse = () => {
             <div className="text-xs text-success mt-1">+8% vs last week</div>
           </div>
           
-          <div className="text-center p-4 rounded-lg bg-gradient-to-br from-accent/10 to-accent/5">
-            <div className="text-3xl font-bold text-accent mb-2">4.8</div>
+          <div className="text-center p-4 rounded-lg bg-gradient-to-br from-success/10 to-success/5">
+            <div className="text-3xl font-bold text-success mb-2">4.8</div>
             <div className="text-sm text-muted-foreground">Average Rating</div>
             <div className="text-xs text-success mt-1">Consistent</div>
           </div>

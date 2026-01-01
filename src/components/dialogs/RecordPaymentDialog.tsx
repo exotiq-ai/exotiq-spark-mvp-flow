@@ -254,8 +254,9 @@ export const RecordPaymentDialog = ({
               className="btn-premium"
               onClick={() => {
                 toast({
-                  title: "Manual Payment",
-                  description: "Manual payment recording coming soon. Use Stripe for live payments.",
+                  title: "Use Stripe for Payments",
+                  description: "Process payments securely through Stripe integration.",
+                  variant: "default",
                 });
               }}
             >

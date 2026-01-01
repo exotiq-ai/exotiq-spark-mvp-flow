@@ -18,7 +18,7 @@ import { RecordPaymentDialog } from "@/components/dialogs/RecordPaymentDialog";
 import { useFleet } from "@/contexts/FleetContext";
 import { DemoOnboarding } from "@/components/demo/DemoOnboarding";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { 
   SkeletonBanner, 
   SkeletonQuickActions, 
@@ -38,7 +38,8 @@ import {
   UserPlus,
   FileText,
   Wrench,
-  ChevronRight
+  ChevronRight,
+  ChevronDown
 } from "lucide-react";
 
 interface DashboardOverviewEnhancedProps {
@@ -55,10 +56,11 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
   
   const { vehicles, bookings, loading, applyPriceOptimization, createBooking, createCustomer, generateReport, createMaintenance, createPayment } = useFleet();
   
-  // Collapsible state persistence
+  // Collapsible state persistence - default to only metrics expanded for reduced visual density
   const [expandedSections, setExpandedSections] = useLocalStorage<string[]>("dashboardSections", [
-    "metrics", "ai-insight", "fleet-schedule"
+    "metrics"
   ]);
+  const [showAllInsights, setShowAllInsights] = useLocalStorage<boolean>("dashboardExpanded", false);
 
   const toggleSection = (sectionId: string) => {
     setExpandedSections(prev =>
@@ -68,7 +70,22 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
     );
   };
 
-  const isSectionExpanded = (sectionId: string) => expandedSections.includes(sectionId);
+  const isSectionExpanded = (sectionId: string) => {
+    // If "Show All" is active, force expand all sections
+    if (showAllInsights) return true;
+    return expandedSections.includes(sectionId);
+  };
+
+  const handleToggleInsights = () => {
+    const newValue = !showAllInsights;
+    setShowAllInsights(newValue);
+    // Expand or collapse all sections based on new state
+    if (newValue) {
+      setExpandedSections(["metrics", "ai-insight", "revenue", "fleet-schedule"]);
+    } else {
+      setExpandedSections(["metrics"]); // Keep only metrics expanded
+    }
+  };
 
   // Quick actions - streamlined to 5 most important
   const quickActions = [
@@ -190,12 +207,12 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
         />
       )}
 
-      <div className="space-y-4 sm:space-y-6">
+      <div className="space-y-6 sm:space-y-8">
         {/* Hero Banner - Always visible */}
         <BannerWidget />
 
         {/* Quick Actions Bar - Streamlined horizontal bar */}
-        <Card className="p-3 sm:p-4 border border-border/50">
+        <Card className="p-4 sm:p-6 border border-border/50">
           <div className="flex items-center justify-between gap-2 sm:gap-4">
             <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 flex-1 min-w-0 scrollbar-hide">
               {quickActions.map((action, index) => (
@@ -230,59 +247,97 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
           </div>
         </Card>
 
-        {/* Key Metrics - Collapsible */}
-        <CollapsibleSection
-          title="Key Performance"
-          icon={<TrendingUp className="h-4 w-4" />}
-          defaultOpen={isSectionExpanded("metrics")}
-          badge={<Badge variant="secondary" className="text-xs">Live</Badge>}
-        >
-          <div className="pt-4">
-            <MetricsWidget />
+        {/* Hero Metrics - Always visible (Key Performance Indicators) */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-primary" />
+              <h2 className="text-xl font-semibold">Key Performance</h2>
+              <Badge variant="secondary" className="text-xs">Live</Badge>
+            </div>
           </div>
-        </CollapsibleSection>
+          <MetricsWidget />
+        </div>
 
-        {/* AI Insight - Collapsible */}
-        <CollapsibleSection
-          title="AI Recommendations"
-          icon={<Sparkles className="h-4 w-4" />}
-          defaultOpen={isSectionExpanded("ai-insight")}
-          badge={<Badge className="bg-success/10 text-success border-success/20 text-xs">1 New</Badge>}
+        {/* Toggle Insights Button - Always visible */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="flex justify-center"
         >
-          <div className="pt-4">
-            <AIInsightWidget 
-              onApplyOptimization={() => setShowOptimizationDialog(true)}
-              onViewAnalysis={() => onModuleClick('motoriq')}
-            />
-          </div>
-        </CollapsibleSection>
+          <Button
+            variant="outline"
+            size="lg"
+            onClick={handleToggleInsights}
+            className="w-full sm:w-auto min-w-[280px] border-2 border-dashed hover:border-primary hover:bg-primary/5 transition-all group"
+          >
+            <Sparkles className="h-4 w-4 mr-2 group-hover:rotate-12 transition-transform" />
+            {showAllInsights ? "Show Less" : "Show More Insights"}
+            <motion.div
+              animate={{ rotate: showAllInsights ? 180 : 0 }}
+              transition={{ duration: 0.3 }}
+              className="ml-2"
+            >
+              <ChevronDown className="h-4 w-4" />
+            </motion.div>
+          </Button>
+        </motion.div>
 
-        {/* Revenue Analytics - Collapsible */}
-        <CollapsibleSection
-          title="Revenue Analytics"
-          icon={<DollarSign className="h-4 w-4" />}
-          defaultOpen={isSectionExpanded("revenue")}
-        >
-          <div className="pt-4" data-tour="revenue-widget">
-            <RevenueWidget />
-          </div>
-        </CollapsibleSection>
+        {/* Additional Insights - Collapsible sections (hidden by default) */}
+        <AnimatePresence mode="wait">
+          {showAllInsights && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.4, ease: "easeInOut" }}
+              className="space-y-6 sm:space-y-8 overflow-hidden"
+            >
+            {/* AI Insight - Collapsible */}
+            <CollapsibleSection
+              title="AI Recommendations"
+              icon={<Sparkles className="h-4 w-4" />}
+              defaultOpen={isSectionExpanded("ai-insight")}
+              badge={<Badge className="bg-success/10 text-success border-success/20 text-xs">1 New</Badge>}
+            >
+              <div className="pt-4">
+                <AIInsightWidget 
+                  onApplyOptimization={() => setShowOptimizationDialog(true)}
+                  onViewAnalysis={() => onModuleClick('motoriq')}
+                />
+              </div>
+            </CollapsibleSection>
 
-        {/* Fleet & Schedule Grid - Collapsible */}
-        <CollapsibleSection
-          title="Fleet Status & Schedule"
-          icon={<Car className="h-4 w-4" />}
-          defaultOpen={isSectionExpanded("fleet-schedule")}
-          badge={<Badge variant="outline" className="text-xs">Today</Badge>}
-        >
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 pt-4">
-            <FleetStatusWidget onViewAll={() => onModuleClick('motoriq')} />
-            <ScheduleWidget onViewCalendar={() => onModuleClick('book')} />
-          </div>
-        </CollapsibleSection>
+            {/* Revenue Analytics - Collapsible */}
+            <CollapsibleSection
+              title="Revenue Analytics"
+              icon={<DollarSign className="h-4 w-4" />}
+              defaultOpen={isSectionExpanded("revenue")}
+            >
+              <div className="pt-4" data-tour="revenue-widget">
+                <RevenueWidget />
+              </div>
+            </CollapsibleSection>
+
+            {/* Fleet & Schedule Grid - Collapsible */}
+            <CollapsibleSection
+              title="Fleet Status & Schedule"
+              icon={<Car className="h-4 w-4" />}
+              defaultOpen={isSectionExpanded("fleet-schedule")}
+              badge={<Badge variant="outline" className="text-xs">Today</Badge>}
+            >
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 pt-4">
+                <FleetStatusWidget onViewAll={() => onModuleClick('motoriq')} />
+                <ScheduleWidget onViewCalendar={() => onModuleClick('book')} />
+              </div>
+            </CollapsibleSection>
+          </motion.div>
+        )}
+        </AnimatePresence>
 
         {/* Module Navigation Cards */}
-        <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
           {[
             { id: 'book', name: 'Bookings', icon: Calendar, color: 'text-primary' },
             { id: 'motoriq', name: 'MotorIQ', icon: TrendingUp, color: 'text-success' },
@@ -292,7 +347,7 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
             <button
               key={module.id}
               onClick={() => onModuleClick(module.id)}
-              className="flex items-center justify-between p-3 sm:p-4 rounded-lg sm:rounded-xl border border-border bg-card hover:bg-muted/50 hover:border-primary/30 transition-all group touch-target"
+              className="flex items-center justify-between p-4 sm:p-6 rounded-lg sm:rounded-xl border border-border bg-card hover:bg-muted/50 hover:border-primary/30 transition-all group touch-target"
             >
               <div className="flex items-center gap-2 sm:gap-3">
                 <module.icon className={`h-4 w-4 sm:h-5 sm:w-5 ${module.color}`} />

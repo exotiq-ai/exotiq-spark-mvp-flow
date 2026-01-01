@@ -1,0 +1,169 @@
+/* Dfaalt Font Family - Exotiq Brand */
+
+@font-face {
+  font-family: 'Dfaalt';
+  src: url('/brand/fonts/dfaalt/Dfaalt-Bold.woff') format('woff');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Dfaalt';
+  src: url('/brand/fonts/dfaalt/Dfaalt-SemiBold.woff') format('woff');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Dfaalt';
+  src: url('/brand/fonts/dfaalt/Dfaalt-Regular.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Typography System */
+:root {
+  /* Brand Font Stack */
+  --font-brand: 'Dfaalt', 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-body: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
+  
+  /* Gulf Racing Color Palette */
+  --gulf-blue: #0B3D91;
+  --performance-orange: #FF6B35;
+  --racing-white: #FFFFFF;
+  --carbon-black: #1A1A1A;
+  --metallic-silver: #C0C0C0;
+  --midnight-blue: #0A1F44;
+  --warm-gray: #F5F5F5;
+  --light-blue: #6EC1E4;
+  
+  /* Semantic Colors */
+  --primary: var(--gulf-blue);
+  --accent: var(--performance-orange);
+  --background: var(--racing-white);
+  --surface: var(--warm-gray);
+  --text-primary: var(--carbon-black);
+  --text-secondary: #666666;
+  --border: var(--metallic-silver);
+}
+
+/* Brand Typography Classes */
+.font-brand {
+  font-family: var(--font-brand);
+}
+
+.font-body {
+  font-family: var(--font-body);
+}
+
+/* Headings with Dfaalt */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-brand);
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+/* Hero Headlines */
+.hero-headline {
+  font-family: var(--font-brand);
+  font-weight: 700;
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
+}
+
+/* Section Headers */
+.section-header {
+  font-family: var(--font-brand);
+  font-weight: 600;
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+/* Card Titles */
+.card-title {
+  font-family: var(--font-brand);
+  font-weight: 600;
+  font-size: 1.25rem;
+  line-height: 1.3;
+  color: var(--text-primary);
+}
+
+/* Body Text with Montserrat */
+body {
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--text-primary);
+}
+
+/* Metric Values */
+.metric-value {
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: clamp(1.5rem, 4vw, 2.5rem);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+
+/* Small Text */
+.text-sm {
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+/* Extra Small Text */
+.text-xs {
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+/* Brand Accent Text */
+.text-brand {
+  color: var(--primary);
+}
+
+.text-accent {
+  color: var(--accent);
+}
+
+/* Speed Divider Pattern */
+.speed-divider {
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    var(--gulf-blue) 0%,
+    var(--performance-orange) 50%,
+    var(--gulf-blue) 100%
+  );
+  margin: 2rem 0;
+}
+
+/* Racing Stripe Pattern */
+.racing-stripe {
+  position: relative;
+}
+
+.racing-stripe::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(
+    180deg,
+    var(--gulf-blue) 0%,
+    var(--performance-orange) 100%
+  );
+}

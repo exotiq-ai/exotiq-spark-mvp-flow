@@ -12,11 +12,30 @@ const motivationalLines = [
   "Precision. Performance. Progress."
 ];
 
+interface BannerPreferences {
+  banner_url: string | null;
+  company_name: string | null;
+  company_tagline: string | null;
+  show_company_branding: boolean;
+  banner_height: 'compact' | 'standard' | 'showcase';
+  banner_text_position: 'left' | 'center';
+  show_carbon_fiber: boolean;
+}
+
 export const DashboardBanner = () => {
   const [bannerUrl, setBannerUrl] = useState<string>(defaultBanner);
   const [isUploading, setIsUploading] = useState(false);
   const [showUploadButton, setShowUploadButton] = useState(false);
   const [currentLineIndex, setCurrentLineIndex] = useState(0);
+  const [preferences, setPreferences] = useState<BannerPreferences>({
+    banner_url: null,
+    company_name: null,
+    company_tagline: null,
+    show_company_branding: true,
+    banner_height: 'standard',
+    banner_text_position: 'left',
+    show_carbon_fiber: false,
+  });
   const { toast } = useToast();
 
   useEffect(() => {
@@ -42,7 +61,7 @@ export const DashboardBanner = () => {
 
       const { data, error } = await supabase
         .from('user_dashboard_preferences')
-        .select('banner_url')
+        .select('banner_url, company_name, company_tagline, show_company_branding, banner_height, banner_text_position, show_carbon_fiber')
         .eq('user_id', user.id)
         .single();
 
@@ -51,8 +70,19 @@ export const DashboardBanner = () => {
         return;
       }
 
-      if (data?.banner_url) {
-        setBannerUrl(data.banner_url);
+      if (data) {
+        if (data.banner_url) {
+          setBannerUrl(data.banner_url);
+        }
+        setPreferences({
+          banner_url: data.banner_url,
+          company_name: data.company_name,
+          company_tagline: data.company_tagline,
+          show_company_branding: data.show_company_branding ?? true,
+          banner_height: data.banner_height || 'standard',
+          banner_text_position: data.banner_text_position || 'left',
+          show_carbon_fiber: data.show_carbon_fiber ?? false,
+        });
       }
     } catch (error) {
       console.error('Error loading banner:', error);
@@ -165,9 +195,16 @@ export const DashboardBanner = () => {
     }
   };
 
+  // Height mapping
+  const heightClasses = {
+    compact: 'h-32',      // 128px
+    standard: 'h-48 md:h-56',  // 192px-224px
+    showcase: 'h-64 md:h-72',  // 256px-288px
+  };
+
   return (
     <div 
-      className="relative h-32 rounded-2xl overflow-hidden group shadow-lg"
+      className={`relative ${heightClasses[preferences.banner_height]} rounded-2xl overflow-hidden group shadow-lg transition-all duration-300`}
       onMouseEnter={() => setShowUploadButton(true)}
       onMouseLeave={() => setShowUploadButton(false)}
     >
@@ -178,7 +215,18 @@ export const DashboardBanner = () => {
           alt="Dashboard Banner" 
           className="w-full h-full object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+        {/* Carbon Fiber Texture Overlay */}
+        {preferences.show_carbon_fiber && (
+          <div className="absolute inset-0 carbon-fiber opacity-5" />
+        )}
+        {/* Enhanced Gradient Overlay - Softer for Glass Effect */}
+        <div className={`absolute inset-0 ${
+          preferences.banner_text_position === 'center' 
+            ? 'bg-gradient-to-t from-black/70 via-black/30 to-transparent'
+            : 'bg-gradient-to-r from-black/70 via-black/35 to-transparent'
+        }`} />
+        {/* Subtle vignette for depth */}
+        <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-black/20" />
       </div>
 
       {/* Upload Controls */}
@@ -225,16 +273,47 @@ export const DashboardBanner = () => {
         </div>
       )}
 
-      {/* Welcome Text */}
-      <div className="absolute bottom-4 left-6 text-white">
-        <h1 className="text-2xl font-bold drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">Welcome to Your Command Center</h1>
-        <p 
-          key={currentLineIndex}
-          className="text-sm mt-1 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] animate-fade-in"
-        >
-          {motivationalLines[currentLineIndex]}
-        </p>
+      {/* Welcome Text / Company Branding - Premium Glass Effect */}
+      <div className={`absolute bottom-6 ${
+        preferences.banner_text_position === 'center' 
+          ? 'left-1/2 -translate-x-1/2 text-center' 
+          : 'left-8'
+      } max-w-2xl`}>
+        {/* Glass Container with Frosted Effect */}
+        <div className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl px-6 py-5 shadow-2xl">
+          {/* Subtle Inner Glow */}
+          <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/5 to-transparent pointer-events-none" />
+          
+          {/* Content */}
+          <div className="relative">
+            {preferences.show_company_branding && preferences.company_name ? (
+              <>
+                <h1 className="text-3xl md:text-4xl font-dfaalt font-bold text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.3)] mb-2">
+                  {preferences.company_name}
+                </h1>
+                <p className="text-lg md:text-xl font-montserrat text-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.3)]">
+                  {preferences.company_tagline || "Your Fleet Command Center"}
+                </p>
+              </>
+            ) : (
+              <>
+                <h1 className="text-2xl md:text-3xl font-dfaalt font-bold text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.3)]">
+                  Welcome to Your Command Center
+                </h1>
+                <p 
+                  key={currentLineIndex}
+                  className="text-sm md:text-base font-montserrat text-white mt-2 drop-shadow-[0_2px_6px_rgba(0,0,0,0.3)] animate-fade-in"
+                >
+                  {motivationalLines[currentLineIndex]}
+                </p>
+              </>
+            )}
+          </div>
+        </div>
       </div>
+
+      {/* Speed Divider at Bottom */}
+      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-gulf-blue to-transparent opacity-60" />
     </div>
   );
 };

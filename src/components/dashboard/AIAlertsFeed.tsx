@@ -379,7 +379,7 @@ export const AIAlertsFeed = ({ onNavigate, className }: AIAlertsFeedProps) => {
     <Card 
       className={cn(
         "fixed left-4 right-4 md:left-6 md:right-auto z-40 w-auto md:w-[340px] max-w-[calc(100vw-2rem)] md:max-w-[340px]",
-        "shadow-xl border-2 border-border animate-fade-in",
+        "shadow-xl border border-border animate-fade-in",
         "transition-all duration-300 ease-out",
         isScrolled ? "bottom-32 md:bottom-8 scale-75 opacity-60" : "bottom-32 md:bottom-6",
         className
@@ -464,7 +464,7 @@ export const AIAlertsFeed = ({ onNavigate, className }: AIAlertsFeedProps) => {
                 <div
                   key={alert.id}
                   className={cn(
-                    "p-4 rounded-lg border-2 transition-all hover:shadow-md",
+                    "p-4 rounded-lg border transition-all hover:shadow-md",
                     typeColor === 'destructive' && "border-destructive/30 bg-destructive/5",
                     typeColor === 'warning' && "border-warning/30 bg-warning/5",
                     typeColor === 'primary' && "border-primary/30 bg-primary/5",

@@ -500,16 +500,16 @@ export const DemandForecastCard = () => {
                     <TooltipTrigger asChild>
                       <div className="flex flex-col items-center gap-2 cursor-pointer group">
                         <div className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">{day.demand}%</div>
-                        <div className="relative w-full h-24 bg-muted/30 rounded-lg overflow-hidden group-hover:bg-muted/50 transition-colors">
+                        <div className={`relative w-full h-24 bg-muted/30 rounded-lg overflow-hidden group-hover:bg-muted/50 transition-colors ${day.hasEvent ? 'ring-2 ring-performance-orange/20' : ''}`}>
                           <div
                             className={`absolute bottom-0 w-full rounded-lg transition-all ${
                               isPeak 
-                                ? "bg-gradient-to-t from-success to-success/50" 
-                                : day.demand >= 80 
-                                  ? "bg-gradient-to-t from-warning to-warning/50"
-                                  : day.hasEvent
-                                    ? "bg-gradient-to-t from-accent to-accent/50"
-                                    : "bg-gradient-to-t from-primary to-primary/50"
+                                ? "bg-gradient-to-t from-success to-success/60" 
+                                : day.demand >= 75 
+                                  ? "bg-gradient-to-t from-performance-orange to-performance-orange/60"
+                                  : day.demand >= 60
+                                    ? "bg-gradient-to-t from-gulf-blue to-gulf-blue/60"
+                                    : "bg-gradient-to-t from-gulf-blue/70 to-gulf-blue/40"
                             }`}
                             style={{ height: `${height}%` }}
                           />
@@ -565,14 +565,16 @@ export const DemandForecastCard = () => {
                       <TooltipTrigger asChild>
                         <div className="flex flex-col items-center gap-2 cursor-pointer group">
                           <div className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">{day.demand}%</div>
-                          <div className="relative w-full h-20 bg-muted/30 rounded-lg overflow-hidden group-hover:bg-muted/50 transition-colors">
+                          <div className={`relative w-full h-20 bg-muted/30 rounded-lg overflow-hidden group-hover:bg-muted/50 transition-colors ${day.hasEvent ? 'ring-2 ring-performance-orange/20' : ''}`}>
                             <div
                               className={`absolute bottom-0 w-full rounded-lg transition-all ${
                                 isPeak 
-                                  ? "bg-gradient-to-t from-success to-success/50" 
-                                  : day.hasEvent
-                                    ? "bg-gradient-to-t from-accent to-accent/50"
-                                    : "bg-gradient-to-t from-primary/70 to-primary/30"
+                                  ? "bg-gradient-to-t from-success to-success/60" 
+                                  : day.demand >= 75 
+                                    ? "bg-gradient-to-t from-performance-orange to-performance-orange/60"
+                                    : day.demand >= 60
+                                      ? "bg-gradient-to-t from-gulf-blue to-gulf-blue/60"
+                                      : "bg-gradient-to-t from-gulf-blue/70 to-gulf-blue/40"
                               }`}
                               style={{ height: `${height}%` }}
                             />

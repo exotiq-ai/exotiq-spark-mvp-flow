@@ -30,7 +30,7 @@ export const UpcomingScheduleWidget = ({ onViewCalendar }: UpcomingScheduleWidge
   };
   
   return (
-    <Card className="p-6 border-2 border-border shadow-sm">
+    <Card className="p-6 border border-border shadow-sm">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Calendar className="h-5 w-5 text-primary" />

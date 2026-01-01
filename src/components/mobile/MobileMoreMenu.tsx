@@ -7,7 +7,9 @@ import {
   Settings, 
   User, 
   HelpCircle,
-  ChevronRight
+  ChevronRight,
+  TrendingUp,
+  BarChart3
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -20,6 +22,18 @@ export const MobileMoreMenu = ({ activeModule, onModuleChange }: MobileMoreMenuP
   const [open, setOpen] = useState(false);
 
   const menuItems = [
+    { 
+      id: "motoriq", 
+      label: "MotorIQ", 
+      description: "Fleet profitability & pricing",
+      icon: TrendingUp 
+    },
+    { 
+      id: "pulse", 
+      label: "Pulse", 
+      description: "Analytics & performance insights",
+      icon: BarChart3 
+    },
     { 
       id: "vault", 
       label: "Vault", 
@@ -45,7 +59,7 @@ export const MobileMoreMenu = ({ activeModule, onModuleChange }: MobileMoreMenuP
     setOpen(false);
   };
 
-  const isActive = activeModule === "vault" || activeModule === "settings";
+  const isActive = ["motoriq", "pulse", "vault", "settings"].includes(activeModule);
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>

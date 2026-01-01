@@ -47,32 +47,37 @@ export const TranscriptHeader = ({
         open={searchOpen} 
         onOpenChange={setSearchOpen}
       />
-    <div className="flex items-center justify-between pb-3 border-b">
-      <div>
-        <h3 className="font-semibold flex items-center gap-2">
-          <MessageSquare className="h-4 w-4 text-gulf-blue" />
-          Conversation Transcript
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-3 border-b gap-3 sm:gap-0">
+      <div className="flex-1 min-w-0">
+        <h3 className="font-semibold flex items-center gap-2 text-sm md:text-base">
+          <MessageSquare className="h-3.5 w-3.5 md:h-4 md:w-4 text-gulf-blue flex-shrink-0" />
+          <span className="truncate">Conversation Transcript</span>
         </h3>
-        <p className="text-xs text-muted-foreground mt-1">
-          {messageCount} message{messageCount !== 1 ? 's' : ''}
-          {duration && ` • ${duration}`}
+        <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1 flex-wrap">
+          <span>{messageCount} message{messageCount !== 1 ? 's' : ''}</span>
+          {duration && <span className="hidden sm:inline">• {duration}</span>}
           {isConnected && (
-            <span className="ml-1 inline-flex items-center">
-              <span className="animate-pulse text-success">● </span>
-              <span className="ml-1">Live</span>
+            <span className="inline-flex items-center gap-1 ml-1 sm:ml-0">
+              <span className="flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-success opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-success"></span>
+              </span>
+              <span className="text-success font-medium">Live</span>
             </span>
           )}
         </p>
       </div>
       
-      <div className="flex gap-2">
+      <div className="flex gap-1.5 md:gap-2 flex-shrink-0">
+        {/* Mobile: Icon only, Desktop: Icon + Text */}
         <Button 
           variant="ghost" 
           size="sm"
           onClick={() => setSearchOpen(true)}
+          className="h-8 md:h-9"
         >
-          <Search className="h-3 w-3 mr-1" />
-          Search
+          <Search className="h-3 w-3 md:mr-1" />
+          <span className="hidden md:inline">Search</span>
         </Button>
 
         {conversationDbId && !isConnected && (
@@ -88,9 +93,10 @@ export const TranscriptHeader = ({
               variant="ghost" 
               size="sm"
               disabled={messageCount === 0}
+              className="h-8 md:h-9"
             >
-              <Download className="h-3 w-3 mr-1" />
-              Export
+              <Download className="h-3 w-3 md:mr-1" />
+              <span className="hidden md:inline">Export</span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
@@ -112,6 +118,7 @@ export const TranscriptHeader = ({
             size="sm"
             onClick={onClear}
             disabled={messageCount === 0}
+            className="h-8 md:h-9"
           >
             <Trash2 className="h-3 w-3" />
           </Button>

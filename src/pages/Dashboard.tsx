@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Logo } from "@/components/ui/logo";
@@ -7,6 +8,7 @@ import { SkipNavigation } from "@/components/common/SkipNavigation";
 import { SEOHead } from "@/components/common/SEOHead";
 import { UnifiedNotificationCenter } from "@/components/common/UnifiedNotificationCenter";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
+import { DashboardOnboarding } from "@/components/onboarding/DashboardOnboarding";
 import { useAnalytics } from "@/lib/analytics";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -37,7 +39,7 @@ import { TeamActivityDashboard } from "@/components/dashboard/TeamActivityDashbo
 import { TeamMessaging, TeamMessagingTrigger } from "@/components/messaging/TeamMessaging";
 import { useTeamMessaging } from "@/hooks/useTeamMessaging";
 import { Calendar as CalendarIcon, DollarSign, UserPlus, FileText, Sparkles } from "lucide-react";
-import { RariVoiceInterface } from "@/components/rari/RariVoiceInterface";
+import { RariWidgetInterface } from "@/components/rari/RariWidgetInterface";
 import {
   Dialog,
   DialogContent,
@@ -46,8 +48,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { FocusTrap } from "@/components/ui/focus-trap";
+import { toast } from "sonner";
 
 const Dashboard = () => {
+  const [searchParams] = useSearchParams();
   const [activeModule, setActiveModule] = useLocalStorage("activeModule", "dashboard");
   const [chatOpen, setChatOpen] = useState(false);
   const [chatMinimized, setChatMinimized] = useState(false);
@@ -59,6 +63,14 @@ const Dashboard = () => {
 
   // Calculate total unread messages
   const totalUnread = conversations.reduce((acc, c) => acc + (c.unread_count || 0), 0);
+
+  // Read module from URL query params (reliable, no race conditions)
+  useEffect(() => {
+    const moduleFromUrl = searchParams.get('module');
+    if (moduleFromUrl) {
+      handleModuleChange(moduleFromUrl);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     performance.mark('dashboard-load-start');
@@ -186,6 +198,7 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-background mobile-friendly flex">
       <KeyboardShortcutsHelp />
+      <DashboardOnboarding />
       <SEOHead
         title="Fleet Management Dashboard"
         description="Manage your luxury fleet with comprehensive analytics, AI-powered insights, and real-time monitoring."
@@ -260,14 +273,13 @@ const Dashboard = () => {
         </div>
       </nav>
 
-        {/* Mobile Bottom Navigation - 5 Items (simplified) */}
+        {/* Mobile Bottom Navigation - 4 Items + More Menu */}
         <div className="mobile-nav">
           <div className="grid grid-cols-5 gap-1 px-2 py-2.5">
             {[
               { id: "dashboard", label: "Home", icon: Home, minRole: undefined },
               { id: "book", label: "Book", icon: Calendar, minRole: 'operator' as const },
               { id: "core", label: "AI", icon: Brain, minRole: 'operator' as const },
-              { id: "pulse", label: "Insights", icon: BarChart3, aliases: ["motoriq", "optimize"], minRole: 'operator' as const },
             ].filter(item => !item.minRole || hasRoleOrHigher(item.minRole)).map((item) => {
               const Icon = item.icon;
               const isActive = item.aliases 
@@ -342,19 +354,35 @@ const Dashboard = () => {
 
       {/* Rari AI Assistant Dialog - triggered from FAB */}
       <Dialog open={showRari} onOpenChange={setShowRari}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent 
+          className="max-w-[95vw] sm:max-w-[90vw] lg:max-w-[1200px] xl:max-w-[1400px] p-4 md:p-6 lg:p-8"
+          style={{
+            height: 'min(90vh, calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 2rem))',
+            maxHeight: '900px',
+          }}
+        >
           <FocusTrap active={showRari}>
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-gulf-blue" aria-hidden="true" />
-                Rari AI Assistant
-              </DialogTitle>
-              <DialogDescription>
-                Ask me anything about your fleet operations, pricing, bookings, or analytics.
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Sparkles className="w-5 h-5 md:w-6 md:h-6 text-gulf-blue flex-shrink-0" aria-hidden="true" />
+                  <DialogTitle className="text-lg md:text-xl truncate">
+                    Rari AI Assistant
+                  </DialogTitle>
+                </div>
+                
+                {/* Quick Action Buttons */}
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {/* History feature hidden until complete */}
+                </div>
+              </div>
+              
+              <DialogDescription className="text-xs md:text-sm mt-2">
+                Ask me anything about your fleet operations, pricing, bookings, or analytics. See your conversation in real-time.
               </DialogDescription>
             </DialogHeader>
-            <div className="mt-4">
-              <RariVoiceInterface />
+            <div className="mt-3 md:mt-4 h-[calc(100%-100px)]">
+              <RariWidgetInterface />
             </div>
           </FocusTrap>
         </DialogContent>

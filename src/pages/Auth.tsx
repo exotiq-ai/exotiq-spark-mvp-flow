@@ -270,7 +270,7 @@ export default function Auth() {
               // Default header
               <>
                 <h1 className="text-2xl sm:text-3xl font-bold mb-2">
-                  Welcome to ExotIQ
+                  Welcome to Exotiq
                 </h1>
                 <p className="text-sm sm:text-base text-muted-foreground">
                   Premium fleet management made simple

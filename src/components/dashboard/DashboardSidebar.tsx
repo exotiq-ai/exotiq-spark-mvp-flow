@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Logo } from "@/components/ui/logo";
+import { ExotiqLogo, ExotiqLogoBranded } from "@/components/common/ExotiqLogo";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useProfile } from "@/hooks/useProfile";
@@ -128,12 +128,10 @@ export const DashboardSidebar = ({ activeModule, onModuleChange }: DashboardSide
       <div className="p-4 border-b border-sidebar-border">
         {collapsed ? (
           <div className="flex justify-center">
-            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center shadow-sm">
-              <span className="text-xl font-bold text-primary-foreground">E</span>
-            </div>
+            <ExotiqLogo variant="gulf-blue" size="md" />
           </div>
         ) : (
-          <Logo size="md" className="h-8" />
+          <ExotiqLogoBranded variant="gulf-blue" size="md" />
         )}
       </div>
 

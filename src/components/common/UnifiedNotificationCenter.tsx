@@ -254,9 +254,9 @@ export const UnifiedNotificationCenter = ({ onNavigate }: { onNavigate?: (module
       case 'demand':
         return <Calendar className="w-4 h-4 text-gulf-blue" />;
       case 'damage':
-        return <AlertCircle className="w-4 h-4 text-gulf-blue" />;
+        return <AlertCircle className="w-4 h-4 text-rari-teal" />;
       default:
-        return <Sparkles className="w-4 h-4 text-gulf-blue" />;
+        return <Sparkles className="w-4 h-4 text-rari-teal" />;
     }
   };
 

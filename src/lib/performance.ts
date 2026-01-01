@@ -40,7 +40,7 @@ export const performance = {
   // Log performance metrics
   logMetrics: () => {
     const navigation = performance.getNavigationTiming();
-    if (navigation) {
+    if (navigation && process.env.NODE_ENV === 'development') {
       console.group('🚀 Performance Metrics');
       console.log(`📊 Total Load Time: ${navigation.loadTime}ms`);
       console.log(`⚡ DOM Ready Time: ${navigation.domReadyTime}ms`);

@@ -179,16 +179,12 @@ export const CoreEnhanced = () => {
         </div>
       </Card>
 
-      {/* Streamlined Tabs - 4 instead of 6 */}
+      {/* Streamlined Tabs - AI-Focused */}
       <Tabs defaultValue="rari" className="w-full">
-        <TabsList className="sticky top-0 z-10 grid w-full grid-cols-4 gap-1 h-auto p-1 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border/50">
+        <TabsList className="sticky top-0 z-10 grid w-full grid-cols-3 gap-1 h-auto p-1 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border/50">
           <TabsTrigger value="rari" className="py-2.5 text-sm">
             <Brain className="w-4 h-4 mr-2" />
             Rari
-          </TabsTrigger>
-          <TabsTrigger value="crm" className="py-2.5 text-sm">
-            <Users className="w-4 h-4 mr-2" />
-            CRM
           </TabsTrigger>
           <TabsTrigger value="insights" className="py-2.5 text-sm">
             <Zap className="w-4 h-4 mr-2" />
@@ -204,10 +200,6 @@ export const CoreEnhanced = () => {
           <Card className="card-premium p-0 overflow-hidden">
             <RariVoiceInterface />
           </Card>
-        </TabsContent>
-
-        <TabsContent value="crm" className="mt-4">
-          <CRMSection />
         </TabsContent>
 
         <TabsContent value="insights" className="space-y-6 mt-4">

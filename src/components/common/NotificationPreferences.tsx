@@ -139,7 +139,7 @@ export const NotificationPreferences = ({
 
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <Sparkles className="w-4 h-4 text-gulf-blue" />
+              <Sparkles className="w-4 h-4 text-rari-teal" />
               <Label className="text-sm">AI Insights</Label>
             </div>
             <Switch

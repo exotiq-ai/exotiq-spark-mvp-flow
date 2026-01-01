@@ -59,6 +59,17 @@ export default {
 					light: 'hsl(var(--gulf-blue-light))',
 					dark: 'hsl(var(--gulf-blue-dark))'
 				},
+				'rari-teal': {
+					DEFAULT: 'hsl(var(--rari-teal))',
+					light: 'hsl(var(--rari-teal-light))',
+					dark: 'hsl(var(--rari-teal-dark))',
+					foreground: 'hsl(var(--rari-teal-foreground))'
+				},
+				'performance-orange': {
+					DEFAULT: 'hsl(var(--performance-orange))',
+					light: 'hsl(var(--performance-orange-light))',
+					dark: 'hsl(var(--performance-orange-dark))'
+				},
 				success: {
 					DEFAULT: 'hsl(var(--success))',
 					foreground: 'hsl(var(--success-foreground))'
@@ -98,6 +109,9 @@ export default {
 				'gradient-gulf': 'linear-gradient(135deg, hsl(var(--gulf-blue)), hsl(var(--accent)))',
 			},
 			fontFamily: {
+				brand: ['Dfaalt', 'Montserrat', 'system-ui', '-apple-system', 'sans-serif'],
+				body: ['Montserrat', 'system-ui', '-apple-system', 'sans-serif'],
+				sans: ['Montserrat', 'system-ui', '-apple-system', 'sans-serif'],
 				inter: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
 			},
 			borderRadius: {
@@ -200,6 +214,18 @@ export default {
 				'toast-slide-out': {
 					'0%': { transform: 'translateX(0)', opacity: '1' },
 					'100%': { transform: 'translateX(100%)', opacity: '0' }
+				},
+				'pulse-subtle': {
+					'0%, 100%': { opacity: '1', transform: 'scale(1)' },
+					'50%': { opacity: '0.8', transform: 'scale(0.98)' }
+				},
+				'pulse-strong': {
+					'0%, 100%': { opacity: '1', transform: 'scale(1)', boxShadow: '0 0 0 0 currentColor' },
+					'50%': { opacity: '0.9', transform: 'scale(1.05)', boxShadow: '0 0 0 10px transparent' }
+				},
+				'confetti-fall': {
+					'0%': { transform: 'translateY(-100vh) rotate(0deg)', opacity: '1' },
+					'100%': { transform: 'translateY(100vh) rotate(360deg)', opacity: '0' }
 				}
 			},
 			animation: {
@@ -226,7 +252,10 @@ export default {
 				'success-scale': 'success-scale 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55)',
 				'draw-check': 'draw-check 0.5s ease-in-out forwards',
 				'toast-slide-in': 'toast-slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-				'toast-slide-out': 'toast-slide-out 0.2s ease-in forwards'
+				'toast-slide-out': 'toast-slide-out 0.2s ease-in forwards',
+				'pulse-subtle': 'pulse-subtle 2s ease-in-out infinite',
+				'pulse-strong': 'pulse-strong 1.5s ease-in-out infinite',
+				'confetti-fall': 'confetti-fall 3s ease-in-out forwards'
 			}
 		}
 	},

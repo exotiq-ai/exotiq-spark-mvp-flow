@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Logo } from "@/components/ui/logo";
+import { ExotiqLogoBranded } from "@/components/common/ExotiqLogo";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { LogOut, MessageSquare } from "lucide-react";
@@ -36,7 +36,7 @@ export const DashboardHeader = ({ onOpenChat }: DashboardHeaderProps) => {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between gap-4 px-4">
-        <Logo />
+        <ExotiqLogoBranded variant="gulf-blue" size="md" />
         
         <div className="hidden md:flex flex-1 max-w-md mx-4">
           <EnhancedGlobalSearch />

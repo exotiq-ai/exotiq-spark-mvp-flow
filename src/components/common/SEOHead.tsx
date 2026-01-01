@@ -37,7 +37,7 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
     'fleet profitability',
     'booking management',
     'compliance tracking',
-    'ExotIQ.ai'
+    'Exotiq.ai'
   ];
 
   const allKeywords = [...defaultKeywords, ...keywords].join(', ');

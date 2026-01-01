@@ -75,7 +75,7 @@ export const testimonials = [
     name: "Sarah Chen",
     role: "Fleet Owner",
     company: "Luxury Drives Miami",
-    content: "ExotIQ transformed our operations. We increased profits by 40% in just 3 months.",
+    content: "Exotiq transformed our operations. We increased profits by 40% in just 3 months.",
     rating: 5
   },
   {

@@ -121,7 +121,7 @@ export const NotificationSettingsSection = () => {
       const { data, error } = await supabase.functions.invoke("slack-notify", {
         body: {
           webhookUrl: preferences.slack_webhook_url,
-          message: "🎉 ExotIQ Slack integration test successful!",
+          message: "🎉 Exotiq Slack integration test successful!",
           test: true,
         },
       });

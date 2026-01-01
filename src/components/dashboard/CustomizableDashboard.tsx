@@ -128,7 +128,7 @@ export const CustomizableDashboard = ({ modules, onModuleClick }: CustomizableDa
           onApply={(vehicleId, newRate) => applyPriceOptimization(vehicleId, newRate)}
         />
         <div className="space-y-4 md:space-y-6">
-          <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border-2">
+          <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border">
             <h2 className="text-lg md:text-xl font-semibold">Your Dashboard (Safe Mode)</h2>
             <Badge variant="secondary">Grid Disabled</Badge>
           </div>
@@ -156,7 +156,7 @@ export const CustomizableDashboard = ({ modules, onModuleClick }: CustomizableDa
       <div className="space-y-4 md:space-y-6">
         {/* Customize Controls */}
         <div 
-          className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-muted/50 rounded-lg border-2"
+          className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-muted/50 rounded-lg border"
           role="toolbar"
           aria-label="Dashboard customization controls"
         >
@@ -235,7 +235,7 @@ export const CustomizableDashboard = ({ modules, onModuleClick }: CustomizableDa
 
         {isEditMode && (
           <div 
-            className="p-4 bg-accent/10 border-2 border-accent/30 rounded-lg"
+            className="p-4 bg-accent/10 border border-accent/30 rounded-lg"
             role="status"
             aria-live="polite"
           >

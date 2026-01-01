@@ -16,7 +16,7 @@ const demoPersonas = [
   {
     id: 'fleet-owner',
     title: 'Fleet Owner Demo',
-    description: 'Experience ExotIQ.ai from the perspective of a luxury fleet owner managing 12 premium vehicles in Miami.',
+    description: 'Experience Exotiq.ai from the perspective of a luxury fleet owner managing 12 premium vehicles in Miami.',
     icon: DollarSign,
     color: 'text-success',
     bgColor: 'bg-success/10',
@@ -25,7 +25,7 @@ const demoPersonas = [
   {
     id: 'operations-manager',
     title: 'Operations Manager Demo',
-    description: 'See how operations managers use ExotIQ.ai to oversee 25+ vehicles and streamline daily operations in LA.',
+    description: 'See how operations managers use Exotiq.ai to oversee 25+ vehicles and streamline daily operations in LA.',
     icon: BarChart3,
     color: 'text-primary',
     bgColor: 'bg-primary/10',
@@ -34,7 +34,7 @@ const demoPersonas = [
   {
     id: 'business-owner',
     title: 'Business Owner Demo',
-    description: 'Discover how business owners leverage ExotIQ.ai to scale their luxury rental operations efficiently.',
+    description: 'Discover how business owners leverage Exotiq.ai to scale their luxury rental operations efficiently.',
     icon: TrendingUp,
     color: 'text-accent',
     bgColor: 'bg-accent/10',

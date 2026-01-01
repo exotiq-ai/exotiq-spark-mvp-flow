@@ -80,7 +80,7 @@ export const Core = () => {
   const quickActions = [
     { title: "Add New Vehicle", icon: Car, color: "text-primary" },
     { title: "Create Booking", icon: Users, color: "text-success" },
-    { title: "Generate Report", icon: BarChart3, color: "text-accent" },
+    { title: "Generate Report", icon: BarChart3, color: "text-gulf-blue" },
     { title: "Update Pricing", icon: DollarSign, color: "text-warning" },
     { title: "Schedule Maintenance", icon: Settings, color: "text-destructive" },
     { title: "Send Message", icon: MessageSquare, color: "text-purple-500" }
@@ -133,7 +133,7 @@ export const Core = () => {
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="text-center p-6 rounded-xl bg-card border-2 border-primary/20 shadow-sm hover:shadow-md transition-all hover:border-primary/40 dark:bg-card/50 dark:border-primary/30">
+          <div className="text-center p-6 rounded-xl bg-card border border-primary/20 shadow-sm hover:shadow-md transition-all hover:border-primary/40 dark:bg-card/50 dark:border-primary/30">
             <div className="relative inline-block mb-4">
               <div className="absolute inset-0 bg-primary/10 dark:bg-primary/20 rounded-full blur-xl"></div>
               <Brain className="relative w-10 h-10 text-primary mx-auto dark:drop-shadow-[0_0_8px_rgba(59,130,246,0.6)]" />
@@ -142,7 +142,7 @@ export const Core = () => {
             <div className="text-sm text-muted-foreground mt-1">AI Monitoring</div>
           </div>
           
-          <div className="text-center p-6 rounded-xl bg-card border-2 border-success/20 shadow-sm hover:shadow-md transition-all hover:border-success/40 dark:bg-card/50 dark:border-success/30">
+          <div className="text-center p-6 rounded-xl bg-card border border-success/20 shadow-sm hover:shadow-md transition-all hover:border-success/40 dark:bg-card/50 dark:border-success/30">
             <div className="relative inline-block mb-4">
               <div className="absolute inset-0 bg-success/10 dark:bg-success/20 rounded-full blur-xl"></div>
               <Zap className="relative w-10 h-10 text-success mx-auto dark:drop-shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
@@ -151,10 +151,10 @@ export const Core = () => {
             <div className="text-sm text-muted-foreground mt-1">Tasks Automated</div>
           </div>
           
-          <div className="text-center p-6 rounded-xl bg-card border-2 border-accent/20 shadow-sm hover:shadow-md transition-all hover:border-accent/40 dark:bg-card/50 dark:border-accent/30">
+          <div className="text-center p-6 rounded-xl bg-card border border-performance-orange/20 shadow-sm hover:shadow-md transition-all hover:border-performance-orange/40 dark:bg-card/50 dark:border-performance-orange/30">
             <div className="relative inline-block mb-4">
-              <div className="absolute inset-0 bg-accent/10 dark:bg-accent/20 rounded-full blur-xl"></div>
-              <Clock className="relative w-10 h-10 text-accent mx-auto dark:drop-shadow-[0_0_8px_rgba(96,165,250,0.6)]" />
+              <div className="absolute inset-0 bg-performance-orange/10 dark:bg-performance-orange/20 rounded-full blur-xl"></div>
+              <Clock className="relative w-10 h-10 text-performance-orange mx-auto dark:drop-shadow-[0_0_8px_rgba(255,107,53,0.6)]" />
             </div>
             <div className="text-2xl font-bold text-foreground">4.2h</div>
             <div className="text-sm text-muted-foreground mt-1">Time Saved Daily</div>

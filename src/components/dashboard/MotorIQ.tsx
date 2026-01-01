@@ -81,11 +81,11 @@ export const MotorIQ = () => {
 
         <Card className="card-premium p-6">
           <div className="flex items-center">
-            <div className="p-2 bg-accent/10 rounded-lg">
-              <BarChart3 className="h-6 w-6 text-accent" />
+            <div className="p-2 bg-success/10 rounded-lg">
+              <BarChart3 className="h-6 w-6 text-success" />
             </div>
             <div className="ml-4">
-              <div className="text-2xl font-bold text-accent">17%</div>
+              <div className="text-2xl font-bold text-success">17%</div>
               <div className="text-sm text-muted-foreground">Margin Increase</div>
             </div>
           </div>

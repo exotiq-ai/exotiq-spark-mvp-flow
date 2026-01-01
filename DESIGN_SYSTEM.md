@@ -1,4 +1,4 @@
-# ExotIQ Design System - Phase 2 & 4 Implementation Complete
+# Exotiq Design System - Phase 2 & 4 Implementation Complete
 
 ## ✅ Implementation Status
 

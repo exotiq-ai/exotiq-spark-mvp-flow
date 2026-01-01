@@ -23,7 +23,7 @@ export const ModuleGridWidget = ({ modules, onModuleClick }: ModuleGridWidgetPro
         <Card 
           key={module.id}
           data-tour={module.id === 'motoriq' ? 'motoriq-module' : module.id === 'core' ? 'crm-module' : undefined}
-          className="p-4 md:p-6 border-2 border-border hover:border-primary/50 shadow-sm hover:shadow-md transition-all cursor-pointer transform hover:-translate-y-1 touch-target animate-fade-in"
+          className="p-4 md:p-6 border border-border hover:border-primary/50 shadow-sm hover:shadow-md transition-all cursor-pointer transform hover:-translate-y-1 touch-target animate-fade-in"
           style={{ animationDelay: `${index * 0.1}s`, animationFillMode: 'both' }}
           onClick={() => onModuleClick(module.id)}
           tabIndex={0}
@@ -36,7 +36,7 @@ export const ModuleGridWidget = ({ modules, onModuleClick }: ModuleGridWidgetPro
             }
           }}
         >
-          <div className={`p-3 md:p-4 rounded-xl border-2 ${
+          <div className={`p-3 md:p-4 rounded-xl border ${
             module.color === 'text-primary' ? 'border-primary bg-primary/10' : 'border-secondary bg-secondary/10'
           } mb-4 w-fit`}>
             <module.icon className={`h-6 w-6 md:h-8 md:w-8 ${module.color}`} aria-hidden="true" />

@@ -15,8 +15,8 @@ export const AIThinking = ({
   
   if (variant === "gradient") {
     return (
-      <div className={cn("flex items-center gap-3 p-4 rounded-lg bg-gradient-to-r from-gulf-blue/10 via-accent/10 to-gulf-blue/10 bg-[length:200%_100%] animate-gradient-flow", className)}>
-        <Sparkles className="w-5 h-5 text-gulf-blue animate-pulse-soft" />
+      <div className={cn("flex items-center gap-3 p-4 rounded-lg bg-gradient-to-r from-rari-teal/10 via-accent/10 to-rari-teal/10 bg-[length:200%_100%] animate-gradient-flow", className)}>
+        <Sparkles className="w-5 h-5 text-rari-teal animate-pulse-soft" />
         <span className="text-sm font-medium text-foreground">{text}</span>
         <div className="flex gap-1 ml-auto">
           <span className="w-2 h-2 bg-gulf-blue rounded-full animate-wave" />

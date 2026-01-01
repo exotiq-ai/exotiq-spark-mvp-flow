@@ -38,6 +38,7 @@ interface NavGroup {
 interface NavItem {
   id: string;
   name: string;
+  subtitle?: string;
   icon: React.ComponentType<{ className?: string }>;
   minRole?: 'admin' | 'manager' | 'operator' | 'viewer';
 }
@@ -280,8 +281,8 @@ export const DashboardSidebarEnhanced = ({ activeModule, onModuleChange }: Dashb
           )}
         >
           <div className="relative">
-            <div className="absolute inset-0 bg-gulf-blue/30 rounded-full blur-md" />
-            <Sparkles className="relative h-5 w-5 text-gulf-blue" />
+            <div className="absolute inset-0 bg-rari-teal/30 rounded-full blur-md" />
+            <Sparkles className="relative h-5 w-5 text-rari-teal" />
           </div>
           {!collapsed && (
             <div className="flex-1 text-left">

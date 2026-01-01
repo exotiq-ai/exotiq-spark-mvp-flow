@@ -52,7 +52,7 @@ export const MetricsWidget = ({ isLoading }: MetricsWidgetProps) => {
       >
         <Card 
           variant="interactive"
-          className="p-4 md:p-6 border-2 border-border hover:border-primary/50 h-full group"
+          className="p-6 md:p-8 border border-border hover:border-primary/50 h-full group"
           role="article"
           aria-label="Active Bookings Metric"
         >
@@ -104,7 +104,7 @@ export const MetricsWidget = ({ isLoading }: MetricsWidgetProps) => {
       >
         <Card 
           variant="interactive"
-          className="p-4 md:p-6 border-2 border-border hover:border-success/50 h-full group"
+          className="p-6 md:p-8 border border-border hover:border-success/50 h-full group"
           role="article"
           aria-label="Fleet Utilization Metric"
         >
@@ -156,7 +156,7 @@ export const MetricsWidget = ({ isLoading }: MetricsWidgetProps) => {
       >
         <Card 
           variant="interactive"
-          className="p-4 md:p-6 border-2 border-border hover:border-warning/50 h-full group"
+          className="p-6 md:p-8 border border-border hover:border-warning/50 h-full group"
           role="article"
           aria-label="Average Daily Rate Metric"
         >

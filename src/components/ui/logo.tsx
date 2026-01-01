@@ -15,7 +15,7 @@ export const Logo = ({ className, size = "md" }: LogoProps) => {
   return (
     <img 
       src="/lovable-uploads/ea741db3-49ad-45fc-8c13-a2e2dcb69d75.png" 
-      alt="ExotIQ Logo" 
+      alt="Exotiq Logo" 
       className={cn("w-auto", sizeClasses[size], className)}
       onError={(e) => {
         console.warn("Logo failed to load, using fallback");

@@ -31,7 +31,12 @@ export const FloatingActionMenu = ({ actions, className }: FloatingActionMenuPro
   };
 
   return (
-    <div className={cn("fixed bottom-20 right-4 z-40 md:hidden", className)}>
+    <div 
+      className={cn("fixed right-4 z-40 md:hidden", className)}
+      style={{ 
+        bottom: 'calc(6rem + env(safe-area-inset-bottom))' // Increased from 5rem to 6rem to clear nav bar
+      }}
+    >
       {/* Backdrop */}
       <AnimatePresence>
         {isOpen && (
@@ -72,7 +77,8 @@ export const FloatingActionMenu = ({ actions, className }: FloatingActionMenuPro
                 }}
                 onClick={() => handleAction(action)}
                 whileTap={{ scale: 0.95 }}
-                className="flex items-center gap-3 pl-3 pr-4 py-2.5 bg-card rounded-full shadow-lg border border-border/80 active:bg-muted"
+                whileHover={{ scale: 1.02 }}
+                className="flex items-center gap-3 pl-3 pr-4 py-2.5 bg-card/90 backdrop-blur-lg rounded-full shadow-lg border border-border/80 hover:border-border active:bg-muted hover:shadow-xl transition-all duration-200"
               >
                 <div className={cn(
                   "w-9 h-9 rounded-full flex items-center justify-center shadow-sm",
@@ -87,26 +93,32 @@ export const FloatingActionMenu = ({ actions, className }: FloatingActionMenuPro
         )}
       </AnimatePresence>
 
-      {/* Main FAB Button */}
+      {/* Main FAB Button - Enhanced with Glassmorphism */}
       <motion.button
         whileTap={{ scale: 0.9 }}
+        whileHover={{ scale: 1.05 }}
         onClick={toggleMenu}
         className={cn(
           "w-14 h-14 rounded-full flex items-center justify-center",
-          "ring-2 ring-primary/20",
-          "shadow-[0_8px_30px_rgb(0,0,0,0.12)]",
-          "transition-all duration-300",
+          "backdrop-blur-xl border transition-all duration-300",
+          "shadow-[0_8px_30px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.08)]",
+          "hover:shadow-[0_12px_40px_rgba(0,0,0,0.16),0_6px_16px_rgba(0,0,0,0.1)]",
           isOpen
-            ? "bg-muted text-foreground shadow-lg"
-            : "bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-[0_8px_30px_hsl(var(--primary)/0.3)]"
+            ? "bg-muted/80 text-foreground border-border/80 shadow-lg"
+            : "bg-gradient-to-br from-primary via-primary to-primary-dark text-primary-foreground border-primary-light/30 shadow-[0_8px_30px_hsl(var(--primary)/0.35),0_0_60px_hsl(var(--primary)/0.15)]"
         )}
+        style={{
+          boxShadow: isOpen 
+            ? undefined 
+            : '0 8px 30px hsla(var(--primary), 0.35), 0 0 60px hsla(var(--primary), 0.15), inset 0 1px 1px rgba(255,255,255,0.15)'
+        }}
         aria-label={isOpen ? "Close menu" : "Open quick actions"}
       >
         <motion.div
           animate={{ rotate: isOpen ? 45 : 0 }}
           transition={{ type: "spring", stiffness: 300, damping: 20 }}
         >
-          <Plus className="h-6 w-6" strokeWidth={2} />
+          <Plus className="h-6 w-6" strokeWidth={2.5} />
         </motion.div>
       </motion.button>
     </div>

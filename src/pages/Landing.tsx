@@ -46,7 +46,7 @@ const Landing = () => {
     <div className="min-h-screen bg-background">
       <SEOHead
         title="AI-Powered Fleet Management Platform"
-        description="Transform your luxury fleet operations with ExotIQ.ai's comprehensive AI-driven platform. Optimize profitability, streamline bookings, and ensure compliance with cutting-edge technology."
+        description="Transform your luxury fleet operations with Exotiq.ai's comprehensive AI-driven platform. Optimize profitability, streamline bookings, and ensure compliance with cutting-edge technology."
         keywords={['luxury fleet management', 'AI optimization', 'fleet analytics', 'booking platform', 'compliance tracking']}
         url="/"
       />

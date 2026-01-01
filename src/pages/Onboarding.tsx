@@ -110,7 +110,7 @@ export default function Onboarding() {
     }
 
     toast({
-      title: "Welcome to ExotIQ! 🎉",
+      title: "Welcome to Exotiq! 🎉",
       description: "Your account is ready. Let's optimize your fleet!",
     });
 
@@ -301,18 +301,50 @@ export default function Onboarding() {
 
                 <Card className="bg-gradient-to-br from-accent/10 to-primary/5 border-accent/20 p-6">
                   <div className="flex items-start space-x-4">
-                    <Sparkles className="w-8 h-8 text-accent" />
+                    <Sparkles className="w-8 h-8 text-accent flex-shrink-0" />
                     <div>
-                      <h3 className="font-semibold mb-2">AI-Powered Features Enabled</h3>
-                      <ul className="space-y-1 text-sm text-muted-foreground">
-                        <li>✓ Price optimization recommendations</li>
-                        <li>✓ Real-time analytics & insights</li>
-                        <li>✓ Smart booking management</li>
-                        <li>✓ Document compliance tracking</li>
+                      <h3 className="font-semibold mb-3">Key Features You'll Love</h3>
+                      <ul className="space-y-2 text-sm">
+                        <li className="flex items-start gap-2">
+                          <span className="text-primary font-bold">•</span>
+                          <div>
+                            <span className="font-medium">MotorIQ</span> - AI-powered pricing optimization
+                          </div>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="text-primary font-bold">•</span>
+                          <div>
+                            <span className="font-medium">Pulse</span> - Real-time analytics & insights
+                          </div>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="text-primary font-bold">•</span>
+                          <div>
+                            <span className="font-medium">Book</span> - Smart booking management
+                          </div>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="text-primary font-bold">•</span>
+                          <div>
+                            <span className="font-medium">Vault</span> - Document compliance tracking
+                          </div>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="text-primary font-bold">•</span>
+                          <div>
+                            <span className="font-medium">Rari AI</span> - Your voice-powered assistant
+                          </div>
+                        </li>
                       </ul>
                     </div>
                   </div>
                 </Card>
+
+                <div className="bg-muted/50 rounded-lg p-4 border border-border">
+                  <p className="text-sm text-muted-foreground text-center">
+                    💡 <span className="font-medium">Pro tip:</span> When you reach the dashboard, we'll show you a quick tour of the key features. You can skip it anytime!
+                  </p>
+                </div>
 
                 <Button
                   onClick={handleComplete}

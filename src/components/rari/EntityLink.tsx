@@ -21,6 +21,11 @@ export const EntityLink = ({ entity, isOwnMessage = false }: EntityLinkProps) =>
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
     
+    // Haptic feedback on mobile
+    if (navigator.vibrate) {
+      navigator.vibrate(10);
+    }
+    
     switch (entity.type) {
       case 'phone':
         window.location.href = `tel:${entity.value}`;
@@ -56,7 +61,7 @@ export const EntityLink = ({ entity, isOwnMessage = false }: EntityLinkProps) =>
   };
 
   const getColorClasses = () => {
-    const baseClasses = "inline-flex items-center gap-1 transition-all duration-200 hover:scale-105 active:scale-95 rounded px-1 -mx-1";
+    const baseClasses = "inline-flex items-center gap-1 transition-all duration-200 hover:scale-105 active:scale-95 rounded px-1.5 py-0.5 -mx-1 min-h-[32px] md:min-h-0";
     
     switch (entity.type) {
       case 'phone':

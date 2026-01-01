@@ -42,7 +42,7 @@ export const AIInsightWidget = ({ onApplyOptimization, onViewAnalysis, isLoading
       variants={fadeInUp}
     >
       <Card 
-        className="p-6 md:p-8 border-2 border-gulf-blue/30 shadow-md hover:shadow-lg transition-all overflow-hidden relative h-full"
+        className="p-6 md:p-8 border border-gulf-blue/30 shadow-md hover:shadow-lg transition-all overflow-hidden relative h-full"
         role="region"
         aria-labelledby="ai-insight-title"
       >
@@ -51,11 +51,11 @@ export const AIInsightWidget = ({ onApplyOptimization, onViewAnalysis, isLoading
         
         <div className="relative z-10 flex flex-col md:flex-row items-start md:space-x-6 space-y-4 md:space-y-0">
           <motion.div 
-            className="p-4 bg-gulf-blue/10 border-2 border-gulf-blue/30 rounded-2xl"
+            className="p-6 bg-gulf-blue/10 border border-gulf-blue/30 rounded-2xl"
             whileHover={{ scale: 1.05, rotate: 5 }}
             transition={{ type: "spring", stiffness: 400, damping: 10 }}
           >
-            <Sparkles className="h-8 w-8 md:h-10 md:w-10 text-gulf-blue animate-pulse-soft" aria-hidden="true" />
+            <Sparkles className="h-8 w-8 md:h-10 md:w-10 text-rari-teal animate-pulse-soft" aria-hidden="true" />
           </motion.div>
           <div className="flex-1 w-full">
             <div className="flex flex-col sm:flex-row items-start justify-between mb-3 gap-2">

@@ -137,7 +137,7 @@ export const QuickActionsWidget = ({ onModuleClick }: QuickActionsWidgetProps) =
             <motion.div key={action.id} variants={itemVariants}>
               <motion.button
                 onClick={action.onClick}
-                className={`flex flex-col items-center justify-center w-full h-24 p-3 rounded-xl border-2 border-transparent transition-colors ${action.bgColor} ${action.special ? 'animate-pulse-soft' : ''}`}
+                className={`flex flex-col items-center justify-center w-full h-24 p-3 rounded-xl border border-transparent transition-colors ${action.bgColor} ${action.special ? 'animate-pulse-soft' : ''}`}
                 whileHover={{ 
                   scale: 1.05, 
                   borderColor: 'hsl(var(--primary) / 0.3)',

@@ -11,7 +11,8 @@ import { useFleet } from "@/contexts/FleetContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { BarChart3, FileText, TrendingUp, FolderOpen, Users, Download, Sparkles, Loader2 } from "lucide-react";
+import { BarChart3, FileText, TrendingUp, FolderOpen, Users, Download, Sparkles, Loader2, FileJson, FileSpreadsheet } from "lucide-react";
+import { exportToCSV, exportToJSON, exportToPDF } from "@/lib/exportUtils";
 
 interface GenerateReportDialogProps {
   open: boolean;
@@ -76,47 +77,34 @@ export const GenerateReportDialog = ({
     }
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     if (!reportData) return;
 
     const fileName = `${reportType}-report-${format(new Date(), "yyyy-MM-dd")}`;
+    const selectedReport = reportTypes.find(r => r.value === reportType);
 
-    if (exportFormat === "csv") {
-      exportToCSV(reportData.details || [], fileName);
-    } else if (exportFormat === "json") {
-      exportToJSON(reportData, fileName);
+    try {
+      if (exportFormat === "csv") {
+        exportToCSV(reportData.details || [], fileName);
+        toast({ title: "CSV exported successfully" });
+      } else if (exportFormat === "json") {
+        exportToJSON(reportData, fileName);
+        toast({ title: "JSON exported successfully" });
+      } else if (exportFormat === "pdf") {
+        await exportToPDF(
+          {
+            title: `${selectedReport?.label || reportType} - ${format(new Date(startDate), "MMM d")} to ${format(new Date(endDate), "MMM d, yyyy")}`,
+            content: reportData,
+            summary: reportData.summary
+          },
+          fileName
+        );
+        toast({ title: "PDF export initiated", description: "Check your browser's print dialog" });
+      }
+    } catch (error: any) {
+      console.error('Export error:', error);
+      toast({ title: "Export failed", description: error.message, variant: "destructive" });
     }
-  };
-
-  const exportToCSV = (data: any[], fileName: string) => {
-    if (!data.length) return;
-    
-    const headers = Object.keys(data[0]);
-    const csvContent = [
-      headers.join(","),
-      ...data.map(row => headers.map(h => `"${row[h] || ""}"`).join(","))
-    ].join("\n");
-
-    downloadFile(csvContent, `${fileName}.csv`, "text/csv");
-    toast({ title: "CSV exported successfully" });
-  };
-
-  const exportToJSON = (data: any, fileName: string) => {
-    const jsonContent = JSON.stringify(data, null, 2);
-    downloadFile(jsonContent, `${fileName}.json`, "application/json");
-    toast({ title: "JSON exported successfully" });
-  };
-
-  const downloadFile = (content: string, fileName: string, mimeType: string) => {
-    const blob = new Blob([content], { type: mimeType });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
   };
 
   const selectedReport = reportTypes.find(r => r.value === reportType);
@@ -196,8 +184,24 @@ export const GenerateReportDialog = ({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="csv">CSV Spreadsheet</SelectItem>
-                  <SelectItem value="json">JSON Data</SelectItem>
+                  <SelectItem value="csv">
+                    <div className="flex items-center gap-2">
+                      <FileSpreadsheet className="h-4 w-4" />
+                      CSV Spreadsheet
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="json">
+                    <div className="flex items-center gap-2">
+                      <FileJson className="h-4 w-4" />
+                      JSON Data
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="pdf">
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      PDF Document
+                    </div>
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>

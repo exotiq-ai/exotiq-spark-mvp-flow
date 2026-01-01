@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ElevenLabs Widget Transcript Demo</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .container {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 40px;
+      max-width: 600px;
+      width: 100%;
+      box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+    }
+
+    h1 {
+      color: #fff;
+      text-align: center;
+      margin-bottom: 10px;
+      font-size: 28px;
+    }
+
+    .subtitle {
+      color: rgba(255, 255, 255, 0.7);
+      text-align: center;
+      margin-bottom: 30px;
+      font-size: 14px;
+    }
+
+    .info-box {
+      background: rgba(59, 130, 246, 0.1);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 30px;
+      color: #fff;
+    }
+
+    .info-box h3 {
+      color: #60a5fa;
+      font-size: 16px;
+      margin-bottom: 10px;
+    }
+
+    .info-box ul {
+      list-style: none;
+      padding-left: 0;
+    }
+
+    .info-box li {
+      padding: 8px 0;
+      padding-left: 24px;
+      position: relative;
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    .info-box li:before {
+      content: "✓";
+      position: absolute;
+      left: 0;
+      color: #10b981;
+      font-weight: bold;
+    }
+
+    .widget-container {
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 16px;
+      padding: 20px;
+      min-height: 400px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .instructions {
+      background: rgba(251, 191, 36, 0.1);
+      border: 1px solid rgba(251, 191, 36, 0.3);
+      border-radius: 12px;
+      padding: 15px;
+      margin-top: 20px;
+      color: #fbbf24;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .instructions strong {
+      color: #fcd34d;
+    }
+
+    @media (max-width: 640px) {
+      .container {
+        padding: 20px;
+      }
+
+      h1 {
+        font-size: 24px;
+      }
+
+      .info-box {
+        padding: 15px;
+      }
+    }
+
+    /* Custom styling for the ElevenLabs widget */
+    elevenlabs-convai {
+      width: 100%;
+      height: 100%;
+      min-height: 400px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎙️ Rari Widget Test</h1>
+    <p class="subtitle">Testing ElevenLabs Widget with Transcript Feature</p>
+
+    <div class="info-box">
+      <h3>What This Demo Tests:</h3>
+      <ul>
+        <li>ElevenLabs widget transcript display</li>
+        <li>Real-time text-to-speech conversion</li>
+        <li>Voice + text response simultaneously</li>
+        <li>Built-in transcript UI from ElevenLabs</li>
+      </ul>
+    </div>
+
+    <div class="widget-container">
+      <!-- ElevenLabs Conversational AI Widget -->
+      <elevenlabs-convai agent-id="agent_0001k9d5pvdwfmvv7aq0mhaexgd6"></elevenlabs-convai>
+    </div>
+
+    <div class="instructions">
+      <strong>Test Instructions:</strong><br>
+      1. Click the widget to start<br>
+      2. Grant microphone permission<br>
+      3. Say "Hello Rari, what can you help me with?"<br>
+      4. Watch for the transcript to appear in the widget<br>
+      5. If you see text transcripts → Widget approach works! ✅
+    </div>
+  </div>
+
+  <!-- Load the ElevenLabs widget script -->
+  <script src="https://unpkg.com/@elevenlabs/convai-widget-embed@beta" async type="text/javascript"></script>
+
+  <script>
+    // Optional: Listen to widget events
+    document.addEventListener('DOMContentLoaded', function() {
+      const widget = document.querySelector('elevenlabs-convai');
+      
+      if (widget) {
+        console.log('✅ ElevenLabs widget loaded');
+        
+        // You can listen to custom events if the widget emits them
+        widget.addEventListener('transcript', (event) => {
+          console.log('📝 Transcript received:', event.detail);
+        });
+        
+        widget.addEventListener('ready', () => {
+          console.log('🎉 Widget is ready!');
+        });
+      }
+    });
+  </script>
+</body>
+</html>

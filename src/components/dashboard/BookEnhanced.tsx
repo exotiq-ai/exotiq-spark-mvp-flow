@@ -10,10 +10,11 @@ import { BookingDetailsDialog } from "@/components/dialogs/BookingDetailsDialog"
 import { BookingCalendar } from "@/components/dashboard/BookingCalendar";
 import { PaymentTracker } from "@/components/dashboard/PaymentTracker";
 import { InspectionForm } from "@/components/dashboard/InspectionForm";
+import { CRMSection } from "@/components/dashboard/CRMSection";
 import { VehicleImageDialog } from "@/components/dialogs/VehicleImageDialog";
 import { AskRariQuickAction } from "@/components/common/AskRariQuickAction";
 import { SkeletonCard, SkeletonMetric } from "@/components/ui/skeleton-card";
-import { EmptyState } from "@/components/common/EmptyState";
+import { EmptyState, NoBookingsState } from "@/components/common/EmptyState";
 import { getVehicleImage } from "@/lib/vehicleImageMapping";
 import { 
   Calendar as CalendarIcon, 
@@ -55,6 +56,9 @@ export const BookEnhanced = () => {
       severity: 'low' | 'medium' | 'high';
     }>;
   } | null>(null);
+
+  // Show empty state if no bookings
+  const hasNoBookings = !loading && bookings.length === 0;
 
   const handleVehicleClick = (vehicleId: string, returnDate?: string) => {
     const vehicle = vehicles.find(v => v.id === vehicleId);
@@ -195,7 +199,7 @@ export const BookEnhanced = () => {
       )}
 
       <Tabs defaultValue="overview" className="space-y-4 sm:space-y-6 w-full overflow-x-hidden">
-        <TabsList className="sticky top-0 z-10 grid w-full grid-cols-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border/50">
+        <TabsList className="sticky top-0 z-10 grid w-full grid-cols-5 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border/50">
           <TabsTrigger value="overview">
             <Car className="w-4 h-4 mr-2" />
             Overview
@@ -203,6 +207,10 @@ export const BookEnhanced = () => {
           <TabsTrigger value="calendar">
             <CalendarIcon className="w-4 h-4 mr-2" />
             Calendar
+          </TabsTrigger>
+          <TabsTrigger value="customers">
+            <Users className="w-4 h-4 mr-2" />
+            Customers
           </TabsTrigger>
           <TabsTrigger value="payments">
             <Receipt className="w-4 h-4 mr-2" />
@@ -384,6 +392,10 @@ export const BookEnhanced = () => {
 
         <TabsContent value="calendar">
           <BookingCalendar />
+        </TabsContent>
+
+        <TabsContent value="customers">
+          <CRMSection />
         </TabsContent>
 
         <TabsContent value="payments">

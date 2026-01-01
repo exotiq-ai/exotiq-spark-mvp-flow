@@ -1,7 +1,7 @@
 -- Create Rari Action Items table
 CREATE TABLE IF NOT EXISTS public.rari_action_items (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   conversation_id UUID REFERENCES public.rari_conversations(id) ON DELETE SET NULL,
   message_id UUID REFERENCES public.rari_messages(id) ON DELETE SET NULL,
   action_text TEXT NOT NULL,

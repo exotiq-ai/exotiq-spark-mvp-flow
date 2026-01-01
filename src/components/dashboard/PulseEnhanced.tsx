@@ -78,7 +78,7 @@ export const PulseEnhanced = () => {
     return (
       <div className="space-y-6">
         {/* Hero metric skeleton */}
-        <Card className="p-8 bg-gradient-to-br from-primary/5 to-accent/5">
+        <Card className="p-8 bg-gradient-to-br from-gulf-blue/5 to-performance-orange/5">
           <div className="flex items-start justify-between mb-4">
             <div className="space-y-3">
               <div className="h-6 w-20 bg-primary/20 rounded-full animate-pulse" />
@@ -126,7 +126,7 @@ export const PulseEnhanced = () => {
   return (
     <div className="space-y-6">
       {/* Hero Metric */}
-      <Card className="card-premium bg-gradient-to-br from-primary/10 to-accent/10 border-primary/20 p-8">
+      <Card className="card-premium bg-gradient-to-br from-gulf-blue/10 to-performance-orange/5 border-gulf-blue/20 p-8">
         <div className="flex items-start justify-between mb-4">
           <div>
             <div className="flex items-center gap-2 mb-3">
@@ -314,7 +314,7 @@ export const PulseEnhanced = () => {
           {upcomingEvents.map((event, index) => (
             <div 
               key={index} 
-              className="p-4 rounded-xl bg-gradient-to-br from-accent/10 to-primary/5 border border-accent/20"
+              className="p-4 rounded-xl bg-gradient-to-br from-gulf-blue/5 to-performance-orange/5 border border-gulf-blue/20"
             >
               <div className="flex items-start justify-between mb-3">
                 <div>

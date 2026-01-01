@@ -20,6 +20,7 @@ interface RariTranscriptProps {
   conversationId: string | null;
   conversationDbId?: string | null;
   startTime?: Date;
+  partialTranscript?: string;
   onClear?: () => void;
 }
 
@@ -29,6 +30,7 @@ export const RariTranscript = ({
   conversationId,
   conversationDbId,
   startTime,
+  partialTranscript = '',
   onClear,
 }: RariTranscriptProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -71,7 +73,7 @@ export const RariTranscript = ({
   };
 
   return (
-    <Card className="p-6 glass-card flex flex-col h-full">
+    <Card className="p-3 md:p-4 lg:p-6 glass-card flex flex-col h-full min-h-[500px] lg:min-h-[600px]">
       <TranscriptHeader
         messageCount={messages.length}
         startTime={startTime}
@@ -83,15 +85,20 @@ export const RariTranscript = ({
         onClear={onClear}
       />
       
-      <ScrollArea className="flex-1 mt-4 pr-4" ref={scrollRef}>
-        {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-[400px] text-muted-foreground">
-            <MessageSquare className="h-12 w-12 mb-4 opacity-20" />
-            <p className="text-sm">
+      <ScrollArea className="flex-1 mt-3 md:mt-4 pr-2 md:pr-4" ref={scrollRef}>
+        {messages.length === 0 && !partialTranscript ? (
+          <div className="flex flex-col items-center justify-center h-[300px] md:h-[400px] text-muted-foreground">
+            <MessageSquare className="h-10 w-10 md:h-12 md:w-12 mb-3 md:mb-4 opacity-20" />
+            <p className="text-xs md:text-sm text-center px-4">
               {isConnected 
-                ? "Conversation transcript will appear here..."
-                : "Start a conversation to see the transcript"}
+                ? "Start speaking — your conversation transcript will appear here in real-time..."
+                : "Start a conversation to see the live transcript"}
             </p>
+            {isConnected && (
+              <p className="text-xs text-muted-foreground/60 mt-2 text-center px-4">
+                Phone numbers, customer names, and booking IDs will be clickable
+              </p>
+            )}
           </div>
         ) : (
           <div className="space-y-1">
@@ -108,6 +115,19 @@ export const RariTranscript = ({
                 />
               );
             })}
+            
+            {/* Partial transcript - shows what user is currently saying */}
+            {partialTranscript && (
+              <div className="flex justify-end mb-2 animate-in fade-in slide-in-from-right duration-200">
+                <div className="max-w-[85%] md:max-w-[75%] bg-gulf-blue/10 text-foreground rounded-2xl px-3 py-2 md:px-4 md:py-2.5 border border-gulf-blue/20">
+                  <p className="text-xs md:text-sm italic text-muted-foreground">
+                    {partialTranscript}
+                    <span className="inline-block w-1 h-4 ml-1 bg-gulf-blue animate-pulse" />
+                  </p>
+                </div>
+              </div>
+            )}
+            
             <div ref={endOfMessagesRef} />
           </div>
         )}

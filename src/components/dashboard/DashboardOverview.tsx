@@ -9,6 +9,7 @@ import { QuickActionsWidget } from "./widgets/QuickActionsWidget";
 import { PriceOptimizationDialog } from "@/components/dialogs/PriceOptimizationDialog";
 import { useFleet } from "@/contexts/FleetContext";
 import { DemoOnboarding } from "@/components/demo/DemoOnboarding";
+import { PageHeader } from "@/components/common/PageHeader";
 
 interface DashboardOverviewProps {
   onModuleClick: (moduleId: string) => void;
@@ -29,7 +30,12 @@ export const DashboardOverview = ({ onModuleClick }: DashboardOverviewProps) => 
         onApply={(vehicleId, newRate) => applyPriceOptimization(vehicleId, newRate)}
       />
 
-      <div className="space-y-4 md:space-y-6">
+      <div className="space-y-6 md:space-y-8">
+        <PageHeader 
+          title="Command Center"
+          subtitle="Real-time fleet operations at your fingertips"
+          showDivider={false}
+        />
         <BannerWidget />
         <div data-tour="revenue-widget">
           <RevenueWidget />
@@ -39,7 +45,7 @@ export const DashboardOverview = ({ onModuleClick }: DashboardOverviewProps) => 
           onApplyOptimization={() => setShowOptimizationDialog(true)}
           onViewAnalysis={() => onModuleClick('motoriq')}
         />
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
           <FleetStatusWidget onViewAll={() => onModuleClick('motoriq')} />
           <ScheduleWidget onViewCalendar={() => onModuleClick('book')} />
         </div>

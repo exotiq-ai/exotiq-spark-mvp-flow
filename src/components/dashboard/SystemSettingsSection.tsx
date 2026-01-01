@@ -43,7 +43,7 @@ export const SystemSettingsSection = () => {
       aiAssistance: true
     },
     business: {
-      businessName: "ExotIQ Fleet Management",
+      businessName: "Exotiq Fleet Management",
       timezone: "America/New_York",
       currency: "USD",
       language: "en",

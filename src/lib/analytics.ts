@@ -79,11 +79,13 @@ class Analytics {
     try {
       // In a real app, this would send to your analytics service
       if (process.env.NODE_ENV === 'development') {
-        console.group('📊 Analytics Events');
-        this.queue.forEach(event => {
-          console.log(`🎯 ${event.event}:`, event.properties);
-        });
-        console.groupEnd();
+        if (process.env.NODE_ENV === 'development') {
+          console.group('📊 Analytics Events');
+          this.queue.forEach(event => {
+            console.log(`🎯 ${event.event}:`, event.properties);
+          });
+          console.groupEnd();
+        }
       }
 
       // Send to analytics service

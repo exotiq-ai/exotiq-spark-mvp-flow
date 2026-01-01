@@ -4,6 +4,7 @@ import { useAuth } from './AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Database } from '@/integrations/supabase/types';
 import { z } from 'zod';
+import confetti from 'canvas-confetti';
 import { 
   customerSchema, 
   bookingSchema, 
@@ -274,10 +275,53 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
 
       await refreshData();
       
-      toast({
-        title: "Vehicle Added",
-        description: "New vehicle has been added to your fleet.",
-      });
+      // Check if this is the first vehicle
+      const isFirstVehicle = vehicles.length === 0;
+      
+      if (isFirstVehicle) {
+        // Fire confetti for first vehicle milestone
+        const duration = 2000;
+        const animationEnd = Date.now() + duration;
+        
+        const randomInRange = (min: number, max: number) => {
+          return Math.random() * (max - min) + min;
+        };
+
+        const colors = ['#0B3D91', '#FF6B35', '#FFD700']; // Gulf Blue, Performance Orange, Gold
+
+        const interval = setInterval(() => {
+          const timeLeft = animationEnd - Date.now();
+
+          if (timeLeft <= 0) {
+            clearInterval(interval);
+            return;
+          }
+
+          confetti({
+            particleCount: 2,
+            angle: randomInRange(55, 125),
+            spread: randomInRange(50, 70),
+            origin: { y: 0.6 },
+            colors,
+          });
+        }, 50);
+
+        // Haptic feedback
+        if ('vibrate' in navigator) {
+          navigator.vibrate([50, 30, 50]);
+        }
+
+        toast({
+          title: "🚗 First Vehicle Added!",
+          description: "Great start! Your fleet is taking shape. Add more vehicles to maximize your revenue.",
+          duration: 5000,
+        });
+      } else {
+        toast({
+          title: "Vehicle Added",
+          description: "New vehicle has been added to your fleet.",
+        });
+      }
     } catch (error) {
       if (error instanceof z.ZodError) {
         toast({
@@ -316,10 +360,53 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
 
       await refreshData();
       
-      toast({
-        title: "Booking Created",
-        description: "New booking has been created successfully.",
-      });
+      // Check if this is the first booking
+      const isFirstBooking = bookings.length === 0;
+      
+      if (isFirstBooking) {
+        // Fire confetti for first booking milestone
+        const duration = 2000;
+        const animationEnd = Date.now() + duration;
+        
+        const randomInRange = (min: number, max: number) => {
+          return Math.random() * (max - min) + min;
+        };
+
+        const colors = ['#0B3D91', '#FF6B35', '#FFD700']; // Gulf Blue, Performance Orange, Gold
+
+        const interval = setInterval(() => {
+          const timeLeft = animationEnd - Date.now();
+
+          if (timeLeft <= 0) {
+            clearInterval(interval);
+            return;
+          }
+
+          confetti({
+            particleCount: 2,
+            angle: randomInRange(55, 125),
+            spread: randomInRange(50, 70),
+            origin: { y: 0.6 },
+            colors,
+          });
+        }, 50);
+
+        // Haptic feedback
+        if ('vibrate' in navigator) {
+          navigator.vibrate([50, 30, 50]);
+        }
+
+        toast({
+          title: "🎉 First Booking Created!",
+          description: "Congratulations on your first booking! Your fleet is now generating revenue.",
+          duration: 5000,
+        });
+      } else {
+        toast({
+          title: "Booking Created",
+          description: "New booking has been created successfully.",
+        });
+      }
     } catch (error) {
       if (error instanceof z.ZodError) {
         toast({
@@ -888,7 +975,9 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     if (!user || realtimeInitialized.current) return;
     
     realtimeInitialized.current = true;
-    console.log('🔄 Initializing realtime subscriptions...');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔄 Initializing realtime subscriptions...');
+    }
     
     const bookingsChannel = supabase
       .channel('bookings-realtime')
@@ -910,10 +999,14 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'customers' }, () => refreshCustomers())
       .subscribe();
 
-    console.log('✅ Realtime subscriptions active');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('✅ Realtime subscriptions active');
+    }
 
     return () => {
-      console.log('🔴 Cleaning up realtime subscriptions...');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔴 Cleaning up realtime subscriptions...');
+      }
       realtimeInitialized.current = false;
       supabase.removeChannel(bookingsChannel);
       supabase.removeChannel(paymentsChannel);

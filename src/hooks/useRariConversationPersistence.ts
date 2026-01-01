@@ -42,7 +42,8 @@ export function useRariConversationPersistence() {
     sessionId: string
   ): Promise<string | null> => {
     if (!user) {
-      console.error('No user logged in');
+      console.warn('[Rari Persistence] No user logged in - conversation will work in-memory only');
+      // Don't show error - just work without persistence
       return null;
     }
 
@@ -57,13 +58,26 @@ export function useRariConversationPersistence() {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('[Rari Persistence] Database error:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+        });
+        
+        // Fail silently - conversation still works in-memory
+        // Don't spam user with error toasts
+        console.warn('[Rari Persistence] Continuing without database persistence');
+        return null;
+      }
 
-      console.log('[Rari Persistence] Conversation started:', data.id);
+      console.log('[Rari Persistence] ✅ Conversation saved:', data.id);
       return data.id;
-    } catch (error) {
-      console.error('[Rari Persistence] Error starting conversation:', error);
-      toast.error('Failed to save conversation');
+      
+    } catch (error: any) {
+      console.error('[Rari Persistence] Unexpected error:', error);
+      // Fail gracefully - transcripts still work in-memory
       return null;
     }
   }, [user]);
@@ -73,7 +87,10 @@ export function useRariConversationPersistence() {
     message: Message,
     entities: DetectedEntity[] = []
   ): Promise<void> => {
-    if (!user || !conversationId) return;
+    if (!user || !conversationId) {
+      console.warn('[Rari Persistence] Skipping message save - no user or conversation ID');
+      return;
+    }
 
     setIsSaving(true);
     try {
@@ -92,29 +109,28 @@ export function useRariConversationPersistence() {
           timestamp: message.timestamp.toISOString(),
         });
 
-      if (messageError) throw messageError;
+      if (messageError) {
+        console.error('[Rari Persistence] Failed to save message:', messageError.message);
+        return; // Fail silently
+      }
 
       // Update conversation message count
       const { error: updateError } = await supabase
-        .rpc('increment_rari_message_count', {
-          conversation_id: conversationId,
+        .from('rari_conversations')
+        .update({
+          message_count: supabase.raw('message_count + 1'),
+          updated_at: new Date().toISOString(),
         })
-        .single();
+        .eq('id', conversationId);
 
-      // If the RPC doesn't exist yet, manually update
       if (updateError) {
-        await supabase
-          .from('rari_conversations')
-          .update({
-            message_count: supabase.raw('message_count + 1'),
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', conversationId);
+        console.warn('[Rari Persistence] Failed to update message count:', updateError.message);
       }
 
-      console.log('[Rari Persistence] Message saved');
-    } catch (error) {
-      console.error('[Rari Persistence] Error saving message:', error);
+      console.log('[Rari Persistence] ✅ Message saved');
+    } catch (error: any) {
+      console.error('[Rari Persistence] Error saving message:', error.message);
+      // Continue silently - don't disrupt user experience
     } finally {
       setIsSaving(false);
     }
