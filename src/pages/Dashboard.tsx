@@ -282,9 +282,7 @@ const Dashboard = () => {
               { id: "core", label: "AI", icon: Brain, minRole: 'operator' as const },
             ].filter(item => !item.minRole || hasRoleOrHigher(item.minRole)).map((item) => {
               const Icon = item.icon;
-              const isActive = item.aliases 
-                ? [item.id, ...item.aliases].includes(activeModule)
-                : activeModule === item.id;
+              const isActive = activeModule === item.id;
               
               return (
                 <motion.button

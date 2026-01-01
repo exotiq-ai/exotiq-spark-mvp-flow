@@ -1,5 +1,4 @@
 import { useState, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface SearchResult {
@@ -11,6 +10,11 @@ interface SearchResult {
   conversation_started_at: string;
 }
 
+/**
+ * In-memory Rari search hook
+ * Database table (rari_messages) doesn't exist yet
+ * Returns empty results for now
+ */
 export function useRariSearch() {
   const { user } = useAuth();
   const [isSearching, setIsSearching] = useState(false);
@@ -26,44 +30,10 @@ export function useRariSearch() {
     setIsSearching(true);
     setSearchQuery(query);
 
-    try {
-      // Search in messages content
-      const { data, error } = await supabase
-        .from('rari_messages')
-        .select(`
-          id,
-          conversation_id,
-          content,
-          role,
-          timestamp,
-          rari_conversations!inner (
-            user_id,
-            started_at
-          )
-        `)
-        .ilike('content', `%${query}%`)
-        .eq('rari_conversations.user_id', user.id)
-        .order('timestamp', { ascending: false })
-        .limit(50);
-
-      if (error) throw error;
-
-      const results: SearchResult[] = (data || []).map((item: any) => ({
-        message_id: item.id,
-        conversation_id: item.conversation_id,
-        content: item.content,
-        role: item.role,
-        timestamp: item.timestamp,
-        conversation_started_at: item.rari_conversations.started_at,
-      }));
-
-      setSearchResults(results);
-    } catch (error) {
-      console.error('[Rari Search] Error searching messages:', error);
-      setSearchResults([]);
-    } finally {
-      setIsSearching(false);
-    }
+    // No database table exists yet, return empty results
+    console.log('[Rari Search] Database not available, returning empty results');
+    setSearchResults([]);
+    setIsSearching(false);
   }, [user]);
 
   const clearSearch = useCallback(() => {

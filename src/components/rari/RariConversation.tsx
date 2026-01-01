@@ -71,9 +71,9 @@ export const RariConversation = ({ messages, isConnected = false, className }: R
           {messages.map((msg, idx) => (
             <RariMessage
               key={idx}
-              role={msg.role}
-              content={msg.content}
-              timestamp={msg.timestamp}
+              message={msg}
+              isOwn={msg.role === 'user'}
+              showAvatar={true}
             />
           ))}
         </div>

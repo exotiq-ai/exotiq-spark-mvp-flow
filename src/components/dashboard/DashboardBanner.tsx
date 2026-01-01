@@ -61,7 +61,7 @@ export const DashboardBanner = () => {
 
       const { data, error } = await supabase
         .from('user_dashboard_preferences')
-        .select('banner_url, company_name, company_tagline, show_company_branding, banner_height, banner_text_position, show_carbon_fiber')
+        .select('banner_url, logo_url')
         .eq('user_id', user.id)
         .single();
 
@@ -76,12 +76,12 @@ export const DashboardBanner = () => {
         }
         setPreferences({
           banner_url: data.banner_url,
-          company_name: data.company_name,
-          company_tagline: data.company_tagline,
-          show_company_branding: data.show_company_branding ?? true,
-          banner_height: data.banner_height || 'standard',
-          banner_text_position: data.banner_text_position || 'left',
-          show_carbon_fiber: data.show_carbon_fiber ?? false,
+          company_name: null,
+          company_tagline: null,
+          show_company_branding: true,
+          banner_height: 'standard',
+          banner_text_position: 'left',
+          show_carbon_fiber: false,
         });
       }
     } catch (error) {

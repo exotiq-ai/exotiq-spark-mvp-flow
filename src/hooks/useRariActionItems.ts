@@ -1,5 +1,4 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
@@ -26,42 +25,19 @@ const ACTION_PATTERNS = [
   /make sure to (.+)/gi,
 ];
 
+/**
+ * In-memory action items hook
+ * Database table (rari_action_items) doesn't exist yet
+ * This provides the same API but stores data in memory only
+ */
 export function useRariActionItems(conversationId?: string, messageId?: string) {
   const { user } = useAuth();
   const [actionItems, setActionItems] = useState<ActionItem[]>([]);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (user) {
-      loadActionItems();
-    }
-  }, [user, conversationId]);
-
   const loadActionItems = async () => {
-    if (!user) return;
-
-    setLoading(true);
-    try {
-      let query = supabase
-        .from('rari_action_items')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (conversationId) {
-        query = query.eq('conversation_id', conversationId);
-      }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-
-      setActionItems(data || []);
-    } catch (error) {
-      console.error('[Action Items] Error loading:', error);
-    } finally {
-      setLoading(false);
-    }
+    // No-op - no database yet
+    setLoading(false);
   };
 
   const detectActionItems = (content: string): string[] => {
@@ -87,73 +63,44 @@ export function useRariActionItems(conversationId?: string, messageId?: string) 
   ): Promise<boolean> => {
     if (!user) return false;
 
-    try {
-      const { error } = await supabase
-        .from('rari_action_items')
-        .insert({
-          user_id: user.id,
-          conversation_id: conversationId || null,
-          message_id: messageId || null,
-          action_text: actionText,
-          due_date: dueDate?.toISOString() || null,
-        });
+    // Create in-memory action item
+    const newItem: ActionItem = {
+      id: `local-${Date.now()}`,
+      user_id: user.id,
+      conversation_id: conversationId || null,
+      message_id: messageId || null,
+      action_text: actionText,
+      due_date: dueDate?.toISOString() || null,
+      completed: false,
+      completed_at: null,
+      created_at: new Date().toISOString(),
+    };
 
-      if (error) throw error;
-
-      toast.success('Action item created');
-      await loadActionItems();
-      return true;
-    } catch (error) {
-      console.error('[Action Items] Error creating:', error);
-      toast.error('Failed to create action item');
-      return false;
-    }
+    setActionItems(prev => [newItem, ...prev]);
+    toast.success('Action item created (in-memory)');
+    return true;
   };
 
   const completeActionItem = async (itemId: string): Promise<boolean> => {
     if (!user) return false;
 
-    try {
-      const { error } = await supabase
-        .from('rari_action_items')
-        .update({
-          completed: true,
-          completed_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', itemId);
-
-      if (error) throw error;
-
-      toast.success('Action item completed');
-      await loadActionItems();
-      return true;
-    } catch (error) {
-      console.error('[Action Items] Error completing:', error);
-      toast.error('Failed to complete action item');
-      return false;
-    }
+    setActionItems(prev => 
+      prev.map(item => 
+        item.id === itemId 
+          ? { ...item, completed: true, completed_at: new Date().toISOString() }
+          : item
+      )
+    );
+    toast.success('Action item completed');
+    return true;
   };
 
   const deleteActionItem = async (itemId: string): Promise<boolean> => {
     if (!user) return false;
 
-    try {
-      const { error } = await supabase
-        .from('rari_action_items')
-        .delete()
-        .eq('id', itemId);
-
-      if (error) throw error;
-
-      toast.success('Action item deleted');
-      await loadActionItems();
-      return true;
-    } catch (error) {
-      console.error('[Action Items] Error deleting:', error);
-      toast.error('Failed to delete action item');
-      return false;
-    }
+    setActionItems(prev => prev.filter(item => item.id !== itemId));
+    toast.success('Action item deleted');
+    return true;
   };
 
   return {

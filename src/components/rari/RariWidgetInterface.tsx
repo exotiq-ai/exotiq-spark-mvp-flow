@@ -13,7 +13,6 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRariConversationPersistence } from '@/hooks/useRariConversationPersistence';
-import { useEntityDetection } from '@/hooks/useEntityDetection';
 import { RariVoiceWaveform } from './RariVoiceWaveform';
 import { RariTranscript } from './RariTranscript';
 import { supabase } from '@/integrations/supabase/client';
@@ -77,7 +76,6 @@ export const RariWidgetInterface = () => {
     saveMessage, 
     endConversation 
   } = useRariConversationPersistence();
-  const { detectEntities } = useEntityDetection();
   
   // Load widget script
   useEffect(() => {
@@ -229,15 +227,11 @@ export const RariWidgetInterface = () => {
       // Add to messages state for display in custom transcript
       setMessages(prev => [...prev, newMessage]);
       
-      // Detect entities in the text
-      const entities = detectEntities(text);
-      if (entities.length > 0) {
-        console.log('[Rari Widget] 🔍 Detected entities:', entities.map(e => ({ type: e.type, value: e.displayText })));
-      }
+      // Note: Entity detection happens in RariTranscript component
       
       // Save to database
       if (conversationId) {
-        await saveMessage(conversationId, newMessage, entities);
+        await saveMessage(conversationId, newMessage);
       }
       
       setMessageCount(prev => prev + 1);
@@ -291,7 +285,6 @@ export const RariWidgetInterface = () => {
   }, [
     status.isLoaded, 
     conversationId, 
-    detectEntities, 
     saveMessage, 
     handleConversationStart, 
     handleConversationEnd
