@@ -188,11 +188,11 @@ export const DashboardOnboarding = () => {
           className={cn(
             'absolute pointer-events-auto',
             isCenterStep && 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2',
-            !isCenterStep && currentStepData.position === 'left' && 'top-32 left-8',
-            !isCenterStep && currentStepData.position === 'right' && 'top-32 right-8'
+            !isCenterStep && currentStepData.position === 'left' && 'top-24 sm:top-32 left-4 sm:left-8',
+            !isCenterStep && currentStepData.position === 'right' && 'top-24 sm:top-32 right-4 sm:right-8'
           )}
         >
-          <Card className="w-[90vw] sm:w-[400px] p-6 shadow-2xl border-2 border-primary/20">
+          <Card className="w-[calc(100vw-2rem)] sm:w-[400px] max-w-[400px] p-4 sm:p-6 shadow-2xl border-2 border-primary/20">
             {/* Close button */}
             <button
               onClick={handleSkip}
@@ -203,16 +203,16 @@ export const DashboardOnboarding = () => {
             </button>
 
             {/* Icon */}
-            <div className="flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-primary to-accent mb-4">
-              <Icon className="h-8 w-8 text-white" />
+            <div className="flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-primary to-accent mb-3 sm:mb-4">
+              <Icon className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
             </div>
 
             {/* Content */}
-            <h3 className="text-xl font-bold mb-2">{currentStepData.title}</h3>
-            <p className="text-muted-foreground mb-6">{currentStepData.description}</p>
+            <h3 className="text-lg sm:text-xl font-bold mb-2 pr-8">{currentStepData.title}</h3>
+            <p className="text-sm sm:text-base text-muted-foreground mb-4 sm:mb-6">{currentStepData.description}</p>
 
             {/* Progress dots */}
-            <div className="flex items-center justify-center gap-2 mb-6">
+            <div className="flex items-center justify-center gap-2 mb-4 sm:mb-6">
               {onboardingSteps.map((_, index) => (
                 <div
                   key={index}

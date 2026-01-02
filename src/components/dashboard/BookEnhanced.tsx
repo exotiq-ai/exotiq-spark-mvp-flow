@@ -199,28 +199,51 @@ export const BookEnhanced = () => {
       )}
 
       <Tabs defaultValue="overview" className="space-y-4 sm:space-y-6 w-full overflow-x-hidden">
-        <TabsList className="sticky top-0 z-10 grid w-full grid-cols-5 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border/50">
-          <TabsTrigger value="overview">
-            <Car className="w-4 h-4 mr-2" />
-            Overview
-          </TabsTrigger>
-          <TabsTrigger value="calendar">
-            <CalendarIcon className="w-4 h-4 mr-2" />
-            Calendar
-          </TabsTrigger>
-          <TabsTrigger value="customers">
-            <Users className="w-4 h-4 mr-2" />
-            Customers
-          </TabsTrigger>
-          <TabsTrigger value="payments">
-            <Receipt className="w-4 h-4 mr-2" />
-            Payments
-          </TabsTrigger>
-          <TabsTrigger value="inspections">
-            <ClipboardCheck className="w-4 h-4 mr-2" />
-            Inspections
-          </TabsTrigger>
-        </TabsList>
+        {/* ENHANCED MOBILE-FRIENDLY HEADER */}
+        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border/50">
+          <TabsList className="grid w-full grid-cols-5 gap-0 p-0 bg-transparent">
+            <TabsTrigger 
+              value="overview"
+              className="min-h-[44px] sm:min-h-[48px] data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-none border-b-2 border-transparent data-[state=active]:border-primary transition-all"
+            >
+              <Car className="w-4 h-4 md:mr-2" />
+              <span className="hidden md:inline">Overview</span>
+            </TabsTrigger>
+            
+            <TabsTrigger 
+              value="calendar"
+              className="min-h-[44px] sm:min-h-[48px] data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-none border-b-2 border-transparent data-[state=active]:border-primary transition-all"
+            >
+              <CalendarIcon className="w-4 h-4 md:mr-2" />
+              <span className="hidden md:inline">Calendar</span>
+            </TabsTrigger>
+            
+            <TabsTrigger 
+              value="customers"
+              className="min-h-[44px] sm:min-h-[48px] data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-none border-b-2 border-transparent data-[state=active]:border-primary transition-all"
+            >
+              <Users className="w-4 h-4 md:mr-2" />
+              <span className="hidden md:inline">CRM</span>
+            </TabsTrigger>
+            
+            <TabsTrigger 
+              value="payments"
+              className="min-h-[44px] sm:min-h-[48px] data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-none border-b-2 border-transparent data-[state=active]:border-primary transition-all"
+            >
+              <Receipt className="w-4 h-4 md:mr-2" />
+              <span className="hidden md:inline">Payments</span>
+            </TabsTrigger>
+            
+            <TabsTrigger 
+              value="inspections"
+              className="min-h-[44px] sm:min-h-[48px] data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-none border-b-2 border-transparent data-[state=active]:border-primary transition-all"
+            >
+              <ClipboardCheck className="w-4 h-4 md:mr-2" />
+              <span className="hidden sm:inline md:hidden">Inspect</span>
+              <span className="hidden md:inline">Inspections</span>
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="overview" className="space-y-4 sm:space-y-6">
         {/* Next Pickup Card */}
