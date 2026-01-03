@@ -12,13 +12,15 @@ import {
   BarChart3
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { MobileLocationSelector } from "./MobileLocationSelector";
 
 interface MobileMoreMenuProps {
+  onAddLocation?: () => void;
   activeModule: string;
   onModuleChange: (moduleId: string) => void;
 }
 
-export const MobileMoreMenu = ({ activeModule, onModuleChange }: MobileMoreMenuProps) => {
+export const MobileMoreMenu = ({ onAddLocation, activeModule, onModuleChange }: MobileMoreMenuProps) => {
   const [open, setOpen] = useState(false);
 
   const menuItems = [
@@ -87,6 +89,11 @@ export const MobileMoreMenu = ({ activeModule, onModuleChange }: MobileMoreMenuP
         <SheetHeader className="text-left pb-3">
           <SheetTitle className="text-base font-semibold">More Options</SheetTitle>
         </SheetHeader>
+
+        {/* Mobile Location Selector */}
+        <div className="mb-4">
+          <MobileLocationSelector onAddLocation={onAddLocation} />
+        </div>
         
         {/* Primary Navigation Items */}
         <div className="space-y-2 mb-5">
