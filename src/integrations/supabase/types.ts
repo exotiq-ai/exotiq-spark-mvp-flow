@@ -106,6 +106,7 @@ export type Database = {
           delivery_fee: number | null
           deposit_amount: number | null
           dropoff_location: string | null
+          dropoff_location_id: string | null
           end_date: string
           id: string
           mileage_limit: number | null
@@ -114,6 +115,7 @@ export type Database = {
           payment_status: string | null
           pickup_fuel_level: number | null
           pickup_location: string
+          pickup_location_id: string | null
           pickup_odometer: number | null
           requires_delivery: boolean | null
           return_fuel_level: number | null
@@ -122,6 +124,7 @@ export type Database = {
           security_deposit_status: string | null
           start_date: string
           status: string | null
+          team_id: string | null
           total_value: number
           updated_at: string | null
           user_id: string
@@ -142,6 +145,7 @@ export type Database = {
           delivery_fee?: number | null
           deposit_amount?: number | null
           dropoff_location?: string | null
+          dropoff_location_id?: string | null
           end_date: string
           id?: string
           mileage_limit?: number | null
@@ -150,6 +154,7 @@ export type Database = {
           payment_status?: string | null
           pickup_fuel_level?: number | null
           pickup_location: string
+          pickup_location_id?: string | null
           pickup_odometer?: number | null
           requires_delivery?: boolean | null
           return_fuel_level?: number | null
@@ -158,6 +163,7 @@ export type Database = {
           security_deposit_status?: string | null
           start_date: string
           status?: string | null
+          team_id?: string | null
           total_value: number
           updated_at?: string | null
           user_id: string
@@ -178,6 +184,7 @@ export type Database = {
           delivery_fee?: number | null
           deposit_amount?: number | null
           dropoff_location?: string | null
+          dropoff_location_id?: string | null
           end_date?: string
           id?: string
           mileage_limit?: number | null
@@ -186,6 +193,7 @@ export type Database = {
           payment_status?: string | null
           pickup_fuel_level?: number | null
           pickup_location?: string
+          pickup_location_id?: string | null
           pickup_odometer?: number | null
           requires_delivery?: boolean | null
           return_fuel_level?: number | null
@@ -194,6 +202,7 @@ export type Database = {
           security_deposit_status?: string | null
           start_date?: string
           status?: string | null
+          team_id?: string | null
           total_value?: number
           updated_at?: string | null
           user_id?: string
@@ -205,6 +214,27 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_dropoff_location_id_fkey"
+            columns: ["dropoff_location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_pickup_location_id_fkey"
+            columns: ["pickup_location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
             referencedColumns: ["id"]
           },
           {
@@ -329,6 +359,7 @@ export type Database = {
           phone: string | null
           preferences: Json | null
           stripe_customer_id: string | null
+          team_id: string | null
           total_bookings: number | null
           updated_at: string | null
           user_id: string
@@ -358,6 +389,7 @@ export type Database = {
           phone?: string | null
           preferences?: Json | null
           stripe_customer_id?: string | null
+          team_id?: string | null
           total_bookings?: number | null
           updated_at?: string | null
           user_id: string
@@ -387,11 +419,19 @@ export type Database = {
           phone?: string | null
           preferences?: Json | null
           stripe_customer_id?: string | null
+          team_id?: string | null
           total_bookings?: number | null
           updated_at?: string | null
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "customers_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "customers_user_id_fkey"
             columns: ["user_id"]
@@ -419,6 +459,7 @@ export type Database = {
           resolution_notes: string | null
           resolved_date: string | null
           severity: string
+          team_id: string | null
           updated_at: string | null
           user_id: string
           vehicle_id: string
@@ -440,6 +481,7 @@ export type Database = {
           resolution_notes?: string | null
           resolved_date?: string | null
           severity: string
+          team_id?: string | null
           updated_at?: string | null
           user_id: string
           vehicle_id: string
@@ -461,6 +503,7 @@ export type Database = {
           resolution_notes?: string | null
           resolved_date?: string | null
           severity?: string
+          team_id?: string | null
           updated_at?: string | null
           user_id?: string
           vehicle_id?: string
@@ -485,6 +528,13 @@ export type Database = {
             columns: ["inspection_id"]
             isOneToOne: false
             referencedRelation: "vehicle_inspections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "damage_claims_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
             referencedColumns: ["id"]
           },
           {
@@ -572,6 +622,7 @@ export type Database = {
           id: string
           name: string
           status: string | null
+          team_id: string | null
           type: string
           updated_at: string | null
           user_id: string
@@ -589,6 +640,7 @@ export type Database = {
           id?: string
           name: string
           status?: string | null
+          team_id?: string | null
           type: string
           updated_at?: string | null
           user_id: string
@@ -606,6 +658,7 @@ export type Database = {
           id?: string
           name?: string
           status?: string | null
+          team_id?: string | null
           type?: string
           updated_at?: string | null
           user_id?: string
@@ -620,6 +673,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
             referencedColumns: ["id"]
           },
           {
@@ -861,11 +921,13 @@ export type Database = {
           created_at: string
           estimated_cost: number | null
           id: string
+          location_id: string | null
           maintenance_type: string
           notes: string | null
           scheduled_date: string
           service_provider: string | null
           status: string | null
+          team_id: string | null
           updated_at: string
           user_id: string
           vehicle_id: string
@@ -874,11 +936,13 @@ export type Database = {
           created_at?: string
           estimated_cost?: number | null
           id?: string
+          location_id?: string | null
           maintenance_type: string
           notes?: string | null
           scheduled_date: string
           service_provider?: string | null
           status?: string | null
+          team_id?: string | null
           updated_at?: string
           user_id: string
           vehicle_id: string
@@ -887,16 +951,32 @@ export type Database = {
           created_at?: string
           estimated_cost?: number | null
           id?: string
+          location_id?: string | null
           maintenance_type?: string
           notes?: string | null
           scheduled_date?: string
           service_provider?: string | null
           status?: string | null
+          team_id?: string | null
           updated_at?: string
           user_id?: string
           vehicle_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "maintenance_schedules_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_schedules_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "maintenance_schedules_vehicle_id_fkey"
             columns: ["vehicle_id"]
@@ -948,6 +1028,7 @@ export type Database = {
           sent_at: string
           status: string | null
           subject: string | null
+          team_id: string | null
           user_id: string
         }
         Insert: {
@@ -962,6 +1043,7 @@ export type Database = {
           sent_at?: string
           status?: string | null
           subject?: string | null
+          team_id?: string | null
           user_id: string
         }
         Update: {
@@ -976,6 +1058,7 @@ export type Database = {
           sent_at?: string
           status?: string | null
           subject?: string | null
+          team_id?: string | null
           user_id?: string
         }
         Relationships: [
@@ -984,6 +1067,13 @@ export type Database = {
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
             referencedColumns: ["id"]
           },
         ]
@@ -1167,6 +1257,7 @@ export type Database = {
           payment_status: string | null
           payment_type: string
           stripe_payment_intent_id: string | null
+          team_id: string | null
           transaction_date: string | null
           updated_at: string | null
           user_id: string
@@ -1182,6 +1273,7 @@ export type Database = {
           payment_status?: string | null
           payment_type: string
           stripe_payment_intent_id?: string | null
+          team_id?: string | null
           transaction_date?: string | null
           updated_at?: string | null
           user_id: string
@@ -1197,6 +1289,7 @@ export type Database = {
           payment_status?: string | null
           payment_type?: string
           stripe_payment_intent_id?: string | null
+          team_id?: string | null
           transaction_date?: string | null
           updated_at?: string | null
           user_id?: string
@@ -1214,6 +1307,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
             referencedColumns: ["id"]
           },
           {
@@ -1441,6 +1541,7 @@ export type Database = {
           id: string
           is_company_wide: boolean | null
           name: string | null
+          team_id: string | null
           type: string
           updated_at: string | null
         }
@@ -1452,6 +1553,7 @@ export type Database = {
           id?: string
           is_company_wide?: boolean | null
           name?: string | null
+          team_id?: string | null
           type?: string
           updated_at?: string | null
         }
@@ -1463,10 +1565,19 @@ export type Database = {
           id?: string
           is_company_wide?: boolean | null
           name?: string | null
+          team_id?: string | null
           type?: string
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "team_conversations_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       team_integrations: {
         Row: {
@@ -1858,6 +1969,7 @@ export type Database = {
           interior_condition: string | null
           notes: string | null
           odometer_reading: number
+          team_id: string | null
           tire_condition: string | null
           updated_at: string | null
           user_id: string
@@ -1874,6 +1986,7 @@ export type Database = {
           interior_condition?: string | null
           notes?: string | null
           odometer_reading: number
+          team_id?: string | null
           tire_condition?: string | null
           updated_at?: string | null
           user_id: string
@@ -1890,6 +2003,7 @@ export type Database = {
           interior_condition?: string | null
           notes?: string | null
           odometer_reading?: number
+          team_id?: string | null
           tire_condition?: string | null
           updated_at?: string | null
           user_id?: string
@@ -1901,6 +2015,13 @@ export type Database = {
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_inspections_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
             referencedColumns: ["id"]
           },
           {
@@ -1985,12 +2106,14 @@ export type Database = {
           image_url: string | null
           license_plate: string | null
           location: string | null
+          location_id: string | null
           make: string
           model: string
           name: string
           revenue: number | null
           status: string | null
           suggested_rate: number | null
+          team_id: string | null
           updated_at: string | null
           user_id: string
           utilization: number | null
@@ -2004,12 +2127,14 @@ export type Database = {
           image_url?: string | null
           license_plate?: string | null
           location?: string | null
+          location_id?: string | null
           make: string
           model: string
           name: string
           revenue?: number | null
           status?: string | null
           suggested_rate?: number | null
+          team_id?: string | null
           updated_at?: string | null
           user_id: string
           utilization?: number | null
@@ -2023,12 +2148,14 @@ export type Database = {
           image_url?: string | null
           license_plate?: string | null
           location?: string | null
+          location_id?: string | null
           make?: string
           model?: string
           name?: string
           revenue?: number | null
           status?: string | null
           suggested_rate?: number | null
+          team_id?: string | null
           updated_at?: string | null
           user_id?: string
           utilization?: number | null
@@ -2036,6 +2163,20 @@ export type Database = {
           year?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "vehicles_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicles_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "vehicles_user_id_fkey"
             columns: ["user_id"]
@@ -2114,6 +2255,14 @@ export type Database = {
         Returns: string
       }
       mark_expired_invitations: { Args: never; Returns: undefined }
+      migrate_users_to_teams: {
+        Args: never
+        Returns: {
+          locations_created: number
+          teams_created: number
+          users_migrated: number
+        }[]
+      }
       update_document_status: { Args: never; Returns: undefined }
     }
     Enums: {
