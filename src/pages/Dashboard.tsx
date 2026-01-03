@@ -280,12 +280,12 @@ const Dashboard = () => {
 
         {/* Mobile Bottom Navigation - 4 Items + More Menu */}
         <div className="mobile-nav">
-          <div className="grid grid-cols-5 gap-1 px-2 py-2.5">
+          <div className="grid grid-cols-4 gap-1 px-2 py-2.5">
             {[
-              { id: "dashboard", label: "Home", icon: Home, minRole: undefined },
-              { id: "book", label: "Book", icon: Calendar, minRole: 'operator' as const },
-              { id: "core", label: "AI", icon: Brain, minRole: 'operator' as const },
-            ].filter(item => !item.minRole || hasRoleOrHigher(item.minRole)).map((item) => {
+              { id: "dashboard", label: "Home", icon: Home },
+              { id: "book", label: "Book", icon: Calendar },
+              { id: "core", label: "AI", icon: Brain },
+            ].map((item) => {
               const Icon = item.icon;
               const isActive = activeModule === item.id;
               
