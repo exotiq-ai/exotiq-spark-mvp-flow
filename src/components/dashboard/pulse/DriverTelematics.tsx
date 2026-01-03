@@ -1,0 +1,115 @@
+import { Badge } from "@/components/ui/badge";
+import { CollapsibleSection } from "./CollapsibleSection";
+import { DriverPerformanceTrend } from "@/components/charts/DriverPerformanceTrend";
+import { 
+  Activity, 
+  User,
+  Gauge
+} from "lucide-react";
+
+export const DriverTelematics = () => {
+  // Mock data - will be replaced with real API data
+  const drivers = [
+    {
+      id: '1',
+      name: 'Marcus Chen',
+      vehicle: 'Lamborghini Huracán',
+      score: 86,
+      status: 'excellent' as const,
+      smoothDriving: 'Excellent',
+      safety: 95
+    },
+    {
+      id: '2',
+      name: 'Sarah Mitchell',
+      vehicle: 'Ferrari 488',
+      score: 72,
+      status: 'needs-improvement' as const,
+      smoothDriving: 'Fair',
+      safety: 78
+    }
+  ];
+
+  const getScoreColor = (score: number) => {
+    if (score >= 80) return { text: 'text-success', bg: 'bg-success', border: 'border-success/20', gradient: 'from-success/10 to-success/5' };
+    if (score >= 60) return { text: 'text-warning', bg: 'bg-warning', border: 'border-warning/20', gradient: 'from-warning/10 to-warning/5' };
+    return { text: 'text-destructive', bg: 'bg-destructive', border: 'border-destructive/20', gradient: 'from-destructive/10 to-destructive/5' };
+  };
+
+  return (
+    <CollapsibleSection
+      id="telematics"
+      title="Driver Telematics"
+      icon={<Gauge className="h-4 w-4 text-primary" />}
+      badge="Live"
+      badgeVariant="default"
+      defaultOpen={true}
+      actions={
+        <Badge className="bg-primary/20 text-primary border-primary/30 text-xs">
+          <Activity className="w-3 h-3 mr-1 animate-pulse" />
+          Live
+        </Badge>
+      }
+    >
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {drivers.map((driver) => {
+          const colors = getScoreColor(driver.score);
+          
+          return (
+            <div 
+              key={driver.id}
+              className={`p-4 rounded-xl bg-gradient-to-br ${colors.gradient} border ${colors.border}`}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className={`p-1.5 ${colors.bg}/20 rounded-lg`}>
+                    <User className={`h-4 w-4 ${colors.text}`} />
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-sm">{driver.name}</h4>
+                    <p className="text-xs text-muted-foreground">{driver.vehicle}</p>
+                  </div>
+                </div>
+                <div className={`text-xl font-bold ${colors.text}`}>
+                  {driver.score}%
+                </div>
+              </div>
+              
+              {/* Compact progress bar */}
+              <div className="h-1.5 bg-muted rounded-full overflow-hidden mb-2">
+                <div 
+                  className={`h-full ${colors.bg} transition-all`} 
+                  style={{ width: `${driver.score}%` }}
+                />
+              </div>
+              
+              {/* Compact stats */}
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">
+                  Driving: <span className="font-medium text-foreground">{driver.smoothDriving}</span>
+                </span>
+                <span className="text-muted-foreground">
+                  Safety: <span className="font-medium text-foreground">{driver.safety}/100</span>
+                </span>
+              </div>
+              
+              {/* Mini trend chart */}
+              <div className="mt-2">
+                <DriverPerformanceTrend
+                  driverName={driver.name}
+                  currentScore={driver.score}
+                  vehicle={driver.vehicle}
+                  status={driver.status}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="mt-3 p-2 bg-muted/30 rounded-lg text-xs text-muted-foreground text-center">
+        💡 Connect your telematics provider for live data
+      </div>
+    </CollapsibleSection>
+  );
+};
