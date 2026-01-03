@@ -13,8 +13,10 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { DemoProvider } from "@/contexts/DemoContext";
 import { FleetProvider } from "@/contexts/FleetContext";
 import { ProtectedRoute } from "@/components/common/ProtectedRoute";
+import { SuperAdminGuard } from "@/components/guards/SuperAdminGuard";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
+import { SuperAdminDashboard } from "./pages/SuperAdminDashboard";
 import Demo from "./pages/Demo";
 import DemoLanding from "./pages/DemoLanding";
 import Auth from "./pages/Auth";
@@ -51,6 +53,11 @@ const AppWithRouter = () => {
                 <ProtectedRoute>
                   <Dashboard />
                 </ProtectedRoute>
+              } />
+              <Route path="/super-admin" element={
+                <SuperAdminGuard>
+                  <SuperAdminDashboard />
+                </SuperAdminGuard>
               } />
               <Route path="/demo-landing" element={<DemoLanding />} />
               <Route path="/demo" element={<Demo />} />

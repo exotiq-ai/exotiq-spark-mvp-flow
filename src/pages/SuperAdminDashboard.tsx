@@ -1,0 +1,438 @@
+/**
+ * SuperAdminDashboard - Support team interface for customer management
+ * 
+ * Purpose: Centralized dashboard for Exotiq support to:
+ * - View all customer accounts
+ * - Search and filter users
+ * - View system-wide statistics
+ * - Access audit logs
+ * - (Future: Impersonate users, manage billing)
+ * 
+ * Access: Protected by SuperAdminGuard - only accessible to super admins
+ */
+
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  Shield,
+  Users,
+  Search,
+  Activity,
+  Database,
+  FileText,
+  TrendingUp,
+  AlertCircle,
+  ArrowLeft,
+  ExternalLink
+} from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useNavigate } from 'react-router-dom';
+import { useToast } from '@/hooks/use-toast';
+
+interface Customer {
+  id: string;
+  email: string;
+  full_name: string | null;
+  created_at: string;
+  role?: string;
+}
+
+interface SystemStats {
+  totalCustomers: number;
+  newThisWeek: number;
+  activeConversations: number;
+  totalApplications: number;
+}
+
+interface AuditLogEntry {
+  id: string;
+  admin_email: string;
+  action: string;
+  target_email: string | null;
+  created_at: string;
+}
+
+export const SuperAdminDashboard = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [filteredCustomers, setFilteredCustomers] = useState<Customer[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [stats, setStats] = useState<SystemStats>({
+    totalCustomers: 0,
+    newThisWeek: 0,
+    activeConversations: 0,
+    totalApplications: 0
+  });
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Log super admin access
+  useEffect(() => {
+    const logAccess = async () => {
+      if (!user) return;
+
+      try {
+        await supabase.rpc('log_admin_action', {
+          p_action: 'view_dashboard',
+          p_details: {
+            timestamp: new Date().toISOString(),
+            page: 'super_admin_dashboard'
+          }
+        });
+      } catch (error) {
+        console.error('[SuperAdmin] Failed to log access:', error);
+      }
+    };
+
+    logAccess();
+  }, [user]);
+
+  // Fetch customers
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      try {
+        // Fetch all users (super admin can see all via RLS bypass)
+        const { data: usersData, error: usersError } = await supabase
+          .from('user_roles')
+          .select('user_id, role')
+          .order('assigned_at', { ascending: false });
+
+        if (usersError) throw usersError;
+
+        // Get user details from auth.users via API
+        const { data: authUsersData, error: authError } = await supabase.auth.admin.listUsers();
+
+        if (authError) throw authError;
+
+        // Combine data
+        const combinedCustomers: Customer[] = authUsersData.users.map(authUser => {
+          const roleData = usersData?.find(r => r.user_id === authUser.id);
+          return {
+            id: authUser.id,
+            email: authUser.email || 'No email',
+            full_name: authUser.user_metadata?.full_name || null,
+            created_at: authUser.created_at,
+            role: roleData?.role || 'viewer'
+          };
+        });
+
+        setCustomers(combinedCustomers);
+        setFilteredCustomers(combinedCustomers);
+      } catch (error) {
+        console.error('[SuperAdmin] Error fetching customers:', error);
+        toast({
+          title: "Error loading customers",
+          description: error instanceof Error ? error.message : "Unknown error",
+          variant: "destructive"
+        });
+      }
+    };
+
+    fetchCustomers();
+  }, [toast]);
+
+  // Fetch system stats
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        // Get total customers
+        const { count: totalCustomers } = await supabase
+          .from('user_roles')
+          .select('*', { count: 'exact', head: true });
+
+        // Get customers from this week
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        const { count: newThisWeek } = await supabase
+          .from('user_roles')
+          .select('*', { count: 'exact', head: true })
+          .gte('assigned_at', weekAgo.toISOString());
+
+        // Get active Rari conversations
+        const { count: activeConversations } = await supabase
+          .from('rari_conversations')
+          .select('*', { count: 'exact', head: true })
+          .is('ended_at', null);
+
+        // Get total applications
+        const { count: totalApplications } = await supabase
+          .from('applications')
+          .select('*', { count: 'exact', head: true });
+
+        setStats({
+          totalCustomers: totalCustomers || 0,
+          newThisWeek: newThisWeek || 0,
+          activeConversations: activeConversations || 0,
+          totalApplications: totalApplications || 0
+        });
+      } catch (error) {
+        console.error('[SuperAdmin] Error fetching stats:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, []);
+
+  // Fetch recent audit logs
+  useEffect(() => {
+    const fetchAuditLogs = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('admin_audit_log')
+          .select('id, admin_email, action, target_email, created_at')
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        if (error) throw error;
+        setAuditLogs(data || []);
+      } catch (error) {
+        console.error('[SuperAdmin] Error fetching audit logs:', error);
+      }
+    };
+
+    fetchAuditLogs();
+  }, []);
+
+  // Filter customers based on search
+  useEffect(() => {
+    if (!searchTerm.trim()) {
+      setFilteredCustomers(customers);
+      return;
+    }
+
+    const term = searchTerm.toLowerCase();
+    const filtered = customers.filter(c => 
+      c.email.toLowerCase().includes(term) ||
+      (c.full_name && c.full_name.toLowerCase().includes(term))
+    );
+    setFilteredCustomers(filtered);
+  }, [searchTerm, customers]);
+
+  const handleBackToDashboard = () => {
+    navigate('/dashboard');
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 p-4 md:p-8">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+              <Shield className="h-6 w-6 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">Super Admin Dashboard</h1>
+              <p className="text-sm text-muted-foreground">
+                Customer support & system management
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleBackToDashboard}
+            className="flex items-center gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to App
+          </Button>
+        </div>
+
+        {/* Warning Badge */}
+        <Card className="border-amber-500/50 bg-amber-500/5">
+          <CardContent className="py-3">
+            <div className="flex items-center gap-2 text-sm text-amber-700 dark:text-amber-400">
+              <AlertCircle className="h-4 w-4" />
+              <span>
+                <strong>Super Admin Mode:</strong> You have full read access to all customer data. All actions are logged.
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Customers</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{loading ? '...' : stats.totalCustomers}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Across all accounts
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">New This Week</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{loading ? '...' : stats.newThisWeek}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Last 7 days
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Active Conversations</CardTitle>
+              <Activity className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{loading ? '...' : stats.activeConversations}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Rari AI sessions
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Applications</CardTitle>
+              <FileText className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{loading ? '...' : stats.totalApplications}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Pending review
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Main Content Tabs */}
+        <Tabs defaultValue="customers" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="customers">
+              <Users className="h-4 w-4 mr-2" />
+              Customers
+            </TabsTrigger>
+            <TabsTrigger value="audit">
+              <Database className="h-4 w-4 mr-2" />
+              Audit Log
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Customers Tab */}
+          <TabsContent value="customers" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Customer Search</CardTitle>
+                <CardDescription>
+                  Search by email or name to view customer details
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by email or name..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+
+                {/* Customer List */}
+                <div className="space-y-2 max-h-[500px] overflow-y-auto">
+                  {filteredCustomers.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      {searchTerm ? 'No customers found' : 'No customers yet'}
+                    </div>
+                  ) : (
+                    filteredCustomers.map((customer) => (
+                      <div
+                        key={customer.id}
+                        className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium truncate">{customer.full_name || 'No name'}</p>
+                            <Badge variant="outline" className="text-xs">
+                              {customer.role}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground truncate">{customer.email}</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Joined {new Date(customer.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <Button variant="ghost" size="sm" className="ml-4">
+                          <ExternalLink className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Audit Log Tab */}
+          <TabsContent value="audit" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Admin Actions</CardTitle>
+                <CardDescription>
+                  All super admin actions are logged for security and compliance
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 max-h-[500px] overflow-y-auto">
+                  {auditLogs.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      No audit logs yet
+                    </div>
+                  ) : (
+                    auditLogs.map((log) => (
+                      <div
+                        key={log.id}
+                        className="flex items-start justify-between p-4 rounded-lg border bg-card"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary" className="text-xs font-mono">
+                              {log.action}
+                            </Badge>
+                          </div>
+                          <p className="text-sm mt-1">
+                            <span className="font-medium">{log.admin_email}</span>
+                            {log.target_email && (
+                              <>
+                                {' → '}
+                                <span className="text-muted-foreground">{log.target_email}</span>
+                              </>
+                            )}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {new Date(log.created_at).toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </div>
+  );
+};
