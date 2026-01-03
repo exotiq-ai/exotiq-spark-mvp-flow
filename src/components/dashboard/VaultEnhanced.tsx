@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TabsContent } from "@/components/ui/tabs";
+import { ModuleTabs } from "@/components/common/ModuleTabs";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { DocumentUploadDialog } from "@/components/dialogs/DocumentUploadDialog";
 import { DamageClaimsSection } from "@/components/dashboard/DamageClaimsSection";
@@ -84,35 +85,16 @@ export const VaultEnhanced = () => {
 
   if (loading) {
     return (
-      <Tabs defaultValue="documents" className="space-y-4 sm:space-y-6">
-        <TabsList className="w-full overflow-x-auto flex flex-nowrap gap-1 sm:grid sm:grid-cols-4 bg-muted/50 p-1 rounded-lg">
-          <TabsTrigger value="documents" className="flex-shrink-0 flex items-center gap-1 sm:gap-2 px-3 py-2 text-xs sm:text-sm whitespace-nowrap">
-            <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            <span>Docs</span>
-          </TabsTrigger>
-          <TabsTrigger value="payments" className="flex-shrink-0 flex items-center gap-1 sm:gap-2 px-3 py-2 text-xs sm:text-sm whitespace-nowrap">
-            <CreditCard className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            <span>Pay</span>
-          </TabsTrigger>
-          <TabsTrigger value="verification" className="flex-shrink-0 flex items-center gap-1 sm:gap-2 px-3 py-2 text-xs sm:text-sm whitespace-nowrap">
-            <UserCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            <span>ID</span>
-          </TabsTrigger>
-          <TabsTrigger value="claims" className="flex-shrink-0 flex items-center gap-1 sm:gap-2 px-3 py-2 text-xs sm:text-sm whitespace-nowrap">
-            <AlertTriangle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            <span>Claims</span>
-          </TabsTrigger>
-        </TabsList>
-        <TabsContent value="documents" className="space-y-4 sm:space-y-6">
-          <SkeletonCard />
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6">
-            <SkeletonMetric />
-            <SkeletonMetric />
-            <SkeletonMetric />
-            <SkeletonMetric />
-          </div>
-        </TabsContent>
-      </Tabs>
+      <div className="space-y-4 sm:space-y-6">
+        <div className="h-12 bg-muted/50 rounded-lg animate-pulse" />
+        <SkeletonCard />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6">
+          <SkeletonMetric />
+          <SkeletonMetric />
+          <SkeletonMetric />
+          <SkeletonMetric />
+        </div>
+      </div>
     );
   }
 
@@ -124,28 +106,15 @@ export const VaultEnhanced = () => {
         onSubmit={uploadDocument}
       />
 
-      <Tabs defaultValue="documents" className="space-y-4 sm:space-y-6">
-        <TabsList className="sticky top-0 z-10 w-full overflow-x-auto flex flex-nowrap gap-1 sm:grid sm:grid-cols-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-1 rounded-lg border-b border-border/50">
-          <TabsTrigger value="documents" className="flex-shrink-0 flex items-center gap-1 sm:gap-2 px-3 py-2 text-xs sm:text-sm whitespace-nowrap">
-            <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            <span className="hidden xs:inline">Documents</span>
-            <span className="xs:hidden">Docs</span>
-          </TabsTrigger>
-          <TabsTrigger value="payments" className="flex-shrink-0 flex items-center gap-1 sm:gap-2 px-3 py-2 text-xs sm:text-sm whitespace-nowrap">
-            <CreditCard className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            <span>Pay</span>
-          </TabsTrigger>
-          <TabsTrigger value="verification" className="flex-shrink-0 flex items-center gap-1 sm:gap-2 px-3 py-2 text-xs sm:text-sm whitespace-nowrap">
-            <UserCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            <span className="hidden xs:inline">Verify</span>
-            <span className="xs:hidden">ID</span>
-          </TabsTrigger>
-          <TabsTrigger value="claims" className="flex-shrink-0 flex items-center gap-1 sm:gap-2 px-3 py-2 text-xs sm:text-sm whitespace-nowrap">
-            <AlertTriangle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            <span>Claims</span>
-          </TabsTrigger>
-        </TabsList>
-
+      <ModuleTabs
+        tabs={[
+          { id: "documents", label: "Documents", shortLabel: "Docs", icon: FileText },
+          { id: "payments", label: "Payments", shortLabel: "Pay", icon: CreditCard },
+          { id: "verification", label: "Verify", shortLabel: "Verify", icon: UserCheck },
+          { id: "claims", label: "Claims", shortLabel: "Claims", icon: AlertTriangle },
+        ]}
+        defaultValue="documents"
+      >
         <TabsContent value="documents" className="space-y-4 sm:space-y-6">
       {/* Compact Urgent Alert - Collapsible */}
       {!alertDismissed && (
@@ -335,7 +304,7 @@ export const VaultEnhanced = () => {
         <TabsContent value="claims">
           <DamageClaimsSection />
         </TabsContent>
-      </Tabs>
+      </ModuleTabs>
     </>
   );
 };
