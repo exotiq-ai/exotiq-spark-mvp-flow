@@ -20,7 +20,7 @@ import {
   Users
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useFleet } from "@/contexts/FleetContext";
+import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { toast } from "sonner";
 import { format, differenceInDays } from "date-fns";
 import { IDUploadDialog } from "@/components/dialogs/IDUploadDialog";
@@ -46,7 +46,7 @@ interface CustomerVerification {
 }
 
 export const VerificationSection = () => {
-  const { customers, loading: fleetLoading, refreshCustomers } = useFleet();
+  const { customers, loading: fleetLoading, refreshCustomers } = useLocationFilteredFleet();
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerVerification | null>(null);

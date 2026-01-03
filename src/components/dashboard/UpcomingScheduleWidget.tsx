@@ -1,14 +1,14 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar, ArrowRight, Clock } from "lucide-react";
-import { useFleet } from "@/contexts/FleetContext";
+import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 
 interface UpcomingScheduleWidgetProps {
   onViewCalendar: () => void;
 }
 
 export const UpcomingScheduleWidget = ({ onViewCalendar }: UpcomingScheduleWidgetProps) => {
-  const { bookings, vehicles } = useFleet();
+  const { bookings, vehicles } = useLocationFilteredFleet();
   
   // Get next 3 upcoming bookings
   const upcomingBookings = bookings

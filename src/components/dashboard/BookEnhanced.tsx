@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useFleet } from "@/contexts/FleetContext";
+import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { useModuleNavigation } from "@/hooks/useModuleNavigation";
 import { NewBookingDialog } from "@/components/dialogs/NewBookingDialog";
 import { BookingDetailsDialog } from "@/components/dialogs/BookingDetailsDialog";
@@ -34,7 +34,7 @@ import { Tables } from "@/integrations/supabase/types";
 type Booking = Tables<"bookings">;
 
 export const BookEnhanced = () => {
-  const { bookings, vehicles, createBooking, updateBookingStatus, loading } = useFleet();
+  const { bookings, vehicles, createBooking, updateBookingStatus, loading } = useLocationFilteredFleet();
   const { goToBookingDetails } = useModuleNavigation();
   const [showNewBooking, setShowNewBooking] = useState(false);
   const [showBookingDetails, setShowBookingDetails] = useState(false);

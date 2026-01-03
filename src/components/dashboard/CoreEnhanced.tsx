@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useFleet } from "@/contexts/FleetContext";
+import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { AskRariQuickAction } from "@/components/common/AskRariQuickAction";
 import { SkeletonCard, SkeletonMetric, SkeletonLineChart } from "@/components/ui/skeleton-card";
 import { SkeletonAIInsight, SkeletonStatsRow } from "@/components/ui/skeleton-specialized";
@@ -29,7 +29,7 @@ import { UserManagementSection } from "@/components/dashboard/UserManagementSect
 import { SystemSettingsSection } from "@/components/dashboard/SystemSettingsSection";
 
 export const CoreEnhanced = () => {
-  const { vehicles, bookings, createVehicle, createBooking, createMaintenance, sendMessage, generateReport, applyPriceOptimization, loading } = useFleet();
+  const { vehicles, bookings, createVehicle, createBooking, createMaintenance, sendMessage, generateReport, applyPriceOptimization, loading } = useLocationFilteredFleet();
   
   const [showAddVehicle, setShowAddVehicle] = useState(false);
   const [showCreateBooking, setShowCreateBooking] = useState(false);

@@ -15,7 +15,7 @@ import { FleetStatusWidget } from "./widgets/FleetStatusWidget";
 import { ScheduleWidget } from "./widgets/ScheduleWidget";
 import { ModuleGridWidget } from "./widgets/ModuleGridWidget";
 import { PriceOptimizationDialog } from "@/components/dialogs/PriceOptimizationDialog";
-import { useFleet } from "@/contexts/FleetContext";
+import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { AskRariQuickAction } from "@/components/common/AskRariQuickAction";
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
@@ -45,7 +45,7 @@ export const CustomizableDashboard = ({ modules, onModuleClick }: CustomizableDa
   
   const containerRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
-  const { vehicles, applyPriceOptimization } = useFleet();
+  const { vehicles, applyPriceOptimization } = useLocationFilteredFleet();
   const { layout, visibleWidgets, loading, saveLayout, resetLayout, toggleWidget, setLayout } = useDashboardLayout();
 
   // Responsive width with ResizeObserver

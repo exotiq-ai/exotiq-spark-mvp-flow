@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { useFleet } from "@/contexts/FleetContext";
+import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { DamageReportDialog } from "@/components/dialogs/DamageReportDialog";
 import { VehicleImageDialog } from "@/components/dialogs/VehicleImageDialog";
 import {
@@ -20,7 +20,7 @@ import {
 import { format } from "date-fns";
 
 export const DamageClaimsSection = () => {
-  const { damageClaims, vehicles } = useFleet();
+  const { damageClaims, vehicles } = useLocationFilteredFleet();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [showReportDialog, setShowReportDialog] = useState(false);

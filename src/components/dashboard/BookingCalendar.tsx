@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useFleet } from "@/contexts/FleetContext";
+import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { generateVehicleColors } from "@/lib/conflictDetection";
 import { VehicleImageDialog } from "@/components/dialogs/VehicleImageDialog";
 import { EnhancedBookingDialog } from "@/components/dialogs/EnhancedBookingDialog";
@@ -151,7 +151,7 @@ const BookingPreviewCard = ({
 };
 
 export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) => {
-  const { bookings, vehicles, refreshBookings } = useFleet();
+  const { bookings, vehicles, refreshBookings } = useLocationFilteredFleet();
   const { toast } = useToast();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedVehicle, setSelectedVehicle] = useState<string>("all");

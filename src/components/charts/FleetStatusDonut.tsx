@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import { useFleet } from "@/contexts/FleetContext";
+import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 interface DonutSegment {
@@ -11,7 +11,7 @@ interface DonutSegment {
 }
 
 export const FleetStatusDonut = () => {
-  const { vehicles } = useFleet();
+  const { vehicles } = useLocationFilteredFleet();
   const [animationProgress, setAnimationProgress] = useState(0);
   const [hoveredSegment, setHoveredSegment] = useState<string | null>(null);
   const isMobile = useIsMobile();

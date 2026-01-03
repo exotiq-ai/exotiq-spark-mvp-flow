@@ -224,7 +224,24 @@ export const TeamProvider: React.FC<{ children: React.ReactNode }> = ({ children
 export const useTeam = () => {
   const context = useContext(TeamContext);
   if (context === undefined) {
-    throw new Error('useTeam must be used within a TeamProvider');
+    // During hot reload or initial load, provide safe defaults
+    console.warn('useTeam called outside of TeamProvider - using defaults');
+    return {
+      currentTeam: null,
+      currentLocation: null,
+      locations: [],
+      assignedLocationIds: [],
+      selectedLocationId: 'all' as const,
+      userRole: null,
+      isOwner: false,
+      isAdmin: false,
+      canAccessAllLocations: true,
+      canAccessLocation: () => true,
+      switchLocation: () => {},
+      refreshTeam: async () => {},
+      loading: true,
+      error: null,
+    };
   }
   return context;
 };

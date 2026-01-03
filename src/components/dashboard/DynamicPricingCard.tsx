@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { useFleet } from "@/contexts/FleetContext";
+import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { useAIPricingEnhanced } from "@/hooks/useAIPricingEnhanced";
 import {
   DollarSign,
@@ -40,7 +40,7 @@ interface DynamicPricingCardProps {
 }
 
 export const DynamicPricingCard = ({ onApplyOptimization }: DynamicPricingCardProps) => {
-  const { vehicles, bookings, applyPriceOptimization } = useFleet();
+  const { vehicles, bookings, applyPriceOptimization } = useLocationFilteredFleet();
   const { loading, pricingResult, events, analyzePricing } = useAIPricingEnhanced();
   const [autoPricingEnabled, setAutoPricingEnabled] = useState<Record<string, boolean>>({});
   const [selectedVehicle, setSelectedVehicle] = useState<string | null>(null);

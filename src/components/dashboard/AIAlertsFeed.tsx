@@ -18,7 +18,7 @@ import {
   VolumeX
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useFleet } from "@/contexts/FleetContext";
+import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { differenceInDays, differenceInHours, isBefore, addDays } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -173,7 +173,7 @@ export const AIAlertsFeed = ({ onNavigate, className }: AIAlertsFeedProps) => {
     customers, 
     documents, 
     damageClaims
-  } = useFleet();
+  } = useLocationFilteredFleet();
   const { toast } = useToast();
   
   const [collapsed, setCollapsed] = useState(true); // Start collapsed by default
