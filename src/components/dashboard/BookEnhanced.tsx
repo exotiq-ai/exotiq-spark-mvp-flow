@@ -195,11 +195,11 @@ export const BookEnhanced = () => {
 
       <ModuleTabs
         tabs={[
-          { id: "overview", label: "Overview", shortLabel: "Overview", icon: Car },
-          { id: "calendar", label: "Calendar", shortLabel: "Calendar", icon: CalendarIcon },
+          { id: "overview", label: "Overview", shortLabel: "Home", icon: Car },
+          { id: "calendar", label: "Calendar", shortLabel: "Cal", icon: CalendarIcon },
           { id: "customers", label: "CRM", shortLabel: "CRM", icon: Users },
           { id: "payments", label: "Payments", shortLabel: "Pay", icon: Receipt },
-          { id: "inspections", label: "Inspections", shortLabel: "Inspect", icon: ClipboardCheck },
+          { id: "inspections", label: "Inspections", shortLabel: "Check", icon: ClipboardCheck },
         ]}
         defaultValue="overview"
       >
