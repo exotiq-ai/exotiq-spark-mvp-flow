@@ -90,6 +90,11 @@ export default function Onboarding() {
     setLoading(false);
   };
 
+  const handleSkipVehicle = () => {
+    // Skip vehicle addition and go directly to step 3
+    setStep(3);
+  };
+
   const handleComplete = async () => {
     if (!user) return;
     setLoading(true);
@@ -272,14 +277,25 @@ export default function Onboarding() {
                   </div>
                 </div>
 
-                <Button
-                  onClick={handleAddVehicle}
-                  disabled={!vehicleName || !make || !model || !year || !dailyRate || loading}
-                  className="w-full btn-premium"
-                >
-                  Add Vehicle
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </Button>
+                <div className="flex flex-col gap-3">
+                  <Button
+                    onClick={handleAddVehicle}
+                    disabled={!vehicleName || !make || !model || !year || !dailyRate || loading}
+                    className="w-full btn-premium"
+                  >
+                    Add Vehicle
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
+                  
+                  <Button
+                    variant="ghost"
+                    onClick={handleSkipVehicle}
+                    disabled={loading}
+                    className="w-full text-muted-foreground hover:text-foreground"
+                  >
+                    Skip for now — I'll add vehicles later
+                  </Button>
+                </div>
               </motion.div>
             )}
 
