@@ -38,8 +38,10 @@ import { FloatingActionMenu } from "@/components/mobile/FloatingActionMenu";
 import { TeamActivityDashboard } from "@/components/dashboard/TeamActivityDashboard";
 import { TeamMessaging, TeamMessagingTrigger } from "@/components/messaging/TeamMessaging";
 import { useTeamMessaging } from "@/hooks/useTeamMessaging";
+import { useTeam } from "@/contexts/TeamContext";
 import { Calendar as CalendarIcon, DollarSign, UserPlus, FileText, Sparkles } from "lucide-react";
 import { RariWidgetInterface } from "@/components/rari/RariWidgetInterface";
+import { AddLocationDialog } from "@/components/dialogs/AddLocationDialog";
 import {
   Dialog,
   DialogContent,
@@ -56,9 +58,11 @@ const Dashboard = () => {
   const [chatOpen, setChatOpen] = useState(false);
   const [chatMinimized, setChatMinimized] = useState(false);
   const [showRari, setShowRari] = useState(false);
+  const [mobileAddLocationOpen, setMobileAddLocationOpen] = useState(false);
   const { track, page } = useAnalytics();
   const { isReadOnly, hasRoleOrHigher, loading: roleLoading } = useUserRole();
   const { conversations } = useTeamMessaging();
+  const { refreshTeam } = useTeam();
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Calculate total unread messages
@@ -310,6 +314,7 @@ const Dashboard = () => {
             <MobileMoreMenu 
               activeModule={activeModule}
               onModuleChange={handleModuleChange}
+              onAddLocation={() => setMobileAddLocationOpen(true)}
             />
           </div>
         </div>
@@ -385,6 +390,16 @@ const Dashboard = () => {
           </FocusTrap>
         </DialogContent>
       </Dialog>
+
+      {/* Mobile Add Location Dialog */}
+      <AddLocationDialog
+        open={mobileAddLocationOpen}
+        onOpenChange={setMobileAddLocationOpen}
+        onSuccess={async () => {
+          setMobileAddLocationOpen(false);
+          await refreshTeam();
+        }}
+      />
     </div>
   );
 };
