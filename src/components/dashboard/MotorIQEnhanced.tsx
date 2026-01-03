@@ -226,9 +226,9 @@ export const MotorIQEnhanced = () => {
         {/* Module Tabs */}
         <ModuleTabs
           tabs={[
-            { id: "overview", label: "Overview", shortLabel: "Overview", icon: Brain },
-            { id: "pricing", label: "Dynamic Pricing", shortLabel: "Pricing", icon: DollarSign },
-            { id: "forecast", label: "Demand Forecast", shortLabel: "Forecast", icon: BarChart3 },
+            { id: "overview", label: "Overview", shortLabel: "Home", icon: Brain },
+            { id: "pricing", label: "Dynamic Pricing", shortLabel: "Price", icon: DollarSign },
+            { id: "forecast", label: "Demand Forecast", shortLabel: "Trends", icon: BarChart3 },
           ]}
           value={activeTab}
           onValueChange={setActiveTab}

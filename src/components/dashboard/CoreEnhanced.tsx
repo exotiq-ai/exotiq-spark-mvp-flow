@@ -183,8 +183,8 @@ export const CoreEnhanced = () => {
       <ModuleTabs
         tabs={[
           { id: "rari", label: "Rari", shortLabel: "Rari", icon: Brain },
-          { id: "insights", label: "Insights", shortLabel: "Insights", icon: Zap },
-          { id: "settings", label: "Settings", shortLabel: "Settings", icon: Settings },
+          { id: "insights", label: "Insights", shortLabel: "Stats", icon: Zap },
+          { id: "settings", label: "Settings", shortLabel: "Setup", icon: Settings },
         ]}
         defaultValue="rari"
       >
