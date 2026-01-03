@@ -252,69 +252,58 @@ export const MotorIQEnhanced = () => {
                 opacity: isDragging ? Math.max(0.3, 1 - Math.abs(dragOffset) / 150) : 1,
               }}
             >
-              <Card className="card-premium bg-gradient-to-br from-success/10 via-primary/5 to-accent/10 border-success/20 p-4 sm:p-6 md:p-8 relative overflow-hidden">
+              <Card className="card-premium bg-gradient-to-br from-success/10 via-primary/5 to-accent/10 border-success/20 p-3 sm:p-4 md:p-5 relative overflow-hidden">
                 {/* Dismiss button */}
                 <button
                   onClick={handleDismissRecommendation}
-                  className="absolute top-3 right-3 p-1.5 rounded-full hover:bg-muted/50 transition-colors z-10 group"
+                  className="absolute top-2 right-2 p-1 rounded-full hover:bg-muted/50 transition-colors z-10 group"
                   aria-label="Dismiss recommendation"
                 >
                   <X className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
                 </button>
 
-                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 sm:gap-6 pr-8">
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 sm:gap-4 pr-6">
                   <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Brain className="h-6 w-6 text-success animate-pulse" />
-                      <Badge className="bg-success/20 text-success border-success/30 font-semibold">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Brain className="h-5 w-5 text-success animate-pulse" />
+                      <Badge className="bg-success/20 text-success border-success/30 font-semibold text-xs">
                         <Sparkles className="h-3 w-3 mr-1" />
                         AI Recommendation
                       </Badge>
                     </div>
-                    <h3 className="text-2xl font-bold mb-2 bg-gradient-to-r from-success to-primary bg-clip-text text-transparent">
-                      Top Revenue Opportunity Identified
+                    <h3 className="text-xl font-bold mb-1 bg-gradient-to-r from-success to-primary bg-clip-text text-transparent">
+                      Top Revenue Opportunity
                     </h3>
-                    <p className="text-muted-foreground mb-4">
-                      Based on market analysis, we've identified a high-value opportunity for your fleet
-                    </p>
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
                       <div>
                         <p 
-                          className="text-lg font-semibold cursor-pointer hover:text-primary transition-colors"
+                          className="text-base font-semibold cursor-pointer hover:text-primary transition-colors"
                           onClick={() => handleVehicleClick(topRecommendation)}
                         >
                           {topRecommendation.name}
                         </p>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-xs text-muted-foreground">
                           ${topRecommendation.current_rate}/day → ${topRecommendation.suggested_rate}/day
                         </p>
                       </div>
-                      <div className="h-12 w-px bg-border hidden sm:block"></div>
+                      <div className="h-10 w-px bg-border hidden sm:block"></div>
                       <div>
-                        <p className="text-3xl font-bold text-success">
+                        <p className="text-2xl font-bold text-success">
                           +${potentialIncrease.toFixed(0)}
                         </p>
-                        <p className="text-sm text-muted-foreground">Monthly opportunity</p>
+                        <p className="text-xs text-muted-foreground">Monthly opportunity</p>
                       </div>
                     </div>
                   </div>
-                  <div className="flex flex-col gap-2">
-                    <Button 
-                      onClick={() => setShowOptimizationDialog(true)}
-                      className="btn-premium group"
-                      size="lg"
-                    >
-                      <Zap className="h-4 w-4 mr-2 group-hover:rotate-12 transition-transform" />
-                      Apply Now
-                      <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                    </Button>
-                  </div>
+                  <Button 
+                    onClick={() => setShowOptimizationDialog(true)}
+                    className="btn-premium group"
+                  >
+                    <Zap className="h-4 w-4 mr-2 group-hover:rotate-12 transition-transform" />
+                    Apply Now
+                    <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                  </Button>
                 </div>
-
-                {/* Swipe hint for mobile */}
-                <p className="text-xs text-muted-foreground/60 mt-4 text-center md:hidden">
-                  Swipe to dismiss
-                </p>
               </Card>
             </motion.div>
           ) : (
