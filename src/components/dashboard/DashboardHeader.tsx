@@ -15,6 +15,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { EnhancedGlobalSearch } from "@/components/common/EnhancedGlobalSearch";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { UnifiedNotificationCenter } from "@/components/common/UnifiedNotificationCenter";
+import { LocationSwitcher } from "@/components/common/LocationSwitcher";
 import { useTeamMessaging } from "@/hooks/useTeamMessaging";
 
 interface DashboardHeaderProps {
@@ -36,7 +37,10 @@ export const DashboardHeader = ({ onOpenChat }: DashboardHeaderProps) => {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between gap-4 px-4">
-        <ExotiqLogoBranded variant="gulf-blue" size="md" />
+        <div className="flex items-center gap-2">
+          <ExotiqLogoBranded variant="gulf-blue" size="md" />
+          <LocationSwitcher />
+        </div>
         
         <div className="hidden md:flex flex-1 max-w-md mx-4">
           <EnhancedGlobalSearch />

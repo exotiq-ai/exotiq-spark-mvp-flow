@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
-export type AppRole = 'admin' | 'manager' | 'operator' | 'viewer';
+export type AppRole = 'owner' | 'admin' | 'manager' | 'operator' | 'viewer';
 
 interface UserRoleData {
   role: AppRole | null;
@@ -11,8 +11,9 @@ interface UserRoleData {
   error: string | null;
 }
 
-// Role hierarchy: admin > manager > operator > viewer
+// Role hierarchy: owner > admin > manager > operator > viewer
 const roleHierarchy: Record<AppRole, number> = {
+  owner: 5,
   admin: 4,
   manager: 3,
   operator: 2,
@@ -94,34 +95,40 @@ export const useUserRole = () => {
 
   // Check if user has a specific permission
   const hasPermission = useCallback((permission: string): boolean => {
-    // Admins have all permissions
-    if (roleData.role === 'admin') return true;
+    // Owners and Admins have all permissions
+    if (roleData.role === 'owner' || roleData.role === 'admin') return true;
     return roleData.permissions.includes(permission);
   }, [roleData.role, roleData.permissions]);
 
   // Check if user has any of the specified permissions
   const hasAnyPermission = useCallback((permissions: string[]): boolean => {
-    if (roleData.role === 'admin') return true;
+    if (roleData.role === 'owner' || roleData.role === 'admin') return true;
     return permissions.some(p => roleData.permissions.includes(p));
   }, [roleData.role, roleData.permissions]);
 
   // Check if user has all of the specified permissions
   const hasAllPermissions = useCallback((permissions: string[]): boolean => {
-    if (roleData.role === 'admin') return true;
+    if (roleData.role === 'owner' || roleData.role === 'admin') return true;
     return permissions.every(p => roleData.permissions.includes(p));
   }, [roleData.role, roleData.permissions]);
 
-  // Check if user is admin
-  const isAdmin = roleData.role === 'admin';
+  // Check if user is owner
+  const isOwner = roleData.role === 'owner';
+
+  // Check if user is owner or admin
+  const isOwnerOrAdmin = roleData.role === 'owner' || roleData.role === 'admin';
+
+  // Check if user is admin (includes owner for backwards compatibility)
+  const isAdmin = isOwnerOrAdmin;
 
   // Check if user is manager or higher
   const isManagerOrHigher = roleData.role ? roleHierarchy[roleData.role] >= roleHierarchy['manager'] : false;
 
-  // Check if user can manage users (admin only)
-  const canManageUsers = isAdmin;
+  // Check if user can manage users (owner/admin only)
+  const canManageUsers = isOwnerOrAdmin;
 
-  // Check if user can manage billing (admin only for now)
-  const canManageBilling = isAdmin;
+  // Check if user can manage billing (owner/admin only)
+  const canManageBilling = isOwnerOrAdmin;
 
   // Check if user can create/edit bookings
   const canManageBookings = roleData.role ? roleHierarchy[roleData.role] >= roleHierarchy['operator'] : false;
@@ -130,6 +137,11 @@ export const useUserRole = () => {
   // Note: null role means role not yet assigned, NOT read-only
   const isReadOnly = roleData.role === 'viewer';
 
+  // Owner-only permissions
+  const canDeleteAccount = isOwner;
+  const canConfigureIntegrations = isOwner;
+  const canTransferOwnership = isOwner;
+
   return {
     ...roleData,
     hasRole,
@@ -137,12 +149,17 @@ export const useUserRole = () => {
     hasPermission,
     hasAnyPermission,
     hasAllPermissions,
+    isOwner,
+    isOwnerOrAdmin,
     isAdmin,
     isManagerOrHigher,
     canManageUsers,
     canManageBilling,
     canManageBookings,
     isReadOnly,
+    canDeleteAccount,
+    canConfigureIntegrations,
+    canTransferOwnership,
     refetch: fetchRole,
   };
 };
