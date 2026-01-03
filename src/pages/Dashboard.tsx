@@ -8,6 +8,7 @@ import { SkipNavigation } from "@/components/common/SkipNavigation";
 import { SEOHead } from "@/components/common/SEOHead";
 import { UnifiedNotificationCenter } from "@/components/common/UnifiedNotificationCenter";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
+import { LocationContextBanner } from "@/components/common/LocationBadge";
 import { DashboardOnboarding } from "@/components/onboarding/DashboardOnboarding";
 import { useAnalytics } from "@/lib/analytics";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
@@ -330,6 +331,7 @@ const Dashboard = () => {
           tabIndex={-1}
         >
           <div className="max-w-7xl mx-auto mobile-spacing">
+            <LocationContextBanner className="mb-4" />
             {renderModuleContent()}
           </div>
         </main>
