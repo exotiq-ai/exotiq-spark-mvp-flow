@@ -161,19 +161,19 @@ export const CoreEnhanced = () => {
             </Badge>
           </div>
           
-          {/* Inline Stats */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          {/* Inline Stats - Hidden on mobile since numbers lack context */}
+          <div className="hidden sm:flex items-center gap-3">
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary/5 border border-primary/10">
               <span className="text-sm font-semibold">24/7</span>
-              <span className="text-[10px] text-muted-foreground hidden sm:inline">Monitoring</span>
+              <span className="text-[10px] text-muted-foreground">Monitoring</span>
             </div>
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-success/5 border border-success/10">
               <span className="text-sm font-semibold">87%</span>
-              <span className="text-[10px] text-muted-foreground hidden sm:inline">Automated</span>
+              <span className="text-[10px] text-muted-foreground">Automated</span>
             </div>
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-accent/5 border border-accent/10">
               <span className="text-sm font-semibold">4.2h</span>
-              <span className="text-[10px] text-muted-foreground hidden sm:inline">Saved</span>
+              <span className="text-[10px] text-muted-foreground">Saved</span>
             </div>
           </div>
         </div>
