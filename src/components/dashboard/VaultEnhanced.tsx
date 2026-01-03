@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useFleet } from "@/contexts/FleetContext";
+import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { DocumentUploadDialog } from "@/components/dialogs/DocumentUploadDialog";
 import { DamageClaimsSection } from "@/components/dashboard/DamageClaimsSection";
 import { PaymentsSection } from "@/components/dashboard/PaymentsSection";
@@ -28,7 +28,7 @@ import {
 } from "lucide-react";
 
 export const VaultEnhanced = () => {
-  const { documents, uploadDocument, deleteDocument, loading } = useFleet();
+  const { documents, uploadDocument, deleteDocument, loading } = useLocationFilteredFleet();
   const { toast } = useToast();
   const [showUploadDialog, setShowUploadDialog] = useState(false);
 

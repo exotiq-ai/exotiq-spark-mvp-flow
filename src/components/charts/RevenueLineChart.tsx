@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart, Line } from "recharts";
-import { useFleet } from "@/contexts/FleetContext";
+import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { useChartData } from "@/hooks/useChartData";
 import { RevenueBreakdownDialog } from "@/components/dialogs/RevenueBreakdownDialog";
 import { exportToCSV } from "@/utils/chartExport";
@@ -15,7 +15,7 @@ import { TouchTooltip, getTouchActiveDot } from "@/components/ui/touch-tooltip";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 export const RevenueLineChart = () => {
-  const { bookings, vehicles, payments } = useFleet();
+  const { bookings, vehicles, payments } = useLocationFilteredFleet();
   const { revenueData } = useChartData(bookings, payments);
   const { toast } = useToast();
   const [selectedDay, setSelectedDay] = useState<typeof revenueData[0] | null>(null);
