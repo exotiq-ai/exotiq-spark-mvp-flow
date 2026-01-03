@@ -60,7 +60,8 @@ export const useCountUp = ({
     };
   }, [start, end, duration, delay]);
 
-  const formattedValue = prefix + count.toFixed(decimals) + suffix;
+  const formattedNumber = count.toFixed(decimals).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  const formattedValue = prefix + formattedNumber + suffix;
 
   return { value: formattedValue, isComplete };
 };
