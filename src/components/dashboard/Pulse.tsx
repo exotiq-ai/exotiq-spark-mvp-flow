@@ -68,7 +68,7 @@ export const Pulse = () => {
     },
     { 
       label: "Avg Daily Rate", 
-      value: `$${avgDailyRate}`, 
+      value: `$${avgDailyRate.toLocaleString()}`,
       change: avgDailyRate > 300 ? "+5% vs last week" : "Stable", 
       trend: avgDailyRate > 300 ? "up" : "neutral" 
     }

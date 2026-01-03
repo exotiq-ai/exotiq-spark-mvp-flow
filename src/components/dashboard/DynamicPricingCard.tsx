@@ -320,12 +320,12 @@ export const DynamicPricingCard = ({ onApplyOptimization }: DynamicPricingCardPr
                 <div className="flex-1 min-w-0">
                   <div className="font-medium truncate">{vehicle.name}</div>
                   <div className="text-sm text-muted-foreground">
-                    ${vehicle.current_rate}/day
+                    ${Number(vehicle.current_rate).toLocaleString()}/day
                     {hasResult && pricingResult.suggestedRate > Number(vehicle.current_rate) && (
                       <span className="text-success ml-2">
-                        → ${pricingResult.suggestedRate}
+                        → ${pricingResult.suggestedRate.toLocaleString()}
                         <span className="text-xs ml-1">
-                          (+${pricingResult.suggestedRate - Number(vehicle.current_rate)})
+                          (+${(pricingResult.suggestedRate - Number(vehicle.current_rate)).toLocaleString()})
                         </span>
                       </span>
                     )}
@@ -340,7 +340,7 @@ export const DynamicPricingCard = ({ onApplyOptimization }: DynamicPricingCardPr
                       variant="default"
                       onClick={() => handleApplyRate(vehicle.id, pricingResult.suggestedRate)}
                     >
-                      Apply ${pricingResult.suggestedRate}
+                      Apply ${pricingResult.suggestedRate.toLocaleString()}
                     </Button>
                   ) : (
                     <Button

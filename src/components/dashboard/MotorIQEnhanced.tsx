@@ -283,13 +283,13 @@ export const MotorIQEnhanced = () => {
                           {topRecommendation.name}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          ${topRecommendation.current_rate}/day → ${topRecommendation.suggested_rate}/day
+                          ${Number(topRecommendation.current_rate).toLocaleString()}/day → ${Number(topRecommendation.suggested_rate).toLocaleString()}/day
                         </p>
                       </div>
                       <div className="h-10 w-px bg-border hidden sm:block"></div>
                       <div>
                         <p className="text-2xl font-bold text-success">
-                          +${potentialIncrease.toFixed(0)}
+                          +${Math.round(potentialIncrease).toLocaleString()}
                         </p>
                         <p className="text-xs text-muted-foreground">Monthly opportunity</p>
                       </div>

@@ -186,7 +186,7 @@ export const BookEnhanced = () => {
             time: `${formatTime(selectedBooking.start_date)} - ${formatTime(selectedBooking.end_date)}`,
             location: selectedBooking.pickup_location,
             status: selectedBooking.status as 'confirmed' | 'pending' | 'completed' | 'cancelled',
-            value: `$${selectedBooking.total_value}`,
+            value: `$${Number(selectedBooking.total_value).toLocaleString()}`,
             date: formatDate(selectedBooking.start_date)
           }}
           onUpdateStatus={updateBookingStatus}
@@ -269,7 +269,7 @@ export const BookEnhanced = () => {
             </div>
 
             <div className="pt-2">
-              <div className="text-xl font-bold text-primary">${nextBooking.total_value}</div>
+              <div className="text-xl font-bold text-primary">${Number(nextBooking.total_value).toLocaleString()}</div>
               <div className="text-sm text-muted-foreground">Booking Value</div>
             </div>
           </div>
@@ -335,7 +335,7 @@ export const BookEnhanced = () => {
                     <LocationBadge locationId={booking.pickup_location_id} />
                     <AskRariQuickAction
                       variant="icon"
-                      prompt={`Tell me about this booking: ${getVehicleDisplay(booking.vehicle_id)} for ${booking.customer_name}. Start: ${formatDate(booking.start_date)}, Status: ${booking.status}, Value: $${booking.total_value}`}
+                      prompt={`Tell me about this booking: ${getVehicleDisplay(booking.vehicle_id)} for ${booking.customer_name}. Start: ${formatDate(booking.start_date)}, Status: ${booking.status}, Value: $${Number(booking.total_value).toLocaleString()}`}
                     />
                   </div>
                   <Badge className={`flex-shrink-0 ${
@@ -362,7 +362,7 @@ export const BookEnhanced = () => {
                   </div>
                   <div className="flex items-center space-x-2">
                     <DollarSign className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                    <span className="font-semibold">${booking.total_value}</span>
+                    <span className="font-semibold">${Number(booking.total_value).toLocaleString()}</span>
                   </div>
                 </div>
               </div>
