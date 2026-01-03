@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,84 +14,99 @@ import {
   Filter,
   ChevronRight
 } from "lucide-react";
+import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
+import { NewBookingDialog } from "@/components/dialogs/NewBookingDialog";
+import { format, isToday, isFuture, startOfWeek, endOfWeek, addDays } from "date-fns";
 
 export const Book = () => {
-  const todayBookings = [
-    {
-      id: "BK001",
-      vehicle: "McLaren 720S",
-      customer: "John Smith",
-      time: "2:00 PM - 5:00 PM",
-      location: "Downtown Pickup",
-      status: "confirmed",
-      value: "$450"
-    },
-    {
-      id: "BK002", 
-      vehicle: "Lamborghini Huracán",
-      customer: "Sarah Johnson",
-      time: "6:00 PM - 11:59 PM",
-      location: "Airport Pickup",
-      status: "pending",
-      value: "$520"
-    },
-    {
-      id: "BK003",
-      vehicle: "Ferrari 488",
-      customer: "Mike Chen",
-      time: "All Day",
-      location: "Hotel Delivery",
-      status: "confirmed",
-      value: "$680"
-    }
-  ];
+  const { vehicles, bookings, createBooking, isAllLocations, currentLocation, locations } = useLocationFilteredFleet();
+  const [showNewBooking, setShowNewBooking] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Filter today's bookings
+  const todayBookings = bookings.filter(b => {
+    const startDate = new Date(b.start_date);
+    return isToday(startDate) || (new Date(b.start_date) <= new Date() && new Date(b.end_date) >= new Date());
+  });
+
+  // This week's bookings
+  const thisWeekStart = startOfWeek(new Date());
+  const thisWeekEnd = endOfWeek(new Date());
+  const thisWeekBookings = bookings.filter(b => {
+    const startDate = new Date(b.start_date);
+    return startDate >= thisWeekStart && startDate <= thisWeekEnd;
+  });
+
+  // Available vehicles (filter by search)
+  const availableVehicles = vehicles.filter(v => {
+    const matchesSearch = searchQuery === "" || 
+      `${v.make} ${v.model}`.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesSearch;
+  }).slice(0, 5);
+
+  // Calculate upcoming booking forecasts
+  const tomorrow = addDays(new Date(), 1);
+  const nextWeekStart = addDays(new Date(), 7);
+  const nextWeekEnd = addDays(new Date(), 14);
+
+  const tomorrowBookings = bookings.filter(b => {
+    const startDate = new Date(b.start_date);
+    return format(startDate, 'yyyy-MM-dd') === format(tomorrow, 'yyyy-MM-dd');
+  });
+
+  const weekendBookings = bookings.filter(b => {
+    const startDate = new Date(b.start_date);
+    const dayOfWeek = startDate.getDay();
+    return (dayOfWeek === 0 || dayOfWeek === 6) && startDate >= new Date() && startDate <= addDays(new Date(), 7);
+  });
+
+  const nextWeekBookings = bookings.filter(b => {
+    const startDate = new Date(b.start_date);
+    return startDate >= nextWeekStart && startDate <= nextWeekEnd;
+  });
 
   const upcomingBookings = [
     {
       date: "Tomorrow",
-      bookings: 5,
-      revenue: "$2,340"
+      bookings: tomorrowBookings.length,
+      revenue: `$${tomorrowBookings.reduce((sum, b) => sum + (b.total_value || 0), 0).toLocaleString()}`
     },
     {
       date: "This Weekend",
-      bookings: 12,
-      revenue: "$8,650"
+      bookings: weekendBookings.length,
+      revenue: `$${weekendBookings.reduce((sum, b) => sum + (b.total_value || 0), 0).toLocaleString()}`
     },
     {
       date: "Next Week",
-      bookings: 18,
-      revenue: "$12,400"
-    }
-  ];
-
-  const availableVehicles = [
-    {
-      name: "Porsche 911 GT3",
-      location: "Downtown",
-      rate: "$320/day",
-      status: "available"
-    },
-    {
-      name: "BMW i8",
-      location: "Airport",
-      rate: "$280/day", 
-      status: "available"
-    },
-    {
-      name: "Audi R8",
-      location: "Hotel District",
-      rate: "$380/day",
-      status: "maintenance"
+      bookings: nextWeekBookings.length,
+      revenue: `$${nextWeekBookings.reduce((sum, b) => sum + (b.total_value || 0), 0).toLocaleString()}`
     }
   ];
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'confirmed': return 'bg-success/10 text-success border-success/20';
+      case 'confirmed': 
+      case 'completed': return 'bg-success/10 text-success border-success/20';
       case 'pending': return 'bg-warning/10 text-warning border-warning/20';
+      case 'cancelled': return 'bg-destructive/10 text-destructive border-destructive/20';
+      case 'active': return 'bg-primary/10 text-primary border-primary/20';
+      case 'available': return 'bg-success/10 text-success border-success/20';
       case 'maintenance': return 'bg-destructive/10 text-destructive border-destructive/20';
+      case 'rented':
+      case 'booked': return 'bg-primary/10 text-primary border-primary/20';
       default: return 'bg-muted/10 text-muted-foreground border-muted/20';
     }
+  };
+
+  const getVehicleName = (vehicleId: string) => {
+    const vehicle = vehicles.find(v => v.id === vehicleId);
+    return vehicle ? `${vehicle.year} ${vehicle.make} ${vehicle.model}` : 'Unknown Vehicle';
+  };
+
+  const getLocationName = (locationId: string | null) => {
+    if (!locationId) return 'No location';
+    const location = locations.find(l => l.id === locationId);
+    return location?.name || 'Unknown Location';
   };
 
   return (
@@ -98,9 +114,14 @@ export const Book = () => {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-bold">Book</h2>
-          <p className="text-muted-foreground mt-1">Direct booking management and calendar</p>
+          <p className="text-muted-foreground mt-1">
+            Direct booking management and calendar
+            {!isAllLocations && currentLocation && (
+              <span className="ml-2 text-primary">• {currentLocation.name}</span>
+            )}
+          </p>
         </div>
-        <Button className="btn-premium">
+        <Button className="btn-premium" onClick={() => setShowNewBooking(true)}>
           <Plus className="w-4 h-4 mr-2" />
           New Booking
         </Button>
@@ -114,7 +135,7 @@ export const Book = () => {
               <Calendar className="h-6 w-6 text-primary" />
             </div>
             <div className="ml-4">
-              <div className="text-2xl font-bold">3</div>
+              <div className="text-2xl font-bold">{todayBookings.length}</div>
               <div className="text-sm text-muted-foreground">Today's Bookings</div>
             </div>
           </div>
@@ -126,7 +147,7 @@ export const Book = () => {
               <Clock className="h-6 w-6 text-success" />
             </div>
             <div className="ml-4">
-              <div className="text-2xl font-bold">35</div>
+              <div className="text-2xl font-bold">{thisWeekBookings.length}</div>
               <div className="text-sm text-muted-foreground">This Week</div>
             </div>
           </div>
@@ -138,7 +159,7 @@ export const Book = () => {
               <Car className="h-6 w-6 text-accent" />
             </div>
             <div className="ml-4">
-              <div className="text-2xl font-bold">8</div>
+              <div className="text-2xl font-bold">{vehicles.filter(v => v.status === 'available').length}</div>
               <div className="text-sm text-muted-foreground">Available Cars</div>
             </div>
           </div>
@@ -150,8 +171,8 @@ export const Book = () => {
               <MapPin className="h-6 w-6 text-warning" />
             </div>
             <div className="ml-4">
-              <div className="text-2xl font-bold">3</div>
-              <div className="text-sm text-muted-foreground">Pickup Locations</div>
+              <div className="text-2xl font-bold">{isAllLocations ? locations.length : 1}</div>
+              <div className="text-sm text-muted-foreground">Locations</div>
             </div>
           </div>
         </Card>
@@ -171,42 +192,51 @@ export const Book = () => {
           </div>
           
           <div className="space-y-4">
-            {todayBookings.map((booking) => (
-              <div key={booking.id} className="p-4 rounded-lg bg-muted/30 border border-primary/10">
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <h4 className="font-semibold">{booking.vehicle}</h4>
-                    <p className="text-sm text-muted-foreground">{booking.id}</p>
+            {todayBookings.length > 0 ? (
+              todayBookings.slice(0, 4).map((booking) => (
+                <div 
+                  key={booking.id} 
+                  className="p-4 rounded-lg bg-muted/30 border border-primary/10 hover:bg-muted/50 transition-colors"
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <h4 className="font-semibold">{getVehicleName(booking.vehicle_id)}</h4>
+                      <p className="text-sm text-muted-foreground">{booking.id.slice(0, 8)}</p>
+                    </div>
+                    <Badge className={getStatusColor(booking.status || 'pending')}>
+                      {booking.status || 'pending'}
+                    </Badge>
                   </div>
-                  <Badge className={getStatusColor(booking.status)}>
-                    {booking.status}
-                  </Badge>
+                  
+                  <div className="space-y-2">
+                    <div className="flex items-center text-sm">
+                      <User className="w-4 h-4 mr-2 text-muted-foreground" />
+                      {booking.customer_name}
+                    </div>
+                    <div className="flex items-center text-sm">
+                      <Clock className="w-4 h-4 mr-2 text-muted-foreground" />
+                      {format(new Date(booking.start_date), 'h:mm a')} - {format(new Date(booking.end_date), 'h:mm a')}
+                    </div>
+                    <div className="flex items-center text-sm">
+                      <MapPin className="w-4 h-4 mr-2 text-muted-foreground" />
+                      {booking.pickup_location || getLocationName(booking.pickup_location_id)}
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center justify-between mt-4">
+                    <span className="font-semibold text-primary">${booking.total_value?.toLocaleString()}</span>
+                    <Button size="sm" variant="outline">
+                      View Details
+                      <ChevronRight className="w-4 h-4 ml-1" />
+                    </Button>
+                  </div>
                 </div>
-                
-                <div className="space-y-2">
-                  <div className="flex items-center text-sm">
-                    <User className="w-4 h-4 mr-2 text-muted-foreground" />
-                    {booking.customer}
-                  </div>
-                  <div className="flex items-center text-sm">
-                    <Clock className="w-4 h-4 mr-2 text-muted-foreground" />
-                    {booking.time}
-                  </div>
-                  <div className="flex items-center text-sm">
-                    <MapPin className="w-4 h-4 mr-2 text-muted-foreground" />
-                    {booking.location}
-                  </div>
-                </div>
-                
-                <div className="flex items-center justify-between mt-4">
-                  <span className="font-semibold text-primary">{booking.value}</span>
-                  <Button size="sm" variant="outline">
-                    View Details
-                    <ChevronRight className="w-4 h-4 ml-1" />
-                  </Button>
-                </div>
+              ))
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                No bookings scheduled for today
               </div>
-            ))}
+            )}
           </div>
         </Card>
 
@@ -217,40 +247,52 @@ export const Book = () => {
             <div className="flex space-x-2">
               <div className="relative">
                 <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
-                <Input placeholder="Search vehicles..." className="pl-10 w-40" />
+                <Input 
+                  placeholder="Search vehicles..." 
+                  className="pl-10 w-40" 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
               </div>
             </div>
           </div>
           
           <div className="space-y-4">
-            {availableVehicles.map((vehicle, index) => (
-              <div key={index} className="p-4 rounded-lg bg-muted/30 border border-accent/10">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-semibold">{vehicle.name}</h4>
-                  <Badge className={getStatusColor(vehicle.status)}>
-                    {vehicle.status}
-                  </Badge>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <div className="flex items-center text-sm text-muted-foreground">
-                      <MapPin className="w-3 h-3 mr-1" />
-                      {vehicle.location}
-                    </div>
-                    <div className="text-sm font-medium text-primary">{vehicle.rate}</div>
+            {availableVehicles.length > 0 ? (
+              availableVehicles.map((vehicle) => (
+                <div key={vehicle.id} className="p-4 rounded-lg bg-muted/30 border border-accent/10">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-semibold">{vehicle.year} {vehicle.make} {vehicle.model}</h4>
+                    <Badge className={getStatusColor(vehicle.status)}>
+                      {vehicle.status}
+                    </Badge>
                   </div>
                   
-                  <Button 
-                    size="sm" 
-                    disabled={vehicle.status === 'maintenance'}
-                    variant={vehicle.status === 'available' ? 'default' : 'outline'}
-                  >
-                    {vehicle.status === 'available' ? 'Book Now' : 'Unavailable'}
-                  </Button>
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-1">
+                      <div className="flex items-center text-sm text-muted-foreground">
+                        <MapPin className="w-3 h-3 mr-1" />
+                        {getLocationName(vehicle.location_id)}
+                      </div>
+                      <div className="text-sm font-medium text-primary">${vehicle.current_rate}/day</div>
+                    </div>
+                    
+                    <Button 
+                      size="sm" 
+                      disabled={vehicle.status !== 'available'}
+                      variant={vehicle.status === 'available' ? 'default' : 'outline'}
+                      onClick={() => setShowNewBooking(true)}
+                    >
+                      {vehicle.status === 'available' ? 'Book Now' : 'Unavailable'}
+                    </Button>
+                  </div>
                 </div>
+              ))
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                No vehicles found
               </div>
-            ))}
+            )}
           </div>
         </Card>
       </div>
@@ -273,6 +315,14 @@ export const Book = () => {
           ))}
         </div>
       </Card>
+
+      {/* Dialogs */}
+      <NewBookingDialog
+        open={showNewBooking}
+        onOpenChange={setShowNewBooking}
+        vehicles={vehicles}
+        onSubmit={createBooking}
+      />
     </div>
   );
 };
