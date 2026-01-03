@@ -1,7 +1,5 @@
 import { useState, useMemo } from "react";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
@@ -11,15 +9,15 @@ import {
   Database,
   Settings,
   Bell,
-  Shield,
-  Zap,
-  Users
+  Users,
+  MapPin
 } from "lucide-react";
 import { MyAccountSection } from "./MyAccountSection";
 import { SubscriptionSection } from "./SubscriptionSection";
 import { IntegrationsSection } from "./IntegrationsSection";
 import { DataManagementSection } from "./DataManagementSection";
 import { NotificationSettingsSection } from "./NotificationSettingsSection";
+import { LocationsSection } from "./LocationsSection";
 import { SystemSettingsSection } from "../SystemSettingsSection";
 import { UserManagementSection } from "../UserManagementSection";
 import { MyTeamSection } from "../MyTeamSection";
@@ -36,6 +34,7 @@ interface SettingsTab {
 const allSettingsTabs: SettingsTab[] = [
   { id: "account", label: "My Account", icon: User },
   { id: "team", label: "My Team", icon: Users },
+  { id: "locations", label: "Locations", icon: MapPin, requiresAdmin: true },
   { id: "notifications", label: "Notifications", icon: Bell },
   { id: "subscription", label: "Subscription", icon: CreditCard },
   { id: "integrations", label: "Integrations", icon: Plug },
@@ -63,6 +62,8 @@ export const SettingsLayout = () => {
         return <MyAccountSection />;
       case "team":
         return <MyTeamSection />;
+      case "locations":
+        return isAdmin ? <LocationsSection /> : null;
       case "notifications":
         return <NotificationSettingsSection />;
       case "subscription":

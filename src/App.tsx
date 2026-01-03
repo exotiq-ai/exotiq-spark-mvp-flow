@@ -12,6 +12,7 @@ import { CommandPalette, useCommandPalette } from "@/components/common/CommandPa
 import { AuthProvider } from "@/contexts/AuthContext";
 import { DemoProvider } from "@/contexts/DemoContext";
 import { FleetProvider } from "@/contexts/FleetContext";
+import { TeamProvider } from "@/contexts/TeamContext";
 import { ProtectedRoute } from "@/components/common/ProtectedRoute";
 import { SuperAdminGuard } from "@/components/guards/SuperAdminGuard";
 import Index from "./pages/Index";
@@ -40,32 +41,34 @@ const AppWithRouter = () => {
       />
       <AuthProvider>
         <DemoProvider>
-          <FleetProvider>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/onboarding" element={
-                <ProtectedRoute>
-                  <Onboarding />
-                </ProtectedRoute>
-              } />
-              <Route path="/dashboard" element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              } />
-              <Route path="/super-admin" element={
-                <SuperAdminGuard>
-                  <SuperAdminDashboard />
-                </SuperAdminGuard>
-              } />
-              <Route path="/demo-landing" element={<DemoLanding />} />
-              <Route path="/demo" element={<Demo />} />
-              <Route path="/welcome" element={<Welcome />} />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </FleetProvider>
+          <TeamProvider>
+            <FleetProvider>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/onboarding" element={
+                  <ProtectedRoute>
+                    <Onboarding />
+                  </ProtectedRoute>
+                } />
+                <Route path="/dashboard" element={
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                } />
+                <Route path="/super-admin" element={
+                  <SuperAdminGuard>
+                    <SuperAdminDashboard />
+                  </SuperAdminGuard>
+                } />
+                <Route path="/demo-landing" element={<DemoLanding />} />
+                <Route path="/demo" element={<Demo />} />
+                <Route path="/welcome" element={<Welcome />} />
+                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </FleetProvider>
+          </TeamProvider>
         </DemoProvider>
       </AuthProvider>
     </>

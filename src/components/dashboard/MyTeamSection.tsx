@@ -26,6 +26,7 @@ interface TeamMember {
 }
 
 const roleIcons: Record<AppRole, React.ReactNode> = {
+  owner: <Crown className="h-3.5 w-3.5" />,
   admin: <Crown className="h-3.5 w-3.5" />,
   manager: <Shield className="h-3.5 w-3.5" />,
   operator: <UserCheck className="h-3.5 w-3.5" />,
@@ -33,6 +34,7 @@ const roleIcons: Record<AppRole, React.ReactNode> = {
 };
 
 const roleColors: Record<AppRole, string> = {
+  owner: "bg-amber-500/10 text-amber-600 border-amber-500/20",
   admin: "bg-destructive/10 text-destructive border-destructive/20",
   manager: "bg-primary/10 text-primary border-primary/20",
   operator: "bg-accent/10 text-accent border-accent/20",
@@ -40,6 +42,7 @@ const roleColors: Record<AppRole, string> = {
 };
 
 const roleLabels: Record<AppRole, string> = {
+  owner: "Owner",
   admin: "Administrator",
   manager: "Manager",
   operator: "Operator",
@@ -91,7 +94,7 @@ export const MyTeamSection = () => {
         });
 
         // Sort: current user first, then by role hierarchy
-        const roleOrder: Record<AppRole, number> = { admin: 0, manager: 1, operator: 2, viewer: 3 };
+        const roleOrder: Record<AppRole, number> = { owner: 0, admin: 1, manager: 2, operator: 3, viewer: 4 };
         members.sort((a, b) => {
           if (a.isCurrentUser) return -1;
           if (b.isCurrentUser) return 1;
