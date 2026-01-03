@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TabsContent } from "@/components/ui/tabs";
+import { ModuleTabs } from "@/components/common/ModuleTabs";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { useModuleNavigation } from "@/hooks/useModuleNavigation";
 import { NewBookingDialog } from "@/components/dialogs/NewBookingDialog";
@@ -143,23 +144,16 @@ export const BookEnhanced = () => {
 
   if (loading) {
     return (
-      <Tabs defaultValue="overview" className="space-y-4 sm:space-y-6">
-        <TabsList className="w-full overflow-x-auto flex flex-nowrap gap-1 sm:grid sm:grid-cols-4 bg-muted/50 p-1 rounded-lg">
-          <TabsTrigger value="overview" className="flex-shrink-0 px-3 py-2 text-xs sm:text-sm">Overview</TabsTrigger>
-          <TabsTrigger value="calendar" className="flex-shrink-0 px-3 py-2 text-xs sm:text-sm">Calendar</TabsTrigger>
-          <TabsTrigger value="payments" className="flex-shrink-0 px-3 py-2 text-xs sm:text-sm">Payments</TabsTrigger>
-          <TabsTrigger value="inspections" className="flex-shrink-0 px-3 py-2 text-xs sm:text-sm">Inspect</TabsTrigger>
-        </TabsList>
-        <TabsContent value="overview" className="space-y-4 sm:space-y-6">
-          <SkeletonCard />
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6">
-            <SkeletonMetric />
-            <SkeletonMetric />
-            <SkeletonMetric />
-            <SkeletonMetric />
-          </div>
-        </TabsContent>
-      </Tabs>
+      <div className="space-y-4 sm:space-y-6">
+        <div className="h-12 bg-muted/50 rounded-lg animate-pulse" />
+        <SkeletonCard />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6">
+          <SkeletonMetric />
+          <SkeletonMetric />
+          <SkeletonMetric />
+          <SkeletonMetric />
+        </div>
+      </div>
     );
   }
 
@@ -199,53 +193,16 @@ export const BookEnhanced = () => {
         />
       )}
 
-      <Tabs defaultValue="overview" className="space-y-4 sm:space-y-6 w-full overflow-x-hidden">
-        {/* ENHANCED MOBILE-FRIENDLY HEADER */}
-        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border/50">
-          <TabsList className="grid w-full grid-cols-5 gap-0 p-0 bg-transparent">
-            <TabsTrigger 
-              value="overview"
-              className="min-h-[44px] sm:min-h-[48px] data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-none border-b-2 border-transparent data-[state=active]:border-primary transition-all"
-            >
-              <Car className="w-4 h-4 md:mr-2" />
-              <span className="hidden md:inline">Overview</span>
-            </TabsTrigger>
-            
-            <TabsTrigger 
-              value="calendar"
-              className="min-h-[44px] sm:min-h-[48px] data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-none border-b-2 border-transparent data-[state=active]:border-primary transition-all"
-            >
-              <CalendarIcon className="w-4 h-4 md:mr-2" />
-              <span className="hidden md:inline">Calendar</span>
-            </TabsTrigger>
-            
-            <TabsTrigger 
-              value="customers"
-              className="min-h-[44px] sm:min-h-[48px] data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-none border-b-2 border-transparent data-[state=active]:border-primary transition-all"
-            >
-              <Users className="w-4 h-4 md:mr-2" />
-              <span className="hidden md:inline">CRM</span>
-            </TabsTrigger>
-            
-            <TabsTrigger 
-              value="payments"
-              className="min-h-[44px] sm:min-h-[48px] data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-none border-b-2 border-transparent data-[state=active]:border-primary transition-all"
-            >
-              <Receipt className="w-4 h-4 md:mr-2" />
-              <span className="hidden md:inline">Payments</span>
-            </TabsTrigger>
-            
-            <TabsTrigger 
-              value="inspections"
-              className="min-h-[44px] sm:min-h-[48px] data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-none border-b-2 border-transparent data-[state=active]:border-primary transition-all"
-            >
-              <ClipboardCheck className="w-4 h-4 md:mr-2" />
-              <span className="hidden sm:inline md:hidden">Inspect</span>
-              <span className="hidden md:inline">Inspections</span>
-            </TabsTrigger>
-          </TabsList>
-        </div>
-
+      <ModuleTabs
+        tabs={[
+          { id: "overview", label: "Overview", shortLabel: "Overview", icon: Car },
+          { id: "calendar", label: "Calendar", shortLabel: "Calendar", icon: CalendarIcon },
+          { id: "customers", label: "CRM", shortLabel: "CRM", icon: Users },
+          { id: "payments", label: "Payments", shortLabel: "Pay", icon: Receipt },
+          { id: "inspections", label: "Inspections", shortLabel: "Inspect", icon: ClipboardCheck },
+        ]}
+        defaultValue="overview"
+      >
         <TabsContent value="overview" className="space-y-4 sm:space-y-6">
         {/* Next Pickup Card */}
         <Card className="card-premium bg-gradient-to-br from-primary/10 to-accent/5 border-primary/20 p-3 sm:p-4">
@@ -448,7 +405,7 @@ export const BookEnhanced = () => {
             </Card>
           </div>
         </TabsContent>
-      </Tabs>
+      </ModuleTabs>
     </>
   );
 };

@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TabsContent } from "@/components/ui/tabs";
+import { ModuleTabs, ModuleTab } from "@/components/common/ModuleTabs";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { AskRariQuickAction } from "@/components/common/AskRariQuickAction";
 import { SkeletonCard, SkeletonMetric, SkeletonLineChart } from "@/components/ui/skeleton-card";
@@ -148,155 +149,144 @@ export const CoreEnhanced = () => {
 
   return (
     <>
-      <div className="space-y-6">
-      {/* AI Command Center Header - Simplified */}
-      <Card className="card-premium p-6 border-border">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-2xl md:text-3xl font-bold">FleetCopilot™</h2>
-            <p className="text-muted-foreground mt-1">AI Command Center</p>
+      <div className="space-y-4 sm:space-y-6">
+      {/* AI Command Center Header - Compact */}
+      <Card className="card-premium p-4 border-border">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <h2 className="text-xl sm:text-2xl font-bold">FleetCopilot™</h2>
+            <Badge className="bg-primary text-primary-foreground border-transparent px-2 py-0.5 text-xs shadow-sm">
+              <Brain className="w-3 h-3 mr-1" />
+              Active
+            </Badge>
           </div>
-          <Badge className="bg-primary text-primary-foreground border-transparent px-3 py-1.5 shadow-md">
-            <Brain className="w-4 h-4 mr-2" />
-            Active
-          </Badge>
-        </div>
-        
-        {/* Compact Stats Row */}
-        <div className="grid grid-cols-3 gap-4">
-          <div className="text-center p-4 rounded-xl bg-primary/5 border border-primary/10">
-            <div className="text-xl font-bold">24/7</div>
-            <div className="text-xs text-muted-foreground mt-0.5">Monitoring</div>
-          </div>
-          <div className="text-center p-4 rounded-xl bg-success/5 border border-success/10">
-            <div className="text-xl font-bold">87%</div>
-            <div className="text-xs text-muted-foreground mt-0.5">Automated</div>
-          </div>
-          <div className="text-center p-4 rounded-xl bg-accent/5 border border-accent/10">
-            <div className="text-xl font-bold">4.2h</div>
-            <div className="text-xs text-muted-foreground mt-0.5">Saved Daily</div>
+          
+          {/* Inline Stats */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary/5 border border-primary/10">
+              <span className="text-sm font-semibold">24/7</span>
+              <span className="text-[10px] text-muted-foreground hidden sm:inline">Monitoring</span>
+            </div>
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-success/5 border border-success/10">
+              <span className="text-sm font-semibold">87%</span>
+              <span className="text-[10px] text-muted-foreground hidden sm:inline">Automated</span>
+            </div>
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-accent/5 border border-accent/10">
+              <span className="text-sm font-semibold">4.2h</span>
+              <span className="text-[10px] text-muted-foreground hidden sm:inline">Saved</span>
+            </div>
           </div>
         </div>
       </Card>
 
       {/* Streamlined Tabs - AI-Focused */}
-      <Tabs defaultValue="rari" className="w-full">
-        <TabsList className="sticky top-0 z-10 grid w-full grid-cols-3 gap-1 h-auto p-1 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border/50">
-          <TabsTrigger value="rari" className="py-2.5 text-sm">
-            <Brain className="w-4 h-4 mr-2" />
-            Rari
-          </TabsTrigger>
-          <TabsTrigger value="insights" className="py-2.5 text-sm">
-            <Zap className="w-4 h-4 mr-2" />
-            Insights
-          </TabsTrigger>
-          <TabsTrigger value="settings" className="py-2.5 text-sm">
-            <Settings className="w-4 h-4 mr-2" />
-            Settings
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="rari" className="mt-4">
+      <ModuleTabs
+        tabs={[
+          { id: "rari", label: "Rari", shortLabel: "Rari", icon: Brain },
+          { id: "insights", label: "Insights", shortLabel: "Insights", icon: Zap },
+          { id: "settings", label: "Settings", shortLabel: "Settings", icon: Settings },
+        ]}
+        defaultValue="rari"
+      >
+        <TabsContent value="rari">
           <Card className="card-premium p-0 overflow-hidden">
             <RariVoiceInterface />
           </Card>
         </TabsContent>
 
-        <TabsContent value="insights" className="space-y-6 mt-4">
-
-      {/* Performance Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {performanceMetrics.map((metric, index) => (
-          <Card key={index} className="card-premium p-6">
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-2xl font-bold">{metric.value}</div>
-              <TrendingUp className="h-5 w-5 text-success" />
-            </div>
-            <div className="text-sm font-medium mb-1">{metric.label}</div>
-            <div className="text-xs text-success">
-              {metric.change} vs last month
-            </div>
-          </Card>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* AI Insights */}
-        <Card className="card-premium p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-semibold">AI Insights</h3>
-            <Badge className="bg-primary/10 text-primary border-primary/20">
-              <Zap className="w-3 h-3 mr-1" />
-              3 Active
-            </Badge>
-          </div>
-          
-          <div className="space-y-4">
-            {aiInsights.map((insight, index) => (
-              <div key={index} className="p-4 rounded-lg bg-muted/30 border border-primary/20">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h4 className="font-semibold text-sm">{insight.title}</h4>
-                      <AskRariQuickAction
-                        variant="icon"
-                        prompt={`Explain this AI insight in detail: ${insight.title}. ${insight.description}. Expected impact: ${insight.impact}. What should I do?`}
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground mb-2">{insight.description}</p>
-                    <div className="flex items-center space-x-4 text-xs">
-                      <span className="font-medium text-success">{insight.impact}</span>
-                      <span className="text-muted-foreground">Confidence: {insight.confidence}</span>
-                    </div>
-                  </div>
-                  <Badge className={getPriorityColor(insight.priority)}>
-                    {insight.priority}
-                  </Badge>
+        <TabsContent value="insights" className="space-y-6">
+          {/* Performance Metrics */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {performanceMetrics.map((metric, index) => (
+              <Card key={index} className="card-premium p-6">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-2xl font-bold">{metric.value}</div>
+                  <TrendingUp className="h-5 w-5 text-success" />
                 </div>
-                
-                <Button size="sm" variant="outline" className="w-full">
-                  {insight.action}
+                <div className="text-sm font-medium mb-1">{metric.label}</div>
+                <div className="text-xs text-success">
+                  {metric.change} vs last month
+                </div>
+              </Card>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* AI Insights */}
+            <Card className="card-premium p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-semibold">AI Insights</h3>
+                <Badge className="bg-primary/10 text-primary border-primary/20">
+                  <Zap className="w-3 h-3 mr-1" />
+                  3 Active
+                </Badge>
+              </div>
+              
+              <div className="space-y-4">
+                {aiInsights.map((insight, index) => (
+                  <div key={index} className="p-4 rounded-lg bg-muted/30 border border-primary/20">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className="font-semibold text-sm">{insight.title}</h4>
+                          <AskRariQuickAction
+                            variant="icon"
+                            prompt={`Explain this AI insight in detail: ${insight.title}. ${insight.description}. Expected impact: ${insight.impact}. What should I do?`}
+                          />
+                        </div>
+                        <p className="text-xs text-muted-foreground mb-2">{insight.description}</p>
+                        <div className="flex items-center space-x-4 text-xs">
+                          <span className="font-medium text-success">{insight.impact}</span>
+                          <span className="text-muted-foreground">Confidence: {insight.confidence}</span>
+                        </div>
+                      </div>
+                      <Badge className={getPriorityColor(insight.priority)}>
+                        {insight.priority}
+                      </Badge>
+                    </div>
+                    
+                    <Button size="sm" variant="outline" className="w-full">
+                      {insight.action}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            {/* System Alerts */}
+            <Card className="card-premium p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-semibold">System Alerts</h3>
+                <Button variant="outline" size="sm">
+                  View All
                 </Button>
               </div>
-            ))}
-          </div>
-        </Card>
-
-        {/* System Alerts */}
-        <Card className="card-premium p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-semibold">System Alerts</h3>
-            <Button variant="outline" size="sm">
-              View All
-            </Button>
-          </div>
-          
-          <div className="space-y-4">
-            {systemAlerts.map((alert, index) => (
-              <div key={index} className="flex items-start space-x-3 p-3 rounded-lg bg-muted/30">
-                {getAlertIcon(alert.type)}
-                <div className="flex-1">
-                  <div className="text-sm font-medium">{alert.message}</div>
-                  <div className="flex items-center justify-between mt-1">
-                    <div className="text-xs text-muted-foreground">{alert.time}</div>
-                    <Badge className={getPriorityColor(alert.priority)}>
-                      {alert.priority}
-                    </Badge>
+              
+              <div className="space-y-4">
+                {systemAlerts.map((alert, index) => (
+                  <div key={index} className="flex items-start space-x-3 p-3 rounded-lg bg-muted/30">
+                    {getAlertIcon(alert.type)}
+                    <div className="flex-1">
+                      <div className="text-sm font-medium">{alert.message}</div>
+                      <div className="flex items-center justify-between mt-1">
+                        <div className="text-xs text-muted-foreground">{alert.time}</div>
+                        <Badge className={getPriorityColor(alert.priority)}>
+                          {alert.priority}
+                        </Badge>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                ))}
               </div>
-            ))}
+            </Card>
           </div>
-        </Card>
-      </div>
-
         </TabsContent>
 
-        <TabsContent value="settings" className="mt-4 space-y-6">
+        <TabsContent value="settings" className="space-y-6">
           <UserManagementSection />
           <SystemSettingsSection />
         </TabsContent>
-      </Tabs>
+      </ModuleTabs>
 
       {/* All Dialogs */}
       <AddVehicleDialog

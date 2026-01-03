@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TabsContent } from "@/components/ui/tabs";
+import { ModuleTabs } from "@/components/common/ModuleTabs";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { PriceOptimizationDialog } from "@/components/dialogs/PriceOptimizationDialog";
 import { VehicleImageDialog } from "@/components/dialogs/VehicleImageDialog";
@@ -173,22 +174,15 @@ export const MotorIQEnhanced = () => {
 
       <div className="space-y-4 sm:space-y-6 overflow-x-hidden w-full">
         {/* Module Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-6">
-            <TabsTrigger value="overview" className="flex items-center gap-2">
-              <Brain className="h-4 w-4" />
-              <span className="hidden sm:inline">Overview</span>
-            </TabsTrigger>
-            <TabsTrigger value="pricing" className="flex items-center gap-2">
-              <DollarSign className="h-4 w-4" />
-              <span className="hidden sm:inline">Dynamic Pricing</span>
-            </TabsTrigger>
-            <TabsTrigger value="forecast" className="flex items-center gap-2">
-              <BarChart3 className="h-4 w-4" />
-              <span className="hidden sm:inline">Demand Forecast</span>
-            </TabsTrigger>
-          </TabsList>
-
+        <ModuleTabs
+          tabs={[
+            { id: "overview", label: "Overview", shortLabel: "Overview", icon: Brain },
+            { id: "pricing", label: "Dynamic Pricing", shortLabel: "Pricing", icon: DollarSign },
+            { id: "forecast", label: "Demand Forecast", shortLabel: "Forecast", icon: BarChart3 },
+          ]}
+          value={activeTab}
+          onValueChange={setActiveTab}
+        >
           <TabsContent value="overview" className="space-y-6">
         {topRecommendation && potentialIncrease > 0 ? (
           <Card className="card-premium bg-gradient-to-br from-success/10 via-primary/5 to-accent/10 border-success/20 p-4 sm:p-6 md:p-8">
@@ -376,7 +370,7 @@ export const MotorIQEnhanced = () => {
           <TabsContent value="forecast" className="space-y-6">
             <DemandForecastCard />
           </TabsContent>
-        </Tabs>
+        </ModuleTabs>
       </div>
     </>
   );
