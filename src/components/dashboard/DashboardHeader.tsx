@@ -47,9 +47,10 @@ export const DashboardHeader = ({ onOpenChat }: DashboardHeaderProps) => {
   return (
     <>
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center justify-between gap-4 px-4">
-        <div className="flex items-center gap-2">
-          <ExotiqLogoBranded variant="gulf-blue" size="md" />
+      <div className="container flex h-14 sm:h-16 items-center justify-between gap-2 sm:gap-4 px-3 sm:px-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-0.5 sm:gap-2 min-w-0">
+          <ExotiqLogoBranded variant="gulf-blue" size="sm" className="sm:hidden" />
+          <ExotiqLogoBranded variant="gulf-blue" size="md" className="hidden sm:flex" />
           <LocationSwitcher onAddLocation={() => setAddLocationOpen(true)} />
         </div>
         
