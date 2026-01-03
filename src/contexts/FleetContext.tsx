@@ -175,22 +175,29 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       if (customersError) throw customersError;
       setCustomers(customersData || []);
 
-      // Build customer notes query (user-specific)
-      const { data: notesData, error: notesError } = await supabase
-        .from('customer_notes')
-        .select('*')
-        .eq('user_id', userId!)
-        .order('created_at', { ascending: false });
+      // Build customer notes query - team-based via customer relationship
+      // RLS handles team access, we just need to get all notes for team's customers
+      const customerIds = customersData?.map(c => c.id) || [];
+      let notesData: CustomerNote[] = [];
+      if (customerIds.length > 0) {
+        const { data, error: notesError } = await supabase
+          .from('customer_notes')
+          .select('*')
+          .in('customer_id', customerIds)
+          .order('created_at', { ascending: false });
+        if (notesError) throw notesError;
+        notesData = data || [];
+      }
+      setCustomerNotes(notesData);
 
-      if (notesError) throw notesError;
-      setCustomerNotes(notesData || []);
-
-      // Build inspections query (user-specific for now)
-      const { data: inspectionsData, error: inspectionsError } = await supabase
-        .from('vehicle_inspections')
-        .select('*')
-        .eq('user_id', userId!)
-        .order('created_at', { ascending: false });
+      // Build inspections query - team-based
+      let inspectionsQuery = supabase.from('vehicle_inspections').select('*');
+      if (teamId) {
+        inspectionsQuery = inspectionsQuery.eq('team_id', teamId);
+      } else {
+        inspectionsQuery = inspectionsQuery.eq('user_id', userId!);
+      }
+      const { data: inspectionsData, error: inspectionsError } = await inspectionsQuery.order('created_at', { ascending: false });
 
       if (inspectionsError) throw inspectionsError;
       setInspections(inspectionsData || []);
@@ -807,11 +814,13 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
   const createInspection = async (inspection: Omit<Database['public']['Tables']['vehicle_inspections']['Insert'], 'user_id'>) => {
     if (!user) return;
 
+    const teamId = getTeamId();
     const { error } = await supabase
       .from('vehicle_inspections')
       .insert({
         ...inspection,
-        user_id: user.id
+        user_id: user.id,
+        team_id: teamId || null
       });
 
     if (error) {
@@ -838,11 +847,13 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     if (!user) return;
 
     // Create inspection first
+    const teamId = getTeamId();
     const { data: inspectionData, error: inspectionError } = await supabase
       .from('vehicle_inspections')
       .insert({
         ...inspection,
-        user_id: user.id
+        user_id: user.id,
+        team_id: teamId || null
       })
       .select('id')
       .single();
