@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { MapPin, Plus, Pencil, Star, Phone, Mail, Clock } from "lucide-react";
 import { AddLocationDialog } from "@/components/dialogs/AddLocationDialog";
 import { EditLocationDialog } from "@/components/dialogs/EditLocationDialog";
+import { cn } from "@/lib/utils";
 
 export const LocationsSection = () => {
   const { locations, currentTeam, refreshTeam, isOwner } = useTeam();
@@ -104,7 +105,12 @@ export const LocationsSection = () => {
               {locations.map((location) => (
                 <div 
                   key={location.id} 
-                  className="flex items-start justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                  className={cn(
+                    "flex items-start justify-between p-4 border rounded-lg transition-colors",
+                    location.is_active 
+                      ? "hover:bg-muted/50" 
+                      : "opacity-60 bg-muted/30"
+                  )}
                 >
                   <div className="space-y-1.5">
                     <div className="flex items-center gap-2">
@@ -113,6 +119,11 @@ export const LocationsSection = () => {
                         <Badge variant="secondary" className="text-xs">
                           <Star className="h-3 w-3 mr-1" />
                           Default
+                        </Badge>
+                      )}
+                      {!location.is_active && (
+                        <Badge variant="outline" className="text-xs text-muted-foreground">
+                          Inactive
                         </Badge>
                       )}
                     </div>
