@@ -12,17 +12,53 @@ export const DriverTelematics = () => {
   const drivers = [
     {
       id: '1',
+      name: 'Priya Sharma',
+      vehicle: 'Ferrari SF90 Stradale',
+      score: 98,
+      status: 'excellent' as const,
+      smoothDriving: 'Exceptional',
+      safety: 99
+    },
+    {
+      id: '2',
+      name: 'Elena Rodriguez',
+      vehicle: 'Porsche 911 Turbo S',
+      score: 94,
+      status: 'excellent' as const,
+      smoothDriving: 'Excellent',
+      safety: 96
+    },
+    {
+      id: '3',
       name: 'Marcus Chen',
       vehicle: 'Lamborghini Huracán',
       score: 86,
       status: 'excellent' as const,
       smoothDriving: 'Excellent',
+      safety: 89
+    },
+    {
+      id: '4',
+      name: 'James Wilson',
+      vehicle: 'McLaren 720S',
+      score: 81,
+      status: 'excellent' as const,
+      smoothDriving: 'Good',
+      safety: 84
+    },
+    {
+      id: '5',
+      name: 'Aisha Thompson',
+      vehicle: 'Bentley Continental GT',
+      score: 92,
+      status: 'excellent' as const,
+      smoothDriving: 'Excellent',
       safety: 95
     },
     {
-      id: '2',
-      name: 'Sarah Mitchell',
-      vehicle: 'Ferrari 488',
+      id: '6',
+      name: 'David Park',
+      vehicle: 'Aston Martin DB12',
       score: 72,
       status: 'needs-improvement' as const,
       smoothDriving: 'Fair',
