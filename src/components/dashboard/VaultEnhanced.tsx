@@ -9,6 +9,7 @@ import { DamageClaimsSection } from "@/components/dashboard/DamageClaimsSection"
 import { PaymentsSection } from "@/components/dashboard/PaymentsSection";
 import { VerificationSection } from "@/components/dashboard/VerificationSection";
 import { ComplianceStackedBar } from "@/components/charts/ComplianceStackedBar";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { AskRariQuickAction } from "@/components/common/AskRariQuickAction";
 import { useToast } from "@/hooks/use-toast";
 import { SkeletonCard, SkeletonMetric } from "@/components/ui/skeleton-card";
@@ -24,13 +25,18 @@ import {
   Calendar,
   ArrowRight,
   CreditCard,
-  UserCheck
+  UserCheck,
+  ChevronDown,
+  ChevronUp,
+  X
 } from "lucide-react";
 
 export const VaultEnhanced = () => {
   const { documents, uploadDocument, deleteDocument, loading } = useLocationFilteredFleet();
   const { toast } = useToast();
   const [showUploadDialog, setShowUploadDialog] = useState(false);
+  const [alertDismissed, setAlertDismissed] = useState(false);
+  const [alertExpanded, setAlertExpanded] = useState(false);
 
   const urgentAlert = {
     title: "License Expiring Soon",
@@ -141,57 +147,71 @@ export const VaultEnhanced = () => {
         </TabsList>
 
         <TabsContent value="documents" className="space-y-4 sm:space-y-6">
-      {/* Hero - Urgent Alert */}
-      <Card className="card-premium bg-gradient-to-br from-warning/10 to-destructive/10 border-warning/20 p-4 sm:p-6">
-        <div className="flex items-start justify-between gap-3 mb-4">
-          <div className="flex-1 min-w-0">
-            <Badge className="bg-destructive/20 text-destructive border-destructive/30 mb-2 sm:mb-3 text-xs">
-              <AlertTriangle className="w-3 h-3 mr-1" />
-              Urgent Action Required
-            </Badge>
-            <h2 className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2">{urgentAlert.daysLeft} Days</h2>
-            <p className="text-sm sm:text-base text-muted-foreground">Until Expiration</p>
-          </div>
-          <div className="p-2 sm:p-3 bg-destructive/10 rounded-xl sm:rounded-2xl flex-shrink-0">
-            <AlertTriangle className="h-8 w-8 sm:h-10 sm:w-10 text-destructive" />
-          </div>
-        </div>
-
-        <div className="bg-card/50 backdrop-blur-sm rounded-lg sm:rounded-xl p-3 sm:p-4 mb-3">
-          <div className="flex items-start justify-between gap-2 mb-2">
-            <h3 className="text-lg sm:text-xl font-semibold">{urgentAlert.title}</h3>
-            <AskRariQuickAction
-              variant="icon"
-              prompt={`Help me handle this urgent compliance issue: ${urgentAlert.title} for ${urgentAlert.document} on ${urgentAlert.vehicle}. What are my options and next steps?`}
-            />
-          </div>
-          <div className="space-y-1 sm:space-y-2">
-            <p className="text-sm sm:text-base">{urgentAlert.document}</p>
-            <p className="text-xs sm:text-sm text-muted-foreground">Vehicle: {urgentAlert.vehicle}</p>
-          </div>
-        </div>
-
-        <div className="flex flex-col xs:flex-row gap-2 sm:gap-3">
-          <Button 
-            className="btn-premium hover-scale text-sm"
-            onClick={() => setShowUploadDialog(true)}
-          >
-            <Upload className="w-4 h-4 mr-2" />
-            Renew Now
-          </Button>
-          <Button 
-            variant="outline" 
-            className="hover-scale text-sm"
-            onClick={() => toast({
-              title: "Document Details",
-              description: "Opening detailed compliance view...",
-            })}
-          >
-            View Details
-            <ArrowRight className="w-4 h-4 ml-2" />
-          </Button>
-        </div>
-      </Card>
+      {/* Compact Urgent Alert - Collapsible */}
+      {!alertDismissed && (
+        <Collapsible open={alertExpanded} onOpenChange={setAlertExpanded}>
+          <Card className="border-l-4 border-l-warning bg-warning/5 overflow-hidden">
+            <CollapsibleTrigger asChild>
+              <div className="flex items-center justify-between p-3 cursor-pointer hover:bg-muted/30 transition-colors">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div className="p-1.5 bg-warning/20 rounded-lg flex-shrink-0">
+                    <AlertTriangle className="h-4 w-4 text-warning" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-sm truncate">{urgentAlert.title}</span>
+                      <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                        {urgentAlert.daysLeft}d left
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground truncate">{urgentAlert.document}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={(e) => { e.stopPropagation(); setAlertDismissed(true); }}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                  {alertExpanded ? (
+                    <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </div>
+              </div>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="px-3 pb-3 pt-0 space-y-3">
+                <div className="text-xs text-muted-foreground">
+                  Vehicle: {urgentAlert.vehicle}
+                </div>
+                <div className="flex gap-2">
+                  <Button 
+                    size="sm"
+                    className="h-8 text-xs"
+                    onClick={() => setShowUploadDialog(true)}
+                  >
+                    <Upload className="w-3 h-3 mr-1.5" />
+                    Renew Now
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    className="h-8 text-xs"
+                  >
+                    View Details
+                    <ArrowRight className="w-3 h-3 ml-1.5" />
+                  </Button>
+                </div>
+              </div>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
+      )}
 
       {/* Compliance Score */}
       <Card className="card-premium p-4 sm:p-6">
