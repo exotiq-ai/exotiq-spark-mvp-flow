@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { useFleet } from "@/contexts/FleetContext";
+import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { SkeletonMetric, SkeletonTable } from "@/components/ui/skeleton-card";
 import { EmptyState } from "@/components/common/EmptyState";
 import { 
@@ -21,7 +21,7 @@ import { CustomerProfileDialog } from "@/components/dialogs/CustomerProfileDialo
 import { AddCustomerDialog } from "@/components/dialogs/AddCustomerDialog";
 
 export const CRMSection = () => {
-  const { customers, bookings, createCustomer, loading } = useFleet();
+  const { customers, bookings, createCustomer, loading, isAllLocations, currentLocation } = useLocationFilteredFleet();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
