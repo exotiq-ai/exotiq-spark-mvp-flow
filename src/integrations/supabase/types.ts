@@ -1255,6 +1255,24 @@ export type Database = {
         }
         Relationships: []
       }
+      super_admins: {
+        Row: {
+          created_at: string | null
+          email: string
+          notes: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          notes?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          notes?: string | null
+        }
+        Relationships: []
+      }
       team_conversations: {
         Row: {
           avatar_url: string | null
@@ -1708,6 +1726,11 @@ export type Database = {
       is_same_team: {
         Args: { _target_user_id: string; _user_id: string }
         Returns: boolean
+      }
+      is_super_admin: { Args: { check_user_id: string }; Returns: boolean }
+      log_admin_action: {
+        Args: { p_action: string; p_details?: Json }
+        Returns: string
       }
       log_user_activity: {
         Args: {

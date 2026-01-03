@@ -45,16 +45,17 @@ interface Customer {
 interface SystemStats {
   totalCustomers: number;
   newThisWeek: number;
-  activeConversations: number;
-  totalApplications: number;
+  totalVehicles: number;
+  totalBookings: number;
 }
 
 interface AuditLogEntry {
   id: string;
-  admin_email: string;
   action: string;
-  target_email: string | null;
-  created_at: string;
+  user_id: string;
+  changed_by: string | null;
+  created_at: string | null;
+  metadata: unknown;
 }
 
 export const SuperAdminDashboard = () => {
@@ -68,8 +69,8 @@ export const SuperAdminDashboard = () => {
   const [stats, setStats] = useState<SystemStats>({
     totalCustomers: 0,
     newThisWeek: 0,
-    activeConversations: 0,
-    totalApplications: 0
+    totalVehicles: 0,
+    totalBookings: 0
   });
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -156,22 +157,21 @@ export const SuperAdminDashboard = () => {
           .select('*', { count: 'exact', head: true })
           .gte('assigned_at', weekAgo.toISOString());
 
-        // Get active Rari conversations
-        const { count: activeConversations } = await supabase
-          .from('rari_conversations')
-          .select('*', { count: 'exact', head: true })
-          .is('ended_at', null);
+        // Get total vehicles across all accounts
+        const { count: totalVehicles } = await supabase
+          .from('vehicles')
+          .select('*', { count: 'exact', head: true });
 
-        // Get total applications
-        const { count: totalApplications } = await supabase
-          .from('applications')
+        // Get total bookings across all accounts
+        const { count: totalBookings } = await supabase
+          .from('bookings')
           .select('*', { count: 'exact', head: true });
 
         setStats({
           totalCustomers: totalCustomers || 0,
           newThisWeek: newThisWeek || 0,
-          activeConversations: activeConversations || 0,
-          totalApplications: totalApplications || 0
+          totalVehicles: totalVehicles || 0,
+          totalBookings: totalBookings || 0
         });
       } catch (error) {
         console.error('[SuperAdmin] Error fetching stats:', error);
@@ -183,13 +183,13 @@ export const SuperAdminDashboard = () => {
     fetchStats();
   }, []);
 
-  // Fetch recent audit logs
+  // Fetch recent audit logs from role_audit_log table
   useEffect(() => {
     const fetchAuditLogs = async () => {
       try {
         const { data, error } = await supabase
-          .from('admin_audit_log')
-          .select('id, admin_email, action, target_email, created_at')
+          .from('role_audit_log')
+          .select('id, action, user_id, changed_by, created_at, metadata')
           .order('created_at', { ascending: false })
           .limit(10);
 
@@ -291,26 +291,26 @@ export const SuperAdminDashboard = () => {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Conversations</CardTitle>
+              <CardTitle className="text-sm font-medium">Total Vehicles</CardTitle>
               <Activity className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{loading ? '...' : stats.activeConversations}</div>
+              <div className="text-2xl font-bold">{loading ? '...' : stats.totalVehicles}</div>
               <p className="text-xs text-muted-foreground mt-1">
-                Rari AI sessions
+                Across all accounts
               </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Applications</CardTitle>
+              <CardTitle className="text-sm font-medium">Total Bookings</CardTitle>
               <FileText className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{loading ? '...' : stats.totalApplications}</div>
+              <div className="text-2xl font-bold">{loading ? '...' : stats.totalBookings}</div>
               <p className="text-xs text-muted-foreground mt-1">
-                Pending review
+                All time
               </p>
             </CardContent>
           </Card>
@@ -412,16 +412,16 @@ export const SuperAdminDashboard = () => {
                             </Badge>
                           </div>
                           <p className="text-sm mt-1">
-                            <span className="font-medium">{log.admin_email}</span>
-                            {log.target_email && (
+                            <span className="font-medium">User: {log.user_id.slice(0, 8)}...</span>
+                            {log.changed_by && log.changed_by !== log.user_id && (
                               <>
-                                {' → '}
-                                <span className="text-muted-foreground">{log.target_email}</span>
+                                {' by '}
+                                <span className="text-muted-foreground">{log.changed_by.slice(0, 8)}...</span>
                               </>
                             )}
                           </p>
                           <p className="text-xs text-muted-foreground mt-1">
-                            {new Date(log.created_at).toLocaleString()}
+                            {log.created_at ? new Date(log.created_at).toLocaleString() : 'Unknown date'}
                           </p>
                         </div>
                       </div>
