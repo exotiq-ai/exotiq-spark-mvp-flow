@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useFleet } from "@/contexts/FleetContext";
+import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { VehicleImageDialog } from "@/components/dialogs/VehicleImageDialog";
 import { 
   DollarSign, 
@@ -17,7 +17,7 @@ import { Database } from "@/integrations/supabase/types";
 type Booking = Database['public']['Tables']['bookings']['Row'];
 
 export const PaymentTracker = () => {
-  const { bookings, payments, vehicles, createPayment } = useFleet();
+  const { bookings, payments, vehicles, createPayment } = useLocationFilteredFleet();
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [showRecordPayment, setShowRecordPayment] = useState(false);
   const [showVehicleImage, setShowVehicleImage] = useState(false);

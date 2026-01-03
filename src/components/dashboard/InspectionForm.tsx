@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { useFleet } from "@/contexts/FleetContext";
+import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { Database } from "@/integrations/supabase/types";
 import { 
   Camera, 
@@ -42,7 +42,7 @@ export const InspectionForm = ({
   inspectionType,
   onComplete
 }: InspectionFormProps) => {
-  const { vehicles, createInspectionWithPhotos } = useFleet();
+  const { vehicles, createInspectionWithPhotos } = useLocationFilteredFleet();
   const [loading, setLoading] = useState(false);
   const [showVehicleImage, setShowVehicleImage] = useState(false);
   const [showPhotoGallery, setShowPhotoGallery] = useState(false);

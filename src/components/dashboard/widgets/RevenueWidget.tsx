@@ -4,14 +4,14 @@ import { SkeletonLineChart } from "@/components/ui/skeleton-card";
 import { ProgressiveDisclosure } from "@/components/common/ProgressiveDisclosure";
 import { CountUp } from "@/components/common/MicroInteractions";
 import { Tachometer } from "@/components/automotive/RacingStripe";
-import { useFleet } from "@/contexts/FleetContext";
+import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 
 interface RevenueWidgetProps {
   isLoading?: boolean;
 }
 
 export const RevenueWidget = ({ isLoading }: RevenueWidgetProps) => {
-  const { vehicles, bookings } = useFleet();
+  const { vehicles, bookings } = useLocationFilteredFleet();
 
   if (isLoading) {
     return <SkeletonLineChart height={200} />;

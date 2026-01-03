@@ -16,7 +16,7 @@ import { AddCustomerDialog } from "@/components/dialogs/AddCustomerDialog";
 import { GenerateReportDialog } from "@/components/dialogs/GenerateReportDialog";
 import { ScheduleMaintenanceDialog } from "@/components/dialogs/ScheduleMaintenanceDialog";
 import { RecordPaymentDialog } from "@/components/dialogs/RecordPaymentDialog";
-import { useFleet } from "@/contexts/FleetContext";
+import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { DemoOnboarding } from "@/components/demo/DemoOnboarding";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { motion, AnimatePresence } from "framer-motion";
@@ -56,7 +56,7 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [showAddVehicleDialog, setShowAddVehicleDialog] = useState(false);
   
-  const { vehicles, bookings, loading, applyPriceOptimization, createBooking, createCustomer, generateReport, createMaintenance, createPayment, createVehicle } = useFleet();
+  const { vehicles, bookings, loading, applyPriceOptimization, createBooking, createCustomer, generateReport, createMaintenance, createPayment, createVehicle } = useLocationFilteredFleet();
   
   // Collapsible state persistence - default to only metrics expanded for reduced visual density
   const [expandedSections, setExpandedSections] = useLocalStorage<string[]>("dashboardSections", [

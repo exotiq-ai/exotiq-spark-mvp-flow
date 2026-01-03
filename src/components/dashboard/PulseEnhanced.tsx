@@ -6,7 +6,7 @@ import { DriverPerformanceTrend } from "@/components/charts/DriverPerformanceTre
 import { AskRariQuickAction } from "@/components/common/AskRariQuickAction";
 import { SkeletonCard, SkeletonMetric, SkeletonLineChart, SkeletonTable } from "@/components/ui/skeleton-card";
 import { SkeletonHeroMetric, SkeletonStatsRow, SkeletonScheduleItem } from "@/components/ui/skeleton-specialized";
-import { useFleet } from "@/contexts/FleetContext";
+import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { useNavigate } from "react-router-dom";
 import { 
   Activity, 
@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 
 export const PulseEnhanced = () => {
-  const { loading } = useFleet();
+  const { loading } = useLocationFilteredFleet();
   const navigate = useNavigate();
   
   const todayRevenue = {

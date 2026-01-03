@@ -7,7 +7,7 @@ import { AddCustomerDialog } from "@/components/dialogs/AddCustomerDialog";
 import { GenerateReportDialog } from "@/components/dialogs/GenerateReportDialog";
 import { ScheduleMaintenanceDialog } from "@/components/dialogs/ScheduleMaintenanceDialog";
 import { RariVoiceInterface } from "@/components/rari/RariVoiceInterface";
-import { useFleet } from "@/contexts/FleetContext";
+import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { motion } from "framer-motion";
 import {
   CalendarPlus,
@@ -29,7 +29,7 @@ interface QuickActionsWidgetProps {
 }
 
 export const QuickActionsWidget = ({ onModuleClick }: QuickActionsWidgetProps) => {
-  const { bookings, vehicles, createBooking, createPayment, createCustomer, createMaintenance, generateReport } = useFleet();
+  const { bookings, vehicles, createBooking, createPayment, createCustomer, createMaintenance, generateReport } = useLocationFilteredFleet();
   
   const [showBookingDialog, setShowBookingDialog] = useState(false);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);

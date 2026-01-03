@@ -7,7 +7,7 @@ import { FleetStatusWidget } from "./widgets/FleetStatusWidget";
 import { ScheduleWidget } from "./widgets/ScheduleWidget";
 import { QuickActionsWidget } from "./widgets/QuickActionsWidget";
 import { PriceOptimizationDialog } from "@/components/dialogs/PriceOptimizationDialog";
-import { useFleet } from "@/contexts/FleetContext";
+import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { DemoOnboarding } from "@/components/demo/DemoOnboarding";
 import { PageHeader } from "@/components/common/PageHeader";
 
@@ -17,7 +17,7 @@ interface DashboardOverviewProps {
 
 export const DashboardOverview = ({ onModuleClick }: DashboardOverviewProps) => {
   const [showOptimizationDialog, setShowOptimizationDialog] = useState(false);
-  const { vehicles, applyPriceOptimization } = useFleet();
+  const { vehicles, applyPriceOptimization } = useLocationFilteredFleet();
 
   return (
     <>

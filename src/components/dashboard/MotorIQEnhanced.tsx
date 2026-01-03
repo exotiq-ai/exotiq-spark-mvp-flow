@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useFleet } from "@/contexts/FleetContext";
+import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { PriceOptimizationDialog } from "@/components/dialogs/PriceOptimizationDialog";
 import { VehicleImageDialog } from "@/components/dialogs/VehicleImageDialog";
 import { PriceUtilizationScatterPlot } from "@/components/charts/PriceUtilizationScatterPlot";
@@ -30,7 +30,7 @@ import { createExportActions } from "@/lib/exportUtils";
 import { useToast } from "@/hooks/use-toast";
 
 export const MotorIQEnhanced = () => {
-  const { vehicles, applyPriceOptimization, loading, createVehicle } = useFleet();
+  const { vehicles, applyPriceOptimization, loading, createVehicle } = useLocationFilteredFleet();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("overview");
   const [showOptimizationDialog, setShowOptimizationDialog] = useState(false);
