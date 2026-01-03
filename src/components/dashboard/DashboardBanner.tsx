@@ -5,12 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import defaultBanner from "@/assets/dashboard-banner.jpg";
 
-const motivationalLines = [
-  "Keep optimizing. Every insight brings your fleet closer to peak performance.",
-  "Momentum matters—your business is growing. Let's keep the throttle open.",
-  "Steady growth ahead. You're building something incredible, one trip at a time.",
-  "Precision. Performance. Progress."
-];
+// Static tagline for all users
+const tagline = "Precision. Performance. Progress.";
 
 interface BannerPreferences {
   banner_url: string | null;
@@ -26,7 +22,6 @@ export const DashboardBanner = () => {
   const [bannerUrl, setBannerUrl] = useState<string>(defaultBanner);
   const [isUploading, setIsUploading] = useState(false);
   const [showUploadButton, setShowUploadButton] = useState(false);
-  const [currentLineIndex, setCurrentLineIndex] = useState(0);
   const [preferences, setPreferences] = useState<BannerPreferences>({
     banner_url: null,
     company_name: null,
@@ -40,18 +35,6 @@ export const DashboardBanner = () => {
 
   useEffect(() => {
     loadUserBanner();
-  }, []);
-
-  useEffect(() => {
-    // Respect user's motion preferences
-    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (prefersReducedMotion) return;
-
-    const interval = setInterval(() => {
-      setCurrentLineIndex((prev) => (prev + 1) % motivationalLines.length);
-    }, 12000); // Change every 12 seconds for calmer experience
-
-    return () => clearInterval(interval);
   }, []);
 
   const loadUserBanner = async () => {
@@ -300,11 +283,8 @@ export const DashboardBanner = () => {
                 <h1 className="text-2xl md:text-3xl font-dfaalt font-bold text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.3)]">
                   Welcome to Your Command Center
                 </h1>
-                <p 
-                  key={currentLineIndex}
-                  className="text-sm md:text-base font-montserrat text-white mt-2 drop-shadow-[0_2px_6px_rgba(0,0,0,0.3)] animate-fade-in"
-                >
-                  {motivationalLines[currentLineIndex]}
+                <p className="text-sm md:text-base font-montserrat text-white mt-2 drop-shadow-[0_2px_6px_rgba(0,0,0,0.3)]">
+                  {tagline}
                 </p>
               </>
             )}
