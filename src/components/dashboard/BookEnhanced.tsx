@@ -13,6 +13,7 @@ import { InspectionForm } from "@/components/dashboard/InspectionForm";
 import { CRMSection } from "@/components/dashboard/CRMSection";
 import { VehicleImageDialog } from "@/components/dialogs/VehicleImageDialog";
 import { AskRariQuickAction } from "@/components/common/AskRariQuickAction";
+import { LocationBadge } from "@/components/common/LocationBadge";
 import { SkeletonCard, SkeletonMetric } from "@/components/ui/skeleton-card";
 import { EmptyState, NoBookingsState } from "@/components/common/EmptyState";
 import { getVehicleImage } from "@/lib/vehicleImageMapping";
@@ -367,13 +368,14 @@ export const BookEnhanced = () => {
                 className="p-3 sm:p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors"
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span 
                       className="font-semibold truncate cursor-pointer hover:text-primary transition-colors"
                       onClick={() => handleVehicleClick(booking.vehicle_id)}
                     >
                       {getVehicleDisplay(booking.vehicle_id)}
                     </span>
+                    <LocationBadge locationId={booking.pickup_location_id} />
                     <AskRariQuickAction
                       variant="icon"
                       prompt={`Tell me about this booking: ${getVehicleDisplay(booking.vehicle_id)} for ${booking.customer_name}. Start: ${formatDate(booking.start_date)}, Status: ${booking.status}, Value: $${booking.total_value}`}

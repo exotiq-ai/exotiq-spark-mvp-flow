@@ -9,6 +9,7 @@ import { VehicleImageDialog } from "@/components/dialogs/VehicleImageDialog";
 import { PriceUtilizationScatterPlot } from "@/components/charts/PriceUtilizationScatterPlot";
 import { DynamicPricingCard } from "@/components/dashboard/DynamicPricingCard";
 import { DemandForecastCard } from "@/components/dashboard/DemandForecastCard";
+import { LocationBadge } from "@/components/common/LocationBadge";
 
 import { SkeletonMetric, SkeletonCard, SkeletonBarChart, SkeletonTable } from "@/components/ui/skeleton-card";
 import { SkeletonAIInsight, SkeletonVehicleCard, SkeletonStatsRow } from "@/components/ui/skeleton-specialized";
@@ -327,9 +328,12 @@ export const MotorIQEnhanced = () => {
                     >
                       {vehicle.name}
                     </h4>
-                    <p className="text-sm text-muted-foreground">
-                      {vehicle.year} {vehicle.make} {vehicle.model}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm text-muted-foreground">
+                        {vehicle.year} {vehicle.make} {vehicle.model}
+                      </p>
+                      <LocationBadge locationId={vehicle.location_id} />
+                    </div>
                   </div>
                   {vehicle.opportunity && (
                     <Badge className="bg-success/20 text-success border-success/30">

@@ -17,6 +17,7 @@ import { GenerateReportDialog } from "@/components/dialogs/GenerateReportDialog"
 import { ScheduleMaintenanceDialog } from "@/components/dialogs/ScheduleMaintenanceDialog";
 import { RecordPaymentDialog } from "@/components/dialogs/RecordPaymentDialog";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
+import { LocationContextBanner } from "@/components/common/LocationBadge";
 import { DemoOnboarding } from "@/components/demo/DemoOnboarding";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { motion, AnimatePresence } from "framer-motion";
@@ -217,6 +218,9 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
       <div className="space-y-6 sm:space-y-8">
         {/* Hero Banner - Always visible */}
         <BannerWidget />
+        
+        {/* Location Context Banner */}
+        <LocationContextBanner />
 
         {/* Quick Actions Bar - Streamlined horizontal bar */}
         <Card className="p-4 sm:p-6 border border-border/50">
