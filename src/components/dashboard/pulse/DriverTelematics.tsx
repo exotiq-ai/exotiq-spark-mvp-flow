@@ -1,8 +1,6 @@
-import { Badge } from "@/components/ui/badge";
 import { CollapsibleSection } from "./CollapsibleSection";
 import { DriverPerformanceTrend } from "@/components/charts/DriverPerformanceTrend";
 import { 
-  Activity, 
   User,
   Gauge
 } from "lucide-react";
@@ -80,12 +78,6 @@ export const DriverTelematics = () => {
       badge="Live"
       badgeVariant="default"
       defaultOpen={true}
-      actions={
-        <Badge className="bg-primary/20 text-primary border-primary/30 text-xs">
-          <Activity className="w-3 h-3 mr-1 animate-pulse" />
-          Live
-        </Badge>
-      }
     >
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {drivers.map((driver) => {
