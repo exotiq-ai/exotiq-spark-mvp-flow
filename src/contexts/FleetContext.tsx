@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
+import { useTeam } from './TeamContext';
 import { useToast } from '@/hooks/use-toast';
 import { Database } from '@/integrations/supabase/types';
 import { z } from 'zod';
@@ -69,6 +70,7 @@ const FleetContext = createContext<FleetContextType | undefined>(undefined);
 export const FleetProvider = ({ children }: { children: ReactNode }) => {
   const { toast } = useToast();
   const { user } = useAuth();
+  const { currentTeam, selectedLocationId } = useTeam();
   const [loading, setLoading] = useState(true);
   
   const [revenue, setRevenue] = useState({
@@ -88,6 +90,10 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
   const [damageClaims, setDamageClaims] = useState<DamageClaim[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
 
+  // Helper to get team_id filter - use currentTeam if available, otherwise user_id
+  const getTeamId = useCallback(() => currentTeam?.id, [currentTeam]);
+  const getUserId = useCallback(() => user?.id, [user]);
+
   const refreshData = async () => {
     if (!user) {
       setLoading(false);
@@ -96,92 +102,119 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     
     setLoading(true);
     try {
-      const { data: vehiclesData, error: vehiclesError } = await supabase
-        .from('vehicles')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+      const teamId = getTeamId();
+      const userId = getUserId();
+      
+      // Build vehicle query - filter by team_id if available, otherwise user_id
+      let vehicleQuery = supabase.from('vehicles').select('*');
+      if (teamId) {
+        vehicleQuery = vehicleQuery.eq('team_id', teamId);
+      } else {
+        vehicleQuery = vehicleQuery.eq('user_id', userId!);
+      }
+      const { data: vehiclesData, error: vehiclesError } = await vehicleQuery.order('created_at', { ascending: false });
 
       if (vehiclesError) throw vehiclesError;
       setVehicles(vehiclesData || []);
 
-      const { data: bookingsData, error: bookingsError } = await supabase
-        .from('bookings')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+      // Build bookings query
+      let bookingsQuery = supabase.from('bookings').select('*');
+      if (teamId) {
+        bookingsQuery = bookingsQuery.eq('team_id', teamId);
+      } else {
+        bookingsQuery = bookingsQuery.eq('user_id', userId!);
+      }
+      const { data: bookingsData, error: bookingsError } = await bookingsQuery.order('created_at', { ascending: false });
 
       if (bookingsError) throw bookingsError;
       setBookings(bookingsData || []);
 
-      const { data: documentsData, error: documentsError } = await supabase
-        .from('documents')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false});
+      // Build documents query
+      let documentsQuery = supabase.from('documents').select('*');
+      if (teamId) {
+        documentsQuery = documentsQuery.eq('team_id', teamId);
+      } else {
+        documentsQuery = documentsQuery.eq('user_id', userId!);
+      }
+      const { data: documentsData, error: documentsError } = await documentsQuery.order('created_at', { ascending: false });
 
       if (documentsError) throw documentsError;
       setDocuments(documentsData || []);
 
-      const { data: maintenanceData, error: maintenanceError } = await supabase
-        .from('maintenance_schedules')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('scheduled_date', { ascending: true });
+      // Build maintenance query
+      let maintenanceQuery = supabase.from('maintenance_schedules').select('*');
+      if (teamId) {
+        maintenanceQuery = maintenanceQuery.eq('team_id', teamId);
+      } else {
+        maintenanceQuery = maintenanceQuery.eq('user_id', userId!);
+      }
+      const { data: maintenanceData, error: maintenanceError } = await maintenanceQuery.order('scheduled_date', { ascending: true });
 
       if (maintenanceError) throw maintenanceError;
       setMaintenance(maintenanceData || []);
 
+      // Build messages query (user-specific, not team-wide)
       const { data: messagesData, error: messagesError } = await supabase
         .from('messages')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', userId!)
         .order('created_at', { ascending: false });
 
       if (messagesError) throw messagesError;
       setMessages(messagesData || []);
 
-      const { data: customersData, error: customersError } = await supabase
-        .from('customers')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+      // Build customers query
+      let customersQuery = supabase.from('customers').select('*');
+      if (teamId) {
+        customersQuery = customersQuery.eq('team_id', teamId);
+      } else {
+        customersQuery = customersQuery.eq('user_id', userId!);
+      }
+      const { data: customersData, error: customersError } = await customersQuery.order('created_at', { ascending: false });
 
       if (customersError) throw customersError;
       setCustomers(customersData || []);
 
+      // Build customer notes query (user-specific)
       const { data: notesData, error: notesError } = await supabase
         .from('customer_notes')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', userId!)
         .order('created_at', { ascending: false });
 
       if (notesError) throw notesError;
       setCustomerNotes(notesData || []);
 
+      // Build inspections query (user-specific for now)
       const { data: inspectionsData, error: inspectionsError } = await supabase
         .from('vehicle_inspections')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', userId!)
         .order('created_at', { ascending: false });
 
       if (inspectionsError) throw inspectionsError;
       setInspections(inspectionsData || []);
 
-      const { data: claimsData, error: claimsError } = await supabase
-        .from('damage_claims')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+      // Build damage claims query
+      let claimsQuery = supabase.from('damage_claims').select('*');
+      if (teamId) {
+        claimsQuery = claimsQuery.eq('team_id', teamId);
+      } else {
+        claimsQuery = claimsQuery.eq('user_id', userId!);
+      }
+      const { data: claimsData, error: claimsError } = await claimsQuery.order('created_at', { ascending: false });
 
       if (claimsError) throw claimsError;
       setDamageClaims(claimsData || []);
 
-      const { data: paymentsData, error: paymentsError } = await supabase
-        .from('payments')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+      // Build payments query
+      let paymentsQuery = supabase.from('payments').select('*');
+      if (teamId) {
+        paymentsQuery = paymentsQuery.eq('team_id', teamId);
+      } else {
+        paymentsQuery = paymentsQuery.eq('user_id', userId!);
+      }
+      const { data: paymentsData, error: paymentsError } = await paymentsQuery.order('created_at', { ascending: false });
 
       if (paymentsError) throw paymentsError;
       setPayments(paymentsData || []);
@@ -216,9 +249,10 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Refresh when user or team changes
   useEffect(() => {
     refreshData();
-  }, [user]);
+  }, [user, currentTeam?.id]);
 
   const applyPriceOptimization = async (vehicleId: string, newRate: number) => {
     if (!user) return;
@@ -256,12 +290,14 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     try {
       // Validate input
       const validated = vehicleSchema.parse(vehicle);
+      const teamId = getTeamId();
 
       const { error } = await supabase
         .from('vehicles')
         .insert({
           ...(validated as any),
-          user_id: user.id
+          user_id: user.id,
+          team_id: teamId || null
         });
 
       if (error) {
@@ -341,12 +377,14 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     try {
       // Validate input
       const validated = bookingSchema.parse(booking);
+      const teamId = getTeamId();
 
       const { error } = await supabase
         .from('bookings')
         .insert({
           ...(validated as any),
-          user_id: user.id
+          user_id: user.id,
+          team_id: teamId || null
         });
 
       if (error) {
@@ -554,12 +592,14 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
 
   const createMaintenance = async (maintenance: Omit<Database['public']['Tables']['maintenance_schedules']['Insert'], 'user_id'>) => {
     if (!user) return;
+    const teamId = getTeamId();
 
     const { error } = await supabase
       .from('maintenance_schedules')
       .insert({
         ...maintenance,
-        user_id: user.id
+        user_id: user.id,
+        team_id: teamId || null
       });
 
     if (error) {
@@ -641,12 +681,14 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     try {
       // Validate input
       const validated = customerSchema.parse(customer);
+      const teamId = getTeamId();
 
       const { error } = await supabase
         .from('customers')
         .insert({
           ...(validated as any),
-          user_id: user.id
+          user_id: user.id,
+          team_id: teamId || null
         });
 
       if (error) {
@@ -850,12 +892,14 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     try {
       // Validate input
       const validated = damageClaimSchema.parse(claim);
+      const teamId = getTeamId();
 
       const { error } = await supabase
         .from('damage_claims')
         .insert({
           ...(validated as any),
-          user_id: user.id
+          user_id: user.id,
+          team_id: teamId || null
         });
 
       if (error) {
@@ -891,12 +935,14 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
 
     try {
       const validated = paymentSchema.parse(payment);
+      const teamId = getTeamId();
 
       const { error } = await supabase
         .from('payments')
         .insert({
           ...(validated as any),
-          user_id: user.id
+          user_id: user.id,
+          team_id: teamId || null
         });
 
       if (error) {
@@ -930,43 +976,59 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
   // Memoized individual refresh methods for real-time updates (prevents infinite loops)
   const refreshBookings = useCallback(() => {
     if (!user) return;
-    supabase
-      .from('bookings')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('start_date', { ascending: false })
+    const teamId = currentTeam?.id;
+    
+    let query = supabase.from('bookings').select('*');
+    if (teamId) {
+      query = query.eq('team_id', teamId);
+    } else {
+      query = query.eq('user_id', user.id);
+    }
+    query.order('start_date', { ascending: false })
       .then(({ data }) => setBookings(data || []));
-  }, [user]);
+  }, [user, currentTeam?.id]);
 
   const refreshPayments = useCallback(() => {
     if (!user) return;
-    supabase
-      .from('payments')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
+    const teamId = currentTeam?.id;
+    
+    let query = supabase.from('payments').select('*');
+    if (teamId) {
+      query = query.eq('team_id', teamId);
+    } else {
+      query = query.eq('user_id', user.id);
+    }
+    query.order('created_at', { ascending: false })
       .then(({ data }) => setPayments(data || []));
-  }, [user]);
+  }, [user, currentTeam?.id]);
 
   const refreshDamageClaims = useCallback(() => {
     if (!user) return;
-    supabase
-      .from('damage_claims')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('reported_date', { ascending: false })
+    const teamId = currentTeam?.id;
+    
+    let query = supabase.from('damage_claims').select('*');
+    if (teamId) {
+      query = query.eq('team_id', teamId);
+    } else {
+      query = query.eq('user_id', user.id);
+    }
+    query.order('reported_date', { ascending: false })
       .then(({ data }) => setDamageClaims(data || []));
   }, [user]);
 
   const refreshCustomers = useCallback(() => {
     if (!user) return;
-    supabase
-      .from('customers')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
+    const teamId = currentTeam?.id;
+    
+    let query = supabase.from('customers').select('*');
+    if (teamId) {
+      query = query.eq('team_id', teamId);
+    } else {
+      query = query.eq('user_id', user.id);
+    }
+    query.order('created_at', { ascending: false })
       .then(({ data }) => setCustomers(data || []));
-  }, [user]);
+  }, [user, currentTeam?.id]);
 
   // Realtime subscriptions - initialized once per user session
   const realtimeInitialized = useRef(false);
