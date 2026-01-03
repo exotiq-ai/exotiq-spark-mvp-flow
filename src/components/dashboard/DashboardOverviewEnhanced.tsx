@@ -10,6 +10,7 @@ import { AIInsightWidget } from "./widgets/AIInsightWidget";
 import { FleetStatusWidget } from "./widgets/FleetStatusWidget";
 import { ScheduleWidget } from "./widgets/ScheduleWidget";
 import { PriceOptimizationDialog } from "@/components/dialogs/PriceOptimizationDialog";
+import { AddVehicleDialog } from "@/components/dialogs/AddVehicleDialog";
 import { NewBookingDialog } from "@/components/dialogs/NewBookingDialog";
 import { AddCustomerDialog } from "@/components/dialogs/AddCustomerDialog";
 import { GenerateReportDialog } from "@/components/dialogs/GenerateReportDialog";
@@ -53,8 +54,9 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [showMaintenanceDialog, setShowMaintenanceDialog] = useState(false);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [showAddVehicleDialog, setShowAddVehicleDialog] = useState(false);
   
-  const { vehicles, bookings, loading, applyPriceOptimization, createBooking, createCustomer, generateReport, createMaintenance, createPayment } = useFleet();
+  const { vehicles, bookings, loading, applyPriceOptimization, createBooking, createCustomer, generateReport, createMaintenance, createPayment, createVehicle } = useFleet();
   
   // Collapsible state persistence - default to only metrics expanded for reduced visual density
   const [expandedSections, setExpandedSections] = useLocalStorage<string[]>("dashboardSections", [
@@ -206,6 +208,11 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
           onSubmit={createPayment}
         />
       )}
+      <AddVehicleDialog
+        open={showAddVehicleDialog}
+        onOpenChange={setShowAddVehicleDialog}
+        onSubmit={createVehicle}
+      />
 
       <div className="space-y-6 sm:space-y-8">
         {/* Hero Banner - Always visible */}
@@ -253,10 +260,16 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
             <div className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-primary" />
               <h2 className="text-xl font-semibold">Key Performance</h2>
-              <Badge variant="secondary" className="text-xs">Live</Badge>
+              {vehicles.length > 0 && <Badge variant="secondary" className="text-xs">Live</Badge>}
             </div>
           </div>
-          <MetricsWidget />
+          <MetricsWidget 
+            hasFleetData={vehicles.length > 0}
+            activeBookings={bookings.filter(b => b.status === 'active' || b.status === 'confirmed').length}
+            utilization={vehicles.length > 0 ? Math.round((vehicles.filter(v => v.status === 'rented').length / vehicles.length) * 100) : 0}
+            averageRate={vehicles.length > 0 ? Math.round(vehicles.reduce((acc, v) => acc + v.current_rate, 0) / vehicles.length) : 0}
+            onAddVehicle={() => setShowAddVehicleDialog(true)}
+          />
         </div>
 
         {/* Toggle Insights Button - Always visible */}
@@ -305,6 +318,12 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
                 <AIInsightWidget 
                   onApplyOptimization={() => setShowOptimizationDialog(true)}
                   onViewAnalysis={() => onModuleClick('motoriq')}
+                  hasFleetData={vehicles.length > 0}
+                  onAddVehicle={() => setShowAddVehicleDialog(true)}
+                  vehicleName={vehicles[0]?.name || "your vehicle"}
+                  suggestedIncrease={15}
+                  potentialRevenue={vehicles.length > 0 ? Math.round(vehicles[0]?.current_rate * 0.15 * 30) : 0}
+                  probability={vehicles.length > 0 ? 89 : 0}
                 />
               </div>
             </CollapsibleSection>

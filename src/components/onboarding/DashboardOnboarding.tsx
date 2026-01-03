@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 import confetti from 'canvas-confetti';
 import { 
   X, 
@@ -81,7 +82,10 @@ const onboardingSteps: TooltipStep[] = [
 ];
 
 export const DashboardOnboarding = () => {
-  const [onboardingComplete, setOnboardingComplete] = useLocalStorage('dashboard-onboarding-complete', false);
+  const { user } = useAuth();
+  // Use user-specific key for onboarding state so each user gets their own tour
+  const storageKey = user?.id ? `dashboard-onboarding-complete-${user.id}` : 'dashboard-onboarding-complete';
+  const [onboardingComplete, setOnboardingComplete] = useLocalStorage(storageKey, false);
   const [currentStep, setCurrentStep] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
   const { toast } = useToast();

@@ -54,9 +54,12 @@ export const useUserRole = () => {
           error: null,
         });
       } else {
-        // No role assigned - default to viewer
+        // No role assigned yet - this is a new user whose role trigger hasn't run yet
+        // OR they were invited but haven't completed setup
+        // Return null role (not viewer) - let them access the app without restrictions
+        // The auto_assign_user_role trigger will assign admin role shortly
         setRoleData({
-          role: 'viewer',
+          role: null,
           permissions: [],
           loading: false,
           error: null,
@@ -123,7 +126,8 @@ export const useUserRole = () => {
   // Check if user can create/edit bookings
   const canManageBookings = roleData.role ? roleHierarchy[roleData.role] >= roleHierarchy['operator'] : false;
 
-  // Check if user is read-only (viewer)
+  // Check if user is read-only (explicitly assigned viewer role)
+  // Note: null role means role not yet assigned, NOT read-only
   const isReadOnly = roleData.role === 'viewer';
 
   return {
