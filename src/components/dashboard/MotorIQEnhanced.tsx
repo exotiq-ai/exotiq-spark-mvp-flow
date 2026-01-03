@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +12,7 @@ import { PriceUtilizationScatterPlot } from "@/components/charts/PriceUtilizatio
 import { DynamicPricingCard } from "@/components/dashboard/DynamicPricingCard";
 import { DemandForecastCard } from "@/components/dashboard/DemandForecastCard";
 import { LocationBadge } from "@/components/common/LocationBadge";
+import { useSwipeGesture } from "@/hooks/useSwipeGesture";
 
 import { SkeletonMetric, SkeletonCard, SkeletonBarChart, SkeletonTable } from "@/components/ui/skeleton-card";
 import { SkeletonAIInsight, SkeletonVehicleCard, SkeletonStatsRow } from "@/components/ui/skeleton-specialized";
@@ -26,7 +28,8 @@ import {
   Car,
   DollarSign,
   BarChart3,
-  Download
+  Download,
+  X
 } from "lucide-react";
 import { createExportActions } from "@/lib/exportUtils";
 import { useToast } from "@/hooks/use-toast";
@@ -38,6 +41,7 @@ export const MotorIQEnhanced = () => {
   const [showOptimizationDialog, setShowOptimizationDialog] = useState(false);
   const [showVehicleImage, setShowVehicleImage] = useState(false);
   const [showAddVehicle, setShowAddVehicle] = useState(false);
+  const [dismissedRecommendationId, setDismissedRecommendationId] = useState<string | null>(null);
   const [selectedVehicle, setSelectedVehicle] = useState<{
     name: string;
     make: string;
@@ -46,6 +50,26 @@ export const MotorIQEnhanced = () => {
     status: string;
     dailyRate: number;
   } | null>(null);
+
+  // Check localStorage for dismissed recommendation on mount
+  useEffect(() => {
+    const stored = localStorage.getItem('motoriq_dismissed_recommendation');
+    if (stored) {
+      try {
+        const { id, dismissedAt } = JSON.parse(stored);
+        // Clear dismissal if older than 24 hours
+        const dismissedTime = new Date(dismissedAt).getTime();
+        const now = Date.now();
+        if (now - dismissedTime < 24 * 60 * 60 * 1000) {
+          setDismissedRecommendationId(id);
+        } else {
+          localStorage.removeItem('motoriq_dismissed_recommendation');
+        }
+      } catch {
+        localStorage.removeItem('motoriq_dismissed_recommendation');
+      }
+    }
+  }, []);
 
   const handleExportFleetData = () => {
     const exportData = vehicles.map(v => ({
@@ -94,6 +118,32 @@ export const MotorIQEnhanced = () => {
   const potentialIncrease = topRecommendation?.suggested_rate 
     ? (topRecommendation.suggested_rate - topRecommendation.current_rate) * 30 
     : 0;
+
+  // Show recommendation card only if not dismissed or if it's a different recommendation
+  const showRecommendationCard = topRecommendation && 
+    potentialIncrease > 0 && 
+    dismissedRecommendationId !== topRecommendation.id;
+
+  const handleDismissRecommendation = () => {
+    if (topRecommendation) {
+      setDismissedRecommendationId(topRecommendation.id);
+      localStorage.setItem('motoriq_dismissed_recommendation', JSON.stringify({
+        id: topRecommendation.id,
+        dismissedAt: new Date().toISOString()
+      }));
+      toast({
+        title: "Recommendation dismissed",
+        description: "View pricing details in the Pricing tab",
+      });
+    }
+  };
+
+  // Swipe gesture for mobile dismiss
+  const { handlers: swipeHandlers, dragOffset, isDragging } = useSwipeGesture({
+    onSwipeLeft: handleDismissRecommendation,
+    onSwipeRight: handleDismissRecommendation,
+    threshold: 80,
+  });
 
   // Show empty state if no vehicles
   if (!loading && vehicles.length === 0) {
@@ -184,68 +234,108 @@ export const MotorIQEnhanced = () => {
           onValueChange={setActiveTab}
         >
           <TabsContent value="overview" className="space-y-6">
-        {topRecommendation && potentialIncrease > 0 ? (
-          <Card className="card-premium bg-gradient-to-br from-success/10 via-primary/5 to-accent/10 border-success/20 p-4 sm:p-6 md:p-8">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 sm:gap-6">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-3">
-                  <Brain className="h-6 w-6 text-success animate-pulse" />
-                  <Badge className="bg-success/20 text-success border-success/30 font-semibold">
-                    <Sparkles className="h-3 w-3 mr-1" />
-                    AI Recommendation
-                  </Badge>
-                </div>
-                <h3 className="text-2xl font-bold mb-2 bg-gradient-to-r from-success to-primary bg-clip-text text-transparent">
-                  Top Revenue Opportunity Identified
-                </h3>
-                <p className="text-muted-foreground mb-4">
-                  Based on market analysis, we've identified a high-value opportunity for your fleet
-                </p>
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                  <div>
-                    <p 
-                      className="text-lg font-semibold cursor-pointer hover:text-primary transition-colors"
-                      onClick={() => handleVehicleClick(topRecommendation)}
-                    >
-                      {topRecommendation.name}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      ${topRecommendation.current_rate}/day → ${topRecommendation.suggested_rate}/day
-                    </p>
-                  </div>
-                  <div className="h-12 w-px bg-border hidden sm:block"></div>
-                  <div>
-                    <p className="text-3xl font-bold text-success">
-                      +${potentialIncrease.toFixed(0)}
-                    </p>
-                    <p className="text-sm text-muted-foreground">Monthly opportunity</p>
-                  </div>
-                </div>
-              </div>
-              <div className="flex flex-col gap-2">
-                <Button 
-                  onClick={() => setShowOptimizationDialog(true)}
-                  className="btn-premium group"
-                  size="lg"
+        <AnimatePresence mode="wait">
+          {showRecommendationCard ? (
+            <motion.div
+              key="recommendation-card"
+              initial={{ opacity: 0, y: -20, height: 0 }}
+              animate={{ 
+                opacity: 1, 
+                y: 0, 
+                height: "auto",
+                x: isDragging ? dragOffset : 0,
+              }}
+              exit={{ opacity: 0, x: dragOffset > 0 ? 100 : -100, height: 0 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+              {...swipeHandlers}
+              style={{ 
+                opacity: isDragging ? Math.max(0.3, 1 - Math.abs(dragOffset) / 150) : 1,
+              }}
+            >
+              <Card className="card-premium bg-gradient-to-br from-success/10 via-primary/5 to-accent/10 border-success/20 p-4 sm:p-6 md:p-8 relative overflow-hidden">
+                {/* Dismiss button */}
+                <button
+                  onClick={handleDismissRecommendation}
+                  className="absolute top-3 right-3 p-1.5 rounded-full hover:bg-muted/50 transition-colors z-10 group"
+                  aria-label="Dismiss recommendation"
                 >
-                  <Zap className="h-4 w-4 mr-2 group-hover:rotate-12 transition-transform" />
-                  Apply Now
-                  <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                </Button>
-              </div>
-            </div>
-          </Card>
-        ) : (
-          <Card className="card-premium p-6">
-            <div className="flex items-center gap-3">
-              <CheckCircle className="h-6 w-6 text-success" />
-              <div>
-                <h3 className="text-lg font-semibold">All Prices Optimized</h3>
-                <p className="text-sm text-muted-foreground">Your fleet is already at peak market rates</p>
-              </div>
-            </div>
-          </Card>
-        )}
+                  <X className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+                </button>
+
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 sm:gap-6 pr-8">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Brain className="h-6 w-6 text-success animate-pulse" />
+                      <Badge className="bg-success/20 text-success border-success/30 font-semibold">
+                        <Sparkles className="h-3 w-3 mr-1" />
+                        AI Recommendation
+                      </Badge>
+                    </div>
+                    <h3 className="text-2xl font-bold mb-2 bg-gradient-to-r from-success to-primary bg-clip-text text-transparent">
+                      Top Revenue Opportunity Identified
+                    </h3>
+                    <p className="text-muted-foreground mb-4">
+                      Based on market analysis, we've identified a high-value opportunity for your fleet
+                    </p>
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                      <div>
+                        <p 
+                          className="text-lg font-semibold cursor-pointer hover:text-primary transition-colors"
+                          onClick={() => handleVehicleClick(topRecommendation)}
+                        >
+                          {topRecommendation.name}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          ${topRecommendation.current_rate}/day → ${topRecommendation.suggested_rate}/day
+                        </p>
+                      </div>
+                      <div className="h-12 w-px bg-border hidden sm:block"></div>
+                      <div>
+                        <p className="text-3xl font-bold text-success">
+                          +${potentialIncrease.toFixed(0)}
+                        </p>
+                        <p className="text-sm text-muted-foreground">Monthly opportunity</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <Button 
+                      onClick={() => setShowOptimizationDialog(true)}
+                      className="btn-premium group"
+                      size="lg"
+                    >
+                      <Zap className="h-4 w-4 mr-2 group-hover:rotate-12 transition-transform" />
+                      Apply Now
+                      <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Swipe hint for mobile */}
+                <p className="text-xs text-muted-foreground/60 mt-4 text-center md:hidden">
+                  Swipe to dismiss
+                </p>
+              </Card>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="optimized-card"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.2 }}
+            >
+              <Card className="card-premium p-6">
+                <div className="flex items-center gap-3">
+                  <CheckCircle className="h-6 w-6 text-success" />
+                  <div>
+                    <h3 className="text-lg font-semibold">All Prices Optimized</h3>
+                    <p className="text-sm text-muted-foreground">Your fleet is already at peak market rates</p>
+                  </div>
+                </div>
+              </Card>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Key Fleet Metrics */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
