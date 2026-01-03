@@ -1,12 +1,28 @@
 import { CollapsibleSection } from "./CollapsibleSection";
 import { DriverPerformanceTrend } from "@/components/charts/DriverPerformanceTrend";
+import { Badge } from "@/components/ui/badge";
+import { useDemo } from "@/contexts/DemoContext";
 import { 
   User,
-  Gauge
+  Gauge,
+  Plug
 } from "lucide-react";
 
 export const DriverTelematics = () => {
-  // Mock data - will be replaced with real API data
+  // Only show this section for demo accounts
+  let isDemo = false;
+  try {
+    const { demoState } = useDemo();
+    isDemo = demoState.isDemo;
+  } catch {
+    // Not in demo context, don't show
+    isDemo = false;
+  }
+
+  // Don't render for non-demo accounts
+  if (!isDemo) return null;
+
+  // Demo data for showcase purposes
   const drivers = [
     {
       id: '1',
@@ -75,9 +91,13 @@ export const DriverTelematics = () => {
       id="telematics"
       title="Driver Telematics"
       icon={<Gauge className="h-4 w-4 text-primary" />}
-      badge="Live"
-      badgeVariant="default"
       defaultOpen={true}
+      actions={
+        <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 text-muted-foreground border-muted-foreground/30">
+          <Plug className="w-2.5 h-2.5 mr-1" />
+          API Soon
+        </Badge>
+      }
     >
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {drivers.map((driver) => {
