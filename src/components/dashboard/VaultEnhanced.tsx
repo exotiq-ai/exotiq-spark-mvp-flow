@@ -110,7 +110,7 @@ export const VaultEnhanced = () => {
         tabs={[
           { id: "documents", label: "Documents", shortLabel: "Docs", icon: FileText },
           { id: "payments", label: "Payments", shortLabel: "Pay", icon: CreditCard },
-          { id: "verification", label: "Verify", shortLabel: "Verify", icon: UserCheck },
+          { id: "verification", label: "Verification", shortLabel: "ID", icon: UserCheck },
           { id: "claims", label: "Claims", shortLabel: "Claims", icon: AlertTriangle },
         ]}
         defaultValue="documents"

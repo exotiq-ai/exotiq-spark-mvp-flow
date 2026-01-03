@@ -50,11 +50,11 @@ export const ModuleTabs = ({
                 key={tab.id}
                 value={tab.id}
                 className={cn(
-                  // Base styles - vertical on mobile, horizontal on desktop
-                  "relative flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2",
-                  "min-h-[52px] sm:min-h-[48px] px-1 sm:px-3 py-1.5 sm:py-2.5",
+                  // Base styles - vertical on mobile, horizontal on tablet+
+                  "relative flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 md:gap-2",
+                  "min-h-[52px] sm:min-h-[44px] md:min-h-[48px] px-1 sm:px-2 md:px-3 py-1.5 sm:py-2 md:py-2.5",
                   "rounded-none border-b-2 border-transparent",
-                  "text-muted-foreground font-medium text-[10px] sm:text-sm",
+                  "text-muted-foreground font-medium text-[10px] sm:text-xs md:text-sm",
                   "transition-all duration-200 ease-out",
                   // Hover state
                   "hover:text-foreground hover:bg-muted/30",
