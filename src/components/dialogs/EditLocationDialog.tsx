@@ -157,28 +157,28 @@ export const EditLocationDialog = ({
     }
   };
 
-  const handleDeactivate = async () => {
+  const handleToggleActive = async (activate: boolean) => {
     setIsDeactivating(true);
     try {
       const { error } = await supabase
         .from("locations")
-        .update({ is_active: false })
+        .update({ is_active: activate })
         .eq("id", location.id);
 
       if (error) throw error;
 
       toast({
-        title: "Location deactivated",
-        description: `${location.name} has been deactivated.`,
+        title: activate ? "Location activated" : "Location deactivated",
+        description: `${location.name} has been ${activate ? 'activated' : 'deactivated'}.`,
       });
 
       setShowDeactivateDialog(false);
       onSuccess();
     } catch (error) {
-      console.error("Error deactivating location:", error);
+      console.error("Error updating location status:", error);
       toast({
         title: "Error",
-        description: "Failed to deactivate location. Please try again.",
+        description: `Failed to ${activate ? 'activate' : 'deactivate'} location. Please try again.`,
         variant: "destructive",
       });
     } finally {
@@ -342,13 +342,23 @@ export const EditLocationDialog = ({
 
               <DialogFooter className="flex justify-between">
                 <div>
-                  {!location.is_default && (
+                  {!location.is_default && location.is_active && (
                     <Button 
                       type="button" 
                       variant="destructive" 
                       onClick={() => setShowDeactivateDialog(true)}
                     >
                       Deactivate
+                    </Button>
+                  )}
+                  {!location.is_active && (
+                    <Button 
+                      type="button" 
+                      variant="outline"
+                      onClick={() => handleToggleActive(true)}
+                      disabled={isDeactivating}
+                    >
+                      {isDeactivating ? "Activating..." : "Reactivate"}
                     </Button>
                   )}
                 </div>
@@ -379,7 +389,7 @@ export const EditLocationDialog = ({
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction 
-              onClick={handleDeactivate}
+              onClick={() => handleToggleActive(false)}
               disabled={isDeactivating}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >

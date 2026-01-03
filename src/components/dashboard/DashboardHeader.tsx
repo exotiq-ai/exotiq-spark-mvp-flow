@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ExotiqLogoBranded } from "@/components/common/ExotiqLogo";
 import { useAuth } from "@/contexts/AuthContext";
@@ -16,7 +17,9 @@ import { EnhancedGlobalSearch } from "@/components/common/EnhancedGlobalSearch";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { UnifiedNotificationCenter } from "@/components/common/UnifiedNotificationCenter";
 import { LocationSwitcher } from "@/components/common/LocationSwitcher";
+import { AddLocationDialog } from "@/components/dialogs/AddLocationDialog";
 import { useTeamMessaging } from "@/hooks/useTeamMessaging";
+import { useTeam } from "@/contexts/TeamContext";
 
 interface DashboardHeaderProps {
   onOpenChat?: () => void;
@@ -26,6 +29,8 @@ export const DashboardHeader = ({ onOpenChat }: DashboardHeaderProps) => {
   const { user, signOut } = useAuth();
   const { profile, displayName } = useProfile();
   const { conversations } = useTeamMessaging();
+  const { refreshTeam } = useTeam();
+  const [addLocationOpen, setAddLocationOpen] = useState(false);
 
   // Calculate total unread messages
   const totalUnread = conversations.reduce((acc, c) => acc + (c.unread_count || 0), 0);
@@ -34,12 +39,18 @@ export const DashboardHeader = ({ onOpenChat }: DashboardHeaderProps) => {
     return displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
+  const handleLocationAdded = async () => {
+    setAddLocationOpen(false);
+    await refreshTeam();
+  };
+
   return (
+    <>
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between gap-4 px-4">
         <div className="flex items-center gap-2">
           <ExotiqLogoBranded variant="gulf-blue" size="md" />
-          <LocationSwitcher />
+          <LocationSwitcher onAddLocation={() => setAddLocationOpen(true)} />
         </div>
         
         <div className="hidden md:flex flex-1 max-w-md mx-4">
@@ -96,5 +107,12 @@ export const DashboardHeader = ({ onOpenChat }: DashboardHeaderProps) => {
         </div>
       </div>
     </header>
+
+    <AddLocationDialog
+      open={addLocationOpen}
+      onOpenChange={setAddLocationOpen}
+      onSuccess={handleLocationAdded}
+    />
+    </>
   );
 };
