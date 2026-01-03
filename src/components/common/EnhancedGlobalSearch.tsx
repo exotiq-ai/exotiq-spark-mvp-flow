@@ -27,7 +27,7 @@ import {
   ArrowRight,
   Sparkles
 } from "lucide-react";
-import { useFleet } from "@/contexts/FleetContext";
+import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 
 interface SearchResult {
   id: string;
@@ -44,7 +44,7 @@ export const EnhancedGlobalSearch = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const navigate = useNavigate();
-  const { vehicles, customers, bookings } = useFleet();
+  const { vehicles, customers, bookings } = useLocationFilteredFleet();
 
   // Load recent searches from localStorage
   useEffect(() => {

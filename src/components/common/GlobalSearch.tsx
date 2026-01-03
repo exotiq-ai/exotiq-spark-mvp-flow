@@ -19,13 +19,13 @@ import {
   AlertTriangle,
   Search
 } from "lucide-react";
-import { useFleet } from "@/contexts/FleetContext";
+import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 
 export const GlobalSearch = () => {
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const navigate = useNavigate();
-  const { vehicles, customers, bookings } = useFleet();
+  const { vehicles, customers, bookings } = useLocationFilteredFleet();
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {

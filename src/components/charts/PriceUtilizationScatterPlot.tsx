@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScatterChart, Scatter, XAxis, YAxis, ZAxis, Tooltip, ResponsiveContainer, Cell, CartesianGrid } from "recharts";
-import { useFleet } from "@/contexts/FleetContext";
+import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { exportToCSV } from "@/utils/chartExport";
 import { Download, TrendingUp, AlertTriangle } from "lucide-react";
 import { PriceOptimizationDialog } from "@/components/dialogs/PriceOptimizationDialog";
@@ -12,7 +12,7 @@ import { useChartHeight } from "@/components/ui/adaptive-chart";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 export const PriceUtilizationScatterPlot = () => {
-  const { vehicles, applyPriceOptimization } = useFleet();
+  const { vehicles, applyPriceOptimization } = useLocationFilteredFleet();
   const { toast } = useToast();
   const [zoneFilter, setZoneFilter] = useState<string>('all');
   const [selectedVehicle, setSelectedVehicle] = useState<any>(null);
