@@ -6,9 +6,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Database } from "@/integrations/supabase/types";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, Loader2 } from "lucide-react";
+import { AlertCircle, Loader2, MapPin } from "lucide-react";
 import { validators, validateForm } from "@/lib/validation";
 import { toast } from "@/hooks/use-toast";
+import { useTeam } from "@/contexts/TeamContext";
 
 type VehicleInsert = Omit<Database['public']['Tables']['vehicles']['Insert'], 'user_id'>;
 
@@ -19,6 +20,8 @@ interface AddVehicleDialogProps {
 }
 
 export const AddVehicleDialog = ({ open, onOpenChange, onSubmit }: AddVehicleDialogProps) => {
+  const { selectedLocationId, currentLocation, locations } = useTeam();
+  
   const [name, setName] = useState("");
   const [make, setMake] = useState("");
   const [model, setModel] = useState("");
@@ -27,8 +30,12 @@ export const AddVehicleDialog = ({ open, onOpenChange, onSubmit }: AddVehicleDia
   const [vin, setVin] = useState("");
   const [currentRate, setCurrentRate] = useState("");
   const [status, setStatus] = useState<string>("available");
+  const [locationId, setLocationId] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Auto-set location when dialog opens or selectedLocationId changes
+  const effectiveLocationId = locationId || (selectedLocationId !== 'all' ? selectedLocationId : locations[0]?.id || '');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,7 +71,8 @@ export const AddVehicleDialog = ({ open, onOpenChange, onSubmit }: AddVehicleDia
         image_url: null,
         utilization: 0,
         revenue: 0,
-        suggested_rate: null
+        suggested_rate: null,
+        location_id: effectiveLocationId || null
       });
 
       // Reset form
@@ -76,6 +84,7 @@ export const AddVehicleDialog = ({ open, onOpenChange, onSubmit }: AddVehicleDia
       setVin("");
       setCurrentRate("");
       setStatus("available");
+      setLocationId("");
       setError(null);
       onOpenChange(false);
       
@@ -201,6 +210,32 @@ export const AddVehicleDialog = ({ open, onOpenChange, onSubmit }: AddVehicleDia
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          {/* Location Selection */}
+          <div className="space-y-2">
+            <Label htmlFor="location" className="flex items-center gap-2">
+              <MapPin className="h-4 w-4" />
+              Location
+            </Label>
+            <Select value={effectiveLocationId} onValueChange={setLocationId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select location" />
+              </SelectTrigger>
+              <SelectContent>
+                {locations.map((loc) => (
+                  <SelectItem key={loc.id} value={loc.id}>
+                    {loc.name}
+                    {loc.is_default && " (Default)"}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {currentLocation && selectedLocationId !== 'all' && (
+              <p className="text-xs text-muted-foreground">
+                Auto-assigned to current location: {currentLocation.name}
+              </p>
+            )}
           </div>
 
           <DialogFooter>

@@ -18,13 +18,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Calendar, User, MapPin, Loader2, AlertCircle } from 'lucide-react';
+import { Calendar, User, MapPin, Loader2, AlertCircle, Sparkles } from 'lucide-react';
 import { TablesInsert, Tables } from '@/integrations/supabase/types';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { validators, validateForm } from '@/lib/validation';
 import { toast } from '@/hooks/use-toast';
 import { useAIPricing } from '@/hooks/useAIPricing';
-import { Sparkles } from 'lucide-react';
+import { useTeam } from '@/contexts/TeamContext';
 
 interface NewBookingDialogProps {
   open: boolean;
@@ -39,13 +39,16 @@ export const NewBookingDialog = ({
   vehicles,
   onSubmit
 }: NewBookingDialogProps) => {
+  const { selectedLocationId, currentLocation, locations } = useTeam();
+  
   const [vehicleId, setVehicleId] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [pickupLocation, setPickupLocation] = useState('');
+  const [pickupLocationId, setPickupLocationId] = useState('');
+  const [pickupLocationText, setPickupLocationText] = useState('');
   const [dropoffLocation, setDropoffLocation] = useState('');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
@@ -53,6 +56,11 @@ export const NewBookingDialog = ({
 
   const selectedVehicle = vehicles.find(v => v.id === vehicleId);
   const pricingSuggestion = useAIPricing(selectedVehicle || null, startDate);
+  
+  // Auto-set pickup location when dialog opens
+  const effectivePickupLocationId = pickupLocationId || (selectedLocationId !== 'all' ? selectedLocationId : locations[0]?.id || '');
+  const effectivePickupLocation = locations.find(l => l.id === effectivePickupLocationId);
+  const pickupLocationName = effectivePickupLocation?.name || pickupLocationText;
 
   const handleSubmit = async () => {
     setError(null);
@@ -63,7 +71,7 @@ export const NewBookingDialog = ({
       () => validators.required(customerName, 'Customer name'),
       () => validators.required(startDate, 'Start date'),
       () => validators.required(endDate, 'End date'),
-      () => validators.required(pickupLocation, 'Pickup location'),
+      () => validators.required(pickupLocationName, 'Pickup location'),
       () => validators.dateRange(startDate, endDate),
       () => customerEmail ? validators.email(customerEmail) : { isValid: true },
       () => customerPhone ? validators.phone(customerPhone) : { isValid: true },
@@ -93,7 +101,8 @@ export const NewBookingDialog = ({
         customer_phone: customerPhone || null,
         start_date: new Date(startDate).toISOString(),
         end_date: new Date(endDate).toISOString(),
-        pickup_location: pickupLocation,
+        pickup_location: pickupLocationName,
+        pickup_location_id: effectivePickupLocationId || null,
         dropoff_location: dropoffLocation || null,
         daily_rate: selectedVehicle.current_rate,
         total_value: totalValue,
@@ -108,7 +117,8 @@ export const NewBookingDialog = ({
       setCustomerPhone('');
       setStartDate('');
       setEndDate('');
-      setPickupLocation('');
+      setPickupLocationId('');
+      setPickupLocationText('');
       setDropoffLocation('');
       setNotes('');
       setError(null);
@@ -273,23 +283,49 @@ export const NewBookingDialog = ({
           </div>
 
           {/* Locations */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-3">
             <div className="space-y-2">
               <Label htmlFor="pickup">Pickup Location</Label>
-              <div className="relative">
-                <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="pickup"
-                  placeholder="Downtown, Airport, etc."
-                  value={pickupLocation}
-                  onChange={(e) => setPickupLocation(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
+              {locations.length > 0 ? (
+                <>
+                  <Select value={effectivePickupLocationId} onValueChange={setPickupLocationId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select pickup location" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {locations.map((loc) => (
+                        <SelectItem key={loc.id} value={loc.id}>
+                          <span className="flex items-center gap-2">
+                            <MapPin className="h-3 w-3" />
+                            {loc.name}
+                            {loc.is_default && " (Default)"}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {currentLocation && selectedLocationId !== 'all' && (
+                    <p className="text-xs text-muted-foreground">
+                      Auto-assigned to current location
+                    </p>
+                  )}
+                </>
+              ) : (
+                <div className="relative">
+                  <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="pickup"
+                    placeholder="Downtown, Airport, etc."
+                    value={pickupLocationText}
+                    onChange={(e) => setPickupLocationText(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              )}
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="dropoff">Drop-off Location</Label>
+              <Label htmlFor="dropoff">Drop-off Location (optional)</Label>
               <div className="relative">
                 <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -322,7 +358,7 @@ export const NewBookingDialog = ({
           </Button>
           <Button 
             onClick={handleSubmit} 
-            disabled={loading || !vehicleId || !customerName || !startDate || !endDate || !pickupLocation}
+            disabled={loading || !vehicleId || !customerName || !startDate || !endDate || (!effectivePickupLocationId && !pickupLocationText)}
           >
             {loading ? (
               <>
