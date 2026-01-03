@@ -503,6 +503,65 @@ export type Database = {
           },
         ]
       }
+      deletion_requests: {
+        Row: {
+          cancelled_at: string | null
+          cancelled_by: string | null
+          completed_at: string | null
+          confirmation_token: string | null
+          confirmed_at: string | null
+          created_at: string | null
+          id: string
+          ip_address: string | null
+          request_type: string
+          requested_by: string
+          scheduled_deletion_at: string | null
+          status: string | null
+          team_id: string
+          user_agent: string | null
+        }
+        Insert: {
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          completed_at?: string | null
+          confirmation_token?: string | null
+          confirmed_at?: string | null
+          created_at?: string | null
+          id?: string
+          ip_address?: string | null
+          request_type: string
+          requested_by: string
+          scheduled_deletion_at?: string | null
+          status?: string | null
+          team_id: string
+          user_agent?: string | null
+        }
+        Update: {
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          completed_at?: string | null
+          confirmation_token?: string | null
+          confirmed_at?: string | null
+          created_at?: string | null
+          id?: string
+          ip_address?: string | null
+          request_type?: string
+          requested_by?: string
+          scheduled_deletion_at?: string | null
+          status?: string | null
+          team_id?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deletion_requests_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documents: {
         Row: {
           created_at: string | null
@@ -696,6 +755,106 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      location_staff: {
+        Row: {
+          assigned_at: string | null
+          assigned_by: string | null
+          id: string
+          is_primary: boolean | null
+          location_id: string
+          user_id: string
+        }
+        Insert: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          id?: string
+          is_primary?: boolean | null
+          location_id: string
+          user_id: string
+        }
+        Update: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          id?: string
+          is_primary?: boolean | null
+          location_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "location_staff_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      locations: {
+        Row: {
+          address: string | null
+          city: string | null
+          country: string | null
+          created_at: string | null
+          email: string | null
+          id: string
+          is_active: boolean | null
+          is_default: boolean | null
+          name: string
+          phone: string | null
+          settings: Json | null
+          state: string | null
+          team_id: string
+          timezone: string | null
+          updated_at: string | null
+          zip_code: string | null
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_default?: boolean | null
+          name: string
+          phone?: string | null
+          settings?: Json | null
+          state?: string | null
+          team_id: string
+          timezone?: string | null
+          updated_at?: string | null
+          zip_code?: string | null
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_default?: boolean | null
+          name?: string
+          phone?: string | null
+          settings?: Json | null
+          state?: string | null
+          team_id?: string
+          timezone?: string | null
+          updated_at?: string | null
+          zip_code?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "locations_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       maintenance_schedules: {
         Row: {
@@ -1309,6 +1468,88 @@ export type Database = {
         }
         Relationships: []
       }
+      team_integrations: {
+        Row: {
+          config: Json
+          configured_by: string | null
+          created_at: string | null
+          id: string
+          integration_type: string
+          is_active: boolean | null
+          last_used_at: string | null
+          team_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          config?: Json
+          configured_by?: string | null
+          created_at?: string | null
+          id?: string
+          integration_type: string
+          is_active?: boolean | null
+          last_used_at?: string | null
+          team_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          config?: Json
+          configured_by?: string | null
+          created_at?: string | null
+          id?: string
+          integration_type?: string
+          is_active?: boolean | null
+          last_used_at?: string | null
+          team_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_integrations_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      team_members: {
+        Row: {
+          id: string
+          invited_by: string | null
+          is_active: boolean | null
+          joined_at: string | null
+          role: Database["public"]["Enums"]["app_role"]
+          team_id: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          invited_by?: string | null
+          is_active?: boolean | null
+          joined_at?: string | null
+          role?: Database["public"]["Enums"]["app_role"]
+          team_id: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          invited_by?: string | null
+          is_active?: boolean | null
+          joined_at?: string | null
+          role?: Database["public"]["Enums"]["app_role"]
+          team_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_members_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       team_messages: {
         Row: {
           attachments: Json | null
@@ -1371,6 +1612,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      teams: {
+        Row: {
+          created_at: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          deletion_scheduled_for: string | null
+          id: string
+          is_deleted: boolean | null
+          logo_url: string | null
+          name: string
+          owner_id: string
+          settings: Json | null
+          slug: string | null
+          timezone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deletion_scheduled_for?: string | null
+          id?: string
+          is_deleted?: boolean | null
+          logo_url?: string | null
+          name: string
+          owner_id: string
+          settings?: Json | null
+          slug?: string | null
+          timezone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deletion_scheduled_for?: string | null
+          id?: string
+          is_deleted?: boolean | null
+          logo_url?: string | null
+          name?: string
+          owner_id?: string
+          settings?: Json | null
+          slug?: string | null
+          timezone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       user_activity_log: {
         Row: {
@@ -1630,6 +1919,64 @@ export type Database = {
           },
         ]
       }
+      vehicle_transfers: {
+        Row: {
+          from_location_id: string | null
+          id: string
+          notes: string | null
+          odometer_reading: number | null
+          reason: string | null
+          to_location_id: string
+          transferred_at: string | null
+          transferred_by: string
+          vehicle_id: string
+        }
+        Insert: {
+          from_location_id?: string | null
+          id?: string
+          notes?: string | null
+          odometer_reading?: number | null
+          reason?: string | null
+          to_location_id: string
+          transferred_at?: string | null
+          transferred_by: string
+          vehicle_id: string
+        }
+        Update: {
+          from_location_id?: string | null
+          id?: string
+          notes?: string | null
+          odometer_reading?: number | null
+          reason?: string | null
+          to_location_id?: string
+          transferred_at?: string | null
+          transferred_by?: string
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_transfers_from_location_id_fkey"
+            columns: ["from_location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_transfers_to_location_id_fkey"
+            columns: ["to_location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_transfers_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vehicles: {
         Row: {
           created_at: string | null
@@ -1703,6 +2050,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_access_location: {
+        Args: { _location_id: string; _user_id: string }
+        Returns: boolean
+      }
       count_admins: { Args: never; Returns: number }
       get_my_role: {
         Args: never
@@ -1716,9 +2067,18 @@ export type Database = {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      get_user_teams: { Args: { _user_id: string }; Returns: string[] }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      has_team_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _team_id: string
           _user_id: string
         }
         Returns: boolean
@@ -1728,6 +2088,18 @@ export type Database = {
         Returns: boolean
       }
       is_super_admin: { Args: { check_user_id: string }; Returns: boolean }
+      is_team_admin: {
+        Args: { _team_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_team_member: {
+        Args: { _team_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_team_owner: {
+        Args: { _team_id: string; _user_id: string }
+        Returns: boolean
+      }
       log_admin_action: {
         Args: { p_action: string; p_details?: Json }
         Returns: string
@@ -1745,7 +2117,7 @@ export type Database = {
       update_document_status: { Args: never; Returns: undefined }
     }
     Enums: {
-      app_role: "admin" | "manager" | "operator" | "viewer"
+      app_role: "owner" | "admin" | "manager" | "operator" | "viewer"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1873,7 +2245,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "manager", "operator", "viewer"],
+      app_role: ["owner", "admin", "manager", "operator", "viewer"],
     },
   },
 } as const
