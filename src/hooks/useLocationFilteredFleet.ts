@@ -37,12 +37,17 @@ export const useLocationFilteredFleet = () => {
     });
   }, [fleet.bookings, fleet.vehicles, selectedLocationId]);
 
-  // Filter maintenance by vehicle's location
+  // Filter maintenance by location_id or vehicle's location
   const filteredMaintenance = useMemo(() => {
     if (selectedLocationId === 'all') {
       return fleet.maintenance;
     }
     return fleet.maintenance.filter(m => {
+      // First check if maintenance has its own location_id
+      if (m.location_id) {
+        return m.location_id === selectedLocationId;
+      }
+      // Fall back to vehicle's location
       const vehicle = fleet.vehicles.find(v => v.id === m.vehicle_id);
       return vehicle?.location_id === selectedLocationId;
     });

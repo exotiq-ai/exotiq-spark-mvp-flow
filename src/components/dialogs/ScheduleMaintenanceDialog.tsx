@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Database } from "@/integrations/supabase/types";
+import { useTeam } from "@/contexts/TeamContext";
+import { MapPin, Loader2 } from "lucide-react";
 
 type MaintenanceInsert = Omit<Database['public']['Tables']['maintenance_schedules']['Insert'], 'user_id'>;
 type Vehicle = Database['public']['Tables']['vehicles']['Row'];
@@ -23,13 +25,20 @@ export const ScheduleMaintenanceDialog = ({
   vehicles,
   onSubmit 
 }: ScheduleMaintenanceDialogProps) => {
+  const { selectedLocationId, locations } = useTeam();
+  
   const [vehicleId, setVehicleId] = useState("");
   const [maintenanceType, setMaintenanceType] = useState("");
   const [scheduledDate, setScheduledDate] = useState("");
   const [serviceProvider, setServiceProvider] = useState("");
   const [estimatedCost, setEstimatedCost] = useState("");
   const [notes, setNotes] = useState("");
+  const [locationId, setLocationId] = useState("");
   const [loading, setLoading] = useState(false);
+  
+  // Auto-set location based on selected vehicle or current selection
+  const selectedVehicle = vehicles.find(v => v.id === vehicleId);
+  const effectiveLocationId = locationId || selectedVehicle?.location_id || (selectedLocationId !== 'all' ? selectedLocationId : locations[0]?.id || '');
 
   const maintenanceTypes = [
     "Routine Service",
@@ -60,7 +69,8 @@ export const ScheduleMaintenanceDialog = ({
         service_provider: serviceProvider || null,
         estimated_cost: estimatedCost ? parseFloat(estimatedCost) : null,
         notes: notes || null,
-        status: 'scheduled'
+        status: 'scheduled',
+        location_id: effectiveLocationId || null
       });
 
       // Reset form
@@ -70,6 +80,7 @@ export const ScheduleMaintenanceDialog = ({
       setServiceProvider("");
       setEstimatedCost("");
       setNotes("");
+      setLocationId("");
       onOpenChange(false);
     } catch (error) {
       console.error("Error scheduling maintenance:", error);
@@ -154,6 +165,29 @@ export const ScheduleMaintenanceDialog = ({
             />
           </div>
 
+          {/* Location Selection */}
+          {locations.length > 1 && (
+            <div className="space-y-2">
+              <Label htmlFor="location" className="flex items-center gap-2">
+                <MapPin className="h-4 w-4" />
+                Location
+              </Label>
+              <Select value={effectiveLocationId} onValueChange={setLocationId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select location" />
+                </SelectTrigger>
+                <SelectContent>
+                  {locations.map((loc) => (
+                    <SelectItem key={loc.id} value={loc.id}>
+                      {loc.name}
+                      {loc.is_default && " (Default)"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label htmlFor="notes">Notes</Label>
             <Textarea
@@ -170,7 +204,14 @@ export const ScheduleMaintenanceDialog = ({
               Cancel
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? "Scheduling..." : "Schedule Maintenance"}
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Scheduling...
+                </>
+              ) : (
+                "Schedule Maintenance"
+              )}
             </Button>
           </DialogFooter>
         </form>
