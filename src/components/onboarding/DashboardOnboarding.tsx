@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import confetti from 'canvas-confetti';
 import { 
   X, 
@@ -29,57 +30,81 @@ interface TooltipStep {
   position: 'top' | 'bottom' | 'left' | 'right' | 'center';
 }
 
-const onboardingSteps: TooltipStep[] = [
-  {
-    id: 'welcome',
-    title: 'Welcome to ExotIQ! 🎉',
-    description: 'Let\'s take a quick tour of your new fleet management command center. This will only take a minute.',
-    icon: Sparkles,
-    position: 'center',
-  },
-  {
-    id: 'motoriq',
-    title: 'MotorIQ - Pricing Optimization',
-    description: 'AI-powered dynamic pricing helps you maximize revenue. Get instant recommendations based on demand, seasonality, and market trends.',
-    icon: TrendingUp,
-    position: 'left',
-  },
-  {
-    id: 'book',
-    title: 'Book - Reservations & Calendar',
-    description: 'Manage all your bookings in one place. View your calendar, handle reservations, and track upcoming pickups.',
-    icon: Calendar,
-    position: 'left',
-  },
-  {
-    id: 'pulse',
-    title: 'Pulse - Real-time Analytics',
-    description: 'Monitor your fleet performance with live analytics. Track revenue, utilization, and key metrics in real-time.',
-    icon: BarChart3,
-    position: 'left',
-  },
-  {
-    id: 'vault',
-    title: 'Vault - Compliance Hub',
-    description: 'Stay compliant with document management, insurance tracking, and automated reminders for renewals.',
-    icon: Shield,
-    position: 'left',
-  },
-  {
-    id: 'rari',
-    title: 'Meet Rari - Your AI Assistant',
-    description: 'Ask Rari anything! Get instant answers about your fleet, bookings, pricing, and analytics using voice or text.',
-    icon: Brain,
-    position: 'right',
-  },
-  {
-    id: 'complete',
-    title: 'You\'re All Set! 🚀',
-    description: 'Explore the dashboard and start optimizing your fleet. Need help? Just click the Rari button to ask questions anytime.',
-    icon: Sparkles,
-    position: 'center',
-  },
-];
+interface UserProfile {
+  full_name: string | null;
+  company_name: string | null;
+  fleet_size: string | null;
+  business_type: string | null;
+}
+
+// Personalized step generator based on profile
+const getPersonalizedSteps = (profile: UserProfile | null): TooltipStep[] => {
+  const name = profile?.full_name?.split(' ')[0] || 'there';
+  const companyName = profile?.company_name || 'your business';
+  const fleetSize = profile?.fleet_size || '';
+  const businessType = profile?.business_type || '';
+  
+  // Personalize descriptions based on profile
+  const pulseDescription = fleetSize?.includes('50') || fleetSize?.includes('21')
+    ? `With ${fleetSize} vehicles, Pulse is your command center. Monitor utilization, track revenue trends, and spot opportunities across your entire fleet in real-time.`
+    : 'Monitor your fleet performance with live analytics. Track revenue, utilization, and key metrics in real-time.';
+
+  const motorIQDescription = businessType === 'exotic' || businessType === 'luxury'
+    ? 'AI-powered dynamic pricing built for premium vehicles. Maximize revenue with recommendations based on events, seasonality, and high-net-worth demand patterns.'
+    : 'AI-powered dynamic pricing helps you maximize revenue. Get instant recommendations based on demand, seasonality, and market trends.';
+
+  return [
+    {
+      id: 'welcome',
+      title: `Welcome, ${name}! 🎉`,
+      description: `Let's take a quick tour of your new fleet management command center for ${companyName}. This will only take a minute.`,
+      icon: Sparkles,
+      position: 'center',
+    },
+    {
+      id: 'motoriq',
+      title: 'MotorIQ - Pricing Optimization',
+      description: motorIQDescription,
+      icon: TrendingUp,
+      position: 'left',
+    },
+    {
+      id: 'book',
+      title: 'Book - Reservations & Calendar',
+      description: 'Manage all your bookings in one place. View your calendar, handle reservations, and track upcoming pickups.',
+      icon: Calendar,
+      position: 'left',
+    },
+    {
+      id: 'pulse',
+      title: 'Pulse - Real-time Analytics',
+      description: pulseDescription,
+      icon: BarChart3,
+      position: 'left',
+    },
+    {
+      id: 'vault',
+      title: 'Vault - Compliance Hub',
+      description: 'Stay compliant with document management, insurance tracking, and automated reminders for renewals.',
+      icon: Shield,
+      position: 'left',
+    },
+    {
+      id: 'rari',
+      title: 'Meet Rari - Your AI Assistant',
+      description: `Ask Rari anything about ${companyName}! Get instant answers about your fleet, bookings, pricing, and analytics using voice or text.`,
+      icon: Brain,
+      position: 'right',
+    },
+    {
+      id: 'complete',
+      title: 'You\'re All Set! 🚀',
+      description: 'Explore the dashboard and start optimizing your fleet. Need help? Just click the Rari button to ask questions anytime.',
+      icon: Sparkles,
+      position: 'center',
+    },
+  ];
+};
 
 export const DashboardOnboarding = () => {
   const { user } = useAuth();
@@ -88,7 +113,25 @@ export const DashboardOnboarding = () => {
   const [onboardingComplete, setOnboardingComplete] = useLocalStorage(storageKey, false);
   const [currentStep, setCurrentStep] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const { toast } = useToast();
+
+  // Fetch user profile for personalization
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!user?.id) return;
+      const { data } = await supabase
+        .from('profiles')
+        .select('full_name, company_name, fleet_size, business_type')
+        .eq('id', user.id)
+        .single();
+      if (data) setProfile(data);
+    };
+    fetchProfile();
+  }, [user?.id]);
+
+  // Generate personalized steps
+  const onboardingSteps = useMemo(() => getPersonalizedSteps(profile), [profile]);
 
   useEffect(() => {
     // Show onboarding after a short delay if not completed

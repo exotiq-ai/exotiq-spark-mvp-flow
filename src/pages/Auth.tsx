@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { validators } from '@/lib/validation';
 import { supabase } from '@/integrations/supabase/client';
+import { PasswordStrengthMeter } from '@/components/auth/PasswordStrengthMeter';
 
 type AuthMode = 'signin' | 'signup' | 'magiclink' | 'reset';
 
@@ -370,9 +371,7 @@ export default function Auth() {
                   minLength={6}
                   aria-required="true"
                 />
-                <p className="text-xs text-muted-foreground">
-                  Must be at least 6 characters
-                </p>
+                <PasswordStrengthMeter password={password} />
               </div>
 
               <Button 
@@ -568,9 +567,7 @@ export default function Auth() {
                       minLength={6}
                       aria-required="true"
                     />
-                    <p className="text-xs text-muted-foreground">
-                      Must be at least 6 characters
-                    </p>
+                    <PasswordStrengthMeter password={password} />
                   </div>
 
                   <Button 

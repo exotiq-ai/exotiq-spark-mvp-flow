@@ -13,9 +13,11 @@ import {
   Save,
   Lock,
   LogOut,
-  Shield
+  Shield,
+  RotateCcw
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -288,9 +290,36 @@ export const MyAccountSection = () => {
         </div>
       </Card>
 
+      {/* Dashboard Tour */}
+      <Card className="card-premium p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h3 className="font-semibold">Dashboard Tour</h3>
+            <p className="text-sm text-muted-foreground">
+              Restart the interactive tour to learn about dashboard features
+            </p>
+          </div>
+          <Button 
+            variant="outline" 
+            onClick={() => {
+              // Clear the onboarding complete flag to restart tour
+              const storageKey = user?.id ? `dashboard-onboarding-complete-${user.id}` : 'dashboard-onboarding-complete';
+              localStorage.removeItem(storageKey);
+              toast({
+                title: "Tour Restarted",
+                description: "Visit the dashboard to see the tour again.",
+              });
+            }}
+          >
+            <RotateCcw className="w-4 h-4 mr-2" />
+            Restart Tour
+          </Button>
+        </div>
+      </Card>
+
       {/* Sign Out */}
       <Card className="card-premium p-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h3 className="font-semibold">Sign Out</h3>
             <p className="text-sm text-muted-foreground">
