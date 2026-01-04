@@ -310,7 +310,7 @@ const Welcome = () => {
 
         {/* Skip to Dashboard */}
         <div className="text-center mt-8">
-          <Button variant="ghost" onClick={() => navigate('/demo')}>
+        <Button variant="ghost" onClick={() => navigate('/dashboard')}>
             Skip for now, take me to the dashboard
             <ArrowRight className="ml-2 h-4 w-4" />
           </Button>

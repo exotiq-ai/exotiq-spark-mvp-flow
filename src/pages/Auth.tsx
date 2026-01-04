@@ -407,7 +407,8 @@ export default function Auth() {
                   Magic Link
                 </TabsTrigger>
                 <TabsTrigger value="signup" className="text-xs sm:text-sm">
-                  Create
+                  <UserPlus className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                  Sign Up
                 </TabsTrigger>
               </TabsList>
 
