@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -64,6 +64,92 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
     "metrics"
   ]);
   const [showAllInsights, setShowAllInsights] = useLocalStorage<boolean>("dashboardExpanded", false);
+
+  // Generate last 7 days for trend calculations
+  const last7Days = useMemo(() => {
+    const days = [];
+    const today = new Date();
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      date.setHours(0, 0, 0, 0);
+      days.push(date);
+    }
+    return days;
+  }, []);
+
+  // Calculate vehicles currently out (confirmed bookings spanning today)
+  const { activeVehicleIds, activeBookingsCount } = useMemo(() => {
+    const today = new Date();
+    const ids = new Set(
+      bookings
+        .filter(b => 
+          b.status === 'confirmed' &&
+          new Date(b.start_date) <= today &&
+          new Date(b.end_date) >= today
+        )
+        .map(b => b.vehicle_id)
+    );
+    return { activeVehicleIds: ids, activeBookingsCount: ids.size };
+  }, [bookings]);
+
+  // 7-day bookings trend for sparkline
+  const bookingsTrend = useMemo(() => {
+    return last7Days.map(day => {
+      const dayEnd = new Date(day);
+      dayEnd.setHours(23, 59, 59, 999);
+      const activeOnDay = new Set(
+        bookings
+          .filter(b => 
+            b.status === 'confirmed' &&
+            new Date(b.start_date) <= dayEnd &&
+            new Date(b.end_date) >= day
+          )
+          .map(b => b.vehicle_id)
+      );
+      return activeOnDay.size;
+    });
+  }, [bookings, last7Days]);
+
+  // 7-day utilization trend for sparkline
+  const utilizationTrend = useMemo(() => {
+    return bookingsTrend.map(count => 
+      vehicles.length > 0 ? Math.round((count / vehicles.length) * 100) : 0
+    );
+  }, [bookingsTrend, vehicles.length]);
+
+  // 7-day average rate trend for sparkline
+  const rateTrend = useMemo(() => {
+    return last7Days.map(day => {
+      const dayEnd = new Date(day);
+      dayEnd.setHours(23, 59, 59, 999);
+      const dayBookings = bookings.filter(b => 
+        new Date(b.start_date) <= dayEnd &&
+        new Date(b.end_date) >= day &&
+        b.daily_rate
+      );
+      if (dayBookings.length === 0) {
+        return vehicles.length > 0 
+          ? Math.round(vehicles.reduce((acc, v) => acc + (v.current_rate || 0), 0) / vehicles.length)
+          : 0;
+      }
+      return Math.round(dayBookings.reduce((sum, b) => sum + (b.daily_rate || 0), 0) / dayBookings.length);
+    });
+  }, [bookings, vehicles, last7Days]);
+
+  // Calculate current utilization percentage
+  const currentUtilization = useMemo(() => {
+    return vehicles.length > 0 
+      ? Math.round((activeVehicleIds.size / vehicles.length) * 100) 
+      : 0;
+  }, [activeVehicleIds.size, vehicles.length]);
+
+  // Calculate average daily rate
+  const averageRate = useMemo(() => {
+    return vehicles.length > 0 
+      ? Math.round(vehicles.reduce((acc, v) => acc + (v.current_rate || 0), 0) / vehicles.length) 
+      : 0;
+  }, [vehicles]);
 
   const toggleSection = (sectionId: string) => {
     setExpandedSections(prev =>
@@ -269,9 +355,12 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
           </div>
           <MetricsWidget 
             hasFleetData={vehicles.length > 0}
-            activeBookings={bookings.filter(b => b.status === 'active' || b.status === 'confirmed').length}
-            utilization={vehicles.length > 0 ? Math.round((vehicles.filter(v => v.status === 'rented').length / vehicles.length) * 100) : 0}
-            averageRate={vehicles.length > 0 ? Math.round(vehicles.reduce((acc, v) => acc + v.current_rate, 0) / vehicles.length) : 0}
+            activeBookings={activeBookingsCount}
+            utilization={currentUtilization}
+            averageRate={averageRate}
+            bookingsTrend={bookingsTrend}
+            utilizationTrend={utilizationTrend}
+            rateTrend={rateTrend}
             onAddVehicle={() => setShowAddVehicleDialog(true)}
           />
         </div>
