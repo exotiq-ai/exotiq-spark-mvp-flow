@@ -78,3 +78,32 @@ UPDATE vehicles SET revenue = (
 
 ### Premium Events
 - Phoenix Open (Jan 27 - Feb 2): 5 hypercar bookings, $200k+ revenue
+
+---
+
+## 🛠️ Technical Notes
+
+### Vehicle Status Calculation Pattern
+**Important**: The `vehicles.status` field is static and NOT dynamically updated based on bookings.
+
+All dashboard components and Rari backend functions now calculate real-time status dynamically:
+
+```typescript
+// Get vehicles currently "booked/rented"
+const now = new Date();
+const bookedVehicleIds = new Set(
+  bookings
+    .filter(b => 
+      b.status === 'confirmed' &&
+      new Date(b.start_date) <= now &&
+      new Date(b.end_date) >= now
+    )
+    .map(b => b.vehicle_id)
+);
+```
+
+**Files using this pattern:**
+- `src/components/charts/FleetStatusDonut.tsx`
+- `src/components/dashboard/pulse/TodaySnapshot.tsx`
+- `supabase/functions/fleet-copilot-chat/index.ts`
+- `supabase/functions/rari-mcp-server/index.ts`
