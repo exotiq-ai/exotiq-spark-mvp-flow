@@ -1046,25 +1046,46 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
       case "get_fleet_vehicles": {
         const { status, location } = args;
         let query = supabase.from('vehicles').select('*').eq('user_id', userId);
-        if (status && status !== 'all') query = query.eq('status', status);
         if (location && location !== 'all') query = query.eq('location', location);
         
         const { data: vehicles, error } = await query.order('created_at', { ascending: false });
         if (error) return { error: 'Failed to fetch vehicles', summary: 'Error retrieving vehicles.' };
         if (!vehicles?.length) return { count: 0, vehicles: [], summary: `No vehicles found${location ? ` in ${location}` : ''}.` };
 
-        const vehicleList = vehicles.map(v => ({
-          name: `${v.year} ${v.make} ${v.model}`,
-          status: v.status,
-          location: v.location || 'Miami',
-          rate: `$${v.current_rate}/day`,
-          utilization: `${v.utilization || 0}%`
-        }));
+        // Get active bookings to determine real-time vehicle status
+        const now = new Date().toISOString();
+        const { data: activeBookings } = await supabase
+          .from('bookings')
+          .select('vehicle_id')
+          .eq('user_id', userId)
+          .eq('status', 'confirmed')
+          .lte('start_date', now)
+          .gte('end_date', now);
+        
+        const rentedVehicleIds = new Set(activeBookings?.map(b => b.vehicle_id) || []);
+
+        // Calculate real-time status based on active bookings
+        const vehicleList = vehicles.map(v => {
+          const realStatus = rentedVehicleIds.has(v.id) ? 'rented' : v.status;
+          return {
+            name: `${v.year} ${v.make} ${v.model}`,
+            status: realStatus,
+            location: v.location || 'Miami',
+            rate: `$${v.current_rate}/day`,
+            utilization: `${v.utilization || 0}%`
+          };
+        });
+
+        // Filter by status if requested (using calculated real-time status)
+        let filteredList = vehicleList;
+        if (status && status !== 'all') {
+          filteredList = vehicleList.filter(v => v.status === status);
+        }
 
         return {
-          count: vehicles.length,
-          vehicles: vehicleList,
-          summary: `Found ${vehicles.length} vehicles${status && status !== 'all' ? ` that are ${status}` : ''}${location ? ` in ${location}` : ''}.`
+          count: filteredList.length,
+          vehicles: filteredList,
+          summary: `Found ${filteredList.length} vehicles${status && status !== 'all' ? ` that are ${status}` : ''}${location ? ` in ${location}` : ''}.`
         };
       }
 
@@ -1095,7 +1116,15 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
         }
 
         const totalRevenue = revenue.reduce((sum: number, b: any) => sum + Number(b.total_value || 0), 0);
-        const activeBookings = bookings.filter((b: any) => ['active', 'confirmed'].includes(b.status)).length;
+        
+        // Calculate active bookings: confirmed bookings where now is between start and end date
+        const now = new Date();
+        const activeBookings = bookings.filter((b: any) => {
+          const start = new Date(b.start_date);
+          const end = new Date(b.end_date);
+          return b.status === 'confirmed' && start <= now && end >= now;
+        }).length;
+        
         const avgUtilization = vehicles.length > 0 ? vehicles.reduce((sum, v) => sum + (v.utilization || 0), 0) / vehicles.length : 0;
         const peakSeason = getCurrentPeakSeason(location);
 

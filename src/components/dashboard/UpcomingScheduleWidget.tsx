@@ -10,9 +10,21 @@ interface UpcomingScheduleWidgetProps {
 export const UpcomingScheduleWidget = ({ onViewCalendar }: UpcomingScheduleWidgetProps) => {
   const { bookings, vehicles } = useLocationFilteredFleet();
   
-  // Get next 3 upcoming bookings
+  // Get next 3 upcoming bookings (pickups and returns for today and future)
+  const now = new Date();
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+  
+  // Include today's confirmed bookings and future bookings
   const upcomingBookings = bookings
-    .filter(b => new Date(b.start_date) >= new Date())
+    .filter(b => {
+      const startDate = new Date(b.start_date);
+      const endDate = new Date(b.end_date);
+      return (
+        b.status === 'confirmed' &&
+        (startDate >= todayStart || endDate >= todayStart)
+      );
+    })
     .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime())
     .slice(0, 3);
   

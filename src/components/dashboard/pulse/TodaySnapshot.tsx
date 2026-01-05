@@ -11,20 +11,30 @@ import { format, isToday } from "date-fns";
 export const TodaySnapshot = () => {
   const { vehicles, bookings, payments } = useLocationFilteredFleet();
   
-  // Calculate today's metrics
-  const vehiclesOut = bookings.filter(b => 
-    b.status === 'active' || b.status === 'confirmed'
-  ).length;
+  // Calculate today's metrics - get unique vehicles currently out
+  const today = new Date();
+  const vehicleIdsOut = new Set(
+    bookings
+      .filter(b => 
+        b.status === 'confirmed' &&
+        new Date(b.start_date) <= today &&
+        new Date(b.end_date) >= today
+      )
+      .map(b => b.vehicle_id)
+  );
+  const vehiclesOut = vehicleIdsOut.size;
   
   const totalVehicles = vehicles.length;
   
+  // Pickups today - confirmed bookings starting today
   const pickupsToday = bookings.filter(b => 
-    isToday(new Date(b.start_date))
+    isToday(new Date(b.start_date)) && b.status === 'confirmed'
   );
-  const pickupsCompleted = pickupsToday.filter(b => b.status === 'active').length;
+  const pickupsCompleted = pickupsToday.length; // All confirmed pickups are "ready"
   
+  // Returns today - confirmed bookings ending today
   const returnsToday = bookings.filter(b => 
-    isToday(new Date(b.end_date))
+    isToday(new Date(b.end_date)) && (b.status === 'confirmed' || b.status === 'completed')
   );
   const returnsCompleted = returnsToday.filter(b => b.status === 'completed').length;
   

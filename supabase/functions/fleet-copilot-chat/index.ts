@@ -270,7 +270,14 @@ serve(async (req) => {
             ]);
 
             const totalRevenue = revenue.data?.reduce((sum, b) => sum + Number(b.total_value || 0), 0) || 0;
-            const activeBookings = bookings.data?.filter(b => b.status === 'active' || b.status === 'confirmed').length || 0;
+            
+            // Calculate active bookings: confirmed bookings where today is between start and end date
+            const now = new Date();
+            const activeBookings = bookings.data?.filter(b => {
+              const start = new Date(b.start_date);
+              const end = new Date(b.end_date);
+              return b.status === 'confirmed' && start <= now && end >= now;
+            }).length || 0;
 
             return {
               totalVehicles: vehicles.data?.length || 0,

@@ -11,22 +11,40 @@ interface DonutSegment {
 }
 
 export const FleetStatusDonut = () => {
-  const { vehicles } = useLocationFilteredFleet();
+  const { vehicles, bookings } = useLocationFilteredFleet();
   const [animationProgress, setAnimationProgress] = useState(0);
   const [hoveredSegment, setHoveredSegment] = useState<string | null>(null);
   const isMobile = useIsMobile();
 
   const segments: DonutSegment[] = useMemo(() => {
-    const available = vehicles.filter(v => v.status === 'available').length;
-    const booked = vehicles.filter(v => v.status === 'booked').length;
+    // Calculate booked vehicles dynamically from active bookings
+    const today = new Date();
+    const todayStart = new Date(today);
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date(today);
+    todayEnd.setHours(23, 59, 59, 999);
+
+    // Find vehicles with confirmed bookings spanning today
+    const bookedVehicleIds = new Set(
+      bookings
+        .filter(b => 
+          b.status === 'confirmed' &&
+          new Date(b.start_date) <= todayEnd &&
+          new Date(b.end_date) >= todayStart
+        )
+        .map(b => b.vehicle_id)
+    );
+
+    const booked = bookedVehicleIds.size;
     const maintenance = vehicles.filter(v => v.status === 'maintenance').length;
+    const available = Math.max(0, vehicles.length - booked - maintenance);
 
     return [
       { label: 'Available', value: available, color: 'hsl(var(--success))', colorVar: '--success' },
       { label: 'Booked', value: booked, color: 'hsl(var(--primary))', colorVar: '--primary' },
       { label: 'Maintenance', value: maintenance, color: 'hsl(var(--warning))', colorVar: '--warning' },
     ];
-  }, [vehicles]);
+  }, [vehicles, bookings]);
 
   const total = segments.reduce((sum, seg) => sum + seg.value, 0);
   const size = isMobile ? 140 : 180;
