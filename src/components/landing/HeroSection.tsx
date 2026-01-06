@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Zap, ArrowRight, Calendar, Play } from "lucide-react";
+import { Zap, ArrowRight, Calendar, Play, MapPin } from "lucide-react";
 
 interface HeroSectionProps {
   onRequestAccess: () => void;
@@ -59,10 +59,12 @@ export const HeroSection = ({ onRequestAccess, onGetStarted, onTryDemo, onSchedu
           </Button>
         </div>
 
-        {/* Social proof - minimal */}
+        {/* Launch announcement */}
         <div className="animate-fade-in" style={{ animationDelay: '0.4s', animationFillMode: 'both' }}>
-          <p className="text-sm text-muted-foreground mb-6">
-            Trusted by 200+ exotic car rental operators worldwide
+          <p className="text-sm text-muted-foreground mb-6 inline-flex items-center gap-2">
+            <MapPin className="w-4 h-4 text-primary" />
+            Launching now in Denver, Scottsdale, and Miami — 
+            <span className="text-primary font-medium">Join the movement!</span>
           </p>
           
           {/* Demo button - secondary action */}
