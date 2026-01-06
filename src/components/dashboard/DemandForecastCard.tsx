@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,11 @@ import {
   ArrowDownRight,
   Clock,
   Target,
+  Brain,
+  DollarSign,
+  Lightbulb,
+  CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
 import {
   Tooltip,
@@ -51,6 +56,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format, addDays, differenceInDays, startOfDay } from "date-fns";
 import { DateRange } from "react-day-picker";
+import { useAIDemandForecast, type DemandForecast, type PricingAdjustment, type Opportunity } from "@/hooks/useAIDemandForecast";
 
 interface EventData {
   id: string;
@@ -130,6 +136,14 @@ export const DemandForecastCard = () => {
   );
   const [showLegend, setShowLegend] = useState(false);
   const [activeTab, setActiveTab] = useState('forecast');
+  
+  // AI Demand Forecast hook
+  const { 
+    forecast: aiForecast, 
+    loading: aiLoading, 
+    generateForecast,
+    error: aiError 
+  } = useAIDemandForecast();
 
   const fetchEvents = async () => {
     setLoading(true);
@@ -167,6 +181,30 @@ export const DemandForecastCard = () => {
   useEffect(() => {
     fetchEvents();
   }, [selectedCity, dateRange, selectedCategories]);
+
+  // Generate AI forecast when events are loaded
+  const handleGenerateAIForecast = useCallback(() => {
+    if (!dateRange?.from || !dateRange?.to) return;
+    
+    const cityLabel = CITIES.find(c => c.value === selectedCity)?.label || selectedCity;
+    
+    // Prepare event data for AI
+    const eventData = events.map(e => ({
+      name: e.name,
+      date: e.date,
+      attendance: e.attendance,
+      impactScore: e.impactScore,
+      category: e.category,
+    }));
+    
+    generateForecast(
+      cityLabel,
+      { from: dateRange.from, to: dateRange.to },
+      undefined, // fleetData - could be passed from parent
+      undefined, // historicalBookings - could be passed from parent
+      eventData
+    );
+  }, [dateRange, selectedCity, events, generateForecast]);
 
   const handleQuickRangeChange = (value: string) => {
     setQuickRange(value);
@@ -475,14 +513,18 @@ export const DemandForecastCard = () => {
 
       {/* Tabs for Forecast vs Impact Analysis */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-4">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="forecast" className="gap-2">
             <BarChart3 className="h-4 w-4" />
-            Demand Forecast
+            <span className="hidden sm:inline">Demand</span> Forecast
+          </TabsTrigger>
+          <TabsTrigger value="ai-pricing" className="gap-2">
+            <Brain className="h-4 w-4" />
+            AI <span className="hidden sm:inline">Pricing</span>
           </TabsTrigger>
           <TabsTrigger value="impact" className="gap-2">
             <Zap className="h-4 w-4" />
-            Impact Analysis
+            <span className="hidden sm:inline">Impact</span> Analysis
           </TabsTrigger>
         </TabsList>
 
@@ -767,6 +809,255 @@ export const DemandForecastCard = () => {
                   );
                 })}
               </div>
+            </div>
+          )}
+        </TabsContent>
+
+        {/* AI Pricing & Predictions Tab */}
+        <TabsContent value="ai-pricing" className="mt-4 space-y-4">
+          {/* Generate Forecast Button */}
+          <div className="flex items-center justify-between p-4 rounded-lg border bg-gradient-to-br from-primary/5 to-accent/5">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <Brain className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <h4 className="font-medium">AI Demand Predictions</h4>
+                <p className="text-sm text-muted-foreground">
+                  Get AI-powered pricing suggestions based on {events.length} upcoming events
+                </p>
+              </div>
+            </div>
+            <Button 
+              onClick={handleGenerateAIForecast}
+              disabled={aiLoading || events.length === 0}
+              className="gap-2"
+            >
+              {aiLoading ? (
+                <RefreshCw className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
+              {aiLoading ? 'Analyzing...' : 'Generate Forecast'}
+            </Button>
+          </div>
+
+          {/* AI Error State */}
+          {aiError && (
+            <div className="p-4 rounded-lg border border-destructive/30 bg-destructive/5">
+              <div className="flex items-center gap-2 text-destructive">
+                <AlertCircle className="h-5 w-5" />
+                <span className="font-medium">Forecast Error</span>
+              </div>
+              <p className="text-sm text-muted-foreground mt-1">{aiError}</p>
+            </div>
+          )}
+
+          {/* AI Forecast Results */}
+          {aiForecast && (
+            <>
+              {/* Summary Stats */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="p-4 rounded-lg border bg-gradient-to-br from-primary/5 to-primary/10">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-muted-foreground">Predicted Bookings</span>
+                    <BarChart3 className="h-4 w-4 text-primary" />
+                  </div>
+                  <div className="text-2xl font-bold text-primary">
+                    {aiForecast.summary.totalPredictedBookings}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    next {aiForecast.dailyPredictions.length} days
+                  </p>
+                </div>
+                <div className="p-4 rounded-lg border bg-gradient-to-br from-success/5 to-success/10">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-muted-foreground">Projected Revenue</span>
+                    <DollarSign className="h-4 w-4 text-success" />
+                  </div>
+                  <div className="text-2xl font-bold text-success">
+                    ${(aiForecast.summary.projectedRevenue / 1000).toFixed(1)}K
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {aiForecast.summary.comparedToLastPeriod > 0 ? '+' : ''}{aiForecast.summary.comparedToLastPeriod}% vs last period
+                  </p>
+                </div>
+                <div className="p-4 rounded-lg border bg-gradient-to-br from-accent/5 to-accent/10">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-muted-foreground">AI Confidence</span>
+                    <Target className="h-4 w-4 text-accent" />
+                  </div>
+                  <div className="text-2xl font-bold text-accent">
+                    {aiForecast.summary.averageConfidence}%
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    prediction accuracy
+                  </p>
+                </div>
+                <div className="p-4 rounded-lg border bg-gradient-to-br from-warning/5 to-warning/10">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-muted-foreground">Demand Trend</span>
+                    {aiForecast.summary.demandTrend === 'increasing' ? (
+                      <ArrowUpRight className="h-4 w-4 text-success" />
+                    ) : aiForecast.summary.demandTrend === 'decreasing' ? (
+                      <ArrowDownRight className="h-4 w-4 text-destructive" />
+                    ) : (
+                      <TrendingUp className="h-4 w-4 text-warning" />
+                    )}
+                  </div>
+                  <div className={`text-2xl font-bold capitalize ${
+                    aiForecast.summary.demandTrend === 'increasing' ? 'text-success' : 
+                    aiForecast.summary.demandTrend === 'decreasing' ? 'text-destructive' : 
+                    'text-warning'
+                  }`}>
+                    {aiForecast.summary.demandTrend}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    market direction
+                  </p>
+                </div>
+              </div>
+
+              {/* Pricing Adjustments */}
+              <div className="p-4 rounded-lg border bg-muted/20">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <DollarSign className="h-5 w-5 text-success" />
+                    <span className="font-medium">AI Pricing Suggestions</span>
+                  </div>
+                  <Badge variant="outline" className="text-xs gap-1">
+                    <Sparkles className="h-3 w-3" />
+                    {aiForecast.pricingAdjustments.length} categories
+                  </Badge>
+                </div>
+                <div className="space-y-3">
+                  {aiForecast.pricingAdjustments.map((adj, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-3 rounded-lg bg-background/50 border">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{adj.category}</span>
+                          {adj.changePercent > 0 ? (
+                            <Badge className="bg-success/20 text-success text-xs">
+                              +{adj.changePercent}%
+                            </Badge>
+                          ) : adj.changePercent < 0 ? (
+                            <Badge className="bg-destructive/20 text-destructive text-xs">
+                              {adj.changePercent}%
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-xs">
+                              Optimal
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1">{adj.reason}</p>
+                      </div>
+                      <div className="text-right ml-4">
+                        <div className="text-sm text-muted-foreground line-through">
+                          ${adj.currentRate.toLocaleString()}/day
+                        </div>
+                        <div className="text-lg font-bold text-success">
+                          ${adj.suggestedRate.toLocaleString()}/day
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Revenue Opportunities */}
+              <div className="p-4 rounded-lg border border-warning/30 bg-warning/5">
+                <div className="flex items-center gap-2 mb-4">
+                  <Lightbulb className="h-5 w-5 text-warning" />
+                  <span className="font-medium">Top Revenue Opportunities</span>
+                </div>
+                <div className="grid gap-3 md:grid-cols-3">
+                  {aiForecast.opportunities.slice(0, 3).map((opp, idx) => (
+                    <div key={idx} className={`p-3 rounded-lg border ${
+                      opp.priority === 'high' ? 'bg-success/10 border-success/30' :
+                      opp.priority === 'medium' ? 'bg-warning/10 border-warning/30' :
+                      'bg-muted/50'
+                    }`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <Badge className={`text-xs ${
+                          idx === 0 ? 'bg-amber-500' : idx === 1 ? 'bg-gray-400' : 'bg-amber-700'
+                        } text-white`}>
+                          {idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'} #{idx + 1}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">
+                          {format(new Date(opp.date), 'MMM d')}
+                        </span>
+                      </div>
+                      <div className="text-lg font-bold text-success mb-1">
+                        +${(opp.potentialRevenue / 1000).toFixed(1)}K
+                      </div>
+                      <p className="text-xs text-muted-foreground">{opp.reason}</p>
+                      {opp.eventName && (
+                        <p className="text-xs text-primary mt-1 flex items-center gap-1">
+                          <CalendarIcon className="h-3 w-3" />
+                          {opp.eventName}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Daily Prediction Breakdown */}
+              <div className="p-4 rounded-lg border bg-muted/20">
+                <div className="flex items-center gap-2 mb-4">
+                  <BarChart3 className="h-5 w-5 text-primary" />
+                  <span className="font-medium">Daily Booking Predictions</span>
+                </div>
+                <div className="grid grid-cols-7 gap-2">
+                  {aiForecast.dailyPredictions.slice(0, 7).map((pred, idx) => (
+                    <div key={idx} className="flex flex-col items-center gap-1 p-2 rounded-lg bg-background/50">
+                      <span className="text-xs text-muted-foreground">
+                        {format(new Date(pred.date), 'EEE')}
+                      </span>
+                      <div className={`text-lg font-bold ${
+                        pred.demandLevel === 'peak' ? 'text-success' :
+                        pred.demandLevel === 'high' ? 'text-warning' :
+                        pred.demandLevel === 'medium' ? 'text-primary' :
+                        'text-muted-foreground'
+                      }`}>
+                        {pred.predictedBookings}
+                      </div>
+                      <Badge className={`text-[10px] px-1 py-0 ${
+                        pred.demandLevel === 'peak' ? 'bg-success/20 text-success' :
+                        pred.demandLevel === 'high' ? 'bg-warning/20 text-warning' :
+                        pred.demandLevel === 'medium' ? 'bg-primary/20 text-primary' :
+                        'bg-muted text-muted-foreground'
+                      }`}>
+                        {pred.confidence}%
+                      </Badge>
+                      <span className="text-[10px] text-muted-foreground">
+                        ${(pred.projectedRevenue / 1000).toFixed(1)}K
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Empty State */}
+          {!aiForecast && !aiLoading && !aiError && (
+            <div className="p-8 rounded-lg border border-dashed bg-muted/20 text-center">
+              <Brain className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+              <h4 className="font-medium mb-2">No AI Forecast Generated</h4>
+              <p className="text-sm text-muted-foreground mb-4">
+                Click "Generate Forecast" to get AI-powered predictions and pricing suggestions
+              </p>
+              <Button 
+                onClick={handleGenerateAIForecast}
+                disabled={events.length === 0}
+                variant="outline"
+                className="gap-2"
+              >
+                <Sparkles className="h-4 w-4" />
+                Generate Now
+              </Button>
             </div>
           )}
         </TabsContent>
