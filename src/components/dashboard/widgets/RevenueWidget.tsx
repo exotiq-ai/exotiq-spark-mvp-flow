@@ -30,10 +30,11 @@ export const RevenueWidget = ({ isLoading }: RevenueWidgetProps) => {
   const lastMonthStart = startOfMonth(subMonths(now, 1));
   const lastMonthEnd = endOfMonth(subMonths(now, 1));
 
+  // Include completed AND confirmed bookings for monthly revenue (booked revenue)
   const monthlyRevenue = bookings
     .filter(b => {
       const bookingDate = new Date(b.start_date);
-      return b.status === 'completed' && 
+      return (b.status === 'completed' || b.status === 'confirmed') && 
         isWithinInterval(bookingDate, { start: thisMonthStart, end: thisMonthEnd });
     })
     .reduce((sum, b) => sum + (b.total_value || 0), 0);
