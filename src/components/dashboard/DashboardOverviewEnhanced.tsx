@@ -78,16 +78,28 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
     return days;
   }, []);
 
+  // Helper to parse date strings into local timezone
+  const parseLocalDate = (dateStr: string, endOfDay = false) => {
+    return new Date(dateStr + (endOfDay ? 'T23:59:59' : 'T00:00:00'));
+  };
+
   // Calculate vehicles currently out (confirmed bookings spanning today)
   const { activeVehicleIds, activeBookingsCount } = useMemo(() => {
     const today = new Date();
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
+    const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+    
     const ids = new Set(
       bookings
-        .filter(b => 
-          b.status === 'confirmed' &&
-          new Date(b.start_date) <= today &&
-          new Date(b.end_date) >= today
-        )
+        .filter(b => {
+          const startDate = parseLocalDate(b.start_date);
+          const endDate = parseLocalDate(b.end_date, true);
+          return (
+            b.status === 'confirmed' &&
+            startDate <= todayEnd &&
+            endDate >= todayStart
+          );
+        })
         .map(b => b.vehicle_id)
     );
     return { activeVehicleIds: ids, activeBookingsCount: ids.size };
@@ -96,15 +108,22 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
   // 7-day bookings trend for sparkline
   const bookingsTrend = useMemo(() => {
     return last7Days.map(day => {
+      const dayStart = new Date(day);
+      dayStart.setHours(0, 0, 0, 0);
       const dayEnd = new Date(day);
       dayEnd.setHours(23, 59, 59, 999);
+      
       const activeOnDay = new Set(
         bookings
-          .filter(b => 
-            b.status === 'confirmed' &&
-            new Date(b.start_date) <= dayEnd &&
-            new Date(b.end_date) >= day
-          )
+          .filter(b => {
+            const startDate = parseLocalDate(b.start_date);
+            const endDate = parseLocalDate(b.end_date, true);
+            return (
+              b.status === 'confirmed' &&
+              startDate <= dayEnd &&
+              endDate >= dayStart
+            );
+          })
           .map(b => b.vehicle_id)
       );
       return activeOnDay.size;
@@ -121,13 +140,17 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
   // 7-day average rate trend for sparkline
   const rateTrend = useMemo(() => {
     return last7Days.map(day => {
+      const dayStart = new Date(day);
+      dayStart.setHours(0, 0, 0, 0);
       const dayEnd = new Date(day);
       dayEnd.setHours(23, 59, 59, 999);
-      const dayBookings = bookings.filter(b => 
-        new Date(b.start_date) <= dayEnd &&
-        new Date(b.end_date) >= day &&
-        b.daily_rate
-      );
+      
+      const dayBookings = bookings.filter(b => {
+        const startDate = parseLocalDate(b.start_date);
+        const endDate = parseLocalDate(b.end_date, true);
+        return startDate <= dayEnd && endDate >= dayStart && b.daily_rate;
+      });
+      
       if (dayBookings.length === 0) {
         return vehicles.length > 0 
           ? Math.round(vehicles.reduce((acc, v) => acc + (v.current_rate || 0), 0) / vehicles.length)
