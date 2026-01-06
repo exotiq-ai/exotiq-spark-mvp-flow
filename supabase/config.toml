@@ -68,3 +68,12 @@ verify_jwt = false
 
 [functions.rari-mcp-server]
 verify_jwt = false
+
+[functions.ai-demand-forecast]
+verify_jwt = false
+
+[functions.rari-email-summary]
+verify_jwt = false
+
+[functions.rari-message-summary]
+verify_jwt = false
