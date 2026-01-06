@@ -78,26 +78,19 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
     return days;
   }, []);
 
-  // Helper to parse date strings into local timezone
-  const parseLocalDate = (dateStr: string, endOfDay = false) => {
-    return new Date(dateStr + (endOfDay ? 'T23:59:59' : 'T00:00:00'));
-  };
-
   // Calculate vehicles currently out (confirmed bookings spanning today)
   const { activeVehicleIds, activeBookingsCount } = useMemo(() => {
-    const today = new Date();
-    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
-    const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
-    
+    const now = new Date();
     const ids = new Set(
       bookings
         .filter(b => {
-          const startDate = parseLocalDate(b.start_date);
-          const endDate = parseLocalDate(b.end_date, true);
+          // ISO timestamps parse correctly with new Date()
+          const startDate = new Date(b.start_date);
+          const endDate = new Date(b.end_date);
           return (
             b.status === 'confirmed' &&
-            startDate <= todayEnd &&
-            endDate >= todayStart
+            startDate <= now &&
+            endDate >= now
           );
         })
         .map(b => b.vehicle_id)
@@ -116,8 +109,8 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
       const activeOnDay = new Set(
         bookings
           .filter(b => {
-            const startDate = parseLocalDate(b.start_date);
-            const endDate = parseLocalDate(b.end_date, true);
+            const startDate = new Date(b.start_date);
+            const endDate = new Date(b.end_date);
             return (
               b.status === 'confirmed' &&
               startDate <= dayEnd &&
@@ -146,8 +139,8 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
       dayEnd.setHours(23, 59, 59, 999);
       
       const dayBookings = bookings.filter(b => {
-        const startDate = parseLocalDate(b.start_date);
-        const endDate = parseLocalDate(b.end_date, true);
+        const startDate = new Date(b.start_date);
+        const endDate = new Date(b.end_date);
         return startDate <= dayEnd && endDate >= dayStart && b.daily_rate;
       });
       
