@@ -2242,6 +2242,18 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_company_wide_conversation: {
+        Args: { p_conversation_id: string }
+        Returns: boolean
+      }
+      is_conversation_creator: {
+        Args: { p_conversation_id: string; p_user_id: string }
+        Returns: boolean
+      }
+      is_conversation_member: {
+        Args: { p_conversation_id: string; p_user_id: string }
+        Returns: boolean
+      }
       is_same_team: {
         Args: { _target_user_id: string; _user_id: string }
         Returns: boolean
