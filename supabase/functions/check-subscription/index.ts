@@ -52,9 +52,36 @@ serve(async (req) => {
     const token = authHeader.replace("Bearer ", "");
     logStep("Authenticating user with token");
     
-    const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
-    if (userError) throw new Error(`Authentication error: ${userError.message}`);
-    const user = userData.user;
+    // Retry auth up to 2 times with delay for cold start race condition
+    let userData = null;
+    let userError = null;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const result = await supabaseClient.auth.getUser(token);
+      userData = result.data;
+      userError = result.error;
+      if (!userError) break;
+      logStep(`Auth attempt ${attempt + 1} failed, retrying...`, { error: userError.message });
+      await new Promise(r => setTimeout(r, 100 * (attempt + 1)));
+    }
+    
+    // On transient auth errors, return unsubscribed instead of 500
+    if (userError) {
+      logStep("Auth failed after retries, returning unsubscribed state", { error: userError.message });
+      return new Response(JSON.stringify({ 
+        subscribed: false,
+        tier: null,
+        tierName: null,
+        interval: null,
+        subscriptionEnd: null,
+        customerId: null,
+        authError: true
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
+    
+    const user = userData?.user;
     if (!user?.email) throw new Error("User not authenticated or email not available");
     logStep("User authenticated", { userId: user.id, email: user.email });
 
