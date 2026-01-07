@@ -55,27 +55,11 @@ export const RariVoiceInterface = () => {
     },
     onMessage: (message: any) => {
       console.log('Rari message event:', message);
-      console.log('[DEBUG] Message structure:', {
-        type: message?.type,
-        hasUserTranscript: !!message?.user_transcription_event?.user_transcript,
-        hasPartialTranscript: !!message?.user_transcription_event?.user_transcript_partial,
-        hasAgentResponse: !!message?.agent_response_event?.agent_response,
-        hasLegacyMessage: !!message?.message,
-        legacySource: message?.source,
-        allKeys: Object.keys(message || {})
-      });
-      
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/7d901188-de6c-4c82-b7ab-2c69e41fa20a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'RariVoiceInterface.tsx:54',message:'onMessage raw event',data:{messageType:message?.type,hasUserTranscript:!!message?.user_transcription_event?.user_transcript,hasPartialTranscript:!!message?.user_transcription_event?.user_transcript_partial,hasAgentResponse:!!message?.agent_response_event?.agent_response,hasLegacyMessage:!!message?.message,legacySource:message?.source,allKeys:Object.keys(message||{})},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B,E'})}).catch(()=>{});
-      // #endregion
       
       // Handle user transcript (what user said via STT)
       if (message.type === 'user_transcript') {
         // Handle partial transcript for real-time display
         if (message.user_transcription_event?.user_transcript_partial) {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/7d901188-de6c-4c82-b7ab-2c69e41fa20a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'RariVoiceInterface.tsx:60',message:'Setting partial transcript',data:{partial:message.user_transcription_event.user_transcript_partial},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
-          // #endregion
           setPartialTranscript(message.user_transcription_event.user_transcript_partial);
         }
         
@@ -89,16 +73,6 @@ export const RariVoiceInterface = () => {
             content: transcript,
             timestamp: new Date()
           };
-          
-          console.log('[DEBUG] USER TRANSCRIPT - Adding to messages:', { 
-            content: transcript, 
-            hasConversationDbId: !!conversationDbId, 
-            conversationDbId 
-          });
-          
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/7d901188-de6c-4c82-b7ab-2c69e41fa20a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'RariVoiceInterface.tsx:72',message:'User transcript - adding to messages',data:{content:transcript,hasConversationDbId:!!conversationDbId,conversationDbId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B,E'})}).catch(()=>{});
-          // #endregion
           
           setMessages(prev => [...prev, newMessage]);
           
@@ -122,16 +96,6 @@ export const RariVoiceInterface = () => {
           timestamp: new Date()
         };
         
-        console.log('[DEBUG] AGENT RESPONSE - Adding to messages:', { 
-          content: response, 
-          hasConversationDbId: !!conversationDbId, 
-          conversationDbId 
-        });
-        
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/7d901188-de6c-4c82-b7ab-2c69e41fa20a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'RariVoiceInterface.tsx:95',message:'Agent response - adding to messages',data:{content:response,hasConversationDbId:!!conversationDbId,conversationDbId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B,E'})}).catch(()=>{});
-        // #endregion
-        
         setMessages(prev => [...prev, newMessage]);
         
         if (conversationDbId) {
@@ -151,17 +115,6 @@ export const RariVoiceInterface = () => {
           timestamp: new Date()
         };
         
-        console.log('[DEBUG] LEGACY FORMAT - Adding to messages:', { 
-          content: String(message.message), 
-          role: newMessage.role,
-          hasConversationDbId: !!conversationDbId, 
-          conversationDbId 
-        });
-        
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/7d901188-de6c-4c82-b7ab-2c69e41fa20a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'RariVoiceInterface.tsx:114',message:'Legacy format - adding to messages',data:{content:String(message.message),role:newMessage.role,hasConversationDbId:!!conversationDbId,conversationDbId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B,E'})}).catch(()=>{});
-        // #endregion
-        
         setMessages(prev => [...prev, newMessage]);
         
         if (conversationDbId) {
@@ -172,10 +125,6 @@ export const RariVoiceInterface = () => {
           }, 0);
         }
       }
-      
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/7d901188-de6c-4c82-b7ab-2c69e41fa20a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'RariVoiceInterface.tsx:128',message:'onMessage exit',data:{messagesLength:messages.length+1},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
-      // #endregion
     },
     onError: (error) => {
       console.error('Rari error:', error);
@@ -228,16 +177,8 @@ export const RariVoiceInterface = () => {
       console.log('Session started successfully:', id);
       setConversationId(id);
       
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/7d901188-de6c-4c82-b7ab-2c69e41fa20a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'RariVoiceInterface.tsx:127',message:'Before startConversation call',data:{sessionId:id,hasUser:!!user,userId:user?.id},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,C'})}).catch(()=>{});
-      // #endregion
-      
       // Start conversation in database (non-blocking - don't wait for it)
       startConversation(id).then((dbId) => {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/7d901188-de6c-4c82-b7ab-2c69e41fa20a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'RariVoiceInterface.tsx:133',message:'After startConversation call',data:{dbId,hasDbId:!!dbId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
-        
         if (dbId) {
           setConversationDbId(dbId);
         }
