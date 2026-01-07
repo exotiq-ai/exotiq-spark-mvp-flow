@@ -234,12 +234,18 @@ export const DashboardOnboarding = () => {
           transition={{ duration: 0.3 }}
           className={cn(
             'absolute pointer-events-auto',
-            isCenterStep && 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2',
-            !isCenterStep && currentStepData.position === 'left' && 'top-24 sm:top-32 left-4 sm:left-8',
-            !isCenterStep && currentStepData.position === 'right' && 'top-24 sm:top-32 right-4 sm:right-8'
+            // Always center on mobile (< md)
+            'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2',
+            // Desktop: use positional placement
+            !isCenterStep && currentStepData.position === 'left' && 
+              'md:top-32 md:left-8 md:translate-x-0 md:translate-y-0',
+            !isCenterStep && currentStepData.position === 'right' && 
+              'md:top-32 md:right-8 md:left-auto md:translate-x-0 md:translate-y-0',
+            // Always center for center steps on all screens
+            isCenterStep && 'md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2'
           )}
         >
-          <Card className="w-[calc(100vw-2rem)] sm:w-[400px] max-w-[400px] p-4 sm:p-6 shadow-2xl border-2 border-primary/20">
+          <Card className="w-[calc(100vw-2rem)] max-w-[400px] md:w-[400px] p-4 sm:p-6 shadow-2xl border-2 border-primary/20">
             {/* Close button */}
             <button
               onClick={handleSkip}
