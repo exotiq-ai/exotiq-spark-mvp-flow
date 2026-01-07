@@ -32,6 +32,7 @@ interface Profile {
 }
 
 export const MyAccountSection = () => {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const { user, signOut } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
@@ -293,30 +294,56 @@ export const MyAccountSection = () => {
         </div>
       </Card>
 
-      {/* Dashboard Tour */}
+      {/* Setup & Tour Section */}
       <Card className="card-premium p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h3 className="font-semibold">Dashboard Tour</h3>
-            <p className="text-sm text-muted-foreground">
-              Restart the interactive tour to learn about dashboard features
-            </p>
+        <div className="flex items-center space-x-3 mb-6">
+          <Sparkles className="w-5 h-5 text-primary" />
+          <h3 className="text-xl font-semibold">Setup & Tour</h3>
+        </div>
+
+        <div className="space-y-4">
+          {/* Edit Company Setup */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h4 className="font-medium">Company Setup</h4>
+              <p className="text-sm text-muted-foreground">
+                Update business info, locations, and fleet details
+              </p>
+            </div>
+            <Button 
+              variant="outline" 
+              onClick={() => navigate('/onboarding?edit=true')}
+            >
+              <Building2 className="w-4 h-4 mr-2" />
+              Edit Setup
+            </Button>
           </div>
-          <Button 
-            variant="outline" 
-            onClick={() => {
-              // Clear the onboarding complete flag to restart tour
-              const storageKey = user?.id ? `dashboard-onboarding-complete-${user.id}` : 'dashboard-onboarding-complete';
-              localStorage.removeItem(storageKey);
-              toast({
-                title: "Tour Restarted",
-                description: "Visit the dashboard to see the tour again.",
-              });
-            }}
-          >
-            <RotateCcw className="w-4 h-4 mr-2" />
-            Restart Tour
-          </Button>
+
+          <Separator />
+
+          {/* Restart Tour */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h4 className="font-medium">Dashboard Tour</h4>
+              <p className="text-sm text-muted-foreground">
+                Restart the interactive feature tour
+              </p>
+            </div>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                const storageKey = user?.id ? `dashboard-onboarding-complete-${user.id}` : 'dashboard-onboarding-complete';
+                localStorage.removeItem(storageKey);
+                toast({
+                  title: "Tour Restarted",
+                  description: "The dashboard tour will start on your next visit.",
+                });
+              }}
+            >
+              <RotateCcw className="w-4 h-4 mr-2" />
+              Restart Tour
+            </Button>
+          </div>
         </div>
       </Card>
 

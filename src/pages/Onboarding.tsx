@@ -111,7 +111,8 @@ export default function Onboarding() {
           .eq('team_id', currentTeam?.id);
 
         if (profile) {
-          const businessAddress = profile.business_address as AddressData | null;
+          // Safely cast the JSON business_address
+          const businessAddress = profile.business_address as unknown as AddressData | null;
           
           setFormData({
             companyName: profile.company_name || '',
@@ -168,13 +169,18 @@ export default function Onboarding() {
     setLoading(true);
 
     try {
+      // Cast AddressData to Json-compatible format
+      const businessAddressJson = formData.businessAddress ? {
+        ...formData.businessAddress
+      } : null;
+
       const { error } = await supabase
         .from('profiles')
         .update({
           company_name: formData.companyName,
           phone: formData.phone,
           website: formData.website,
-          business_address: formData.businessAddress,
+          business_address: businessAddressJson as any,
         })
         .eq('id', user.id);
 
