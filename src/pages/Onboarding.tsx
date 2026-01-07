@@ -13,9 +13,11 @@ import {
 } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
+import { AddressAutocomplete, AddressData } from '@/components/ui/address-autocomplete';
+import { LocationInput, LocationData } from '@/components/onboarding/LocationInput';
 import { 
   Building2, 
   Car, 
@@ -23,39 +25,54 @@ import {
   ArrowRight,
   ArrowLeft,
   Sparkles,
-  MapPin,
-  Loader2
+  Loader2,
+  Globe,
+  Phone,
+  Mail,
+  MapPin
 } from 'lucide-react';
+import confetti from 'canvas-confetti';
+import { useTeam } from '@/contexts/TeamContext';
 
 interface OnboardingFormData {
   companyName: string;
+  businessAddress: AddressData | null;
+  website: string;
   phone: string;
-  location: string;
+  email: string;
   fleetSize: string;
   businessType: string;
+  locations: LocationData[];
 }
 
 const initialFormData: OnboardingFormData = {
   companyName: '',
+  businessAddress: null,
+  website: '',
   phone: '',
-  location: '',
+  email: '',
   fleetSize: '',
   businessType: '',
+  locations: [],
 };
 
 export default function Onboarding() {
   const { user } = useAuth();
+  const { currentTeam, refreshTeam } = useTeam();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
+  const isEditMode = searchParams.get('edit') === 'true';
   
   // Progress persistence using localStorage
-  const storageKey = user?.id ? `onboarding-${user.id}` : 'onboarding-temp';
+  const storageKey = user?.id ? `onboarding-v2-${user.id}` : 'onboarding-v2-temp';
   const [savedStep, setSavedStep] = useLocalStorage<number>(`${storageKey}-step`, 1);
   const [savedFormData, setSavedFormData] = useLocalStorage<OnboardingFormData>(`${storageKey}-data`, initialFormData);
   
-  const [step, setStep] = useState(savedStep);
+  const [step, setStep] = useState(isEditMode ? 1 : savedStep);
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState<OnboardingFormData>(savedFormData);
+  const [initialLoading, setInitialLoading] = useState(isEditMode);
+  const [formData, setFormData] = useState<OnboardingFormData>(isEditMode ? initialFormData : savedFormData);
 
   // Vehicle data (not persisted - optional step)
   const [vehicleName, setVehicleName] = useState('');
@@ -64,85 +81,248 @@ export default function Onboarding() {
   const [year, setYear] = useState('');
   const [dailyRate, setDailyRate] = useState('');
 
-  // Sync step and form data to localStorage
+  // Set email from auth
   useEffect(() => {
-    setSavedStep(step);
-  }, [step, setSavedStep]);
+    if (user?.email && !formData.email) {
+      setFormData(prev => ({ ...prev, email: user.email || '' }));
+    }
+  }, [user?.email]);
+
+  // Load existing data in edit mode
+  useEffect(() => {
+    const loadExistingData = async () => {
+      if (!isEditMode || !user?.id) {
+        setInitialLoading(false);
+        return;
+      }
+
+      try {
+        // Fetch profile data
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('company_name, phone, website, business_address, fleet_size, business_type')
+          .eq('id', user.id)
+          .single();
+
+        // Fetch locations
+        const { data: locations } = await supabase
+          .from('locations')
+          .select('id, name, address, city, state, zip_code, country, is_default')
+          .eq('team_id', currentTeam?.id);
+
+        if (profile) {
+          const businessAddress = profile.business_address as AddressData | null;
+          
+          setFormData({
+            companyName: profile.company_name || '',
+            businessAddress: businessAddress,
+            website: profile.website || '',
+            phone: profile.phone || '',
+            email: user.email || '',
+            fleetSize: profile.fleet_size || '',
+            businessType: profile.business_type || '',
+            locations: locations?.map(loc => ({
+              id: loc.id,
+              name: loc.name,
+              address: {
+                street: loc.address || '',
+                city: loc.city || '',
+                state: loc.state || '',
+                zip: loc.zip_code || '',
+                country: loc.country || '',
+                formatted: [loc.address, loc.city, loc.state, loc.zip_code].filter(Boolean).join(', '),
+              },
+              isPrimary: loc.is_default || false,
+            })) || [],
+          });
+        }
+      } catch (error) {
+        console.error('Error loading profile data:', error);
+      } finally {
+        setInitialLoading(false);
+      }
+    };
+
+    loadExistingData();
+  }, [isEditMode, user?.id, currentTeam?.id]);
+
+  // Sync step and form data to localStorage (only in non-edit mode)
+  useEffect(() => {
+    if (!isEditMode) {
+      setSavedStep(step);
+    }
+  }, [step, setSavedStep, isEditMode]);
 
   useEffect(() => {
-    setSavedFormData(formData);
-  }, [formData, setSavedFormData]);
+    if (!isEditMode) {
+      setSavedFormData(formData);
+    }
+  }, [formData, setSavedFormData, isEditMode]);
 
-  const updateFormData = (field: keyof OnboardingFormData, value: string) => {
+  const updateFormData = <K extends keyof OnboardingFormData>(field: K, value: OnboardingFormData[K]) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleCompleteProfile = async () => {
+  const handleSaveStep1 = async () => {
     if (!user) return;
     setLoading(true);
 
-    const { error } = await supabase
-      .from('profiles')
-      .update({
-        company_name: formData.companyName,
-        phone: formData.phone,
-        location: formData.location,
-        fleet_size: formData.fleetSize,
-        business_type: formData.businessType,
-      })
-      .eq('id', user.id);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          company_name: formData.companyName,
+          phone: formData.phone,
+          website: formData.website,
+          business_address: formData.businessAddress,
+        })
+        .eq('id', user.id);
 
-    if (error) {
+      if (error) throw error;
+
+      setStep(2);
+    } catch (error: any) {
       toast({
         title: "Error",
         description: error.message,
         variant: "destructive"
       });
+    } finally {
       setLoading(false);
-      return;
     }
+  };
 
-    setStep(2);
-    setLoading(false);
+  const handleSaveStep2 = async () => {
+    if (!user || !currentTeam?.id) return;
+    setLoading(true);
+
+    try {
+      // Update profile with fleet info
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          fleet_size: formData.fleetSize,
+          business_type: formData.businessType,
+          number_of_locations: formData.locations.length,
+        })
+        .eq('id', user.id);
+
+      if (profileError) throw profileError;
+
+      // Handle locations - first get existing
+      const { data: existingLocations } = await supabase
+        .from('locations')
+        .select('id')
+        .eq('team_id', currentTeam.id);
+
+      const existingIds = existingLocations?.map(l => l.id) || [];
+      const newLocationIds = formData.locations.map(l => l.id);
+      
+      // Delete removed locations
+      const toDelete = existingIds.filter(id => !newLocationIds.includes(id));
+      if (toDelete.length > 0) {
+        await supabase.from('locations').delete().in('id', toDelete);
+      }
+
+      // Upsert locations
+      for (const loc of formData.locations) {
+        const locationData = {
+          id: loc.id,
+          team_id: currentTeam.id,
+          name: loc.name,
+          address: loc.address.street,
+          city: loc.address.city,
+          state: loc.address.state,
+          zip_code: loc.address.zip,
+          country: loc.address.country,
+          is_default: loc.isPrimary,
+          is_active: true,
+        };
+
+        if (existingIds.includes(loc.id)) {
+          await supabase.from('locations').update(locationData).eq('id', loc.id);
+        } else {
+          await supabase.from('locations').insert(locationData);
+        }
+      }
+
+      // Reset default flags and set new primary
+      await supabase
+        .from('locations')
+        .update({ is_default: false })
+        .eq('team_id', currentTeam.id);
+      
+      const primaryLocation = formData.locations.find(l => l.isPrimary);
+      if (primaryLocation) {
+        await supabase
+          .from('locations')
+          .update({ is_default: true })
+          .eq('id', primaryLocation.id);
+      }
+
+      await refreshTeam();
+      
+      if (isEditMode) {
+        toast({
+          title: "Setup Updated",
+          description: "Your business information has been saved.",
+        });
+        navigate('/dashboard?tab=settings');
+      } else {
+        setStep(3);
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleAddVehicle = async () => {
     if (!user) return;
     setLoading(true);
 
-    const { error } = await supabase
-      .from('vehicles')
-      .insert({
-        user_id: user.id,
-        name: vehicleName,
-        make: make,
-        model: model,
-        year: parseInt(year),
-        current_rate: parseFloat(dailyRate),
-        status: 'available'
-      });
+    try {
+      const { error } = await supabase
+        .from('vehicles')
+        .insert({
+          user_id: user.id,
+          team_id: currentTeam?.id,
+          name: vehicleName,
+          make: make,
+          model: model,
+          year: parseInt(year),
+          current_rate: parseFloat(dailyRate),
+          status: 'available'
+        });
 
-    if (error) {
+      if (error) throw error;
+
+      setStep(4);
+    } catch (error: any) {
       toast({
         title: "Error",
         description: error.message,
         variant: "destructive"
       });
+    } finally {
       setLoading(false);
-      return;
     }
-
-    setStep(3);
-    setLoading(false);
   };
 
   const handleSkipVehicle = () => {
-    setStep(3);
+    setStep(4);
   };
 
   const handleBack = () => {
     if (step > 1) {
       setStep(step - 1);
+    } else if (isEditMode) {
+      navigate('/dashboard?tab=settings');
     } else {
       navigate('/auth');
     }
@@ -152,35 +332,67 @@ export default function Onboarding() {
     if (!user) return;
     setLoading(true);
 
-    const { error } = await supabase
-      .from('profiles')
-      .update({ onboarding_completed: true })
-      .eq('id', user.id);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ onboarding_completed: true })
+        .eq('id', user.id);
 
-    if (error) {
+      if (error) throw error;
+
+      // Clear localStorage after completion
+      localStorage.removeItem(`${storageKey}-step`);
+      localStorage.removeItem(`${storageKey}-data`);
+
+      // Fire confetti
+      const colors = ['#0B3D91', '#FF6B35', '#FFD700'];
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors,
+      });
+
+      toast({
+        title: "Welcome to Exotiq! 🎉",
+        description: "Your account is ready. Let's optimize your fleet!",
+      });
+
+      navigate('/dashboard');
+    } catch (error: any) {
       toast({
         title: "Error",
         description: error.message,
         variant: "destructive"
       });
+    } finally {
       setLoading(false);
-      return;
     }
-
-    // Clear localStorage after completion
-    localStorage.removeItem(`${storageKey}-step`);
-    localStorage.removeItem(`${storageKey}-data`);
-
-    toast({
-      title: "Welcome to Exotiq! 🎉",
-      description: "Your account is ready. Let's optimize your fleet!",
-    });
-
-    navigate('/dashboard');
   };
 
-  const isStep1Valid = formData.companyName.trim() !== '' && formData.phone.trim() !== '';
-  const isStep2Valid = vehicleName && make && model && year && dailyRate;
+  // Validation
+  const isStep1Valid = 
+    formData.companyName.trim().length >= 2 &&
+    formData.businessAddress?.formatted &&
+    formData.phone.trim().length >= 7 &&
+    (formData.website.trim() === '' || formData.website.match(/^https?:\/\/.+/));
+  
+  const isStep2Valid = 
+    formData.fleetSize !== '' &&
+    formData.businessType !== '' &&
+    formData.locations.length > 0;
+
+  const isStep3Valid = vehicleName && make && model && year && dailyRate;
+
+  const totalSteps = isEditMode ? 2 : 4;
+
+  if (initialLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 flex items-center justify-center p-4">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 flex items-center justify-center p-4">
@@ -193,21 +405,23 @@ export default function Onboarding() {
           {/* Progress Bar */}
           <div className="mb-8">
             <div className="flex justify-between mb-4">
-              {[1, 2, 3].map((s) => (
+              {Array.from({ length: totalSteps }).map((_, i) => (
                 <div
-                  key={s}
+                  key={i}
                   className={`flex-1 h-2 rounded-full mx-1 transition-all ${
-                    s <= step ? 'bg-primary' : 'bg-muted'
+                    i + 1 <= step ? 'bg-primary' : 'bg-muted'
                   }`}
                 />
               ))}
             </div>
             <p className="text-sm text-muted-foreground text-center">
-              Step {step} of 3
+              Step {step} of {totalSteps}
+              {isEditMode && ' — Edit Mode'}
             </p>
           </div>
 
           <AnimatePresence mode="wait">
+            {/* Step 1: Business Profile */}
             {step === 1 && (
               <motion.div
                 key="step1"
@@ -218,9 +432,9 @@ export default function Onboarding() {
               >
                 <div className="text-center">
                   <Building2 className="w-16 h-16 mx-auto mb-4 text-primary" />
-                  <h2 className="text-2xl font-bold mb-2">Company Profile</h2>
+                  <h2 className="text-2xl font-bold mb-2">Business Profile</h2>
                   <p className="text-muted-foreground">
-                    Tell us about your business to personalize your experience
+                    Let's set up your company information
                   </p>
                 </div>
 
@@ -237,34 +451,117 @@ export default function Onboarding() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="phone">Phone Number *</Label>
-                    <Input
-                      id="phone"
-                      type="tel"
-                      placeholder="+1 (555) 123-4567"
-                      value={formData.phone}
-                      onChange={(e) => updateFormData('phone', e.target.value)}
+                    <Label>Business Address *</Label>
+                    <AddressAutocomplete
+                      value={formData.businessAddress}
+                      onChange={(addr) => updateFormData('businessAddress', addr)}
+                      placeholder="Search for your business address..."
                       required
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="location">Primary Location</Label>
-                    <div className="relative">
-                      <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="website" className="flex items-center gap-2">
+                        <Globe className="w-4 h-4 text-muted-foreground" />
+                        Website
+                      </Label>
                       <Input
-                        id="location"
-                        className="pl-10"
-                        placeholder="City, State (e.g., Miami, FL)"
-                        value={formData.location}
-                        onChange={(e) => updateFormData('location', e.target.value)}
+                        id="website"
+                        type="url"
+                        placeholder="https://yourcompany.com"
+                        value={formData.website}
+                        onChange={(e) => updateFormData('website', e.target.value)}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="phone" className="flex items-center gap-2">
+                        <Phone className="w-4 h-4 text-muted-foreground" />
+                        Phone *
+                      </Label>
+                      <Input
+                        id="phone"
+                        type="tel"
+                        placeholder="+1 (555) 123-4567"
+                        value={formData.phone}
+                        onChange={(e) => updateFormData('phone', e.target.value)}
+                        required
                       />
                     </div>
                   </div>
 
+                  <div className="space-y-2">
+                    <Label htmlFor="email" className="flex items-center gap-2">
+                      <Mail className="w-4 h-4 text-muted-foreground" />
+                      Email
+                    </Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={formData.email}
+                      disabled
+                      className="bg-muted/50"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Email cannot be changed
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-3">
+                  <Button
+                    onClick={handleSaveStep1}
+                    disabled={!isStep1Valid || loading}
+                    className="w-full btn-premium"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        {isEditMode ? 'Continue' : 'Continue'}
+                        <ArrowRight className="w-4 h-4 ml-2" />
+                      </>
+                    )}
+                  </Button>
+                  
+                  <Button
+                    variant="ghost"
+                    onClick={handleBack}
+                    disabled={loading}
+                    className="w-full text-muted-foreground hover:text-foreground"
+                  >
+                    <ArrowLeft className="w-4 h-4 mr-2" />
+                    {isEditMode ? 'Cancel' : 'Back to Sign In'}
+                  </Button>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Step 2: Fleet & Locations */}
+            {step === 2 && (
+              <motion.div
+                key="step2"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="space-y-6"
+              >
+                <div className="text-center">
+                  <MapPin className="w-16 h-16 mx-auto mb-4 text-primary" />
+                  <h2 className="text-2xl font-bold mb-2">Fleet & Locations</h2>
+                  <p className="text-muted-foreground">
+                    Tell us about your fleet and where you operate
+                  </p>
+                </div>
+
+                <div className="space-y-6">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="fleetSize">Fleet Size</Label>
+                      <Label htmlFor="fleetSize">Fleet Size *</Label>
                       <Select
                         value={formData.fleetSize}
                         onValueChange={(value) => updateFormData('fleetSize', value)}
@@ -283,7 +580,7 @@ export default function Onboarding() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="businessType">Business Type</Label>
+                      <Label htmlFor="businessType">Business Type *</Label>
                       <Select
                         value={formData.businessType}
                         onValueChange={(value) => updateFormData('businessType', value)}
@@ -301,12 +598,17 @@ export default function Onboarding() {
                       </Select>
                     </div>
                   </div>
+
+                  <LocationInput
+                    value={formData.locations}
+                    onChange={(locations) => updateFormData('locations', locations)}
+                  />
                 </div>
 
                 <div className="flex flex-col gap-3">
                   <Button
-                    onClick={handleCompleteProfile}
-                    disabled={!isStep1Valid || loading}
+                    onClick={handleSaveStep2}
+                    disabled={!isStep2Valid || loading}
                     className="w-full btn-premium"
                   >
                     {loading ? (
@@ -316,7 +618,7 @@ export default function Onboarding() {
                       </>
                     ) : (
                       <>
-                        Continue
+                        {isEditMode ? 'Save Changes' : 'Continue'}
                         <ArrowRight className="w-4 h-4 ml-2" />
                       </>
                     )}
@@ -329,15 +631,16 @@ export default function Onboarding() {
                     className="w-full text-muted-foreground hover:text-foreground"
                   >
                     <ArrowLeft className="w-4 h-4 mr-2" />
-                    Back to Sign In
+                    Back
                   </Button>
                 </div>
               </motion.div>
             )}
 
-            {step === 2 && (
+            {/* Step 3: Add First Vehicle (skip in edit mode) */}
+            {step === 3 && !isEditMode && (
               <motion.div
-                key="step2"
+                key="step3"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
@@ -359,7 +662,6 @@ export default function Onboarding() {
                       placeholder="McLaren 720S"
                       value={vehicleName}
                       onChange={(e) => setVehicleName(e.target.value)}
-                      required
                     />
                   </div>
 
@@ -371,7 +673,6 @@ export default function Onboarding() {
                         placeholder="McLaren"
                         value={make}
                         onChange={(e) => setMake(e.target.value)}
-                        required
                       />
                     </div>
                     <div className="space-y-2">
@@ -381,7 +682,6 @@ export default function Onboarding() {
                         placeholder="720S"
                         value={model}
                         onChange={(e) => setModel(e.target.value)}
-                        required
                       />
                     </div>
                   </div>
@@ -395,7 +695,6 @@ export default function Onboarding() {
                         placeholder="2024"
                         value={year}
                         onChange={(e) => setYear(e.target.value)}
-                        required
                       />
                     </div>
                     <div className="space-y-2">
@@ -406,7 +705,6 @@ export default function Onboarding() {
                         placeholder="450"
                         value={dailyRate}
                         onChange={(e) => setDailyRate(e.target.value)}
-                        required
                       />
                     </div>
                   </div>
@@ -415,7 +713,7 @@ export default function Onboarding() {
                 <div className="flex flex-col gap-3">
                   <Button
                     onClick={handleAddVehicle}
-                    disabled={!isStep2Valid || loading}
+                    disabled={!isStep3Valid || loading}
                     className="w-full btn-premium"
                   >
                     {loading ? (
@@ -453,9 +751,10 @@ export default function Onboarding() {
               </motion.div>
             )}
 
-            {step === 3 && (
+            {/* Step 4: Completion (skip in edit mode) */}
+            {step === 4 && !isEditMode && (
               <motion.div
-                key="step3"
+                key="step4"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
@@ -490,31 +789,19 @@ export default function Onboarding() {
                         <li className="flex items-start gap-2">
                           <span className="text-primary font-bold">•</span>
                           <div>
-                            <span className="font-medium">Book</span> - Smart booking management
+                            <span className="font-medium">Vault</span> - Compliance & document management
                           </div>
                         </li>
                         <li className="flex items-start gap-2">
                           <span className="text-primary font-bold">•</span>
                           <div>
-                            <span className="font-medium">Vault</span> - Document compliance tracking
-                          </div>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <span className="text-primary font-bold">•</span>
-                          <div>
-                            <span className="font-medium">Rari AI</span> - Your voice-powered assistant
+                            <span className="font-medium">Rari</span> - Your AI fleet assistant
                           </div>
                         </li>
                       </ul>
                     </div>
                   </div>
                 </Card>
-
-                <div className="bg-muted/50 rounded-lg p-4 border border-border">
-                  <p className="text-sm text-muted-foreground text-center">
-                    💡 <span className="font-medium">Pro tip:</span> When you reach the dashboard, we'll show you a quick tour of the key features. You can skip it anytime!
-                  </p>
-                </div>
 
                 <Button
                   onClick={handleComplete}
@@ -524,7 +811,7 @@ export default function Onboarding() {
                   {loading ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Finishing...
+                      Setting up...
                     </>
                   ) : (
                     <>
