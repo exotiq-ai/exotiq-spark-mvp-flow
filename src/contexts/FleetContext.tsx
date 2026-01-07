@@ -1041,52 +1041,99 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       .then(({ data }) => setCustomers(data || []));
   }, [user, currentTeam?.id]);
 
-  // Realtime subscriptions - initialized once per user session
+  // Realtime subscriptions - keep a single set of channels per signed-in user.
+  // IMPORTANT: Don't tie this effect to callback identities (they can change often and cause
+  // repeated subscribe/unsubscribe loops).
   const realtimeInitialized = useRef(false);
-  
+  const realtimeUserId = useRef<string | null>(null);
+
+  const bookingsChannelRef = useRef<any>(null);
+  const paymentsChannelRef = useRef<any>(null);
+  const damageClaimsChannelRef = useRef<any>(null);
+  const customersChannelRef = useRef<any>(null);
+
+  const refreshBookingsRef = useRef(refreshBookings);
+  const refreshPaymentsRef = useRef(refreshPayments);
+  const refreshDamageClaimsRef = useRef(refreshDamageClaims);
+  const refreshCustomersRef = useRef(refreshCustomers);
+
   useEffect(() => {
-    if (!user || realtimeInitialized.current) return;
-    
-    realtimeInitialized.current = true;
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🔄 Initializing realtime subscriptions...');
-    }
-    
-    const bookingsChannel = supabase
-      .channel('bookings-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, () => refreshBookings())
-      .subscribe();
+    refreshBookingsRef.current = refreshBookings;
+  }, [refreshBookings]);
 
-    const paymentsChannel = supabase
-      .channel('payments-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, () => refreshPayments())
-      .subscribe();
+  useEffect(() => {
+    refreshPaymentsRef.current = refreshPayments;
+  }, [refreshPayments]);
 
-    const damageClaimsChannel = supabase
-      .channel('damage-claims-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'damage_claims' }, () => refreshDamageClaims())
-      .subscribe();
+  useEffect(() => {
+    refreshDamageClaimsRef.current = refreshDamageClaims;
+  }, [refreshDamageClaims]);
 
-    const customersChannel = supabase
-      .channel('customers-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'customers' }, () => refreshCustomers())
-      .subscribe();
+  useEffect(() => {
+    refreshCustomersRef.current = refreshCustomers;
+  }, [refreshCustomers]);
 
-    if (process.env.NODE_ENV === 'development') {
-      console.log('✅ Realtime subscriptions active');
-    }
+  useEffect(() => {
+    if (!user) return;
 
-    return () => {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('🔴 Cleaning up realtime subscriptions...');
-      }
+    // If already initialized for this user, do nothing.
+    if (realtimeInitialized.current && realtimeUserId.current === user.id) return;
+
+    const isDev = import.meta.env.DEV;
+
+    const cleanup = () => {
+      if (bookingsChannelRef.current) supabase.removeChannel(bookingsChannelRef.current);
+      if (paymentsChannelRef.current) supabase.removeChannel(paymentsChannelRef.current);
+      if (damageClaimsChannelRef.current) supabase.removeChannel(damageClaimsChannelRef.current);
+      if (customersChannelRef.current) supabase.removeChannel(customersChannelRef.current);
+
+      bookingsChannelRef.current = null;
+      paymentsChannelRef.current = null;
+      damageClaimsChannelRef.current = null;
+      customersChannelRef.current = null;
+
       realtimeInitialized.current = false;
-      supabase.removeChannel(bookingsChannel);
-      supabase.removeChannel(paymentsChannel);
-      supabase.removeChannel(damageClaimsChannel);
-      supabase.removeChannel(customersChannel);
+      realtimeUserId.current = null;
     };
-  }, [user, refreshBookings, refreshPayments, refreshDamageClaims, refreshCustomers]);
+
+    // If switching users, cleanup previous channels first.
+    if (realtimeUserId.current && realtimeUserId.current !== user.id) {
+      cleanup();
+    }
+
+    realtimeInitialized.current = true;
+    realtimeUserId.current = user.id;
+
+    if (isDev) console.log('🔄 Initializing realtime subscriptions...');
+
+    bookingsChannelRef.current = supabase
+      .channel('bookings-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, () => refreshBookingsRef.current())
+      .subscribe();
+
+    paymentsChannelRef.current = supabase
+      .channel('payments-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, () => refreshPaymentsRef.current())
+      .subscribe();
+
+    damageClaimsChannelRef.current = supabase
+      .channel('damage-claims-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'damage_claims' }, () => refreshDamageClaimsRef.current())
+      .subscribe();
+
+    customersChannelRef.current = supabase
+      .channel('customers-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'customers' }, () => refreshCustomersRef.current())
+      .subscribe();
+
+    if (isDev) console.log('✅ Realtime subscriptions active');
+
+    // Cleanup only when user changes/unmounts (effect depends on user.id only)
+    return () => {
+      if (isDev) console.log('🔴 Cleaning up realtime subscriptions...');
+      cleanup();
+    };
+  }, [user?.id]);
 
   return (
     <FleetContext.Provider value={{
