@@ -6,7 +6,7 @@ import { RecordPaymentDialog } from "@/components/dialogs/RecordPaymentDialog";
 import { AddCustomerDialog } from "@/components/dialogs/AddCustomerDialog";
 import { GenerateReportDialog } from "@/components/dialogs/GenerateReportDialog";
 import { ScheduleMaintenanceDialog } from "@/components/dialogs/ScheduleMaintenanceDialog";
-import { RariVoiceInterface } from "@/components/rari/RariVoiceInterface";
+import { RariWidgetInterface } from "@/components/rari/RariWidgetInterface";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { motion } from "framer-motion";
 import {
@@ -197,20 +197,17 @@ export const QuickActionsWidget = ({ onModuleClick }: QuickActionsWidgetProps) =
         onSubmit={createMaintenance}
       />
 
-      {/* Rari Dialog */}
+      {/* Rari Dialog - Widget-First */}
       <Dialog open={showRariDialog} onOpenChange={setShowRariDialog}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-4xl max-h-[85vh] overflow-hidden p-0">
+          <DialogHeader className="p-4 pb-0">
             <DialogTitle className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-primary" />
               Ask Rari - Your Fleet Copilot
             </DialogTitle>
           </DialogHeader>
-          <div className="py-4">
-            <p className="text-sm text-muted-foreground mb-4">
-              Ask Rari anything about your fleet operations, bookings, or get AI-powered insights.
-            </p>
-            <RariVoiceInterface />
+          <div className="p-4 pt-2 h-[70vh]">
+            <RariWidgetInterface />
           </div>
         </DialogContent>
       </Dialog>

@@ -8,6 +8,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { OfflineBanner } from "@/components/common/OfflineBanner";
+import { ServiceWorkerUpdatePrompt } from "@/components/common/ServiceWorkerUpdatePrompt";
 import { CommandPalette, useCommandPalette } from "@/components/common/CommandPalette";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { DemoProvider } from "@/contexts/DemoContext";
@@ -81,6 +82,7 @@ const AppContent = () => {
       <Toaster />
       <Sonner />
       <OfflineBanner />
+      <ServiceWorkerUpdatePrompt />
       <BrowserRouter>
         <AppWithRouter />
       </BrowserRouter>
