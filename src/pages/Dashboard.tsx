@@ -356,6 +356,8 @@ const Dashboard = () => {
           <RariSidebarTrigger
             onClick={rariSidebar.open}
             unreadCount={rariSidebar.unreadCount}
+            urgentCount={rariSidebar.urgentCount}
+            highCount={rariSidebar.highCount}
           />
         )}
         <RariSidebar
@@ -363,6 +365,8 @@ const Dashboard = () => {
           isActiveCall={rariSidebar.isActiveCall}
           context={rariSidebar.context}
           unreadCount={rariSidebar.unreadCount}
+          urgentCount={rariSidebar.urgentCount}
+          highCount={rariSidebar.highCount}
           onOpen={rariSidebar.open}
           onClose={rariSidebar.close}
           onMinimize={rariSidebar.minimize}

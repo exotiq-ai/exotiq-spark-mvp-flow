@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useLocalStorage } from './useLocalStorage';
+import { useRariInsightsCount } from './useRariInsightsCount';
 
 export type RariSidebarState = 'closed' | 'minimized' | 'open';
 
@@ -17,15 +18,14 @@ interface UseRariSidebarReturn {
   isActiveCall: boolean;
   context: RariContext;
   unreadCount: number;
+  urgentCount: number;
+  highCount: number;
   open: () => void;
   close: () => void;
   minimize: () => void;
   toggle: () => void;
   setActiveCall: (active: boolean) => void;
   setContext: (context: RariContext) => void;
-  setUnreadCount: (count: number) => void;
-  incrementUnread: () => void;
-  clearUnread: () => void;
 }
 
 export const useRariSidebar = (): UseRariSidebarReturn => {
@@ -33,7 +33,9 @@ export const useRariSidebar = (): UseRariSidebarReturn => {
   const [state, setState] = useState<RariSidebarState>(persistedState);
   const [isActiveCall, setIsActiveCall] = useState(false);
   const [context, setContextState] = useState<RariContext>({ type: null, id: null, data: null });
-  const [unreadCount, setUnreadCountState] = useState(0);
+  
+  // Use the insights count hook for real-time updates
+  const { count: unreadCount, urgentCount, highCount } = useRariInsightsCount();
 
   // Sync state to localStorage
   useEffect(() => {
@@ -67,18 +69,6 @@ export const useRariSidebar = (): UseRariSidebarReturn => {
     setContextState(newContext);
   }, []);
 
-  const setUnreadCount = useCallback((count: number) => {
-    setUnreadCountState(count);
-  }, []);
-
-  const incrementUnread = useCallback(() => {
-    setUnreadCountState(prev => prev + 1);
-  }, []);
-
-  const clearUnread = useCallback(() => {
-    setUnreadCountState(0);
-  }, []);
-
   return {
     state,
     isOpen: state === 'open',
@@ -87,14 +77,13 @@ export const useRariSidebar = (): UseRariSidebarReturn => {
     isActiveCall,
     context,
     unreadCount,
+    urgentCount,
+    highCount,
     open,
     close,
     minimize,
     toggle,
     setActiveCall,
     setContext,
-    setUnreadCount,
-    incrementUnread,
-    clearUnread,
   };
 };
