@@ -13,6 +13,8 @@ interface RariSidebarProps {
   isActiveCall: boolean;
   context: RariContext;
   unreadCount: number;
+  urgentCount?: number;
+  highCount?: number;
   onOpen: () => void;
   onClose: () => void;
   onMinimize: () => void;
@@ -23,13 +25,28 @@ interface RariSidebarProps {
 // Floating orb when minimized
 const RariOrb = ({
   unreadCount,
+  urgentCount = 0,
+  highCount = 0,
   isActiveCall,
   onClick,
 }: {
   unreadCount: number;
+  urgentCount?: number;
+  highCount?: number;
   isActiveCall: boolean;
   onClick: () => void;
 }) => {
+  // Determine badge color based on priority
+  const getBadgeClasses = () => {
+    if (urgentCount > 0) {
+      return "bg-destructive text-destructive-foreground animate-pulse";
+    }
+    if (highCount > 0) {
+      return "bg-orange-500 text-white";
+    }
+    return "bg-yellow-500 text-white";
+  };
+
   return (
     <motion.button
       initial={{ scale: 0, opacity: 0 }}
@@ -54,9 +71,17 @@ const RariOrb = ({
       
       {/* Unread badge */}
       {unreadCount > 0 && (
-        <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1">
+        <motion.span 
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          key={unreadCount}
+          className={cn(
+            "absolute -top-1 -right-1 text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1",
+            getBadgeClasses()
+          )}
+        >
           {unreadCount > 9 ? '9+' : unreadCount}
-        </span>
+        </motion.span>
       )}
       
       {/* Active call indicator */}
@@ -204,6 +229,8 @@ export const RariSidebar = ({
   isActiveCall,
   context,
   unreadCount,
+  urgentCount = 0,
+  highCount = 0,
   onOpen,
   onClose,
   onMinimize,
@@ -215,6 +242,8 @@ export const RariSidebar = ({
         <RariOrb
           key="orb"
           unreadCount={unreadCount}
+          urgentCount={urgentCount}
+          highCount={highCount}
           isActiveCall={isActiveCall}
           onClick={onOpen}
         />
@@ -237,12 +266,27 @@ export const RariSidebar = ({
 export const RariSidebarTrigger = ({
   onClick,
   unreadCount = 0,
+  urgentCount = 0,
+  highCount = 0,
   className,
 }: {
   onClick: () => void;
   unreadCount?: number;
+  urgentCount?: number;
+  highCount?: number;
   className?: string;
 }) => {
+  // Determine badge color based on priority
+  const getBadgeClasses = () => {
+    if (urgentCount > 0) {
+      return "bg-destructive text-destructive-foreground animate-pulse";
+    }
+    if (highCount > 0) {
+      return "bg-orange-500 text-white";
+    }
+    return "bg-yellow-500 text-white";
+  };
+
   return (
     <motion.button
       whileHover={{ scale: 1.05 }}
@@ -264,9 +308,17 @@ export const RariSidebarTrigger = ({
       <span className="hidden sm:inline">Ask Rari</span>
       
       {unreadCount > 0 && (
-        <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1">
+        <motion.span
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          key={unreadCount}
+          className={cn(
+            "absolute -top-1 -right-1 text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1",
+            getBadgeClasses()
+          )}
+        >
           {unreadCount > 9 ? '9+' : unreadCount}
-        </span>
+        </motion.span>
       )}
     </motion.button>
   );
