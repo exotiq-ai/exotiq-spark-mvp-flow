@@ -15,6 +15,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRariConversationPersistence } from '@/hooks/useRariConversationPersistence';
 import { RariVoiceWaveform } from './RariVoiceWaveform';
 import { RariTranscript } from './RariTranscript';
+import { RariQuickCommands } from './RariQuickCommands';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -69,6 +70,7 @@ export const RariWidgetInterface = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [conversationStartTime, setConversationStartTime] = useState<Date | undefined>();
   const [partialTranscript, setPartialTranscript] = useState<string>('');
+  const [activeCommandId, setActiveCommandId] = useState<string | null>(null);
   
   // Hooks
   const { 
@@ -301,6 +303,47 @@ export const RariWidgetInterface = () => {
     // Feature flag check - do nothing if disabled
     return;
   };
+
+  // Handle quick command
+  const handleQuickCommand = useCallback((command: string) => {
+    // Find the command ID for tracking active state
+    const cmdId = command.includes('summary') ? 'summary' 
+      : command.includes('revenue') ? 'revenue'
+      : command.includes('idle') ? 'idle'
+      : command.includes('Compare') ? 'compare'
+      : command.includes('owes') ? 'payments'
+      : command.includes('forecast') ? 'forecast'
+      : null;
+    
+    setActiveCommandId(cmdId);
+    
+    // If not connected, we need to instruct user to start first
+    if (!status.isActive) {
+      toast.info('Click the widget to start Rari first, then try the command again!', {
+        duration: 3000,
+      });
+      setActiveCommandId(null);
+      return;
+    }
+    
+    // Inject command as a user message
+    const newMessage: Message = {
+      role: 'user',
+      content: command,
+      timestamp: new Date(),
+    };
+    
+    setMessages(prev => [...prev, newMessage]);
+    setMessageCount(prev => prev + 1);
+    
+    // Save to database
+    if (conversationId) {
+      saveMessage(conversationId, newMessage);
+    }
+    
+    // Clear active state after a delay
+    setTimeout(() => setActiveCommandId(null), 2000);
+  }, [status.isActive, conversationId, saveMessage]);
   
   return (
     <div className="flex flex-col lg:flex-row gap-4 h-full">
@@ -415,6 +458,14 @@ export const RariWidgetInterface = () => {
               </Badge>
             </div>
           </div>
+          
+          {/* Quick Commands */}
+          <RariQuickCommands
+            isConnected={status.isActive}
+            activeCommandId={activeCommandId}
+            onCommand={handleQuickCommand}
+            className="mb-4"
+          />
           
           {/* Widget Container */}
           <div 
