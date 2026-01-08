@@ -1493,6 +1493,71 @@ export type Database = {
         }
         Relationships: []
       }
+      rari_insights: {
+        Row: {
+          action_items: Json | null
+          created_at: string
+          description: string
+          expires_at: string | null
+          id: string
+          insight_type: string
+          is_dismissed: boolean
+          is_read: boolean
+          metadata: Json | null
+          priority: string
+          related_entity_id: string | null
+          related_entity_type: string | null
+          team_id: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          action_items?: Json | null
+          created_at?: string
+          description: string
+          expires_at?: string | null
+          id?: string
+          insight_type: string
+          is_dismissed?: boolean
+          is_read?: boolean
+          metadata?: Json | null
+          priority?: string
+          related_entity_id?: string | null
+          related_entity_type?: string | null
+          team_id?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          action_items?: Json | null
+          created_at?: string
+          description?: string
+          expires_at?: string | null
+          id?: string
+          insight_type?: string
+          is_dismissed?: boolean
+          is_read?: boolean
+          metadata?: Json | null
+          priority?: string
+          related_entity_id?: string | null
+          related_entity_type?: string | null
+          team_id?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rari_insights_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       role_audit_log: {
         Row: {
           action: string
