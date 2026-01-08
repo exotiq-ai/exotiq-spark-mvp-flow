@@ -13,6 +13,7 @@ import { DashboardOnboarding } from "@/components/onboarding/DashboardOnboarding
 import { useAnalytics } from "@/lib/analytics";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useRariSidebar } from "@/hooks/useRariSidebar";
 import { performance } from "@/lib/performance";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -41,16 +42,8 @@ import { TeamMessaging, TeamMessagingTrigger } from "@/components/messaging/Team
 import { useTeamMessaging } from "@/hooks/useTeamMessaging";
 import { useTeam } from "@/contexts/TeamContext";
 import { Calendar as CalendarIcon, DollarSign, UserPlus, FileText, Sparkles } from "lucide-react";
-import { RariWidgetInterface } from "@/components/rari/RariWidgetInterface";
+import { RariSidebar, RariSidebarTrigger } from "@/components/rari/RariSidebar";
 import { AddLocationDialog } from "@/components/dialogs/AddLocationDialog";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { FocusTrap } from "@/components/ui/focus-trap";
 import { toast } from "sonner";
 
 const Dashboard = () => {
@@ -58,8 +51,8 @@ const Dashboard = () => {
   const [activeModule, setActiveModule] = useLocalStorage("activeModule", "dashboard");
   const [chatOpen, setChatOpen] = useState(false);
   const [chatMinimized, setChatMinimized] = useState(false);
-  const [showRari, setShowRari] = useState(false);
   const [mobileAddLocationOpen, setMobileAddLocationOpen] = useState(false);
+  const rariSidebar = useRariSidebar();
   const { track, page } = useAnalytics();
   const { isReadOnly, hasRoleOrHigher, loading: roleLoading } = useUserRole();
   const { conversations } = useTeamMessaging();
@@ -124,7 +117,7 @@ const Dashboard = () => {
       id: "ask-rari",
       label: "Ask Rari",
       icon: <Sparkles className="h-4 w-4" />,
-      onClick: () => setShowRari(true),
+      onClick: () => rariSidebar.open(),
       color: "bg-gulf-blue/20 text-gulf-blue border border-gulf-blue/30",
       minRole: 'operator' as const,
     },
@@ -357,41 +350,26 @@ const Dashboard = () => {
         />
       </ErrorBoundary>
 
-      {/* Rari AI Assistant Dialog - triggered from FAB */}
-      <Dialog open={showRari} onOpenChange={setShowRari}>
-        <DialogContent 
-          className="max-w-[95vw] sm:max-w-[90vw] lg:max-w-[1200px] xl:max-w-[1400px] p-4 md:p-6 lg:p-8"
-          style={{
-            height: 'min(90vh, calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 2rem))',
-            maxHeight: '900px',
-          }}
-        >
-          <FocusTrap active={showRari}>
-            <DialogHeader>
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-2 min-w-0">
-                  <Sparkles className="w-5 h-5 md:w-6 md:h-6 text-gulf-blue flex-shrink-0" aria-hidden="true" />
-                  <DialogTitle className="text-lg md:text-xl truncate">
-                    Rari AI Assistant
-                  </DialogTitle>
-                </div>
-                
-                {/* Quick Action Buttons */}
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  {/* History feature hidden until complete */}
-                </div>
-              </div>
-              
-              <DialogDescription className="text-xs md:text-sm mt-2">
-                Ask me anything about your fleet operations, pricing, bookings, or analytics. See your conversation in real-time.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="mt-3 md:mt-4 h-[calc(100%-100px)]">
-              <RariWidgetInterface />
-            </div>
-          </FocusTrap>
-        </DialogContent>
-      </Dialog>
+      {/* Rari AI Assistant Sidebar - persistent panel */}
+      <ErrorBoundary fallback={null}>
+        {rariSidebar.isClosed && (
+          <RariSidebarTrigger
+            onClick={rariSidebar.open}
+            unreadCount={rariSidebar.unreadCount}
+          />
+        )}
+        <RariSidebar
+          state={rariSidebar.state}
+          isActiveCall={rariSidebar.isActiveCall}
+          context={rariSidebar.context}
+          unreadCount={rariSidebar.unreadCount}
+          onOpen={rariSidebar.open}
+          onClose={rariSidebar.close}
+          onMinimize={rariSidebar.minimize}
+          onToggle={rariSidebar.toggle}
+          onActiveCallChange={rariSidebar.setActiveCall}
+        />
+      </ErrorBoundary>
 
       {/* Mobile Add Location Dialog */}
       <AddLocationDialog
