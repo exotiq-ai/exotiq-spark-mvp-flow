@@ -269,30 +269,6 @@ export const DashboardSidebarEnhanced = ({ activeModule, onModuleChange }: Dashb
         })}
       </nav>
 
-      {/* Rari Quick Access - Single source */}
-      <div className="p-3 border-t border-sidebar-border">
-        <button
-          onClick={() => onModuleChange("core")}
-          className={cn(
-            "w-full flex items-center rounded-xl p-3 transition-all",
-            "bg-gradient-to-r from-gulf-blue/10 to-accent/10 hover:from-gulf-blue/20 hover:to-accent/20",
-            "border border-gulf-blue/20 hover:border-gulf-blue/40",
-            collapsed ? "justify-center" : "space-x-3"
-          )}
-        >
-          <div className="relative">
-            <div className="absolute inset-0 bg-rari-teal/30 rounded-full blur-md" />
-            <Sparkles className="relative h-5 w-5 text-rari-teal" />
-          </div>
-          {!collapsed && (
-            <div className="flex-1 text-left">
-              <p className="text-sm font-medium">Ask Rari</p>
-              <p className="text-xs text-muted-foreground">AI Assistant</p>
-            </div>
-          )}
-        </button>
-      </div>
-
       {/* User Profile Section */}
       <UserProfileSection collapsed={collapsed} />
 

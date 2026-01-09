@@ -43,7 +43,7 @@ import { TeamMessaging, TeamMessagingTrigger } from "@/components/messaging/Team
 import { useTeamMessaging } from "@/hooks/useTeamMessaging";
 import { useTeam } from "@/contexts/TeamContext";
 import { Calendar as CalendarIcon, DollarSign, UserPlus, FileText, Sparkles } from "lucide-react";
-import { RariSidebar, RariSidebarTrigger } from "@/components/rari/RariSidebar";
+import { RariSidebar } from "@/components/rari/RariSidebar";
 import { AddLocationDialog } from "@/components/dialogs/AddLocationDialog";
 import { toast } from "sonner";
 
@@ -107,7 +107,7 @@ const Dashboard = () => {
     messages: "Messages",
   };
 
-  // FAB actions filtered by role
+  // FAB actions filtered by role - operational only (Rari has dedicated FAB on desktop, AI tab on mobile)
   const allFabActions = [
     {
       id: "new-booking",
@@ -115,14 +115,6 @@ const Dashboard = () => {
       icon: <CalendarIcon className="h-4 w-4" />,
       onClick: () => handleModuleChange("book"),
       color: "bg-primary text-primary-foreground",
-      minRole: 'operator' as const,
-    },
-    {
-      id: "ask-rari",
-      label: "Ask Rari",
-      icon: <Sparkles className="h-4 w-4" />,
-      onClick: () => rariSidebar.open(),
-      color: "bg-gulf-blue/20 text-gulf-blue border border-gulf-blue/30",
       minRole: 'operator' as const,
     },
     {
@@ -354,15 +346,40 @@ const Dashboard = () => {
         />
       </ErrorBoundary>
 
-      {/* Rari AI Assistant Sidebar - persistent panel */}
+      {/* Rari AI Assistant - Desktop: Unified FAB, Mobile: uses AI tab in bottom nav */}
       <ErrorBoundary fallback={null}>
+        {/* Desktop-only unified Rari FAB - premium, single access point */}
         {rariSidebar.isClosed && (
-          <RariSidebarTrigger
+          <motion.button
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0, opacity: 0 }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             onClick={rariSidebar.open}
-            unreadCount={rariSidebar.unreadCount}
-            urgentCount={rariSidebar.urgentCount}
-            highCount={rariSidebar.highCount}
-          />
+            className={cn(
+              "hidden md:flex fixed bottom-6 right-6 z-40",
+              "w-14 h-14 rounded-full items-center justify-center",
+              "bg-gradient-to-br from-gulf-blue via-primary to-accent",
+              "text-white shadow-[0_8px_30px_hsl(var(--primary)/0.4)]",
+              "hover:shadow-[0_12px_40px_hsl(var(--primary)/0.5)]",
+              "border border-white/20 transition-shadow duration-300",
+              "animate-breathe"
+            )}
+            aria-label="Ask Rari AI Assistant"
+          >
+            <Sparkles className="h-6 w-6" />
+            {/* Insight badge */}
+            {(rariSidebar.unreadCount > 0 || rariSidebar.urgentCount > 0) && (
+              <motion.span
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="absolute -top-1 -right-1 min-w-[20px] h-5 rounded-full bg-destructive text-destructive-foreground text-xs font-bold flex items-center justify-center px-1.5 shadow-lg"
+              >
+                {rariSidebar.urgentCount > 0 ? rariSidebar.urgentCount : rariSidebar.unreadCount}
+              </motion.span>
+            )}
+          </motion.button>
         )}
         <RariSidebar
           state={rariSidebar.state}
