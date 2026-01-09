@@ -69,7 +69,8 @@ export const TourSpotlight = ({
     };
   }, [targets, isVisible]);
 
-  if (!isVisible || elementRects.length === 0) return null;
+  const validRects = elementRects.filter(rect => rect !== null);
+  if (!isVisible || validRects.length === 0) return null;
 
   // Generate SVG path for spotlight cutouts
   const generateClipPath = () => {
