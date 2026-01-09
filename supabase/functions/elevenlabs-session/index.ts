@@ -113,8 +113,9 @@ serve(async (req) => {
     console.log('Generating signed URL for agent:', agentId, 'user:', userId, contextInfo);
 
     // Get signed URL from ElevenLabs
+    // NOTE: Endpoint is `get-signed-url` (hyphens), not `get_signed_url`.
     const response = await fetch(
-      `https://api.elevenlabs.io/v1/convai/conversation/get_signed_url?agent_id=${agentId}`,
+      `https://api.elevenlabs.io/v1/convai/conversation/get-signed-url?agent_id=${agentId}`,
       {
         method: 'GET',
         headers: {
@@ -124,9 +125,9 @@ serve(async (req) => {
     );
 
     if (!response.ok) {
-      const errorText = await response.text();
+      const errorText = await response.text().catch(() => '');
       console.error('ElevenLabs API error:', response.status, errorText);
-      throw new Error(`Failed to get signed URL: ${response.status}`);
+      throw new Error(`Failed to get signed URL (${response.status}): ${errorText || 'Unknown error'}`);
     }
 
     const data = await response.json();
