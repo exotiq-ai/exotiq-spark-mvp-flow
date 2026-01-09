@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Phone, PhoneOff, Mic } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -11,9 +11,9 @@ import { AIThinking } from '@/components/ui/ai-thinking';
 import { RariVoiceWaveform } from './RariVoiceWaveform';
 import { RariTranscript } from './RariTranscript';
 import { useRariConversationPersistence } from '@/hooks/useRariConversationPersistence';
+import { createRariClientTools } from '@/hooks/useRariClientTools';
 import { cn } from '@/lib/utils';
 import type { RariInterfaceVariant, RecentEntity } from '@/types/rari';
-
 interface Message {
   role: 'user' | 'assistant';
   content: string;
@@ -43,7 +43,14 @@ export const RariVoiceInterface = ({
   
   const { startConversation, saveMessage, endConversation } = useRariConversationPersistence();
   
+  // Create client tools with user's auth context
+  const clientTools = useMemo(() => {
+    if (!user?.id) return {};
+    return createRariClientTools(user.id);
+  }, [user?.id]);
+  
   const conversation = useConversation({
+    clientTools,
     onConnect: () => {
       console.log('Connected to Rari');
       setConversationStartTime(new Date());
@@ -68,6 +75,11 @@ export const RariVoiceInterface = ({
     },
     onMessage: (message: any) => {
       console.log('Rari message event:', message);
+      
+      // Handle client tool calls
+      if (message.type === 'client_tool_call') {
+        console.log('Client tool call:', message.client_tool_call);
+      }
       
       // Handle user transcript (what user said via STT)
       if (message.type === 'user_transcript') {
