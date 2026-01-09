@@ -2,6 +2,8 @@
 
 export type RariSidebarState = 'closed' | 'minimized' | 'open';
 
+export type RariInterfaceVariant = 'full' | 'sidebar';
+
 export type EntityType = 'booking' | 'customer' | 'vehicle';
 
 export type InsightType = 'pricing' | 'utilization' | 'maintenance' | 'revenue' | 'customer' | 'compliance' | 'booking';

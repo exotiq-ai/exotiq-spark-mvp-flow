@@ -1,10 +1,10 @@
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Minimize2, Sparkles, Phone, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { RariWidgetInterface } from './RariWidgetInterface';
+import { RariVoiceInterface } from './RariVoiceInterface';
 import { RariContextChip } from './RariContextChip';
 import { RecentEntitiesPills } from './RecentEntitiesPills';
 import { RariActionItems } from './RariActionItems';
@@ -227,8 +227,9 @@ const RariPanel = ({
         
         {/* Content - Wrapped in Error Boundary */}
         <RariErrorBoundary fallbackMessage="Voice assistant temporarily unavailable">
-          <div className="flex-1 min-h-0 overflow-hidden">
-            <RariWidgetInterface 
+          <div className="flex-1 min-h-0 overflow-hidden p-4">
+            <RariVoiceInterface 
+              variant="sidebar"
               contextSummary={contextSummary}
               recentEntities={recentEntities?.slice(0, 3)}
             />

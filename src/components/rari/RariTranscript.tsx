@@ -3,6 +3,7 @@ import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { RariMessage } from './RariMessage';
 import { TranscriptHeader } from './TranscriptHeader';
+import { cn } from '@/lib/utils';
 import { 
   exportTranscriptAsPDF, 
   exportTranscriptAsTXT, 
@@ -22,6 +23,7 @@ interface RariTranscriptProps {
   startTime?: Date;
   partialTranscript?: string;
   onClear?: () => void;
+  compact?: boolean;
 }
 
 export const RariTranscript = ({
@@ -32,6 +34,7 @@ export const RariTranscript = ({
   startTime,
   partialTranscript = '',
   onClear,
+  compact = false,
 }: RariTranscriptProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const endOfMessagesRef = useRef<HTMLDivElement>(null);
@@ -73,19 +76,24 @@ export const RariTranscript = ({
   };
 
   return (
-    <Card className="p-3 md:p-4 lg:p-6 glass-card flex flex-col h-full min-h-[500px] lg:min-h-[600px]">
-      <TranscriptHeader
-        messageCount={messages.length}
-        startTime={startTime}
-        isConnected={isConnected}
-        conversationDbId={conversationDbId}
-        onExportPDF={handleExportPDF}
-        onExportTXT={handleExportTXT}
-        onExportJSON={handleExportJSON}
-        onClear={onClear}
-      />
+    <Card className={cn(
+      "glass-card flex flex-col h-full",
+      compact ? "p-2 min-h-0" : "p-3 md:p-4 lg:p-6 min-h-[500px] lg:min-h-[600px]"
+    )}>
+      {!compact && (
+        <TranscriptHeader
+          messageCount={messages.length}
+          startTime={startTime}
+          isConnected={isConnected}
+          conversationDbId={conversationDbId}
+          onExportPDF={handleExportPDF}
+          onExportTXT={handleExportTXT}
+          onExportJSON={handleExportJSON}
+          onClear={onClear}
+        />
+      )}
       
-      <ScrollArea className="flex-1 mt-3 md:mt-4 pr-2 md:pr-4" ref={scrollRef}>
+      <ScrollArea className={cn("flex-1 pr-2", !compact && "mt-3 md:mt-4 md:pr-4")} ref={scrollRef}>
         {messages.length === 0 && !partialTranscript ? (
           <div className="flex flex-col items-center justify-center h-[300px] md:h-[400px] text-muted-foreground">
             <MessageSquare className="h-10 w-10 md:h-12 md:w-12 mb-3 md:mb-4 opacity-20" />
