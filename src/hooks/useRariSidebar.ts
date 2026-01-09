@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useLocalStorage } from './useLocalStorage';
 import { useRariInsightsCount } from './useRariInsightsCount';
+import { useRariContext } from './useRariContext';
 
 export type RariSidebarState = 'closed' | 'minimized' | 'open';
 
@@ -17,6 +18,8 @@ interface UseRariSidebarReturn {
   isClosed: boolean;
   isActiveCall: boolean;
   context: RariContext;
+  contextLabel: string | null;
+  contextSummary: string;
   unreadCount: number;
   urgentCount: number;
   highCount: number;
@@ -26,16 +29,20 @@ interface UseRariSidebarReturn {
   toggle: () => void;
   setActiveCall: (active: boolean) => void;
   setContext: (context: RariContext) => void;
+  clearContext: () => void;
+  addConversationTopic: (topic: string) => void;
 }
 
 export const useRariSidebar = (): UseRariSidebarReturn => {
   const [persistedState, setPersistedState] = useLocalStorage<RariSidebarState>('rari-sidebar-state', 'closed');
   const [state, setState] = useState<RariSidebarState>(persistedState);
   const [isActiveCall, setIsActiveCall] = useState(false);
-  const [context, setContextState] = useState<RariContext>({ type: null, id: null, data: null });
   
   // Use the insights count hook for real-time updates
   const { count: unreadCount, urgentCount, highCount } = useRariInsightsCount();
+  
+  // Use the context hook for entity awareness
+  const rariContext = useRariContext();
 
   // Sync state to localStorage
   useEffect(() => {
@@ -65,9 +72,18 @@ export const useRariSidebar = (): UseRariSidebarReturn => {
     setIsActiveCall(active);
   }, []);
 
+  // Legacy setContext for manual overrides
   const setContext = useCallback((newContext: RariContext) => {
-    setContextState(newContext);
+    // This is a placeholder - the real context comes from URL params via useRariContext
+    console.log('Manual context set:', newContext);
   }, []);
+
+  // Build the context object from the hook
+  const context: RariContext = {
+    type: rariContext.currentEntity.type,
+    id: rariContext.currentEntity.id,
+    data: rariContext.currentEntity.data,
+  };
 
   return {
     state,
@@ -76,6 +92,8 @@ export const useRariSidebar = (): UseRariSidebarReturn => {
     isClosed: state === 'closed',
     isActiveCall,
     context,
+    contextLabel: rariContext.getContextLabel(),
+    contextSummary: rariContext.getContextSummary(),
     unreadCount,
     urgentCount,
     highCount,
@@ -85,5 +103,7 @@ export const useRariSidebar = (): UseRariSidebarReturn => {
     toggle,
     setActiveCall,
     setContext,
+    clearContext: rariContext.clearContext,
+    addConversationTopic: rariContext.addConversationTopic,
   };
 };

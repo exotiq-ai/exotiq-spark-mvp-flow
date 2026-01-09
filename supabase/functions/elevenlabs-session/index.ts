@@ -17,8 +17,8 @@ serve(async (req) => {
       throw new Error('ELEVENLABS_API_KEY not configured');
     }
 
-    // Get user ID from request body
-    const { userId } = await req.json();
+    // Get user ID and context from request body
+    const { userId, context } = await req.json();
     
     if (!userId) {
       throw new Error('userId is required');
@@ -26,7 +26,13 @@ serve(async (req) => {
 
     const agentId = 'agent_0001k9d5pvdwfmvv7aq0mhaexgd6';
     
-    console.log('Generating signed URL for agent:', agentId, 'user:', userId);
+    // Build context summary for logging
+    let contextInfo = '';
+    if (context?.currentEntity?.type) {
+      contextInfo = ` with ${context.currentEntity.type} context`;
+    }
+    
+    console.log('Generating signed URL for agent:', agentId, 'user:', userId, contextInfo);
 
     // Get signed URL from ElevenLabs (GET request only)
     const response = await fetch(
@@ -48,7 +54,12 @@ serve(async (req) => {
     const data = await response.json();
     console.log('Successfully generated signed URL');
 
-    return new Response(JSON.stringify(data), {
+    // Return signed URL along with any context that should be passed to the agent
+    return new Response(JSON.stringify({
+      ...data,
+      // Include context summary that can be used for agent initialization
+      contextSummary: context?.summary || null,
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
