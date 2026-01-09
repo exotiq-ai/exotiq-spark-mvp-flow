@@ -9,7 +9,8 @@ import { SEOHead } from "@/components/common/SEOHead";
 import { UnifiedNotificationCenter } from "@/components/common/UnifiedNotificationCenter";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { LocationContextBanner } from "@/components/common/LocationBadge";
-import { DashboardOnboarding } from "@/components/onboarding/DashboardOnboarding";
+import { InteractiveModuleTour } from "@/components/onboarding/InteractiveModuleTour";
+import { WelcomeVideoModal } from "@/components/onboarding/WelcomeVideoModal";
 import { useAnalytics } from "@/lib/analytics";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -46,6 +47,7 @@ import { Calendar as CalendarIcon, DollarSign, UserPlus, FileText, Sparkles } fr
 import { RariSidebar } from "@/components/rari/RariSidebar";
 import { AddLocationDialog } from "@/components/dialogs/AddLocationDialog";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 const Dashboard = () => {
   const [searchParams] = useSearchParams();
@@ -62,6 +64,15 @@ const Dashboard = () => {
   const { conversations } = useTeamMessaging();
   const { refreshTeam } = useTeam();
   const containerRef = useRef<HTMLDivElement>(null);
+  
+  // Get user ID for welcome video
+  const [userId, setUserId] = useState<string | null>(null);
+  
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setUserId(data.user?.id || null);
+    });
+  }, []);
 
   // Calculate total unread messages
   const totalUnread = conversations.reduce((acc, c) => acc + (c.unread_count || 0), 0);
@@ -189,10 +200,44 @@ const Dashboard = () => {
     );
   };
 
+  // Welcome video modal state for new users
+  const [showWelcomeVideo, setShowWelcomeVideo] = useState(false);
+
+  // Check if user has seen welcome video
+  useEffect(() => {
+    if (!userId) return;
+    const hasSeenVideo = localStorage.getItem(`welcome-video-seen-${userId}`);
+    if (!hasSeenVideo) {
+      const timer = setTimeout(() => setShowWelcomeVideo(true), 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [userId]);
+
+  const handleWelcomeComplete = () => {
+    localStorage.setItem(`welcome-video-seen-${userId}`, 'true');
+    setShowWelcomeVideo(false);
+  };
+
+  const handleStartTour = () => {
+    localStorage.setItem('trigger-tour', 'true');
+    window.dispatchEvent(new CustomEvent('start-tour'));
+  };
+
   return (
     <div className="min-h-screen bg-background mobile-friendly flex">
       <KeyboardShortcutsHelp />
-      <DashboardOnboarding />
+      
+      {/* Interactive Module Tour */}
+      <InteractiveModuleTour onModuleChange={handleModuleChange} />
+      
+      {/* Welcome Video Modal for new users */}
+      <WelcomeVideoModal
+        open={showWelcomeVideo}
+        onOpenChange={setShowWelcomeVideo}
+        onComplete={handleWelcomeComplete}
+        onStartTour={handleStartTour}
+      />
+      
       <SEOHead
         title="Fleet Management Dashboard"
         description="Manage your luxury fleet with comprehensive analytics, AI-powered insights, and real-time monitoring."
@@ -355,6 +400,7 @@ const Dashboard = () => {
               "border border-white/20 transition-all duration-200"
             )}
             aria-label="Ask Rari AI Assistant"
+            data-tour="rari-fab"
           >
             <Sparkles className="h-6 w-6" />
             {/* Insight badge */}

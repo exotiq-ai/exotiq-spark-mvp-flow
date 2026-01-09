@@ -205,7 +205,7 @@ export const BookEnhanced = () => {
       >
         <TabsContent value="overview" className="space-y-4 sm:space-y-6">
         {/* Next Pickup Card */}
-        <Card className="card-premium bg-gradient-to-br from-primary/10 to-accent/5 border-primary/20 p-3 sm:p-4">
+        <Card className="card-premium bg-gradient-to-br from-primary/10 to-accent/5 border-primary/20 p-3 sm:p-4" data-tour="next-pickup">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-base font-semibold">Next Pickup</h3>
             <Badge className="bg-success/20 text-success border-success/30">
