@@ -1,14 +1,24 @@
-import { useEffect } from "react";
+import { useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 
-export const useKeyboardShortcuts = () => {
+interface UseKeyboardShortcutsOptions {
+  onToggleRari?: () => void;
+}
+
+export const useKeyboardShortcuts = (options?: UseKeyboardShortcutsOptions) => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      // Only trigger if Ctrl/Cmd is pressed
+      // Escape key - no modifier needed
+      if (e.key === 'Escape') {
+        // This will be handled by specific components
+        return;
+      }
+      
+      // Only trigger if Ctrl/Cmd is pressed for other shortcuts
       if (!(e.metaKey || e.ctrlKey)) return;
 
       // Prevent default browser behavior for custom shortcuts
@@ -43,16 +53,22 @@ export const useKeyboardShortcuts = () => {
           navigate("/");
           toast({ title: "Navigated to Home" });
         },
+        "r": () => {
+          // Rari shortcut - Cmd/Ctrl + R
+          e.preventDefault();
+          options?.onToggleRari?.();
+          toast({ title: "Toggled Rari AI Assistant" });
+        },
         "/": () => {
           e.preventDefault();
           toast({
             title: "Keyboard Shortcuts",
-            description: "⌘/Ctrl+K: Search | ⌘/Ctrl+1-5: Modules | ⌘/Ctrl+H: Home",
+            description: "⌘/Ctrl+R: Rari AI | ⌘/Ctrl+1-5: Modules | ⌘/Ctrl+H: Home | Esc: Minimize",
           });
         },
       };
 
-      const handler = shortcuts[e.key];
+      const handler = shortcuts[e.key.toLowerCase()];
       if (handler) {
         handler();
       }
@@ -60,5 +76,5 @@ export const useKeyboardShortcuts = () => {
 
     document.addEventListener("keydown", handleKeyPress);
     return () => document.removeEventListener("keydown", handleKeyPress);
-  }, [navigate, toast]);
+  }, [navigate, toast, options?.onToggleRari]);
 };

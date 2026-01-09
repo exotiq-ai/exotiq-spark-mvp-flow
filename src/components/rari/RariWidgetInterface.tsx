@@ -3,13 +3,16 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Input } from '@/components/ui/input';
 import { 
   MessageSquare, 
   Download, 
   History, 
   Settings,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  Send,
+  Keyboard
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRariConversationPersistence } from '@/hooks/useRariConversationPersistence';
@@ -19,11 +22,17 @@ import { RariQuickCommands } from './RariQuickCommands';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import type { RecentEntity, ConversationMessage } from '@/types/rari';
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+}
+
+interface RariWidgetInterfaceProps {
+  contextSummary?: string;
+  recentEntities?: RecentEntity[];
 }
 
 /**
@@ -36,6 +45,8 @@ interface Message {
  * - ✅ Entity detection (for future clickable links)
  * - ✅ Exotiq brand styling (glass morphism)
  * - ✅ Error handling & loading states
+ * - ✅ Context-aware conversations
+ * - ✅ Text input fallback when voice fails
  * 
  * RESPONSIVE BREAKPOINTS:
  * - Desktop (1024px+): Sidebar layout with info panel
@@ -48,9 +59,10 @@ interface WidgetStatus {
   isActive: boolean;
   isListening: boolean;
   error: string | null;
+  voiceFailed: boolean;
 }
 
-export const RariWidgetInterface = () => {
+export const RariWidgetInterface = ({ contextSummary, recentEntities }: RariWidgetInterfaceProps) => {
   const { user } = useAuth();
   const widgetRef = useRef<HTMLDivElement>(null);
   const scriptLoadedRef = useRef(false);
@@ -61,7 +73,12 @@ export const RariWidgetInterface = () => {
     isActive: false,
     isListening: false,
     error: null,
+    voiceFailed: false,
   });
+  
+  // Text input fallback
+  const [textInput, setTextInput] = useState('');
+  const [showTextInput, setShowTextInput] = useState(false);
   
   // Conversation tracking
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -71,6 +88,13 @@ export const RariWidgetInterface = () => {
   const [conversationStartTime, setConversationStartTime] = useState<Date | undefined>();
   const [partialTranscript, setPartialTranscript] = useState<string>('');
   const [activeCommandId, setActiveCommandId] = useState<string | null>(null);
+  
+  // Log context for debugging
+  useEffect(() => {
+    if (contextSummary) {
+      console.log('[Rari Widget] Context updated:', contextSummary.substring(0, 100) + '...');
+    }
+  }, [contextSummary]);
   
   // Hooks
   const { 
@@ -483,14 +507,45 @@ export const RariWidgetInterface = () => {
               </div>
             )}
             
-            {/* Error State */}
-            {status.error && (
+            {/* Error State with Text Input Fallback */}
+            {(status.error || status.voiceFailed) && (
               <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-10">
                 <div className="text-center max-w-md p-6">
                   <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
-                  <p className="text-sm text-muted-foreground mb-4">{status.error}</p>
-                  <Button onClick={() => window.location.reload()}>
-                    Reload Page
+                  <p className="text-sm text-muted-foreground mb-4">
+                    {status.error || 'Voice assistant unavailable'}
+                  </p>
+                  
+                  {/* Text Input Fallback */}
+                  <div className="mb-4">
+                    <p className="text-xs text-muted-foreground mb-2">
+                      <Keyboard className="h-3 w-3 inline mr-1" />
+                      Type your question instead:
+                    </p>
+                    <form 
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        if (textInput.trim()) {
+                          handleQuickCommand(textInput);
+                          setTextInput('');
+                        }
+                      }}
+                      className="flex gap-2"
+                    >
+                      <Input
+                        value={textInput}
+                        onChange={(e) => setTextInput(e.target.value)}
+                        placeholder="Ask Rari anything..."
+                        className="flex-1"
+                      />
+                      <Button type="submit" size="icon" disabled={!textInput.trim()}>
+                        <Send className="h-4 w-4" />
+                      </Button>
+                    </form>
+                  </div>
+                  
+                  <Button variant="outline" onClick={() => window.location.reload()}>
+                    Retry Voice
                   </Button>
                 </div>
               </div>
@@ -508,11 +563,46 @@ export const RariWidgetInterface = () => {
             />
           </div>
           
-          {/* Footer Info */}
+          {/* Footer Info with Text Input Toggle */}
           <div className="mt-4 p-3 bg-blue-500/5 border border-blue-500/10 rounded-lg">
-            <p className="text-xs text-muted-foreground text-center">
-              💡 Click widget to start conversation
-            </p>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">
+                💡 Click widget to start conversation
+              </p>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowTextInput(!showTextInput)}
+                className="text-xs h-7"
+              >
+                <Keyboard className="h-3 w-3 mr-1" />
+                {showTextInput ? 'Hide' : 'Type instead'}
+              </Button>
+            </div>
+            
+            {/* Optional Text Input for accessible typing */}
+            {showTextInput && (
+              <form 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (textInput.trim()) {
+                    handleQuickCommand(textInput);
+                    setTextInput('');
+                  }
+                }}
+                className="flex gap-2 mt-3"
+              >
+                <Input
+                  value={textInput}
+                  onChange={(e) => setTextInput(e.target.value)}
+                  placeholder="Type your question..."
+                  className="flex-1 h-9"
+                />
+                <Button type="submit" size="sm" disabled={!textInput.trim()}>
+                  <Send className="h-4 w-4" />
+                </Button>
+              </form>
+            )}
           </div>
         </Card>
         
