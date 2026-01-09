@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Phone, PhoneOff, Mic } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -11,7 +11,8 @@ import { AIThinking } from '@/components/ui/ai-thinking';
 import { RariVoiceWaveform } from './RariVoiceWaveform';
 import { RariTranscript } from './RariTranscript';
 import { useRariConversationPersistence } from '@/hooks/useRariConversationPersistence';
-import { useEntityDetection } from '@/hooks/useEntityDetection';
+import { cn } from '@/lib/utils';
+import type { RariInterfaceVariant, RecentEntity } from '@/types/rari';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -19,7 +20,19 @@ interface Message {
   timestamp: Date;
 }
 
-export const RariVoiceInterface = () => {
+interface RariVoiceInterfaceProps {
+  variant?: RariInterfaceVariant;
+  contextSummary?: string;
+  recentEntities?: RecentEntity[];
+  onActiveCallChange?: (active: boolean) => void;
+}
+
+export const RariVoiceInterface = ({ 
+  variant = 'full',
+  contextSummary,
+  recentEntities,
+  onActiveCallChange,
+}: RariVoiceInterfaceProps) => {
   const { toast } = useToast();
   const { user } = useAuth();
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -215,6 +228,81 @@ export const RariVoiceInterface = () => {
   const { status, isSpeaking } = conversation;
   const isConnected = status === 'connected';
 
+  // Notify parent of active call changes
+  useEffect(() => {
+    onActiveCallChange?.(isConnected);
+  }, [isConnected, onActiveCallChange]);
+
+  const isSidebar = variant === 'sidebar';
+
+  // Sidebar variant - compact single-column layout
+  if (isSidebar) {
+    return (
+      <div className="flex flex-col h-full gap-3">
+        {/* Compact Controls */}
+        <div className="flex items-center gap-3">
+          <RariVoiceWaveform 
+            isActive={isConnected} 
+            isSpeaking={isSpeaking}
+            className="w-16 flex-shrink-0"
+          />
+          
+          <div className="flex-1 min-w-0">
+            {isConnected && isSpeaking ? (
+              <AIThinking variant="gradient" text="Speaking..." className="text-xs" />
+            ) : isConnected ? (
+              <AIThinking variant="wave" text="Listening..." className="text-xs" />
+            ) : (
+              <p className="text-xs text-muted-foreground truncate">
+                Voice-powered assistant
+              </p>
+            )}
+          </div>
+          
+          {!isConnected ? (
+            status === 'connecting' ? (
+              <AIThinking variant="gradient" text="..." />
+            ) : (
+              <Button 
+                size="sm"
+                className="flex-shrink-0 group"
+                onClick={handleStartConversation}
+              >
+                <Mic className="w-4 h-4 mr-1" />
+                Start
+              </Button>
+            )
+          ) : (
+            <Button 
+              size="sm"
+              variant="destructive"
+              className="flex-shrink-0"
+              onClick={handleEndConversation}
+            >
+              <PhoneOff className="w-4 h-4 mr-1" />
+              End
+            </Button>
+          )}
+        </div>
+        
+        {/* Transcript fills remaining space */}
+        <div className="flex-1 min-h-0">
+          <RariTranscript
+            messages={messages}
+            isConnected={isConnected}
+            conversationId={conversationId}
+            conversationDbId={conversationDbId}
+            startTime={conversationStartTime}
+            partialTranscript={partialTranscript}
+            onClear={!isConnected && messages.length > 0 ? handleClearTranscript : undefined}
+            compact
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // Full variant - two-column layout (original)
   return (
     <div className="flex flex-col lg:flex-row gap-4 h-full">
       {/* Left: Voice Interface - Compact on mobile, side-by-side on desktop */}
@@ -232,15 +320,16 @@ export const RariVoiceInterface = () => {
         
         {/* Connection Status Icon */}
         <div className="flex items-center justify-center">
-          <div className={`p-4 rounded-full transition-all duration-300 ${
+          <div className={cn(
+            "p-4 rounded-full transition-all duration-300",
             isSpeaking 
               ? 'bg-gulf-blue/30 shadow-[0_0_30px_rgba(37,150,190,0.4)]' 
               : isConnected 
                 ? 'bg-gulf-blue/20 shadow-[0_0_20px_rgba(37,150,190,0.2)]' 
                 : 'bg-muted'
-          }`}>
+          )}>
             {isConnected ? (
-              <Phone className={`w-8 h-8 text-gulf-blue transition-all ${isSpeaking ? 'animate-pulse-soft' : ''}`} />
+              <Phone className={cn("w-8 h-8 text-gulf-blue transition-all", isSpeaking && 'animate-pulse-soft')} />
             ) : (
               <PhoneOff className="w-8 h-8 text-muted-foreground" />
             )}
