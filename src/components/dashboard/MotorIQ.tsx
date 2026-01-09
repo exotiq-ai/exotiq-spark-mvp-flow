@@ -98,7 +98,7 @@ export const MotorIQ = () => {
 
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card className="card-premium p-6">
+        <Card className="card-premium p-6" data-tour="pricing-card">
           <div className="flex items-center">
             <div className="p-2 bg-success/10 rounded-lg">
               <DollarSign className="h-6 w-6 text-success" />

@@ -183,7 +183,7 @@ export const VaultEnhanced = () => {
       )}
 
       {/* Compliance Score */}
-      <Card className="card-premium p-4 sm:p-6">
+      <Card className="card-premium p-4 sm:p-6" data-tour="compliance-overview">
         <div className="flex items-center justify-between mb-4 sm:mb-6">
           <h3 className="text-lg sm:text-xl font-semibold">Compliance Overview</h3>
           <Badge className={complianceScore.status === 'good' ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'}>

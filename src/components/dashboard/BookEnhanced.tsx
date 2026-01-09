@@ -17,7 +17,7 @@ import { AskRariQuickAction } from "@/components/common/AskRariQuickAction";
 import { LocationBadge } from "@/components/common/LocationBadge";
 import { SkeletonCard, SkeletonMetric } from "@/components/ui/skeleton-card";
 import { EmptyState, NoBookingsState } from "@/components/common/EmptyState";
-import { getVehicleImage } from "@/lib/vehicleImageMapping";
+import { VehicleThumbnail } from "@/components/common/VehicleThumbnail";
 import { 
   Calendar as CalendarIcon, 
   Clock, 
@@ -28,8 +28,7 @@ import {
   Users,
   Plus,
   Receipt,
-  ClipboardCheck,
-  ZoomIn
+  ClipboardCheck
 } from "lucide-react";
 import { Tables } from "@/integrations/supabase/types";
 
@@ -215,31 +214,14 @@ export const BookEnhanced = () => {
 
           <div className="space-y-4">
             <div className="flex items-center space-x-4">
-              {(() => {
-                const vehicle = vehicles.find(v => v.id === nextBooking.vehicle_id);
-                const vehicleName = vehicle ? vehicle.name : 'Unknown Vehicle';
-                const vehicleImageUrl = getVehicleImage(vehicleName);
-                
-                return vehicleImageUrl ? (
-                  <div 
-                    className="relative group cursor-pointer"
-                    onClick={() => handleVehicleClick(nextBooking.vehicle_id, nextBooking.end_date)}
-                  >
-                    <img 
-                      src={vehicleImageUrl} 
-                      alt={vehicleName}
-                      className="h-24 w-24 rounded-xl object-cover transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg"
-                    />
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-xl transition-all duration-300 flex items-center justify-center">
-                      <ZoomIn className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="p-3 bg-primary/20 rounded-xl">
-                    <Car className="h-8 w-8 text-primary" />
-                  </div>
-                );
-              })()}
+              <VehicleThumbnail
+                vehicleName={(() => {
+                  const vehicle = vehicles.find(v => v.id === nextBooking.vehicle_id);
+                  return vehicle ? vehicle.name : 'Unknown Vehicle';
+                })()}
+                size="lg"
+                onClick={() => handleVehicleClick(nextBooking.vehicle_id, nextBooking.end_date)}
+              />
               <div className="min-w-0 flex-1">
                 <div 
                   className="font-semibold text-base truncate cursor-pointer hover:text-primary transition-colors"
