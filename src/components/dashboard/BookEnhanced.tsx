@@ -201,6 +201,7 @@ export const BookEnhanced = () => {
           { id: "inspections", label: "Inspections", shortLabel: "Check", icon: ClipboardCheck },
         ]}
         defaultValue="overview"
+        data-tour="book-tabs"
       >
         <TabsContent value="overview" className="space-y-4 sm:space-y-6">
         {/* Next Pickup Card */}
