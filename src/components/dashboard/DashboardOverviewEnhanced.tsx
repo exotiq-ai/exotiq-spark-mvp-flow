@@ -349,14 +349,6 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
               ))}
             </div>
             
-            {/* Rari Quick Access */}
-            <Button
-              onClick={() => onModuleClick('core')}
-              className="flex items-center gap-1.5 sm:gap-2 bg-gradient-to-r from-gulf-blue to-accent text-white rounded-full px-3 sm:px-4 py-1.5 sm:py-2 shadow-md hover:shadow-lg transition-all shrink-0"
-            >
-              <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              <span className="text-xs sm:text-sm font-medium hidden xs:inline">Ask Rari</span>
-            </Button>
           </div>
         </Card>
 
