@@ -65,7 +65,7 @@ const RariOrb = ({
       transition={{ type: 'spring', stiffness: 400, damping: 25 }}
       onClick={onClick}
       className={cn(
-        "fixed bottom-24 right-4 md:bottom-6 md:right-6 z-50",
+        "fixed right-4 md:bottom-6 md:right-6 z-50",
         "w-14 h-14 rounded-full",
         "bg-gradient-to-br from-gulf-blue to-gulf-blue/80",
         "shadow-lg hover:shadow-xl",
@@ -73,6 +73,7 @@ const RariOrb = ({
         "transition-shadow duration-200",
         isActiveCall && "ring-2 ring-success ring-offset-2 ring-offset-background animate-pulse"
       )}
+      style={{ bottom: 'calc(7rem + env(safe-area-inset-bottom))' }}
       aria-label="Open Rari AI Assistant"
     >
       <Sparkles className="h-6 w-6 text-white" />
@@ -361,7 +362,7 @@ export const RariSidebarTrigger = ({
       whileTap={{ scale: 0.95 }}
       onClick={onClick}
       className={cn(
-        "fixed bottom-24 right-4 md:bottom-6 md:right-6 z-40",
+        "fixed right-4 md:bottom-6 md:right-6 z-40",
         "h-14 px-4 rounded-full",
         "bg-gradient-to-r from-gulf-blue to-gulf-blue/90",
         "text-white font-medium text-sm",
@@ -370,6 +371,7 @@ export const RariSidebarTrigger = ({
         "transition-shadow duration-200",
         className
       )}
+      style={{ bottom: 'calc(7rem + env(safe-area-inset-bottom))' }}
       aria-label="Open Rari AI Assistant"
     >
       <Sparkles className="h-5 w-5" />

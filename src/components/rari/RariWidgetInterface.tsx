@@ -1,3 +1,10 @@
+/**
+ * @deprecated This widget-based interface is deprecated in favor of RariVoiceInterface.
+ * RariVoiceInterface uses the ElevenLabs React SDK which supports client tools.
+ * This file is kept for potential future hybrid use.
+ * 
+ * Migration: Replace <RariWidgetInterface /> with <RariVoiceInterface />
+ */
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
