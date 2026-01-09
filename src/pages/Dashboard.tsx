@@ -364,6 +364,7 @@ const Dashboard = () => {
           state={rariSidebar.state}
           isActiveCall={rariSidebar.isActiveCall}
           context={rariSidebar.context}
+          contextLabel={rariSidebar.contextLabel}
           unreadCount={rariSidebar.unreadCount}
           urgentCount={rariSidebar.urgentCount}
           highCount={rariSidebar.highCount}
@@ -371,6 +372,7 @@ const Dashboard = () => {
           onClose={rariSidebar.close}
           onMinimize={rariSidebar.minimize}
           onToggle={rariSidebar.toggle}
+          onClearContext={rariSidebar.clearContext}
           onActiveCallChange={rariSidebar.setActiveCall}
         />
       </ErrorBoundary>

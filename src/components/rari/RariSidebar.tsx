@@ -1,10 +1,11 @@
-import { useEffect, useCallback, useRef } from 'react';
+import { useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Minimize2, Maximize2, Sparkles, Phone, PhoneOff } from 'lucide-react';
+import { X, Minimize2, Sparkles, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { RariWidgetInterface } from './RariWidgetInterface';
+import { RariContextChip } from './RariContextChip';
 import { useSwipeGesture } from '@/hooks/useSwipeGesture';
 import type { RariSidebarState, RariContext } from '@/hooks/useRariSidebar';
 
@@ -12,6 +13,7 @@ interface RariSidebarProps {
   state: RariSidebarState;
   isActiveCall: boolean;
   context: RariContext;
+  contextLabel?: string | null;
   unreadCount: number;
   urgentCount?: number;
   highCount?: number;
@@ -19,6 +21,7 @@ interface RariSidebarProps {
   onClose: () => void;
   onMinimize: () => void;
   onToggle: () => void;
+  onClearContext?: () => void;
   onActiveCallChange?: (active: boolean) => void;
 }
 
@@ -98,13 +101,17 @@ const RariOrb = ({
 const RariPanel = ({
   isActiveCall,
   context,
+  contextLabel,
   onClose,
   onMinimize,
+  onClearContext,
 }: {
   isActiveCall: boolean;
   context: RariContext;
+  contextLabel?: string | null;
   onClose: () => void;
   onMinimize: () => void;
+  onClearContext?: () => void;
 }) => {
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -167,15 +174,17 @@ const RariPanel = ({
                       : "bg-muted text-muted-foreground"
                   )}
                 >
-                  {isActiveCall ? '● Connected' : 'Ready'}
+                {isActiveCall ? '● Connected' : 'Ready'}
                 </Badge>
-                {context.type && (
-                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                    Viewing: {context.type}
-                  </Badge>
-                )}
               </div>
             </div>
+            {context.type && contextLabel && (
+              <RariContextChip
+                type={context.type}
+                label={contextLabel}
+                onClear={() => onClearContext?.()}
+              />
+            )}
           </div>
           
           <div className="flex items-center gap-1">
@@ -228,6 +237,7 @@ export const RariSidebar = ({
   state,
   isActiveCall,
   context,
+  contextLabel,
   unreadCount,
   urgentCount = 0,
   highCount = 0,
@@ -235,6 +245,7 @@ export const RariSidebar = ({
   onClose,
   onMinimize,
   onToggle,
+  onClearContext,
 }: RariSidebarProps) => {
   return (
     <AnimatePresence mode="wait">
@@ -254,8 +265,10 @@ export const RariSidebar = ({
           key="panel"
           isActiveCall={isActiveCall}
           context={context}
+          contextLabel={contextLabel}
           onClose={onClose}
           onMinimize={onMinimize}
+          onClearContext={onClearContext}
         />
       )}
     </AnimatePresence>
