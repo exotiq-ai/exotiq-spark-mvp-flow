@@ -39,7 +39,7 @@ import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { MobileMoreMenu } from "@/components/mobile/MobileMoreMenu";
 import { FloatingActionMenu } from "@/components/mobile/FloatingActionMenu";
 import { TeamActivityDashboard } from "@/components/dashboard/TeamActivityDashboard";
-import { TeamMessaging, TeamMessagingTrigger } from "@/components/messaging/TeamMessaging";
+import { TeamMessaging } from "@/components/messaging/TeamMessaging";
 import { useTeamMessaging } from "@/hooks/useTeamMessaging";
 import { useTeam } from "@/contexts/TeamContext";
 import { Calendar as CalendarIcon, DollarSign, UserPlus, FileText, Sparkles } from "lucide-react";
@@ -328,16 +328,6 @@ const Dashboard = () => {
 
       {/* Team Messaging - Floating Chat with Error Boundary */}
       <ErrorBoundary fallback={null}>
-        {/* Desktop-only floating trigger - mobile uses header button */}
-        {!chatOpen && (
-          <div className="hidden md:block">
-            <TeamMessagingTrigger 
-              onClick={() => setChatOpen(true)} 
-              unreadCount={totalUnread} 
-            />
-          </div>
-        )}
-        
         <TeamMessaging
           isOpen={chatOpen}
           onClose={() => setChatOpen(false)}
@@ -348,7 +338,7 @@ const Dashboard = () => {
 
       {/* Rari AI Assistant - Desktop: Unified FAB, Mobile: uses AI tab in bottom nav */}
       <ErrorBoundary fallback={null}>
-        {/* Desktop-only unified Rari FAB - premium, single access point */}
+        {/* Desktop-only unified Rari FAB - refined, single access point */}
         {rariSidebar.isClosed && (
           <motion.button
             initial={{ scale: 0, opacity: 0 }}
@@ -360,24 +350,18 @@ const Dashboard = () => {
             className={cn(
               "hidden md:flex fixed bottom-6 right-6 z-40",
               "w-14 h-14 rounded-full items-center justify-center",
-              "bg-gradient-to-br from-gulf-blue via-primary to-accent",
-              "text-white shadow-[0_8px_30px_hsl(var(--primary)/0.4)]",
-              "hover:shadow-[0_12px_40px_hsl(var(--primary)/0.5)]",
-              "border border-white/20 transition-shadow duration-300",
-              "animate-breathe"
+              "bg-gradient-to-br from-rari-teal to-success",
+              "text-white shadow-lg hover:shadow-xl",
+              "border border-white/20 transition-all duration-200"
             )}
             aria-label="Ask Rari AI Assistant"
           >
             <Sparkles className="h-6 w-6" />
             {/* Insight badge */}
             {(rariSidebar.unreadCount > 0 || rariSidebar.urgentCount > 0) && (
-              <motion.span
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                className="absolute -top-1 -right-1 min-w-[20px] h-5 rounded-full bg-destructive text-destructive-foreground text-xs font-bold flex items-center justify-center px-1.5 shadow-lg"
-              >
+              <span className="absolute -top-1 -right-1 min-w-[20px] h-5 rounded-full bg-destructive text-destructive-foreground text-xs font-bold flex items-center justify-center px-1.5 shadow-lg">
                 {rariSidebar.urgentCount > 0 ? rariSidebar.urgentCount : rariSidebar.unreadCount}
-              </motion.span>
+              </span>
             )}
           </motion.button>
         )}
