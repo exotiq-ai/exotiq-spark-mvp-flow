@@ -118,7 +118,7 @@ export const RariWidgetInterface = ({ contextSummary, recentEntities }: RariWidg
       console.log('[Rari Widget] ✅ Script loaded successfully');
       scriptLoadedRef.current = true;
       setStatus(prev => ({ ...prev, isLoaded: true }));
-      toast.success('Rari is ready!');
+      // Removed duplicate toast - status badge in header is sufficient
     };
     
     script.onerror = () => {
@@ -563,47 +563,44 @@ export const RariWidgetInterface = ({ contextSummary, recentEntities }: RariWidg
             />
           </div>
           
-          {/* Footer Info with Text Input Toggle */}
-          <div className="mt-4 p-3 bg-blue-500/5 border border-blue-500/10 rounded-lg">
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-muted-foreground">
-                💡 Click widget to start conversation
-              </p>
+          {/* Text Input Toggle - Minimal footer */}
+          {!status.isActive && (
+            <div className="mt-3 flex justify-end">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowTextInput(!showTextInput)}
-                className="text-xs h-7"
+                className="text-xs h-7 text-muted-foreground"
               >
                 <Keyboard className="h-3 w-3 mr-1" />
-                {showTextInput ? 'Hide' : 'Type instead'}
+                {showTextInput ? 'Hide keyboard' : 'Type instead'}
               </Button>
             </div>
-            
-            {/* Optional Text Input for accessible typing */}
-            {showTextInput && (
-              <form 
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (textInput.trim()) {
-                    handleQuickCommand(textInput);
-                    setTextInput('');
-                  }
-                }}
-                className="flex gap-2 mt-3"
-              >
-                <Input
-                  value={textInput}
-                  onChange={(e) => setTextInput(e.target.value)}
-                  placeholder="Type your question..."
-                  className="flex-1 h-9"
-                />
-                <Button type="submit" size="sm" disabled={!textInput.trim()}>
-                  <Send className="h-4 w-4" />
-                </Button>
-              </form>
-            )}
-          </div>
+          )}
+          
+          {/* Optional Text Input for accessible typing */}
+          {showTextInput && !status.isActive && (
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (textInput.trim()) {
+                  handleQuickCommand(textInput);
+                  setTextInput('');
+                }
+              }}
+              className="flex gap-2 mt-2"
+            >
+              <Input
+                value={textInput}
+                onChange={(e) => setTextInput(e.target.value)}
+                placeholder="Type your question..."
+                className="flex-1 h-9"
+              />
+              <Button type="submit" size="sm" disabled={!textInput.trim()}>
+                <Send className="h-4 w-4" />
+              </Button>
+            </form>
+          )}
         </Card>
         
         {/* Right: Custom Transcript with Clickable Entities ✨ */}

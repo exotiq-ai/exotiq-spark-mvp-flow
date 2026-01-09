@@ -258,7 +258,7 @@ const RariPanel = ({
                 className="overflow-hidden"
               >
                 <div className="px-2 pb-2">
-                  <RariActionItems variant="compact" maxItems={3} showCompleted={false} />
+                  <RariActionItems embedded maxItems={3} showCompleted={false} />
                 </div>
               </motion.div>
             )}

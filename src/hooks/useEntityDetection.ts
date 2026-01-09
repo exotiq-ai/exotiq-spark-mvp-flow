@@ -14,10 +14,14 @@ export interface DetectedEntity {
 const PATTERNS = {
   phone: /(\+?1?\s*\(?[0-9]{3}\)?[\s.-]?[0-9]{3}[\s.-]?[0-9]{4})\b/g,
   email: /\b([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)\b/g,
-  // UUID pattern for booking IDs
+  // UUID pattern for booking IDs - strict validation
   uuid: /\b([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\b/gi,
-  // Booking reference patterns like "booking #123" or "reservation ABC123"
-  bookingRef: /\b(?:booking|reservation|ref(?:erence)?)[:\s#]*([A-Z0-9-]{6,})\b/gi,
+};
+
+// UUID validation helper
+const isValidUUID = (id: string): boolean => {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(id);
 };
 
 export function useEntityDetection(content: string): DetectedEntity[] {
@@ -71,29 +75,14 @@ export function useEntityDetection(content: string): DetectedEntity[] {
     }
 
     // Detect UUIDs (potential booking/customer/vehicle IDs)
+    // Only create entities for valid UUIDs
     const uuidMatches = content.matchAll(PATTERNS.uuid);
     for (const match of uuidMatches) {
-      if (match.index !== undefined) {
-        // We'll mark these as booking type by default
-        // In Phase 4, we'll enrich these to determine actual type
+      if (match.index !== undefined && isValidUUID(match[1])) {
         addEntity({
           type: 'booking',
           value: match[1],
-          displayText: match[1],
-          startIndex: match.index,
-          endIndex: match.index + match[0].length,
-        });
-      }
-    }
-
-    // Detect booking references
-    const bookingMatches = content.matchAll(PATTERNS.bookingRef);
-    for (const match of bookingMatches) {
-      if (match.index !== undefined) {
-        addEntity({
-          type: 'booking',
-          value: match[1],
-          displayText: match[0],
+          displayText: match[1].slice(0, 8) + '...',
           startIndex: match.index,
           endIndex: match.index + match[0].length,
         });
