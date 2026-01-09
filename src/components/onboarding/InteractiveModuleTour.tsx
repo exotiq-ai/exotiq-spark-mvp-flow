@@ -13,10 +13,8 @@ import confetti from 'canvas-confetti';
 import { cn } from '@/lib/utils';
 import { 
   X, 
-  TrendingUp, 
   Calendar, 
   BarChart3, 
-  Shield, 
   Brain, 
   Sparkles,
   ChevronRight,
@@ -36,7 +34,7 @@ interface InteractiveModuleTourProps {
   onModuleChange: (moduleId: string) => void;
 }
 
-// Generate tour steps based on user profile
+// Generate tour steps based on user profile - streamlined 5-step tour
 const generateTourSteps = (profile: UserProfile | null): TourStep[] => {
   const name = profile?.full_name?.split(' ')[0] || 'there';
   const companyName = profile?.company_name || 'your business';
@@ -46,22 +44,41 @@ const generateTourSteps = (profile: UserProfile | null): TourStep[] => {
       id: 'welcome',
       module: 'dashboard',
       title: `Welcome, ${name}! 🎉`,
-      description: `Let's take a quick 2-minute tour of the key features that will help you run ${companyName} like a pro.`,
+      description: `Your AI-powered command center is ready. Let's explore the key features in about 2 minutes.`,
       icon: Sparkles,
       spotlights: [],
-      duration: 5000,
     },
     {
-      id: 'motoriq-pricing',
-      module: 'motoriq',
-      title: 'MotorIQ - AI-Powered Pricing',
-      description: 'Get instant pricing recommendations based on demand, events, and market trends.',
-      icon: TrendingUp,
+      id: 'rari-assistant',
+      module: 'dashboard',
+      title: 'Meet Rari - Your AI Copilot',
+      description: `Ask anything about your fleet. Try saying: "Hey Rari, tell me about my upcoming bookings"`,
+      icon: Brain,
       spotlights: [
         {
-          selector: '[data-tour="pricing-card"]',
-          tooltip: 'AI analyzes 50+ factors to suggest optimal rates',
-          position: 'right' as const,
+          selector: '[data-tour="rari-fab"]',
+          tooltip: 'Click anytime to chat with Rari',
+          position: 'left' as const,
+          pulse: true,
+        },
+      ],
+      microInteraction: {
+        type: 'click' as const,
+        target: '[data-tour="rari-fab"]',
+        prompt: 'Try clicking to open Rari!',
+      },
+    },
+    {
+      id: 'pulse-analytics',
+      module: 'pulse',
+      title: 'Pulse - Fleet Performance',
+      description: 'Monitor utilization, revenue trends, and real-time fleet status at a glance.',
+      icon: BarChart3,
+      spotlights: [
+        {
+          selector: '[data-tour="fleet-snapshot"]',
+          tooltip: 'Track your fleet health instantly',
+          position: 'bottom' as const,
           pulse: true,
         },
       ],
@@ -69,8 +86,8 @@ const generateTourSteps = (profile: UserProfile | null): TourStep[] => {
     {
       id: 'book-calendar',
       module: 'book',
-      title: 'Book - Your Reservation Hub',
-      description: 'Manage all bookings, view your calendar, and handle pickups/returns.',
+      title: 'Book - Reservations Hub',
+      description: 'Manage bookings, view your calendar, and handle pickups/returns seamlessly.',
       icon: Calendar,
       spotlights: [
         {
@@ -82,55 +99,10 @@ const generateTourSteps = (profile: UserProfile | null): TourStep[] => {
       ],
     },
     {
-      id: 'pulse-analytics',
-      module: 'pulse',
-      title: 'Pulse - Real-Time Analytics',
-      description: 'Monitor fleet performance with live dashboards and trend analysis.',
-      icon: BarChart3,
-      spotlights: [
-        {
-          selector: '[data-tour="fleet-snapshot"]',
-          tooltip: 'Track utilization and status at a glance',
-          position: 'bottom' as const,
-          pulse: true,
-        },
-      ],
-    },
-    {
-      id: 'vault-compliance',
-      module: 'vault',
-      title: 'Vault - Compliance & Documents',
-      description: 'Never miss a renewal. Track insurance, registrations, and inspections.',
-      icon: Shield,
-      spotlights: [
-        {
-          selector: '[data-tour="compliance-overview"]',
-          tooltip: 'See your compliance score and expiring documents',
-          position: 'bottom' as const,
-          pulse: true,
-        },
-      ],
-    },
-    {
-      id: 'rari-assistant',
-      module: 'dashboard',
-      title: 'Meet Rari - Your AI Assistant',
-      description: 'Ask anything about your fleet using voice or text. Rari knows your data.',
-      icon: Brain,
-      spotlights: [
-        {
-          selector: '[data-tour="rari-fab"]',
-          tooltip: 'Click anytime to ask Rari a question',
-          position: 'left' as const,
-          pulse: true,
-        },
-      ],
-    },
-    {
       id: 'complete',
       module: 'dashboard',
-      title: "You're Ready to Roll! 🚀",
-      description: 'Explore your dashboard. Need help? Just ask Rari anytime.',
+      title: "You're All Set! 🚀",
+      description: 'Explore your dashboard. Need help anytime? Just click Rari.',
       icon: Trophy,
       spotlights: [],
     },
@@ -234,15 +206,18 @@ export const InteractiveModuleTour = ({ onModuleChange }: InteractiveModuleTourP
 
   const Icon = tour.currentStep.icon;
   const isCenterStep = tour.currentStep.spotlights.length === 0;
+  const hasSpotlights = tour.currentStep.spotlights.length > 0;
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[100]">
-        {/* Spotlight overlay for elements */}
-        <TourSpotlight
-          targets={tour.currentStep.spotlights}
-          isVisible={tour.spotlightsReady && !tour.isTransitioning}
-        />
+      <div className="fixed inset-0 z-[100] pointer-events-none">
+        {/* Spotlight overlay for elements - only render if spotlights exist */}
+        {hasSpotlights && (
+          <TourSpotlight
+            targets={tour.currentStep.spotlights}
+            isVisible={tour.spotlightsReady && !tour.isTransitioning}
+          />
+        )}
 
         {/* Tooltips for each spotlight */}
         {tour.spotlightsReady && tour.currentStep.spotlights.map((spotlight, idx) => (
@@ -261,7 +236,7 @@ export const InteractiveModuleTour = ({ onModuleChange }: InteractiveModuleTourP
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm pointer-events-auto"
             onClick={tour.skipTour}
           />
         )}
@@ -272,60 +247,60 @@ export const InteractiveModuleTour = ({ onModuleChange }: InteractiveModuleTourP
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 20 }}
-          transition={{ duration: 0.3 }}
+          transition={{ duration: 0.3, ease: "easeOut" }}
           className={cn(
-            'absolute',
+            'absolute pointer-events-auto z-[110]',
             isCenterStep
               ? 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2'
-              : 'bottom-8 left-1/2 -translate-x-1/2 md:bottom-auto md:top-8 md:left-8 md:translate-x-0'
+              : 'bottom-28 left-4 right-4 md:bottom-auto md:top-8 md:left-8 md:right-auto'
           )}
         >
-          <Card className="w-[calc(100vw-2rem)] max-w-[420px] p-5 shadow-2xl border-2 border-primary/20 bg-background/95 backdrop-blur-md">
+          <Card className="w-full max-w-[420px] mx-auto p-6 shadow-2xl border-2 border-primary/20 bg-background/98 backdrop-blur-lg">
             {/* Progress bar */}
-            <div className="mb-4">
+            <div className="mb-5">
               <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
-                <span>Step {tour.currentStepIndex + 1} of {tourSteps.length}</span>
+                <span className="font-medium">Step {tour.currentStepIndex + 1} of {tourSteps.length}</span>
                 <span className="flex items-center gap-1">
                   <Clock className="h-3 w-3" />
                   ~{tour.estimatedTimeRemaining} min left
                 </span>
               </div>
-              <Progress value={tour.progress} className="h-1.5" />
+              <Progress value={tour.progress} className="h-2" />
             </div>
 
             {/* Close button */}
             <button
               onClick={tour.skipTour}
-              className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-muted transition-colors"
+              className="absolute top-4 right-4 p-2 rounded-full hover:bg-muted transition-colors"
               aria-label="Skip tour"
             >
               <X className="h-4 w-4" />
             </button>
 
             {/* Icon */}
-            <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-accent mb-4">
-              <Icon className="h-7 w-7 text-white" />
+            <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-accent mb-5 shadow-lg">
+              <Icon className="h-8 w-8 text-white" />
             </div>
 
             {/* Content */}
-            <h3 className="text-xl font-bold mb-2 pr-8">{tour.currentStep.title}</h3>
-            <p className="text-muted-foreground mb-6">{tour.currentStep.description}</p>
+            <h3 className="text-xl font-bold mb-3 pr-8">{tour.currentStep.title}</h3>
+            <p className="text-muted-foreground mb-6 leading-relaxed">{tour.currentStep.description}</p>
 
             {/* Micro-interaction prompt */}
             {tour.currentStep.microInteraction && (
-              <div className="mb-4 p-3 rounded-lg bg-primary/10 border border-primary/20 text-sm">
-                <span className="font-medium text-primary">💡 Try it:</span>{' '}
+              <div className="mb-5 p-4 rounded-xl bg-primary/10 border border-primary/20 text-sm">
+                <span className="font-semibold text-primary">💡 Try it:</span>{' '}
                 {tour.currentStep.microInteraction.prompt}
               </div>
             )}
 
             {/* Navigation */}
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center justify-between gap-4">
               <div className="flex-1">
                 {!tour.isFirstStep && (
                   <Button
                     variant="outline"
-                    size="sm"
+                    size="default"
                     onClick={tour.prevStep}
                     className="w-full sm:w-auto"
                   >
@@ -335,18 +310,18 @@ export const InteractiveModuleTour = ({ onModuleChange }: InteractiveModuleTourP
                 )}
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 <Button
                   variant="ghost"
-                  size="sm"
+                  size="default"
                   onClick={tour.skipTour}
                 >
                   Skip
                 </Button>
                 <Button
-                  size="sm"
+                  size="default"
                   onClick={tour.nextStep}
-                  className="btn-premium"
+                  className="btn-premium min-w-[100px]"
                 >
                   {tour.isLastStep ? 'Get Started' : 'Next'}
                   {!tour.isLastStep && <ChevronRight className="h-4 w-4 ml-1" />}
@@ -354,8 +329,8 @@ export const InteractiveModuleTour = ({ onModuleChange }: InteractiveModuleTourP
               </div>
             </div>
 
-            {/* Keyboard hint */}
-            <p className="text-[10px] text-muted-foreground text-center mt-4">
+            {/* Keyboard hint - hidden on mobile */}
+            <p className="hidden sm:block text-[10px] text-muted-foreground text-center mt-4">
               Use ← → arrows or Escape to skip
             </p>
           </Card>

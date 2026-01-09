@@ -10,7 +10,6 @@ import { UnifiedNotificationCenter } from "@/components/common/UnifiedNotificati
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { LocationContextBanner } from "@/components/common/LocationBadge";
 import { InteractiveModuleTour } from "@/components/onboarding/InteractiveModuleTour";
-import { WelcomeVideoModal } from "@/components/onboarding/WelcomeVideoModal";
 import { useAnalytics } from "@/lib/analytics";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -200,28 +199,6 @@ const Dashboard = () => {
     );
   };
 
-  // Welcome video modal state for new users
-  const [showWelcomeVideo, setShowWelcomeVideo] = useState(false);
-
-  // Check if user has seen welcome video
-  useEffect(() => {
-    if (!userId) return;
-    const hasSeenVideo = localStorage.getItem(`welcome-video-seen-${userId}`);
-    if (!hasSeenVideo) {
-      const timer = setTimeout(() => setShowWelcomeVideo(true), 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [userId]);
-
-  const handleWelcomeComplete = () => {
-    localStorage.setItem(`welcome-video-seen-${userId}`, 'true');
-    setShowWelcomeVideo(false);
-  };
-
-  const handleStartTour = () => {
-    localStorage.setItem('trigger-tour', 'true');
-    window.dispatchEvent(new CustomEvent('start-tour'));
-  };
 
   return (
     <div className="min-h-screen bg-background mobile-friendly flex">
@@ -229,14 +206,6 @@ const Dashboard = () => {
       
       {/* Interactive Module Tour */}
       <InteractiveModuleTour onModuleChange={handleModuleChange} />
-      
-      {/* Welcome Video Modal for new users */}
-      <WelcomeVideoModal
-        open={showWelcomeVideo}
-        onOpenChange={setShowWelcomeVideo}
-        onComplete={handleWelcomeComplete}
-        onStartTour={handleStartTour}
-      />
       
       <SEOHead
         title="Fleet Management Dashboard"
