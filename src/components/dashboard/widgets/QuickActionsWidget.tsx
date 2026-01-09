@@ -1,12 +1,10 @@
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { NewBookingDialog } from "@/components/dialogs/NewBookingDialog";
 import { RecordPaymentDialog } from "@/components/dialogs/RecordPaymentDialog";
 import { AddCustomerDialog } from "@/components/dialogs/AddCustomerDialog";
 import { GenerateReportDialog } from "@/components/dialogs/GenerateReportDialog";
 import { ScheduleMaintenanceDialog } from "@/components/dialogs/ScheduleMaintenanceDialog";
-import { RariWidgetInterface } from "@/components/rari/RariWidgetInterface";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { motion } from "framer-motion";
 import {
@@ -15,14 +13,7 @@ import {
   UserPlus,
   FileText,
   Wrench,
-  Sparkles,
 } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 
 interface QuickActionsWidgetProps {
   onModuleClick?: (moduleId: string) => void;
@@ -36,7 +27,6 @@ export const QuickActionsWidget = ({ onModuleClick }: QuickActionsWidgetProps) =
   const [showCustomerDialog, setShowCustomerDialog] = useState(false);
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [showMaintenanceDialog, setShowMaintenanceDialog] = useState(false);
-  const [showRariDialog, setShowRariDialog] = useState(false);
 
   // Get first booking for payment dialog (or null if none)
   const firstBooking = bookings[0];
@@ -88,15 +78,6 @@ export const QuickActionsWidget = ({ onModuleClick }: QuickActionsWidgetProps) =
       bgColor: "bg-secondary/50 hover:bg-secondary",
       onClick: () => setShowMaintenanceDialog(true),
     },
-    {
-      id: "ask-rari",
-      label: "Ask Rari",
-      icon: Sparkles,
-      color: "text-primary",
-      bgColor: "bg-gradient-to-br from-primary/20 to-accent/20 hover:from-primary/30 hover:to-accent/30",
-      onClick: () => setShowRariDialog(true),
-      special: true,
-    },
   ];
 
   const containerVariants = {
@@ -137,7 +118,7 @@ export const QuickActionsWidget = ({ onModuleClick }: QuickActionsWidgetProps) =
             <motion.div key={action.id} variants={itemVariants}>
               <motion.button
                 onClick={action.onClick}
-                className={`flex flex-col items-center justify-center w-full h-24 p-3 rounded-xl border border-transparent transition-colors ${action.bgColor} ${action.special ? 'animate-pulse-soft' : ''}`}
+                className={`flex flex-col items-center justify-center w-full h-24 p-3 rounded-xl border border-transparent transition-colors ${action.bgColor}`}
                 whileHover={{ 
                   scale: 1.05, 
                   borderColor: 'hsl(var(--primary) / 0.3)',
@@ -196,21 +177,6 @@ export const QuickActionsWidget = ({ onModuleClick }: QuickActionsWidgetProps) =
         vehicles={vehicles}
         onSubmit={createMaintenance}
       />
-
-      {/* Rari Dialog - Widget-First */}
-      <Dialog open={showRariDialog} onOpenChange={setShowRariDialog}>
-        <DialogContent className="sm:max-w-4xl max-h-[85vh] overflow-hidden p-0">
-          <DialogHeader className="p-4 pb-0">
-            <DialogTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-primary" />
-              Ask Rari - Your Fleet Copilot
-            </DialogTitle>
-          </DialogHeader>
-          <div className="p-4 pt-2 h-[70vh]">
-            <RariWidgetInterface />
-          </div>
-        </DialogContent>
-      </Dialog>
     </>
   );
 };
