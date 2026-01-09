@@ -326,18 +326,22 @@ export const MyAccountSection = () => {
             <div>
               <h4 className="font-medium">Dashboard Tour</h4>
               <p className="text-sm text-muted-foreground">
-                Restart the interactive feature tour
+                Take a 2-minute tour of all key features
               </p>
             </div>
             <Button 
               variant="outline" 
               onClick={() => {
-                const storageKey = user?.id ? `dashboard-onboarding-complete-${user.id}` : 'dashboard-onboarding-complete';
-                localStorage.removeItem(storageKey);
+                // Clear both old and new tour completion keys
+                const oldKey = user?.id ? `dashboard-onboarding-complete-${user.id}` : 'dashboard-onboarding-complete';
+                const newKey = user?.id ? `interactive-tour-complete-${user.id}` : 'interactive-tour-complete';
+                localStorage.removeItem(oldKey);
+                localStorage.removeItem(newKey);
                 toast({
-                  title: "Tour Restarted",
-                  description: "The dashboard tour will start on your next visit.",
+                  title: "Tour Restarting",
+                  description: "Starting the interactive tour now...",
                 });
+                navigate('/dashboard?startTour=true');
               }}
             >
               <RotateCcw className="w-4 h-4 mr-2" />
