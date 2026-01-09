@@ -175,7 +175,9 @@ export const DashboardSidebarEnhanced = ({ activeModule, onModuleChange }: Dashb
             </div>
           </div>
         ) : (
-          <Logo size="md" className="h-8" />
+          <div className="flex justify-center">
+            <Logo size="lg" className="h-10" />
+          </div>
         )}
       </div>
 
