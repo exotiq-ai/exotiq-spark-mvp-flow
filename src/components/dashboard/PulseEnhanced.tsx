@@ -52,7 +52,9 @@ export const PulseEnhanced = () => {
       </div>
 
       {/* Today's Snapshot - Compact metrics row (not collapsible) */}
-      <TodaySnapshot />
+      <div data-tour="fleet-snapshot">
+        <TodaySnapshot />
+      </div>
 
       {/* Vehicles Out Now */}
       <VehiclesOutNow />
