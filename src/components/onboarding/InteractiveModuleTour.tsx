@@ -20,7 +20,8 @@ import {
   ChevronRight,
   ChevronLeft,
   Trophy,
-  Clock
+  Clock,
+  Shield
 } from 'lucide-react';
 
 interface UserProfile {
@@ -34,30 +35,29 @@ interface InteractiveModuleTourProps {
   onModuleChange: (moduleId: string) => void;
 }
 
-// Generate tour steps based on user profile - streamlined 5-step tour
+// Generate tour steps based on user profile - 6-step tour with module menus
 const generateTourSteps = (profile: UserProfile | null): TourStep[] => {
   const name = profile?.full_name?.split(' ')[0] || 'there';
-  const companyName = profile?.company_name || 'your business';
 
   return [
     {
       id: 'welcome',
       module: 'dashboard',
       title: `Welcome, ${name}! 🎉`,
-      description: `Your AI-powered command center is ready. Let's explore the key features in about 2 minutes.`,
+      description: `Your AI-powered command center is ready. Let's explore the essentials in about 2 minutes.`,
       icon: Sparkles,
       spotlights: [],
     },
     {
       id: 'rari-assistant',
       module: 'dashboard',
-      title: 'Meet Rari - Your AI Copilot',
-      description: `Ask anything about your fleet. Try saying: "Hey Rari, tell me about my upcoming bookings"`,
+      title: 'Say Hello to Rari 👋',
+      description: `Meet your new favorite team member! Rari handles the tough questions so you can focus on growing your business.`,
       icon: Brain,
       spotlights: [
         {
           selector: '[data-tour="rari-fab"]',
-          tooltip: 'Click anytime to chat with Rari',
+          tooltip: 'Your AI assistant is always here',
           position: 'left' as const,
           pulse: true,
         },
@@ -65,48 +65,97 @@ const generateTourSteps = (profile: UserProfile | null): TourStep[] => {
       microInteraction: {
         type: 'click' as const,
         target: '[data-tour="rari-fab"]',
-        prompt: 'Try clicking to open Rari!',
+        prompt: 'Try: "Hey Rari, what\'s on my schedule today?"',
       },
     },
     {
-      id: 'pulse-analytics',
+      id: 'pulse-overview',
       module: 'pulse',
-      title: 'Pulse - Fleet Performance',
-      description: 'Monitor utilization, revenue trends, and real-time fleet status at a glance.',
+      title: 'Pulse - Your Fleet at a Glance',
+      description: 'Monitor pickups, returns, and revenue in real-time. Switch between views to dive deeper.',
       icon: BarChart3,
       spotlights: [
         {
           selector: '[data-tour="fleet-snapshot"]',
-          tooltip: 'Track your fleet health instantly',
+          tooltip: 'Key metrics at a glance',
           position: 'bottom' as const,
           pulse: true,
         },
       ],
     },
     {
-      id: 'book-calendar',
+      id: 'book-overview',
       module: 'book',
-      title: 'Book - Reservations Hub',
-      description: 'Manage bookings, view your calendar, and handle pickups/returns seamlessly.',
+      title: 'Book - Reservations Made Easy',
+      description: 'Manage all your bookings from one place. Check out the Calendar, CRM, Payments, and Inspections tabs.',
       icon: Calendar,
       spotlights: [
         {
           selector: '[data-tour="next-pickup"]',
-          tooltip: 'Your upcoming pickups at a glance',
+          tooltip: 'Never miss a pickup',
           position: 'right' as const,
           pulse: true,
+        },
+        {
+          selector: '[data-tour="book-tabs"]',
+          tooltip: 'Overview • Calendar • CRM • Payments • Inspections',
+          position: 'bottom' as const,
+        },
+      ],
+    },
+    {
+      id: 'vault-overview',
+      module: 'vault',
+      title: 'Vault - Secure Your Operations',
+      description: 'Stay compliant with ease. Documents, Payments, Verification, and Claims — everything to protect your business.',
+      icon: Shield,
+      spotlights: [
+        {
+          selector: '[data-tour="compliance-overview"]',
+          tooltip: 'Compliance score at a glance',
+          position: 'bottom' as const,
+          pulse: true,
+        },
+        {
+          selector: '[data-tour="vault-tabs"]',
+          tooltip: 'Documents • Payments • Verification • Claims',
+          position: 'bottom' as const,
         },
       ],
     },
     {
       id: 'complete',
       module: 'dashboard',
-      title: "You're All Set! 🚀",
-      description: 'Explore your dashboard. Need help anytime? Just click Rari.',
+      title: "You're Ready to Roll! 🚀",
+      description: 'Explore at your own pace. Remember, Rari is just a click away whenever you need help.',
       icon: Trophy,
       spotlights: [],
     },
   ];
+};
+
+// Get smart card position based on current step to avoid overlapping spotlights
+const getCardPosition = (stepId: string, isCenterStep: boolean): string => {
+  if (isCenterStep) {
+    return 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2';
+  }
+
+  switch (stepId) {
+    case 'rari-assistant':
+      // Rari FAB is bottom-right, so card goes top-left
+      return 'top-8 left-4 right-4 md:left-8 md:right-auto';
+    case 'pulse-overview':
+      // Fleet snapshot is top area, card goes bottom
+      return 'bottom-28 left-4 right-4 md:bottom-8 md:left-8 md:right-auto';
+    case 'book-overview':
+      // Next pickup is left side, tabs are top - card goes bottom right
+      return 'bottom-28 left-4 right-4 md:bottom-8 md:right-8 md:left-auto';
+    case 'vault-overview':
+      // Compliance overview center, tabs top - card goes top left
+      return 'top-8 left-4 right-4 md:left-8 md:right-auto';
+    default:
+      return 'bottom-28 left-4 right-4 md:bottom-8 md:left-8 md:right-auto';
+  }
 };
 
 export const InteractiveModuleTour = ({ onModuleChange }: InteractiveModuleTourProps) => {
@@ -171,6 +220,7 @@ export const InteractiveModuleTour = ({ onModuleChange }: InteractiveModuleTourP
     if (params.get('startTour') === 'true') {
       // Clean up URL
       params.delete('startTour');
+      params.delete('t'); // Remove timestamp param too
       const newUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
       window.history.replaceState({}, '', newUrl);
       handleStartTour();
@@ -215,6 +265,7 @@ export const InteractiveModuleTour = ({ onModuleChange }: InteractiveModuleTourP
   const Icon = tour.currentStep.icon;
   const isCenterStep = tour.currentStep.spotlights.length === 0;
   const hasSpotlights = tour.currentStep.spotlights.length > 0;
+  const cardPosition = getCardPosition(tour.currentStep.id, isCenterStep);
 
   return (
     <AnimatePresence>
@@ -249,7 +300,7 @@ export const InteractiveModuleTour = ({ onModuleChange }: InteractiveModuleTourP
           />
         )}
 
-        {/* Main tour card */}
+        {/* Main tour card - white in light mode, positioned to avoid spotlight overlap */}
         <motion.div
           key={tour.currentStep.id}
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -258,12 +309,10 @@ export const InteractiveModuleTour = ({ onModuleChange }: InteractiveModuleTourP
           transition={{ duration: 0.3, ease: "easeOut" }}
           className={cn(
             'absolute pointer-events-auto z-[110]',
-            isCenterStep
-              ? 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2'
-              : 'bottom-28 left-4 right-4 md:bottom-auto md:top-8 md:left-8 md:right-auto'
+            cardPosition
           )}
         >
-          <Card className="w-full max-w-[420px] mx-auto p-6 shadow-2xl border-2 border-primary/20 bg-background/98 backdrop-blur-lg">
+          <Card className="w-full max-w-[420px] mx-auto p-6 shadow-2xl border-2 border-primary/20 bg-white dark:bg-card backdrop-blur-lg">
             {/* Progress bar */}
             <div className="mb-5">
               <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
@@ -291,14 +340,14 @@ export const InteractiveModuleTour = ({ onModuleChange }: InteractiveModuleTourP
             </div>
 
             {/* Content */}
-            <h3 className="text-xl font-bold mb-3 pr-8">{tour.currentStep.title}</h3>
+            <h3 className="text-xl font-bold mb-3 pr-8 text-foreground">{tour.currentStep.title}</h3>
             <p className="text-muted-foreground mb-6 leading-relaxed">{tour.currentStep.description}</p>
 
             {/* Micro-interaction prompt */}
             {tour.currentStep.microInteraction && (
               <div className="mb-5 p-4 rounded-xl bg-primary/10 border border-primary/20 text-sm">
                 <span className="font-semibold text-primary">💡 Try it:</span>{' '}
-                {tour.currentStep.microInteraction.prompt}
+                <span className="text-foreground">{tour.currentStep.microInteraction.prompt}</span>
               </div>
             )}
 

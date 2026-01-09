@@ -17,16 +17,18 @@ interface ModuleTabsProps {
   onValueChange?: (value: string) => void;
   children: ReactNode;
   className?: string;
+  'data-tour'?: string;
 }
 
-export const ModuleTabs = ({
-  tabs,
-  defaultValue,
-  value,
-  onValueChange,
-  children,
-  className,
-}: ModuleTabsProps) => {
+export const ModuleTabs = (props: ModuleTabsProps) => {
+  const {
+    tabs,
+    defaultValue,
+    value,
+    onValueChange,
+    children,
+    className,
+  } = props;
   return (
     <Tabs
       defaultValue={defaultValue}
@@ -35,7 +37,10 @@ export const ModuleTabs = ({
       className={cn("w-full", className)}
     >
       {/* Unified tab header with improved spacing */}
-      <div className="bg-background border-b border-border/40 -mx-4 px-4 sm:-mx-6 sm:px-6">
+      <div 
+        className="bg-background border-b border-border/40 -mx-4 px-4 sm:-mx-6 sm:px-6"
+        data-tour={props['data-tour']}
+      >
         <TabsList
           className={cn(
             "w-full h-auto p-0 bg-transparent rounded-none gap-0",

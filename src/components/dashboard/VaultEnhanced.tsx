@@ -114,6 +114,7 @@ export const VaultEnhanced = () => {
           { id: "claims", label: "Claims", shortLabel: "Claims", icon: AlertTriangle },
         ]}
         defaultValue="documents"
+        data-tour="vault-tabs"
       >
         <TabsContent value="documents" className="space-y-4 sm:space-y-6">
       {/* Compact Urgent Alert - Collapsible */}
