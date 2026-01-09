@@ -162,7 +162,14 @@ export const RariVoiceInterface = ({
       
       // Get signed URL from backend with user context
       const { data, error } = await supabase.functions.invoke('elevenlabs-session', {
-        body: { userId: user.id }
+        body: { 
+          userId: user.id,
+          context: {
+            summary: contextSummary,
+            currentEntity: recentEntities?.[0] || null,
+            recentEntities: recentEntities?.slice(0, 3),
+          }
+        }
       });
       
       console.log('Edge function response:', { data, error });
