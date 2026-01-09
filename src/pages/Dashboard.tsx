@@ -35,6 +35,7 @@ import { DashboardOverviewEnhanced } from "@/components/dashboard/DashboardOverv
 import { DashboardSidebarEnhanced } from "@/components/dashboard/DashboardSidebarEnhanced";
 import { SettingsLayout } from "@/components/dashboard/settings/SettingsLayout";
 import { KeyboardShortcutsHelp } from "@/components/common/KeyboardShortcutsHelp";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { MobileMoreMenu } from "@/components/mobile/MobileMoreMenu";
 import { FloatingActionMenu } from "@/components/mobile/FloatingActionMenu";
 import { TeamActivityDashboard } from "@/components/dashboard/TeamActivityDashboard";
@@ -53,6 +54,9 @@ const Dashboard = () => {
   const [chatMinimized, setChatMinimized] = useState(false);
   const [mobileAddLocationOpen, setMobileAddLocationOpen] = useState(false);
   const rariSidebar = useRariSidebar();
+  
+  // Keyboard shortcuts with Rari toggle
+  useKeyboardShortcuts({ onToggleRari: rariSidebar.toggle });
   const { track, page } = useAnalytics();
   const { isReadOnly, hasRoleOrHigher, loading: roleLoading } = useUserRole();
   const { conversations } = useTeamMessaging();
@@ -365,6 +369,8 @@ const Dashboard = () => {
           isActiveCall={rariSidebar.isActiveCall}
           context={rariSidebar.context}
           contextLabel={rariSidebar.contextLabel}
+          contextSummary={rariSidebar.contextSummary}
+          recentEntities={rariSidebar.recentEntities}
           unreadCount={rariSidebar.unreadCount}
           urgentCount={rariSidebar.urgentCount}
           highCount={rariSidebar.highCount}

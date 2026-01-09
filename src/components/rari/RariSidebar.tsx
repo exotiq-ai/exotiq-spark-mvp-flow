@@ -1,19 +1,25 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Minimize2, Sparkles, Phone } from 'lucide-react';
+import { X, Minimize2, Sparkles, Phone, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { RariWidgetInterface } from './RariWidgetInterface';
 import { RariContextChip } from './RariContextChip';
+import { RecentEntitiesPills } from './RecentEntitiesPills';
+import { RariActionItems } from './RariActionItems';
+import { RariErrorBoundary } from './RariErrorBoundary';
 import { useSwipeGesture } from '@/hooks/useSwipeGesture';
-import type { RariSidebarState, RariContext } from '@/hooks/useRariSidebar';
+import { useLocalStorage } from '@/hooks/useLocalStorage';
+import type { RariSidebarState, RariContext, RecentEntity } from '@/types/rari';
 
 interface RariSidebarProps {
   state: RariSidebarState;
   isActiveCall: boolean;
   context: RariContext;
   contextLabel?: string | null;
+  contextSummary?: string;
+  recentEntities?: RecentEntity[];
   unreadCount: number;
   urgentCount?: number;
   highCount?: number;
@@ -39,7 +45,6 @@ const RariOrb = ({
   isActiveCall: boolean;
   onClick: () => void;
 }) => {
-  // Determine badge color based on priority
   const getBadgeClasses = () => {
     if (urgentCount > 0) {
       return "bg-destructive text-destructive-foreground animate-pulse";
@@ -72,7 +77,6 @@ const RariOrb = ({
     >
       <Sparkles className="h-6 w-6 text-white" />
       
-      {/* Unread badge */}
       {unreadCount > 0 && (
         <motion.span 
           initial={{ scale: 0 }}
@@ -87,7 +91,6 @@ const RariOrb = ({
         </motion.span>
       )}
       
-      {/* Active call indicator */}
       {isActiveCall && (
         <span className="absolute -bottom-1 -right-1 bg-success text-success-foreground text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center">
           <Phone className="h-2.5 w-2.5" />
@@ -102,6 +105,8 @@ const RariPanel = ({
   isActiveCall,
   context,
   contextLabel,
+  contextSummary,
+  recentEntities,
   onClose,
   onMinimize,
   onClearContext,
@@ -109,13 +114,15 @@ const RariPanel = ({
   isActiveCall: boolean;
   context: RariContext;
   contextLabel?: string | null;
+  contextSummary?: string;
+  recentEntities?: RecentEntity[];
   onClose: () => void;
   onMinimize: () => void;
   onClearContext?: () => void;
 }) => {
   const panelRef = useRef<HTMLDivElement>(null);
+  const [actionItemsExpanded, setActionItemsExpanded] = useLocalStorage('rari-action-items-expanded', false);
 
-  // Swipe to close/minimize on mobile
   const { handlers } = useSwipeGesture({
     onSwipeRight: onMinimize,
     threshold: 100,
@@ -123,7 +130,7 @@ const RariPanel = ({
 
   return (
     <>
-      {/* Backdrop - semi-transparent, allows clicking through on desktop */}
+      {/* Backdrop */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -149,69 +156,113 @@ const RariPanel = ({
           "flex flex-col",
           isActiveCall && "ring-2 ring-inset ring-success/50"
         )}
+        role="complementary"
+        aria-label="Rari AI Assistant"
       >
         {/* Header */}
         <div className={cn(
-          "flex items-center justify-between px-4 py-3 border-b border-border",
+          "flex flex-col gap-2 px-4 py-3 border-b border-border",
           "bg-gradient-to-r from-gulf-blue/5 to-transparent"
         )}>
-          <div className="flex items-center gap-3">
-            <div className={cn(
-              "w-10 h-10 rounded-full flex items-center justify-center",
-              "bg-gradient-to-br from-gulf-blue to-gulf-blue/80"
-            )}>
-              <Sparkles className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <h2 className="font-semibold text-sm">Rari AI Assistant</h2>
-              <div className="flex items-center gap-2">
-                <Badge 
-                  variant="outline" 
-                  className={cn(
-                    "text-[10px] px-1.5 py-0",
-                    isActiveCall 
-                      ? "bg-success/10 text-success border-success/20" 
-                      : "bg-muted text-muted-foreground"
-                  )}
-                >
-                {isActiveCall ? '● Connected' : 'Ready'}
-                </Badge>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={cn(
+                "w-10 h-10 rounded-full flex items-center justify-center",
+                "bg-gradient-to-br from-gulf-blue to-gulf-blue/80"
+              )}>
+                <Sparkles className="h-5 w-5 text-white" />
               </div>
+              <div>
+                <h2 className="font-semibold text-sm">Rari AI Assistant</h2>
+                <div className="flex items-center gap-2">
+                  <Badge 
+                    variant="outline" 
+                    className={cn(
+                      "text-[10px] px-1.5 py-0",
+                      isActiveCall 
+                        ? "bg-success/10 text-success border-success/20" 
+                        : "bg-muted text-muted-foreground"
+                    )}
+                  >
+                  {isActiveCall ? '● Connected' : 'Ready'}
+                  </Badge>
+                </div>
+              </div>
+              {context.type && contextLabel && (
+                <RariContextChip
+                  type={context.type}
+                  label={contextLabel}
+                  onClear={() => onClearContext?.()}
+                />
+              )}
             </div>
-            {context.type && contextLabel && (
-              <RariContextChip
-                type={context.type}
-                label={contextLabel}
-                onClear={() => onClearContext?.()}
-              />
-            )}
+            
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={onMinimize}
+                aria-label="Minimize Rari"
+              >
+                <Minimize2 className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={onClose}
+                aria-label="Close Rari"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
           
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={onMinimize}
-              aria-label="Minimize Rari"
-            >
-              <Minimize2 className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={onClose}
-              aria-label="Close Rari"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+          {/* Recent Entities Pills */}
+          {recentEntities && recentEntities.length > 0 && (
+            <RecentEntitiesPills entities={recentEntities} className="mt-1" />
+          )}
         </div>
         
-        {/* Content - Full Widget Interface */}
-        <div className="flex-1 min-h-0 overflow-hidden">
-          <RariWidgetInterface />
+        {/* Content - Wrapped in Error Boundary */}
+        <RariErrorBoundary fallbackMessage="Voice assistant temporarily unavailable">
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <RariWidgetInterface 
+              contextSummary={contextSummary}
+              recentEntities={recentEntities?.slice(0, 3)}
+            />
+          </div>
+        </RariErrorBoundary>
+        
+        {/* Action Items Section - Collapsible */}
+        <div className="border-t border-border">
+          <button
+            onClick={() => setActionItemsExpanded(!actionItemsExpanded)}
+            className="w-full flex items-center justify-between px-4 py-2 hover:bg-muted/50 transition-colors"
+          >
+            <span className="text-xs font-medium text-muted-foreground">Action Items</span>
+            {actionItemsExpanded ? (
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <ChevronUp className="h-4 w-4 text-muted-foreground" />
+            )}
+          </button>
+          <AnimatePresence>
+            {actionItemsExpanded && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden"
+              >
+                <div className="px-2 pb-2">
+                  <RariActionItems variant="compact" maxItems={3} showCompleted={false} />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
         
         {/* Footer - Call status */}
@@ -238,6 +289,8 @@ export const RariSidebar = ({
   isActiveCall,
   context,
   contextLabel,
+  contextSummary,
+  recentEntities,
   unreadCount,
   urgentCount = 0,
   highCount = 0,
@@ -266,6 +319,8 @@ export const RariSidebar = ({
           isActiveCall={isActiveCall}
           context={context}
           contextLabel={contextLabel}
+          contextSummary={contextSummary}
+          recentEntities={recentEntities}
           onClose={onClose}
           onMinimize={onMinimize}
           onClearContext={onClearContext}
@@ -289,7 +344,6 @@ export const RariSidebarTrigger = ({
   highCount?: number;
   className?: string;
 }) => {
-  // Determine badge color based on priority
   const getBadgeClasses = () => {
     if (urgentCount > 0) {
       return "bg-destructive text-destructive-foreground animate-pulse";

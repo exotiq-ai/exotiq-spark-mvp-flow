@@ -2,14 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useLocalStorage } from './useLocalStorage';
 import { useRariInsightsCount } from './useRariInsightsCount';
 import { useRariContext } from './useRariContext';
-
-export type RariSidebarState = 'closed' | 'minimized' | 'open';
-
-export interface RariContext {
-  type: 'booking' | 'customer' | 'vehicle' | null;
-  id: string | null;
-  data: any | null;
-}
+import type { RariSidebarState, RariContext, RecentEntity } from '@/types/rari';
 
 interface UseRariSidebarReturn {
   state: RariSidebarState;
@@ -20,6 +13,7 @@ interface UseRariSidebarReturn {
   context: RariContext;
   contextLabel: string | null;
   contextSummary: string;
+  recentEntities: RecentEntity[];
   unreadCount: number;
   urgentCount: number;
   highCount: number;
@@ -94,6 +88,7 @@ export const useRariSidebar = (): UseRariSidebarReturn => {
     context,
     contextLabel: rariContext.getContextLabel(),
     contextSummary: rariContext.getContextSummary(),
+    recentEntities: rariContext.recentEntities,
     unreadCount,
     urgentCount,
     highCount,
