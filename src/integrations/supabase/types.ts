@@ -1457,6 +1457,39 @@ export type Database = {
         }
         Relationships: []
       }
+      rari_conversations: {
+        Row: {
+          context_summary: string | null
+          created_at: string
+          ended_at: string | null
+          id: string
+          message_count: number | null
+          session_id: string
+          started_at: string
+          user_id: string
+        }
+        Insert: {
+          context_summary?: string | null
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          message_count?: number | null
+          session_id: string
+          started_at?: string
+          user_id: string
+        }
+        Update: {
+          context_summary?: string | null
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          message_count?: number | null
+          session_id?: string
+          started_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       rari_feedback: {
         Row: {
           context: Json | null
@@ -1554,6 +1587,41 @@ export type Database = {
             columns: ["team_id"]
             isOneToOne: false
             referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rari_messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string
+          entities: Json | null
+          id: string
+          role: string
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          created_at?: string
+          entities?: Json | null
+          id?: string
+          role: string
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          entities?: Json | null
+          id?: string
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rari_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "rari_conversations"
             referencedColumns: ["id"]
           },
         ]

@@ -27,6 +27,7 @@ interface RariActionItemsProps {
   variant?: 'compact' | 'full';
   showCompleted?: boolean;
   maxItems?: number;
+  embedded?: boolean; // When true, skip outer Card wrapper (for use inside sidebar)
   onComplete?: (itemId: string) => void;
   onSnooze?: (itemId: string, until: Date) => void;
 }
@@ -152,6 +153,7 @@ export const RariActionItems = ({
   variant = 'full',
   showCompleted = true,
   maxItems,
+  embedded = false,
 }: RariActionItemsProps) => {
   const { actionItems, isLoading, pendingCount, completeItem, snoozeItem, dismissItem } = useRariInsightActionItems();
   const [isExpanded, setIsExpanded] = useState(false);
@@ -161,6 +163,42 @@ export const RariActionItems = ({
     : actionItems.filter(item => !item.completed);
 
   const displayItems = maxItems ? filteredItems.slice(0, maxItems) : filteredItems;
+
+  // Embedded content (no wrapper) for sidebar use
+  const renderContent = () => {
+    if (isLoading) {
+      return (
+        <div className="flex items-center justify-center py-4">
+          <div className="h-5 w-5 border-2 border-gulf-blue border-t-transparent rounded-full animate-spin" />
+        </div>
+      );
+    }
+    
+    if (displayItems.length === 0) {
+      return <EmptyState />;
+    }
+    
+    return (
+      <ScrollArea className="max-h-[200px]">
+        <AnimatePresence mode="popLayout">
+          {displayItems.map((item) => (
+            <ActionItemRow
+              key={item.id}
+              item={item}
+              onComplete={completeItem}
+              onSnooze={snoozeItem}
+              onDismiss={dismissItem}
+            />
+          ))}
+        </AnimatePresence>
+      </ScrollArea>
+    );
+  };
+
+  // When embedded, just return the content without Card wrapper
+  if (embedded) {
+    return <div className="py-1">{renderContent()}</div>;
+  }
 
   if (variant === 'compact') {
     return (
@@ -199,23 +237,7 @@ export const RariActionItems = ({
               transition={{ duration: 0.2 }}
             >
               <CardContent className="p-2 pt-0">
-                {displayItems.length === 0 ? (
-                  <EmptyState />
-                ) : (
-                  <ScrollArea className="max-h-[300px]">
-                    <AnimatePresence mode="popLayout">
-                      {displayItems.map((item) => (
-                        <ActionItemRow
-                          key={item.id}
-                          item={item}
-                          onComplete={completeItem}
-                          onSnooze={snoozeItem}
-                          onDismiss={dismissItem}
-                        />
-                      ))}
-                    </AnimatePresence>
-                  </ScrollArea>
-                )}
+                {renderContent()}
               </CardContent>
             </motion.div>
           )}

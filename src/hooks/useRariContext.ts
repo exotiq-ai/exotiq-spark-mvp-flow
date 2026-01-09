@@ -26,6 +26,12 @@ export interface RariContextState {
 const MAX_RECENT_ENTITIES = 10;
 const MAX_CONVERSATION_CONTEXT = 5;
 
+// UUID validation helper - prevents invalid IDs from being fetched
+const isValidUUID = (id: string): boolean => {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(id);
+};
+
 export function useRariContext() {
   const [searchParams] = useSearchParams();
   const [state, setState] = useState<RariContextState>({
@@ -175,21 +181,22 @@ export function useRariContext() {
       let id: string | null = null;
       let fetchFn: ((id: string) => Promise<any>) | null = null;
 
-      if (bookingId) {
+      // Only process valid UUIDs - skip invalid ones like "linking"
+      if (bookingId && isValidUUID(bookingId)) {
         type = 'booking';
         id = bookingId;
         fetchFn = fetchBooking;
-      } else if (customerId) {
+      } else if (customerId && isValidUUID(customerId)) {
         type = 'customer';
         id = customerId;
         fetchFn = fetchCustomer;
-      } else if (vehicleId) {
+      } else if (vehicleId && isValidUUID(vehicleId)) {
         type = 'vehicle';
         id = vehicleId;
         fetchFn = fetchVehicle;
       }
 
-      // Clear if no entity in URL
+      // Clear if no valid entity in URL
       if (!type || !id) {
         setState(prev => ({
           ...prev,
