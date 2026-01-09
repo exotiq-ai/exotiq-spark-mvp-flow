@@ -341,7 +341,7 @@ export const MyAccountSection = () => {
                   title: "Tour Restarting",
                   description: "Starting the interactive tour now...",
                 });
-                navigate('/dashboard?startTour=true');
+                navigate('/dashboard?startTour=true&t=' + Date.now());
               }}
             >
               <RotateCcw className="w-4 h-4 mr-2" />

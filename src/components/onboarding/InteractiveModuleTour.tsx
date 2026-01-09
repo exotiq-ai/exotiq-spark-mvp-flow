@@ -155,9 +155,15 @@ export const InteractiveModuleTour = ({ onModuleChange }: InteractiveModuleTourP
 
   // Listen for tour start events
   useEffect(() => {
+    // Don't start until we have valid steps
+    if (tourSteps.length === 0) return;
+    
     const handleStartTour = () => {
       setShowTour(true);
-      tour.startTour();
+      // Small delay to ensure component is fully rendered
+      setTimeout(() => {
+        tour.startTour();
+      }, 100);
     };
 
     // Check URL params
@@ -168,21 +174,23 @@ export const InteractiveModuleTour = ({ onModuleChange }: InteractiveModuleTourP
       const newUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
       window.history.replaceState({}, '', newUrl);
       handleStartTour();
+      return; // Exit early, don't add event listener
     }
 
     // Check localStorage trigger
     if (localStorage.getItem('trigger-tour') === 'true') {
       localStorage.removeItem('trigger-tour');
       handleStartTour();
+      return;
     }
 
     window.addEventListener('start-tour', handleStartTour);
     return () => window.removeEventListener('start-tour', handleStartTour);
-  }, []);
+  }, [tourSteps.length]);
 
   // Auto-show for first-time users who haven't completed onboarding
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.id || tourSteps.length === 0) return;
     
     const legacyKey = `dashboard-onboarding-complete-${user.id}`;
     const newKey = `interactive-tour-complete-${user.id}`;
@@ -200,9 +208,9 @@ export const InteractiveModuleTour = ({ onModuleChange }: InteractiveModuleTourP
       }, 1500);
       return () => clearTimeout(timer);
     }
-  }, [user?.id, showTour]);
+  }, [user?.id, showTour, tourSteps.length]);
 
-  if (!tour.isActive || !showTour) return null;
+  if (!tour.isActive || !showTour || !tour.currentStep) return null;
 
   const Icon = tour.currentStep.icon;
   const isCenterStep = tour.currentStep.spotlights.length === 0;

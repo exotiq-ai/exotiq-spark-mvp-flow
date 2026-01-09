@@ -47,7 +47,7 @@ export const useTourNavigation = ({
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [spotlightsReady, setSpotlightsReady] = useState(false);
 
-  const currentStep = steps[currentStepIndex];
+  const currentStep = steps[currentStepIndex] || null;
   const isFirstStep = currentStepIndex === 0;
   const isLastStep = currentStepIndex === steps.length - 1;
   const progress = ((currentStepIndex + 1) / steps.length) * 100;
