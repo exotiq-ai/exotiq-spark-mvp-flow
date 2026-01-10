@@ -25,6 +25,18 @@ interface QueryRequest {
   };
 }
 
+// Helper: Get user's team ID
+async function getUserTeamId(supabase: any, userId: string): Promise<string | null> {
+  const { data } = await supabase
+    .from('team_members')
+    .select('team_id')
+    .eq('user_id', userId)
+    .eq('is_active', true)
+    .limit(1)
+    .single();
+  return data?.team_id || null;
+}
+
 // Query categories and their keywords
 const QUERY_PATTERNS = {
   revenue: ['revenue', 'income', 'earnings', 'sales', 'profit', 'money made', 'p&l', 'profit loss'],
@@ -128,14 +140,14 @@ function extractLocations(query: string, context?: any): string[] {
 }
 
 // Query handler: Revenue analysis
-async function handleRevenueQuery(supabase: any, userId: string, query: string, context?: any) {
+async function handleRevenueQuery(supabase: any, teamId: string, query: string, context?: any) {
   const timeframe = extractTimeframe(query, context);
   const locations = extractLocations(query, context);
   
   let bookingsQuery = supabase
     .from('bookings')
     .select('total_value, start_date, end_date, status, vehicles(name, location)')
-    .eq('user_id', userId)
+    .eq('team_id', teamId)
     .gte('start_date', timeframe.start.toISOString())
     .lte('start_date', timeframe.end.toISOString())
     .in('status', ['confirmed', 'completed', 'active']);
@@ -181,13 +193,13 @@ async function handleRevenueQuery(supabase: any, userId: string, query: string, 
 }
 
 // Query handler: Vehicle availability and status
-async function handleVehicleQuery(supabase: any, userId: string, query: string, context?: any) {
+async function handleVehicleQuery(supabase: any, teamId: string, query: string, context?: any) {
   const locations = extractLocations(query, context);
   
   let vehiclesQuery = supabase
     .from('vehicles')
     .select('name, make, model, year, status, location, current_rate, utilization')
-    .eq('user_id', userId);
+    .eq('team_id', teamId);
   
   if (locations.length > 0) {
     vehiclesQuery = vehiclesQuery.in('location', locations);
@@ -237,7 +249,7 @@ async function handleVehicleQuery(supabase: any, userId: string, query: string, 
 }
 
 // Query handler: Fleet metrics and analytics
-async function handleMetricsQuery(supabase: any, userId: string, query: string, context?: any) {
+async function handleMetricsQuery(supabase: any, teamId: string, query: string, context?: any) {
   const timeframe = extractTimeframe(query, context);
   const locations = extractLocations(query, context);
   
@@ -245,7 +257,7 @@ async function handleMetricsQuery(supabase: any, userId: string, query: string, 
   let vehiclesQuery = supabase
     .from('vehicles')
     .select('*')
-    .eq('user_id', userId);
+    .eq('team_id', teamId);
   
   if (locations.length > 0) {
     vehiclesQuery = vehiclesQuery.in('location', locations);
@@ -257,7 +269,7 @@ async function handleMetricsQuery(supabase: any, userId: string, query: string, 
   const { data: bookings } = await supabase
     .from('bookings')
     .select('*')
-    .eq('user_id', userId)
+    .eq('team_id', teamId)
     .gte('start_date', timeframe.start.toISOString())
     .lte('start_date', timeframe.end.toISOString());
   
@@ -286,14 +298,14 @@ async function handleMetricsQuery(supabase: any, userId: string, query: string, 
 }
 
 // Query handler: Bookings
-async function handleBookingsQuery(supabase: any, userId: string, query: string, context?: any) {
+async function handleBookingsQuery(supabase: any, teamId: string, query: string, context?: any) {
   const timeframe = extractTimeframe(query, context);
   const lowerQuery = query.toLowerCase();
   
   let bookingsQuery = supabase
     .from('bookings')
-    .select('*, vehicles(name, make, model, location), customers(name, email)')
-    .eq('user_id', userId)
+    .select('*, vehicles(name, make, model, location), customers(full_name, email)')
+    .eq('team_id', teamId)
     .gte('start_date', timeframe.start.toISOString())
     .lte('start_date', timeframe.end.toISOString());
   
@@ -316,7 +328,7 @@ async function handleBookingsQuery(supabase: any, userId: string, query: string,
     count: filtered.length,
     bookings: filtered.slice(0, 10).map((b: any) => ({
       vehicle: b.vehicles ? `${b.vehicles.make} ${b.vehicles.model}` : 'Unknown',
-      customer: b.customers?.name || 'Unknown',
+      customer: b.customers?.full_name || 'Unknown',
       status: b.status,
       dates: `${new Date(b.start_date).toLocaleDateString()} - ${new Date(b.end_date).toLocaleDateString()}`,
       value: `$${Number(b.total_value || 0).toFixed(0)}`
@@ -325,7 +337,7 @@ async function handleBookingsQuery(supabase: any, userId: string, query: string,
 }
 
 // Query handler: Profit/Loss Analysis
-async function handleProfitLossQuery(supabase: any, userId: string, query: string, context?: any) {
+async function handleProfitLossQuery(supabase: any, teamId: string, query: string, context?: any) {
   const timeframe = extractTimeframe(query, context);
   const locations = extractLocations(query, context);
   
@@ -333,7 +345,7 @@ async function handleProfitLossQuery(supabase: any, userId: string, query: strin
   let vehiclesQuery = supabase
     .from('vehicles')
     .select('id, name, make, model, year, location, current_rate, utilization, revenue')
-    .eq('user_id', userId);
+    .eq('team_id', teamId);
   
   if (locations.length > 0) {
     vehiclesQuery = vehiclesQuery.in('location', locations);
@@ -407,14 +419,14 @@ async function handleProfitLossQuery(supabase: any, userId: string, query: strin
 }
 
 // Query handler: Location Comparison
-async function handleLocationComparisonQuery(supabase: any, userId: string, query: string, context?: any) {
+async function handleLocationComparisonQuery(supabase: any, teamId: string, query: string, context?: any) {
   const timeframe = extractTimeframe(query, context);
   
   // Get all vehicles
   const { data: vehicles } = await supabase
     .from('vehicles')
     .select('id, location, current_rate, utilization, revenue, status')
-    .eq('user_id', userId);
+    .eq('team_id', teamId);
   
   if (!vehicles || vehicles.length === 0) {
     return { summary: 'No vehicles found to compare.' };
@@ -458,14 +470,14 @@ async function handleLocationComparisonQuery(supabase: any, userId: string, quer
 }
 
 // Query handler: Idle Vehicles
-async function handleIdleVehiclesQuery(supabase: any, userId: string, query: string, context?: any) {
+async function handleIdleVehiclesQuery(supabase: any, teamId: string, query: string, context?: any) {
   const locations = extractLocations(query, context);
   
   // Get available vehicles with low utilization
   let vehiclesQuery = supabase
     .from('vehicles')
     .select('id, name, make, model, year, location, current_rate, utilization')
-    .eq('user_id', userId)
+    .eq('team_id', teamId)
     .eq('status', 'available');
   
   if (locations.length > 0) {
@@ -513,14 +525,14 @@ async function handleIdleVehiclesQuery(supabase: any, userId: string, query: str
 }
 
 // Query handler: Payments/Outstanding
-async function handlePaymentsQuery(supabase: any, userId: string, query: string, context?: any) {
+async function handlePaymentsQuery(supabase: any, teamId: string, query: string, context?: any) {
   const locations = extractLocations(query, context);
   
   // Get bookings with outstanding balances
   const { data: bookings } = await supabase
     .from('bookings')
     .select('*, vehicles(location, make, model), customers(full_name)')
-    .eq('user_id', userId)
+    .eq('team_id', teamId)
     .or('payment_status.eq.pending,balance_due.gt.0');
   
   let filtered = bookings || [];
@@ -565,7 +577,7 @@ async function handlePaymentsQuery(supabase: any, userId: string, query: string,
 }
 
 // Query handler: Customer Segmentation
-async function handleCustomerQuery(supabase: any, userId: string, query: string, context?: any) {
+async function handleCustomerQuery(supabase: any, teamId: string, query: string, context?: any) {
   const lowerQuery = query.toLowerCase();
   
   // Check for segment keywords
@@ -579,7 +591,7 @@ async function handleCustomerQuery(supabase: any, userId: string, query: string,
   const { data: customers } = await supabase
     .from('customers')
     .select('id, full_name, email, total_bookings, lifetime_value, customer_status')
-    .eq('user_id', userId)
+    .eq('team_id', teamId)
     .order('lifetime_value', { ascending: false })
     .limit(50);
   
@@ -643,14 +655,14 @@ async function handleCustomerQuery(supabase: any, userId: string, query: string,
 }
 
 // Query handler: Insights
-async function handleInsightsQuery(supabase: any, userId: string, query: string, context?: any) {
+async function handleInsightsQuery(supabase: any, teamId: string, query: string, context?: any) {
   const insights: any[] = [];
   
   // Check idle vehicles
   const { data: vehicles } = await supabase
     .from('vehicles')
     .select('name, make, model, utilization, status')
-    .eq('user_id', userId)
+    .eq('team_id', teamId)
     .eq('status', 'available')
     .lt('utilization', 30);
   
@@ -670,7 +682,7 @@ async function handleInsightsQuery(supabase: any, userId: string, query: string,
   const { data: maintenance } = await supabase
     .from('maintenance_schedules')
     .select('id')
-    .eq('user_id', userId)
+    .eq('team_id', teamId)
     .lte('scheduled_date', nextWeek.toISOString())
     .gte('scheduled_date', new Date().toISOString())
     .eq('status', 'scheduled');
@@ -688,7 +700,7 @@ async function handleInsightsQuery(supabase: any, userId: string, query: string,
   const { data: outstanding } = await supabase
     .from('bookings')
     .select('id')
-    .eq('user_id', userId)
+    .eq('team_id', teamId)
     .eq('payment_status', 'pending');
   
   if (outstanding && outstanding.length > 0) {
@@ -757,6 +769,18 @@ Deno.serve(async (req) => {
       });
     }
     
+    // Get team ID for the user
+    const teamId = await getUserTeamId(supabase, userId);
+    if (!teamId) {
+      return new Response(JSON.stringify({
+        error: 'No team found',
+        summary: 'Unable to find your team. Please ensure you are assigned to a team.'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    
     // Detect query intent
     const intents = detectQueryIntent(query);
     console.log('[Universal Query] Detected intents:', intents);
@@ -768,54 +792,54 @@ Deno.serve(async (req) => {
     
     switch (primaryIntent) {
       case 'revenue':
-        result = await handleRevenueQuery(supabase, userId, query, context);
+        result = await handleRevenueQuery(supabase, teamId, query, context);
         break;
       
       case 'profitloss':
-        result = await handleProfitLossQuery(supabase, userId, query, context);
+        result = await handleProfitLossQuery(supabase, teamId, query, context);
         break;
       
       case 'analytics':
         // Check if it's a location comparison
         if (query.toLowerCase().includes('compare') || query.toLowerCase().includes('vs')) {
-          result = await handleLocationComparisonQuery(supabase, userId, query, context);
+          result = await handleLocationComparisonQuery(supabase, teamId, query, context);
         } else {
-          result = await handleRevenueQuery(supabase, userId, query, context);
+          result = await handleRevenueQuery(supabase, teamId, query, context);
         }
         break;
       
       case 'vehicles':
-        result = await handleVehicleQuery(supabase, userId, query, context);
+        result = await handleVehicleQuery(supabase, teamId, query, context);
         break;
       
       case 'idle':
-        result = await handleIdleVehiclesQuery(supabase, userId, query, context);
+        result = await handleIdleVehiclesQuery(supabase, teamId, query, context);
         break;
       
       case 'bookings':
-        result = await handleBookingsQuery(supabase, userId, query, context);
+        result = await handleBookingsQuery(supabase, teamId, query, context);
         break;
       
       case 'payments':
-        result = await handlePaymentsQuery(supabase, userId, query, context);
+        result = await handlePaymentsQuery(supabase, teamId, query, context);
         break;
       
       case 'customer':
-        result = await handleCustomerQuery(supabase, userId, query, context);
+        result = await handleCustomerQuery(supabase, teamId, query, context);
         break;
       
       case 'insights':
-        result = await handleInsightsQuery(supabase, userId, query, context);
+        result = await handleInsightsQuery(supabase, teamId, query, context);
         break;
       
       case 'metrics':
       case 'location':
-        result = await handleMetricsQuery(supabase, userId, query, context);
+        result = await handleMetricsQuery(supabase, teamId, query, context);
         break;
       
       default:
         // Fallback: try metrics as general overview
-        result = await handleMetricsQuery(supabase, userId, query, context);
+        result = await handleMetricsQuery(supabase, teamId, query, context);
         result.note = "I interpreted this as a general metrics query. Try being more specific for better results!";
     }
     
