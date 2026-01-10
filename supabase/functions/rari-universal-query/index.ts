@@ -27,19 +27,21 @@ interface QueryRequest {
 
 // Query categories and their keywords
 const QUERY_PATTERNS = {
-  revenue: ['revenue', 'income', 'earnings', 'sales', 'profit', 'money made'],
+  revenue: ['revenue', 'income', 'earnings', 'sales', 'profit', 'money made', 'p&l', 'profit loss'],
   vehicles: ['vehicle', 'car', 'fleet', 'available', 'rented', 'maintenance'],
   bookings: ['booking', 'reservation', 'rental', 'active', 'confirmed', 'pending'],
-  metrics: ['metric', 'performance', 'utilization', 'occupancy', 'dashboard'],
-  analytics: ['analyze', 'analysis', 'compare', 'breakdown', 'vs', 'versus'],
-  location: ['miami', 'scottsdale', 'location', 'where', 'city'],
-  forecast: ['forecast', 'predict', 'upcoming', 'future', 'demand', 'event'],
-  pricing: ['price', 'rate', 'pricing', 'cost', 'surge', 'recommend'],
-  customer: ['customer', 'client', 'guest', 'user', 'booking history'],
-  maintenance: ['maintenance', 'service', 'repair', 'due', 'schedule'],
+  metrics: ['metric', 'performance', 'utilization', 'occupancy', 'dashboard', 'overview'],
+  analytics: ['analyze', 'analysis', 'compare', 'breakdown', 'vs', 'versus', 'comparison'],
+  location: ['miami', 'scottsdale', 'location', 'where', 'city', 'market'],
+  forecast: ['forecast', 'predict', 'upcoming', 'future', 'demand', 'event', 'projection'],
+  pricing: ['price', 'rate', 'pricing', 'cost', 'surge', 'recommend', 'optimize'],
+  customer: ['customer', 'client', 'guest', 'user', 'booking history', 'segment', 'vip', 'retention'],
+  maintenance: ['maintenance', 'service', 'repair', 'due', 'schedule', 'overdue'],
   team: ['team', 'staff', 'operator', 'manager', 'admin'],
-  idle: ['idle', 'unused', 'sitting', 'not rented', 'empty'],
-  payments: ['payment', 'balance', 'outstanding', 'paid', 'unpaid'],
+  idle: ['idle', 'unused', 'sitting', 'not rented', 'empty', 'underperforming'],
+  payments: ['payment', 'balance', 'outstanding', 'paid', 'unpaid', 'owe', 'overdue'],
+  profitloss: ['profit', 'loss', 'margin', 'expense', 'cost', 'roi', 'profitable'],
+  insights: ['insight', 'recommendation', 'suggest', 'alert', 'opportunity', 'action'],
 };
 
 // Helper: Detect query intent
@@ -322,6 +324,391 @@ async function handleBookingsQuery(supabase: any, userId: string, query: string,
   };
 }
 
+// Query handler: Profit/Loss Analysis
+async function handleProfitLossQuery(supabase: any, userId: string, query: string, context?: any) {
+  const timeframe = extractTimeframe(query, context);
+  const locations = extractLocations(query, context);
+  
+  // Get vehicles
+  let vehiclesQuery = supabase
+    .from('vehicles')
+    .select('id, name, make, model, year, location, current_rate, utilization, revenue')
+    .eq('user_id', userId);
+  
+  if (locations.length > 0) {
+    vehiclesQuery = vehiclesQuery.in('location', locations);
+  }
+  
+  const { data: vehicles } = await vehiclesQuery;
+  
+  if (!vehicles || vehicles.length === 0) {
+    return { summary: 'No vehicles found to analyze.' };
+  }
+  
+  // Get bookings for revenue
+  const vehicleIds = vehicles.map((v: any) => v.id);
+  const { data: bookings } = await supabase
+    .from('bookings')
+    .select('vehicle_id, total_value')
+    .in('vehicle_id', vehicleIds)
+    .in('status', ['completed', 'active'])
+    .gte('created_at', timeframe.start.toISOString());
+  
+  // Get maintenance costs
+  const { data: maintenance } = await supabase
+    .from('maintenance_schedules')
+    .select('vehicle_id, estimated_cost')
+    .in('vehicle_id', vehicleIds)
+    .eq('status', 'completed')
+    .gte('created_at', timeframe.start.toISOString());
+  
+  // Calculate P/L per vehicle
+  const profitLoss = vehicles.map((v: any) => {
+    const vBookings = bookings?.filter((b: any) => b.vehicle_id === v.id) || [];
+    const vMaint = maintenance?.filter((m: any) => m.vehicle_id === v.id) || [];
+    
+    const revenue = vBookings.reduce((sum: number, b: any) => sum + Number(b.total_value || 0), 0);
+    const expenses = vMaint.reduce((sum: number, m: any) => sum + Number(m.estimated_cost || 0), 0);
+    
+    return {
+      name: `${v.year} ${v.make} ${v.model}`,
+      location: v.location,
+      revenue,
+      expenses,
+      profit: revenue - expenses,
+      margin: revenue > 0 ? ((revenue - expenses) / revenue * 100) : 0
+    };
+  });
+  
+  profitLoss.sort((a, b) => b.profit - a.profit);
+  
+  const totals = profitLoss.reduce((acc, v) => ({
+    revenue: acc.revenue + v.revenue,
+    expenses: acc.expenses + v.expenses,
+    profit: acc.profit + v.profit
+  }), { revenue: 0, expenses: 0, profit: 0 });
+  
+  const profitable = profitLoss.filter(v => v.profit > 0).length;
+  
+  return {
+    summary: `Fleet P/L ${timeframe.label}: $${totals.revenue.toFixed(0)} revenue, $${totals.expenses.toFixed(0)} expenses, $${totals.profit.toFixed(0)} profit (${totals.revenue > 0 ? (totals.profit / totals.revenue * 100).toFixed(1) : 0}% margin). ${profitable}/${vehicles.length} vehicles profitable. Top: ${profitLoss[0]?.name} ($${profitLoss[0]?.profit.toFixed(0)} profit).`,
+    totalRevenue: `$${totals.revenue.toFixed(0)}`,
+    totalExpenses: `$${totals.expenses.toFixed(0)}`,
+    totalProfit: `$${totals.profit.toFixed(0)}`,
+    profitMargin: `${totals.revenue > 0 ? (totals.profit / totals.revenue * 100).toFixed(1) : 0}%`,
+    profitableVehicles: profitable,
+    topPerformers: profitLoss.slice(0, 5).map(v => ({
+      name: v.name,
+      profit: `$${v.profit.toFixed(0)}`,
+      margin: `${v.margin.toFixed(1)}%`
+    })),
+    timeframe: timeframe.label
+  };
+}
+
+// Query handler: Location Comparison
+async function handleLocationComparisonQuery(supabase: any, userId: string, query: string, context?: any) {
+  const timeframe = extractTimeframe(query, context);
+  
+  // Get all vehicles
+  const { data: vehicles } = await supabase
+    .from('vehicles')
+    .select('id, location, current_rate, utilization, revenue, status')
+    .eq('user_id', userId);
+  
+  if (!vehicles || vehicles.length === 0) {
+    return { summary: 'No vehicles found to compare.' };
+  }
+  
+  // Group by location
+  const byLocation: Record<string, any> = {};
+  
+  for (const v of vehicles) {
+    const loc = v.location || 'Miami';
+    if (!byLocation[loc]) {
+      byLocation[loc] = { count: 0, revenue: 0, utilization: 0, available: 0, rented: 0 };
+    }
+    byLocation[loc].count++;
+    byLocation[loc].revenue += Number(v.revenue || 0);
+    byLocation[loc].utilization += (v.utilization || 0);
+    if (v.status === 'available') byLocation[loc].available++;
+    if (v.status === 'rented') byLocation[loc].rented++;
+  }
+  
+  const locations = Object.entries(byLocation).map(([loc, data]: [string, any]) => ({
+    location: loc,
+    vehicleCount: data.count,
+    totalRevenue: `$${data.revenue.toFixed(0)}`,
+    avgUtilization: `${(data.utilization / data.count).toFixed(0)}%`,
+    available: data.available,
+    rented: data.rented,
+    revenuePerVehicle: `$${(data.revenue / data.count).toFixed(0)}`
+  }));
+  
+  locations.sort((a, b) => parseFloat(b.totalRevenue.replace('$', '')) - parseFloat(a.totalRevenue.replace('$', '')));
+  
+  const winner = locations[0];
+  
+  return {
+    summary: `Location Comparison: ${locations.map(l => `${l.location}: ${l.vehicleCount} vehicles, ${l.totalRevenue} revenue, ${l.avgUtilization} utilization`).join(' | ')}. ${winner?.location} is leading.`,
+    locations,
+    leader: winner?.location,
+    timeframe: timeframe.label
+  };
+}
+
+// Query handler: Idle Vehicles
+async function handleIdleVehiclesQuery(supabase: any, userId: string, query: string, context?: any) {
+  const locations = extractLocations(query, context);
+  
+  // Get available vehicles with low utilization
+  let vehiclesQuery = supabase
+    .from('vehicles')
+    .select('id, name, make, model, year, location, current_rate, utilization')
+    .eq('user_id', userId)
+    .eq('status', 'available');
+  
+  if (locations.length > 0) {
+    vehiclesQuery = vehiclesQuery.in('location', locations);
+  }
+  
+  const { data: vehicles } = await vehiclesQuery;
+  
+  if (!vehicles || vehicles.length === 0) {
+    return { summary: 'No available vehicles found.' };
+  }
+  
+  // Check recent bookings
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 7);
+  
+  const { data: recentBookings } = await supabase
+    .from('bookings')
+    .select('vehicle_id')
+    .in('vehicle_id', vehicles.map((v: any) => v.id))
+    .gte('end_date', cutoff.toISOString());
+  
+  const recentIds = new Set(recentBookings?.map((b: any) => b.vehicle_id) || []);
+  
+  const idle = vehicles.filter((v: any) => !recentIds.has(v.id) || (v.utilization || 0) < 20);
+  
+  const idleList = idle.map((v: any) => ({
+    name: `${v.year} ${v.make} ${v.model}`,
+    location: v.location,
+    rate: `$${v.current_rate}`,
+    utilization: `${v.utilization || 0}%`
+  }));
+  
+  const potentialLoss = idle.reduce((sum: number, v: any) => sum + (Number(v.current_rate) * 7), 0);
+  
+  return {
+    summary: idle.length > 0 
+      ? `${idle.length} idle vehicles (no bookings in 7 days or <20% utilization)${locations.length > 0 ? ` in ${locations.join(', ')}` : ''}. Potential weekly loss: $${potentialLoss.toFixed(0)}. Consider price reductions.`
+      : `All vehicles are active! No idle vehicles found.`,
+    idleCount: idle.length,
+    totalVehicles: vehicles.length,
+    potentialLoss: `$${potentialLoss.toFixed(0)}`,
+    idleVehicles: idleList.slice(0, 10)
+  };
+}
+
+// Query handler: Payments/Outstanding
+async function handlePaymentsQuery(supabase: any, userId: string, query: string, context?: any) {
+  const locations = extractLocations(query, context);
+  
+  // Get bookings with outstanding balances
+  const { data: bookings } = await supabase
+    .from('bookings')
+    .select('*, vehicles(location, make, model), customers(full_name)')
+    .eq('user_id', userId)
+    .or('payment_status.eq.pending,balance_due.gt.0');
+  
+  let filtered = bookings || [];
+  
+  if (locations.length > 0) {
+    filtered = filtered.filter((b: any) => 
+      locations.some(loc => b.vehicles?.location?.toLowerCase().includes(loc.toLowerCase()))
+    );
+  }
+  
+  const outstanding = filtered.map((b: any) => {
+    const endDate = new Date(b.end_date);
+    const daysOverdue = Math.floor((Date.now() - endDate.getTime()) / (1000 * 60 * 60 * 24));
+    
+    return {
+      customer: b.customers?.full_name || b.customer_name,
+      vehicle: b.vehicles ? `${b.vehicles.make} ${b.vehicles.model}` : 'Unknown',
+      amount: Number(b.balance_due || b.total_value || 0),
+      daysOverdue: Math.max(0, daysOverdue)
+    };
+  });
+  
+  outstanding.sort((a, b) => b.amount - a.amount);
+  
+  const total = outstanding.reduce((sum, b) => sum + b.amount, 0);
+  const critical = outstanding.filter(b => b.daysOverdue > 30).length;
+  
+  return {
+    summary: outstanding.length > 0
+      ? `$${total.toFixed(0)} outstanding across ${outstanding.length} booking${outstanding.length > 1 ? 's' : ''}. ${critical > 0 ? `${critical} critical (30+ days overdue). ` : ''}Top: ${outstanding[0]?.customer} owes $${outstanding[0]?.amount.toFixed(0)}.`
+      : 'No outstanding balances. All payments are current!',
+    totalOutstanding: `$${total.toFixed(0)}`,
+    count: outstanding.length,
+    criticalCount: critical,
+    outstandingBookings: outstanding.slice(0, 10).map(b => ({
+      customer: b.customer,
+      vehicle: b.vehicle,
+      amount: `$${b.amount.toFixed(0)}`,
+      daysOverdue: b.daysOverdue
+    }))
+  };
+}
+
+// Query handler: Customer Segmentation
+async function handleCustomerQuery(supabase: any, userId: string, query: string, context?: any) {
+  const lowerQuery = query.toLowerCase();
+  
+  // Check for segment keywords
+  let targetSegment = '';
+  if (lowerQuery.includes('vip')) targetSegment = 'vip';
+  else if (lowerQuery.includes('at risk') || lowerQuery.includes('at-risk')) targetSegment = 'at_risk';
+  else if (lowerQuery.includes('high value')) targetSegment = 'high_value';
+  else if (lowerQuery.includes('new')) targetSegment = 'new';
+  
+  // Get customers
+  const { data: customers } = await supabase
+    .from('customers')
+    .select('id, full_name, email, total_bookings, lifetime_value, customer_status')
+    .eq('user_id', userId)
+    .order('lifetime_value', { ascending: false })
+    .limit(50);
+  
+  if (!customers) {
+    return { summary: 'Unable to retrieve customer data.' };
+  }
+  
+  // Get recent bookings for recency
+  const { data: bookings } = await supabase
+    .from('bookings')
+    .select('customer_id, created_at')
+    .in('customer_id', customers.map((c: any) => c.id))
+    .order('created_at', { ascending: false });
+  
+  // Segment customers
+  const segmented = customers.map((c: any) => {
+    const lastBooking = bookings?.find((b: any) => b.customer_id === c.id);
+    const daysSince = lastBooking 
+      ? Math.floor((Date.now() - new Date(lastBooking.created_at).getTime()) / (1000 * 60 * 60 * 24))
+      : 999;
+    
+    const ltv = Number(c.lifetime_value || 0);
+    const count = c.total_bookings || 0;
+    
+    let segment: string;
+    if (ltv >= 50000 || count >= 10) segment = 'vip';
+    else if (ltv >= 20000 || count >= 5) segment = 'high_value';
+    else if (daysSince <= 30) segment = 'active';
+    else if (daysSince <= 90) segment = 'warm';
+    else if (count > 0) segment = 'at_risk';
+    else segment = 'new';
+    
+    return { ...c, segment, daysSince, ltv };
+  });
+  
+  // Filter if segment specified
+  let filtered = segmented;
+  if (targetSegment) {
+    filtered = segmented.filter(c => c.segment === targetSegment);
+  }
+  
+  // Count segments
+  const counts = segmented.reduce((acc: any, c) => {
+    acc[c.segment] = (acc[c.segment] || 0) + 1;
+    return acc;
+  }, {});
+  
+  return {
+    summary: targetSegment 
+      ? `${filtered.length} ${targetSegment.replace('_', ' ')} customers. ${targetSegment === 'at_risk' ? 'Consider re-engagement campaigns.' : targetSegment === 'vip' ? 'Prioritize their experience.' : ''}`
+      : `Customer segments: ${Object.entries(counts).map(([s, c]) => `${s.replace('_', ' ')}: ${c}`).join(', ')}. Total: ${customers.length}.`,
+    customers: filtered.slice(0, 10).map(c => ({
+      name: c.full_name,
+      segment: c.segment,
+      lifetimeValue: `$${c.ltv.toFixed(0)}`,
+      bookings: c.total_bookings || 0
+    })),
+    segmentCounts: counts,
+    requestedSegment: targetSegment || 'all'
+  };
+}
+
+// Query handler: Insights
+async function handleInsightsQuery(supabase: any, userId: string, query: string, context?: any) {
+  const insights: any[] = [];
+  
+  // Check idle vehicles
+  const { data: vehicles } = await supabase
+    .from('vehicles')
+    .select('name, make, model, utilization, status')
+    .eq('user_id', userId)
+    .eq('status', 'available')
+    .lt('utilization', 30);
+  
+  if (vehicles && vehicles.length > 0) {
+    insights.push({
+      type: 'utilization',
+      priority: 'medium',
+      title: `${vehicles.length} vehicles with low utilization`,
+      action: 'Consider price adjustments'
+    });
+  }
+  
+  // Check upcoming maintenance
+  const nextWeek = new Date();
+  nextWeek.setDate(nextWeek.getDate() + 7);
+  
+  const { data: maintenance } = await supabase
+    .from('maintenance_schedules')
+    .select('id')
+    .eq('user_id', userId)
+    .lte('scheduled_date', nextWeek.toISOString())
+    .gte('scheduled_date', new Date().toISOString())
+    .eq('status', 'scheduled');
+  
+  if (maintenance && maintenance.length > 0) {
+    insights.push({
+      type: 'maintenance',
+      priority: 'high',
+      title: `${maintenance.length} vehicles need service this week`,
+      action: 'Review maintenance schedule'
+    });
+  }
+  
+  // Check outstanding payments
+  const { data: outstanding } = await supabase
+    .from('bookings')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('payment_status', 'pending');
+  
+  if (outstanding && outstanding.length > 0) {
+    insights.push({
+      type: 'payments',
+      priority: 'high',
+      title: `${outstanding.length} bookings with outstanding payments`,
+      action: 'Follow up on payments'
+    });
+  }
+  
+  return {
+    summary: insights.length > 0 
+      ? `${insights.length} insight${insights.length > 1 ? 's' : ''}: ${insights.map(i => i.title).join('. ')}.`
+      : 'No urgent insights. Your fleet is running smoothly!',
+    insights,
+    count: insights.length
+  };
+}
+
 // Main handler
 Deno.serve(async (req) => {
   // Handle CORS
@@ -381,20 +768,48 @@ Deno.serve(async (req) => {
     
     switch (primaryIntent) {
       case 'revenue':
-      case 'analytics':
         result = await handleRevenueQuery(supabase, userId, query, context);
         break;
       
+      case 'profitloss':
+        result = await handleProfitLossQuery(supabase, userId, query, context);
+        break;
+      
+      case 'analytics':
+        // Check if it's a location comparison
+        if (query.toLowerCase().includes('compare') || query.toLowerCase().includes('vs')) {
+          result = await handleLocationComparisonQuery(supabase, userId, query, context);
+        } else {
+          result = await handleRevenueQuery(supabase, userId, query, context);
+        }
+        break;
+      
       case 'vehicles':
-      case 'idle':
         result = await handleVehicleQuery(supabase, userId, query, context);
+        break;
+      
+      case 'idle':
+        result = await handleIdleVehiclesQuery(supabase, userId, query, context);
         break;
       
       case 'bookings':
         result = await handleBookingsQuery(supabase, userId, query, context);
         break;
       
+      case 'payments':
+        result = await handlePaymentsQuery(supabase, userId, query, context);
+        break;
+      
+      case 'customer':
+        result = await handleCustomerQuery(supabase, userId, query, context);
+        break;
+      
+      case 'insights':
+        result = await handleInsightsQuery(supabase, userId, query, context);
+        break;
+      
       case 'metrics':
+      case 'location':
         result = await handleMetricsQuery(supabase, userId, query, context);
         break;
       

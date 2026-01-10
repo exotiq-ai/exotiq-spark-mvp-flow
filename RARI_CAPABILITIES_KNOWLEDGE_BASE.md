@@ -12,12 +12,15 @@ I'm Rari, your AI-powered fleet management assistant for Exotiq luxury car renta
 - Get technical specifications (horsepower, 0-60 time, top speed)
 - Find idle or underutilized vehicles
 - Track vehicle locations across Miami, Scottsdale, and other markets
+- **Multi-location availability search** - Find available vehicles across ALL locations at once
 
 ### Example Queries:
 - "Show me all available vehicles in Miami"
 - "Which cars are sitting idle with low utilization?"
 - "What are the specs for the Ferrari SF90?"
 - "Is the Lamborghini Aventador available next weekend?"
+- "Find me a Ferrari available anywhere from Jan 15-20"
+- "What vehicles are idle for more than 7 days?"
 
 ---
 
@@ -27,14 +30,18 @@ I'm Rari, your AI-powered fleet management assistant for Exotiq luxury car renta
 - Total revenue by day, week, month, or year
 - Revenue comparison between locations (Miami vs Scottsdale)
 - Revenue by specific vehicle or vehicle type
-- Profit/loss analysis
+- **Profit/Loss analysis per vehicle** - See revenue, expenses, and profit margins
 - Payment status and outstanding balances
+- **Outstanding balance tracking** - Know who owes you money and for how long
 
 ### Example Queries:
 - "What's my total revenue this month?"
 - "Compare Miami revenue vs Scottsdale for this quarter"
 - "Show me revenue from luxury SUVs this year"
 - "What payments are outstanding?"
+- "What's the profit/loss on my Ferrari SF90?"
+- "Show me vehicle profit margins for this month"
+- "Who owes me money?"
 
 ---
 
@@ -105,13 +112,18 @@ I'm Rari, your AI-powered fleet management assistant for Exotiq luxury car renta
 - Customer profiles and booking history
 - Lifetime value calculation
 - Booking patterns and preferences
-- Customer segmentation
+- **Customer segmentation** - VIP, High Value, Active, At-Risk, New
+- **Retention tracking** - Identify customers at risk of churning
+- **RFM Analysis** - Recency, Frequency, Monetary scoring
 
 ### Example Queries:
 - "Show me John Smith's booking history"
 - "What's the lifetime value of my top customers?"
 - "Who are my most frequent renters?"
 - "Find customers who haven't booked in 3 months"
+- "Show me my VIP customers"
+- "Which customers are at risk of churning?"
+- "Give me a customer segment breakdown"
 
 ---
 
@@ -150,32 +162,60 @@ I'm Rari, your AI-powered fleet management assistant for Exotiq luxury car renta
 
 ### Cross-Location Operations
 - View availability across all locations simultaneously
+- **Side-by-side location comparison** - Revenue, utilization, vehicle counts
 - Compare performance between markets
 - Identify location-specific trends
 - Market expansion opportunities
+- **Location leader identification** - Know which market is winning
 
 ### Example Queries:
 - "Show me availability across all locations"
-- "Compare Miami vs Scottsdale vs LA performance"
+- "Compare Miami vs Scottsdale performance"
 - "Which market has the highest utilization?"
+- "Give me a location comparison"
+- "Which location is making more money?"
+- "Compare revenue between Miami and Scottsdale this month"
 
 ---
 
 ## 🔮 Business Intelligence
 
 ### Advanced Analytics
-- Real-time profit/loss by vehicle
+- **Real-time profit/loss by vehicle** - Revenue minus expenses = actual profit
 - ROI tracking and calculations
 - Depreciation monitoring
 - Expense tracking
 - Booking conversion rates
 - Customer retention metrics
+- **Proactive AI Insights** - Rari surfaces opportunities and issues automatically
 
 ### Example Queries:
 - "What's the ROI on my McLaren 720S?"
 - "Show me profit margin on luxury vehicles"
 - "Track depreciation for 2023 models"
 - "What's my customer retention rate?"
+- "Give me insights on my fleet"
+- "What should I be paying attention to?"
+- "Any recommendations for improving revenue?"
+
+---
+
+## 💡 Proactive Insights (NEW!)
+
+### AI-Powered Recommendations
+- **Idle vehicle alerts** - Know when vehicles aren't earning
+- **Pricing optimization** - Suggestions based on demand and utilization
+- **Maintenance reminders** - Never miss scheduled service
+- **Outstanding payment alerts** - Follow up on overdue balances
+- **Peak season notifications** - Maximize revenue during high-demand periods
+- **Customer churn warnings** - Re-engage at-risk customers
+
+### Example Queries:
+- "What insights do you have for me?"
+- "Any urgent issues I should know about?"
+- "Give me recommendations"
+- "What opportunities am I missing?"
+- "What should I focus on today?"
 
 ---
 
