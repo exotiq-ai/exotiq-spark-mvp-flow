@@ -81,6 +81,24 @@ interface ToolResult {
   error?: string;
 }
 
+// Helper function to get user's team_id
+async function getUserTeamId(supabase: SupabaseClient, userId: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('team_members')
+    .select('team_id')
+    .eq('user_id', userId)
+    .eq('is_active', true)
+    .limit(1)
+    .maybeSingle();
+  
+  if (error) {
+    console.error('[getUserTeamId] Error:', error);
+    return null;
+  }
+  
+  return data?.team_id || null;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -178,6 +196,14 @@ serve(async (req) => {
     
     console.log('User verified:', userProfile.full_name || userProfile.email);
 
+    // Get user's team_id for multi-tenant queries
+    const teamId = await getUserTeamId(supabase, userId);
+    console.log('User team_id:', teamId);
+    
+    if (!teamId) {
+      console.warn('No team found for user, queries may return limited data');
+    }
+
     // Ensure toolName is defined
     if (!toolName) {
       return new Response(
@@ -186,8 +212,8 @@ serve(async (req) => {
       );
     }
 
-    // Execute the requested tool
-    const result = await executeFunction(toolName, parameters, supabase, userId);
+    // Execute the requested tool with team_id
+    const result = await executeFunction(toolName, parameters, supabase, userId, teamId);
 
     console.log('Tool result:', JSON.stringify(result, null, 2));
     console.log('=== Request Complete ===\n');
@@ -247,32 +273,36 @@ function getCurrentPeakSeason(location?: string): { name: string; surge: number 
   return null;
 }
 
-// Helper function to build user filter that includes demo data (user_id = NULL)
-function buildUserFilter(userId: string): string {
-  return `user_id.eq.${userId},user_id.is.null`;
+// Helper function to build team filter for multi-tenant queries
+function buildTeamFilter(teamId: string | null): { field: string; value: string } | null {
+  if (!teamId) return null;
+  return { field: 'team_id', value: teamId };
 }
 
-async function executeFunction(functionName: string, args: Record<string, unknown>, supabase: SupabaseClient, userId: string): Promise<ToolResult> {
-  console.log(`[TOOL] Executing: ${functionName} | User: ${userId} | Args:`, JSON.stringify(args));
-  const userFilter = buildUserFilter(userId);
+async function executeFunction(functionName: string, args: Record<string, unknown>, supabase: SupabaseClient, userId: string, teamId: string | null): Promise<ToolResult> {
+  console.log(`[TOOL] Executing: ${functionName} | User: ${userId} | Team: ${teamId} | Args:`, JSON.stringify(args));
 
   try {
     switch (functionName) {
       case "get_fleet_vehicles": {
         const { status, location } = args as { status?: string; location?: string };
-        console.log(`[get_fleet_vehicles] Querying vehicles for user ${userId}, status: ${status || 'all'}, location: ${location || 'all'}`);
+        console.log(`[get_fleet_vehicles] Querying vehicles for team ${teamId}, status: ${status || 'all'}, location: ${location || 'all'}`);
         
         let query = supabase
           .from('vehicles')
-          .select('*')
-          .or(userFilter);
+          .select('*');
+        
+        // Filter by team_id
+        if (teamId) {
+          query = query.eq('team_id', teamId);
+        }
 
         if (status && status !== 'all') {
           query = query.eq('status', status);
         }
         
         if (location && location !== 'all') {
-          query = query.eq('location', location);
+          query = query.ilike('location', `%${location}%`);
         }
 
         const { data: vehicles, error } = await query.order('created_at', { ascending: false });
@@ -327,12 +357,16 @@ async function executeFunction(functionName: string, args: Record<string, unknow
 
       case "get_bookings": {
         const { status, start_date, end_date, location } = args;
-        console.log(`[get_bookings] User: ${userId}, Status: ${status || 'all'}, Location: ${location || 'all'}`);
+        console.log(`[get_bookings] Team: ${teamId}, Status: ${status || 'all'}, Location: ${location || 'all'}`);
         
         let query = supabase
           .from('bookings')
-          .select('*, vehicles(vehicle_name, make, model, year, location), customers(first_name, last_name, email)')
-          .or(userFilter);
+          .select('*, vehicles(vehicle_name, make, model, year, location), customers(first_name, last_name, email)');
+        
+        // Filter by team_id
+        if (teamId) {
+          query = query.eq('team_id', teamId);
+        }
 
         if (status && status !== 'all') {
           query = query.eq('status', status);
@@ -358,7 +392,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         let filteredBookings = bookings || [];
         if (location && location !== 'all') {
           filteredBookings = filteredBookings.filter((b: any) => 
-            b.vehicles?.location?.toLowerCase() === location.toLowerCase()
+            b.vehicles?.location?.toLowerCase().includes(location.toLowerCase())
           );
         }
         
@@ -377,20 +411,20 @@ async function executeFunction(functionName: string, args: Record<string, unknow
           const startDate = new Date(b.start_date).toLocaleDateString();
           const endDate = new Date(b.end_date).toLocaleDateString();
           const vehicleName = b.vehicles ? `${b.vehicles.year} ${b.vehicles.make} ${b.vehicles.model}` : 'Unknown vehicle';
-          const customerName = b.customers ? `${b.customers.first_name} ${b.customers.last_name}` : 'Unknown';
+          const customerName = b.customers ? `${b.customers.first_name} ${b.customers.last_name}` : b.customer_name || 'Unknown';
           
           return {
             customer: customerName,
             vehicle: vehicleName,
-            location: b.vehicles?.location || 'miami',
+            location: b.vehicles?.location || 'Miami',
             dates: `${startDate} to ${endDate}`,
             status: b.status,
-            total: `$${Number(b.total_amount || 0).toFixed(0)}`,
+            total: `$${Number(b.total_value || b.total_amount || 0).toFixed(0)}`,
             payment: b.payment_status
           };
         });
 
-        const totalRevenue = filteredBookings.reduce((sum, b) => sum + Number(b.total_amount || 0), 0);
+        const totalRevenue = filteredBookings.reduce((sum, b) => sum + Number(b.total_value || b.total_amount || 0), 0);
         
         return {
           count: filteredBookings.length,
@@ -403,24 +437,30 @@ async function executeFunction(functionName: string, args: Record<string, unknow
       case "get_recent_activity": {
         const { limit = 10, activity_type } = args;
         
-        const { data: recentBookings } = await supabase
+        let query = supabase
           .from('bookings')
-          .select('*, vehicles(vehicle_name, make, model, year, location), customers(first_name, last_name)')
-          .or(userFilter)
+          .select('*, vehicles(vehicle_name, make, model, year, location), customers(first_name, last_name)');
+        
+        // Filter by team_id
+        if (teamId) {
+          query = query.eq('team_id', teamId);
+        }
+        
+        const { data: recentBookings } = await query
           .order('created_at', { ascending: false })
           .limit(limit);
 
         const activities = recentBookings?.map((b: any) => {
           const timeAgo = getTimeAgo(new Date(b.created_at));
           const vehicleName = b.vehicles ? `${b.vehicles.year} ${b.vehicles.make} ${b.vehicles.model}` : 'a vehicle';
-          const customerName = b.customers ? `${b.customers.first_name} ${b.customers.last_name}` : 'A customer';
+          const customerName = b.customers ? `${b.customers.first_name} ${b.customers.last_name}` : b.customer_name || 'A customer';
           
           return {
-            description: `${customerName} booked ${vehicleName} for $${Number(b.total_amount || 0).toFixed(0)}`,
-            location: b.vehicles?.location || 'miami',
+            description: `${customerName} booked ${vehicleName} for $${Number(b.total_value || b.total_amount || 0).toFixed(0)}`,
+            location: b.vehicles?.location || 'Miami',
             timeAgo,
             status: b.status,
-            amount: `$${Number(b.total_amount || 0).toFixed(0)}`
+            amount: `$${Number(b.total_value || b.total_amount || 0).toFixed(0)}`
           };
         }) || [];
 
@@ -433,7 +473,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
 
       case "getFleetMetrics": {
         const { timeframe, location } = args;
-        console.log(`[getFleetMetrics] User: ${userId}, Timeframe: ${timeframe}, Location: ${location || 'all'}`);
+        console.log(`[getFleetMetrics] Team: ${teamId}, Timeframe: ${timeframe}, Location: ${location || 'all'}`);
         
         let dateFilter = new Date();
         
@@ -443,15 +483,32 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         else if (timeframe === 'year') dateFilter.setFullYear(dateFilter.getFullYear() - 1);
 
         // Get vehicles with optional location filter
-        let vehicleQuery = supabase.from('vehicles').select('*').or(userFilter);
-        if (location && location !== 'all') {
-          vehicleQuery = vehicleQuery.eq('location', location);
+        let vehicleQuery = supabase.from('vehicles').select('*');
+        if (teamId) {
+          vehicleQuery = vehicleQuery.eq('team_id', teamId);
         }
+        if (location && location !== 'all') {
+          vehicleQuery = vehicleQuery.ilike('location', `%${location}%`);
+        }
+        
+        // Get bookings with team filter
+        let bookingsQuery = supabase.from('bookings').select('*, vehicles(location)');
+        if (teamId) {
+          bookingsQuery = bookingsQuery.eq('team_id', teamId);
+        }
+        bookingsQuery = bookingsQuery.gte('created_at', dateFilter.toISOString());
+        
+        // Get revenue bookings with team filter
+        let revenueQuery = supabase.from('bookings').select('total_value, vehicles(location)');
+        if (teamId) {
+          revenueQuery = revenueQuery.eq('team_id', teamId);
+        }
+        revenueQuery = revenueQuery.eq('status', 'completed').gte('created_at', dateFilter.toISOString());
         
         const [vehiclesResult, bookingsResult, revenueResult] = await Promise.all([
           vehicleQuery,
-          supabase.from('bookings').select('*, vehicles(location)').or(userFilter).gte('created_at', dateFilter.toISOString()),
-          supabase.from('bookings').select('total_amount, vehicles(location)').or(userFilter).eq('status', 'completed').gte('created_at', dateFilter.toISOString())
+          bookingsQuery,
+          revenueQuery
         ]);
 
         const vehicles = vehiclesResult.data || [];
@@ -460,11 +517,11 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         
         // Filter bookings by location if specified
         if (location && location !== 'all') {
-          bookings = bookings.filter((b: any) => b.vehicles?.location?.toLowerCase() === location.toLowerCase());
-          revenue = revenue.filter((b: any) => b.vehicles?.location?.toLowerCase() === location.toLowerCase());
+          bookings = bookings.filter((b: any) => b.vehicles?.location?.toLowerCase().includes(location.toLowerCase()));
+          revenue = revenue.filter((b: any) => b.vehicles?.location?.toLowerCase().includes(location.toLowerCase()));
         }
 
-        const totalRevenue = revenue.reduce((sum: number, b: any) => sum + Number(b.total_amount || 0), 0);
+        const totalRevenue = revenue.reduce((sum: number, b: any) => sum + Number(b.total_value || 0), 0);
         const activeBookings = bookings.filter((b: any) => b.status === 'active' || b.status === 'confirmed').length;
         const avgUtilization = vehicles.length > 0 
           ? vehicles.reduce((sum, v) => sum + ((v.utilization || 70) || 0), 0) / vehicles.length 
@@ -485,19 +542,24 @@ async function executeFunction(functionName: string, args: Record<string, unknow
           timeframe,
           peakSeason: peakSeason?.name || null,
           surgePricing: peakSeason?.surge || 1.0,
-          summary: `${location ? `${location} fleet` : 'Your fleet'} has ${vehicles.length} vehicles with ${activeBookings} active bookings and $${totalRevenue.toFixed(0)} in revenue for the ${timeframe}.${peakSeason ? ` Currently in ${peakSeason.name} with ${((peakSeason.surge - 1) * 100).toFixed(0)}% surge pricing recommended.` : ''}`
+          summary: `${location ? `${location} fleet` : 'Your fleet'} has ${vehicles.length} vehicles with ${activeBookings} active bookings and $${totalRevenue.toFixed(0)} in revenue for the ${timeframe || 'period'}.${peakSeason ? ` Currently in ${peakSeason.name} with ${((peakSeason.surge - 1) * 100).toFixed(0)}% surge pricing recommended.` : ''}`
         };
       }
 
       case "getLocationMetrics": {
         const { location } = args;
-        console.log(`[getLocationMetrics] Location: ${location || 'all'}`);
+        console.log(`[getLocationMetrics] Team: ${teamId}, Location: ${location || 'all'}`);
         
         // Get all vehicles
-        const { data: allVehicles } = await supabase
+        let vehicleQuery = supabase
           .from('vehicles')
-          .select('*')
-          .or(userFilter);
+          .select('*');
+        
+        if (teamId) {
+          vehicleQuery = vehicleQuery.eq('team_id', teamId);
+        }
+        
+        const { data: allVehicles } = await vehicleQuery;
         
         if (!allVehicles || allVehicles.length === 0) {
           return {
@@ -521,14 +583,14 @@ async function executeFunction(functionName: string, args: Record<string, unknow
             };
           }
           locationStats[loc].vehicleCount++;
-          locationStats[loc].totalRevenue += Number(vehicle.daily_rate || 0) * 30; // Estimate monthly revenue
-          locationStats[loc].totalUtilization += 70; // Default utilization estimate
-          locationStats[loc].avgRate += Number(vehicle.daily_rate || 0);
+          locationStats[loc].totalRevenue += Number(vehicle.revenue || 0);
+          locationStats[loc].totalUtilization += vehicle.utilization || 70;
+          locationStats[loc].avgRate += Number(vehicle.current_rate || vehicle.daily_rate || 0);
           locationStats[loc].vehicles.push({
             name: `${vehicle.year} ${vehicle.make} ${vehicle.model}`,
             status: vehicle.status,
-            utilization: 70, // Default utilization
-            rate: vehicle.daily_rate
+            utilization: vehicle.utilization || 70,
+            rate: vehicle.current_rate || vehicle.daily_rate
           });
         }
         
@@ -540,11 +602,15 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         }
         
         // Get bookings by location
-        const { data: bookings } = await supabase
+        let bookingsQuery = supabase
           .from('bookings')
-          .select('*, vehicles(location)')
-          .or(userFilter)
-          .in('status', ['active', 'confirmed', 'pending']);
+          .select('*, vehicles(location)');
+        
+        if (teamId) {
+          bookingsQuery = bookingsQuery.eq('team_id', teamId);
+        }
+        
+        const { data: bookings } = await bookingsQuery.in('status', ['active', 'confirmed', 'pending']);
         
         for (const booking of (bookings || [])) {
           const loc = booking.vehicles?.location || 'Miami';
@@ -561,20 +627,23 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         }
         
         // If specific location requested
-        if (location && location !== 'all' && locationStats[location]) {
-          const stats = locationStats[location];
-          return {
-            location: stats.location,
-            vehicleCount: stats.vehicleCount,
-            totalRevenue: `$${stats.totalRevenue.toFixed(0)}`,
-            avgUtilization: `${stats.avgUtilization.toFixed(0)}%`,
-            avgRate: `$${stats.avgRate.toFixed(0)}`,
-            activeBookings: stats.activeBookings || 0,
-            peakSeason: stats.peakSeason,
-            surgePricing: stats.surgePricing,
-            topVehicles: stats.vehicles.slice(0, 5),
-            summary: `${location} has ${stats.vehicleCount} vehicles with $${stats.totalRevenue.toFixed(0)} total revenue, ${stats.avgUtilization.toFixed(0)}% average utilization, and ${stats.activeBookings || 0} active bookings.${stats.peakSeason ? ` Currently in ${stats.peakSeason} peak season.` : ''}`
-          };
+        if (location && location !== 'all') {
+          const matchingLoc = Object.keys(locationStats).find(l => l.toLowerCase().includes(location.toLowerCase()));
+          if (matchingLoc && locationStats[matchingLoc]) {
+            const stats = locationStats[matchingLoc];
+            return {
+              location: stats.location,
+              vehicleCount: stats.vehicleCount,
+              totalRevenue: `$${stats.totalRevenue.toFixed(0)}`,
+              avgUtilization: `${stats.avgUtilization.toFixed(0)}%`,
+              avgRate: `$${stats.avgRate.toFixed(0)}`,
+              activeBookings: stats.activeBookings || 0,
+              peakSeason: stats.peakSeason,
+              surgePricing: stats.surgePricing,
+              topVehicles: stats.vehicles.slice(0, 5),
+              summary: `${stats.location} has ${stats.vehicleCount} vehicles with $${stats.totalRevenue.toFixed(0)} total revenue, ${stats.avgUtilization.toFixed(0)}% average utilization, and ${stats.activeBookings || 0} active bookings.${stats.peakSeason ? ` Currently in ${stats.peakSeason} peak season.` : ''}`
+            };
+          }
         }
         
         // Return all locations
@@ -596,7 +665,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
 
       case "getPaymentSummary": {
         const { status, timeframe, location } = args;
-        console.log(`[getPaymentSummary] Status: ${status || 'all'}, Timeframe: ${timeframe || 'all'}, Location: ${location || 'all'}`);
+        console.log(`[getPaymentSummary] Team: ${teamId}, Status: ${status || 'all'}, Timeframe: ${timeframe || 'all'}, Location: ${location || 'all'}`);
         
         let dateFilter = new Date();
         if (timeframe === 'today') dateFilter.setHours(0, 0, 0, 0);
@@ -605,23 +674,18 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         else if (timeframe === 'year') dateFilter.setFullYear(dateFilter.getFullYear() - 1);
         else dateFilter = new Date(0); // All time
         
-        // Get revenue records as payment proxy (since payments table may be empty)
-        const { data: revenueData, error } = await supabase
-          .from('revenue')
-          .select('*, bookings(booking_number, vehicles(location, vehicle_name, make, model, year))')
-          .or(userFilter)
-          .gte('date_earned', dateFilter.toISOString())
-          .order('date_earned', { ascending: false });
+        // Get payments with team filter
+        let paymentsQuery = supabase
+          .from('payments')
+          .select('*, bookings(vehicles(location))');
         
-        // Also get bookings with payment info
-        const { data: bookingsWithPayments } = await supabase
-          .from('bookings')
-          .select('*, vehicles(location, vehicle_name, make, model, year), customers(first_name, last_name)')
-          .or(userFilter)
+        if (teamId) {
+          paymentsQuery = paymentsQuery.eq('team_id', teamId);
+        }
+        
+        const { data: payments, error } = await paymentsQuery
           .gte('created_at', dateFilter.toISOString())
           .order('created_at', { ascending: false });
-        
-        const payments = bookingsWithPayments || [];
         
         if (error) {
           console.error('[getPaymentSummary] Database error:', error);
@@ -630,10 +694,10 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         
         let filteredPayments = payments || [];
         
-        // Filter by location
+        // Filter by location if specified
         if (location && location !== 'all') {
           filteredPayments = filteredPayments.filter((p: any) => 
-            p.vehicles?.location?.toLowerCase() === location.toLowerCase()
+            p.bookings?.vehicles?.location?.toLowerCase().includes(location.toLowerCase())
           );
         }
         
@@ -642,52 +706,28 @@ async function executeFunction(functionName: string, args: Record<string, unknow
           filteredPayments = filteredPayments.filter((p: any) => p.payment_status === status);
         }
         
-        // Calculate summaries from booking amounts
-        const totalAmount = filteredPayments.reduce((sum, p) => sum + Number(p.total_amount || 0), 0);
-        const byStatus = filteredPayments.reduce((acc, p) => {
-          const s = p.payment_status || 'unknown';
-          acc[s] = (acc[s] || 0) + Number(p.total_amount || 0);
-          return acc;
-        }, {} as Record<string, number>);
+        // Calculate summaries
+        const totalAmount = filteredPayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+        const completedPayments = filteredPayments.filter(p => p.payment_status === 'completed');
+        const pendingPayments = filteredPayments.filter(p => p.payment_status === 'pending');
+        
+        const completedAmount = completedPayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+        const pendingAmount = pendingPayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
         
         const byMethod = filteredPayments.reduce((acc, p) => {
           const m = p.payment_method || 'unknown';
-          acc[m] = (acc[m] || 0) + Number(p.total_amount || 0);
+          acc[m] = (acc[m] || 0) + Number(p.amount || 0);
           return acc;
         }, {} as Record<string, number>);
-        
-        const byType = filteredPayments.reduce((acc, p) => {
-          const t = p.status || 'unknown';
-          acc[t] = (acc[t] || 0) + Number(p.total_amount || 0);
-          return acc;
-        }, {} as Record<string, number>);
-        
-        // Get outstanding (pending) amount
-        const pendingAmount = byStatus['pending'] || 0;
-        const completedAmount = byStatus['paid'] || 0;
-        
-        // Recent transactions
-        const recentPayments = filteredPayments.slice(0, 5).map(p => {
-          const customerName = p.customers ? `${p.customers.first_name} ${p.customers.last_name}` : 'Unknown';
-          return {
-            customer: customerName,
-            vehicle: p.vehicles ? `${p.vehicles.year} ${p.vehicles.make} ${p.vehicles.model}` : 'Unknown',
-            amount: `$${Number(p.total_amount || 0).toFixed(0)}`,
-            method: p.payment_method,
-            status: p.payment_status,
-            date: new Date(p.created_at).toLocaleDateString()
-          };
-        });
         
         return {
           totalPayments: filteredPayments.length,
           totalAmount: `$${totalAmount.toFixed(0)}`,
           completedAmount: `$${completedAmount.toFixed(0)}`,
           pendingAmount: `$${pendingAmount.toFixed(0)}`,
-          byStatus: Object.entries(byStatus).map(([s, a]) => ({ status: s, amount: `$${a.toFixed(0)}` })),
+          completedCount: completedPayments.length,
+          pendingCount: pendingPayments.length,
           byMethod: Object.entries(byMethod).map(([m, a]) => ({ method: m, amount: `$${a.toFixed(0)}` })),
-          byType: Object.entries(byType).map(([t, a]) => ({ type: t, amount: `$${a.toFixed(0)}` })),
-          recentPayments,
           timeframe: timeframe || 'all time',
           location: location || 'all',
           summary: `${timeframe ? `This ${timeframe}` : 'Total'} payments${location ? ` in ${location}` : ''}: $${totalAmount.toFixed(0)} across ${filteredPayments.length} transactions. Completed: $${completedAmount.toFixed(0)}, Pending: $${pendingAmount.toFixed(0)}.`
@@ -697,11 +737,16 @@ async function executeFunction(functionName: string, args: Record<string, unknow
       case "getVehicleDetails": {
         const { vehicleName, includeBookings } = args;
         
-        const { data: vehicle } = await supabase
+        let vehicleQuery = supabase
           .from('vehicles')
-          .select('*')
-          .or(userFilter)
-          .or(`vehicle_name.ilike.%${vehicleName}%,make.ilike.%${vehicleName}%,model.ilike.%${vehicleName}%`)
+          .select('*');
+        
+        if (teamId) {
+          vehicleQuery = vehicleQuery.eq('team_id', teamId);
+        }
+        
+        const { data: vehicle } = await vehicleQuery
+          .or(`name.ilike.%${vehicleName}%,make.ilike.%${vehicleName}%,model.ilike.%${vehicleName}%`)
           .limit(1)
           .maybeSingle();
 
@@ -720,12 +765,12 @@ async function executeFunction(functionName: string, args: Record<string, unknow
             .order('start_date', { ascending: false })
             .limit(5);
           bookingsData = bookings?.map(b => {
-            const customerName = b.customers ? `${b.customers.first_name} ${b.customers.last_name}` : 'Unknown';
+            const customerName = b.customers ? `${b.customers.first_name} ${b.customers.last_name}` : b.customer_name || 'Unknown';
             return {
               customer: customerName,
               dates: `${new Date(b.start_date).toLocaleDateString()} to ${new Date(b.end_date).toLocaleDateString()}`,
               status: b.status,
-              amount: `$${Number(b.total_amount || 0).toFixed(0)}`
+              amount: `$${Number(b.total_value || b.total_amount || 0).toFixed(0)}`
             };
           });
         }
@@ -734,28 +779,32 @@ async function executeFunction(functionName: string, args: Record<string, unknow
           vehicle: {
             name: fullName,
             status: vehicle.status,
-            location: vehicle.location || 'miami',
-            rate: `$${vehicle.daily_rate} per day`,
-            suggestedRate: null,
-            utilization: `70% utilization`, // Default estimate
-            revenue: `$${Number(vehicle.daily_rate * 20 || 0).toFixed(0)} estimated monthly`,
+            location: vehicle.location || 'Miami',
+            rate: `$${vehicle.current_rate || vehicle.daily_rate} per day`,
+            suggestedRate: vehicle.suggested_rate ? `$${vehicle.suggested_rate}` : null,
+            utilization: `${vehicle.utilization || 70}% utilization`,
+            revenue: `$${Number(vehicle.revenue || 0).toFixed(0)} total revenue`,
             licensePlate: vehicle.license_plate,
             vin: vehicle.vin
           },
           bookings: bookingsData,
-          summary: `${fullName} in ${vehicle.location || 'miami'} is currently ${vehicle.status}, priced at $${vehicle.daily_rate} per day.`
+          summary: `${fullName} in ${vehicle.location || 'Miami'} is currently ${vehicle.status}, priced at $${vehicle.current_rate || vehicle.daily_rate} per day with ${vehicle.utilization || 70}% utilization.`
         };
       }
 
       case "getCustomerProfile": {
         const { customerName, includeHistory } = args;
         
-        // Search by first or last name
-        const { data: customers } = await supabase
+        let customerQuery = supabase
           .from('customers')
-          .select('*')
-          .or(userFilter)
-          .or(`first_name.ilike.%${customerName}%,last_name.ilike.%${customerName}%`)
+          .select('*');
+        
+        if (teamId) {
+          customerQuery = customerQuery.eq('team_id', teamId);
+        }
+        
+        const { data: customers } = await customerQuery
+          .or(`full_name.ilike.%${customerName}%,email.ilike.%${customerName}%`)
           .limit(1);
         
         const customer = customers?.[0];
@@ -765,31 +814,30 @@ async function executeFunction(functionName: string, args: Record<string, unknow
           summary: `I couldn't find a customer matching "${customerName}".`
         };
 
-        const fullName = `${customer.first_name} ${customer.last_name}`;
+        const fullName = customer.full_name;
         
         let bookingsData = null;
-        let totalBookings = 0;
-        let lifetimeValue = 0;
+        let totalBookings = customer.total_bookings || 0;
+        let lifetimeValue = customer.lifetime_value || 0;
         
-        // Always get booking history to calculate stats
-        const { data: bookings } = await supabase
-          .from('bookings')
-          .select('*, vehicles(vehicle_name, make, model, year, location)')
-          .eq('customer_id', customer.id)
-          .order('start_date', { ascending: false })
-          .limit(10);
-        
-        if (bookings) {
-          totalBookings = bookings.length;
-          lifetimeValue = bookings.reduce((sum, b) => sum + Number(b.total_amount || 0), 0);
+        if (includeHistory) {
+          const { data: bookings } = await supabase
+            .from('bookings')
+            .select('*, vehicles(make, model, year, location)')
+            .eq('customer_id', customer.id)
+            .order('start_date', { ascending: false })
+            .limit(10);
           
-          if (includeHistory) {
+          if (bookings) {
+            totalBookings = bookings.length;
+            lifetimeValue = bookings.reduce((sum, b) => sum + Number(b.total_value || b.total_amount || 0), 0);
+            
             bookingsData = bookings.map(b => ({
               vehicle: b.vehicles ? `${b.vehicles.year} ${b.vehicles.make} ${b.vehicles.model}` : 'Unknown',
-              location: b.vehicles?.location || 'miami',
+              location: b.vehicles?.location || 'Miami',
               dates: `${new Date(b.start_date).toLocaleDateString()} to ${new Date(b.end_date).toLocaleDateString()}`,
               status: b.status,
-              total: `$${Number(b.total_amount || 0).toFixed(0)}`
+              total: `$${Number(b.total_value || b.total_amount || 0).toFixed(0)}`
             }));
           }
         }
@@ -799,13 +847,12 @@ async function executeFunction(functionName: string, args: Record<string, unknow
             name: fullName,
             email: customer.email,
             phone: customer.phone,
-            tier: customer.customer_tier,
+            status: customer.customer_status,
             totalBookings,
-            lifetimeValue: `$${lifetimeValue.toFixed(0)}`,
-            company: customer.company_name
+            lifetimeValue: `$${lifetimeValue.toFixed(0)}`
           },
           bookings: bookingsData,
-          summary: `${fullName} is a ${customer.customer_tier || 'regular'} customer with ${totalBookings} bookings and $${lifetimeValue.toFixed(0)} lifetime value.`
+          summary: `${fullName} is a ${customer.customer_status || 'regular'} customer with ${totalBookings} bookings and $${lifetimeValue.toFixed(0)} lifetime value.`
         };
       }
 
@@ -814,14 +861,17 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         
         let vehicleQuery = supabase
           .from('vehicles')
-          .select('id, name, make, model, year, status, location, current_rate')
-          .or(userFilter);
+          .select('id, name, make, model, year, status, location, current_rate');
+        
+        if (teamId) {
+          vehicleQuery = vehicleQuery.eq('team_id', teamId);
+        }
         
         if (vehicleName) {
           vehicleQuery = vehicleQuery.or(`name.ilike.%${vehicleName}%,make.ilike.%${vehicleName}%,model.ilike.%${vehicleName}%`);
         }
         if (location) {
-          vehicleQuery = vehicleQuery.eq('location', location);
+          vehicleQuery = vehicleQuery.ilike('location', `%${location}%`);
         }
         
         const { data: vehicles } = await vehicleQuery;
@@ -845,7 +895,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
           availabilityResults.push({
             vehicle: `${vehicle.year} ${vehicle.make} ${vehicle.model}`,
             location: vehicle.location,
-            rate: `$${vehicle.daily_rate}`,
+            rate: `$${vehicle.current_rate}`,
             available: !conflicts || conflicts.length === 0,
             conflicts: conflicts?.map(c => ({
               dates: `${new Date(c.start_date).toLocaleDateString()} to ${new Date(c.end_date).toLocaleDateString()}`,
@@ -875,34 +925,36 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         else if (timeframe === 'week') dateFilter.setDate(dateFilter.getDate() - 7);
         else if (timeframe === 'month') dateFilter.setMonth(dateFilter.getMonth() - 1);
         else if (timeframe === 'year') dateFilter.setFullYear(dateFilter.getFullYear() - 1);
+        else dateFilter = new Date(0);
 
         let query = supabase
           .from('bookings')
-          .select('total_value, daily_rate, vehicles(vehicle_name, make, model, year, location)')
-          .or(userFilter)
+          .select('*, vehicles(make, model, year, location)');
+        
+        if (teamId) {
+          query = query.eq('team_id', teamId);
+        }
+        
+        const { data: bookings } = await query
           .eq('status', 'completed')
           .gte('created_at', dateFilter.toISOString());
-
-        const { data: bookings } = await query;
         
         let filteredBookings = bookings || [];
         
-        // Filter by location
         if (location && location !== 'all') {
           filteredBookings = filteredBookings.filter((b: any) => 
-            b.vehicles?.location?.toLowerCase() === location.toLowerCase()
+            b.vehicles?.location?.toLowerCase().includes(location.toLowerCase())
           );
         }
         
-        // Filter by vehicle name
         if (vehicleName) {
           filteredBookings = filteredBookings.filter((b: any) => {
-            const name = b.vehicles ? `${b.vehicles.make} ${b.vehicles.model}`.toLowerCase() : '';
+            const name = `${b.vehicles?.make} ${b.vehicles?.model}`.toLowerCase();
             return name.includes(vehicleName.toLowerCase());
           });
         }
         
-        const totalRevenue = filteredBookings.reduce((sum: number, b: any) => sum + Number(b.total_amount || 0), 0);
+        const totalRevenue = filteredBookings.reduce((sum: number, b: any) => sum + Number(b.total_value || b.total_amount || 0), 0);
         const avgDailyRate = filteredBookings.length > 0 
           ? filteredBookings.reduce((sum: number, b: any) => sum + Number(b.daily_rate || 0), 0) / filteredBookings.length 
           : 0;
@@ -920,57 +972,46 @@ async function executeFunction(functionName: string, args: Record<string, unknow
       case "getTopPerformers": {
         const { metric, limit = 5, location } = args;
         
-        if (metric === 'revenue') {
+        if (metric === 'revenue' || metric === 'utilization') {
           let query = supabase
             .from('vehicles')
-            .select('name, make, model, year, revenue, location')
-            .or(userFilter);
+            .select('name, make, model, year, revenue, utilization, location');
           
-          if (location && location !== 'all') {
-            query = query.eq('location', location);
+          if (teamId) {
+            query = query.eq('team_id', teamId);
           }
           
-          const { data: vehicles } = await query.order('revenue', { ascending: false }).limit(limit);
+          if (location && location !== 'all') {
+            query = query.ilike('location', `%${location}%`);
+          }
+          
+          const { data: vehicles } = await query
+            .order(metric === 'utilization' ? 'utilization' : 'revenue', { ascending: false })
+            .limit(limit);
           
           const performers = vehicles?.map(v => ({
             name: `${v.year} ${v.make} ${v.model}`,
             location: v.location,
-            revenue: `$${Number(v.revenue || 0).toFixed(0)}`
+            revenue: `$${Number(v.revenue || 0).toFixed(0)}`,
+            utilization: `${v.utilization || 70}%`
           })) || [];
           
           return { 
-            metric: 'revenue', 
+            metric, 
             performers,
-            summary: `Top ${performers.length} vehicles by revenue${location ? ` in ${location}` : ''}: ${performers.map(p => `${p.name} ($${Number(p.revenue.replace('$', '')).toFixed(0)})`).join(', ')}.`
-          };
-        } else if (metric === 'utilization') {
-          let query = supabase
-            .from('vehicles')
-            .select('name, make, model, year, utilization, location')
-            .or(userFilter);
-          
-          if (location && location !== 'all') {
-            query = query.eq('location', location);
-          }
-          
-          const { data: vehicles } = await query.order('utilization', { ascending: false }).limit(limit);
-          
-          const performers = vehicles?.map(v => ({
-            name: `${v.year} ${v.make} ${v.model}`,
-            location: v.location,
-            utilization: `${(v.utilization || 70) || 0}%`
-          })) || [];
-          
-          return { 
-            metric: 'utilization', 
-            performers,
-            summary: `Top ${performers.length} vehicles by utilization${location ? ` in ${location}` : ''}: ${performers.map(p => `${p.name} (${p.utilization})`).join(', ')}.`
+            summary: `Top ${performers.length} vehicles by ${metric}${location ? ` in ${location}` : ''}: ${performers.map(p => `${p.name} (${metric === 'revenue' ? p.revenue : p.utilization})`).join(', ')}.`
           };
         } else {
-          const { data: customers } = await supabase
+          // Top customers
+          let query = supabase
             .from('customers')
-            .select('full_name, total_bookings, lifetime_value')
-            .or(userFilter)
+            .select('full_name, total_bookings, lifetime_value');
+          
+          if (teamId) {
+            query = query.eq('team_id', teamId);
+          }
+          
+          const { data: customers } = await query
             .order('lifetime_value', { ascending: false })
             .limit(limit);
           
@@ -992,8 +1033,11 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         const { status, daysRange, location } = args;
         let query = supabase
           .from('bookings')
-          .select('*, vehicles(vehicle_name, make, model, year, location), customers(first_name, last_name)')
-          .or(userFilter);
+          .select('*, vehicles(make, model, year, location), customers(first_name, last_name)');
+        
+        if (teamId) {
+          query = query.eq('team_id', teamId);
+        }
 
         if (status) query = query.eq('status', status);
         
@@ -1008,23 +1052,23 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         let filteredBookings = bookings || [];
         if (location && location !== 'all') {
           filteredBookings = filteredBookings.filter((b: any) => 
-            b.vehicles?.location?.toLowerCase() === location.toLowerCase()
+            b.vehicles?.location?.toLowerCase().includes(location.toLowerCase())
           );
         }
         
         const bookingList = filteredBookings.map(b => {
           const vehicleName = b.vehicles ? `${b.vehicles.year} ${b.vehicles.make} ${b.vehicles.model}` : 'vehicle';
           return {
-            customer: b.customers ? `${b.customers.first_name} ${b.customers.last_name}` : 'Unknown',
+            customer: b.customers ? `${b.customers.first_name} ${b.customers.last_name}` : b.customer_name || 'Unknown',
             vehicle: vehicleName,
             location: b.vehicles?.location || 'Miami',
             dates: `${new Date(b.start_date).toLocaleDateString()} to ${new Date(b.end_date).toLocaleDateString()}`,
             status: b.status,
-            total: `$${Number(b.total_amount || 0).toFixed(0)}`
+            total: `$${Number(b.total_value || b.total_amount || 0).toFixed(0)}`
           };
         });
 
-        const totalValue = filteredBookings.reduce((sum, b) => sum + Number(b.total_amount || 0), 0);
+        const totalValue = filteredBookings.reduce((sum, b) => sum + Number(b.total_value || b.total_amount || 0), 0);
 
         return { 
           count: filteredBookings.length,
@@ -1037,9 +1081,12 @@ async function executeFunction(functionName: string, args: Record<string, unknow
       case "getDamageReports": {
         const { status, location } = args;
         let query = supabase
-          .from('damage_reports')
-          .select('*, vehicles(vehicle_name, make, model, year, location)')
-          .or(userFilter);
+          .from('damage_claims')
+          .select('*, vehicles(make, model, year, location)');
+        
+        if (teamId) {
+          query = query.eq('team_id', teamId);
+        }
 
         if (status && status !== 'all') query = query.eq('claim_status', status);
 
@@ -1048,7 +1095,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         let filteredClaims = claims || [];
         if (location && location !== 'all') {
           filteredClaims = filteredClaims.filter((c: any) => 
-            c.vehicles?.location?.toLowerCase() === location.toLowerCase()
+            c.vehicles?.location?.toLowerCase().includes(location.toLowerCase())
           );
         }
         
@@ -1073,10 +1120,15 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         const futureDate = new Date();
         futureDate.setDate(futureDate.getDate() + daysAhead);
 
-        const { data: maintenance } = await supabase
-          .from('maintenance')
-          .select('*, vehicles(vehicle_name, make, model, year, location)')
-          .or(userFilter)
+        let query = supabase
+          .from('maintenance_schedules')
+          .select('*, vehicles(make, model, year, location)');
+        
+        if (teamId) {
+          query = query.eq('team_id', teamId);
+        }
+        
+        const { data: maintenance } = await query
           .lte('scheduled_date', futureDate.toISOString())
           .gte('scheduled_date', new Date().toISOString())
           .order('scheduled_date', { ascending: true });
@@ -1084,7 +1136,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         let filteredMaintenance = maintenance || [];
         if (location && location !== 'all') {
           filteredMaintenance = filteredMaintenance.filter((m: any) => 
-            m.vehicles?.location?.toLowerCase() === location.toLowerCase()
+            m.vehicles?.location?.toLowerCase().includes(location.toLowerCase())
           );
         }
         
@@ -1107,10 +1159,15 @@ async function executeFunction(functionName: string, args: Record<string, unknow
       case "getCustomerLifetimeValue": {
         const { customerName } = args;
         
-        const { data: customer } = await supabase
+        let query = supabase
           .from('customers')
-          .select('full_name, lifetime_value, total_bookings, customer_status')
-          .or(userFilter)
+          .select('full_name, lifetime_value, total_bookings, customer_status');
+        
+        if (teamId) {
+          query = query.eq('team_id', teamId);
+        }
+        
+        const { data: customer } = await query
           .ilike('full_name', `%${customerName}%`)
           .maybeSingle();
 
@@ -1133,6 +1190,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
       case "getVaultDocuments": {
         const { category, status } = args;
         
+        // Mock documents for now
         const mockDocs = [
           { name: "McLaren 720S Insurance", category: "insurance", status: "active", expires: "2025-03-15" },
           { name: "Ferrari SF90 Registration", category: "registration", status: "active", expires: "2025-06-30" },
@@ -1148,43 +1206,26 @@ async function executeFunction(functionName: string, args: Record<string, unknow
       case "getDemandForecast": {
         const { city = 'miami', days = 14, location } = args;
         const effectiveLocation = location || city;
-        console.log(`[getDemandForecast] Location: ${effectiveLocation}, Days: ${days}`);
+        console.log(`[getDemandForecast] Team: ${teamId}, Location: ${effectiveLocation}, Days: ${days}`);
         
         // Check for peak season
         const peakSeason = getCurrentPeakSeason(effectiveLocation);
         
-        // Call the PredictHQ events edge function
-        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-        const predicthqKey = Deno.env.get('PREDICTHQ_API_KEY');
-        
-        let events: any[] = [];
         let demandMultiplier = peakSeason?.surge || 1.0;
         
-        if (predicthqKey) {
-          try {
-            const response = await fetch(`${supabaseUrl}/functions/v1/predicthq-events`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ city: effectiveLocation, days })
-            });
-            const data = await response.json();
-            events = data.events || [];
-            demandMultiplier = Math.max(demandMultiplier, data.demandMultiplier || 1.0);
-          } catch (e) {
-            console.error('Error fetching events:', e);
-          }
-        }
-        
-        // Get historical bookings for demand context
+        // Get upcoming bookings for demand context
         let bookingsQuery = supabase
           .from('bookings')
-          .select('start_date, total_value, vehicles(location)')
-          .or(userFilter)
+          .select('start_date, total_value, vehicles(location)');
+        
+        if (teamId) {
+          bookingsQuery = bookingsQuery.eq('team_id', teamId);
+        }
+        
+        const { data: bookings } = await bookingsQuery
           .gte('start_date', new Date().toISOString())
           .order('start_date', { ascending: true })
           .limit(20);
-        
-        const { data: bookings } = await bookingsQuery;
         
         let filteredBookings = bookings || [];
         if (effectiveLocation && effectiveLocation !== 'all') {
@@ -1194,45 +1235,39 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         }
         
         const upcomingBookings = filteredBookings.length;
-        const upcomingRevenue = filteredBookings.reduce((sum, b) => sum + Number(b.total_amount || 0), 0);
+        const upcomingRevenue = filteredBookings.reduce((sum, b) => sum + Number(b.total_value || 0), 0);
         
         return {
           location: effectiveLocation,
           forecastDays: days,
           demandMultiplier,
           peakSeason: peakSeason?.name || null,
-          upcomingEvents: events.slice(0, 5).map((e: any) => ({
-            name: e.name,
-            date: e.date,
-            category: e.category,
-            attendance: e.attendance
-          })),
-          totalEvents: events.length,
           upcomingBookings,
           upcomingRevenue: `$${upcomingRevenue.toFixed(0)}`,
           summary: peakSeason 
             ? `${effectiveLocation} is currently in ${peakSeason.name} peak season with a ${((peakSeason.surge - 1) * 100).toFixed(0)}% surge multiplier. You have ${upcomingBookings} bookings worth $${upcomingRevenue.toFixed(0)} coming up.`
-            : events.length > 0 
-              ? `For ${effectiveLocation}, there are ${events.length} upcoming events with a ${demandMultiplier.toFixed(2)}x demand multiplier. Top events include ${events.slice(0, 2).map((e: any) => e.name).join(' and ')}. You have ${upcomingBookings} bookings worth $${upcomingRevenue.toFixed(0)} coming up.`
-              : `No major events found for ${effectiveLocation} in the next ${days} days. You have ${upcomingBookings} bookings worth $${upcomingRevenue.toFixed(0)} coming up.`
+            : `Standard demand period for ${effectiveLocation}. You have ${upcomingBookings} bookings worth $${upcomingRevenue.toFixed(0)} coming up.`
         };
       }
 
       case "getPricingRecommendation": {
         const { vehicleName, location } = args;
-        console.log(`[getPricingRecommendation] Vehicle: ${vehicleName}, Location: ${location}`);
+        console.log(`[getPricingRecommendation] Team: ${teamId}, Vehicle: ${vehicleName}, Location: ${location}`);
         
         // Find the vehicle
         let vehicleQuery = supabase
           .from('vehicles')
-          .select('*')
-          .or(userFilter);
+          .select('*');
+        
+        if (teamId) {
+          vehicleQuery = vehicleQuery.eq('team_id', teamId);
+        }
         
         if (vehicleName) {
           vehicleQuery = vehicleQuery.or(`name.ilike.%${vehicleName}%,make.ilike.%${vehicleName}%,model.ilike.%${vehicleName}%`);
         }
         if (location) {
-          vehicleQuery = vehicleQuery.eq('location', location);
+          vehicleQuery = vehicleQuery.ilike('location', `%${location}%`);
         }
         
         const { data: vehicle } = await vehicleQuery.maybeSingle();
@@ -1244,14 +1279,14 @@ async function executeFunction(functionName: string, args: Record<string, unknow
           };
         }
 
-        const currentRate = Number(vehicle.daily_rate);
-        const utilization = (vehicle.utilization || 70) || 0;
+        const currentRate = Number(vehicle.current_rate || vehicle.daily_rate);
+        const utilization = vehicle.utilization || 70;
         const vehicleLocation = vehicle.location || 'Miami';
         
         // Check for peak season
         const peakSeason = getCurrentPeakSeason(vehicleLocation);
         
-        // Calculate AI-style recommendation
+        // Calculate recommendation
         let suggestedRate = currentRate;
         const factors: string[] = [];
         
@@ -1268,13 +1303,6 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         if (peakSeason) {
           suggestedRate *= peakSeason.surge;
           factors.push(`${peakSeason.name} peak season (${((peakSeason.surge - 1) * 100).toFixed(0)}% surge)`);
-        } else {
-          // Basic seasonal adjustment
-          const month = new Date().getMonth();
-          if ([5, 6, 7, 11].includes(month)) {
-            suggestedRate *= 1.10;
-            factors.push('peak season premium');
-          }
         }
         
         // Use suggested_rate from DB if available
@@ -1306,15 +1334,18 @@ async function executeFunction(functionName: string, args: Record<string, unknow
 
       case "getFleetPricingOverview": {
         const { location } = args;
-        console.log(`[getFleetPricingOverview] User: ${userId}, Location: ${location || 'all'}`);
+        console.log(`[getFleetPricingOverview] Team: ${teamId}, Location: ${location || 'all'}`);
         
         let query = supabase
           .from('vehicles')
-          .select('*')
-          .or(userFilter);
+          .select('*');
+        
+        if (teamId) {
+          query = query.eq('team_id', teamId);
+        }
         
         if (location && location !== 'all') {
-          query = query.eq('location', location);
+          query = query.ilike('location', `%${location}%`);
         }
         
         const { data: vehicles } = await query;
@@ -1326,18 +1357,18 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         }
         
         const totalVehicles = vehicles.length;
-        const avgRate = vehicles.reduce((sum, v) => sum + Number(v.daily_rate), 0) / totalVehicles;
-        const avgUtilization = vehicles.reduce((sum, v) => sum + ((v.utilization || 70) || 0), 0) / totalVehicles;
+        const avgRate = vehicles.reduce((sum, v) => sum + Number(v.current_rate || v.daily_rate || 0), 0) / totalVehicles;
+        const avgUtilization = vehicles.reduce((sum, v) => sum + (v.utilization || 70), 0) / totalVehicles;
         const totalRevenue = vehicles.reduce((sum, v) => sum + Number(v.revenue || 0), 0);
         
         // Find under and over-utilized vehicles
-        const underUtilized = vehicles.filter(v => ((v.utilization || 70) || 0) < 50);
-        const highPerformers = vehicles.filter(v => ((v.utilization || 70) || 0) > 75);
+        const underUtilized = vehicles.filter(v => (v.utilization || 70) < 50);
+        const highPerformers = vehicles.filter(v => (v.utilization || 70) > 75);
         
         // Check for peak season
         const peakSeason = getCurrentPeakSeason(location);
         
-        // Group by location if showing all
+        // Group by location
         const byLocation = vehicles.reduce((acc, v) => {
           const loc = v.location || 'Miami';
           if (!acc[loc]) {
@@ -1345,7 +1376,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
           }
           acc[loc].count++;
           acc[loc].revenue += Number(v.revenue || 0);
-          acc[loc].avgRate += Number(v.daily_rate || 0);
+          acc[loc].avgRate += Number(v.current_rate || v.daily_rate || 0);
           return acc;
         }, {} as Record<string, { count: number; revenue: number; avgRate: number }>);
         
@@ -1372,8 +1403,8 @@ async function executeFunction(functionName: string, args: Record<string, unknow
           topPerformers: highPerformers.slice(0, 3).map(v => ({
             name: `${v.year} ${v.make} ${v.model}`,
             location: v.location,
-            utilization: `${(v.utilization || 70)}%`,
-            rate: `$${v.daily_rate}`
+            utilization: `${v.utilization || 70}%`,
+            rate: `$${v.current_rate || v.daily_rate}`
           })),
           recommendations: underUtilized.length > 0 
             ? `${underUtilized.length} vehicles are under-utilized and may benefit from price adjustments.`
@@ -1550,7 +1581,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
 
       case "getVehicleProfitLoss": {
         const { vehicleName, timeframe, location } = args;
-        console.log(`[getVehicleProfitLoss] Vehicle: ${vehicleName || 'all'}, Timeframe: ${timeframe || 'all'}, Location: ${location || 'all'}`);
+        console.log(`[getVehicleProfitLoss] Team: ${teamId}, Vehicle: ${vehicleName || 'all'}, Timeframe: ${timeframe || 'all'}, Location: ${location || 'all'}`);
         
         // Get date filter
         let dateFilter = new Date();
@@ -1563,14 +1594,17 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         // Get vehicles
         let vehicleQuery = supabase
           .from('vehicles')
-          .select('id, name, make, model, year, location, current_rate, utilization, revenue')
-          .or(userFilter);
+          .select('id, name, make, model, year, location, current_rate, utilization, revenue');
+        
+        if (teamId) {
+          vehicleQuery = vehicleQuery.eq('team_id', teamId);
+        }
         
         if (vehicleName) {
           vehicleQuery = vehicleQuery.or(`name.ilike.%${vehicleName}%,make.ilike.%${vehicleName}%,model.ilike.%${vehicleName}%`);
         }
         if (location && location !== 'all') {
-          vehicleQuery = vehicleQuery.eq('location', location);
+          vehicleQuery = vehicleQuery.ilike('location', `%${location}%`);
         }
         
         const { data: vehicles } = await vehicleQuery;
@@ -1590,7 +1624,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         
         // Get maintenance costs
         const { data: maintenance } = await supabase
-          .from('maintenance')
+          .from('maintenance_schedules')
           .select('vehicle_id, estimated_cost')
           .in('vehicle_id', vehicleIds)
           .eq('status', 'completed')
@@ -1601,7 +1635,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
           const vBookings = bookings?.filter((b: any) => b.vehicle_id === vehicle.id) || [];
           const vMaintenance = maintenance?.filter((m: any) => m.vehicle_id === vehicle.id) || [];
           
-          const revenue = vBookings.reduce((sum: number, b: any) => sum + Number(b.total_amount || 0), 0);
+          const revenue = vBookings.reduce((sum: number, b: any) => sum + Number(b.total_value || 0), 0);
           const expenses = vMaintenance.reduce((sum: number, m: any) => sum + Number(m.estimated_cost || 0), 0);
           const profit = revenue - expenses;
           
@@ -1612,7 +1646,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
             expenses: `$${expenses.toFixed(0)}`,
             profit: `$${profit.toFixed(0)}`,
             profitMargin: revenue > 0 ? `${((profit / revenue) * 100).toFixed(1)}%` : '0%',
-            utilization: `${(vehicle.utilization || 70) || 0}%`
+            utilization: `${vehicle.utilization || 70}%`
           };
         });
         
@@ -1635,13 +1669,18 @@ async function executeFunction(functionName: string, args: Record<string, unknow
 
       case "compareLocations": {
         const { locations: requestedLocations, timeframe } = args;
-        console.log(`[compareLocations] Locations: ${requestedLocations || 'all'}, Timeframe: ${timeframe || 'all'}`);
+        console.log(`[compareLocations] Team: ${teamId}, Locations: ${requestedLocations || 'all'}, Timeframe: ${timeframe || 'all'}`);
         
         // Get all vehicles grouped by location
-        const { data: vehicles } = await supabase
+        let vehicleQuery = supabase
           .from('vehicles')
-          .select('id, name, make, model, location, current_rate, utilization, revenue, status')
-          .or(userFilter);
+          .select('id, name, make, model, location, current_rate, utilization, revenue, status');
+        
+        if (teamId) {
+          vehicleQuery = vehicleQuery.eq('team_id', teamId);
+        }
+        
+        const { data: vehicles } = await vehicleQuery;
         
         if (!vehicles || vehicles.length === 0) {
           return { summary: "You don't have any vehicles to compare." };
@@ -1665,46 +1704,49 @@ async function executeFunction(functionName: string, args: Record<string, unknow
           }
           
           locationData[loc].vehicleCount++;
-          locationData[loc].totalUtilization += ((vehicle.utilization || 70) || 0);
-          locationData[loc].avgRate += Number(vehicle.daily_rate || 0);
+          locationData[loc].totalUtilization += (vehicle.utilization || 70);
           locationData[loc].totalRevenue += Number(vehicle.revenue || 0);
+          locationData[loc].avgRate += Number(vehicle.current_rate || 0);
           
           if (vehicle.status === 'available') locationData[loc].availableCount++;
-          else if (vehicle.status === 'rented') locationData[loc].rentedCount++;
+          if (vehicle.status === 'rented') locationData[loc].rentedCount++;
         }
         
-        // Format comparison
-        const comparison = Object.values(locationData).map((loc: any) => ({
+        // Calculate averages
+        const locations = Object.values(locationData).map((loc: any) => ({
           location: loc.location,
           vehicleCount: loc.vehicleCount,
-          availableVehicles: loc.availableCount,
-          rentedVehicles: loc.rentedCount,
-          totalRevenue: `$${loc.totalRevenue.toFixed(0)}`,
+          availableCount: loc.availableCount,
+          rentedCount: loc.rentedCount,
+          revenue: `$${loc.totalRevenue.toFixed(0)}`,
           avgUtilization: `${(loc.totalUtilization / loc.vehicleCount).toFixed(0)}%`,
-          avgDailyRate: `$${(loc.avgRate / loc.vehicleCount).toFixed(0)}`,
-          revenuePerVehicle: `$${(loc.totalRevenue / loc.vehicleCount).toFixed(0)}`
+          avgRate: `$${(loc.avgRate / loc.vehicleCount).toFixed(0)}`
         }));
         
-        comparison.sort((a: any, b: any) => parseFloat(b.totalRevenue.replace('$', '')) - parseFloat(a.totalRevenue.replace('$', '')));
-        
-        const winner = comparison[0];
+        // Sort by revenue
+        locations.sort((a, b) => parseFloat(b.revenue.replace('$', '')) - parseFloat(a.revenue.replace('$', '')));
         
         return {
-          locations: comparison,
-          winner: winner?.location,
-          summary: `Location Comparison: ${comparison.map(l => `${l.location}: ${l.vehicleCount} vehicles, ${l.totalRevenue} revenue, ${l.avgUtilization} utilization`).join(' | ')}. ${winner?.location} is leading with ${winner?.totalRevenue} in revenue.`
+          locations,
+          locationCount: locations.length,
+          summary: `Location comparison: ${locations.map(l => `${l.location} (${l.vehicleCount} vehicles, ${l.revenue} revenue, ${l.avgUtilization} utilization)`).join('; ')}.`
         };
       }
 
       case "getOutstandingBalances": {
         const { location, minAmount } = args;
-        console.log(`[getOutstandingBalances] Location: ${location || 'all'}, MinAmount: ${minAmount || 0}`);
+        console.log(`[getOutstandingBalances] Team: ${teamId}, Location: ${location || 'all'}, MinAmount: ${minAmount || 0}`);
         
         // Get bookings with outstanding balances
-        const { data: bookings } = await supabase
+        let query = supabase
           .from('bookings')
-          .select('*, vehicles(vehicle_name, make, model, year, location), customers(first_name, last_name, email, phone)')
-          .or(userFilter)
+          .select('*, vehicles(make, model, year, location), customers(first_name, last_name, email, phone)');
+        
+        if (teamId) {
+          query = query.eq('team_id', teamId);
+        }
+        
+        const { data: bookings } = await query
           .or('payment_status.eq.pending,balance_due.gt.0')
           .order('created_at', { ascending: false });
         
@@ -1712,13 +1754,13 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         
         if (location && location !== 'all') {
           filteredBookings = filteredBookings.filter((b: any) => 
-            b.vehicles?.location?.toLowerCase() === location.toLowerCase()
+            b.vehicles?.location?.toLowerCase().includes(location.toLowerCase())
           );
         }
         
         if (minAmount && minAmount > 0) {
           filteredBookings = filteredBookings.filter((b: any) => 
-            Number(b.balance_due || b.total_amount || 0) >= minAmount
+            Number(b.balance_due || b.total_value || 0) >= minAmount
           );
         }
         
@@ -1727,10 +1769,10 @@ async function executeFunction(functionName: string, args: Record<string, unknow
           const daysOverdue = Math.floor((new Date().getTime() - endDate.getTime()) / (1000 * 60 * 60 * 24));
           
           return {
-            customer: b.customers ? `${b.customers.first_name} ${b.customers.last_name}` : 'Unknown',
+            customer: b.customers ? `${b.customers.first_name} ${b.customers.last_name}` : b.customer_name || 'Unknown',
             vehicle: b.vehicles ? `${b.vehicles.year} ${b.vehicles.make} ${b.vehicles.model}` : 'Unknown',
             location: b.vehicles?.location || 'Miami',
-            balanceDue: `$${Number(b.balance_due || b.total_amount || 0).toFixed(0)}`,
+            balanceDue: `$${Number(b.balance_due || b.total_value || 0).toFixed(0)}`,
             daysOverdue: daysOverdue > 0 ? daysOverdue : 0,
             urgency: daysOverdue > 30 ? 'critical' : daysOverdue > 14 ? 'high' : 'normal'
           };
@@ -1750,17 +1792,20 @@ async function executeFunction(functionName: string, args: Record<string, unknow
 
       case "getIdleVehicles": {
         const { daysIdle = 7, location } = args;
-        console.log(`[getIdleVehicles] DaysIdle: ${daysIdle}, Location: ${location || 'all'}`);
+        console.log(`[getIdleVehicles] Team: ${teamId}, DaysIdle: ${daysIdle}, Location: ${location || 'all'}`);
         
         // Get available vehicles
         let vehicleQuery = supabase
           .from('vehicles')
           .select('id, name, make, model, year, location, current_rate, utilization')
-          .or(userFilter)
           .eq('status', 'available');
         
+        if (teamId) {
+          vehicleQuery = vehicleQuery.eq('team_id', teamId);
+        }
+        
         if (location && location !== 'all') {
-          vehicleQuery = vehicleQuery.eq('location', location);
+          vehicleQuery = vehicleQuery.ilike('location', `%${location}%`);
         }
         
         const { data: vehicles } = await vehicleQuery;
@@ -1786,9 +1831,9 @@ async function executeFunction(functionName: string, args: Record<string, unknow
           .map((v: any) => ({
             vehicle: `${v.year} ${v.make} ${v.model}`,
             location: v.location || 'Miami',
-            currentRate: `$${v.daily_rate}`,
-            utilization: `${(v.utilization || 70) || 0}%`,
-            recommendation: ((v.utilization || 70) || 0) < 20 ? 'Consider 10-15% price reduction' : 'Run promotion'
+            currentRate: `$${v.current_rate}`,
+            utilization: `${v.utilization || 70}%`,
+            recommendation: (v.utilization || 70) < 20 ? 'Consider 10-15% price reduction' : 'Run promotion'
           }));
         
         const potentialLoss = idleVehicles.reduce((sum: number, v: any) => 
@@ -1809,7 +1854,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
 
       case "getMultiLocationAvailability": {
         const { startDate, endDate, vehicleType, make } = args;
-        console.log(`[getMultiLocationAvailability] Dates: ${startDate} to ${endDate}, Type: ${vehicleType || 'all'}, Make: ${make || 'all'}`);
+        console.log(`[getMultiLocationAvailability] Team: ${teamId}, Dates: ${startDate} to ${endDate}, Type: ${vehicleType || 'all'}, Make: ${make || 'all'}`);
         
         if (!startDate || !endDate) {
           return { error: 'Start and end dates are required', summary: 'Please specify the dates you need a vehicle for.' };
@@ -1819,8 +1864,11 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         let vehicleQuery = supabase
           .from('vehicles')
           .select('id, name, make, model, year, location, current_rate')
-          .or(userFilter)
           .eq('status', 'available');
+        
+        if (teamId) {
+          vehicleQuery = vehicleQuery.eq('team_id', teamId);
+        }
         
         if (make) {
           vehicleQuery = vehicleQuery.ilike('make', `%${make}%`);
@@ -1853,15 +1901,15 @@ async function executeFunction(functionName: string, args: Record<string, unknow
           
           byLocation[loc].push({
             vehicle: `${vehicle.year} ${vehicle.make} ${vehicle.model}`,
-            rate: `$${vehicle.daily_rate}/day`
+            rate: `$${vehicle.current_rate}/day`
           });
         }
         
-        const locations = Object.entries(byLocation).map(([loc, vehicles]) => ({
+        const locations = Object.entries(byLocation).map(([loc, vehicleList]) => ({
           location: loc,
-          availableCount: vehicles.length,
-          vehicles,
-          lowestRate: vehicles.length > 0 ? `$${Math.min(...vehicles.map((v: any) => parseFloat(v.rate.replace('$', '').replace('/day', ''))))}/day` : 'N/A'
+          availableCount: vehicleList.length,
+          vehicles: vehicleList,
+          lowestRate: vehicleList.length > 0 ? `$${Math.min(...vehicleList.map((v: any) => parseFloat(v.rate.replace('$', '').replace('/day', ''))))}/day` : 'N/A'
         }));
         
         const totalAvailable = locations.reduce((sum, loc) => sum + loc.availableCount, 0);
@@ -1878,13 +1926,18 @@ async function executeFunction(functionName: string, args: Record<string, unknow
 
       case "getCustomerSegments": {
         const { segment, location, limit = 10 } = args;
-        console.log(`[getCustomerSegments] Segment: ${segment || 'all'}, Location: ${location || 'all'}`);
+        console.log(`[getCustomerSegments] Team: ${teamId}, Segment: ${segment || 'all'}, Location: ${location || 'all'}`);
         
         // Get customers with booking data
-        const { data: customers } = await supabase
+        let customerQuery = supabase
           .from('customers')
-          .select('id, full_name, email, customer_status, total_bookings, lifetime_value')
-          .or(userFilter)
+          .select('id, full_name, email, customer_status, total_bookings, lifetime_value');
+        
+        if (teamId) {
+          customerQuery = customerQuery.eq('team_id', teamId);
+        }
+        
+        const { data: customers } = await customerQuery
           .order('lifetime_value', { ascending: false })
           .limit(50);
         
@@ -1953,18 +2006,23 @@ async function executeFunction(functionName: string, args: Record<string, unknow
 
       case "getRariInsights": {
         const { priority, limit = 5 } = args;
-        console.log(`[getRariInsights] Priority: ${priority || 'all'}, Limit: ${limit}`);
+        console.log(`[getRariInsights] Team: ${teamId}, Priority: ${priority || 'all'}, Limit: ${limit}`);
         
-        // For now, generate insights on-the-fly based on current data
+        // Generate insights on-the-fly based on current data
         const insights: any[] = [];
         
         // Check for idle vehicles
-        const { data: vehicles } = await supabase
+        let vehicleQuery = supabase
           .from('vehicles')
           .select('name, make, model, year, location, utilization, status')
-          .or(userFilter)
           .eq('status', 'available')
           .lt('utilization', 30);
+        
+        if (teamId) {
+          vehicleQuery = vehicleQuery.eq('team_id', teamId);
+        }
+        
+        const { data: vehicles } = await vehicleQuery;
         
         if (vehicles && vehicles.length > 0) {
           insights.push({
@@ -1980,13 +2038,18 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         const nextWeek = new Date();
         nextWeek.setDate(nextWeek.getDate() + 7);
         
-        const { data: maintenance } = await supabase
-          .from('maintenance')
-          .select('*, vehicles(vehicle_name, make, model)')
-          .or(userFilter)
+        let maintenanceQuery = supabase
+          .from('maintenance_schedules')
+          .select('*, vehicles(name, make, model)')
           .lte('scheduled_date', nextWeek.toISOString())
           .gte('scheduled_date', new Date().toISOString())
           .eq('status', 'scheduled');
+        
+        if (teamId) {
+          maintenanceQuery = maintenanceQuery.eq('team_id', teamId);
+        }
+        
+        const { data: maintenance } = await maintenanceQuery;
         
         if (maintenance && maintenance.length > 0) {
           insights.push({

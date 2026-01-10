@@ -8,15 +8,26 @@ export function createRariClientTools(userId: string, teamId?: string) {
     // Fleet Metrics
     getFleetMetrics: async (params: { timeframe?: string; location?: string }) => {
       try {
-        const { data: vehicles } = await supabase
+        let vehicleQuery = supabase
           .from('vehicles')
-          .select('id, status, location, current_rate, utilization, revenue')
-          .eq('user_id', userId);
+          .select('id, status, location, current_rate, utilization, revenue');
+        
+        // Filter by team_id if available
+        if (teamId) {
+          vehicleQuery = vehicleQuery.eq('team_id', teamId);
+        }
+        
+        const { data: vehicles } = await vehicleQuery;
 
-        const { data: bookings } = await supabase
+        let bookingQuery = supabase
           .from('bookings')
-          .select('id, status, total_value, start_date, end_date')
-          .eq('user_id', userId);
+          .select('id, status, total_value, start_date, end_date');
+        
+        if (teamId) {
+          bookingQuery = bookingQuery.eq('team_id', teamId);
+        }
+        
+        const { data: bookings } = await bookingQuery;
 
         const totalVehicles = vehicles?.length || 0;
         const availableVehicles = vehicles?.filter(v => v.status === 'available').length || 0;
@@ -46,10 +57,15 @@ export function createRariClientTools(userId: string, teamId?: string) {
     // Location Metrics
     getLocationMetrics: async (params: { location?: string }) => {
       try {
-        const { data: vehicles } = await supabase
+        let vehicleQuery = supabase
           .from('vehicles')
-          .select('id, location, status, current_rate, utilization, revenue')
-          .eq('user_id', userId);
+          .select('id, location, status, current_rate, utilization, revenue');
+        
+        if (teamId) {
+          vehicleQuery = vehicleQuery.eq('team_id', teamId);
+        }
+        
+        const { data: vehicles } = await vehicleQuery;
 
         // Group by location
         const locationMap: Record<string, any> = {};
@@ -94,16 +110,26 @@ export function createRariClientTools(userId: string, teamId?: string) {
     // Revenue Analysis
     getRevenueAnalysis: async (params: { timeframe?: string; location?: string; vehicleName?: string }) => {
       try {
-        const { data: payments } = await supabase
+        let paymentsQuery = supabase
           .from('payments')
           .select('amount, payment_status, transaction_date, booking_id')
-          .eq('user_id', userId)
           .eq('payment_status', 'completed');
+        
+        if (teamId) {
+          paymentsQuery = paymentsQuery.eq('team_id', teamId);
+        }
+        
+        const { data: payments } = await paymentsQuery;
 
-        const { data: bookings } = await supabase
+        let bookingsQuery = supabase
           .from('bookings')
-          .select('id, total_value, status, vehicle_id, start_date')
-          .eq('user_id', userId);
+          .select('id, total_value, status, vehicle_id, start_date');
+        
+        if (teamId) {
+          bookingsQuery = bookingsQuery.eq('team_id', teamId);
+        }
+        
+        const { data: bookings } = await bookingsQuery;
 
         const totalRevenue = payments?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0;
         const completedBookings = bookings?.filter(b => b.status === 'completed').length || 0;
@@ -138,8 +164,11 @@ export function createRariClientTools(userId: string, teamId?: string) {
       try {
         let query = supabase
           .from('vehicles')
-          .select('id, name, make, model, year, status, location, current_rate, utilization')
-          .eq('user_id', userId);
+          .select('id, name, make, model, year, status, location, current_rate, utilization');
+        
+        if (teamId) {
+          query = query.eq('team_id', teamId);
+        }
 
         if (params.status && params.status !== 'all') {
           query = query.eq('status', params.status);
@@ -175,12 +204,17 @@ export function createRariClientTools(userId: string, teamId?: string) {
     // Get Vehicle Details
     getVehicleDetails: async (params: { vehicleName: string; includeBookings?: boolean }) => {
       try {
-        const { data: vehicles } = await supabase
+        let vehicleQuery = supabase
           .from('vehicles')
           .select('*')
-          .eq('user_id', userId)
           .or(`name.ilike.%${params.vehicleName}%,make.ilike.%${params.vehicleName}%,model.ilike.%${params.vehicleName}%`)
           .limit(1);
+        
+        if (teamId) {
+          vehicleQuery = vehicleQuery.eq('team_id', teamId);
+        }
+        
+        const { data: vehicles } = await vehicleQuery;
 
         const vehicle = vehicles?.[0];
         if (!vehicle) {
@@ -227,8 +261,11 @@ export function createRariClientTools(userId: string, teamId?: string) {
         let query = supabase
           .from('bookings')
           .select('id, customer_name, vehicle_id, start_date, end_date, status, total_value, pickup_location')
-          .eq('user_id', userId)
           .order('start_date', { ascending: false });
+        
+        if (teamId) {
+          query = query.eq('team_id', teamId);
+        }
 
         if (params.status && params.status !== 'all') {
           query = query.eq('status', params.status);
@@ -270,10 +307,15 @@ export function createRariClientTools(userId: string, teamId?: string) {
     // Payment Summary
     getPaymentSummary: async (params: { status?: string; timeframe?: string }) => {
       try {
-        const { data: payments } = await supabase
+        let paymentsQuery = supabase
           .from('payments')
-          .select('amount, payment_status, payment_method, transaction_date')
-          .eq('user_id', userId);
+          .select('amount, payment_status, payment_method, transaction_date');
+        
+        if (teamId) {
+          paymentsQuery = paymentsQuery.eq('team_id', teamId);
+        }
+        
+        const { data: payments } = await paymentsQuery;
 
         const completed = payments?.filter(p => p.payment_status === 'completed') || [];
         const pending = payments?.filter(p => p.payment_status === 'pending') || [];
@@ -311,12 +353,17 @@ export function createRariClientTools(userId: string, teamId?: string) {
         const limit = params.limit || 5;
 
         if (params.metric === 'customers') {
-          const { data: customers } = await supabase
+          let customerQuery = supabase
             .from('customers')
             .select('full_name, lifetime_value, total_bookings')
-            .eq('user_id', userId)
             .order('lifetime_value', { ascending: false })
             .limit(limit);
+          
+          if (teamId) {
+            customerQuery = customerQuery.eq('team_id', teamId);
+          }
+          
+          const { data: customers } = await customerQuery;
 
           return JSON.stringify({
             topCustomers: customers?.map(c => ({
@@ -332,8 +379,11 @@ export function createRariClientTools(userId: string, teamId?: string) {
         let query = supabase
           .from('vehicles')
           .select('name, make, model, revenue, utilization, location')
-          .eq('user_id', userId)
           .order(params.metric === 'utilization' ? 'utilization' : 'revenue', { ascending: false });
+        
+        if (teamId) {
+          query = query.eq('team_id', teamId);
+        }
 
         if (params.location) {
           query = query.ilike('location', `%${params.location}%`);
@@ -362,8 +412,11 @@ export function createRariClientTools(userId: string, teamId?: string) {
         let vehicleQuery = supabase
           .from('vehicles')
           .select('id, name, make, model, status, location')
-          .eq('user_id', userId)
           .eq('status', 'available');
+        
+        if (teamId) {
+          vehicleQuery = vehicleQuery.eq('team_id', teamId);
+        }
 
         if (params.vehicleName) {
           vehicleQuery = vehicleQuery.or(`name.ilike.%${params.vehicleName}%,make.ilike.%${params.vehicleName}%,model.ilike.%${params.vehicleName}%`);
@@ -407,12 +460,17 @@ export function createRariClientTools(userId: string, teamId?: string) {
       try {
         const limit = params.limit || 10;
 
-        const { data: bookings } = await supabase
+        let bookingsQuery = supabase
           .from('bookings')
           .select('id, customer_name, status, created_at, total_value')
-          .eq('user_id', userId)
           .order('created_at', { ascending: false })
           .limit(limit);
+        
+        if (teamId) {
+          bookingsQuery = bookingsQuery.eq('team_id', teamId);
+        }
+        
+        const { data: bookings } = await bookingsQuery;
 
         return JSON.stringify({
           recentActivity: bookings?.map(b => ({
