@@ -65,6 +65,11 @@ export default {
 					dark: 'hsl(var(--rari-teal-dark))',
 					foreground: 'hsl(var(--rari-teal-foreground))'
 				},
+				'rari-blue': {
+					DEFAULT: 'hsl(var(--rari-blue))',
+					light: 'hsl(var(--rari-blue-light))',
+					dark: 'hsl(var(--rari-blue-dark))'
+				},
 				'performance-orange': {
 					DEFAULT: 'hsl(var(--performance-orange))',
 					light: 'hsl(var(--performance-orange-light))',
@@ -226,6 +231,14 @@ export default {
 				'confetti-fall': {
 					'0%': { transform: 'translateY(-100vh) rotate(0deg)', opacity: '1' },
 					'100%': { transform: 'translateY(100vh) rotate(360deg)', opacity: '0' }
+				},
+				'rari-glow': {
+					'0%, 100%': { 
+						boxShadow: '0 4px 20px rgba(164, 195, 203, 0.3)' 
+					},
+					'50%': { 
+						boxShadow: '0 4px 30px rgba(164, 195, 203, 0.5)' 
+					}
 				}
 			},
 			animation: {
@@ -255,7 +268,8 @@ export default {
 				'toast-slide-out': 'toast-slide-out 0.2s ease-in forwards',
 				'pulse-subtle': 'pulse-subtle 2s ease-in-out infinite',
 				'pulse-strong': 'pulse-strong 1.5s ease-in-out infinite',
-				'confetti-fall': 'confetti-fall 3s ease-in-out forwards'
+				'confetti-fall': 'confetti-fall 3s ease-in-out forwards',
+				'rari-glow': 'rari-glow 3s ease-in-out infinite'
 			}
 		}
 	},

@@ -48,12 +48,18 @@
     --gulf-blue-light: 211 100% 45%;
     --gulf-blue-dark: 211 100% 20%;
     
-    /* Rari Teal - AI Assistant Color
+    /* Rari Teal - AI Assistant Color (Legacy)
        USE FOR: Rari AI components, AI features, intelligent insights */
     --rari-teal: 174 62% 47%;
     --rari-teal-light: 174 62% 57%;
     --rari-teal-dark: 174 62% 37%;
     --rari-teal-foreground: 0 0% 100%;
+    
+    /* Rari Blue - Soft AI Color #A4C3CB
+       USE FOR: Rari button, AI assistant UI, gentle AI accents */
+    --rari-blue: 192 26% 72%;
+    --rari-blue-light: 192 26% 82%;
+    --rari-blue-dark: 192 26% 62%;
     
     /* Performance Orange - Racing Accent
        USE FOR: Highlights, CTAs, speed indicators */
@@ -158,6 +164,11 @@
     --rari-teal-light: 174 62% 67%;
     --rari-teal-dark: 174 62% 47%;
     --rari-teal-foreground: 220 15% 8%;
+    
+    /* Rari Blue - Soft AI Color (Dark Mode) */
+    --rari-blue: 192 26% 72%;
+    --rari-blue-light: 192 26% 82%;
+    --rari-blue-dark: 192 26% 62%;
 
     --success: 142 71% 45%;
     --success-foreground: 0 0% 100%;

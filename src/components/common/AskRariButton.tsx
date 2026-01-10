@@ -88,22 +88,20 @@ export const AskRariButton = ({
         size="lg"
         className={cn(
           "fixed bottom-[88px] right-4 md:bottom-6 md:right-6 z-50",
-          "bg-rari-teal/20 hover:bg-rari-teal/30 backdrop-blur-xl",
-          "border border-rari-teal/30 hover:border-rari-teal/50",
-          "text-rari-teal hover:text-rari-teal-dark",
-          "rounded-full w-14 h-14 md:w-16 md:h-16 p-0",
-          "shadow-[0_8px_30px_hsl(var(--rari-teal)/0.25),0_0_60px_hsl(var(--rari-teal)/0.12)]",
-          "hover:shadow-[0_12px_40px_hsl(var(--rari-teal)/0.35),0_0_80px_hsl(var(--rari-teal)/0.18)]",
+          "bg-rari-blue/90 hover:bg-rari-blue backdrop-blur-xl",
+          "border border-rari-blue/50 hover:border-rari-blue",
+          "text-slate-700 hover:text-slate-900",
+          "rounded-full h-14 px-4 md:h-14 md:px-5",
+          "shadow-lg hover:shadow-xl",
           "hover:scale-105 active:scale-95 transition-all duration-300 ease-out",
-          "will-change-transform animate-pulse-subtle",
+          "will-change-transform animate-rari-glow",
+          "flex items-center gap-2",
           className
         )}
-        style={{
-          boxShadow: '0 8px 30px hsla(var(--rari-teal), 0.25), 0 0 60px hsla(var(--rari-teal), 0.12), inset 0 1px 1px rgba(255,255,255,0.1)'
-        }}
         aria-label="Ask Rari AI"
       >
-        <Sparkles className="w-5 h-5 md:w-6 md:h-6 animate-pulse-soft" />
+        <Sparkles className="w-5 h-5" />
+        <span className="font-medium text-sm">Ask Rari</span>
       </Button>
 
       <Dialog open={showRari} onOpenChange={setShowRari}>

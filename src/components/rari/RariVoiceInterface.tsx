@@ -254,68 +254,99 @@ export const RariVoiceInterface = ({
 
   const isSidebar = variant === 'sidebar';
 
-  // Sidebar variant - compact single-column layout
+  // Sample prompts for empty state
+  const samplePrompts = [
+    "What's my schedule today?",
+    "Show me today's revenue",
+    "Which vehicles need attention?",
+  ];
+
+  // Sidebar variant - compact single-column layout with mic at bottom
   if (isSidebar) {
     return (
       <div className="flex flex-col h-full gap-3">
-        {/* Compact Controls */}
-        <div className="flex items-center gap-3">
-          <RariVoiceWaveform 
-            isActive={isConnected} 
-            isSpeaking={isSpeaking}
-            className="w-16 flex-shrink-0"
-          />
-          
-          <div className="flex-1 min-w-0">
-            {isConnected && isSpeaking ? (
-              <AIThinking variant="gradient" text="Speaking..." className="text-xs" />
-            ) : isConnected ? (
-              <AIThinking variant="wave" text="Listening..." className="text-xs" />
-            ) : (
-              <p className="text-xs text-muted-foreground truncate">
-                Voice-powered assistant
-              </p>
-            )}
+        {/* Transcript area - shows sample prompts when empty and not connected */}
+        <div className="flex-1 min-h-0">
+          {!isConnected && messages.length === 0 ? (
+            <div className="h-full flex flex-col items-center justify-center text-center p-4 space-y-4">
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">Try asking:</p>
+                <div className="flex flex-col gap-2">
+                  {samplePrompts.map((prompt, index) => (
+                    <Badge 
+                      key={index}
+                      variant="outline" 
+                      className="cursor-default text-xs py-1.5 px-3 bg-muted/30"
+                    >
+                      "{prompt}"
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <RariTranscript
+              messages={messages}
+              isConnected={isConnected}
+              conversationId={conversationId}
+              conversationDbId={conversationDbId}
+              startTime={conversationStartTime}
+              partialTranscript={partialTranscript}
+              onClear={!isConnected && messages.length > 0 ? handleClearTranscript : undefined}
+              compact
+            />
+          )}
+        </div>
+        
+        {/* Controls at BOTTOM - easier thumb reach */}
+        <div className="border-t border-border pt-3 space-y-3">
+          {/* Status text */}
+          <div className="flex items-center justify-center gap-2">
+            <RariVoiceWaveform 
+              isActive={isConnected} 
+              isSpeaking={isSpeaking}
+              className="w-12 flex-shrink-0"
+            />
+            <div className="text-center">
+              {isConnected && isSpeaking ? (
+                <AIThinking variant="gradient" text="Speaking..." className="text-xs" />
+              ) : isConnected ? (
+                <AIThinking variant="wave" text="Listening..." className="text-xs" />
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Voice-powered assistant
+                </p>
+              )}
+            </div>
           </div>
           
+          {/* Large mic button */}
           {!isConnected ? (
             status === 'connecting' ? (
-              <AIThinking variant="gradient" text="..." />
+              <div className="flex justify-center">
+                <AIThinking variant="gradient" text="Connecting..." />
+              </div>
             ) : (
               <Button 
-                size="sm"
-                className="flex-shrink-0 group"
+                size="lg"
+                className="w-full bg-rari-blue hover:bg-rari-blue-dark text-slate-800 group"
                 onClick={handleStartConversation}
               >
-                <Mic className="w-4 h-4 mr-1" />
-                Start
+                <Mic className="w-5 h-5 mr-2 group-hover:animate-pulse-soft" />
+                Start Conversation
               </Button>
             )
           ) : (
             <Button 
-              size="sm"
+              size="lg"
               variant="destructive"
-              className="flex-shrink-0"
+              className="w-full"
               onClick={handleEndConversation}
             >
-              <PhoneOff className="w-4 h-4 mr-1" />
-              End
+              <PhoneOff className="w-5 h-5 mr-2" />
+              End Conversation
             </Button>
           )}
-        </div>
-        
-        {/* Transcript fills remaining space */}
-        <div className="flex-1 min-h-0">
-          <RariTranscript
-            messages={messages}
-            isConnected={isConnected}
-            conversationId={conversationId}
-            conversationDbId={conversationDbId}
-            startTime={conversationStartTime}
-            partialTranscript={partialTranscript}
-            onClear={!isConnected && messages.length > 0 ? handleClearTranscript : undefined}
-            compact
-          />
         </div>
       </div>
     );

@@ -60,23 +60,24 @@ const RariOrb = ({
       initial={{ scale: 0, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
       exit={{ scale: 0, opacity: 0 }}
-      whileHover={{ scale: 1.1 }}
+      whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
       transition={{ type: 'spring', stiffness: 400, damping: 25 }}
       onClick={onClick}
       className={cn(
         "fixed right-4 md:bottom-6 md:right-6 z-50",
-        "w-14 h-14 rounded-full",
-        "bg-gradient-to-br from-gulf-blue to-gulf-blue/80",
+        "h-14 px-4 rounded-full",
+        "bg-rari-blue/90 hover:bg-rari-blue",
         "shadow-lg hover:shadow-xl",
-        "flex items-center justify-center",
-        "transition-shadow duration-200",
-        isActiveCall && "ring-2 ring-success ring-offset-2 ring-offset-background animate-pulse"
+        "flex items-center justify-center gap-2",
+        "transition-shadow duration-200 animate-rari-glow",
+        isActiveCall && "ring-2 ring-success ring-offset-2 ring-offset-background"
       )}
       style={{ bottom: 'calc(7rem + env(safe-area-inset-bottom))' }}
       aria-label="Open Rari AI Assistant"
     >
-      <Sparkles className="h-6 w-6 text-white" />
+      <Sparkles className="h-5 w-5 text-slate-700" />
+      <span className="text-slate-700 font-medium text-sm hidden sm:inline">Ask Rari</span>
       
       {unreadCount > 0 && (
         <motion.span 
@@ -364,11 +365,11 @@ export const RariSidebarTrigger = ({
       className={cn(
         "fixed right-4 md:bottom-6 md:right-6 z-40",
         "h-14 px-4 rounded-full",
-        "bg-gradient-to-r from-gulf-blue to-gulf-blue/90",
-        "text-white font-medium text-sm",
+        "bg-rari-blue/90 hover:bg-rari-blue",
+        "text-slate-700 font-medium text-sm",
         "shadow-lg hover:shadow-xl",
         "flex items-center gap-2",
-        "transition-shadow duration-200",
+        "transition-shadow duration-200 animate-rari-glow",
         className
       )}
       style={{ bottom: 'calc(7rem + env(safe-area-inset-bottom))' }}
