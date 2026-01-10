@@ -7,6 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useConversation } from '@11labs/react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTeam } from '@/contexts/TeamContext';
 import { AIThinking } from '@/components/ui/ai-thinking';
 import { RariVoiceWaveform } from './RariVoiceWaveform';
 import { RariTranscript } from './RariTranscript';
@@ -35,6 +36,7 @@ export const RariVoiceInterface = ({
 }: RariVoiceInterfaceProps) => {
   const { toast } = useToast();
   const { user } = useAuth();
+  const { currentTeam } = useTeam();
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [conversationDbId, setConversationDbId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -43,11 +45,11 @@ export const RariVoiceInterface = ({
   
   const { startConversation, saveMessage, endConversation } = useRariConversationPersistence();
   
-  // Create client tools with user's auth context
+  // Create client tools with user's auth context and team_id
   const clientTools = useMemo(() => {
     if (!user?.id) return {};
-    return createRariClientTools(user.id);
-  }, [user?.id]);
+    return createRariClientTools(user.id, currentTeam?.id);
+  }, [user?.id, currentTeam?.id]);
   
   const conversation = useConversation({
     clientTools,
