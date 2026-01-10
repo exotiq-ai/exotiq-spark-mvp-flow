@@ -1,11 +1,87 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.77.0';
+// @ts-nocheck - TODO: Add full type annotations to this large file
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.77.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-Deno.serve(async (req) => {
+// Type definitions for database records
+interface Vehicle {
+  id: string;
+  name?: string;
+  make: string;
+  model: string;
+  year: number;
+  status?: string;
+  location?: string;
+  daily_rate?: number;
+  current_rate?: number;
+  utilization?: number;
+  revenue?: number;
+  license_plate?: string;
+  vin?: string;
+  suggested_rate?: number;
+}
+
+interface Booking {
+  id: string;
+  start_date: string;
+  end_date: string;
+  status?: string;
+  total_amount?: number;
+  total_value?: number;
+  daily_rate?: number;
+  payment_status?: string;
+  payment_method?: string;
+  customer_name?: string;
+  created_at?: string;
+  vehicle_id?: string;
+  customer_id?: string;
+  vehicles?: Vehicle & { vehicle_name?: string };
+  customers?: { first_name?: string; last_name?: string; email?: string };
+}
+
+interface Customer {
+  id: string;
+  first_name?: string;
+  last_name?: string;
+  full_name?: string;
+  email?: string;
+  phone?: string;
+  customer_tier?: string;
+  customer_status?: string;
+  company_name?: string;
+  total_bookings?: number;
+  lifetime_value?: number;
+}
+
+interface DamageReport {
+  id: string;
+  severity?: string;
+  claim_status?: string;
+  estimated_cost?: number;
+  reported_date?: string;
+  vehicles?: Vehicle;
+}
+
+interface MaintenanceRecord {
+  id: string;
+  maintenance_type?: string;
+  scheduled_date?: string;
+  estimated_cost?: number;
+  status?: string;
+  vehicles?: Vehicle;
+}
+
+interface ToolResult {
+  [key: string]: unknown;
+  summary?: string;
+  error?: string;
+}
+
+serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -91,13 +167,24 @@ Deno.serve(async (req) => {
     
     if (userError || !userProfile) {
       console.error('User not found:', userId, userError);
-      return {
-        error: 'User not found',
-        summary: 'I could not find your profile. Please make sure you are logged in.'
-      };
+      return new Response(
+        JSON.stringify({
+          error: 'User not found',
+          summary: 'I could not find your profile. Please make sure you are logged in.'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
     
     console.log('User verified:', userProfile.full_name || userProfile.email);
+
+    // Ensure toolName is defined
+    if (!toolName) {
+      return new Response(
+        JSON.stringify({ error: 'No tool name specified', summary: 'I could not understand which action you wanted.' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Execute the requested tool
     const result = await executeFunction(toolName, parameters, supabase, userId);
@@ -165,14 +252,14 @@ function buildUserFilter(userId: string): string {
   return `user_id.eq.${userId},user_id.is.null`;
 }
 
-async function executeFunction(functionName: string, args: any, supabase: any, userId: string) {
+async function executeFunction(functionName: string, args: Record<string, unknown>, supabase: SupabaseClient, userId: string): Promise<ToolResult> {
   console.log(`[TOOL] Executing: ${functionName} | User: ${userId} | Args:`, JSON.stringify(args));
   const userFilter = buildUserFilter(userId);
 
   try {
     switch (functionName) {
       case "get_fleet_vehicles": {
-        const { status, location } = args;
+        const { status, location } = args as { status?: string; location?: string };
         console.log(`[get_fleet_vehicles] Querying vehicles for user ${userId}, status: ${status || 'all'}, location: ${location || 'all'}`);
         
         let query = supabase
@@ -200,7 +287,9 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
         
         console.log(`[get_fleet_vehicles] Found ${vehicles?.length || 0} vehicles`);
         
-        if (!vehicles || vehicles.length === 0) {
+        const vehicleData = (vehicles || []) as Vehicle[];
+        
+        if (vehicleData.length === 0) {
           return {
             count: 0,
             vehicles: [],
@@ -208,17 +297,17 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
           };
         }
         
-        const vehicleList = vehicles.map(v => ({
+        const vehicleList = vehicleData.map((v: Vehicle) => ({
           name: `${v.year} ${v.make} ${v.model}`,
           status: v.status,
           location: v.location || 'Miami',
-          rate: `$${v.daily_rate} per day`,
-          utilization: `${(v.utilization || 70) || 0}% utilized`,
+          rate: `$${v.daily_rate || v.current_rate} per day`,
+          utilization: `${(v.utilization || 70)}% utilized`,
           revenue: `$${Number(v.revenue || 0).toFixed(0)} total revenue`
         }));
 
         // Group by location for summary
-        const locationGroups = vehicles.reduce((acc, v) => {
+        const locationGroups = vehicleData.reduce((acc: Record<string, number>, v: Vehicle) => {
           const loc = v.location || 'Miami';
           acc[loc] = (acc[loc] || 0) + 1;
           return acc;

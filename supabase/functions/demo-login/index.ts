@@ -94,7 +94,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('🚨 Demo login error:', error);
     return new Response(
-      JSON.stringify({ error: error.message || 'Failed to authenticate demo user' }),
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Failed to authenticate demo user' }),
       {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
