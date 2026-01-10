@@ -410,6 +410,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       toast({
         title: "Welcome to Demo Mode!",
         description: "Exploring Exotiq with pre-populated data.",
+        duration: 3000,
       });
       
       return { error: null };

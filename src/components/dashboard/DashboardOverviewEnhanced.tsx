@@ -192,7 +192,7 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
     }
   };
 
-  // Quick actions - streamlined to 5 most important
+  // Quick actions - streamlined to 5 most important + Ask Rari
   const quickActions = [
     {
       id: "new-booking",
@@ -233,6 +233,19 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
       color: "text-muted-foreground",
       bgColor: "bg-secondary/50 hover:bg-secondary",
       onClick: () => setShowMaintenanceDialog(true),
+    },
+    {
+      id: "ask-rari",
+      label: "Ask Rari",
+      icon: Sparkles,
+      color: "text-slate-700",
+      bgColor: "bg-rari-blue/80 hover:bg-rari-blue border border-rari-blue/50",
+      onClick: () => {
+        // Find and click the Rari FAB button
+        const rariButton = document.querySelector('[data-tour="rari-button"]') as HTMLButtonElement;
+        rariButton?.click();
+      },
+      isSpecial: true,
     },
   ];
 
