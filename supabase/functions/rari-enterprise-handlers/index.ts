@@ -26,12 +26,24 @@ function getSupabaseClient() {
   return createClient(supabaseUrl, supabaseServiceKey);
 }
 
+// Helper: Get user's team ID
+async function getUserTeamId(supabase: any, userId: string): Promise<string | null> {
+  const { data } = await supabase
+    .from('team_members')
+    .select('team_id')
+    .eq('user_id', userId)
+    .eq('is_active', true)
+    .limit(1)
+    .single();
+  return data?.team_id || null;
+}
+
 // ============================================================
 // HANDLER: Vehicle Profit/Loss Analysis
 // ============================================================
 export async function getVehicleProfitLoss(
   supabase: any,
-  userId: string,
+  teamId: string,
   args: { vehicleName?: string; timeframe?: string; location?: string }
 ) {
   const { vehicleName, timeframe, location } = args;
@@ -49,7 +61,7 @@ export async function getVehicleProfitLoss(
   let vehicleQuery = supabase
     .from('vehicles')
     .select('id, name, make, model, year, location, current_rate, utilization, revenue')
-    .eq('user_id', userId);
+    .eq('team_id', teamId);
   
   if (vehicleName) {
     vehicleQuery = vehicleQuery.or(`name.ilike.%${vehicleName}%,make.ilike.%${vehicleName}%,model.ilike.%${vehicleName}%`);
@@ -144,7 +156,7 @@ export async function getVehicleProfitLoss(
     timeframe: timeframe || 'all time',
     location: location || 'all',
     topPerformer: profitLoss[0],
-    summary: `Fleet P/L Analysis (${timeframe || 'all time'})${location ? ` in ${location}` : ''}: Total revenue $${totalRevenue.toFixed(0)}, expenses $${totalExpenses.toFixed(0)}, profit $${totalProfit.toFixed(0)} (${totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100).toFixed(1) : 0}% margin). ${profitableCount} of ${profitLoss.length} vehicles are profitable. Top performer: ${profitLoss[0]?.vehicle || 'N/A'}.`
+    summaryText: `Fleet P/L Analysis (${timeframe || 'all time'})${location ? ` in ${location}` : ''}: Total revenue $${totalRevenue.toFixed(0)}, expenses $${totalExpenses.toFixed(0)}, profit $${totalProfit.toFixed(0)} (${totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100).toFixed(1) : 0}% margin). ${profitableCount} of ${profitLoss.length} vehicles are profitable. Top performer: ${profitLoss[0]?.vehicle || 'N/A'}.`
   };
 }
 
@@ -153,7 +165,7 @@ export async function getVehicleProfitLoss(
 // ============================================================
 export async function compareLocations(
   supabase: any,
-  userId: string,
+  teamId: string,
   args: { locations?: string[]; timeframe?: string }
 ) {
   const { locations, timeframe } = args;
@@ -171,7 +183,7 @@ export async function compareLocations(
   const { data: vehicles } = await supabase
     .from('vehicles')
     .select('id, name, make, model, location, current_rate, utilization, revenue, status')
-    .eq('user_id', userId);
+    .eq('team_id', teamId);
   
   if (!vehicles || vehicles.length === 0) {
     return {
@@ -184,7 +196,7 @@ export async function compareLocations(
   const { data: bookings } = await supabase
     .from('bookings')
     .select('id, vehicle_id, total_value, status, vehicles(location)')
-    .eq('user_id', userId)
+    .eq('team_id', teamId)
     .gte('created_at', dateFilter.toISOString());
   
   // Group data by location
@@ -280,7 +292,7 @@ export async function compareLocations(
 // ============================================================
 export async function getOutstandingBalances(
   supabase: any,
-  userId: string,
+  teamId: string,
   args: { location?: string; minAmount?: number; daysOverdue?: number }
 ) {
   const { location, minAmount = 0, daysOverdue } = args;
@@ -289,7 +301,7 @@ export async function getOutstandingBalances(
   let query = supabase
     .from('bookings')
     .select('*, vehicles(name, make, model, year, location), customers(full_name, email, phone)')
-    .eq('user_id', userId)
+    .eq('team_id', teamId)
     .or('payment_status.eq.pending,balance_due.gt.0');
   
   const { data: bookings, error } = await query.order('created_at', { ascending: false });
@@ -381,7 +393,7 @@ export async function getOutstandingBalances(
 // ============================================================
 export async function getIdleVehicles(
   supabase: any,
-  userId: string,
+  teamId: string,
   args: { daysIdle?: number; location?: string; utilizationThreshold?: number }
 ) {
   const { daysIdle = 7, location, utilizationThreshold = 20 } = args;
@@ -390,7 +402,7 @@ export async function getIdleVehicles(
   let vehicleQuery = supabase
     .from('vehicles')
     .select('id, name, make, model, year, location, status, current_rate, utilization, revenue')
-    .eq('user_id', userId)
+    .eq('team_id', teamId)
     .eq('status', 'available');
   
   if (location && location !== 'all') {
@@ -480,7 +492,7 @@ export async function getIdleVehicles(
 // ============================================================
 export async function getMultiLocationAvailability(
   supabase: any,
-  userId: string,
+  teamId: string,
   args: { startDate: string; endDate: string; vehicleType?: string; make?: string }
 ) {
   const { startDate, endDate, vehicleType, make } = args;
@@ -489,7 +501,7 @@ export async function getMultiLocationAvailability(
   let vehicleQuery = supabase
     .from('vehicles')
     .select('id, name, make, model, year, location, status, current_rate')
-    .eq('user_id', userId)
+    .eq('team_id', teamId)
     .eq('status', 'available');
   
   if (make) {
@@ -565,7 +577,7 @@ export async function getMultiLocationAvailability(
 // ============================================================
 export async function getCustomerSegments(
   supabase: any,
-  userId: string,
+  teamId: string,
   args: { segment?: string; location?: string; limit?: number }
 ) {
   const { segment, location, limit = 20 } = args;
@@ -574,7 +586,7 @@ export async function getCustomerSegments(
   const { data: customers, error } = await supabase
     .from('customers')
     .select('id, full_name, email, phone, customer_status, total_bookings, lifetime_value')
-    .eq('user_id', userId)
+    .eq('team_id', teamId)
     .order('lifetime_value', { ascending: false })
     .limit(100);
   
@@ -721,26 +733,38 @@ Deno.serve(async (req) => {
       });
     }
     
+    // Get team ID for the user
+    const teamId = await getUserTeamId(supabase, effectiveUserId);
+    if (!teamId) {
+      return new Response(JSON.stringify({
+        error: 'No team found',
+        summary: 'Unable to find your team. Please ensure you are assigned to a team.'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    
     let result;
     
     switch (handler) {
       case 'getVehicleProfitLoss':
-        result = await getVehicleProfitLoss(supabase, effectiveUserId, args || {});
+        result = await getVehicleProfitLoss(supabase, teamId, args || {});
         break;
       case 'compareLocations':
-        result = await compareLocations(supabase, effectiveUserId, args || {});
+        result = await compareLocations(supabase, teamId, args || {});
         break;
       case 'getOutstandingBalances':
-        result = await getOutstandingBalances(supabase, effectiveUserId, args || {});
+        result = await getOutstandingBalances(supabase, teamId, args || {});
         break;
       case 'getIdleVehicles':
-        result = await getIdleVehicles(supabase, effectiveUserId, args || {});
+        result = await getIdleVehicles(supabase, teamId, args || {});
         break;
       case 'getMultiLocationAvailability':
-        result = await getMultiLocationAvailability(supabase, effectiveUserId, args || {});
+        result = await getMultiLocationAvailability(supabase, teamId, args || {});
         break;
       case 'getCustomerSegments':
-        result = await getCustomerSegments(supabase, effectiveUserId, args || {});
+        result = await getCustomerSegments(supabase, teamId, args || {});
         break;
       default:
         return new Response(JSON.stringify({

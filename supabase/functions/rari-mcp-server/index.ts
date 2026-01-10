@@ -525,6 +525,20 @@ function getTimeAgo(date: Date): string {
 }
 
 // ============================================================
+// Helper: Get user's team ID
+// ============================================================
+async function getUserTeamId(supabase: any, userId: string): Promise<string | null> {
+  const { data } = await supabase
+    .from('team_members')
+    .select('team_id')
+    .eq('user_id', userId)
+    .eq('is_active', true)
+    .limit(1)
+    .single();
+  return data?.team_id || null;
+}
+
+// ============================================================
 // MCP JSON-RPC 2.0 Protocol Implementation
 // ============================================================
 
@@ -571,12 +585,10 @@ function validateAuth(req: Request): boolean {
 }
 
 // Extract user ID from request context
-// ElevenLabs may pass user context in headers or we can use a default demo user
 async function extractUserId(req: Request, supabase: any): Promise<string> {
-  // Try to get user ID from custom header (if ElevenLabs passes it)
+  // Try to get user ID from custom header
   const userIdHeader = req.headers.get('x-user-id') || req.headers.get('x-elevenlabs-user-id');
   if (userIdHeader) {
-    // Validate user exists
     const { data: profile } = await supabase
       .from('profiles')
       .select('id')
@@ -610,7 +622,7 @@ async function extractUserId(req: Request, supabase: any): Promise<string> {
     return demoUserId;
   }
 
-  // Last resort: Get first user (for demo/testing only)
+  // Last resort: Get first user
   const { data: firstUser } = await supabase
     .from('profiles')
     .select('id')
@@ -634,7 +646,7 @@ Deno.serve(async (req) => {
 
   console.log(`[MCP Server] ${req.method} ${path}`);
 
-  // Validate authentication (optional - only if MCP_SECRET_TOKEN is set)
+  // Validate authentication (optional)
   if (!validateAuth(req)) {
     console.log('[MCP Server] Unauthorized request');
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
@@ -663,13 +675,12 @@ Deno.serve(async (req) => {
     }
 
     // ============================================================
-    // SSE Endpoint - Establishes connection and sends message endpoint
+    // SSE Endpoint
     // ============================================================
     if (path.endsWith('/sse') && req.method === 'GET') {
       console.log('[MCP Server] SSE connection requested');
       
       const sessionId = generateSessionId();
-      // Use the correctly constructed full HTTPS URL
       const messagesEndpoint = `${FUNCTION_BASE_URL}/messages?sessionId=${sessionId}`;
       
       console.log(`[MCP Server] Session: ${sessionId}, Messages endpoint: ${messagesEndpoint}`);
@@ -682,22 +693,17 @@ Deno.serve(async (req) => {
         start(controller) {
           controllerRef = controller;
           
-          // Store session for later response routing
           sessions.set(sessionId, { controller, encoder });
           console.log(`[MCP Server] Session ${sessionId} stored. Active sessions: ${sessions.size}`);
           
-          // Send the endpoint event (MCP SSE transport requirement)
-          // ElevenLabs expects: event: endpoint\n followed by data: URL\n\n
           const endpointMessage = `event: endpoint\ndata: ${messagesEndpoint}\n\n`;
           controller.enqueue(encoder.encode(endpointMessage));
           console.log(`[MCP Server] Sent endpoint event: ${messagesEndpoint}`);
           
-          // Also send a ready event for compatibility
           const readyMessage = `event: ready\ndata: {"status":"connected"}\n\n`;
           controller.enqueue(encoder.encode(readyMessage));
           console.log(`[MCP Server] Sent ready event`);
           
-          // Keep the connection alive with periodic pings
           keepAliveInterval = setInterval(() => {
             try {
               if (controllerRef) {
@@ -752,33 +758,25 @@ Deno.serve(async (req) => {
       let response: any;
 
       switch (method) {
-        // ============================================================
-        // Initialize - Return server capabilities
-        // ============================================================
         case 'initialize': {
           console.log('[MCP Server] Handling initialize request');
           const requestedVersion = params?.protocolVersion;
 
           response = createJSONRPCResponse(id, {
-            // Echo the client's requested protocolVersion for compatibility
             protocolVersion: requestedVersion || "2024-11-05",
             capabilities: {
               tools: {},
-              // Some clients probe these even if empty
               resources: {},
               prompts: {}
             },
             serverInfo: {
               name: "Rari Fleet Assistant",
-              version: "1.0.1"
+              version: "1.0.2"
             }
           });
           break;
         }
 
-        // ============================================================
-        // List Tools - Return all available tools
-        // ============================================================
         case 'tools/list': {
           console.log('[MCP Server] Handling tools/list request');
           const tools = Object.values(TOOL_MANIFEST).map(tool => ({
@@ -790,9 +788,6 @@ Deno.serve(async (req) => {
           break;
         }
 
-        // ============================================================
-        // Some MCP clients call these during "Scan"; we return empty.
-        // ============================================================
         case 'resources/list': {
           console.log('[MCP Server] Handling resources/list request (empty)');
           response = createJSONRPCResponse(id, { resources: [] });
@@ -810,9 +805,6 @@ Deno.serve(async (req) => {
           break;
         }
 
-        // ============================================================
-        // Call Tool - Execute a tool and return result
-        // ============================================================
         case 'tools/call': {
           const { name: toolName, arguments: toolArgs } = params || {};
           console.log(`[MCP Server] Handling tools/call: ${toolName}`);
@@ -828,19 +820,30 @@ Deno.serve(async (req) => {
           const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
           const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-          // Extract user ID from request context (supports ElevenLabs user context)
+          // Extract user ID
           const userId = await extractUserId(req, supabase);
+          
+          // Get team ID for the user
+          const teamId = await getUserTeamId(supabase, userId);
+          if (!teamId) {
+            response = createJSONRPCResponse(id, {
+              content: [{
+                type: "text",
+                text: "Error: No team found. Please ensure you are assigned to a team."
+              }],
+              isError: true
+            });
+            break;
+          }
 
           // Execute the tool
-          const result = await executeFunction(toolName, toolArgs || {}, supabase, userId);
+          const result = await executeFunction(toolName, toolArgs || {}, supabase, teamId);
           console.log('[MCP Server] Tool result:', JSON.stringify(result, null, 2));
 
-          // Format response for ElevenLabs - include summary for voice responses
           const responseText = result.summary 
             ? `${result.summary}\n\n${typeof result === 'string' ? result : JSON.stringify(result, null, 2)}`
             : (typeof result === 'string' ? result : JSON.stringify(result, null, 2));
 
-          // Format response with proper error handling
           if (result.error) {
             response = createJSONRPCResponse(id, {
               content: [{
@@ -861,12 +864,8 @@ Deno.serve(async (req) => {
           break;
         }
 
-        // ============================================================
-        // Notifications (no response needed)
-        // ============================================================
         case 'notifications/initialized': {
           console.log('[MCP Server] Client initialized notification received');
-          // No response for notifications
           return new Response(null, {
             status: 204,
             headers: corsHeaders
@@ -881,7 +880,6 @@ Deno.serve(async (req) => {
 
       console.log('[MCP Server] Sending response:', JSON.stringify(response, null, 2));
 
-      // Try to send response through SSE if session exists
       const session = sessionId ? sessions.get(sessionId) : null;
       if (session) {
         try {
@@ -893,7 +891,6 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Always return HTTP response as well
       return new Response(JSON.stringify(response), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
@@ -923,14 +920,13 @@ Deno.serve(async (req) => {
 
       // Check if it's a JSON-RPC request
       if (body.jsonrpc === '2.0' && body.method) {
-        // Redirect to messages handler logic
         const { id, method, params } = body;
         
         if (method === 'initialize') {
           return new Response(JSON.stringify(createJSONRPCResponse(id, {
             protocolVersion: "2024-11-05",
             capabilities: { tools: {} },
-            serverInfo: { name: "Rari Fleet Assistant", version: "1.0.0" }
+            serverInfo: { name: "Rari Fleet Assistant", version: "1.0.2" }
           })), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           });
@@ -955,15 +951,21 @@ Deno.serve(async (req) => {
           const supabase = createClient(supabaseUrl, supabaseServiceKey);
           
           const userId = await extractUserId(req, supabase);
+          const teamId = await getUserTeamId(supabase, userId);
           
-          const result = await executeFunction(toolName, toolArgs || {}, supabase, userId);
+          if (!teamId) {
+            return new Response(JSON.stringify(createJSONRPCResponse(id, {
+              content: [{ type: "text", text: "Error: No team found." }],
+              isError: true
+            })), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
+          }
           
-          const responseText = result.summary 
-            ? `${result.summary}\n\n${JSON.stringify(result, null, 2)}`
-            : JSON.stringify(result, null, 2);
+          const result = await executeFunction(toolName, toolArgs || {}, supabase, teamId);
           
           return new Response(JSON.stringify(createJSONRPCResponse(id, {
-            content: [{ type: "text", text: responseText }],
+            content: [{ type: "text", text: result.summary || JSON.stringify(result) }],
             isError: !!result.error
           })), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -971,29 +973,29 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Legacy format support (ElevenLabs webhook format)
-      let toolName: string | undefined;
-      let parameters: any = {};
-
-      if (body.tool_name || body.name || body.function_name) {
-        toolName = body.tool_name || body.name || body.function_name;
-        parameters = body.parameters || body.args || body.arguments || {};
-      } else {
-        const keys = Object.keys(body).filter(k => !['conversation_metadata', 'metadata'].includes(k));
-        if (keys.length > 0) {
-          toolName = keys[0];
-          parameters = typeof body[toolName] === 'object' ? body[toolName] : {};
-        }
-      }
-
-      if (toolName) {
+      // Legacy ElevenLabs webhook format
+      const { tool_name, parameters } = body;
+      
+      if (tool_name) {
+        console.log(`[MCP Server] Legacy tool call: ${tool_name}`);
+        
         const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
         const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
         const supabase = createClient(supabaseUrl, supabaseServiceKey);
         
         const userId = await extractUserId(req, supabase);
+        const teamId = await getUserTeamId(supabase, userId);
         
-        const result = await executeFunction(toolName, parameters, supabase, userId);
+        if (!teamId) {
+          return new Response(JSON.stringify({
+            error: 'No team found',
+            summary: 'Please ensure you are assigned to a team.'
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+        
+        const result = await executeFunction(tool_name, parameters || {}, supabase, teamId);
         
         return new Response(JSON.stringify(result), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -1011,7 +1013,7 @@ Deno.serve(async (req) => {
     // ============================================================
     return new Response(JSON.stringify({
       name: "Rari Fleet Assistant MCP Server",
-      version: "1.0.0",
+      version: "1.0.2",
       protocol: "MCP (JSON-RPC 2.0)",
       description: "MCP server for Exotiq luxury fleet management",
       transport: "SSE",
@@ -1035,36 +1037,35 @@ Deno.serve(async (req) => {
 });
 
 // ============================================================
-// Tool Execution Functions (imported from elevenlabs-tools)
+// Tool Execution Functions - All using team_id
 // ============================================================
 
-async function executeFunction(functionName: string, args: any, supabase: any, userId: string) {
-  console.log(`[TOOL] Executing: ${functionName} | User: ${userId}`);
+async function executeFunction(functionName: string, args: any, supabase: any, teamId: string) {
+  console.log(`[TOOL] Executing: ${functionName} | Team: ${teamId}`);
 
   try {
     switch (functionName) {
       case "get_fleet_vehicles": {
         const { status, location } = args;
-        let query = supabase.from('vehicles').select('*').eq('user_id', userId);
+        let query = supabase.from('vehicles').select('*').eq('team_id', teamId);
         if (location && location !== 'all') query = query.eq('location', location);
         
         const { data: vehicles, error } = await query.order('created_at', { ascending: false });
         if (error) return { error: 'Failed to fetch vehicles', summary: 'Error retrieving vehicles.' };
         if (!vehicles?.length) return { count: 0, vehicles: [], summary: `No vehicles found${location ? ` in ${location}` : ''}.` };
 
-        // Get active bookings to determine real-time vehicle status
+        // Get active bookings
         const now = new Date().toISOString();
         const { data: activeBookings } = await supabase
           .from('bookings')
           .select('vehicle_id')
-          .eq('user_id', userId)
+          .eq('team_id', teamId)
           .eq('status', 'confirmed')
           .lte('start_date', now)
           .gte('end_date', now);
         
         const rentedVehicleIds = new Set(activeBookings?.map(b => b.vehicle_id) || []);
 
-        // Calculate real-time status based on active bookings
         const vehicleList = vehicles.map(v => {
           const realStatus = rentedVehicleIds.has(v.id) ? 'rented' : v.status;
           return {
@@ -1076,7 +1077,6 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
           };
         });
 
-        // Filter by status if requested (using calculated real-time status)
         let filteredList = vehicleList;
         if (status && status !== 'all') {
           filteredList = vehicleList.filter(v => v.status === status);
@@ -1097,13 +1097,13 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
         else if (timeframe === 'month') dateFilter.setMonth(dateFilter.getMonth() - 1);
         else if (timeframe === 'year') dateFilter.setFullYear(dateFilter.getFullYear() - 1);
 
-        let vehicleQuery = supabase.from('vehicles').select('*').eq('user_id', userId);
+        let vehicleQuery = supabase.from('vehicles').select('*').eq('team_id', teamId);
         if (location && location !== 'all') vehicleQuery = vehicleQuery.eq('location', location);
 
         const [vehiclesResult, bookingsResult, revenueResult] = await Promise.all([
           vehicleQuery,
-          supabase.from('bookings').select('*, vehicles(location)').eq('user_id', userId).gte('created_at', dateFilter.toISOString()),
-          supabase.from('bookings').select('total_value, vehicles(location)').eq('user_id', userId).eq('status', 'completed').gte('created_at', dateFilter.toISOString())
+          supabase.from('bookings').select('*, vehicles(location)').eq('team_id', teamId).gte('created_at', dateFilter.toISOString()),
+          supabase.from('bookings').select('total_value, vehicles(location)').eq('team_id', teamId).eq('status', 'completed').gte('created_at', dateFilter.toISOString())
         ]);
 
         const vehicles = vehiclesResult.data || [];
@@ -1117,7 +1117,6 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
 
         const totalRevenue = revenue.reduce((sum: number, b: any) => sum + Number(b.total_value || 0), 0);
         
-        // Calculate active bookings: confirmed bookings where now is between start and end date
         const now = new Date();
         const activeBookings = bookings.filter((b: any) => {
           const start = new Date(b.start_date);
@@ -1142,7 +1141,7 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
 
       case "getLocationMetrics": {
         const { location } = args;
-        const { data: allVehicles } = await supabase.from('vehicles').select('*').eq('user_id', userId);
+        const { data: allVehicles } = await supabase.from('vehicles').select('*').eq('team_id', teamId);
         if (!allVehicles?.length) return { summary: "No vehicles in fleet." };
 
         const locationStats: Record<string, any> = {};
@@ -1191,7 +1190,7 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
         else if (timeframe === 'year') dateFilter.setFullYear(dateFilter.getFullYear() - 1);
         else dateFilter = new Date(0);
 
-        const { data: payments } = await supabase.from('payments').select('*, bookings(customer_name, vehicle_id, vehicles(location))').eq('user_id', userId).gte('transaction_date', dateFilter.toISOString()).order('transaction_date', { ascending: false });
+        const { data: payments } = await supabase.from('payments').select('*, bookings(customer_name, vehicle_id, vehicles(location))').eq('team_id', teamId).gte('transaction_date', dateFilter.toISOString()).order('transaction_date', { ascending: false });
 
         let filteredPayments = payments || [];
         if (location && location !== 'all') filteredPayments = filteredPayments.filter((p: any) => p.bookings?.vehicles?.location?.toLowerCase() === location.toLowerCase());
@@ -1211,7 +1210,7 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
 
       case "get_bookings": {
         const { status, start_date, end_date, location } = args;
-        let query = supabase.from('bookings').select('*, vehicles(name, make, model, year, location), customers(full_name)').eq('user_id', userId);
+        let query = supabase.from('bookings').select('*, vehicles(name, make, model, year, location), customers(full_name)').eq('team_id', teamId);
         if (status && status !== 'all') query = query.eq('status', status);
         if (start_date) query = query.gte('start_date', start_date);
         if (end_date) query = query.lte('end_date', end_date);
@@ -1230,7 +1229,7 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
 
       case "get_recent_activity": {
         const { limit = 10 } = args;
-        const { data: recentBookings } = await supabase.from('bookings').select('*, vehicles(name, make, model, year, location), customers(full_name)').eq('user_id', userId).order('created_at', { ascending: false }).limit(limit);
+        const { data: recentBookings } = await supabase.from('bookings').select('*, vehicles(name, make, model, year, location), customers(full_name)').eq('team_id', teamId).order('created_at', { ascending: false }).limit(limit);
 
         const activities = recentBookings?.map((b: any) => ({
           description: `${b.customers?.full_name || 'Customer'} booked ${b.vehicles ? `${b.vehicles.year} ${b.vehicles.make} ${b.vehicles.model}` : 'vehicle'} for $${Number(b.total_value || 0).toFixed(0)}`,
@@ -1242,7 +1241,7 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
 
       case "getVehicleDetails": {
         const { vehicleName, includeBookings } = args;
-        const { data: vehicle } = await supabase.from('vehicles').select('*').eq('user_id', userId).or(`name.ilike.%${vehicleName}%,make.ilike.%${vehicleName}%,model.ilike.%${vehicleName}%`).maybeSingle();
+        const { data: vehicle } = await supabase.from('vehicles').select('*').eq('team_id', teamId).or(`name.ilike.%${vehicleName}%,make.ilike.%${vehicleName}%,model.ilike.%${vehicleName}%`).maybeSingle();
         if (!vehicle) return { error: "Vehicle not found", summary: `No vehicle matching "${vehicleName}".` };
 
         let bookingsData = null;
@@ -1260,7 +1259,7 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
 
       case "checkAvailability": {
         const { vehicleName, startDate, endDate, location } = args;
-        let vehicleQuery = supabase.from('vehicles').select('id, name, make, model, year, status, location, current_rate').eq('user_id', userId);
+        let vehicleQuery = supabase.from('vehicles').select('id, name, make, model, year, status, location, current_rate').eq('team_id', teamId);
         if (vehicleName) vehicleQuery = vehicleQuery.or(`name.ilike.%${vehicleName}%,make.ilike.%${vehicleName}%,model.ilike.%${vehicleName}%`);
         if (location) vehicleQuery = vehicleQuery.eq('location', location);
 
@@ -1289,7 +1288,7 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
         else if (timeframe === 'month') dateFilter.setMonth(dateFilter.getMonth() - 1);
         else if (timeframe === 'year') dateFilter.setFullYear(dateFilter.getFullYear() - 1);
 
-        const { data: bookings } = await supabase.from('bookings').select('total_value, daily_rate, vehicles(name, make, model, year, location)').eq('user_id', userId).eq('status', 'completed').gte('created_at', dateFilter.toISOString());
+        const { data: bookings } = await supabase.from('bookings').select('total_value, daily_rate, vehicles(name, make, model, year, location)').eq('team_id', teamId).eq('status', 'completed').gte('created_at', dateFilter.toISOString());
 
         let filtered = bookings || [];
         if (location && location !== 'all') filtered = filtered.filter((b: any) => b.vehicles?.location?.toLowerCase() === location.toLowerCase());
@@ -1306,14 +1305,14 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
       case "getTopPerformers": {
         const { metric, limit = 5, location } = args;
         if (metric === 'revenue' || metric === 'utilization') {
-          let query = supabase.from('vehicles').select('name, make, model, year, revenue, utilization, location').eq('user_id', userId);
+          let query = supabase.from('vehicles').select('name, make, model, year, revenue, utilization, location').eq('team_id', teamId);
           if (location && location !== 'all') query = query.eq('location', location);
           
           const { data: vehicles } = await query.order(metric, { ascending: false }).limit(limit);
           const performers = vehicles?.map(v => ({ name: `${v.year} ${v.make} ${v.model}`, value: metric === 'revenue' ? `$${Number(v.revenue || 0).toFixed(0)}` : `${v.utilization}%` })) || [];
           return { metric, performers, summary: `Top by ${metric}: ${performers.map(p => `${p.name} (${p.value})`).join(', ')}.` };
         } else {
-          const { data: customers } = await supabase.from('customers').select('full_name, total_bookings, lifetime_value').eq('user_id', userId).order('lifetime_value', { ascending: false }).limit(limit);
+          const { data: customers } = await supabase.from('customers').select('full_name, total_bookings, lifetime_value').eq('team_id', teamId).order('lifetime_value', { ascending: false }).limit(limit);
           const performers = customers?.map(c => ({ name: c.full_name, value: `$${Number(c.lifetime_value || 0).toFixed(0)}` })) || [];
           return { metric: 'customers', performers, summary: `Top customers: ${performers.map(p => `${p.name} (${p.value})`).join(', ')}.` };
         }
@@ -1321,7 +1320,7 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
 
       case "searchBookings": {
         const { status, daysRange, location } = args;
-        let query = supabase.from('bookings').select('*, vehicles(name, make, model, year, location), customers(full_name)').eq('user_id', userId);
+        let query = supabase.from('bookings').select('*, vehicles(name, make, model, year, location), customers(full_name)').eq('team_id', teamId);
         if (status) query = query.eq('status', status);
         if (daysRange) {
           const dateFilter = new Date();
@@ -1339,7 +1338,7 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
 
       case "getCustomerProfile": {
         const { customerName, includeHistory } = args;
-        const { data: customer } = await supabase.from('customers').select('*').eq('user_id', userId).ilike('full_name', `%${customerName}%`).maybeSingle();
+        const { data: customer } = await supabase.from('customers').select('*').eq('team_id', teamId).ilike('full_name', `%${customerName}%`).maybeSingle();
         if (!customer) return { error: "Customer not found", summary: `No customer matching "${customerName}".` };
 
         let bookingsData = null;
@@ -1357,14 +1356,14 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
 
       case "getCustomerLifetimeValue": {
         const { customerName } = args;
-        const { data: customer } = await supabase.from('customers').select('full_name, lifetime_value, total_bookings, customer_status').eq('user_id', userId).ilike('full_name', `%${customerName}%`).maybeSingle();
+        const { data: customer } = await supabase.from('customers').select('full_name, lifetime_value, total_bookings, customer_status').eq('team_id', teamId).ilike('full_name', `%${customerName}%`).maybeSingle();
         if (!customer) return { error: "Customer not found", summary: `No customer matching "${customerName}".` };
         return { customer: { name: customer.full_name, totalBookings: customer.total_bookings || 0, lifetimeValue: `$${Number(customer.lifetime_value || 0).toFixed(0)}` }, summary: `${customer.full_name}: $${Number(customer.lifetime_value || 0).toFixed(0)} lifetime value.` };
       }
 
       case "getPricingRecommendation": {
         const { vehicleName, location } = args;
-        let vehicleQuery = supabase.from('vehicles').select('*').eq('user_id', userId);
+        let vehicleQuery = supabase.from('vehicles').select('*').eq('team_id', teamId);
         if (vehicleName) vehicleQuery = vehicleQuery.or(`name.ilike.%${vehicleName}%,make.ilike.%${vehicleName}%,model.ilike.%${vehicleName}%`);
         if (location) vehicleQuery = vehicleQuery.eq('location', location);
 
@@ -1396,7 +1395,7 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
 
       case "getFleetPricingOverview": {
         const { location } = args;
-        let query = supabase.from('vehicles').select('*').eq('user_id', userId);
+        let query = supabase.from('vehicles').select('*').eq('team_id', teamId);
         if (location && location !== 'all') query = query.eq('location', location);
 
         const { data: vehicles } = await query;
@@ -1421,7 +1420,7 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
         const effectiveLocation = location || city;
         const peakSeason = getCurrentPeakSeason(effectiveLocation);
 
-        const { data: bookings } = await supabase.from('bookings').select('start_date, total_value, vehicles(location)').eq('user_id', userId).gte('start_date', new Date().toISOString()).order('start_date', { ascending: true }).limit(20);
+        const { data: bookings } = await supabase.from('bookings').select('start_date, total_value, vehicles(location)').eq('team_id', teamId).gte('start_date', new Date().toISOString()).order('start_date', { ascending: true }).limit(20);
 
         let filtered = bookings || [];
         if (effectiveLocation !== 'all') filtered = filtered.filter((b: any) => b.vehicles?.location?.toLowerCase().includes(effectiveLocation.toLowerCase()));
@@ -1458,7 +1457,7 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
 
       case "getDamageReports": {
         const { status, location } = args;
-        let query = supabase.from('damage_claims').select('*, vehicles(name, make, model, year, location)').eq('user_id', userId);
+        let query = supabase.from('damage_claims').select('*, vehicles(name, make, model, year, location)').eq('team_id', teamId);
         if (status && status !== 'all') query = query.eq('claim_status', status);
 
         const { data: claims } = await query.order('reported_date', { ascending: false });
@@ -1473,7 +1472,7 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
         const futureDate = new Date();
         futureDate.setDate(futureDate.getDate() + daysAhead);
 
-        const { data: maintenance } = await supabase.from('maintenance_schedules').select('*, vehicles(name, make, model, year, location)').eq('user_id', userId).lte('scheduled_date', futureDate.toISOString()).gte('scheduled_date', new Date().toISOString()).order('scheduled_date', { ascending: true });
+        const { data: maintenance } = await supabase.from('maintenance_schedules').select('*, vehicles(name, make, model, year, location)').eq('team_id', teamId).lte('scheduled_date', futureDate.toISOString()).gte('scheduled_date', new Date().toISOString()).order('scheduled_date', { ascending: true });
 
         let filtered = maintenance || [];
         if (location && location !== 'all') filtered = filtered.filter((m: any) => m.vehicles?.location?.toLowerCase() === location.toLowerCase());
@@ -1528,8 +1527,10 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
 
       case "logFeedback": {
         const { feedbackType, keywords, userQuery, rariResponse, context } = args;
+        // Note: For feedback, we still use a user context, but it's acceptable to skip team context here
+        const { data: firstUser } = await supabase.from('profiles').select('id').limit(1).single();
         await supabase.from('rari_feedback').insert({
-          user_id: userId,
+          user_id: firstUser?.id || 'unknown',
           feedback_type: feedbackType || 'feature_request',
           keywords: keywords ? keywords.split(',').map((k: string) => k.trim()) : [],
           user_query: userQuery,
@@ -1541,12 +1542,14 @@ async function executeFunction(functionName: string, args: any, supabase: any, u
 
       case "featureComingSoon": {
         const { featureName, userRequest } = args;
-        await supabase.from('rari_feedback').insert({ user_id: userId, feedback_type: 'feature_request', keywords: [featureName], user_query: userRequest, rari_response: `Feature coming soon: ${featureName}`, context: { requested_feature: featureName } });
+        const { data: firstUser } = await supabase.from('profiles').select('id').limit(1).single();
+        await supabase.from('rari_feedback').insert({ user_id: firstUser?.id || 'unknown', feedback_type: 'feature_request', keywords: [featureName], user_query: userRequest, rari_response: `Feature coming soon: ${featureName}`, context: { requested_feature: featureName } });
         return { feature: featureName, status: 'coming_soon', summary: `${featureName} is coming soon! I've logged your request.` };
       }
 
       default:
-        await supabase.from('rari_feedback').insert({ user_id: userId, feedback_type: 'not_working', keywords: [functionName], user_query: JSON.stringify(args), context: { function_name: functionName, args } });
+        const { data: firstUser } = await supabase.from('profiles').select('id').limit(1).single();
+        await supabase.from('rari_feedback').insert({ user_id: firstUser?.id || 'unknown', feedback_type: 'not_working', keywords: [functionName], user_query: JSON.stringify(args), context: { function_name: functionName, args } });
         return { error: `Capability not available yet`, summary: `That feature isn't available yet, but I've logged it.` };
     }
   } catch (error) {
