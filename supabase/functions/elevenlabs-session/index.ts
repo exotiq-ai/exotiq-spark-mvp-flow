@@ -8,6 +8,18 @@ const corsHeaders = {
 };
 
 // Generate a signed tool token for secure tool calls
+// Convert Uint8Array to base64url string
+function toBase64Url(bytes: Uint8Array): string {
+  const base64 = base64Encode(bytes);
+  return base64.replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+}
+
+// Convert string to base64url
+function stringToBase64Url(str: string): string {
+  const encoder = new TextEncoder();
+  return toBase64Url(encoder.encode(str));
+}
+
 async function generateToolToken(userId: string, teamId: string | null, secret: string): Promise<string> {
   const header = { alg: 'HS256', typ: 'JWT' };
   const now = Math.floor(Date.now() / 1000);
@@ -19,8 +31,8 @@ async function generateToolToken(userId: string, teamId: string | null, secret: 
   };
 
   const encoder = new TextEncoder();
-  const headerB64 = base64Encode(JSON.stringify(header)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-  const payloadB64 = base64Encode(JSON.stringify(payload)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+  const headerB64 = stringToBase64Url(JSON.stringify(header));
+  const payloadB64 = stringToBase64Url(JSON.stringify(payload));
   
   const data = `${headerB64}.${payloadB64}`;
   const key = await crypto.subtle.importKey(
@@ -32,7 +44,9 @@ async function generateToolToken(userId: string, teamId: string | null, secret: 
   );
   
   const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(data));
-  const signatureB64 = base64Encode(new Uint8Array(signature)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+  const signatureB64 = toBase64Url(new Uint8Array(signature));
+  
+  console.log('[JWT] Generated token for user:', userId, 'team:', teamId);
   
   return `${data}.${signatureB64}`;
 }

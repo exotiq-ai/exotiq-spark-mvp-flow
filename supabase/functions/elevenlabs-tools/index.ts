@@ -218,13 +218,17 @@ serve(async (req) => {
       }
     }
 
-    // 3. Fallback: DEMO_USER_ID from environment
+    // 3. Fallback: DEMO_USER_ID from environment (only if valid UUID)
     if (!userId) {
       const demoUserId = Deno.env.get('DEMO_USER_ID');
-      if (demoUserId) {
+      // Only use if it looks like a valid UUID
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (demoUserId && uuidRegex.test(demoUserId)) {
         userId = demoUserId;
         authMethod = 'demo_user';
         console.log('Using DEMO_USER_ID from environment:', userId);
+      } else if (demoUserId) {
+        console.warn('DEMO_USER_ID is not a valid UUID, ignoring:', demoUserId);
       }
     }
 
