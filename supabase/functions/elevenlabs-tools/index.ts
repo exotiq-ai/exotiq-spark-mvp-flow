@@ -161,22 +161,104 @@ async function getUserTeamId(supabase: SupabaseClient, userId: string): Promise<
   return data?.team_id || null;
 }
 
+function looksLikeJwt(token: string): boolean {
+  return token.split('.').length === 3;
+}
+
+async function readJsonBody(req: Request): Promise<any> {
+  try {
+    if (req.method === 'GET' || req.method === 'HEAD') return {};
+    const raw = await req.text().catch(() => '');
+    if (!raw) return {};
+    return JSON.parse(raw);
+  } catch {
+    console.warn('[readJsonBody] Failed to parse JSON body');
+    return {};
+  }
+}
+
+function extractToolCall(body: any, url: URL): { toolName?: string; parameters: any } {
+  // 1) Query params (supports /elevenlabs-tools?tool_name=...)
+  const qpName =
+    url.searchParams.get('tool_name') ||
+    url.searchParams.get('tool') ||
+    url.searchParams.get('name') ||
+    url.searchParams.get('function_name');
+
+  if (qpName) {
+    return { toolName: qpName, parameters: body?.parameters ?? body ?? {} };
+  }
+
+  // 2) Common wrappers
+  const directName = body?.tool_name || body?.name || body?.function_name;
+  if (directName) return { toolName: directName, parameters: body?.parameters || body?.args || {} };
+
+  const nestedName = body?.tool?.name || body?.function?.name || body?.toolCall?.name || body?.tool_call?.name;
+  const nestedParams =
+    body?.tool?.parameters ||
+    body?.tool?.args ||
+    body?.function?.parameters ||
+    body?.function?.args ||
+    body?.toolCall?.parameters ||
+    body?.tool_call?.parameters;
+  if (nestedName) return { toolName: nestedName, parameters: nestedParams || body?.parameters || body?.args || {} };
+
+  // OpenAI-like: { function: { name, arguments } }
+  if (body?.function?.arguments && typeof body.function.arguments === 'string' && body.function.name) {
+    try {
+      return { toolName: body.function.name, parameters: JSON.parse(body.function.arguments) };
+    } catch {
+      return { toolName: body.function.name, parameters: { raw: body.function.arguments } };
+    }
+  }
+
+  // 3) URL path suffix: /elevenlabs-tools/<toolName>
+  const pathParts = url.pathname.split('/').filter(Boolean);
+  const last = pathParts[pathParts.length - 1];
+  if (last && last !== 'elevenlabs-tools') {
+    return { toolName: last, parameters: body?.parameters ?? body ?? {} };
+  }
+
+  // 4) Legacy single-key format: { "<toolName>": <params> }
+  const keys = Object.keys(body || {}).filter((k) => !['conversation_metadata', 'metadata'].includes(k));
+  if (keys.length === 1) {
+    const k = keys[0];
+    const v = body[k];
+
+    if (typeof v === 'object' && v !== null) return { toolName: k, parameters: v };
+
+    if (typeof v === 'string') {
+      const pairs = v.split(' ');
+      const parameters: any = {};
+      for (const pair of pairs) {
+        const [pk, pv] = pair.split(':');
+        if (pk && pv) parameters[pk] = pv;
+      }
+      return { toolName: k, parameters };
+    }
+  }
+
+  return { toolName: undefined, parameters: {} };
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    const url = new URL(req.url);
+
     console.log('=== ElevenLabs Tool Request ===');
-    console.log('Method:', req.method);
-    
+    console.log('Method:', req.method, 'URL:', `${url.pathname}${url.search}`);
+
     // Log headers (redact authorization for security)
     const headers = Object.fromEntries(req.headers.entries());
     const safeHeaders = { ...headers };
     if (safeHeaders.authorization) safeHeaders.authorization = '[REDACTED]';
     console.log('Headers:', safeHeaders);
-    
-    const body = await req.json();
+
+    const body = await readJsonBody(req);
     console.log('Raw body:', JSON.stringify(body, null, 2));
 
     // Initialize Supabase with service role for backend operations
@@ -193,15 +275,35 @@ serve(async (req) => {
     // 1. Check Authorization header for tool token (secure path)
     const authHeader = req.headers.get('authorization') || req.headers.get('Authorization');
     if (authHeader && authHeader.startsWith('Bearer ') && RARI_TOOL_TOKEN_SECRET) {
-      const token = authHeader.slice(7);
-      const payload = await verifyToolToken(token, RARI_TOOL_TOKEN_SECRET);
-      if (payload) {
-        userId = payload.userId;
-        teamId = payload.teamId;
-        authMethod = 'tool_token';
-        console.log('✓ Authenticated via tool token:', { userId, teamId });
+      const token = authHeader.slice(7).trim();
+      const parts = token.split('.').length;
+
+      console.log('[Auth] Bearer header received:', {
+        looksLikeJwt: looksLikeJwt(token),
+        parts,
+        length: token.length,
+      });
+
+      if (looksLikeJwt(token)) {
+        const payload = await verifyToolToken(token, RARI_TOOL_TOKEN_SECRET);
+        if (payload) {
+          userId = payload.userId;
+          teamId = payload.teamId;
+          authMethod = 'tool_token';
+          console.log('✓ Authenticated via tool token:', { userId, teamId });
+        } else {
+          console.warn('⚠ Tool token present but verification failed');
+          return new Response(
+            JSON.stringify({
+              error: 'Tool authorization failed',
+              summary:
+                'Your tool call was received, but its Authorization token could not be verified. Make sure your agent tool sends Authorization: Bearer {{secret__rari_tool_token}}.',
+            }),
+            { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
       } else {
-        console.warn('⚠ Tool token present but verification failed');
+        console.warn('[Auth] Bearer token does not look like a JWT; ignoring');
       }
     }
 
@@ -256,41 +358,22 @@ serve(async (req) => {
 
     console.log('Authentication resolved:', { userId, teamId, authMethod });
     
-    // ElevenLabs sends data in format: { "toolName": "param_string" } or { "toolName": {...} }
-    let toolName: string | undefined;
-    let parameters: any = {};
-    
-    // Check different possible formats
-    if (body.tool_name || body.name || body.function_name) {
-      // Standard format: { tool_name: "...", parameters: {...} }
-      toolName = body.tool_name || body.name || body.function_name;
-      parameters = body.parameters || body.args || {};
-    } else {
-      // ElevenLabs webhook format: { "get_fleet_vehicles": "status:available" }
-      const keys = Object.keys(body).filter(k => !['conversation_metadata', 'metadata'].includes(k));
-      if (keys.length > 0) {
-        toolName = keys[0];
-        const paramValue = body[toolName];
-        
-        // If parameters are a string, parse them
-        if (typeof paramValue === 'string') {
-          // Parse format like "status:all date_range:this_week"
-          const pairs = paramValue.split(' ');
-          parameters = {};
-          pairs.forEach(pair => {
-            const [key, value] = pair.split(':');
-            if (key && value) {
-              parameters[key] = value;
-            }
-          });
-        } else if (typeof paramValue === 'object') {
-          parameters = paramValue;
-        }
-      }
-    }
-    
-    console.log(`Tool called: ${toolName}`);
+    // Resolve tool + parameters from request
+    const { toolName, parameters } = extractToolCall(body, url);
+
+    console.log(`Tool called: ${toolName || '(missing tool name)'}`);
     console.log('Parameters:', JSON.stringify(parameters, null, 2));
+
+    if (!toolName) {
+      return new Response(
+        JSON.stringify({
+          error: 'Missing tool name',
+          summary:
+            'Your agent is calling the tools endpoint without specifying which tool to run. Update the tool webhook to include tool_name + parameters (e.g. {"tool_name":"get_bookings","parameters":{"status":"active"}}) or call /elevenlabs-tools/<toolName>.',
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     
     // Verify user exists
     const { data: userProfile, error: userError } = await supabase
