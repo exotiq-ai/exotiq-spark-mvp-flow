@@ -199,8 +199,19 @@ export const RariVoiceInterface = ({
       }
       
       console.log('Starting session with signed URL...');
+      
+      // Build dynamic variables for secure tool calls
+      const dynamicVariables: Record<string, string> = {};
+      if (data.toolToken) {
+        // Pass tool token as a secret dynamic variable
+        // ElevenLabs will include this in tool call headers as: Authorization: Bearer {{secret__rari_tool_token}}
+        dynamicVariables['secret__rari_tool_token'] = data.toolToken;
+        console.log('Tool token will be passed to voice session');
+      }
+      
       const id = await conversation.startSession({ 
         signedUrl: data.signed_url,
+        dynamicVariables: Object.keys(dynamicVariables).length > 0 ? dynamicVariables : undefined,
         overrides: {
           agent: {
             language: 'en',
