@@ -1,11 +1,73 @@
 // @ts-nocheck - TODO: Add full type annotations to this large file
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.77.0';
+import { decode as base64Decode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Tool token payload structure
+interface ToolTokenPayload {
+  userId: string;
+  teamId: string | null;
+  iat: number;
+  exp: number;
+}
+
+// Verify and decode a tool token
+async function verifyToolToken(token: string, secret: string): Promise<ToolTokenPayload | null> {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) {
+      console.warn('Invalid token format - expected 3 parts');
+      return null;
+    }
+
+    const [headerB64, payloadB64, signatureB64] = parts;
+    
+    // Verify signature
+    const encoder = new TextEncoder();
+    const data = `${headerB64}.${payloadB64}`;
+    const key = await crypto.subtle.importKey(
+      'raw',
+      encoder.encode(secret),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['verify']
+    );
+    
+    // Convert base64url to standard base64 and pad if needed
+    let signatureStd = signatureB64.replace(/-/g, '+').replace(/_/g, '/');
+    while (signatureStd.length % 4 !== 0) signatureStd += '=';
+    const signatureBytes = base64Decode(signatureStd);
+    
+    const valid = await crypto.subtle.verify('HMAC', key, signatureBytes, encoder.encode(data));
+    if (!valid) {
+      console.warn('Token signature verification failed');
+      return null;
+    }
+    
+    // Decode payload
+    let payloadStd = payloadB64.replace(/-/g, '+').replace(/_/g, '/');
+    while (payloadStd.length % 4 !== 0) payloadStd += '=';
+    const payloadJson = new TextDecoder().decode(base64Decode(payloadStd));
+    const payload = JSON.parse(payloadJson) as ToolTokenPayload;
+    
+    // Check expiration
+    const now = Math.floor(Date.now() / 1000);
+    if (payload.exp < now) {
+      console.warn('Token expired:', { exp: payload.exp, now });
+      return null;
+    }
+    
+    return payload;
+  } catch (error) {
+    console.error('Token verification error:', error);
+    return null;
+  }
+}
 
 // Type definitions for database records
 interface Vehicle {
@@ -107,20 +169,88 @@ serve(async (req) => {
   try {
     console.log('=== ElevenLabs Tool Request ===');
     console.log('Method:', req.method);
-    console.log('Headers:', Object.fromEntries(req.headers.entries()));
+    
+    // Log headers (redact authorization for security)
+    const headers = Object.fromEntries(req.headers.entries());
+    const safeHeaders = { ...headers };
+    if (safeHeaders.authorization) safeHeaders.authorization = '[REDACTED]';
+    console.log('Headers:', safeHeaders);
     
     const body = await req.json();
     console.log('Raw body:', JSON.stringify(body, null, 2));
-    
-    // Extract user_id from conversation metadata
+
+    // Initialize Supabase with service role for backend operations
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const RARI_TOOL_TOKEN_SECRET = Deno.env.get('RARI_TOOL_TOKEN_SECRET');
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Extract user identity - priority: tool token > metadata > DEMO_USER_ID > first user
     let userId: string | null = null;
-    if (body.conversation_metadata?.user_id) {
-      userId = body.conversation_metadata.user_id;
-      console.log('Found user_id in conversation metadata:', userId);
-    } else if (body.metadata?.user_id) {
-      userId = body.metadata.user_id;
-      console.log('Found user_id in metadata:', userId);
+    let teamId: string | null = null;
+    let authMethod = 'none';
+
+    // 1. Check Authorization header for tool token (secure path)
+    const authHeader = req.headers.get('authorization') || req.headers.get('Authorization');
+    if (authHeader && authHeader.startsWith('Bearer ') && RARI_TOOL_TOKEN_SECRET) {
+      const token = authHeader.slice(7);
+      const payload = await verifyToolToken(token, RARI_TOOL_TOKEN_SECRET);
+      if (payload) {
+        userId = payload.userId;
+        teamId = payload.teamId;
+        authMethod = 'tool_token';
+        console.log('✓ Authenticated via tool token:', { userId, teamId });
+      } else {
+        console.warn('⚠ Tool token present but verification failed');
+      }
     }
+
+    // 2. Fallback: Check conversation metadata
+    if (!userId) {
+      if (body.conversation_metadata?.user_id) {
+        userId = body.conversation_metadata.user_id;
+        authMethod = 'conversation_metadata';
+        console.log('Using user_id from conversation_metadata:', userId);
+      } else if (body.metadata?.user_id) {
+        userId = body.metadata.user_id;
+        authMethod = 'metadata';
+        console.log('Using user_id from metadata:', userId);
+      }
+    }
+
+    // 3. Fallback: DEMO_USER_ID from environment
+    if (!userId) {
+      const demoUserId = Deno.env.get('DEMO_USER_ID');
+      if (demoUserId) {
+        userId = demoUserId;
+        authMethod = 'demo_user';
+        console.log('Using DEMO_USER_ID from environment:', userId);
+      }
+    }
+
+    // 4. Last resort: Get first user (development only)
+    if (!userId) {
+      console.warn('No user_id found, falling back to first user');
+      const { data: users } = await supabase
+        .from('profiles')
+        .select('id')
+        .limit(1)
+        .single();
+      userId = users?.id;
+      authMethod = 'first_user_fallback';
+    }
+
+    if (!userId) {
+      return new Response(
+        JSON.stringify({
+          error: 'Authentication required',
+          summary: 'I need you to be logged in to access your fleet data. Please make sure you are signed in to your account.'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('Authentication resolved:', { userId, teamId, authMethod });
     
     // ElevenLabs sends data in format: { "toolName": "param_string" } or { "toolName": {...} }
     let toolName: string | undefined;
@@ -157,30 +287,6 @@ serve(async (req) => {
     
     console.log(`Tool called: ${toolName}`);
     console.log('Parameters:', JSON.stringify(parameters, null, 2));
-
-    // Initialize Supabase with service role for backend operations
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // If no user_id in metadata, fall back to DEMO_USER_ID env var, then first user
-    if (!userId) {
-      const demoUserId = Deno.env.get('DEMO_USER_ID');
-      if (demoUserId) {
-        console.log('Using DEMO_USER_ID from environment:', demoUserId);
-        userId = demoUserId;
-      } else {
-        console.warn('No user_id in conversation metadata, falling back to first user');
-        const { data: users } = await supabase
-          .from('profiles')
-          .select('id')
-          .limit(1)
-          .single();
-        userId = users?.id || 'demo-user-id';
-      }
-    }
-    
-    console.log('Using user_id:', userId);
     
     // Verify user exists
     const { data: userProfile, error: userError } = await supabase
@@ -202,9 +308,11 @@ serve(async (req) => {
     
     console.log('User verified:', userProfile.full_name || userProfile.email);
 
-    // Get user's team_id for multi-tenant queries
-    const teamId = await getUserTeamId(supabase, userId);
-    console.log('User team_id:', teamId);
+    // Get user's team_id if not already from token
+    if (!teamId) {
+      teamId = await getUserTeamId(supabase, userId);
+      console.log('Team_id from database:', teamId);
+    }
     
     if (!teamId) {
       console.warn('No team found for user, queries may return limited data');

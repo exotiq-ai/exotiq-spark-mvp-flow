@@ -1,10 +1,41 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.77.0";
+import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Generate a signed tool token for secure tool calls
+async function generateToolToken(userId: string, teamId: string | null, secret: string): Promise<string> {
+  const header = { alg: 'HS256', typ: 'JWT' };
+  const now = Math.floor(Date.now() / 1000);
+  const payload = {
+    userId,
+    teamId,
+    iat: now,
+    exp: now + 900, // 15 minutes expiry
+  };
+
+  const encoder = new TextEncoder();
+  const headerB64 = base64Encode(JSON.stringify(header)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+  const payloadB64 = base64Encode(JSON.stringify(payload)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+  
+  const data = `${headerB64}.${payloadB64}`;
+  const key = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  
+  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(data));
+  const signatureB64 = base64Encode(new Uint8Array(signature)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+  
+  return `${data}.${signatureB64}`;
+}
 
 // Fetch user's fleet summary for dynamic context
 async function getFleetContext(supabase: any, userId: string) {
@@ -33,7 +64,8 @@ async function getFleetContext(supabase: any, userId: string) {
         summary: "New fleet - no vehicles added yet.",
         vehicleCount: 0,
         locations: [],
-        makes: []
+        makes: [],
+        teamId
       };
     }
 
@@ -81,11 +113,16 @@ serve(async (req) => {
 
   try {
     const ELEVENLABS_API_KEY = Deno.env.get('ELEVENLABS_API_KEY');
+    const RARI_TOOL_TOKEN_SECRET = Deno.env.get('RARI_TOOL_TOKEN_SECRET');
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     
     if (!ELEVENLABS_API_KEY) {
       throw new Error('ELEVENLABS_API_KEY not configured');
+    }
+
+    if (!RARI_TOOL_TOKEN_SECRET) {
+      console.warn('RARI_TOOL_TOKEN_SECRET not configured - tool calls will not be authenticated');
     }
 
     const { userId, context } = await req.json();
@@ -97,10 +134,22 @@ serve(async (req) => {
     // Initialize Supabase with service role for admin access
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Fetch user's fleet context
+    // Fetch user's fleet context (also returns teamId)
     const fleetContext = await getFleetContext(supabase, userId);
+    const teamId = fleetContext?.teamId || null;
     
-    console.log('Fleet context for user:', userId, fleetContext?.summary || 'No fleet data');
+    console.log('Fleet context for user:', userId, 'team:', teamId, fleetContext?.summary || 'No fleet data');
+
+    // Generate tool token for secure tool calls
+    let toolToken: string | null = null;
+    if (RARI_TOOL_TOKEN_SECRET) {
+      try {
+        toolToken = await generateToolToken(userId, teamId, RARI_TOOL_TOKEN_SECRET);
+        console.log('Generated tool token for user:', userId);
+      } catch (tokenError) {
+        console.error('Failed to generate tool token:', tokenError);
+      }
+    }
 
     const agentId = 'agent_0001k9d5pvdwfmvv7aq0mhaexgd6';
     
@@ -113,7 +162,6 @@ serve(async (req) => {
     console.log('Generating signed URL for agent:', agentId, 'user:', userId, contextInfo);
 
     // Get signed URL from ElevenLabs
-    // NOTE: Endpoint is `get-signed-url` (hyphens), not `get_signed_url`.
     const response = await fetch(
       `https://api.elevenlabs.io/v1/convai/conversation/get-signed-url?agent_id=${agentId}`,
       {
@@ -135,6 +183,8 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({
       ...data,
+      // Tool token for secure tool calls
+      toolToken,
       // Dynamic fleet context for this user
       fleetContext,
       // Merge with any UI context passed in
