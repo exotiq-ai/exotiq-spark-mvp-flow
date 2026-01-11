@@ -177,6 +177,38 @@ async function readJsonBody(req: Request): Promise<any> {
   }
 }
 
+// Map common parameter-only payloads to actual tool names
+// ElevenLabs sometimes sends { "status": "all" } instead of { "tool_name": "get_bookings", "parameters": { "status": "all" } }
+const PARAMETER_TO_TOOL_MAP: Record<string, string> = {
+  // Single parameter keys that map to specific tools
+  'status': 'get_fleet_vehicles',      // { "status": "available" } -> get_fleet_vehicles
+  'timeframe': 'getFleetMetrics',      // { "timeframe": "this_week" } -> getFleetMetrics
+  'location': 'getLocationMetrics',    // { "location": "Miami" } -> getLocationMetrics
+  'vehicleName': 'getVehicleDetails',  // { "vehicleName": "Ferrari" } -> getVehicleDetails
+  'customerName': 'getCustomerProfile', // { "customerName": "John" } -> getCustomerProfile
+  'metric': 'getTopPerformers',        // { "metric": "revenue" } -> getTopPerformers
+  'eventName': 'getEventImpact',       // { "eventName": "Art Basel" } -> getEventImpact
+  'daysAhead': 'getUpcomingMaintenance', // { "daysAhead": 30 } -> getUpcomingMaintenance
+  'daysRange': 'searchBookings',       // { "daysRange": 7 } -> searchBookings
+  'city': 'getDemandForecast',         // { "city": "miami" } -> getDemandForecast
+  'days': 'getDemandForecast',         // { "days": 14 } -> getDemandForecast
+};
+
+// Known valid tool names (to distinguish from parameter keys)
+const KNOWN_TOOLS = new Set([
+  'get_fleet_vehicles', 'get_bookings', 'get_recent_activity',
+  'getFleetMetrics', 'getLocationMetrics', 'getPaymentSummary',
+  'getVehicleDetails', 'getCustomerProfile', 'checkAvailability',
+  'getRevenueAnalysis', 'getTopPerformers', 'searchBookings',
+  'getDamageReports', 'getUpcomingMaintenance', 'getCustomerLifetimeValue',
+  'getVaultDocuments', 'getDemandForecast', 'getPricingRecommendation',
+  'getFleetPricingOverview', 'getEventImpact', 'getWeatherInfo',
+  'getCarJoke', 'getVehicleSpecs', 'logFeedback', 'featureComingSoon',
+  'getVehicleProfitLoss', 'getFleetProfitLoss', 'getCompetitorRates',
+  'getSeasonalPricing', 'getFleetInsights', 'getActionItems',
+  'createBooking', 'updateBooking', 'sendCustomerMessage',
+]);
+
 function extractToolCall(body: any, url: URL): { toolName?: string; parameters: any } {
   // 1) Query params (supports /elevenlabs-tools?tool_name=...)
   const qpName =
@@ -215,7 +247,7 @@ function extractToolCall(body: any, url: URL): { toolName?: string; parameters: 
   // 3) URL path suffix: /elevenlabs-tools/<toolName>
   const pathParts = url.pathname.split('/').filter(Boolean);
   const last = pathParts[pathParts.length - 1];
-  if (last && last !== 'elevenlabs-tools') {
+  if (last && last !== 'elevenlabs-tools' && KNOWN_TOOLS.has(last)) {
     return { toolName: last, parameters: body?.parameters ?? body ?? {} };
   }
 
@@ -225,20 +257,53 @@ function extractToolCall(body: any, url: URL): { toolName?: string; parameters: 
     const k = keys[0];
     const v = body[k];
 
-    if (typeof v === 'object' && v !== null) return { toolName: k, parameters: v };
-
-    if (typeof v === 'string') {
-      const pairs = v.split(' ');
-      const parameters: any = {};
-      for (const pair of pairs) {
-        const [pk, pv] = pair.split(':');
-        if (pk && pv) parameters[pk] = pv;
+    // Check if this key is a known tool name
+    if (KNOWN_TOOLS.has(k)) {
+      if (typeof v === 'object' && v !== null) return { toolName: k, parameters: v };
+      if (typeof v === 'string') {
+        const pairs = v.split(' ');
+        const parameters: any = {};
+        for (const pair of pairs) {
+          const [pk, pv] = pair.split(':');
+          if (pk && pv) parameters[pk] = pv;
+        }
+        return { toolName: k, parameters };
       }
-      return { toolName: k, parameters };
+    }
+
+    // 5) NEW: Check if this is a parameter-only payload like { "status": "all" }
+    // Map it to the appropriate tool
+    if (PARAMETER_TO_TOOL_MAP[k]) {
+      const mappedTool = PARAMETER_TO_TOOL_MAP[k];
+      console.log(`[extractToolCall] Mapping parameter-only payload { "${k}": "${v}" } to tool: ${mappedTool}`);
+      return { toolName: mappedTool, parameters: { [k]: v } };
     }
   }
 
-  return { toolName: undefined, parameters: {} };
+  // 6) Handle multi-key parameter payloads like { "status": "all", "location": "Miami" }
+  if (keys.length > 0 && keys.length <= 5) {
+    // Check if ALL keys are known parameters (not tool names)
+    const allKeysAreParams = keys.every(k => PARAMETER_TO_TOOL_MAP[k] || ['start_date', 'end_date', 'limit', 'includeBookings', 'includeHistory'].includes(k));
+    if (allKeysAreParams) {
+      // Determine the best tool based on the parameters present
+      let inferredTool = 'get_fleet_vehicles'; // default
+      
+      if (keys.includes('customerName')) inferredTool = 'getCustomerProfile';
+      else if (keys.includes('vehicleName') && (keys.includes('startDate') || keys.includes('endDate'))) inferredTool = 'checkAvailability';
+      else if (keys.includes('vehicleName')) inferredTool = 'getVehicleDetails';
+      else if (keys.includes('timeframe') && keys.includes('location')) inferredTool = 'getRevenueAnalysis';
+      else if (keys.includes('timeframe')) inferredTool = 'getFleetMetrics';
+      else if (keys.includes('daysRange')) inferredTool = 'searchBookings';
+      else if (keys.includes('daysAhead')) inferredTool = 'getUpcomingMaintenance';
+      else if (keys.includes('status') && keys.includes('start_date')) inferredTool = 'get_bookings';
+      else if (keys.includes('metric')) inferredTool = 'getTopPerformers';
+      
+      console.log(`[extractToolCall] Inferred tool from parameters ${JSON.stringify(keys)}: ${inferredTool}`);
+      return { toolName: inferredTool, parameters: body };
+    }
+  }
+
+  return { toolName: undefined, parameters: body || {} };
 }
 
 serve(async (req) => {
