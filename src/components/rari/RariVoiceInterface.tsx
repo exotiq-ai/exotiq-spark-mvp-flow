@@ -201,7 +201,10 @@ export const RariVoiceInterface = ({
       console.log('Starting session with signed URL...');
       
       // Build dynamic variables for secure tool calls
+      // Primary: tool token for Authorization header (signed JWT with userId + teamId)
+      // Fallback: user_id/team_id for conversation_metadata if token fails
       const dynamicVariables: Record<string, string> = {};
+      
       if (data.toolToken) {
         // Pass tool token as a secret dynamic variable
         // ElevenLabs will include this in tool call headers as: Authorization: Bearer {{secret__rari_tool_token}}
@@ -209,11 +212,20 @@ export const RariVoiceInterface = ({
         console.log('Tool token will be passed to voice session');
       }
       
+      // Always pass user identifiers as fallback for conversation_metadata
+      dynamicVariables['user_id'] = user.id;
+      if (data.teamId) {
+        dynamicVariables['team_id'] = data.teamId;
+      }
+      dynamicVariables['user_name'] = user.user_metadata?.full_name || user.email || 'User';
+      
+      console.log('Dynamic variables for session:', Object.keys(dynamicVariables));
+      
       const id = await conversation.startSession({ 
         // Use WebSocket mode with signed URL (prevents client-side ElevenLabs API calls)
         connectionType: "websocket",
         signedUrl: data.signed_url,
-        dynamicVariables: Object.keys(dynamicVariables).length > 0 ? dynamicVariables : undefined,
+        dynamicVariables,
         overrides: {
           agent: {
             language: 'en',

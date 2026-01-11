@@ -199,6 +199,9 @@ serve(async (req) => {
       ...data,
       // Tool token for secure tool calls
       toolToken,
+      // User identifiers for fallback auth methods
+      userId,
+      teamId,
       // Dynamic fleet context for this user
       fleetContext,
       // Merge with any UI context passed in

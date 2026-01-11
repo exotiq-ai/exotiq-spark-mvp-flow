@@ -508,13 +508,15 @@ serve(async (req) => {
     console.log(`[${requestId}] Executing tool: ${toolName}`);
     const result = await executeFunction(toolName, parameters, supabase, userId, teamId);
 
-    // Add request metadata to result
+    // Add request metadata to result for debugging and verification
     const response = {
       ...result,
       _meta: {
         requestId,
         authMethod,
+        userId,
         teamId,
+        userName: userProfile?.full_name || 'Unknown',
         tool: toolName,
       }
     };
