@@ -210,6 +210,8 @@ export const RariVoiceInterface = ({
       }
       
       const id = await conversation.startSession({ 
+        // Use WebSocket mode with signed URL (prevents client-side ElevenLabs API calls)
+        connectionType: "websocket",
         signedUrl: data.signed_url,
         dynamicVariables: Object.keys(dynamicVariables).length > 0 ? dynamicVariables : undefined,
         overrides: {
