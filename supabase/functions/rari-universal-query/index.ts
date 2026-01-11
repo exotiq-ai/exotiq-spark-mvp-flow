@@ -729,7 +729,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { query, context }: QueryRequest = await req.json();
+    const body = await req.json();
+    const { query, context, userId: requestUserId } = body as QueryRequest & { userId?: string };
     
     if (!query) {
       return new Response(JSON.stringify({
@@ -749,15 +750,30 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
-    // Get user ID (demo user for now)
-    const demoUserId = Deno.env.get('DEMO_USER_ID');
-    const { data: firstUser } = await supabase
-      .from('profiles')
-      .select('id')
-      .limit(1)
-      .single();
+    // Get user ID - prioritize: request body > DEMO_USER_ID env > first profile
+    let userId: string | undefined;
     
-    const userId = demoUserId || firstUser?.id;
+    // Check if userId provided in request body
+    if (requestUserId) {
+      userId = requestUserId;
+      console.log('[Universal Query] Using userId from request body:', userId);
+    } else {
+      // Fall back to DEMO_USER_ID from environment
+      const demoUserId = Deno.env.get('DEMO_USER_ID');
+      if (demoUserId) {
+        userId = demoUserId;
+        console.log('[Universal Query] Using DEMO_USER_ID from env:', userId);
+      } else {
+        // Last resort: get first user from profiles
+        const { data: firstUser } = await supabase
+          .from('profiles')
+          .select('id')
+          .limit(1)
+          .single();
+        userId = firstUser?.id;
+        console.log('[Universal Query] Using first profile user:', userId);
+      }
+    }
     
     if (!userId) {
       return new Response(JSON.stringify({
