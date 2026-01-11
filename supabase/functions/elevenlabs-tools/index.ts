@@ -163,15 +163,21 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // If no user_id in metadata, fall back to first user for demo
+    // If no user_id in metadata, fall back to DEMO_USER_ID env var, then first user
     if (!userId) {
-      console.warn('No user_id in conversation metadata, falling back to first user');
-      const { data: users } = await supabase
-        .from('profiles')
-        .select('id')
-        .limit(1)
-        .single();
-      userId = users?.id || 'demo-user-id';
+      const demoUserId = Deno.env.get('DEMO_USER_ID');
+      if (demoUserId) {
+        console.log('Using DEMO_USER_ID from environment:', demoUserId);
+        userId = demoUserId;
+      } else {
+        console.warn('No user_id in conversation metadata, falling back to first user');
+        const { data: users } = await supabase
+          .from('profiles')
+          .select('id')
+          .limit(1)
+          .single();
+        userId = users?.id || 'demo-user-id';
+      }
     }
     
     console.log('Using user_id:', userId);
