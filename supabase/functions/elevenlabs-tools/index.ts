@@ -306,25 +306,47 @@ function extractToolCall(body: any, url: URL): { toolName?: string; parameters: 
   return { toolName: undefined, parameters: body || {} };
 }
 
+// Generate a unique request ID for tracing
+function generateRequestId(): string {
+  return `req_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+// Default user ID for demo/unauthenticated access - can be overridden via DEMO_USER_ID secret
+const HARDCODED_DEMO_USER_ID = '99d902d4-5878-4b59-a108-142bafb1c862';
+
 serve(async (req) => {
+  const requestId = generateRequestId();
+  
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
-  try {
-    const url = new URL(req.url);
+  // Health check endpoint
+  const url = new URL(req.url);
+  if (url.pathname.endsWith('/health') && req.method === 'GET') {
+    const hasToolSecret = !!Deno.env.get('RARI_TOOL_TOKEN_SECRET');
+    const hasDemoUser = !!Deno.env.get('DEMO_USER_ID');
+    return new Response(JSON.stringify({
+      ok: true,
+      requestId,
+      hasToolSecret,
+      hasDemoUser,
+      timestamp: new Date().toISOString(),
+    }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  }
 
-    console.log('=== ElevenLabs Tool Request ===');
-    console.log('Method:', req.method, 'URL:', `${url.pathname}${url.search}`);
+  try {
+    console.log(`\n[${requestId}] === ElevenLabs Tool Request ===`);
+    console.log(`[${requestId}] Method: ${req.method} | URL: ${url.pathname}${url.search}`);
 
     // Log headers (redact authorization for security)
     const headers = Object.fromEntries(req.headers.entries());
     const safeHeaders = { ...headers };
-    if (safeHeaders.authorization) safeHeaders.authorization = '[REDACTED]';
-    console.log('Headers:', safeHeaders);
+    if (safeHeaders.authorization) safeHeaders.authorization = `[REDACTED:${safeHeaders.authorization.length}chars]`;
+    console.log(`[${requestId}] Headers:`, JSON.stringify(safeHeaders));
 
     const body = await readJsonBody(req);
-    console.log('Raw body:', JSON.stringify(body, null, 2));
+    console.log(`[${requestId}] Body:`, JSON.stringify(body, null, 2));
 
     // Initialize Supabase with service role for backend operations
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -332,22 +354,19 @@ serve(async (req) => {
     const RARI_TOOL_TOKEN_SECRET = Deno.env.get('RARI_TOOL_TOKEN_SECRET');
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Extract user identity - priority: tool token > metadata > DEMO_USER_ID > first user
+    // ============================================================
+    // IDENTITY RESOLUTION (prioritized, non-blocking)
+    // ============================================================
     let userId: string | null = null;
     let teamId: string | null = null;
     let authMethod = 'none';
 
-    // 1. Check Authorization header for tool token (secure path)
+    // 1. Try tool token from Authorization header (best - carries userId + teamId)
     const authHeader = req.headers.get('authorization') || req.headers.get('Authorization');
     if (authHeader && authHeader.startsWith('Bearer ') && RARI_TOOL_TOKEN_SECRET) {
       const token = authHeader.slice(7).trim();
-      const parts = token.split('.').length;
-
-      console.log('[Auth] Bearer header received:', {
-        looksLikeJwt: looksLikeJwt(token),
-        parts,
-        length: token.length,
-      });
+      
+      console.log(`[${requestId}] [Auth] Bearer token received (${token.length} chars, JWT-like: ${looksLikeJwt(token)})`);
 
       if (looksLikeJwt(token)) {
         const payload = await verifyToolToken(token, RARI_TOOL_TOKEN_SECRET);
@@ -355,147 +374,165 @@ serve(async (req) => {
           userId = payload.userId;
           teamId = payload.teamId;
           authMethod = 'tool_token';
-          console.log('✓ Authenticated via tool token:', { userId, teamId });
+          console.log(`[${requestId}] ✓ Verified tool token: userId=${userId}, teamId=${teamId}`);
         } else {
-          console.warn('⚠ Tool token present but verification failed');
-          return new Response(
-            JSON.stringify({
-              error: 'Tool authorization failed',
-              summary:
-                'Your tool call was received, but its Authorization token could not be verified. Make sure your agent tool sends Authorization: Bearer {{secret__rari_tool_token}}.',
-            }),
-            { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
+          // IMPORTANT: Do NOT return 401 here - just log and continue to fallbacks
+          // The token might be a Supabase session JWT or something else
+          console.log(`[${requestId}] ⚠ Bearer token did not verify as tool token - trying fallbacks`);
         }
       } else {
-        console.warn('[Auth] Bearer token does not look like a JWT; ignoring');
+        console.log(`[${requestId}] ⚠ Bearer token is not JWT format - trying fallbacks`);
       }
     }
 
-    // 2. Fallback: Check conversation metadata
+    // 2. Fallback: Check conversation metadata (ElevenLabs can send this)
     if (!userId) {
-      if (body.conversation_metadata?.user_id) {
-        userId = body.conversation_metadata.user_id;
+      const metaUserId = body.conversation_metadata?.user_id || body.metadata?.user_id;
+      if (metaUserId) {
+        userId = metaUserId;
         authMethod = 'conversation_metadata';
-        console.log('Using user_id from conversation_metadata:', userId);
-      } else if (body.metadata?.user_id) {
-        userId = body.metadata.user_id;
-        authMethod = 'metadata';
-        console.log('Using user_id from metadata:', userId);
+        console.log(`[${requestId}] Using user_id from metadata: ${userId}`);
       }
     }
 
-    // 3. Fallback: DEMO_USER_ID from environment (only if valid UUID)
+    // 3. Fallback: DEMO_USER_ID from environment (must be valid UUID)
     if (!userId) {
       const demoUserId = Deno.env.get('DEMO_USER_ID');
-      // Only use if it looks like a valid UUID
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      
       if (demoUserId && uuidRegex.test(demoUserId)) {
         userId = demoUserId;
-        authMethod = 'demo_user';
-        console.log('Using DEMO_USER_ID from environment:', userId);
+        authMethod = 'demo_user_env';
+        console.log(`[${requestId}] Using DEMO_USER_ID from env: ${userId}`);
       } else if (demoUserId) {
-        console.warn('DEMO_USER_ID is not a valid UUID, ignoring:', demoUserId);
+        console.log(`[${requestId}] DEMO_USER_ID env var is not a valid UUID: ${demoUserId.substring(0, 10)}...`);
       }
     }
 
-    // 4. Last resort: Get first user (development only)
+    // 4. Fallback: Use hardcoded demo user (for truly anonymous access)
     if (!userId) {
-      console.warn('No user_id found, falling back to first user');
-      const { data: users } = await supabase
-        .from('profiles')
-        .select('id')
-        .limit(1)
-        .single();
-      userId = users?.id;
-      authMethod = 'first_user_fallback';
+      userId = HARDCODED_DEMO_USER_ID;
+      authMethod = 'demo_user_hardcoded';
+      console.log(`[${requestId}] Using hardcoded demo user: ${userId}`);
     }
 
+    // At this point we should always have a userId
     if (!userId) {
+      console.error(`[${requestId}] FATAL: No user ID resolved - this should never happen`);
       return new Response(
         JSON.stringify({
           error: 'Authentication required',
-          summary: 'I need you to be logged in to access your fleet data. Please make sure you are signed in to your account.'
+          summary: 'I need you to be logged in to access your fleet data. Please make sure you are signed in to your account.',
+          requestId,
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('Authentication resolved:', { userId, teamId, authMethod });
+    console.log(`[${requestId}] Auth resolved: method=${authMethod}, userId=${userId}, teamId=${teamId || 'null'}`);
     
     // Resolve tool + parameters from request
     const { toolName, parameters } = extractToolCall(body, url);
 
-    console.log(`Tool called: ${toolName || '(missing tool name)'}`);
-    console.log('Parameters:', JSON.stringify(parameters, null, 2));
+    console.log(`[${requestId}] Tool: ${toolName || '(missing)'} | Params: ${JSON.stringify(parameters)}`);
 
     if (!toolName) {
+      console.log(`[${requestId}] ✗ Missing tool name - returning 400`);
       return new Response(
         JSON.stringify({
           error: 'Missing tool name',
-          summary:
-            'Your agent is calling the tools endpoint without specifying which tool to run. Update the tool webhook to include tool_name + parameters (e.g. {"tool_name":"get_bookings","parameters":{"status":"active"}}) or call /elevenlabs-tools/<toolName>.',
+          summary: 'Your agent is calling the tools endpoint without specifying which tool to run. Update the tool webhook to include tool_name + parameters (e.g. {"tool_name":"get_bookings","parameters":{"status":"active"}}) or call /elevenlabs-tools/<toolName>.',
+          requestId,
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
     
-    // Verify user exists
+    // Verify user exists in profiles table
     const { data: userProfile, error: userError } = await supabase
       .from('profiles')
       .select('id, full_name, email')
       .eq('id', userId)
-      .single();
+      .maybeSingle();
     
-    if (userError || !userProfile) {
-      console.error('User not found:', userId, userError);
-      return new Response(
-        JSON.stringify({
-          error: 'User not found',
-          summary: 'I could not find your profile. Please make sure you are logged in.'
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    if (userError) {
+      console.error(`[${requestId}] Profile lookup error:`, userError);
     }
     
-    console.log('User verified:', userProfile.full_name || userProfile.email);
+    if (!userProfile) {
+      console.log(`[${requestId}] ⚠ User ${userId} not found in profiles - creating minimal profile`);
+      // Auto-create a minimal profile for demo users
+      await supabase.from('profiles').upsert({
+        id: userId,
+        email: `demo-${userId.substring(0, 8)}@exotiq.demo`,
+        full_name: 'Demo User',
+        created_at: new Date().toISOString(),
+      }, { onConflict: 'id' });
+    } else {
+      console.log(`[${requestId}] User verified: ${userProfile.full_name || userProfile.email}`);
+    }
 
     // Get user's team_id if not already from token
     if (!teamId) {
       teamId = await getUserTeamId(supabase, userId);
-      console.log('Team_id from database:', teamId);
+      console.log(`[${requestId}] Team from DB: ${teamId || 'null'}`);
     }
     
+    // If still no team, try to find any team and add user to it (for demo purposes)
     if (!teamId) {
-      console.warn('No team found for user, queries may return limited data');
-    }
-
-    // Ensure toolName is defined
-    if (!toolName) {
-      return new Response(
-        JSON.stringify({ error: 'No tool name specified', summary: 'I could not understand which action you wanted.' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      console.log(`[${requestId}] No team found - looking for default team`);
+      const { data: anyTeam } = await supabase
+        .from('teams')
+        .select('id')
+        .eq('is_deleted', false)
+        .limit(1)
+        .maybeSingle();
+      
+      if (anyTeam) {
+        teamId = anyTeam.id;
+        // Add user to team as viewer
+        await supabase.from('team_members').upsert({
+          user_id: userId,
+          team_id: teamId,
+          role: 'viewer',
+          is_active: true,
+          joined_at: new Date().toISOString(),
+        }, { onConflict: 'user_id,team_id' }).catch(() => {});
+        console.log(`[${requestId}] Auto-joined user to team: ${teamId}`);
+      } else {
+        console.warn(`[${requestId}] ⚠ No teams exist - data queries will be empty`);
+      }
     }
 
     // Execute the requested tool with team_id
+    console.log(`[${requestId}] Executing tool: ${toolName}`);
     const result = await executeFunction(toolName, parameters, supabase, userId, teamId);
 
-    console.log('Tool result:', JSON.stringify(result, null, 2));
-    console.log('=== Request Complete ===\n');
+    // Add request metadata to result
+    const response = {
+      ...result,
+      _meta: {
+        requestId,
+        authMethod,
+        teamId,
+        tool: toolName,
+      }
+    };
 
-    return new Response(JSON.stringify(result), {
+    console.log(`[${requestId}] ✓ Tool completed: ${toolName} | Summary: ${result.summary?.substring(0, 100) || 'No summary'}`);
+
+    return new Response(JSON.stringify(response), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
-    console.error('=== Tool Execution Error ===');
-    console.error('Error:', error);
-    console.error('Stack:', error instanceof Error ? error.stack : 'No stack trace');
+    console.error(`[${requestId}] ✗ Error:`, error);
+    console.error(`[${requestId}] Stack:`, error instanceof Error ? error.stack : 'No stack');
     
     return new Response(
       JSON.stringify({ 
         error: error instanceof Error ? error.message : 'Unknown error',
-        details: error instanceof Error ? error.stack : undefined 
+        summary: 'Something went wrong processing your request. Please try again.',
+        requestId,
       }),
       {
         status: 500,
