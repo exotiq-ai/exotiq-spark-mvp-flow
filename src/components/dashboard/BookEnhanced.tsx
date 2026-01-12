@@ -28,7 +28,9 @@ import {
   Users,
   Plus,
   Receipt,
-  ClipboardCheck
+  ClipboardCheck,
+  CheckCircle,
+  Circle
 } from "lucide-react";
 import { Tables } from "@/integrations/supabase/types";
 
@@ -305,37 +307,62 @@ export const BookEnhanced = () => {
               todayBookings.map((booking) => (
               <div
                 key={booking.id}
-                className="p-3 sm:p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors flex items-center gap-3 sm:gap-4"
+                className="p-3 sm:p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors flex items-start gap-3 sm:gap-4"
               >
                 {/* Vehicle Avatar */}
                 <VehicleThumbnail
                   vehicleName={getVehicleDisplay(booking.vehicle_id)}
                   size="avatar"
                   onClick={() => handleVehicleClick(booking.vehicle_id)}
+                  className="flex-shrink-0 mt-0.5"
                 />
 
-                {/* Vehicle + Customer + Location */}
+                {/* Vehicle + Customer + Location - Stacked for mobile */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
+                  {/* Line 1: Vehicle Name + Status Icon (mobile) */}
+                  <div className="flex items-start justify-between gap-2">
                     <span 
-                      className="font-semibold truncate cursor-pointer hover:text-primary transition-colors"
+                      className="font-semibold cursor-pointer hover:text-primary transition-colors leading-tight"
                       onClick={() => handleVehicleClick(booking.vehicle_id)}
                     >
                       {getVehicleDisplay(booking.vehicle_id)}
                     </span>
+                    {/* Compact status icon on mobile */}
+                    <div className="sm:hidden flex-shrink-0">
+                      {booking.status === 'confirmed' ? (
+                        <CheckCircle className="h-5 w-5 text-success" />
+                      ) : booking.status === 'pending' ? (
+                        <Clock className="h-5 w-5 text-warning" />
+                      ) : (
+                        <Circle className="h-5 w-5 text-muted-foreground" />
+                      )}
+                    </div>
                     <AskRariQuickAction
                       variant="icon"
+                      className="hidden sm:inline-flex"
                       prompt={`Tell me about this booking: ${getVehicleDisplay(booking.vehicle_id)} for ${booking.customer_name}. Start: ${formatDate(booking.start_date)}, Status: ${booking.status}, Value: $${Number(booking.total_value).toLocaleString()}`}
                     />
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground mt-0.5">
-                    <span className="truncate">{booking.customer_name}</span>
-                    <span className="text-muted-foreground/50">·</span>
+                  
+                  {/* Line 2: Customer Name */}
+                  <div className="text-sm text-muted-foreground mt-0.5">
+                    {booking.customer_name}
+                  </div>
+                  
+                  {/* Line 3: Date/Time + Location (mobile) */}
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1 sm:hidden">
+                    <span>{formatDate(booking.start_date)}, {formatTime(booking.start_date)}</span>
+                    <span>·</span>
+                    <LocationBadge locationId={booking.pickup_location_id} showIcon={false} size="sm" />
+                  </div>
+                  
+                  {/* Location only on desktop (date/time shown in separate column) */}
+                  <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground mt-0.5">
                     <LocationBadge locationId={booking.pickup_location_id} showIcon={false} />
                   </div>
                 </div>
 
-                {/* Time + Price (hidden on mobile) */}
+                {/* Time + Price (hidden on mobile, shown on desktop) */}
                 <div className="hidden sm:flex flex-col items-end text-sm gap-0.5">
                   <div className="flex items-center gap-1.5 text-muted-foreground">
                     <Clock className="h-3 w-3" />
@@ -347,8 +374,8 @@ export const BookEnhanced = () => {
                   </div>
                 </div>
 
-                {/* Status Badge */}
-                <Badge className={`flex-shrink-0 ${
+                {/* Status Badge (desktop only) */}
+                <Badge className={`hidden sm:flex flex-shrink-0 ${
                   booking.status === 'confirmed' ? 'bg-success/20 text-success border-success/30' :
                   booking.status === 'pending' ? 'bg-warning/20 text-warning border-warning/30' :
                   'bg-muted/20 text-muted-foreground'
