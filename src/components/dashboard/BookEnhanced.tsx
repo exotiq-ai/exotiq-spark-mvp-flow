@@ -305,9 +305,17 @@ export const BookEnhanced = () => {
               todayBookings.map((booking) => (
               <div
                 key={booking.id}
-                className="p-3 sm:p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors"
+                className="p-3 sm:p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors flex items-center gap-3 sm:gap-4"
               >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                {/* Vehicle Avatar */}
+                <VehicleThumbnail
+                  vehicleName={getVehicleDisplay(booking.vehicle_id)}
+                  size="avatar"
+                  onClick={() => handleVehicleClick(booking.vehicle_id)}
+                />
+
+                {/* Vehicle + Customer + Location */}
+                <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span 
                       className="font-semibold truncate cursor-pointer hover:text-primary transition-colors"
@@ -315,39 +323,38 @@ export const BookEnhanced = () => {
                     >
                       {getVehicleDisplay(booking.vehicle_id)}
                     </span>
-                    <LocationBadge locationId={booking.pickup_location_id} />
                     <AskRariQuickAction
                       variant="icon"
                       prompt={`Tell me about this booking: ${getVehicleDisplay(booking.vehicle_id)} for ${booking.customer_name}. Start: ${formatDate(booking.start_date)}, Status: ${booking.status}, Value: $${Number(booking.total_value).toLocaleString()}`}
                     />
                   </div>
-                  <Badge className={`flex-shrink-0 ${
-                    booking.status === 'confirmed' ? 'bg-success/20 text-success border-success/30' :
-                    booking.status === 'pending' ? 'bg-warning/20 text-warning border-warning/30' :
-                    'bg-muted/20 text-muted-foreground'
-                  }`}>
-                    {booking.status}
-                  </Badge>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground mt-0.5">
+                    <span className="truncate">{booking.customer_name}</span>
+                    <span className="text-muted-foreground/50">·</span>
+                    <LocationBadge locationId={booking.pickup_location_id} showIcon={false} />
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div className="flex items-center space-x-2 min-w-0">
-                    <Users className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                    <span className="truncate">{booking.customer_name}</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Clock className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                {/* Time + Price (hidden on mobile) */}
+                <div className="hidden sm:flex flex-col items-end text-sm gap-0.5">
+                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                    <Clock className="h-3 w-3" />
                     <span>{formatTime(booking.start_date)}</span>
                   </div>
-                  <div className="flex items-center space-x-2 min-w-0">
-                    <MapPin className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                    <span className="truncate">{booking.pickup_location}</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <DollarSign className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                    <span className="font-semibold">${Number(booking.total_value).toLocaleString()}</span>
+                  <div className="flex items-center gap-1.5 font-semibold">
+                    <DollarSign className="h-3 w-3 text-muted-foreground" />
+                    <span>${Number(booking.total_value).toLocaleString()}</span>
                   </div>
                 </div>
+
+                {/* Status Badge */}
+                <Badge className={`flex-shrink-0 ${
+                  booking.status === 'confirmed' ? 'bg-success/20 text-success border-success/30' :
+                  booking.status === 'pending' ? 'bg-warning/20 text-warning border-warning/30' :
+                  'bg-muted/20 text-muted-foreground'
+                }`}>
+                  {booking.status}
+                </Badge>
               </div>
             ))
             )}

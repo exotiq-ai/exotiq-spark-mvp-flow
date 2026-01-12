@@ -3,7 +3,7 @@ import { getVehicleImage } from '@/lib/vehicleImageMapping';
 import { cn } from '@/lib/utils';
 import { Car } from 'lucide-react';
 
-type ThumbnailSize = 'icon' | 'pill' | 'sm' | 'md' | 'lg' | 'full';
+type ThumbnailSize = 'icon' | 'pill' | 'avatar' | 'sm' | 'md' | 'lg' | 'full';
 
 interface SizeConfig {
   width: string;
@@ -35,7 +35,13 @@ const sizeConfig: Record<ThumbnailSize, SizeConfig> = {
     iconSize: 'h-4 w-4',
     rounded: 'rounded-full',
   },
-  sm: { 
+  avatar: { 
+    width: 'w-11', 
+    height: 'h-11', 
+    iconSize: 'h-5 w-5',
+    rounded: 'rounded-full',
+  },
+  sm: {
     width: 'w-16', 
     height: 'h-12', 
     iconSize: 'h-5 w-5',
