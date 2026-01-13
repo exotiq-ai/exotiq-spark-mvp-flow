@@ -5,6 +5,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useProfile } from "@/hooks/useProfile";
+import { useRariInsightsCount } from "@/hooks/useRariInsightsCount";
 import { 
   Home,
   Brain,
@@ -15,7 +16,6 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
-  User,
   Settings,
   Sparkles,
   Activity,
@@ -27,6 +27,7 @@ import { motion, AnimatePresence } from "framer-motion";
 interface DashboardSidebarEnhancedProps {
   activeModule: string;
   onModuleChange: (moduleId: string) => void;
+  onOpenRari?: () => void;
 }
 
 interface NavGroup {
@@ -91,7 +92,77 @@ const UserProfileSection = ({ collapsed }: { collapsed: boolean }) => {
   );
 };
 
-export const DashboardSidebarEnhanced = ({ activeModule, onModuleChange }: DashboardSidebarEnhancedProps) => {
+// Rari Quick Access Section
+const RariQuickAccess = ({ 
+  collapsed, 
+  onClick 
+}: { 
+  collapsed: boolean; 
+  onClick?: () => void;
+}) => {
+  const { count: unreadCount, urgentCount, highCount } = useRariInsightsCount();
+  const totalBadge = urgentCount > 0 ? urgentCount : (highCount > 0 ? highCount : unreadCount);
+  
+  const getBadgeClasses = () => {
+    if (urgentCount > 0) {
+      return "bg-destructive text-destructive-foreground animate-pulse";
+    }
+    if (highCount > 0) {
+      return "bg-orange-500 text-white";
+    }
+    return "bg-yellow-500 text-slate-900";
+  };
+
+  return (
+    <div className="px-3 py-2">
+      <motion.button
+        onClick={onClick}
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
+        className={cn(
+          "w-full flex items-center rounded-xl transition-all duration-200 relative",
+          "bg-gradient-to-r from-rari-teal/20 to-success/10",
+          "border border-rari-teal/30 hover:border-rari-teal/50",
+          "hover:shadow-md hover:shadow-rari-teal/10",
+          collapsed ? "justify-center p-3" : "justify-start p-3 space-x-3"
+        )}
+        title={collapsed ? "Ask Rari AI" : undefined}
+      >
+        <div className={cn(
+          "flex items-center justify-center rounded-lg",
+          "bg-gradient-to-br from-rari-teal to-success",
+          collapsed ? "w-8 h-8" : "w-9 h-9"
+        )}>
+          <Sparkles className="h-4 w-4 text-white" />
+        </div>
+        
+        {!collapsed && (
+          <div className="flex-1 text-left">
+            <p className="text-sm font-semibold text-foreground">Ask Rari</p>
+            <p className="text-[11px] text-muted-foreground">Voice AI Assistant</p>
+          </div>
+        )}
+        
+        {/* Badge */}
+        {totalBadge > 0 && (
+          <span className={cn(
+            "absolute text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1",
+            collapsed ? "-top-1 -right-1" : "top-2 right-2",
+            getBadgeClasses()
+          )}>
+            {totalBadge > 9 ? '9+' : totalBadge}
+          </span>
+        )}
+      </motion.button>
+    </div>
+  );
+};
+
+export const DashboardSidebarEnhanced = ({ 
+  activeModule, 
+  onModuleChange,
+  onOpenRari 
+}: DashboardSidebarEnhancedProps) => {
   const [collapsed, setCollapsed] = useLocalStorage("sidebarCollapsed", false);
   const [expandedGroups, setExpandedGroups] = useLocalStorage<string[]>("sidebarExpandedGroups", ["operations", "intelligence"]);
   const { hasRoleOrHigher, isReadOnly, loading: roleLoading } = useUserRole();
@@ -270,6 +341,9 @@ export const DashboardSidebarEnhanced = ({ activeModule, onModuleChange }: Dashb
           );
         })}
       </nav>
+
+      {/* Rari Quick Access - Above User Profile */}
+      <RariQuickAccess collapsed={collapsed} onClick={onOpenRari} />
 
       {/* User Profile Section */}
       <UserProfileSection collapsed={collapsed} />
