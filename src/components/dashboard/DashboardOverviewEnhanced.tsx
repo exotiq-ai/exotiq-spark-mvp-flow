@@ -79,7 +79,7 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
   }, []);
 
   // Calculate vehicles currently out (confirmed bookings spanning today)
-  const { activeVehicleIds, activeBookingsCount } = useMemo(() => {
+  const { activeVehicleIds, activeBookingsCount, pendingCount } = useMemo(() => {
     const now = new Date();
     const ids = new Set(
       bookings
@@ -95,7 +95,8 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
         })
         .map(b => b.vehicle_id)
     );
-    return { activeVehicleIds: ids, activeBookingsCount: ids.size };
+    const pending = bookings.filter(b => b.status === 'pending').length;
+    return { activeVehicleIds: ids, activeBookingsCount: ids.size, pendingCount: pending };
   }, [bookings]);
 
   // 7-day bookings trend for sparkline
@@ -472,10 +473,10 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
         {/* Module Navigation Cards */}
         <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
           {[
-            { id: 'book', name: 'Bookings', icon: Calendar, color: 'text-primary' },
-            { id: 'motoriq', name: 'MotorIQ', icon: TrendingUp, color: 'text-success' },
-            { id: 'vault', name: 'Vault', icon: FileText, color: 'text-warning' },
-            { id: 'pulse', name: 'Pulse', icon: DollarSign, color: 'text-accent' },
+            { id: 'book', name: 'Bookings', icon: Calendar, color: 'text-primary', badge: pendingCount },
+            { id: 'motoriq', name: 'MotorIQ', icon: TrendingUp, color: 'text-success', badge: 0 },
+            { id: 'vault', name: 'Vault', icon: FileText, color: 'text-warning', badge: 0 },
+            { id: 'pulse', name: 'Pulse', icon: DollarSign, color: 'text-accent', badge: 0 },
           ].map((module) => (
             <button
               key={module.id}
@@ -485,6 +486,11 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
               <div className="flex items-center gap-2 sm:gap-3">
                 <module.icon className={`h-4 w-4 sm:h-5 sm:w-5 ${module.color}`} />
                 <span className="font-medium text-xs sm:text-sm">{module.name}</span>
+                {module.badge > 0 && (
+                  <Badge className="bg-warning/20 text-warning border-warning/30 text-[10px] px-1.5 py-0">
+                    {module.badge}
+                  </Badge>
+                )}
               </div>
               <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
             </button>

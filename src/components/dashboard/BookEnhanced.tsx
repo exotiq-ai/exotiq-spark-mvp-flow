@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -30,14 +30,15 @@ import {
   Receipt,
   ClipboardCheck,
   CheckCircle,
-  Circle
+  Circle,
+  AlertCircle
 } from "lucide-react";
 import { Tables } from "@/integrations/supabase/types";
 
 type Booking = Tables<"bookings">;
 
 export const BookEnhanced = () => {
-  const { bookings, vehicles, createBooking, updateBookingStatus, loading } = useLocationFilteredFleet();
+  const { bookings, vehicles, customers, createBooking, updateBookingStatus, loading } = useLocationFilteredFleet();
   const { goToBookingDetails } = useModuleNavigation();
   const [showNewBooking, setShowNewBooking] = useState(false);
   const [showBookingDetails, setShowBookingDetails] = useState(false);
@@ -107,27 +108,58 @@ export const BookEnhanced = () => {
     return `${vehicle.year} ${vehicle.make} ${vehicle.model}`;
   };
 
-  const nextBooking = bookings.find(b => b.status === 'confirmed') || {
-    id: '1',
-    customer_name: 'Sarah Johnson',
-    start_date: new Date().toISOString(),
-    pickup_location: 'Downtown',
-    status: 'confirmed',
-    total_value: 1350,
-    vehicle_id: 'f067336b-a039-429b-9d64-a17b6cce06c7',
-    end_date: new Date(Date.now() + 86400000).toISOString(),
-    daily_rate: 450,
-    user_id: ''
-  } as Booking;
+  // Find next confirmed booking (no fake fallback data)
+  const nextBooking = bookings.find(b => b.status === 'confirmed') || null;
+
+  // Get pending bookings for approval section
+  const pendingBookings = useMemo(() => {
+    return bookings.filter(b => b.status === 'pending');
+  }, [bookings]);
 
   const todayBookings = bookings.slice(0, 5);
 
-  const todayStats = [
-    { label: 'Today\'s Revenue', value: '$3,240', icon: DollarSign },
-    { label: 'Active Rentals', value: '12', icon: Car },
-    { label: 'New Customers', value: '8', icon: Users },
-    { label: 'Utilization', value: '85%', icon: TrendingUp },
-  ];
+  // Calculate live stats
+  const todayStats = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const now = new Date();
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    
+    // Today's Revenue from confirmed/completed bookings starting today
+    const todayRevenue = bookings
+      .filter(b => {
+        const startDate = new Date(b.start_date);
+        return (b.status === 'confirmed' || b.status === 'completed') && 
+               startDate >= today && startDate < tomorrow;
+      })
+      .reduce((sum, b) => sum + (b.total_value || 0), 0);
+    
+    // Active rentals (confirmed bookings spanning now)
+    const activeRentals = bookings.filter(b => 
+      b.status === 'confirmed' && 
+      new Date(b.start_date) <= now && 
+      new Date(b.end_date) >= now
+    ).length;
+    
+    // New customers this month
+    const newCustomers = customers.filter(c => 
+      c.created_at && new Date(c.created_at) >= monthStart
+    ).length;
+    
+    // Utilization rate
+    const utilization = vehicles.length > 0 
+      ? Math.round((activeRentals / vehicles.length) * 100) 
+      : 0;
+    
+    return [
+      { label: "Today's Revenue", value: `$${todayRevenue.toLocaleString()}`, icon: DollarSign },
+      { label: 'Active Rentals', value: String(activeRentals), icon: Car },
+      { label: 'New Customers', value: String(newCustomers), icon: Users },
+      { label: 'Utilization', value: `${utilization}%`, icon: TrendingUp },
+    ];
+  }, [bookings, vehicles, customers]);
 
   const handleViewDetails = (booking: Booking) => {
     goToBookingDetails(booking.id);
@@ -206,59 +238,113 @@ export const BookEnhanced = () => {
         data-tour="book-tabs"
       >
         <TabsContent value="overview" className="space-y-4 sm:space-y-6">
+        {/* Pending Reservations Section */}
+        {pendingBookings.length > 0 && (
+          <Card className="card-module p-4 sm:p-6 border-warning/50 bg-warning/5">
+            <div className="flex items-center gap-2 mb-4">
+              <AlertCircle className="h-5 w-5 text-warning" />
+              <h3 className="text-base font-semibold">Pending Approval</h3>
+              <Badge className="bg-warning/20 text-warning border-warning/30">{pendingBookings.length}</Badge>
+            </div>
+            <div className="space-y-3">
+              {pendingBookings.slice(0, 3).map((booking) => (
+                <div key={booking.id} className="flex items-center justify-between p-3 bg-card rounded-lg">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium truncate">{booking.customer_name}</p>
+                    <p className="text-sm text-muted-foreground truncate">
+                      {getVehicleDisplay(booking.vehicle_id)} - {formatDate(booking.start_date)}
+                    </p>
+                  </div>
+                  <div className="flex gap-2 flex-shrink-0 ml-3">
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={() => updateBookingStatus(booking.id, 'cancelled')}
+                    >
+                      Decline
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      onClick={() => updateBookingStatus(booking.id, 'confirmed')}
+                    >
+                      Approve
+                    </Button>
+                  </div>
+                </div>
+              ))}
+              {pendingBookings.length > 3 && (
+                <p className="text-xs text-muted-foreground text-center pt-2">
+                  +{pendingBookings.length - 3} more pending bookings
+                </p>
+              )}
+            </div>
+          </Card>
+        )}
+
         {/* Next Pickup Card */}
-        <Card className="card-premium bg-gradient-to-br from-primary/10 to-accent/5 border-primary/20 p-3 sm:p-4" data-tour="next-pickup">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-base font-semibold">Next Pickup</h3>
-            <Badge className="bg-success/20 text-success border-success/30">
-              {nextBooking.status?.toUpperCase()}
-            </Badge>
-          </div>
+        {nextBooking ? (
+          <Card className="card-premium bg-gradient-to-br from-primary/10 to-accent/5 border-primary/20 p-3 sm:p-4" data-tour="next-pickup">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-semibold">Next Pickup</h3>
+              <Badge className="bg-success/20 text-success border-success/30">
+                {nextBooking.status?.toUpperCase()}
+              </Badge>
+            </div>
 
-          <div className="space-y-4">
-            <div className="flex items-center space-x-4">
-              <VehicleThumbnail
-                vehicleName={(() => {
-                  const vehicle = vehicles.find(v => v.id === nextBooking.vehicle_id);
-                  return vehicle ? vehicle.name : 'Unknown Vehicle';
-                })()}
-                size="lg"
-                onClick={() => handleVehicleClick(nextBooking.vehicle_id, nextBooking.end_date)}
-              />
-              <div className="min-w-0 flex-1">
-                <div 
-                  className="font-semibold text-base truncate cursor-pointer hover:text-primary transition-colors"
+            <div className="space-y-4">
+              <div className="flex items-center space-x-4">
+                <VehicleThumbnail
+                  vehicleName={(() => {
+                    const vehicle = vehicles.find(v => v.id === nextBooking.vehicle_id);
+                    return vehicle ? vehicle.name : 'Unknown Vehicle';
+                  })()}
+                  size="lg"
                   onClick={() => handleVehicleClick(nextBooking.vehicle_id, nextBooking.end_date)}
-                >
-                  {getVehicleDisplay(nextBooking.vehicle_id)}
-                </div>
-                <div className="text-sm text-muted-foreground truncate">{nextBooking.customer_name}</div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex items-center space-x-2 p-2 rounded-lg bg-card/50 min-w-0">
-                <Clock className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                />
                 <div className="min-w-0 flex-1">
-                  <div className="text-xs text-muted-foreground">Time</div>
-                  <div className="font-medium truncate">{formatTime(nextBooking.start_date)}</div>
+                  <div 
+                    className="font-semibold text-base truncate cursor-pointer hover:text-primary transition-colors"
+                    onClick={() => handleVehicleClick(nextBooking.vehicle_id, nextBooking.end_date)}
+                  >
+                    {getVehicleDisplay(nextBooking.vehicle_id)}
+                  </div>
+                  <div className="text-sm text-muted-foreground truncate">{nextBooking.customer_name}</div>
                 </div>
               </div>
-              <div className="flex items-center space-x-2 p-2 rounded-lg bg-card/50 min-w-0">
-                <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                <div className="min-w-0 flex-1">
-                  <div className="text-xs text-muted-foreground">Location</div>
-                  <div className="font-medium truncate">{nextBooking.pickup_location}</div>
-                </div>
-              </div>
-            </div>
 
-            <div className="pt-2">
-              <div className="text-xl font-bold text-primary">${Number(nextBooking.total_value).toLocaleString()}</div>
-              <div className="text-sm text-muted-foreground">Booking Value</div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex items-center space-x-2 p-2 rounded-lg bg-card/50 min-w-0">
+                  <Clock className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs text-muted-foreground">Time</div>
+                    <div className="font-medium truncate">{formatTime(nextBooking.start_date)}</div>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2 p-2 rounded-lg bg-card/50 min-w-0">
+                  <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs text-muted-foreground">Location</div>
+                    <div className="font-medium truncate">{nextBooking.pickup_location}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <div className="text-xl font-bold text-primary">${Number(nextBooking.total_value).toLocaleString()}</div>
+                <div className="text-sm text-muted-foreground">Booking Value</div>
+              </div>
             </div>
-          </div>
-        </Card>
+          </Card>
+        ) : (
+          <Card className="card-premium bg-gradient-to-br from-primary/10 to-accent/5 border-primary/20 p-4 sm:p-6 text-center">
+            <CalendarIcon className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
+            <p className="text-muted-foreground mb-4">No upcoming confirmed bookings</p>
+            <Button onClick={() => setShowNewBooking(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Create New Booking
+            </Button>
+          </Card>
+        )}
 
         {/* Quick Stats */}
         <div className="grid grid-cols-2 gap-3 sm:gap-4">
