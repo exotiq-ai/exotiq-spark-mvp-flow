@@ -386,12 +386,50 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       const validated = bookingSchema.parse(booking);
       const teamId = getTeamId();
 
+      // Auto-create customer if email is provided and customer doesn't exist
+      let customerId: string | null = null;
+      if (booking.customer_email && booking.customer_name) {
+        // Check if customer already exists by email
+        const { data: existingCustomer } = await supabase
+          .from('customers')
+          .select('id')
+          .eq('email', booking.customer_email)
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (existingCustomer) {
+          customerId = existingCustomer.id;
+        } else {
+          // Create new customer from booking details
+          const { data: newCustomer, error: customerError } = await supabase
+            .from('customers')
+            .insert({
+              user_id: user.id,
+              team_id: teamId || null,
+              full_name: booking.customer_name,
+              email: booking.customer_email,
+              phone: booking.customer_phone || null,
+            })
+            .select('id')
+            .single();
+
+          if (!customerError && newCustomer) {
+            customerId = newCustomer.id;
+            toast({
+              title: "Customer Added",
+              description: `${booking.customer_name} has been added to your CRM.`,
+            });
+          }
+        }
+      }
+
       const { error } = await supabase
         .from('bookings')
         .insert({
           ...(validated as any),
           user_id: user.id,
-          team_id: teamId || null
+          team_id: teamId || null,
+          customer_id: customerId,
         });
 
       if (error) {
