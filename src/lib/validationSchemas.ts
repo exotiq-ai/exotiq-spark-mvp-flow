@@ -16,16 +16,16 @@ export const customerSchema = z.object({
 // Booking validation schema
 export const bookingSchema = z.object({
   customer_name: z.string().trim().min(1, "Customer name required").max(100, "Name too long"),
-  customer_email: z.string().email("Invalid email").max(255, "Email too long"),
-  customer_phone: z.string().max(20, "Phone too long").optional().or(z.literal('')),
+  customer_email: z.string().email("Invalid email").max(255, "Email too long").optional().nullable().or(z.literal('')),
+  customer_phone: z.string().max(20, "Phone too long").optional().nullable().or(z.literal('')),
   vehicle_id: z.string().uuid("Invalid vehicle ID"),
   start_date: z.string().datetime("Invalid start date"),
   end_date: z.string().datetime("Invalid end date"),
   pickup_location: z.string().min(1, "Pickup location required").max(200, "Location too long"),
-  dropoff_location: z.string().max(200, "Location too long").optional().or(z.literal('')),
+  dropoff_location: z.string().max(200, "Location too long").optional().nullable().or(z.literal('')),
   daily_rate: z.number().positive("Rate must be positive").max(100000, "Rate too high"),
   total_value: z.number().positive("Total must be positive").max(1000000, "Total too high"),
-  notes: z.string().max(2000, "Notes too long").optional().or(z.literal('')),
+  notes: z.string().max(2000, "Notes too long").optional().nullable().or(z.literal('')),
 }).refine(data => new Date(data.end_date) > new Date(data.start_date), {
   message: "End date must be after start date",
   path: ["end_date"]
