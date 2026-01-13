@@ -5,7 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { DamageReportDialog } from "@/components/dialogs/DamageReportDialog";
-import { VehicleImageDialog } from "@/components/dialogs/VehicleImageDialog";
+import { VehicleDetailsDialog } from "@/components/dialogs/VehicleDetailsDialog";
+import { VehicleThumbnail } from "@/components/common/VehicleThumbnail";
 import {
   AlertTriangle,
   Plus,
@@ -20,12 +21,13 @@ import {
 import { format } from "date-fns";
 
 export const DamageClaimsSection = () => {
-  const { damageClaims, vehicles } = useLocationFilteredFleet();
+  const { damageClaims, vehicles, maintenance } = useLocationFilteredFleet();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [showReportDialog, setShowReportDialog] = useState(false);
-  const [showVehicleImage, setShowVehicleImage] = useState(false);
+  const [showVehicleDetails, setShowVehicleDetails] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<{
+    id: string;
     name: string;
     make: string;
     model: string;
@@ -33,11 +35,19 @@ export const DamageClaimsSection = () => {
     status: string;
     dailyRate: number;
   } | null>(null);
+  const [selectedVehicleClaims, setSelectedVehicleClaims] = useState<typeof damageClaims>([]);
+  const [selectedVehicleMaintenance, setSelectedVehicleMaintenance] = useState<typeof maintenance>([]);
 
   const handleVehicleClick = (vehicleId: string) => {
     const vehicle = vehicles.find(v => v.id === vehicleId);
     if (vehicle) {
+      // Get all claims for this vehicle
+      const vehicleClaims = damageClaims.filter(c => c.vehicle_id === vehicleId);
+      // Get all maintenance for this vehicle
+      const vehicleMaintenance = maintenance.filter(m => m.vehicle_id === vehicleId);
+      
       setSelectedVehicle({
+        id: vehicle.id,
         name: vehicle.name,
         make: vehicle.make,
         model: vehicle.model,
@@ -45,7 +55,9 @@ export const DamageClaimsSection = () => {
         status: vehicle.status,
         dailyRate: Number(vehicle.current_rate),
       });
-      setShowVehicleImage(true);
+      setSelectedVehicleClaims(vehicleClaims);
+      setSelectedVehicleMaintenance(vehicleMaintenance);
+      setShowVehicleDetails(true);
     }
   };
 
@@ -106,11 +118,13 @@ export const DamageClaimsSection = () => {
       />
 
       {selectedVehicle && (
-        <VehicleImageDialog
-          open={showVehicleImage}
-          onOpenChange={setShowVehicleImage}
+        <VehicleDetailsDialog
+          open={showVehicleDetails}
+          onOpenChange={setShowVehicleDetails}
           vehicleName={selectedVehicle.name}
           vehicleDetails={selectedVehicle}
+          damageClaims={selectedVehicleClaims}
+          maintenanceSchedules={selectedVehicleMaintenance}
         />
       )}
 
@@ -202,6 +216,12 @@ export const DamageClaimsSection = () => {
                     className="p-3 sm:p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors"
                   >
                     <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-3">
+                      <VehicleThumbnail 
+                        vehicleName={vehicle?.name || ''} 
+                        size="avatar"
+                        onClick={() => handleVehicleClick(claim.vehicle_id)}
+                        className="flex-shrink-0"
+                      />
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2 mb-1">
                           <h4 

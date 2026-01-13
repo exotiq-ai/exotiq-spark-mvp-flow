@@ -11,7 +11,9 @@ import { QuickPriceEditorDialog } from "@/components/dialogs/QuickPriceEditorDia
 import { PriceUtilizationScatterPlot } from "@/components/charts/PriceUtilizationScatterPlot";
 import { DynamicPricingCard } from "@/components/dashboard/DynamicPricingCard";
 import { DemandForecastCard } from "@/components/dashboard/DemandForecastCard";
+import { PricingCalendar } from "@/components/dashboard/PricingCalendar";
 import { LocationBadge } from "@/components/common/LocationBadge";
+import { VehicleThumbnail } from "@/components/common/VehicleThumbnail";
 import { useSwipeGesture } from "@/hooks/useSwipeGesture";
 
 import { SkeletonMetric, SkeletonCard, SkeletonBarChart, SkeletonTable } from "@/components/ui/skeleton-card";
@@ -30,7 +32,8 @@ import {
   BarChart3,
   Download,
   X,
-  Pencil
+  Pencil,
+  Calendar
 } from "lucide-react";
 import { createExportActions } from "@/lib/exportUtils";
 import { useToast } from "@/hooks/use-toast";
@@ -229,6 +232,7 @@ export const MotorIQEnhanced = () => {
         <ModuleTabs
           tabs={[
             { id: "overview", label: "Overview", shortLabel: "Home", icon: Brain },
+            { id: "calendar", label: "Calendar", shortLabel: "Cal", icon: Calendar },
             { id: "pricing", label: "Dynamic Pricing", shortLabel: "Price", icon: DollarSign },
             { id: "forecast", label: "Demand Forecast", shortLabel: "Trends", icon: BarChart3 },
           ]}
@@ -396,29 +400,30 @@ export const MotorIQEnhanced = () => {
                 className="group p-4 rounded-lg border border-primary/20 bg-gradient-to-r from-primary/5 to-transparent hover:border-primary/40 hover:shadow-md cursor-pointer transition-all"
                 onClick={() => handleEditPricing(vehicle)}
               >
-                <div className="flex items-center justify-between mb-3">
-                  <div>
+                <div className="flex items-center gap-4 mb-3">
+                  <VehicleThumbnail vehicleName={vehicle.name} size="sm" />
+                  <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <h4 className="font-semibold group-hover:text-primary transition-colors">
+                      <h4 className="font-semibold group-hover:text-primary transition-colors truncate">
                         {vehicle.name}
                       </h4>
                       <Badge 
                         variant="outline" 
-                        className="opacity-0 group-hover:opacity-100 transition-opacity text-xs"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity text-xs flex-shrink-0"
                       >
                         <Pencil className="h-3 w-3 mr-1" />
                         Edit Pricing
                       </Badge>
                     </div>
                     <div className="flex items-center gap-2">
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-muted-foreground truncate">
                         {vehicle.year} {vehicle.make} {vehicle.model}
                       </p>
                       <LocationBadge locationId={vehicle.location_id} />
                     </div>
                   </div>
                   {vehicle.opportunity && (
-                    <Badge className="bg-success/20 text-success border-success/30">
+                    <Badge className="bg-success/20 text-success border-success/30 flex-shrink-0">
                       <TrendingUp className="h-3 w-3 mr-1" />
                       {vehicle.opportunity}/mo
                     </Badge>
@@ -449,6 +454,10 @@ export const MotorIQEnhanced = () => {
             ))}
           </div>
         </Card>
+          </TabsContent>
+
+          <TabsContent value="calendar" className="space-y-6">
+            <PricingCalendar />
           </TabsContent>
 
           <TabsContent value="pricing" className="space-y-6">
