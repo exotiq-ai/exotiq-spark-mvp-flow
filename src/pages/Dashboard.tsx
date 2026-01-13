@@ -228,6 +228,7 @@ const Dashboard = () => {
       <DashboardSidebarEnhanced 
         activeModule={activeModule}
         onModuleChange={handleModuleChange}
+        onOpenRari={rariSidebar.open}
       />
 
       {/* Main Content Area */}
@@ -350,36 +351,8 @@ const Dashboard = () => {
         />
       </ErrorBoundary>
 
-      {/* Rari AI Assistant - Desktop: Unified FAB, Mobile: uses AI tab in bottom nav */}
+      {/* Rari AI Assistant - Sidebar has Rari button, floating FAB removed on desktop */}
       <ErrorBoundary fallback={null}>
-        {/* Desktop-only unified Rari FAB - hidden on dashboard (integrated in bottom action bar) */}
-        {rariSidebar.isClosed && activeModule !== 'dashboard' && (
-          <motion.button
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0, opacity: 0 }}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={rariSidebar.open}
-            className={cn(
-              "hidden md:flex fixed bottom-6 right-6 z-40",
-              "w-14 h-14 rounded-full items-center justify-center",
-              "bg-gradient-to-br from-rari-teal to-success",
-              "text-white shadow-lg hover:shadow-xl",
-              "border border-white/20 transition-all duration-200"
-            )}
-            aria-label="Ask Rari AI Assistant"
-            data-tour="rari-fab"
-          >
-            <Sparkles className="h-6 w-6" />
-            {/* Insight badge */}
-            {(rariSidebar.unreadCount > 0 || rariSidebar.urgentCount > 0) && (
-              <span className="absolute -top-1 -right-1 min-w-[20px] h-5 rounded-full bg-destructive text-destructive-foreground text-xs font-bold flex items-center justify-center px-1.5 shadow-lg">
-                {rariSidebar.urgentCount > 0 ? rariSidebar.urgentCount : rariSidebar.unreadCount}
-              </span>
-            )}
-          </motion.button>
-        )}
         <RariSidebar
           state={rariSidebar.state}
           isActiveCall={rariSidebar.isActiveCall}

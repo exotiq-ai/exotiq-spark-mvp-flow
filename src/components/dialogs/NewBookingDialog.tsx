@@ -18,7 +18,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Calendar, User, MapPin, Loader2, AlertCircle, Sparkles, UserPlus } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import { Calendar, User, MapPin, Loader2, AlertCircle, Sparkles, UserPlus, ChevronDown, Check } from 'lucide-react';
 import { TablesInsert, Tables } from '@/integrations/supabase/types';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { validators, validateForm } from '@/lib/validation';
@@ -26,6 +32,7 @@ import { toast } from '@/hooks/use-toast';
 import { useAIPricing } from '@/hooks/useAIPricing';
 import { useTeam } from '@/contexts/TeamContext';
 import { supabase } from '@/integrations/supabase/client';
+import { cn } from '@/lib/utils';
 
 interface NewBookingDialogProps {
   open: boolean;
@@ -57,6 +64,7 @@ export const NewBookingDialog = ({
   const [error, setError] = useState<string | null>(null);
   const [customers, setCustomers] = useState<Tables<'customers'>[]>([]);
   const [loadingCustomers, setLoadingCustomers] = useState(false);
+  const [aiExpanded, setAiExpanded] = useState(false);
 
   // Fetch existing customers when dialog opens
   useEffect(() => {
@@ -177,6 +185,7 @@ export const NewBookingDialog = ({
       setDropoffLocation('');
       setNotes('');
       setError(null);
+      setAiExpanded(false);
       onOpenChange(false);
       
       toast({
@@ -193,8 +202,8 @@ export const NewBookingDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[500px] max-h-[85vh] flex flex-col p-0">
+        <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
           <DialogTitle className="flex items-center space-x-2">
             <Calendar className="h-5 w-5 text-primary" />
             <span>New Booking</span>
@@ -204,253 +213,269 @@ export const NewBookingDialog = ({
           </DialogDescription>
         </DialogHeader>
 
-        {error && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
+        <ScrollArea className="flex-1 overflow-y-auto">
+          <div className="px-6 py-4 space-y-4">
+            {error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
 
-        <div className="space-y-4 py-4">
-          {/* Vehicle Selection */}
-          <div className="space-y-2">
-            <Label htmlFor="vehicle">Vehicle</Label>
-            <Select value={vehicleId} onValueChange={setVehicleId}>
-              <SelectTrigger id="vehicle">
-                <SelectValue placeholder="Select vehicle" />
-              </SelectTrigger>
-              <SelectContent>
-                {vehicles.map((v) => (
-                  <SelectItem key={v.id} value={v.id}>
-                    {v.name} - ${v.current_rate}/day
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* AI Price Suggestion */}
-          {pricingSuggestion && vehicleId && (
-            <div className="p-4 rounded-lg bg-primary/5 border border-primary/20 space-y-3">
-              <div className="flex items-start gap-2">
-                <Sparkles className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
-                <div className="flex-1">
-                  <h4 className="font-semibold text-sm mb-1">AI Pricing Insight</h4>
-                  <p className="text-sm text-muted-foreground mb-2">
-                    {pricingSuggestion.reasoning}
-                  </p>
-                  <div className="flex items-center gap-4 text-sm">
-                    <div>
-                      <span className="text-muted-foreground">Suggested Rate:</span>
-                      <span className="font-bold text-primary ml-2">${pricingSuggestion.suggestedRate}/day</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Impact:</span>
-                      <span className="font-semibold text-success ml-2">{pricingSuggestion.expectedImpact}</span>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {pricingSuggestion.factors.map((factor, idx) => (
-                      <span key={idx} className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">
-                        {factor}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="w-full"
-                onClick={() => {
-                  // In a real implementation, this would update the rate field
-                  toast({
-                    title: "AI Rate Applied",
-                    description: `Daily rate set to $${pricingSuggestion.suggestedRate}`,
-                  });
-                }}
-              >
-                Use AI Suggested Rate (${pricingSuggestion.suggestedRate}/day)
-              </Button>
+            {/* Vehicle Selection */}
+            <div className="space-y-2">
+              <Label htmlFor="vehicle">Vehicle</Label>
+              <Select value={vehicleId} onValueChange={setVehicleId}>
+                <SelectTrigger id="vehicle">
+                  <SelectValue placeholder="Select vehicle" />
+                </SelectTrigger>
+                <SelectContent>
+                  {vehicles.map((v) => (
+                    <SelectItem key={v.id} value={v.id}>
+                      {v.name} - ${v.current_rate}/day
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-          )}
 
-          {/* Customer Selection */}
-          <div className="space-y-2">
-            <Label>Customer</Label>
-            <Select value={selectedCustomerId} onValueChange={handleCustomerSelect}>
-              <SelectTrigger>
-                <SelectValue placeholder={loadingCustomers ? "Loading customers..." : "Select or add customer"} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="new">
-                  <span className="flex items-center gap-2">
-                    <UserPlus className="h-4 w-4" />
-                    New Customer
-                  </span>
-                </SelectItem>
-                {customers.map((customer) => (
-                  <SelectItem key={customer.id} value={customer.id}>
-                    <span className="flex items-center gap-2">
-                      <User className="h-4 w-4" />
-                      {customer.full_name}
-                      {customer.email && (
-                        <span className="text-muted-foreground text-xs">({customer.email})</span>
+            {/* AI Price Suggestion - Collapsible */}
+            {pricingSuggestion && vehicleId && (
+              <Collapsible open={aiExpanded} onOpenChange={setAiExpanded}>
+                <CollapsibleTrigger asChild>
+                  <button className="w-full p-3 rounded-lg bg-primary/5 border border-primary/20 flex items-center justify-between hover:bg-primary/10 transition-colors">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-primary" />
+                      <span className="text-sm font-medium">
+                        AI suggests ${pricingSuggestion.suggestedRate}/day
+                      </span>
+                      {pricingSuggestion.suggestedRate > (selectedVehicle?.current_rate || 0) && (
+                        <span className="text-xs text-success font-semibold">
+                          +${pricingSuggestion.suggestedRate - (selectedVehicle?.current_rate || 0)}
+                        </span>
                       )}
+                    </div>
+                    <ChevronDown className={cn(
+                      "h-4 w-4 text-muted-foreground transition-transform",
+                      aiExpanded && "rotate-180"
+                    )} />
+                  </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="pt-3 space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                      {pricingSuggestion.reasoning}
+                    </p>
+                    <div className="flex items-center gap-4 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">Expected:</span>
+                        <span className="font-semibold text-success ml-2">{pricingSuggestion.expectedImpact}</span>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {pricingSuggestion.factors.map((factor, idx) => (
+                        <span key={idx} className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">
+                          {factor}
+                        </span>
+                      ))}
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => {
+                        toast({
+                          title: "AI Rate Applied",
+                          description: `Daily rate set to $${pricingSuggestion.suggestedRate}`,
+                        });
+                      }}
+                    >
+                      <Check className="h-4 w-4 mr-2" />
+                      Use AI Suggested Rate (${pricingSuggestion.suggestedRate}/day)
+                    </Button>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            )}
+
+            {/* Customer Selection */}
+            <div className="space-y-2">
+              <Label>Customer</Label>
+              <Select value={selectedCustomerId} onValueChange={handleCustomerSelect}>
+                <SelectTrigger>
+                  <SelectValue placeholder={loadingCustomers ? "Loading customers..." : "Select or add customer"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="new">
+                    <span className="flex items-center gap-2">
+                      <UserPlus className="h-4 w-4" />
+                      New Customer
                     </span>
                   </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+                  {customers.map((customer) => (
+                    <SelectItem key={customer.id} value={customer.id}>
+                      <span className="flex items-center gap-2">
+                        <User className="h-4 w-4" />
+                        {customer.full_name}
+                        {customer.email && (
+                          <span className="text-muted-foreground text-xs">({customer.email})</span>
+                        )}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-          {/* Customer Details */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2 col-span-2">
-              <Label htmlFor="customer">Customer Name</Label>
-              <div className="relative">
-                <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            {/* Customer Details */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2 col-span-2">
+                <Label htmlFor="customer">Customer Name</Label>
+                <div className="relative">
+                  <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="customer"
+                    placeholder="John Smith"
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    className="pl-10"
+                    disabled={selectedCustomerId !== 'new'}
+                  />
+                </div>
+                {selectedCustomerId !== 'new' && (
+                  <p className="text-xs text-muted-foreground">
+                    Auto-filled from CRM. Select "New Customer" to enter manually.
+                  </p>
+                )}
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
                 <Input
-                  id="customer"
-                  placeholder="John Smith"
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                  className="pl-10"
+                  id="email"
+                  type="email"
+                  placeholder="john@example.com"
+                  value={customerEmail}
+                  onChange={(e) => setCustomerEmail(e.target.value)}
                   disabled={selectedCustomerId !== 'new'}
                 />
               </div>
-              {selectedCustomerId !== 'new' && (
-                <p className="text-xs text-muted-foreground">
-                  Auto-filled from CRM. Select "New Customer" to enter manually.
-                </p>
-              )}
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="john@example.com"
-                value={customerEmail}
-                onChange={(e) => setCustomerEmail(e.target.value)}
-                disabled={selectedCustomerId !== 'new'}
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone</Label>
-              <Input
-                id="phone"
-                type="tel"
-                placeholder="+1 234 567 8900"
-                value={customerPhone}
-                onChange={(e) => setCustomerPhone(e.target.value)}
-                disabled={selectedCustomerId !== 'new'}
-              />
-            </div>
-          </div>
-
-          {/* Start and End Date */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label htmlFor="start-date">Start Date</Label>
-              <Input
-                id="start-date"
-                type="datetime-local"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="end-date">End Date</Label>
-              <Input
-                id="end-date"
-                type="datetime-local"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-              />
-            </div>
-          </div>
-
-          {/* Locations */}
-          <div className="space-y-3">
-            <div className="space-y-2">
-              <Label htmlFor="pickup">Pickup Location</Label>
-              {locations.length > 0 ? (
-                <>
-                  <Select value={effectivePickupLocationId} onValueChange={setPickupLocationId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select pickup location" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {locations.map((loc) => (
-                        <SelectItem key={loc.id} value={loc.id}>
-                          <span className="flex items-center gap-2">
-                            <MapPin className="h-3 w-3" />
-                            {loc.name}
-                            {loc.is_default && " (Default)"}
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {currentLocation && selectedLocationId !== 'all' && (
-                    <p className="text-xs text-muted-foreground">
-                      Auto-assigned to current location
-                    </p>
-                  )}
-                </>
-              ) : (
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="pickup"
-                    placeholder="Downtown, Airport, etc."
-                    value={pickupLocationText}
-                    onChange={(e) => setPickupLocationText(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-              )}
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="dropoff">Drop-off Location (optional)</Label>
-              <div className="relative">
-                <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone</Label>
                 <Input
-                  id="dropoff"
-                  placeholder="Same as pickup"
-                  value={dropoffLocation}
-                  onChange={(e) => setDropoffLocation(e.target.value)}
-                  className="pl-10"
+                  id="phone"
+                  type="tel"
+                  placeholder="+1 234 567 8900"
+                  value={customerPhone}
+                  onChange={(e) => setCustomerPhone(e.target.value)}
+                  disabled={selectedCustomerId !== 'new'}
                 />
               </div>
             </div>
-          </div>
 
-          {/* Notes */}
-          <div className="space-y-2">
-            <Label htmlFor="notes">Notes</Label>
-            <Textarea
-              id="notes"
-              placeholder="Special requests or additional information..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={3}
-            />
-          </div>
-        </div>
+            {/* Start and End Date */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="start-date">Start Date</Label>
+                <Input
+                  id="start-date"
+                  type="datetime-local"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="end-date">End Date</Label>
+                <Input
+                  id="end-date"
+                  type="datetime-local"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                />
+              </div>
+            </div>
 
-        <DialogFooter>
+            {/* Locations */}
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <Label htmlFor="pickup">Pickup Location</Label>
+                {locations.length > 0 ? (
+                  <>
+                    <Select value={effectivePickupLocationId} onValueChange={setPickupLocationId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select pickup location" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {locations.map((loc) => (
+                          <SelectItem key={loc.id} value={loc.id}>
+                            <span className="flex items-center gap-2">
+                              <MapPin className="h-3 w-3" />
+                              {loc.name}
+                              {loc.is_default && " (Default)"}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {currentLocation && selectedLocationId !== 'all' && (
+                      <p className="text-xs text-muted-foreground">
+                        Auto-assigned to current location
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="pickup"
+                      placeholder="Downtown, Airport, etc."
+                      value={pickupLocationText}
+                      onChange={(e) => setPickupLocationText(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                )}
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="dropoff">Drop-off Location (optional)</Label>
+                <div className="relative">
+                  <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="dropoff"
+                    placeholder="Same as pickup"
+                    value={dropoffLocation}
+                    onChange={(e) => setDropoffLocation(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Notes */}
+            <div className="space-y-2">
+              <Label htmlFor="notes">Notes</Label>
+              <Textarea
+                id="notes"
+                placeholder="Special requests or additional information..."
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={2}
+              />
+            </div>
+          </div>
+        </ScrollArea>
+
+        <DialogFooter className="px-6 py-4 border-t flex-shrink-0 bg-background">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
             Cancel
           </Button>
           <Button 
             onClick={handleSubmit} 
             disabled={loading || !vehicleId || !customerName || !startDate || !endDate || (!effectivePickupLocationId && !pickupLocationText)}
+            className="min-h-[44px]"
           >
             {loading ? (
               <>
