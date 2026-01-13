@@ -305,20 +305,35 @@ export const DynamicPricingCard = ({ onApplyOptimization }: DynamicPricingCardPr
           </Select>
         </div>
 
-        <div className="space-y-3 max-h-[200px] overflow-y-auto">
-          {vehicles.slice(0, 5).map((vehicle) => {
+        <div className="space-y-3 max-h-[300px] overflow-y-auto">
+          {vehicles.map((vehicle) => {
             const isAnalyzing = loading && selectedVehicle === vehicle.id;
             const hasResult = pricingResult && selectedVehicle === vehicle.id;
             
             return (
               <div
                 key={vehicle.id}
-                className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
-                  hasResult ? 'bg-primary/5 border-primary/20' : 'hover:bg-muted/30'
+                className={`group flex items-center justify-between p-3 rounded-lg border transition-all cursor-pointer ${
+                  hasResult ? 'bg-primary/5 border-primary/20' : 'hover:bg-muted/30 hover:border-primary/30'
                 }`}
+                onClick={() => {
+                  // Dispatch a custom event to open the quick price editor
+                  const event = new CustomEvent('openQuickPriceEditor', { detail: vehicle });
+                  window.dispatchEvent(event);
+                }}
               >
                 <div className="flex-1 min-w-0">
-                  <div className="font-medium truncate">{vehicle.name}</div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium truncate group-hover:text-primary transition-colors">
+                      {vehicle.name}
+                    </span>
+                    <Badge 
+                      variant="outline" 
+                      className="opacity-0 group-hover:opacity-100 transition-opacity text-xs"
+                    >
+                      Edit
+                    </Badge>
+                  </div>
                   <div className="text-sm text-muted-foreground">
                     ${Number(vehicle.current_rate).toLocaleString()}/day
                     {hasResult && pricingResult.suggestedRate > Number(vehicle.current_rate) && (
@@ -331,14 +346,17 @@ export const DynamicPricingCard = ({ onApplyOptimization }: DynamicPricingCardPr
                     )}
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
                   {isAnalyzing ? (
                     <RefreshCw className="h-4 w-4 animate-spin text-primary" />
                   ) : hasResult ? (
                     <Button
                       size="sm"
                       variant="default"
-                      onClick={() => handleApplyRate(vehicle.id, pricingResult.suggestedRate)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleApplyRate(vehicle.id, pricingResult.suggestedRate);
+                      }}
                     >
                       Apply ${pricingResult.suggestedRate.toLocaleString()}
                     </Button>
@@ -346,7 +364,10 @@ export const DynamicPricingCard = ({ onApplyOptimization }: DynamicPricingCardPr
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => handleAnalyzeVehicle(vehicle.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleAnalyzeVehicle(vehicle.id);
+                      }}
                     >
                       Analyze
                     </Button>
