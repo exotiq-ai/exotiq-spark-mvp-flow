@@ -15,13 +15,13 @@ export const UpcomingScheduleWidget = ({ onViewCalendar }: UpcomingScheduleWidge
   const todayStart = new Date(now);
   todayStart.setHours(0, 0, 0, 0);
   
-  // Include today's confirmed bookings and future bookings
+  // Include today's confirmed AND pending bookings and future bookings
   const upcomingBookings = bookings
     .filter(b => {
       const startDate = new Date(b.start_date);
       const endDate = new Date(b.end_date);
       return (
-        b.status === 'confirmed' &&
+        (b.status === 'confirmed' || b.status === 'pending') &&
         (startDate >= todayStart || endDate >= todayStart)
       );
     })
@@ -57,10 +57,19 @@ export const UpcomingScheduleWidget = ({ onViewCalendar }: UpcomingScheduleWidge
       {upcomingBookings.length > 0 ? (
         <div className="space-y-3">
           {upcomingBookings.map((booking) => (
-            <div key={booking.id} className="p-3 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors">
+            <div key={booking.id} className={`p-3 rounded-lg hover:bg-muted/70 transition-colors ${
+              booking.status === 'pending' ? 'bg-warning/10 border border-warning/30' : 'bg-muted/50'
+            }`}>
               <div className="flex items-start justify-between mb-2">
                 <div className="flex-1">
-                  <p className="font-medium text-sm">{getVehicleName(booking.vehicle_id)}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium text-sm">{getVehicleName(booking.vehicle_id)}</p>
+                    {booking.status === 'pending' && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-warning/20 text-warning font-medium">
+                        PENDING
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-muted-foreground">{booking.customer_name}</p>
                 </div>
               </div>
