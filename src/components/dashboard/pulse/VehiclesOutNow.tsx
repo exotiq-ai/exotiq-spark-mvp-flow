@@ -17,6 +17,7 @@ import { differenceInMinutes, differenceInHours, isPast } from "date-fns";
 
 interface RentalWithCountdown {
   id: string;
+  bookingId: string;
   vehicleName: string;
   customerName: string;
   returnDate: Date;
@@ -33,14 +34,20 @@ export const VehiclesOutNow = () => {
 
   useEffect(() => {
     const calculateRentals = () => {
-      const activeBookings = bookings.filter(b => 
-        b.status === 'active' || b.status === 'confirmed'
-      );
+      const now = new Date();
+      
+      // FIX: Only show vehicles currently out (start_date <= now AND status is confirmed/active)
+      // This filters to bookings where the rental has started
+      const activeBookings = bookings.filter(b => {
+        const startDate = new Date(b.start_date);
+        const isActive = b.status === 'active' || b.status === 'confirmed';
+        // Vehicle is "out" if booking has started (regardless of whether it's overdue)
+        return isActive && startDate <= now;
+      });
 
       const rentalsWithCountdown: RentalWithCountdown[] = activeBookings.map(booking => {
         const vehicle = vehicles.find(v => v.id === booking.vehicle_id);
         const returnDate = new Date(booking.end_date);
-        const now = new Date();
         
         const minutesRemaining = differenceInMinutes(returnDate, now);
         const hoursRemaining = differenceInHours(returnDate, now);
@@ -67,6 +74,7 @@ export const VehiclesOutNow = () => {
 
         return {
           id: booking.id,
+          bookingId: booking.id,
           vehicleName: vehicle ? `${vehicle.make} ${vehicle.model}` : 'Unknown',
           customerName: booking.customer_name,
           returnDate,
@@ -77,6 +85,7 @@ export const VehiclesOutNow = () => {
         };
       });
 
+      // Sort: overdue first, then by time remaining
       rentalsWithCountdown.sort((a, b) => {
         if (a.status === 'overdue' && b.status !== 'overdue') return -1;
         if (a.status !== 'overdue' && b.status === 'overdue') return 1;
@@ -100,6 +109,11 @@ export const VehiclesOutNow = () => {
       default:
         return { text: 'text-success', bg: 'bg-success/10', icon: CheckCircle2 };
     }
+  };
+
+  // Navigate to specific booking
+  const handleCardClick = (bookingId: string) => {
+    navigate(`/dashboard?module=book&bookingId=${bookingId}`);
   };
 
   if (rentals.length === 0) {
@@ -137,7 +151,7 @@ export const VehiclesOutNow = () => {
             <div
               key={rental.id}
               className={`p-3 rounded-lg ${styles.bg} cursor-pointer hover:scale-[1.02] transition-transform`}
-              onClick={() => navigate('/dashboard?module=book')}
+              onClick={() => handleCardClick(rental.bookingId)}
             >
               <div className="flex items-center justify-between mb-1">
                 <span className="text-xs font-medium truncate flex-1">{rental.vehicleName}</span>
@@ -161,7 +175,7 @@ export const VehiclesOutNow = () => {
           variant="ghost" 
           size="sm"
           className="w-full mt-2"
-          onClick={() => navigate('/dashboard?module=book')}
+          onClick={() => navigate('/dashboard?module=book&filter=active')}
         >
           +{rentals.length - 8} more
         </Button>

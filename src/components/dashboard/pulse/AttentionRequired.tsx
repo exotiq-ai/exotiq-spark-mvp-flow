@@ -10,11 +10,19 @@ import {
   CreditCard,
   FileWarning,
   Wrench,
-  Phone,
   ChevronRight,
-  CheckCircle2
+  ChevronDown,
+  CheckCircle2,
+  User
 } from "lucide-react";
-import { isPast, isToday, isTomorrow, addDays, isWithinInterval } from "date-fns";
+import { isPast, isToday, isTomorrow, addDays, isWithinInterval, format } from "date-fns";
+
+interface AlertItem {
+  id: string;
+  label: string;
+  sublabel?: string;
+  onClick: () => void;
+}
 
 interface AlertCategory {
   id: string;
@@ -24,88 +32,142 @@ interface AlertCategory {
   color: string;
   bgColor: string;
   action: () => void;
+  items: AlertItem[];
 }
 
 export const AttentionRequired = () => {
   const { bookings, vehicles, payments, maintenance, customers } = useLocationFilteredFleet();
   const navigate = useNavigate();
+  const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
 
-  // Calculate alert counts
-  const lateReturnsCount = bookings.filter(b => 
-    b.status === 'active' && isPast(new Date(b.end_date))
-  ).length;
+  // Late returns with booking details
+  const lateReturns = bookings.filter(b => 
+    (b.status === 'active' || b.status === 'confirmed') && 
+    isPast(new Date(b.end_date)) &&
+    new Date(b.start_date) <= new Date() // Has started
+  );
 
-  const pendingPickupsCount = bookings.filter(b => {
+  // Pending pickups with booking details
+  const pendingPickups = bookings.filter(b => {
     const startDate = new Date(b.start_date);
     return b.status === 'confirmed' && (isToday(startDate) || isPast(startDate));
-  }).length;
+  });
 
-  const overduePaymentsCount = payments.filter(p => 
+  // Overdue payments
+  const overduePayments = payments.filter(p => 
     p.payment_status === 'pending' || p.payment_status === 'overdue'
-  ).length;
+  );
 
-  const expiringDocsCount = customers.filter(c => {
+  // Expiring documents
+  const expiringDocs = customers.filter(c => {
     const licenseExpiry = c.license_expiry ? new Date(c.license_expiry) : null;
     const insuranceExpiry = c.insurance_expiry ? new Date(c.insurance_expiry) : null;
     const soon = addDays(new Date(), 7);
     return (licenseExpiry && isWithinInterval(licenseExpiry, { start: new Date(), end: soon })) ||
            (insuranceExpiry && isWithinInterval(insuranceExpiry, { start: new Date(), end: soon }));
-  }).length;
+  });
 
-  const maintenanceDueCount = maintenance.filter(m => {
+  // Maintenance due
+  const maintenanceDue = maintenance.filter(m => {
     const scheduledDate = new Date(m.scheduled_date);
     return m.status !== 'completed' && (isToday(scheduledDate) || isTomorrow(scheduledDate) || isPast(scheduledDate));
-  }).length;
+  });
 
   const categories: AlertCategory[] = [
     { 
       id: 'late', 
       label: 'Late Returns', 
       icon: Clock, 
-      count: lateReturnsCount, 
+      count: lateReturns.length, 
       color: 'text-destructive',
       bgColor: 'bg-destructive/10',
-      action: () => navigate('/dashboard?module=book')
+      action: () => navigate('/dashboard?module=book&filter=overdue'),
+      items: lateReturns.slice(0, 5).map(b => {
+        const vehicle = vehicles.find(v => v.id === b.vehicle_id);
+        return {
+          id: b.id,
+          label: vehicle ? `${vehicle.make} ${vehicle.model}` : 'Unknown Vehicle',
+          sublabel: `${b.customer_name} • Due ${format(new Date(b.end_date), 'MMM d')}`,
+          onClick: () => navigate(`/dashboard?module=book&bookingId=${b.id}`)
+        };
+      })
     },
     { 
       id: 'pickups', 
       label: 'Pending Pickups', 
       icon: AlertTriangle, 
-      count: pendingPickupsCount, 
+      count: pendingPickups.length, 
       color: 'text-warning',
       bgColor: 'bg-warning/10',
-      action: () => navigate('/dashboard?module=book')
+      action: () => navigate('/dashboard?module=book&filter=pending-pickup'),
+      items: pendingPickups.slice(0, 5).map(b => {
+        const vehicle = vehicles.find(v => v.id === b.vehicle_id);
+        return {
+          id: b.id,
+          label: vehicle ? `${vehicle.make} ${vehicle.model}` : 'Unknown Vehicle',
+          sublabel: `${b.customer_name} • ${format(new Date(b.start_date), 'h:mm a')}`,
+          onClick: () => navigate(`/dashboard?module=book&bookingId=${b.id}`)
+        };
+      })
     },
     { 
       id: 'payments', 
       label: 'Overdue Payments', 
       icon: CreditCard, 
-      count: overduePaymentsCount, 
+      count: overduePayments.length, 
       color: 'text-warning',
       bgColor: 'bg-warning/10',
-      action: () => navigate('/dashboard?module=vault&tab=payments')
+      action: () => navigate('/dashboard?module=vault&tab=payments&filter=overdue'),
+      items: overduePayments.slice(0, 5).map(p => {
+        const booking = bookings.find(b => b.id === p.booking_id);
+        return {
+          id: p.id,
+          label: `$${p.amount?.toLocaleString() || 0}`,
+          sublabel: booking?.customer_name || 'Unknown Customer',
+          onClick: () => navigate(`/dashboard?module=vault&tab=payments&paymentId=${p.id}`)
+        };
+      })
     },
     { 
       id: 'docs', 
       label: 'Expiring Docs', 
       icon: FileWarning, 
-      count: expiringDocsCount, 
+      count: expiringDocs.length, 
       color: 'text-muted-foreground',
       bgColor: 'bg-muted/50',
-      action: () => navigate('/dashboard?module=core')
+      action: () => navigate('/dashboard?module=book&tab=customers&filter=expiring'),
+      items: expiringDocs.slice(0, 5).map(c => ({
+        id: c.id,
+        label: c.full_name,
+        sublabel: c.license_expiry ? `License expires ${format(new Date(c.license_expiry), 'MMM d')}` : 'Insurance expiring',
+        onClick: () => navigate(`/dashboard?module=book&tab=customers&customerId=${c.id}`)
+      }))
     },
     { 
       id: 'maintenance', 
       label: 'Maintenance Due', 
       icon: Wrench, 
-      count: maintenanceDueCount, 
+      count: maintenanceDue.length, 
       color: 'text-muted-foreground',
       bgColor: 'bg-muted/50',
-      action: () => navigate('/dashboard?module=motoriq')
+      action: () => navigate('/dashboard?module=motoriq&filter=due'),
+      items: maintenanceDue.slice(0, 5).map(m => {
+        const vehicle = vehicles.find(v => v.id === m.vehicle_id);
+        return {
+          id: m.id,
+          label: vehicle ? `${vehicle.make} ${vehicle.model}` : 'Unknown Vehicle',
+          sublabel: `${m.maintenance_type} • ${format(new Date(m.scheduled_date), 'MMM d')}`,
+          onClick: () => navigate(`/dashboard?module=motoriq&maintenanceId=${m.id}`)
+        };
+      })
     },
   ].filter(cat => cat.count > 0);
 
   const totalAlerts = categories.reduce((sum, cat) => sum + cat.count, 0);
+
+  const toggleCategory = (categoryId: string) => {
+    setExpandedCategory(expandedCategory === categoryId ? null : categoryId);
+  };
 
   if (totalAlerts === 0) {
     return (
@@ -132,22 +194,63 @@ export const AttentionRequired = () => {
       badge={totalAlerts}
       badgeVariant="destructive"
     >
-      {/* Compact horizontal layout */}
-      <div className="flex flex-wrap gap-2">
+      <div className="space-y-2">
         {categories.map((category) => {
           const Icon = category.icon;
+          const isExpanded = expandedCategory === category.id;
           
           return (
-            <button
-              key={category.id}
-              onClick={category.action}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg ${category.bgColor} hover:opacity-80 transition-opacity`}
-            >
-              <Icon className={`h-4 w-4 ${category.color}`} />
-              <span className="text-sm font-medium">{category.count}</span>
-              <span className="text-xs text-muted-foreground hidden sm:inline">{category.label}</span>
-              <ChevronRight className="h-3 w-3 text-muted-foreground" />
-            </button>
+            <div key={category.id} className="space-y-1">
+              {/* Category header */}
+              <button
+                onClick={() => toggleCategory(category.id)}
+                className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg ${category.bgColor} hover:opacity-90 transition-opacity`}
+              >
+                <div className="flex items-center gap-2">
+                  <Icon className={`h-4 w-4 ${category.color}`} />
+                  <span className="text-sm font-medium">{category.count}</span>
+                  <span className="text-xs text-muted-foreground">{category.label}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  {isExpanded ? (
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </div>
+              </button>
+
+              {/* Expanded items */}
+              {isExpanded && category.items.length > 0 && (
+                <div className="ml-4 space-y-1">
+                  {category.items.map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={item.onClick}
+                      className="w-full flex items-center justify-between p-2 rounded-md bg-card/50 hover:bg-card transition-colors text-left"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate">{item.label}</p>
+                        {item.sublabel && (
+                          <p className="text-xs text-muted-foreground truncate">{item.sublabel}</p>
+                        )}
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0 ml-2" />
+                    </button>
+                  ))}
+                  {category.count > 5 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full text-xs"
+                      onClick={category.action}
+                    >
+                      View all {category.count} {category.label.toLowerCase()}
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
           );
         })}
       </div>

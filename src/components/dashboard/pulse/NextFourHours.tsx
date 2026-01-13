@@ -13,6 +13,7 @@ import { format, addHours, isWithinInterval } from "date-fns";
 
 interface ScheduleEvent {
   id: string;
+  bookingId: string;
   type: 'pickup' | 'return';
   time: Date;
   vehicleName: string;
@@ -40,6 +41,7 @@ export const NextFourHours = () => {
         isWithinInterval(startDate, { start: now, end: fourHoursFromNow })) {
       events.push({
         id: `pickup-${booking.id}`,
+        bookingId: booking.id,
         type: 'pickup',
         time: startDate,
         vehicleName,
@@ -48,10 +50,11 @@ export const NextFourHours = () => {
       });
     }
 
-    if (booking.status === 'active' && 
+    if ((booking.status === 'active' || booking.status === 'confirmed') && 
         isWithinInterval(endDate, { start: now, end: fourHoursFromNow })) {
       events.push({
         id: `return-${booking.id}`,
+        bookingId: booking.id,
         type: 'return',
         time: endDate,
         vehicleName,
@@ -62,6 +65,11 @@ export const NextFourHours = () => {
   });
 
   events.sort((a, b) => a.time.getTime() - b.time.getTime());
+
+  // Navigate to specific booking
+  const handleEventClick = (bookingId: string) => {
+    navigate(`/dashboard?module=book&bookingId=${bookingId}`);
+  };
 
   return (
     <CollapsibleSection
@@ -86,7 +94,7 @@ export const NextFourHours = () => {
               <div
                 key={event.id}
                 className={`flex items-center justify-between p-2 rounded-lg ${bgColor} cursor-pointer hover:opacity-80 transition-opacity`}
-                onClick={() => navigate('/dashboard?module=book')}
+                onClick={() => handleEventClick(event.bookingId)}
               >
                 <div className="flex items-center gap-2 flex-1 min-w-0">
                   <Icon className={`h-4 w-4 ${color} flex-shrink-0`} />
@@ -118,7 +126,7 @@ export const NextFourHours = () => {
               variant="ghost" 
               size="sm"
               className="w-full"
-              onClick={() => navigate('/dashboard?module=book')}
+              onClick={() => navigate('/dashboard?module=book&tab=calendar')}
             >
               +{events.length - 4} more
             </Button>

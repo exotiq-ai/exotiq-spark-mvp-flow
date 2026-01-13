@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
+import { useNavigate } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 interface DonutSegment {
@@ -8,10 +9,12 @@ interface DonutSegment {
   value: number;
   color: string;
   colorVar: string;
+  route: string;
 }
 
 export const FleetStatusDonut = () => {
   const { vehicles, bookings } = useLocationFilteredFleet();
+  const navigate = useNavigate();
   const [animationProgress, setAnimationProgress] = useState(0);
   const [hoveredSegment, setHoveredSegment] = useState<string | null>(null);
   const isMobile = useIsMobile();
@@ -40,9 +43,9 @@ export const FleetStatusDonut = () => {
     const available = Math.max(0, vehicles.length - booked - maintenance);
 
     return [
-      { label: 'Available', value: available, color: 'hsl(var(--success))', colorVar: '--success' },
-      { label: 'Booked', value: booked, color: 'hsl(var(--primary))', colorVar: '--primary' },
-      { label: 'Maintenance', value: maintenance, color: 'hsl(var(--warning))', colorVar: '--warning' },
+      { label: 'Available', value: available, color: 'hsl(var(--success))', colorVar: '--success', route: '/fleet?status=available' },
+      { label: 'Booked', value: booked, color: 'hsl(var(--primary))', colorVar: '--primary', route: '/dashboard?module=book&filter=active' },
+      { label: 'Maintenance', value: maintenance, color: 'hsl(var(--warning))', colorVar: '--warning', route: '/dashboard?module=motoriq' },
     ];
   }, [vehicles, bookings]);
 
@@ -95,6 +98,10 @@ export const FleetStatusDonut = () => {
     };
   });
 
+  const handleSegmentClick = (route: string) => {
+    navigate(route);
+  };
+
   return (
     <div className="flex flex-col items-center gap-4">
       <div className="relative">
@@ -137,6 +144,7 @@ export const FleetStatusDonut = () => {
               }}
               onMouseEnter={() => setHoveredSegment(segment.label)}
               onMouseLeave={() => setHoveredSegment(null)}
+              onClick={() => handleSegmentClick(segment.route)}
               className="cursor-pointer transition-all duration-200 drop-shadow-sm"
               style={{
                 filter: hoveredSegment === segment.label 
@@ -168,12 +176,13 @@ export const FleetStatusDonut = () => {
         </motion.div>
       </div>
 
-      {/* Legend */}
+      {/* Legend - clickable */}
       <div className="flex flex-wrap justify-center gap-4">
         {segmentPaths.map((segment, index) => (
-          <motion.div
+          <motion.button
             key={segment.label}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-full transition-all duration-200 cursor-pointer ${
+            onClick={() => handleSegmentClick(segment.route)}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-full transition-all duration-200 ${
               hoveredSegment === segment.label 
                 ? 'bg-muted scale-105' 
                 : 'hover:bg-muted/50'
@@ -200,7 +209,7 @@ export const FleetStatusDonut = () => {
             <span className="text-xs text-muted-foreground">
               {segment.label}
             </span>
-          </motion.div>
+          </motion.button>
         ))}
       </div>
     </div>

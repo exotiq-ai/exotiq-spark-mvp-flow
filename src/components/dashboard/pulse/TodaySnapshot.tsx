@@ -1,5 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
+import { useNavigate } from "react-router-dom";
 import { 
   Car, 
   ArrowUpRight, 
@@ -10,6 +11,7 @@ import { format, isToday } from "date-fns";
 
 export const TodaySnapshot = () => {
   const { vehicles, bookings, payments } = useLocationFilteredFleet();
+  const navigate = useNavigate();
   
   // Calculate today's metrics - get unique vehicles currently out
   const today = new Date();
@@ -30,7 +32,7 @@ export const TodaySnapshot = () => {
   const pickupsToday = bookings.filter(b => 
     isToday(new Date(b.start_date)) && b.status === 'confirmed'
   );
-  const pickupsCompleted = pickupsToday.length; // All confirmed pickups are "ready"
+  const pickupsCompleted = pickupsToday.length;
   
   // Returns today - confirmed bookings ending today
   const returnsToday = bookings.filter(b => 
@@ -48,28 +50,32 @@ export const TodaySnapshot = () => {
       value: `${vehiclesOut}`,
       subtext: `of ${totalVehicles}`,
       icon: Car,
-      color: "text-primary"
+      color: "text-primary",
+      onClick: () => navigate('/dashboard?module=pulse')
     },
     { 
       label: "Pickups Today", 
       value: pickupsToday.length.toString(),
-      subtext: `${pickupsCompleted} completed`,
+      subtext: `${pickupsCompleted} scheduled`,
       icon: ArrowUpRight,
-      color: "text-success"
+      color: "text-success",
+      onClick: () => navigate('/dashboard?module=book&filter=pickups-today')
     },
     { 
       label: "Returns Today", 
       value: returnsToday.length.toString(),
       subtext: `${returnsCompleted} completed`,
       icon: ArrowDownLeft,
-      color: "text-warning"
+      color: "text-warning",
+      onClick: () => navigate('/dashboard?module=book&filter=returns-today')
     },
     { 
       label: "Revenue Today", 
       value: `$${todayRevenue.toLocaleString()}`,
       subtext: format(new Date(), 'MMM d'),
       icon: DollarSign,
-      color: "text-success"
+      color: "text-success",
+      onClick: () => navigate('/dashboard?module=vault&tab=payments')
     }
   ];
 
@@ -78,7 +84,8 @@ export const TodaySnapshot = () => {
       {metrics.map((metric, index) => (
         <Card 
           key={index} 
-          className="p-4 bg-card/50 backdrop-blur-sm border-border/50"
+          className="p-4 bg-card/50 backdrop-blur-sm border-border/50 cursor-pointer hover:bg-card/80 hover:border-primary/30 transition-all"
+          onClick={metric.onClick}
         >
           <div className="flex items-center gap-2 mb-2">
             <metric.icon className={`h-4 w-4 ${metric.color}`} />
