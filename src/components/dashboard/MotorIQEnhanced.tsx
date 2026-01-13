@@ -7,7 +7,7 @@ import { TabsContent } from "@/components/ui/tabs";
 import { ModuleTabs } from "@/components/common/ModuleTabs";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { PriceOptimizationDialog } from "@/components/dialogs/PriceOptimizationDialog";
-import { VehicleImageDialog } from "@/components/dialogs/VehicleImageDialog";
+import { QuickPriceEditorDialog } from "@/components/dialogs/QuickPriceEditorDialog";
 import { PriceUtilizationScatterPlot } from "@/components/charts/PriceUtilizationScatterPlot";
 import { DynamicPricingCard } from "@/components/dashboard/DynamicPricingCard";
 import { DemandForecastCard } from "@/components/dashboard/DemandForecastCard";
@@ -29,7 +29,8 @@ import {
   DollarSign,
   BarChart3,
   Download,
-  X
+  X,
+  Pencil
 } from "lucide-react";
 import { createExportActions } from "@/lib/exportUtils";
 import { useToast } from "@/hooks/use-toast";
@@ -39,17 +40,10 @@ export const MotorIQEnhanced = () => {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("overview");
   const [showOptimizationDialog, setShowOptimizationDialog] = useState(false);
-  const [showVehicleImage, setShowVehicleImage] = useState(false);
+  const [showPriceEditor, setShowPriceEditor] = useState(false);
   const [showAddVehicle, setShowAddVehicle] = useState(false);
   const [dismissedRecommendationId, setDismissedRecommendationId] = useState<string | null>(null);
-  const [selectedVehicle, setSelectedVehicle] = useState<{
-    name: string;
-    make: string;
-    model: string;
-    year: number;
-    status: string;
-    dailyRate: number;
-  } | null>(null);
+  const [selectedVehicleForPricing, setSelectedVehicleForPricing] = useState<typeof vehicles[0] | null>(null);
 
   // Check localStorage for dismissed recommendation on mount
   useEffect(() => {
@@ -71,6 +65,19 @@ export const MotorIQEnhanced = () => {
     }
   }, []);
 
+  // Listen for custom event from DynamicPricingCard to open quick price editor
+  useEffect(() => {
+    const handleOpenQuickPriceEditor = (event: CustomEvent) => {
+      setSelectedVehicleForPricing(event.detail);
+      setShowPriceEditor(true);
+    };
+
+    window.addEventListener('openQuickPriceEditor', handleOpenQuickPriceEditor as EventListener);
+    return () => {
+      window.removeEventListener('openQuickPriceEditor', handleOpenQuickPriceEditor as EventListener);
+    };
+  }, []);
+
   const handleExportFleetData = () => {
     const exportData = vehicles.map(v => ({
       name: v.name,
@@ -89,16 +96,13 @@ export const MotorIQEnhanced = () => {
     toast({ title: "Fleet data exported", description: "CSV file downloaded successfully" });
   };
 
-  const handleVehicleClick = (vehicle: typeof vehicles[0]) => {
-    setSelectedVehicle({
-      name: vehicle.name,
-      make: vehicle.make,
-      model: vehicle.model,
-      year: vehicle.year,
-      status: vehicle.status,
-      dailyRate: Number(vehicle.current_rate),
-    });
-    setShowVehicleImage(true);
+  const handleEditPricing = (vehicle: typeof vehicles[0]) => {
+    setSelectedVehicleForPricing(vehicle);
+    setShowPriceEditor(true);
+  };
+
+  const handleApplyRate = async (vehicleId: string, newRate: number) => {
+    await applyPriceOptimization(vehicleId, newRate);
   };
 
   const vehiclesWithOptimization = vehicles
@@ -213,14 +217,12 @@ export const MotorIQEnhanced = () => {
         onApply={(vehicleId, newRate) => applyPriceOptimization(vehicleId, newRate)}
       />
 
-      {selectedVehicle && (
-        <VehicleImageDialog
-          open={showVehicleImage}
-          onOpenChange={setShowVehicleImage}
-          vehicleName={selectedVehicle.name}
-          vehicleDetails={selectedVehicle}
-        />
-      )}
+      <QuickPriceEditorDialog
+        open={showPriceEditor}
+        onOpenChange={setShowPriceEditor}
+        vehicle={selectedVehicleForPricing}
+        onApplyRate={handleApplyRate}
+      />
 
       <div className="space-y-4 sm:space-y-6 overflow-x-hidden w-full">
         {/* Module Tabs */}
@@ -276,12 +278,12 @@ export const MotorIQEnhanced = () => {
                     </h3>
                     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
                       <div>
-                        <p 
-                          className="text-base font-semibold cursor-pointer hover:text-primary transition-colors"
-                          onClick={() => handleVehicleClick(topRecommendation)}
-                        >
-                          {topRecommendation.name}
-                        </p>
+                      <p 
+                        className="text-base font-semibold cursor-pointer hover:text-primary transition-colors"
+                        onClick={() => handleEditPricing(topRecommendation)}
+                      >
+                        {topRecommendation.name}
+                      </p>
                         <p className="text-xs text-muted-foreground">
                           ${Number(topRecommendation.current_rate).toLocaleString()}/day → ${Number(topRecommendation.suggested_rate).toLocaleString()}/day
                         </p>
@@ -391,16 +393,23 @@ export const MotorIQEnhanced = () => {
             {vehiclesWithOptimization.map(vehicle => (
               <div
                 key={vehicle.id}
-                className="p-4 rounded-lg border border-primary/20 bg-gradient-to-r from-primary/5 to-transparent hover:border-primary/40 transition-all"
+                className="group p-4 rounded-lg border border-primary/20 bg-gradient-to-r from-primary/5 to-transparent hover:border-primary/40 hover:shadow-md cursor-pointer transition-all"
+                onClick={() => handleEditPricing(vehicle)}
               >
                 <div className="flex items-center justify-between mb-3">
                   <div>
-                    <h4 
-                      className="font-semibold cursor-pointer hover:text-primary transition-colors"
-                      onClick={() => handleVehicleClick(vehicle)}
-                    >
-                      {vehicle.name}
-                    </h4>
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-semibold group-hover:text-primary transition-colors">
+                        {vehicle.name}
+                      </h4>
+                      <Badge 
+                        variant="outline" 
+                        className="opacity-0 group-hover:opacity-100 transition-opacity text-xs"
+                      >
+                        <Pencil className="h-3 w-3 mr-1" />
+                        Edit Pricing
+                      </Badge>
+                    </div>
                     <div className="flex items-center gap-2">
                       <p className="text-sm text-muted-foreground">
                         {vehicle.year} {vehicle.make} {vehicle.model}
