@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -6,6 +6,7 @@ import { TabsContent } from "@/components/ui/tabs";
 import { ModuleTabs } from "@/components/common/ModuleTabs";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { useModuleNavigation } from "@/hooks/useModuleNavigation";
+import { useSearchParams } from "react-router-dom";
 import { NewBookingDialog } from "@/components/dialogs/NewBookingDialog";
 import { BookingDetailsDialog } from "@/components/dialogs/BookingDetailsDialog";
 import { BookingCalendar } from "@/components/dashboard/BookingCalendar";
@@ -40,6 +41,7 @@ type Booking = Tables<"bookings">;
 export const BookEnhanced = () => {
   const { bookings, vehicles, customers, createBooking, updateBookingStatus, loading } = useLocationFilteredFleet();
   const { goToBookingDetails } = useModuleNavigation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [showNewBooking, setShowNewBooking] = useState(false);
   const [showBookingDetails, setShowBookingDetails] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
@@ -60,6 +62,22 @@ export const BookEnhanced = () => {
       severity: 'low' | 'medium' | 'high';
     }>;
   } | null>(null);
+
+  // Handle bookingId URL parameter to auto-open booking details
+  useEffect(() => {
+    const bookingId = searchParams.get('bookingId');
+    if (bookingId && bookings.length > 0 && !loading) {
+      const booking = bookings.find(b => b.id === bookingId);
+      if (booking) {
+        setSelectedBooking(booking);
+        setShowBookingDetails(true);
+        // Clear the bookingId param after opening
+        const newParams = new URLSearchParams(searchParams);
+        newParams.delete('bookingId');
+        setSearchParams(newParams, { replace: true });
+      }
+    }
+  }, [searchParams, bookings, loading, setSearchParams]);
 
   // Show empty state if no bookings
   const hasNoBookings = !loading && bookings.length === 0;
