@@ -352,8 +352,8 @@ const Dashboard = () => {
 
       {/* Rari AI Assistant - Desktop: Unified FAB, Mobile: uses AI tab in bottom nav */}
       <ErrorBoundary fallback={null}>
-        {/* Desktop-only unified Rari FAB - refined, single access point */}
-        {rariSidebar.isClosed && (
+        {/* Desktop-only unified Rari FAB - hidden on dashboard (integrated in bottom action bar) */}
+        {rariSidebar.isClosed && activeModule !== 'dashboard' && (
           <motion.button
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
