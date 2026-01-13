@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -18,13 +18,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Calendar, User, MapPin, Loader2, AlertCircle, Sparkles } from 'lucide-react';
+import { Calendar, User, MapPin, Loader2, AlertCircle, Sparkles, UserPlus } from 'lucide-react';
 import { TablesInsert, Tables } from '@/integrations/supabase/types';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { validators, validateForm } from '@/lib/validation';
 import { toast } from '@/hooks/use-toast';
 import { useAIPricing } from '@/hooks/useAIPricing';
 import { useTeam } from '@/contexts/TeamContext';
+import { supabase } from '@/integrations/supabase/client';
 
 interface NewBookingDialogProps {
   open: boolean;
@@ -39,9 +40,10 @@ export const NewBookingDialog = ({
   vehicles,
   onSubmit
 }: NewBookingDialogProps) => {
-  const { selectedLocationId, currentLocation, locations } = useTeam();
+  const { selectedLocationId, currentLocation, locations, currentTeam } = useTeam();
   
   const [vehicleId, setVehicleId] = useState('');
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>('new');
   const [customerName, setCustomerName] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
@@ -53,6 +55,58 @@ export const NewBookingDialog = ({
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [customers, setCustomers] = useState<Tables<'customers'>[]>([]);
+  const [loadingCustomers, setLoadingCustomers] = useState(false);
+
+  // Fetch existing customers when dialog opens
+  useEffect(() => {
+    if (open) {
+      fetchCustomers();
+    }
+  }, [open, currentTeam?.id]);
+
+  const fetchCustomers = async () => {
+    setLoadingCustomers(true);
+    try {
+      let query = supabase
+        .from('customers')
+        .select('*')
+        .order('full_name', { ascending: true });
+      
+      if (currentTeam?.id) {
+        query = query.eq('team_id', currentTeam.id);
+      }
+      
+      const { data, error } = await query;
+      if (!error && data) {
+        setCustomers(data);
+      }
+    } catch (err) {
+      console.error('Error fetching customers:', err);
+    } finally {
+      setLoadingCustomers(false);
+    }
+  };
+
+  // Handle customer selection
+  const handleCustomerSelect = (customerId: string) => {
+    setSelectedCustomerId(customerId);
+    
+    if (customerId === 'new') {
+      // Clear fields for new customer
+      setCustomerName('');
+      setCustomerEmail('');
+      setCustomerPhone('');
+    } else {
+      // Auto-fill from existing customer
+      const customer = customers.find(c => c.id === customerId);
+      if (customer) {
+        setCustomerName(customer.full_name);
+        setCustomerEmail(customer.email || '');
+        setCustomerPhone(customer.phone || '');
+      }
+    }
+  };
 
   const selectedVehicle = vehicles.find(v => v.id === vehicleId);
   const pricingSuggestion = useAIPricing(selectedVehicle || null, startDate);
@@ -112,6 +166,7 @@ export const NewBookingDialog = ({
 
       // Reset form
       setVehicleId('');
+      setSelectedCustomerId('new');
       setCustomerName('');
       setCustomerEmail('');
       setCustomerPhone('');
@@ -221,7 +276,36 @@ export const NewBookingDialog = ({
             </div>
           )}
 
-          {/* Customer Info */}
+          {/* Customer Selection */}
+          <div className="space-y-2">
+            <Label>Customer</Label>
+            <Select value={selectedCustomerId} onValueChange={handleCustomerSelect}>
+              <SelectTrigger>
+                <SelectValue placeholder={loadingCustomers ? "Loading customers..." : "Select or add customer"} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="new">
+                  <span className="flex items-center gap-2">
+                    <UserPlus className="h-4 w-4" />
+                    New Customer
+                  </span>
+                </SelectItem>
+                {customers.map((customer) => (
+                  <SelectItem key={customer.id} value={customer.id}>
+                    <span className="flex items-center gap-2">
+                      <User className="h-4 w-4" />
+                      {customer.full_name}
+                      {customer.email && (
+                        <span className="text-muted-foreground text-xs">({customer.email})</span>
+                      )}
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Customer Details */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2 col-span-2">
               <Label htmlFor="customer">Customer Name</Label>
@@ -233,8 +317,14 @@ export const NewBookingDialog = ({
                   value={customerName}
                   onChange={(e) => setCustomerName(e.target.value)}
                   className="pl-10"
+                  disabled={selectedCustomerId !== 'new'}
                 />
               </div>
+              {selectedCustomerId !== 'new' && (
+                <p className="text-xs text-muted-foreground">
+                  Auto-filled from CRM. Select "New Customer" to enter manually.
+                </p>
+              )}
             </div>
             
             <div className="space-y-2">
@@ -245,6 +335,7 @@ export const NewBookingDialog = ({
                 placeholder="john@example.com"
                 value={customerEmail}
                 onChange={(e) => setCustomerEmail(e.target.value)}
+                disabled={selectedCustomerId !== 'new'}
               />
             </div>
             
@@ -256,6 +347,7 @@ export const NewBookingDialog = ({
                 placeholder="+1 234 567 8900"
                 value={customerPhone}
                 onChange={(e) => setCustomerPhone(e.target.value)}
+                disabled={selectedCustomerId !== 'new'}
               />
             </div>
           </div>
