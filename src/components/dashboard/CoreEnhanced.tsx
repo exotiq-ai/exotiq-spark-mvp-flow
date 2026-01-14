@@ -26,8 +26,7 @@ import { GenerateReportDialog } from "@/components/dialogs/GenerateReportDialog"
 import { PriceOptimizationDialog } from "@/components/dialogs/PriceOptimizationDialog";
 import { RariVoiceInterface } from "@/components/rari/RariVoiceInterface";
 import { CRMSection } from "@/components/dashboard/CRMSection";
-import { UserManagementSection } from "@/components/dashboard/UserManagementSection";
-import { SystemSettingsSection } from "@/components/dashboard/SystemSettingsSection";
+import { TeamHub } from "@/components/dashboard/TeamHub";
 
 export const CoreEnhanced = () => {
   const { vehicles, bookings, createVehicle, createBooking, createMaintenance, sendMessage, generateReport, applyPriceOptimization, loading } = useLocationFilteredFleet();
@@ -283,8 +282,7 @@ export const CoreEnhanced = () => {
         </TabsContent>
 
         <TabsContent value="settings" className="space-y-6">
-          <UserManagementSection />
-          <SystemSettingsSection />
+          <TeamHub />
         </TabsContent>
       </ModuleTabs>
 
