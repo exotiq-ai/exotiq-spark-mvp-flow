@@ -1414,6 +1414,7 @@ export type Database = {
           fleet_size: string | null
           full_name: string | null
           id: string
+          is_active: boolean
           location: string | null
           number_of_locations: number | null
           onboarding_completed: boolean | null
@@ -1431,6 +1432,7 @@ export type Database = {
           fleet_size?: string | null
           full_name?: string | null
           id: string
+          is_active?: boolean
           location?: string | null
           number_of_locations?: number | null
           onboarding_completed?: boolean | null
@@ -1448,6 +1450,7 @@ export type Database = {
           fleet_size?: string | null
           full_name?: string | null
           id?: string
+          is_active?: boolean
           location?: string | null
           number_of_locations?: number | null
           onboarding_completed?: boolean | null
@@ -2347,6 +2350,15 @@ export type Database = {
         Returns: boolean
       }
       count_admins: { Args: never; Returns: number }
+      deactivate_team_member: {
+        Args: {
+          p_deactivated_by: string
+          p_reason?: string
+          p_team_id: string
+          p_user_id: string
+        }
+        Returns: boolean
+      }
       get_my_role: {
         Args: never
         Returns: {
@@ -2429,6 +2441,15 @@ export type Database = {
           teams_created: number
           users_migrated: number
         }[]
+      }
+      reactivate_team_member: {
+        Args: {
+          p_new_role?: string
+          p_reactivated_by: string
+          p_team_id: string
+          p_user_id: string
+        }
+        Returns: boolean
       }
       update_document_status: { Args: never; Returns: undefined }
     }

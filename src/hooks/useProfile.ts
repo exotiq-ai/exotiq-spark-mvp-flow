@@ -32,9 +32,15 @@ export const useProfile = () => {
         .from('profiles')
         .select('id, email, full_name, phone, company_name, avatar_url')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
 
       if (fetchError) throw fetchError;
+      
+      // If no profile exists yet, that's okay - just set null
+      if (!data) {
+        setProfile(null);
+        return;
+      }
       
       setProfile(data);
     } catch (err) {
