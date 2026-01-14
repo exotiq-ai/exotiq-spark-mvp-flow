@@ -2350,15 +2350,20 @@ export type Database = {
         Returns: boolean
       }
       count_admins: { Args: never; Returns: number }
-      deactivate_team_member: {
-        Args: {
-          p_deactivated_by: string
-          p_reason?: string
-          p_team_id: string
-          p_user_id: string
-        }
-        Returns: boolean
-      }
+      deactivate_team_member:
+        | {
+            Args: {
+              p_deactivated_by: string
+              p_reason?: string
+              p_team_id: string
+              p_user_id: string
+            }
+            Returns: boolean
+          }
+        | {
+            Args: { reason?: string; target_user_id: string }
+            Returns: undefined
+          }
       get_my_role: {
         Args: never
         Returns: {
@@ -2442,15 +2447,17 @@ export type Database = {
           users_migrated: number
         }[]
       }
-      reactivate_team_member: {
-        Args: {
-          p_new_role?: string
-          p_reactivated_by: string
-          p_team_id: string
-          p_user_id: string
-        }
-        Returns: boolean
-      }
+      reactivate_team_member:
+        | {
+            Args: {
+              p_new_role?: string
+              p_reactivated_by: string
+              p_team_id: string
+              p_user_id: string
+            }
+            Returns: boolean
+          }
+        | { Args: { target_user_id: string }; Returns: undefined }
       update_document_status: { Args: never; Returns: undefined }
     }
     Enums: {

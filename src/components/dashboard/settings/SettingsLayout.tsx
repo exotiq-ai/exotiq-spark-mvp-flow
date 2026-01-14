@@ -18,9 +18,7 @@ import { IntegrationsSection } from "./IntegrationsSection";
 import { DataManagementSection } from "./DataManagementSection";
 import { NotificationSettingsSection } from "./NotificationSettingsSection";
 import { LocationsSection } from "./LocationsSection";
-import { SystemSettingsSection } from "../SystemSettingsSection";
-import { UserManagementSection } from "../UserManagementSection";
-import { MyTeamSection } from "../MyTeamSection";
+import { TeamHub } from "../TeamHub";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useUserRole } from "@/hooks/useUserRole";
 
@@ -33,13 +31,11 @@ interface SettingsTab {
 
 const allSettingsTabs: SettingsTab[] = [
   { id: "account", label: "My Account", icon: User },
-  { id: "team", label: "My Team", icon: Users },
+  { id: "team", label: "Team", icon: Users },
   { id: "locations", label: "Locations", icon: MapPin, requiresAdmin: true },
   { id: "notifications", label: "Notifications", icon: Bell },
   { id: "subscription", label: "Subscription", icon: CreditCard },
   { id: "integrations", label: "Integrations", icon: Plug },
-  { id: "system", label: "System", icon: Settings },
-  { id: "users", label: "User Management", icon: Users, requiresAdmin: true },
   { id: "data", label: "Data", icon: Database },
 ];
 
@@ -61,7 +57,7 @@ export const SettingsLayout = () => {
       case "account":
         return <MyAccountSection />;
       case "team":
-        return <MyTeamSection />;
+        return <TeamHub />;
       case "locations":
         return isAdmin ? <LocationsSection /> : null;
       case "notifications":
@@ -70,10 +66,6 @@ export const SettingsLayout = () => {
         return <SubscriptionSection />;
       case "integrations":
         return <IntegrationsSection />;
-      case "system":
-        return <SystemSettingsSection />;
-      case "users":
-        return isAdmin ? <UserManagementSection /> : null;
       case "data":
         return <DataManagementSection />;
       default:
