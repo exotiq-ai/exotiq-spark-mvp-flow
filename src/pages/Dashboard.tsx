@@ -38,7 +38,7 @@ import { KeyboardShortcutsHelp } from "@/components/common/KeyboardShortcutsHelp
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { MobileMoreMenu } from "@/components/mobile/MobileMoreMenu";
 import { FloatingActionMenu } from "@/components/mobile/FloatingActionMenu";
-import { TeamActivityDashboard } from "@/components/dashboard/TeamActivityDashboard";
+import { TeamHub } from "@/components/dashboard/TeamHub";
 import { TeamMessaging } from "@/components/messaging/TeamMessaging";
 import { useTeamMessaging } from "@/hooks/useTeamMessaging";
 import { useTeam } from "@/contexts/TeamContext";
@@ -113,7 +113,7 @@ const Dashboard = () => {
     motoriq: "MotorIQ",
     vault: "Vault",
     settings: "Settings",
-    activity: "Team Activity",
+    "team-hub": "Team Hub",
     messages: "Messages",
   };
 
@@ -176,8 +176,9 @@ const Dashboard = () => {
       case "settings":
         content = <SettingsLayout />;
         break;
-      case "activity":
-        content = <TeamActivityDashboard />;
+      case "team-hub":
+      case "activity": // Redirect legacy route
+        content = <TeamHub />;
         break;
       default:
         content = <DashboardOverviewEnhanced onModuleClick={handleModuleChange} />;
