@@ -171,7 +171,7 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-primary" />
-              <h2 className="text-sm font-medium text-muted-foreground">Quick Stats</h2>
+              <h2 className="text-sm font-medium text-foreground">Quick Stats</h2>
               {vehicles.length > 0 && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Live</Badge>}
             </div>
             <CompactMetricsBar
@@ -186,7 +186,7 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
           <div className="space-y-3" data-tour="revenue-widget">
             <div className="flex items-center gap-2">
               <DollarSign className="h-4 w-4 text-success" />
-              <h2 className="text-lg font-semibold">Revenue Analytics</h2>
+              <h2 className="text-lg font-semibold text-foreground">Revenue Analytics</h2>
             </div>
             <RevenueWidget />
           </div>
@@ -208,14 +208,14 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
               onClick={() => setShowFleetSchedule(!showFleetSchedule)}
               className="flex items-center gap-2 px-0 hover:bg-transparent"
             >
-              <Car className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium text-muted-foreground">Fleet Status & Schedule</span>
+              <Car className="h-4 w-4 text-foreground/70" />
+              <span className="text-sm font-medium text-foreground">Fleet Status & Schedule</span>
               <Badge variant="outline" className="text-[10px] ml-1">Today</Badge>
               <motion.div
                 animate={{ rotate: showFleetSchedule ? 180 : 0 }}
                 transition={{ duration: 0.2 }}
               >
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                <ChevronDown className="h-4 w-4 text-foreground/70" />
               </motion.div>
             </Button>
             
@@ -252,7 +252,7 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
               >
                 <div className="flex items-center gap-2 sm:gap-3">
                   <module.icon className={`h-4 w-4 sm:h-5 sm:w-5 ${module.color}`} />
-                  <span className="font-medium text-xs sm:text-sm">{module.name}</span>
+                  <span className="font-medium text-xs sm:text-sm text-foreground">{module.name}</span>
                   {module.badge > 0 && (
                     <Badge className="bg-warning/20 text-warning border-warning/30 text-[10px] px-1.5 py-0">
                       {module.badge}

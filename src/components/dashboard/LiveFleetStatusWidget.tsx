@@ -21,7 +21,7 @@ export const LiveFleetStatusWidget = ({ onViewAll }: LiveFleetStatusWidgetProps)
           <div className="p-2 bg-primary/10 rounded-xl">
             <Car className="h-5 w-5 text-primary" />
           </div>
-          <h3 className="text-lg font-semibold">Live Fleet Status</h3>
+          <h3 className="text-lg font-semibold text-foreground">Live Fleet Status</h3>
         </div>
         <Button variant="ghost" size="sm" onClick={onViewAll} className="group">
           View All

@@ -65,7 +65,7 @@ export const CompactMetricsBar = ({
           title={`Click to view ${metric.label} details`}
         >
           <metric.icon className={cn("h-4 w-4", metric.color)} />
-          <span className="font-bold text-sm sm:text-base tabular-nums">
+          <span className="font-bold text-sm sm:text-base tabular-nums text-foreground">
             {metric.value}
           </span>
           <span className="text-xs sm:text-sm text-muted-foreground hidden sm:inline">

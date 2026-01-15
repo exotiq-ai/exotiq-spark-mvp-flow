@@ -50,7 +50,7 @@ export const ProgressiveDisclosure = ({
         {/* Header */}
         <div className="p-4 md:p-6 border-b flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <h3 className="font-dfaalt font-semibold text-lg">{title}</h3>
+            <h3 className="font-dfaalt font-semibold text-lg text-foreground">{title}</h3>
             {badge && (
               <span className="px-2 py-0.5 text-xs font-semibold bg-gulf-blue/10 text-gulf-blue rounded-full">
                 {badge}
@@ -136,7 +136,7 @@ export const CollapsibleSection = ({
       >
         <div className="flex items-center gap-3">
           {icon}
-          <h3 className="font-dfaalt font-semibold">{title}</h3>
+          <h3 className="font-dfaalt font-semibold text-foreground">{title}</h3>
         </div>
         {isExpanded ? (
           <ChevronUp className="h-5 w-5 text-muted-foreground" />

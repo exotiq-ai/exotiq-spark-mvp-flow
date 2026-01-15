@@ -51,6 +51,12 @@
   --border: var(--metallic-silver);
 }
 
+/* Dark mode overrides for fonts.css */
+.dark {
+  --text-primary: #F8FAFC;
+  --text-secondary: #94A3B8;
+}
+
 /* Brand Typography Classes */
 .font-brand {
   font-family: var(--font-brand);

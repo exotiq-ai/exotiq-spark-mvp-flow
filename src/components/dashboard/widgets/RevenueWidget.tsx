@@ -140,7 +140,7 @@ export const RevenueWidget = ({ isLoading }: RevenueWidgetProps) => {
 
       {/* Top Performers - Now with real data */}
       <div>
-        <h4 className="font-dfaalt font-semibold mb-3">Top Performing Vehicles</h4>
+        <h4 className="font-dfaalt font-semibold mb-3 text-foreground">Top Performing Vehicles</h4>
         <div className="space-y-2">
           {vehicleRevenue.length > 0 ? (
             vehicleRevenue.map((vehicle, index) => (
@@ -153,7 +153,7 @@ export const RevenueWidget = ({ isLoading }: RevenueWidgetProps) => {
                     #{index + 1}
                   </div>
                   <div>
-                    <p className="font-semibold">{vehicle.year} {vehicle.make} {vehicle.model}</p>
+                    <p className="font-semibold text-foreground">{vehicle.year} {vehicle.make} {vehicle.model}</p>
                     <p className="text-xs text-muted-foreground">{vehicle.license_plate}</p>
                   </div>
                 </div>
