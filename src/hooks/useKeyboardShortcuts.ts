@@ -53,8 +53,8 @@ export const useKeyboardShortcuts = (options?: UseKeyboardShortcutsOptions) => {
           navigate("/");
           toast({ title: "Navigated to Home" });
         },
-        "r": () => {
-          // Rari shortcut - Cmd/Ctrl + R
+        "o": () => {
+          // Rari shortcut - Cmd/Ctrl + O (changed from R to avoid browser refresh conflict)
           e.preventDefault();
           options?.onToggleRari?.();
           toast({ title: "Toggled Rari AI Assistant" });
@@ -63,7 +63,7 @@ export const useKeyboardShortcuts = (options?: UseKeyboardShortcutsOptions) => {
           e.preventDefault();
           toast({
             title: "Keyboard Shortcuts",
-            description: "⌘/Ctrl+R: Rari AI | ⌘/Ctrl+1-5: Modules | ⌘/Ctrl+H: Home | Esc: Minimize",
+            description: "⌘K: Search | ⌘O: Rari AI | ⌘1-5: Modules | ⌘H: Home | Esc: Minimize",
           });
         },
       };

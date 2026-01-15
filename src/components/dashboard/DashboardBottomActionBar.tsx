@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import {
@@ -9,6 +9,15 @@ import {
   Wrench,
   Mic,
   Search,
+  Car,
+  Users,
+  Calendar,
+  TrendingUp,
+  BarChart3,
+  Brain,
+  Shield,
+  Settings,
+  Sparkles,
 } from "lucide-react";
 import {
   Tooltip,
@@ -17,6 +26,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { CommandDialog, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
+import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 
@@ -84,32 +94,77 @@ export const DashboardBottomActionBar = ({
     },
   ];
 
-  // Filter results based on search query
-  const filteredVehicles = vehicles
-    .filter(v => 
-      v.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      v.license_plate?.toLowerCase().includes(searchQuery.toLowerCase())
-    )
-    .slice(0, 3);
+  // Quick actions for when no query
+  const quickActions = [
+    { id: "new-booking", label: "New Booking", icon: CalendarPlus, action: onNewBooking },
+    { id: "add-customer", label: "Add Customer", icon: UserPlus, action: onAddCustomer },
+    { id: "record-payment", label: "Record Payment", icon: CreditCard, action: onRecordPayment },
+  ];
 
-  const filteredCustomers = customers
-    .filter(c => 
-      c.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.email?.toLowerCase().includes(searchQuery.toLowerCase())
-    )
-    .slice(0, 3);
+  // Module navigation
+  const modules = [
+    { id: "motoriq", label: "MotorIQ", icon: TrendingUp, path: "/dashboard?module=motoriq" },
+    { id: "pulse", label: "Pulse", icon: BarChart3, path: "/dashboard?module=pulse" },
+    { id: "book", label: "Bookings", icon: Calendar, path: "/dashboard?module=book" },
+    { id: "core", label: "FleetCopilot™", icon: Brain, path: "/dashboard?module=core" },
+    { id: "vault", label: "Vault", icon: Shield, path: "/dashboard?module=vault" },
+    { id: "settings", label: "Settings", icon: Settings, path: "/dashboard?module=settings" },
+  ];
 
-  const filteredBookings = bookings
-    .filter(b => 
-      b.customer_name?.toLowerCase().includes(searchQuery.toLowerCase())
-    )
-    .slice(0, 3);
+  // Filter results based on search query - increased limits and better matching
+  const filteredVehicles = useMemo(() => 
+    vehicles
+      .filter(v => {
+        const query = searchQuery.toLowerCase();
+        return (
+          v.make?.toLowerCase().includes(query) ||
+          v.model?.toLowerCase().includes(query) ||
+          v.license_plate?.toLowerCase().includes(query) ||
+          `${v.make} ${v.model}`.toLowerCase().includes(query)
+        );
+      })
+      .slice(0, 5),
+    [vehicles, searchQuery]
+  );
+
+  const filteredCustomers = useMemo(() =>
+    customers
+      .filter(c => 
+        c.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        c.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        c.phone?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+      .slice(0, 5),
+    [customers, searchQuery]
+  );
+
+  const filteredBookings = useMemo(() =>
+    bookings
+      .filter(b => 
+        b.customer_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        b.status?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+      .slice(0, 5),
+    [bookings, searchQuery]
+  );
+
+  // Status badge colors
+  const getStatusColor = (status: string) => {
+    const statusLower = status?.toLowerCase() || '';
+    if (statusLower.includes('confirmed') || statusLower.includes('active')) return 'bg-success/10 text-success';
+    if (statusLower.includes('pending')) return 'bg-warning/10 text-warning';
+    if (statusLower.includes('cancelled') || statusLower.includes('overdue')) return 'bg-destructive/10 text-destructive';
+    return 'bg-muted text-muted-foreground';
+  };
 
   const handleSelect = (callback: () => void) => {
     setSearchOpen(false);
     setSearchQuery("");
     callback();
   };
+
+  const hasQuery = searchQuery.trim().length > 0;
+  const hasResults = filteredVehicles.length > 0 || filteredCustomers.length > 0 || filteredBookings.length > 0;
 
   return (
     <>
@@ -123,36 +178,79 @@ export const DashboardBottomActionBar = ({
         <CommandList>
           <CommandEmpty>No results found.</CommandEmpty>
           
+          {/* Quick Actions - Show when no query */}
+          {!hasQuery && (
+            <>
+              <CommandGroup heading="Quick Actions">
+                {quickActions.map(action => (
+                  <CommandItem
+                    key={action.id}
+                    onSelect={() => handleSelect(action.action)}
+                  >
+                    <action.icon className="mr-2 h-4 w-4 text-primary" />
+                    <span>{action.label}</span>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+              
+              <CommandGroup heading="Navigate To">
+                {modules.map(module => (
+                  <CommandItem
+                    key={module.id}
+                    onSelect={() => handleSelect(() => navigate(module.path))}
+                  >
+                    <module.icon className="mr-2 h-4 w-4" />
+                    <span>{module.label}</span>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </>
+          )}
+          
+          {/* Vehicles - Navigate to specific vehicle in MotorIQ */}
           {filteredVehicles.length > 0 && (
             <CommandGroup heading="Vehicles">
               {filteredVehicles.map(vehicle => (
                 <CommandItem
                   key={vehicle.id}
-                  onSelect={() => handleSelect(() => navigate(`/fleet/${vehicle.id}`))}
+                  onSelect={() => handleSelect(() => navigate(`/dashboard?module=motoriq&vehicleId=${vehicle.id}`))}
                 >
-                  <span>{vehicle.name}</span>
+                  <Car className="mr-2 h-4 w-4 text-muted-foreground" />
+                  <span className="font-medium">{vehicle.make} {vehicle.model}</span>
                   {vehicle.license_plate && (
-                    <span className="ml-2 text-muted-foreground text-xs">{vehicle.license_plate}</span>
+                    <Badge variant="outline" className="ml-2 text-xs">
+                      {vehicle.license_plate}
+                    </Badge>
+                  )}
+                  {vehicle.status && (
+                    <Badge className={cn("ml-auto text-xs", getStatusColor(vehicle.status))}>
+                      {vehicle.status}
+                    </Badge>
                   )}
                 </CommandItem>
               ))}
             </CommandGroup>
           )}
           
+          {/* Customers - Navigate to specific customer in Core */}
           {filteredCustomers.length > 0 && (
             <CommandGroup heading="Customers">
               {filteredCustomers.map(customer => (
                 <CommandItem
                   key={customer.id}
-                  onSelect={() => handleSelect(() => navigate(`/customers/${customer.id}`))}
+                  onSelect={() => handleSelect(() => navigate(`/dashboard?module=core&customerId=${customer.id}`))}
                 >
-                  <span>{customer.full_name}</span>
-                  <span className="ml-2 text-muted-foreground text-xs">{customer.email}</span>
+                  <Users className="mr-2 h-4 w-4 text-muted-foreground" />
+                  <span className="font-medium">{customer.full_name}</span>
+                  <span className="ml-2 text-muted-foreground text-xs truncate max-w-[150px]">
+                    {customer.email}
+                  </span>
                 </CommandItem>
               ))}
             </CommandGroup>
           )}
           
+          {/* Bookings - Navigate to specific booking */}
           {filteredBookings.length > 0 && (
             <CommandGroup heading="Bookings">
               {filteredBookings.map(booking => (
@@ -160,12 +258,33 @@ export const DashboardBottomActionBar = ({
                   key={booking.id}
                   onSelect={() => handleSelect(() => navigate(`/dashboard?module=book&bookingId=${booking.id}`))}
                 >
-                  <span>{booking.customer_name}</span>
+                  <Calendar className="mr-2 h-4 w-4 text-muted-foreground" />
+                  <span className="font-medium">{booking.customer_name}</span>
                   <span className="ml-2 text-muted-foreground text-xs">
                     {new Date(booking.start_date).toLocaleDateString()}
                   </span>
+                  {booking.status && (
+                    <Badge className={cn("ml-auto text-xs", getStatusColor(booking.status))}>
+                      {booking.status}
+                    </Badge>
+                  )}
                 </CommandItem>
               ))}
+            </CommandGroup>
+          )}
+
+          {/* AI Suggestion when query exists */}
+          {hasQuery && (
+            <CommandGroup heading="AI Assistant">
+              <CommandItem
+                onSelect={() => handleSelect(() => {
+                  onAskRari();
+                })}
+                className="bg-gradient-to-r from-rari-teal/10 to-transparent"
+              >
+                <Sparkles className="mr-2 h-4 w-4 text-rari-teal" />
+                <span>Ask FleetCopilot™ about "{searchQuery}"</span>
+              </CommandItem>
             </CommandGroup>
           )}
         </CommandList>
