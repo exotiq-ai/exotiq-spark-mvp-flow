@@ -100,9 +100,9 @@ export const FleetVehicleCard = ({
   const isRented = vehicle.status === 'rented' || activeBooking;
   const isInMaintenance = vehicle.status === 'maintenance';
   
-  // Time since last update
+  // Time since last update (remove "about" prefix for cleaner display)
   const lastUpdateText = vehicle.last_ops_update 
-    ? formatDistanceToNow(new Date(vehicle.last_ops_update), { addSuffix: true })
+    ? formatDistanceToNow(new Date(vehicle.last_ops_update), { addSuffix: true }).replace('about ', '')
     : null;
 
   // Next booking countdown
@@ -252,9 +252,9 @@ export const FleetVehicleCard = ({
               )}
             </div>
 
-            {/* Info Row - Desktop Only */}
+            {/* Info Row - Desktop Only - Fixed height for consistency */}
             {!isOpsMode && (
-              <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
+              <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground h-4">
                 {activeBooking && (
                   <div className="flex items-center gap-1">
                     <Car className="h-3 w-3" />
@@ -272,7 +272,7 @@ export const FleetVehicleCard = ({
                 {lastUpdateText && (
                   <div className="flex items-center gap-1">
                     <Wrench className="h-3 w-3" />
-                    <span>Updated {lastUpdateText}</span>
+                    <span>{lastUpdateText}</span>
                   </div>
                 )}
               </div>
