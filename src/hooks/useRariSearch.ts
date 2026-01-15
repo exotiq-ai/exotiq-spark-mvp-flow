@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 interface SearchResult {
   message_id: string;
@@ -11,9 +12,7 @@ interface SearchResult {
 }
 
 /**
- * In-memory Rari search hook
- * Database table (rari_messages) doesn't exist yet
- * Returns empty results for now
+ * Rari search hook - searches rari_messages table
  */
 export function useRariSearch() {
   const { user } = useAuth();
@@ -30,10 +29,48 @@ export function useRariSearch() {
     setIsSearching(true);
     setSearchQuery(query);
 
-    // No database table exists yet, return empty results
-    console.log('[Rari Search] Database not available, returning empty results');
-    setSearchResults([]);
-    setIsSearching(false);
+    try {
+      // Search rari_messages with conversation data
+      const { data: messages, error } = await supabase
+        .from('rari_messages')
+        .select(`
+          id,
+          content,
+          role,
+          created_at,
+          conversation_id,
+          rari_conversations!inner (
+            user_id,
+            started_at
+          )
+        `)
+        .eq('rari_conversations.user_id', user.id)
+        .ilike('content', `%${query}%`)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (error) {
+        console.error('[Rari Search] Error:', error);
+        setSearchResults([]);
+        return;
+      }
+
+      const results: SearchResult[] = (messages || []).map((msg) => ({
+        message_id: msg.id,
+        conversation_id: msg.conversation_id,
+        content: msg.content,
+        role: msg.role as 'user' | 'assistant',
+        timestamp: msg.created_at,
+        conversation_started_at: (msg.rari_conversations as { started_at: string })?.started_at || msg.created_at,
+      }));
+
+      setSearchResults(results);
+    } catch (err) {
+      console.error('[Rari Search] Failed:', err);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
   }, [user]);
 
   const clearSearch = useCallback(() => {

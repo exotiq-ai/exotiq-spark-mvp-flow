@@ -1,31 +1,71 @@
-import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Save, Building2, Clock, Bell } from "lucide-react";
+import { useUserSettings } from "@/hooks/useUserSettings";
+import { Save, Building2, Clock, Bell, Loader2 } from "lucide-react";
+
+interface TeamSettings {
+  companyName: string;
+  timezone: string;
+  notifyOnNewMember: boolean;
+  notifyOnRoleChange: boolean;
+  requireTwoFactor: boolean;
+  sessionTimeout: string;
+}
+
+const defaultSettings: TeamSettings = {
+  companyName: "",
+  timezone: "America/New_York",
+  notifyOnNewMember: true,
+  notifyOnRoleChange: true,
+  requireTwoFactor: false,
+  sessionTimeout: "30",
+};
 
 export const TeamSettingsSection = () => {
   const { toast } = useToast();
   
-  const [settings, setSettings] = useState({
-    companyName: "",
-    timezone: "America/New_York",
-    notifyOnNewMember: true,
-    notifyOnRoleChange: true,
-    requireTwoFactor: false,
-    sessionTimeout: "30",
+  const {
+    settings,
+    updateSetting,
+    saveSettings,
+    isLoading,
+    isSaving
+  } = useUserSettings<TeamSettings>({
+    category: 'team',
+    defaultSettings,
   });
 
-  const handleSave = () => {
-    toast({
-      title: "Settings saved",
-      description: "Team settings have been updated successfully",
-    });
+  const handleSave = async () => {
+    const success = await saveSettings();
+    if (success) {
+      toast({
+        title: "Settings saved",
+        description: "Team settings have been updated successfully",
+      });
+    }
   };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        {[1, 2, 3].map((i) => (
+          <Card key={i} className="p-6">
+            <Skeleton className="h-6 w-48 mb-4" />
+            <div className="space-y-4">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          </Card>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -43,7 +83,7 @@ export const TeamSettingsSection = () => {
               id="companyName"
               placeholder="Your company name"
               value={settings.companyName}
-              onChange={(e) => setSettings({ ...settings, companyName: e.target.value })}
+              onChange={(e) => updateSetting('companyName', e.target.value)}
             />
           </div>
           
@@ -51,7 +91,7 @@ export const TeamSettingsSection = () => {
             <Label htmlFor="timezone">Timezone</Label>
             <Select 
               value={settings.timezone} 
-              onValueChange={(value) => setSettings({ ...settings, timezone: value })}
+              onValueChange={(value) => updateSetting('timezone', value)}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -84,7 +124,7 @@ export const TeamSettingsSection = () => {
             </div>
             <Switch
               checked={settings.notifyOnNewMember}
-              onCheckedChange={(checked) => setSettings({ ...settings, notifyOnNewMember: checked })}
+              onCheckedChange={(checked) => updateSetting('notifyOnNewMember', checked)}
             />
           </div>
           
@@ -95,7 +135,7 @@ export const TeamSettingsSection = () => {
             </div>
             <Switch
               checked={settings.notifyOnRoleChange}
-              onCheckedChange={(checked) => setSettings({ ...settings, notifyOnRoleChange: checked })}
+              onCheckedChange={(checked) => updateSetting('notifyOnRoleChange', checked)}
             />
           </div>
         </div>
@@ -116,7 +156,7 @@ export const TeamSettingsSection = () => {
             </div>
             <Switch
               checked={settings.requireTwoFactor}
-              onCheckedChange={(checked) => setSettings({ ...settings, requireTwoFactor: checked })}
+              onCheckedChange={(checked) => updateSetting('requireTwoFactor', checked)}
             />
           </div>
           
@@ -124,7 +164,7 @@ export const TeamSettingsSection = () => {
             <Label htmlFor="sessionTimeout">Session timeout (minutes)</Label>
             <Select 
               value={settings.sessionTimeout} 
-              onValueChange={(value) => setSettings({ ...settings, sessionTimeout: value })}
+              onValueChange={(value) => updateSetting('sessionTimeout', value)}
             >
               <SelectTrigger className="w-[200px]">
                 <SelectValue />
@@ -142,9 +182,13 @@ export const TeamSettingsSection = () => {
       </Card>
 
       <div className="flex justify-end">
-        <Button onClick={handleSave}>
-          <Save className="w-4 h-4 mr-2" />
-          Save Settings
+        <Button onClick={handleSave} disabled={isSaving}>
+          {isSaving ? (
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          ) : (
+            <Save className="w-4 h-4 mr-2" />
+          )}
+          {isSaving ? 'Saving...' : 'Save Settings'}
         </Button>
       </div>
     </div>

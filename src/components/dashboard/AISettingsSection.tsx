@@ -1,18 +1,18 @@
-import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { 
   Zap,
-  Brain,
   Sparkles,
   Volume2,
   Bell,
-  Clock,
-  Save
+  Save,
+  Loader2
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useUserSettings } from "@/hooks/useUserSettings";
 import {
   Select,
   SelectContent,
@@ -21,50 +21,83 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+interface AISettings {
+  automation: {
+    autoConfirmBookings: boolean;
+    autoPricing: boolean;
+    autoMaintenanceScheduling: boolean;
+    aiAssistance: boolean;
+  };
+  rari: {
+    defaultVoice: string;
+    autoSuggestions: boolean;
+    proactiveInsights: string;
+    voiceEnabled: boolean;
+  };
+}
+
+const defaultSettings: AISettings = {
+  automation: {
+    autoConfirmBookings: false,
+    autoPricing: true,
+    autoMaintenanceScheduling: true,
+    aiAssistance: true
+  },
+  rari: {
+    defaultVoice: "natural",
+    autoSuggestions: true,
+    proactiveInsights: "medium",
+    voiceEnabled: true
+  }
+};
+
 export const AISettingsSection = () => {
   const { toast } = useToast();
   
-  const [settings, setSettings] = useState({
-    automation: {
-      autoConfirmBookings: false,
-      autoPricing: true,
-      autoMaintenanceScheduling: true,
-      aiAssistance: true
-    },
-    rari: {
-      defaultVoice: "natural",
-      autoSuggestions: true,
-      proactiveInsights: "medium",
-      voiceEnabled: true
-    }
+  const {
+    settings,
+    toggleNestedSetting,
+    updateNestedSetting,
+    saveSettings,
+    isLoading,
+    isSaving
+  } = useUserSettings<AISettings>({
+    category: 'ai',
+    defaultSettings,
   });
 
-  const handleSaveSettings = () => {
-    toast({
-      title: "AI Settings Saved",
-      description: "Your AI and automation preferences have been updated.",
-    });
+  const handleSaveSettings = async () => {
+    const success = await saveSettings();
+    if (success) {
+      toast({
+        title: "AI Settings Saved",
+        description: "Your AI and automation preferences have been updated.",
+      });
+    }
   };
 
-  const toggleSetting = (category: keyof typeof settings, key: string) => {
-    setSettings(prev => ({
-      ...prev,
-      [category]: {
-        ...prev[category],
-        [key]: !prev[category][key as keyof typeof prev[typeof category]]
-      }
-    }));
-  };
-
-  const updateSetting = (category: keyof typeof settings, key: string, value: string) => {
-    setSettings(prev => ({
-      ...prev,
-      [category]: {
-        ...prev[category],
-        [key]: value
-      }
-    }));
-  };
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <Card className="card-premium p-6">
+          <Skeleton className="h-6 w-48 mb-6" />
+          <div className="space-y-4">
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} className="h-16 w-full" />
+            ))}
+          </div>
+        </Card>
+        <Card className="card-premium p-6">
+          <Skeleton className="h-6 w-48 mb-6" />
+          <div className="space-y-4">
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} className="h-16 w-full" />
+            ))}
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -83,7 +116,7 @@ export const AISettingsSection = () => {
             </div>
             <Switch
               checked={settings.automation.autoConfirmBookings}
-              onCheckedChange={() => toggleSetting('automation', 'autoConfirmBookings')}
+              onCheckedChange={() => toggleNestedSetting('automation', 'autoConfirmBookings')}
             />
           </div>
 
@@ -94,7 +127,7 @@ export const AISettingsSection = () => {
             </div>
             <Switch
               checked={settings.automation.autoPricing}
-              onCheckedChange={() => toggleSetting('automation', 'autoPricing')}
+              onCheckedChange={() => toggleNestedSetting('automation', 'autoPricing')}
             />
           </div>
 
@@ -105,7 +138,7 @@ export const AISettingsSection = () => {
             </div>
             <Switch
               checked={settings.automation.autoMaintenanceScheduling}
-              onCheckedChange={() => toggleSetting('automation', 'autoMaintenanceScheduling')}
+              onCheckedChange={() => toggleNestedSetting('automation', 'autoMaintenanceScheduling')}
             />
           </div>
 
@@ -116,7 +149,7 @@ export const AISettingsSection = () => {
             </div>
             <Switch
               checked={settings.automation.aiAssistance}
-              onCheckedChange={() => toggleSetting('automation', 'aiAssistance')}
+              onCheckedChange={() => toggleNestedSetting('automation', 'aiAssistance')}
             />
           </div>
         </div>
@@ -137,7 +170,7 @@ export const AISettingsSection = () => {
             </div>
             <Switch
               checked={settings.rari.voiceEnabled}
-              onCheckedChange={() => toggleSetting('rari', 'voiceEnabled')}
+              onCheckedChange={() => toggleNestedSetting('rari', 'voiceEnabled')}
             />
           </div>
 
@@ -148,7 +181,7 @@ export const AISettingsSection = () => {
             </div>
             <Switch
               checked={settings.rari.autoSuggestions}
-              onCheckedChange={() => toggleSetting('rari', 'autoSuggestions')}
+              onCheckedChange={() => toggleNestedSetting('rari', 'autoSuggestions')}
             />
           </div>
 
@@ -159,7 +192,7 @@ export const AISettingsSection = () => {
             </div>
             <Select
               value={settings.rari.defaultVoice}
-              onValueChange={(value) => updateSetting('rari', 'defaultVoice', value)}
+              onValueChange={(value) => updateNestedSetting('rari', 'defaultVoice', value)}
             >
               <SelectTrigger className="w-full">
                 <SelectValue />
@@ -180,7 +213,7 @@ export const AISettingsSection = () => {
             </div>
             <Select
               value={settings.rari.proactiveInsights}
-              onValueChange={(value) => updateSetting('rari', 'proactiveInsights', value)}
+              onValueChange={(value) => updateNestedSetting('rari', 'proactiveInsights', value)}
             >
               <SelectTrigger className="w-full">
                 <SelectValue />
@@ -201,9 +234,18 @@ export const AISettingsSection = () => {
 
       {/* Save Button */}
       <div className="flex justify-end">
-        <Button onClick={handleSaveSettings} className="btn-premium" size="lg">
-          <Save className="w-4 h-4 mr-2" />
-          Save AI Settings
+        <Button 
+          onClick={handleSaveSettings} 
+          className="btn-premium" 
+          size="lg"
+          disabled={isSaving}
+        >
+          {isSaving ? (
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          ) : (
+            <Save className="w-4 h-4 mr-2" />
+          )}
+          {isSaving ? 'Saving...' : 'Save AI Settings'}
         </Button>
       </div>
     </div>

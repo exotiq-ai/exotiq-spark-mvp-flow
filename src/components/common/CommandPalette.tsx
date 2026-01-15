@@ -3,7 +3,6 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { 
   Search, 
-  Plus, 
   Calendar, 
   Car, 
   Users, 
@@ -22,6 +21,9 @@ import {
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
+import { supabase } from '@/integrations/supabase/client';
+import { exportToCSV } from '@/utils/chartExport';
+import { useToast } from '@/hooks/use-toast';
 
 interface CommandItem {
   id: string;
