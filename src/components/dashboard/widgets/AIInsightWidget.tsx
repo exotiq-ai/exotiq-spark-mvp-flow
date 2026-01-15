@@ -73,7 +73,7 @@ export const AIInsightWidget = ({
             </div>
             <div className="flex-1 space-y-4">
               <div>
-                <h3 id="ai-insight-empty-title" className="text-xl md:text-2xl font-semibold mb-2">
+                <h3 id="ai-insight-empty-title" className="text-xl md:text-2xl font-semibold mb-2 text-foreground">
                   FleetCopilot™ is Ready
                 </h3>
                 <p className="text-muted-foreground">
@@ -119,7 +119,7 @@ export const AIInsightWidget = ({
           <div className="flex-1 w-full">
             <div className="flex flex-col sm:flex-row items-start justify-between mb-3 gap-2">
               <div>
-                <h3 id="ai-insight-title" className="text-xl md:text-2xl font-semibold mb-1">
+                <h3 id="ai-insight-title" className="text-xl md:text-2xl font-semibold mb-1 text-foreground">
                   FleetCopilot™ Recommendation
                 </h3>
                 <p className="text-xs md:text-sm text-muted-foreground">AI-powered pricing insight</p>

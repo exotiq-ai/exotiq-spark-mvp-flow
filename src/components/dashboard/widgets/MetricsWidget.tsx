@@ -79,7 +79,7 @@ export const MetricsWidget = ({
               </div>
             </div>
             <div>
-              <h3 className="text-xl font-semibold mb-2">Welcome to Your Fleet Dashboard</h3>
+              <h3 className="text-xl font-semibold mb-2 text-foreground">Welcome to Your Fleet Dashboard</h3>
               <p className="text-muted-foreground max-w-md mx-auto">
                 Add your first vehicle to start tracking bookings, utilization, and revenue metrics in real-time.
               </p>
@@ -128,7 +128,7 @@ export const MetricsWidget = ({
             )}
           </div>
           <motion.div 
-            className="text-2xl md:text-3xl font-bold mb-1 tabular-nums" 
+            className="text-2xl md:text-3xl font-bold mb-1 tabular-nums text-foreground" 
             aria-label={`${bookingsCount.value} active bookings`}
             initial={{ scale: 0.5, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
@@ -179,7 +179,7 @@ export const MetricsWidget = ({
             )}
           </div>
           <motion.div 
-            className="text-2xl md:text-3xl font-bold mb-1 tabular-nums" 
+            className="text-2xl md:text-3xl font-bold mb-1 tabular-nums text-foreground" 
             aria-label={`${utilizationCount.value} fleet utilization`}
             initial={{ scale: 0.5, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
@@ -230,7 +230,7 @@ export const MetricsWidget = ({
             )}
           </div>
           <motion.div 
-            className="text-2xl md:text-3xl font-bold mb-1 tabular-nums" 
+            className="text-2xl md:text-3xl font-bold mb-1 tabular-nums text-foreground" 
             aria-label={`${rateCount.value} average daily rate`}
             initial={{ scale: 0.5, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}

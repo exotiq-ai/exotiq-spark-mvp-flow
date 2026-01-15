@@ -46,7 +46,7 @@ export const UpcomingScheduleWidget = ({ onViewCalendar }: UpcomingScheduleWidge
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Calendar className="h-5 w-5 text-primary" />
-          <h3 className="text-lg font-semibold">Upcoming Schedule</h3>
+          <h3 className="text-lg font-semibold text-foreground">Upcoming Schedule</h3>
         </div>
         <Button variant="ghost" size="sm" onClick={onViewCalendar}>
           View Calendar
@@ -63,7 +63,7 @@ export const UpcomingScheduleWidget = ({ onViewCalendar }: UpcomingScheduleWidge
               <div className="flex items-start justify-between mb-2">
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <p className="font-medium text-sm">{getVehicleName(booking.vehicle_id)}</p>
+                    <p className="font-medium text-sm text-foreground">{getVehicleName(booking.vehicle_id)}</p>
                     {booking.status === 'pending' && (
                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-warning/20 text-warning font-medium">
                         PENDING
