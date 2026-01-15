@@ -77,3 +77,6 @@ verify_jwt = false
 
 [functions.rari-message-summary]
 verify_jwt = false
+
+[functions.revoke-user-sessions]
+verify_jwt = false

@@ -7,14 +7,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Logo } from '@/components/ui/logo';
 import { useAuth } from '@/contexts/AuthContext';
-import { Loader2, AlertCircle, Mail, Lock, Sparkles, KeyRound, UserPlus, Building2 } from 'lucide-react';
+import { Loader2, AlertCircle, Mail, Lock, Sparkles, KeyRound, UserPlus, Building2, ShieldCheck } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { validators } from '@/lib/validation';
 import { supabase } from '@/integrations/supabase/client';
 import { PasswordStrengthMeter } from '@/components/auth/PasswordStrengthMeter';
 
-type AuthMode = 'signin' | 'signup' | 'magiclink' | 'reset';
+type AuthMode = 'signin' | 'signup' | 'magiclink' | 'reset' | 'update-password';
 
 interface InvitationDetails {
   id: string;
@@ -29,10 +29,15 @@ interface InvitationDetails {
 export default function Auth() {
   const [searchParams] = useSearchParams();
   const inviteToken = searchParams.get('invite');
+  const modeParam = searchParams.get('mode');
   
-  const [authMode, setAuthMode] = useState<AuthMode>(inviteToken ? 'signup' : 'signin');
+  const [authMode, setAuthMode] = useState<AuthMode>(
+    modeParam === 'update-password' ? 'update-password' : 
+    inviteToken ? 'signup' : 'signin'
+  );
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,8 +48,27 @@ export default function Auth() {
   const [inviteLoading, setInviteLoading] = useState(!!inviteToken);
   const [inviteError, setInviteError] = useState<string | null>(null);
   
-  const { user, loading: authLoading, signUp, signIn, signInWithMagicLink, resetPassword, signInAsDemo, signUpWithInvite } = useAuth();
+  const { 
+    user, 
+    loading: authLoading, 
+    isPasswordRecovery,
+    signUp, 
+    signIn, 
+    signInWithMagicLink, 
+    resetPassword, 
+    updatePassword,
+    signInAsDemo, 
+    signUpWithInvite,
+    clearPasswordRecovery
+  } = useAuth();
   const navigate = useNavigate();
+
+  // Update mode when URL param changes
+  useEffect(() => {
+    if (modeParam === 'update-password') {
+      setAuthMode('update-password');
+    }
+  }, [modeParam]);
 
   // Validate invitation token on mount
   useEffect(() => {
@@ -84,12 +108,12 @@ export default function Auth() {
     }
   };
 
-  // Redirect authenticated users to dashboard
+  // Redirect authenticated users to dashboard (unless in password update mode)
   useEffect(() => {
-    if (!authLoading && user) {
+    if (!authLoading && user && authMode !== 'update-password' && !isPasswordRecovery) {
       navigate('/dashboard', { replace: true });
     }
-  }, [user, authLoading, navigate]);
+  }, [user, authLoading, navigate, authMode, isPasswordRecovery]);
 
   const handlePasswordAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -139,6 +163,40 @@ export default function Auth() {
     } catch (err) {
       setError("An unexpected error occurred. Please try again.");
       console.error("Auth error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePasswordUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSuccess(null);
+
+    // Validate password
+    const passwordValidation = validators.password(password);
+    if (!passwordValidation.isValid) {
+      setError(passwordValidation.error!);
+      return;
+    }
+
+    // Check passwords match
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const { error: updateError } = await updatePassword(password);
+      if (updateError) {
+        setError(updateError.message || "Failed to update password. Please try again.");
+      }
+      // Success navigation is handled in AuthContext
+    } catch (err) {
+      setError("An unexpected error occurred. Please try again.");
+      console.error("Password update error:", err);
     } finally {
       setLoading(false);
     }
@@ -213,6 +271,12 @@ export default function Auth() {
     }
   };
 
+  const handleCancelPasswordUpdate = () => {
+    clearPasswordRecovery();
+    setAuthMode('signin');
+    navigate('/auth', { replace: true });
+  };
+
   // Show loading state while validating invitation
   if (inviteLoading) {
     return (
@@ -237,6 +301,109 @@ export default function Auth() {
             Go to Sign In
           </Button>
         </Card>
+      </div>
+    );
+  }
+
+  // Password Update Form (shown when user clicks reset link)
+  if (authMode === 'update-password' || isPasswordRecovery) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 flex items-center justify-center p-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="w-full max-w-md"
+        >
+          <Card className="card-premium p-6 sm:p-8">
+            <div className="text-center mb-6">
+              <Logo className="mx-auto mb-4" />
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm mb-3">
+                <ShieldCheck className="w-4 h-4" />
+                Secure Password Update
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-bold mb-2">
+                Set New Password
+              </h1>
+              <p className="text-sm sm:text-base text-muted-foreground">
+                Please enter your new password below
+              </p>
+            </div>
+
+            {error && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            <form onSubmit={handlePasswordUpdate} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="new-password">New Password</Label>
+                <Input
+                  id="new-password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setError(null);
+                  }}
+                  required
+                  minLength={6}
+                  aria-required="true"
+                  autoFocus
+                />
+                <PasswordStrengthMeter password={password} />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="confirm-password">Confirm New Password</Label>
+                <Input
+                  id="confirm-password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={confirmPassword}
+                  onChange={(e) => {
+                    setConfirmPassword(e.target.value);
+                    setError(null);
+                  }}
+                  required
+                  minLength={6}
+                  aria-required="true"
+                />
+              </div>
+
+              <Button 
+                type="submit" 
+                className="w-full btn-premium"
+                disabled={loading}
+                size="lg"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Updating Password...
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck className="w-4 h-4 mr-2" />
+                    Update Password
+                  </>
+                )}
+              </Button>
+
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full"
+                onClick={handleCancelPasswordUpdate}
+              >
+                Cancel
+              </Button>
+            </form>
+          </Card>
+        </motion.div>
       </div>
     );
   }
