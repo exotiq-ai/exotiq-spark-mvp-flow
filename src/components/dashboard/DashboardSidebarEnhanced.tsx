@@ -182,6 +182,8 @@ export const DashboardSidebarEnhanced = ({
       items: [
         { id: "dashboard", name: "Dashboard", icon: Home },
         { id: "book", name: "Bookings", icon: Calendar, minRole: 'operator' },
+        { id: "motoriq", name: "MotorIQ", icon: TrendingUp, minRole: 'manager' },
+        { id: "pulse", name: "Pulse", icon: BarChart3, minRole: 'operator' },
       ]
     },
     {
@@ -189,8 +191,7 @@ export const DashboardSidebarEnhanced = ({
       name: "Intelligence",
       items: [
         { id: "core", name: "FleetCopilot™", icon: Brain, minRole: 'operator' },
-        { id: "motoriq", name: "MotorIQ", icon: TrendingUp, minRole: 'manager' },
-        { id: "pulse", name: "Pulse", icon: BarChart3, minRole: 'operator' },
+        { id: "vault", name: "Vault", icon: Shield, minRole: 'operator' },
       ]
     },
     {
@@ -205,7 +206,6 @@ export const DashboardSidebarEnhanced = ({
       id: "management",
       name: "Management",
       items: [
-        { id: "vault", name: "Vault", icon: Shield, minRole: 'operator' },
         { id: "settings", name: "Settings", icon: Settings, minRole: 'manager' },
       ]
     }

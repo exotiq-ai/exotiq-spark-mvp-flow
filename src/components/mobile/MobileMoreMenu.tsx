@@ -23,7 +23,8 @@ interface MobileMoreMenuProps {
 export const MobileMoreMenu = ({ onAddLocation, activeModule, onModuleChange }: MobileMoreMenuProps) => {
   const [open, setOpen] = useState(false);
 
-  const menuItems = [
+  // Operations group items (MotorIQ & Pulse)
+  const operationsItems = [
     { 
       id: "motoriq", 
       label: "MotorIQ", 
@@ -36,12 +37,20 @@ export const MobileMoreMenu = ({ onAddLocation, activeModule, onModuleChange }: 
       description: "Analytics & performance insights",
       icon: BarChart3 
     },
+  ];
+
+  // Intelligence group items (Vault pairs with FleetCopilot)
+  const intelligenceItems = [
     { 
       id: "vault", 
       label: "Vault", 
-      description: "Documents & Compliance",
+      description: "Documents & Knowledge Base",
       icon: Shield 
     },
+  ];
+
+  // Management items
+  const managementItems = [
     { 
       id: "settings", 
       label: "Settings", 
@@ -49,6 +58,8 @@ export const MobileMoreMenu = ({ onAddLocation, activeModule, onModuleChange }: 
       icon: Settings 
     },
   ];
+
+  const menuItems = [...operationsItems, ...intelligenceItems, ...managementItems];
 
   const secondaryItems = [
     { id: "help", label: "Help & Support", icon: HelpCircle },
