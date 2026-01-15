@@ -17,6 +17,7 @@ import { FleetFilters, FleetFiltersState, ViewMode } from './FleetFilters';
 import { TaskQueue } from './TaskQueue';
 import { CreateVehicleTaskDialog } from '@/components/dialogs/CreateVehicleTaskDialog';
 import { QuickPriceEditorDialog } from '@/components/dialogs/QuickPriceEditorDialog';
+import { VehicleImageDialog } from '@/components/dialogs/VehicleImageDialog';
 import { LocationBadge } from '@/components/common/LocationBadge';
 import { EmptyState } from '@/components/common/EmptyState';
 import { SkeletonVehicleCard } from '@/components/ui/skeleton-specialized';
@@ -96,6 +97,7 @@ export const FleetPageEnhanced = () => {
   // Dialog state
   const [priceEditVehicle, setPriceEditVehicle] = useState<any>(null);
   const [taskVehicle, setTaskVehicle] = useState<any>(null);
+  const [detailsVehicle, setDetailsVehicle] = useState<any>(null);
 
   // Filter and sort vehicles
   const filteredVehicles = useMemo(() => {
@@ -284,7 +286,7 @@ export const FleetPageEnhanced = () => {
                 taskCount={taskCountMap[vehicle.id] || 0}
                 onEditPrice={(v) => setPriceEditVehicle(v)}
                 onCreateTask={(v) => setTaskVehicle(v)}
-                onViewDetails={() => {}}
+                onViewDetails={(v) => setDetailsVehicle(v)}
                 onStatusChange={handleStatusChange}
                 isOpsMode={isOpsMode}
               />
@@ -324,6 +326,19 @@ export const FleetPageEnhanced = () => {
         vehicle={taskVehicle}
         teamMembers={teamMembers as any}
         onCreateTask={createTask}
+      />
+
+      <VehicleImageDialog
+        open={!!detailsVehicle}
+        onOpenChange={(open) => !open && setDetailsVehicle(null)}
+        vehicleName={detailsVehicle?.name || ''}
+        vehicleDetails={{
+          make: detailsVehicle?.make,
+          model: detailsVehicle?.model,
+          year: detailsVehicle?.year,
+          status: detailsVehicle?.status,
+          dailyRate: detailsVehicle?.current_rate,
+        }}
       />
     </div>
   );
