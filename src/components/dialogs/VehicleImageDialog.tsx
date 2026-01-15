@@ -85,7 +85,9 @@ export function VehicleImageDialog({
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Daily Rate</p>
-                  <p className="font-medium text-lg">${vehicleDetails.dailyRate.toLocaleString()}</p>
+                  <p className="font-medium text-lg">
+                    {vehicleDetails.dailyRate != null ? `$${vehicleDetails.dailyRate.toLocaleString()}` : 'N/A'}
+                  </p>
                 </div>
               </div>
 
