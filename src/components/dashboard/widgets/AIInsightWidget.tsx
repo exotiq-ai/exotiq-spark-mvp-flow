@@ -1,11 +1,12 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Zap, ArrowRight, Car, Plus } from "lucide-react";
+import { Sparkles, Zap, ArrowRight, Plus, TrendingUp, TrendingDown, CheckCircle } from "lucide-react";
 import { useCountUp } from "@/hooks/useCountUp";
 import { motion } from "framer-motion";
 import { fadeInUp, hoverLift } from "@/lib/animations";
 import { SkeletonAIInsight } from "@/components/ui/skeleton-specialized";
+import { PricingZone } from "@/hooks/useAIPricing";
 
 interface AIInsightWidgetProps {
   onApplyOptimization: () => void;
@@ -15,9 +16,10 @@ interface AIInsightWidgetProps {
   onAddVehicle?: () => void;
   // Real insight data
   vehicleName?: string;
-  suggestedIncrease?: number;
+  suggestedChange?: number; // Can be positive or negative
   potentialRevenue?: number;
   probability?: number;
+  zone?: PricingZone;
 }
 
 export const AIInsightWidget = ({ 
@@ -27,10 +29,34 @@ export const AIInsightWidget = ({
   hasFleetData = false,
   onAddVehicle,
   vehicleName = "your vehicle",
-  suggestedIncrease = 15,
+  suggestedChange = 0,
   potentialRevenue = 0,
-  probability = 0
+  probability = 0,
+  zone = 'increase'
 }: AIInsightWidgetProps) => {
+  // Get zone-specific styling and icons
+  const zoneConfig = {
+    increase: {
+      icon: TrendingUp,
+      badgeClass: 'bg-success text-success-foreground',
+      accentClass: 'text-success',
+      action: 'increase'
+    },
+    decrease: {
+      icon: TrendingDown,
+      badgeClass: 'bg-amber-500 text-white',
+      accentClass: 'text-amber-500',
+      action: 'decrease'
+    },
+    sweet_spot: {
+      icon: CheckCircle,
+      badgeClass: 'bg-gulf-blue text-white',
+      accentClass: 'text-gulf-blue',
+      action: 'maintain'
+    }
+  };
+  
+  const config = zoneConfig[zone];
   // Animated counting for potential revenue
   const { value: potentialValue } = useCountUp({
     end: potentialRevenue,
@@ -131,10 +157,16 @@ export const AIInsightWidget = ({
               )}
             </div>
             <p className="text-muted-foreground mb-6 text-sm md:text-base leading-relaxed">
-              Consider increasing the rate for {vehicleName} by {suggestedIncrease}% for weekend bookings. 
-              {probability > 0 && (
+              {zone === 'sweet_spot' ? (
+                <>Optimal pricing for {vehicleName}! Current rate is perfectly aligned with market demand.</>
+              ) : zone === 'decrease' ? (
+                <>Consider decreasing the rate for {vehicleName} by {Math.abs(suggestedChange)}% to boost utilization and revenue.</>
+              ) : (
+                <>Consider increasing the rate for {vehicleName} by {suggestedChange}% for weekend bookings.</>
+              )}
+              {probability > 0 && zone !== 'sweet_spot' && (
                 <>
-                  {' '}Market demand shows <span className="font-semibold text-foreground animate-slide-up-fade">{probabilityValue}</span> of maintaining bookings at this price point.
+                  {' '}Market demand shows <span className="font-semibold text-foreground animate-slide-up-fade">{probabilityValue}</span> of maintaining bookings.
                 </>
               )}
             </p>

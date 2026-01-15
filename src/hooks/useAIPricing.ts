@@ -3,76 +3,89 @@ import { Tables } from '@/integrations/supabase/types';
 
 type Vehicle = Tables<'vehicles'>;
 
+export type PricingZone = 'increase' | 'sweet_spot' | 'decrease';
+
 interface PricingSuggestion {
   suggestedRate: number;
   reasoning: string;
   expectedImpact: string;
   confidence: number;
   factors: string[];
+  zone: PricingZone;
+  percentChange: number;
 }
 
 export const useAIPricing = (vehicle: Vehicle | null, startDate?: string): PricingSuggestion | null => {
   return useMemo(() => {
     if (!vehicle) return null;
 
-    const currentRate = Number(vehicle.current_rate);
+    const currentRate = Number(vehicle.current_rate) || 0;
     const utilization = vehicle.utilization || 0;
-    let suggestedRate = currentRate;
+    const dbSuggestedRate = vehicle.suggested_rate ? Number(vehicle.suggested_rate) : null;
+    
+    // If we have a suggested_rate from the database, use it directly
+    let suggestedRate = dbSuggestedRate ?? currentRate;
     const factors: string[] = [];
     let confidence = 75;
 
-    // Factor 1: Utilization-based pricing
-    if (utilization > 80) {
-      suggestedRate *= 1.15;
-      factors.push('High demand (80%+ utilization)');
+    // Determine the pricing zone based on suggested vs current rate
+    const percentChange = currentRate > 0 
+      ? ((suggestedRate - currentRate) / currentRate) * 100 
+      : 0;
+    
+    let zone: PricingZone;
+    
+    if (percentChange > 5) {
+      zone = 'increase';
+      factors.push(`High demand (${utilization}% utilization)`);
+      confidence += 10;
+    } else if (percentChange < -5) {
+      zone = 'decrease';
+      factors.push(`Low utilization (${utilization}%)`);
       confidence += 5;
-    } else if (utilization < 50) {
-      suggestedRate *= 0.95;
-      factors.push('Low demand (<50% utilization)');
-      confidence -= 5;
+    } else {
+      zone = 'sweet_spot';
+      factors.push('Optimal price-demand balance');
+      confidence += 15;
     }
 
-    // Factor 2: Day of week pricing (if start date provided)
+    // Factor: Day of week pricing (if start date provided)
     if (startDate) {
       const date = new Date(startDate);
       const dayOfWeek = date.getDay();
       
       // Weekend pricing boost
       if (dayOfWeek === 0 || dayOfWeek === 6) {
-        suggestedRate *= 1.20;
-        factors.push('Weekend premium pricing');
-        confidence += 10;
+        if (zone === 'increase') {
+          suggestedRate *= 1.10;
+          factors.push('Weekend premium');
+        }
+        confidence += 5;
       }
     }
 
-    // Factor 3: Seasonal pricing (current month)
+    // Factor: Seasonal pricing (current month)
     const currentMonth = new Date().getMonth();
-    // Summer months (June-August) and holiday season (December)
-    if ([5, 6, 7, 11].includes(currentMonth)) {
-      suggestedRate *= 1.15;
-      factors.push('Peak season demand');
-      confidence += 5;
-    }
-
-    // Factor 4: Vehicle performance
-    if (vehicle.suggested_rate && Number(vehicle.suggested_rate) > currentRate) {
-      suggestedRate = Math.max(suggestedRate, Number(vehicle.suggested_rate));
-      factors.push('Historical performance data');
-      confidence += 10;
+    // Peak season: Jan (Phoenix Open), Jun-Aug (summer), Dec (holidays)
+    if ([0, 5, 6, 7, 11].includes(currentMonth)) {
+      if (zone !== 'decrease') {
+        factors.push('Peak season demand');
+        confidence += 5;
+      }
     }
 
     // Calculate expected impact
     const dailyDifference = suggestedRate - currentRate;
     const monthlyImpact = dailyDifference * 20; // Assume 20 rental days per month
     
-    // Build reasoning
+    // Build reasoning based on zone
     let reasoning = '';
-    if (suggestedRate > currentRate * 1.05) {
-      reasoning = `Market conditions favor a rate increase. Based on ${factors.length} key factors, this vehicle can command a premium.`;
-    } else if (suggestedRate < currentRate * 0.95) {
-      reasoning = `Consider a strategic price reduction to boost utilization and overall revenue.`;
+    if (zone === 'increase') {
+      reasoning = `Strong demand supports a ${Math.abs(percentChange).toFixed(0)}% rate increase. Based on ${factors.length} key factors, this vehicle can command a premium.`;
+    } else if (zone === 'decrease') {
+      reasoning = `Consider a ${Math.abs(percentChange).toFixed(0)}% strategic price reduction to boost utilization from ${utilization}% and maximize overall revenue.`;
     } else {
-      reasoning = `Current pricing is well-aligned with market conditions. Minor adjustment recommended.`;
+      reasoning = `Optimal pricing achieved! Current rate is perfectly balanced with market demand at ${utilization}% utilization.`;
     }
 
     // Round to nearest $5
@@ -81,11 +94,13 @@ export const useAIPricing = (vehicle: Vehicle | null, startDate?: string): Prici
     return {
       suggestedRate,
       reasoning,
-      expectedImpact: monthlyImpact > 0 
+      expectedImpact: monthlyImpact >= 0 
         ? `+$${Math.abs(monthlyImpact).toFixed(0)}/month` 
         : `-$${Math.abs(monthlyImpact).toFixed(0)}/month`,
       confidence: Math.min(confidence, 95),
-      factors
+      factors,
+      zone,
+      percentChange: Math.round(percentChange)
     };
   }, [vehicle, startDate]);
 };
