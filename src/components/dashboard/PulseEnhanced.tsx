@@ -1,4 +1,3 @@
-import { Badge } from "@/components/ui/badge";
 import { ModuleTabs, TabsContent } from "@/components/common/ModuleTabs";
 import { HappeningNow } from "@/components/dashboard/pulse/HappeningNow";
 import { AttentionRequiredTab } from "@/components/dashboard/pulse/AttentionRequiredTab";
@@ -7,6 +6,7 @@ import { FleetMapTab } from "@/components/dashboard/pulse/FleetMapTab";
 import { AskRariQuickAction } from "@/components/common/AskRariQuickAction";
 import { SkeletonCard, SkeletonMetric } from "@/components/ui/skeleton-card";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
+import { useTeam } from "@/contexts/TeamContext";
 import { 
   Activity,
   AlertTriangle,
@@ -23,6 +23,9 @@ const pulseTabs = [
 
 export const PulseEnhanced = () => {
   const { loading } = useLocationFilteredFleet();
+  const { selectedLocationId, currentLocation, locations } = useTeam();
+  
+  const showLocationIndicator = selectedLocationId !== 'all' && locations.length > 1;
 
   if (loading) {
     return (
@@ -44,22 +47,26 @@ export const PulseEnhanced = () => {
 
   return (
     <div className="space-y-4">
-      {/* Header with Live badge */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Badge className="bg-primary/20 text-primary border-primary/30">
-            <Activity className="w-3 h-3 mr-1 animate-pulse" />
-            Live
-          </Badge>
+      {/* Tabbed navigation with Rari action */}
+      <ModuleTabs 
+        tabs={pulseTabs} 
+        defaultValue="now" 
+        data-tour="pulse-tabs"
+        rightContent={
           <AskRariQuickAction
             variant="icon"
             prompt="Give me a quick overview of today's operations. Any concerns or opportunities I should know about?"
           />
-        </div>
-      </div>
-
-      {/* Tabbed navigation */}
-      <ModuleTabs tabs={pulseTabs} defaultValue="now" data-tour="pulse-tabs">
+        }
+      >
+        {/* Compact location indicator */}
+        {showLocationIndicator && (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground px-1 py-1.5 -mt-2 mb-2">
+            <MapPin className="h-3 w-3 text-primary" />
+            <span>{currentLocation?.name}</span>
+          </div>
+        )}
+        
         <TabsContent value="now">
           <HappeningNow />
         </TabsContent>

@@ -17,6 +17,7 @@ interface ModuleTabsProps {
   onValueChange?: (value: string) => void;
   children: ReactNode;
   className?: string;
+  rightContent?: ReactNode;
   'data-tour'?: string;
 }
 
@@ -28,6 +29,7 @@ export const ModuleTabs = (props: ModuleTabsProps) => {
     onValueChange,
     children,
     className,
+    rightContent,
   } = props;
   return (
     <Tabs
@@ -41,48 +43,55 @@ export const ModuleTabs = (props: ModuleTabsProps) => {
         className="bg-background border-b border-border/40 -mx-4 px-4 sm:-mx-6 sm:px-6"
         data-tour={props['data-tour']}
       >
-        <TabsList
-          className={cn(
-            "w-full h-auto p-0 bg-transparent rounded-none gap-0",
-            `grid grid-cols-${tabs.length}`
+        <div className="flex items-center justify-between">
+          <TabsList
+            className={cn(
+              "flex-1 h-auto p-0 bg-transparent rounded-none gap-0",
+              `grid grid-cols-${tabs.length}`
+            )}
+            style={{ gridTemplateColumns: `repeat(${tabs.length}, 1fr)` }}
+          >
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <TabsTrigger
+                  key={tab.id}
+                  value={tab.id}
+                  className={cn(
+                    // Base styles - vertical on mobile, horizontal on tablet+
+                    "relative flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 md:gap-2",
+                    "min-h-[52px] sm:min-h-[44px] md:min-h-[48px] px-1 sm:px-2 md:px-3 py-1.5 sm:py-2 md:py-2.5",
+                    "rounded-none border-b-2 border-transparent",
+                    "text-muted-foreground font-medium text-[10px] sm:text-xs md:text-sm",
+                    "transition-all duration-200 ease-out",
+                    // Hover state
+                    "hover:text-foreground hover:bg-muted/30",
+                    // Active state
+                    "data-[state=active]:text-primary",
+                    "data-[state=active]:border-primary",
+                    "data-[state=active]:bg-primary/5",
+                    // Focus state
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                  )}
+                >
+                  <Icon className="w-4 h-4 flex-shrink-0" />
+                  {/* Short label on mobile, full label on larger screens */}
+                  <span className="sm:hidden leading-tight">
+                    {tab.shortLabel || tab.label}
+                  </span>
+                  <span className="hidden sm:inline">
+                    {tab.label}
+                  </span>
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
+          {rightContent && (
+            <div className="flex-shrink-0 pl-2">
+              {rightContent}
+            </div>
           )}
-          style={{ gridTemplateColumns: `repeat(${tabs.length}, 1fr)` }}
-        >
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <TabsTrigger
-                key={tab.id}
-                value={tab.id}
-                className={cn(
-                  // Base styles - vertical on mobile, horizontal on tablet+
-                  "relative flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 md:gap-2",
-                  "min-h-[52px] sm:min-h-[44px] md:min-h-[48px] px-1 sm:px-2 md:px-3 py-1.5 sm:py-2 md:py-2.5",
-                  "rounded-none border-b-2 border-transparent",
-                  "text-muted-foreground font-medium text-[10px] sm:text-xs md:text-sm",
-                  "transition-all duration-200 ease-out",
-                  // Hover state
-                  "hover:text-foreground hover:bg-muted/30",
-                  // Active state
-                  "data-[state=active]:text-primary",
-                  "data-[state=active]:border-primary",
-                  "data-[state=active]:bg-primary/5",
-                  // Focus state
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-                )}
-              >
-                <Icon className="w-4 h-4 flex-shrink-0" />
-                {/* Short label on mobile, full label on larger screens */}
-                <span className="sm:hidden leading-tight">
-                  {tab.shortLabel || tab.label}
-                </span>
-                <span className="hidden sm:inline">
-                  {tab.label}
-                </span>
-              </TabsTrigger>
-            );
-          })}
-        </TabsList>
+        </div>
       </div>
       
       {/* Tab content with consistent spacing */}
