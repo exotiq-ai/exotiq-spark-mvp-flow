@@ -1,18 +1,25 @@
 import { Badge } from "@/components/ui/badge";
-import { FleetStatusDonut } from "@/components/charts/FleetStatusDonut";
-import { TodaySnapshot } from "@/components/dashboard/pulse/TodaySnapshot";
-import { VehiclesOutNow } from "@/components/dashboard/pulse/VehiclesOutNow";
-import { AttentionRequired } from "@/components/dashboard/pulse/AttentionRequired";
-import { NextFourHours } from "@/components/dashboard/pulse/NextFourHours";
-import { DriverTelematics } from "@/components/dashboard/pulse/DriverTelematics";
-import { CollapsibleSection } from "@/components/dashboard/pulse/CollapsibleSection";
+import { ModuleTabs, TabsContent } from "@/components/common/ModuleTabs";
+import { HappeningNow } from "@/components/dashboard/pulse/HappeningNow";
+import { AttentionRequiredTab } from "@/components/dashboard/pulse/AttentionRequiredTab";
+import { TelematicsTab } from "@/components/dashboard/pulse/TelematicsTab";
+import { FleetMapTab } from "@/components/dashboard/pulse/FleetMapTab";
 import { AskRariQuickAction } from "@/components/common/AskRariQuickAction";
 import { SkeletonCard, SkeletonMetric } from "@/components/ui/skeleton-card";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { 
   Activity,
-  PieChart
+  AlertTriangle,
+  Gauge,
+  MapPin
 } from "lucide-react";
+
+const pulseTabs = [
+  { id: 'now', label: 'Happening Now', shortLabel: 'Now', icon: Activity },
+  { id: 'attention', label: 'Attention Required', shortLabel: 'Attention', icon: AlertTriangle },
+  { id: 'telematics', label: 'Telematics', shortLabel: 'Telematics', icon: Gauge },
+  { id: 'map', label: 'Fleet Map', shortLabel: 'Map', icon: MapPin },
+];
 
 export const PulseEnhanced = () => {
   const { loading } = useLocationFilteredFleet();
@@ -51,34 +58,24 @@ export const PulseEnhanced = () => {
         </div>
       </div>
 
-      {/* Today's Snapshot - Compact metrics row (not collapsible) */}
-      <div data-tour="fleet-snapshot">
-        <TodaySnapshot />
-      </div>
+      {/* Tabbed navigation */}
+      <ModuleTabs tabs={pulseTabs} defaultValue="now" data-tour="pulse-tabs">
+        <TabsContent value="now">
+          <HappeningNow />
+        </TabsContent>
 
-      {/* Vehicles Out Now */}
-      <VehiclesOutNow />
+        <TabsContent value="attention">
+          <AttentionRequiredTab />
+        </TabsContent>
 
-      {/* Attention Required */}
-      <AttentionRequired />
+        <TabsContent value="telematics">
+          <TelematicsTab />
+        </TabsContent>
 
-      {/* Two column layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Fleet Status */}
-        <CollapsibleSection
-          id="fleet-status"
-          title="Fleet Status"
-          icon={<PieChart className="h-4 w-4 text-primary" />}
-        >
-          <FleetStatusDonut />
-        </CollapsibleSection>
-
-        {/* Next 4 Hours */}
-        <NextFourHours />
-      </div>
-
-      {/* Driver Telematics */}
-      <DriverTelematics />
+        <TabsContent value="map">
+          <FleetMapTab />
+        </TabsContent>
+      </ModuleTabs>
     </div>
   );
 };
