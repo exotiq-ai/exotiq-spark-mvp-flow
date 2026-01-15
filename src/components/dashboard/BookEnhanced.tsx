@@ -126,8 +126,13 @@ export const BookEnhanced = () => {
     return `${vehicle.year} ${vehicle.make} ${vehicle.model}`;
   };
 
-  // Find next confirmed booking (no fake fallback data)
-  const nextBooking = bookings.find(b => b.status === 'confirmed') || null;
+  // Find next confirmed booking starting from now (sorted by start_date)
+  const nextBooking = useMemo(() => {
+    const now = new Date();
+    return bookings
+      .filter(b => b.status === 'confirmed' && new Date(b.start_date) >= now)
+      .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime())[0] || null;
+  }, [bookings]);
 
   // Get pending bookings for approval section
   const pendingBookings = useMemo(() => {
