@@ -72,6 +72,19 @@ serve(async (req: Request) => {
       throw new Error("Only admins and managers can invite users");
     }
 
+    // Get inviter's team_id from team_members
+    const { data: inviterTeam, error: teamError } = await supabaseAdmin
+      .from("team_members")
+      .select("team_id")
+      .eq("user_id", user.id)
+      .eq("is_active", true)
+      .single();
+
+    if (teamError || !inviterTeam?.team_id) {
+      console.error("Team lookup failed:", teamError);
+      throw new Error("Could not determine your team. Please contact support.");
+    }
+
     const { email, role, permissions }: InviteRequest = await req.json();
 
     if (!email) {
@@ -118,7 +131,7 @@ serve(async (req: Request) => {
       throw new Error("A user with this email already exists");
     }
 
-    // Create invitation
+    // Create invitation with team_id
     const { data: invitation, error: inviteError } = await supabaseAdmin
       .from("user_invitations")
       .insert({
@@ -128,6 +141,7 @@ serve(async (req: Request) => {
         permissions: permissions || [],
         token,
         status: "pending",
+        team_id: inviterTeam.team_id,
       })
       .select()
       .single();
