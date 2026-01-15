@@ -19,7 +19,8 @@ import {
   Settings,
   Sparkles,
   Activity,
-  MessageSquare
+  MessageSquare,
+  Car
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -182,6 +183,7 @@ export const DashboardSidebarEnhanced = ({
       items: [
         { id: "dashboard", name: "Dashboard", icon: Home },
         { id: "book", name: "Bookings", icon: Calendar, minRole: 'operator' },
+        { id: "fleet", name: "Fleet", icon: Car, minRole: 'operator' },
         { id: "motoriq", name: "MotorIQ", icon: TrendingUp, minRole: 'manager' },
         { id: "pulse", name: "Pulse", icon: BarChart3, minRole: 'operator' },
       ]

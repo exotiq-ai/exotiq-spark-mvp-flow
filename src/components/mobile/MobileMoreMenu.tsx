@@ -9,7 +9,8 @@ import {
   HelpCircle,
   ChevronRight,
   TrendingUp,
-  BarChart3
+  BarChart3,
+  Car
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MobileLocationSelector } from "./MobileLocationSelector";
@@ -25,6 +26,12 @@ export const MobileMoreMenu = ({ onAddLocation, activeModule, onModuleChange }: 
 
   // Operations group items (MotorIQ & Pulse)
   const operationsItems = [
+    { 
+      id: "fleet", 
+      label: "Fleet", 
+      description: "Vehicle ops & task management",
+      icon: Car 
+    },
     { 
       id: "motoriq", 
       label: "MotorIQ", 
