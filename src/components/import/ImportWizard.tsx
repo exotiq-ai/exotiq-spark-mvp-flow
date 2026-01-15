@@ -1,7 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { ArrowLeft, ArrowRight, Upload, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -14,11 +13,11 @@ import { ValidationPreview } from './ValidationPreview';
 import { ImportProgress, ImportProgressState } from './ImportProgress';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTeam } from '@/contexts/TeamContext';
 
 interface ImportWizardProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onComplete?: (entityType: ImportEntityType, count: number) => void;
+  onClose?: () => void;
+  onComplete?: (entityType: ImportEntityType | string, count: number) => void;
 }
 
 type WizardStep = 'upload' | 'entity' | 'mapping' | 'preview' | 'import';
@@ -31,9 +30,10 @@ const steps: { key: WizardStep; label: string }[] = [
   { key: 'import', label: 'Import' }
 ];
 
-export function ImportWizard({ open, onOpenChange, onComplete }: ImportWizardProps) {
+export function ImportWizard({ onClose, onComplete }: ImportWizardProps) {
   const { toast } = useToast();
   const { user } = useAuth();
+  const { currentTeam } = useTeam();
   
   const [currentStep, setCurrentStep] = useState<WizardStep>('upload');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -118,9 +118,27 @@ export function ImportWizard({ open, onOpenChange, onComplete }: ImportWizardPro
     try {
       let imported = 0, failed = 0;
       
+      // Record import batch
+      const { data: batchRecord } = await supabase
+        .from('import_batches')
+        .insert({
+          user_id: user.id,
+          team_id: currentTeam?.id || null,
+          entity_type: selectedEntity,
+          file_name: selectedFile?.name,
+          total_rows: rows.length + validationResult.invalidRows.length,
+          status: 'processing'
+        } as any)
+        .select()
+        .single();
+      
       for (let i = 0; i < totalBatches; i++) {
         const batch = rows.slice(i * batchSize, (i + 1) * batchSize);
-        const recordsToInsert = batch.map(row => ({ ...row, user_id: user.id }));
+        const recordsToInsert = batch.map(row => ({ 
+          ...row, 
+          user_id: user.id,
+          team_id: currentTeam?.id || null
+        }));
         
         // Use type assertion since entity type is dynamic at runtime
         const { data, error } = await supabase
@@ -135,6 +153,20 @@ export function ImportWizard({ open, onOpenChange, onComplete }: ImportWizardPro
           ...prev, processedRows: (i + 1) * batchSize,
           currentBatch: i + 1, importedCount: imported, failedCount: failed
         }));
+      }
+      
+      // Update batch record
+      if (batchRecord?.id) {
+        await supabase
+          .from('import_batches')
+          .update({
+            status: 'completed',
+            imported_count: imported,
+            skipped_count: validationResult.invalidRows.length,
+            failed_count: failed,
+            completed_at: new Date().toISOString()
+          } as any)
+          .eq('id', batchRecord.id);
       }
       
       setImportProgress(prev => ({ ...prev, status: 'completed', processedRows: rows.length }));
@@ -154,55 +186,46 @@ export function ImportWizard({ open, onOpenChange, onComplete }: ImportWizardPro
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) resetWizard(); onOpenChange(o); }}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Upload className="h-5 w-5" />
-            Import Data
-          </DialogTitle>
-        </DialogHeader>
-
-        {/* Progress Steps */}
-        <div className="flex items-center gap-2 py-4">
-          {steps.map((step, index) => (
-            <React.Fragment key={step.key}>
-              <div className={cn('flex items-center gap-2', index <= currentStepIndex ? 'text-primary' : 'text-muted-foreground')}>
-                <div className={cn('w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium', index < currentStepIndex ? 'bg-primary text-primary-foreground' : index === currentStepIndex ? 'bg-primary/20 text-primary border-2 border-primary' : 'bg-muted')}>
-                  {index < currentStepIndex ? <Check className="h-4 w-4" /> : index + 1}
-                </div>
-                <span className="text-sm hidden sm:inline">{step.label}</span>
+    <div className="flex flex-col h-full min-h-[500px]">
+      {/* Progress Steps */}
+      <div className="flex items-center gap-2 py-4">
+        {steps.map((step, index) => (
+          <React.Fragment key={step.key}>
+            <div className={cn('flex items-center gap-2', index <= currentStepIndex ? 'text-primary' : 'text-muted-foreground')}>
+              <div className={cn('w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium', index < currentStepIndex ? 'bg-primary text-primary-foreground' : index === currentStepIndex ? 'bg-primary/20 text-primary border-2 border-primary' : 'bg-muted')}>
+                {index < currentStepIndex ? <Check className="h-4 w-4" /> : index + 1}
               </div>
-              {index < steps.length - 1 && <div className={cn('flex-1 h-0.5', index < currentStepIndex ? 'bg-primary' : 'bg-muted')} />}
-            </React.Fragment>
-          ))}
-        </div>
+              <span className="text-sm hidden sm:inline">{step.label}</span>
+            </div>
+            {index < steps.length - 1 && <div className={cn('flex-1 h-0.5', index < currentStepIndex ? 'bg-primary' : 'bg-muted')} />}
+          </React.Fragment>
+        ))}
+      </div>
 
-        {/* Step Content */}
-        <div className="flex-1 overflow-y-auto py-4">
-          {currentStep === 'upload' && <FileUploadZone onFileSelect={handleFileSelect} selectedFile={selectedFile} onClear={() => { setSelectedFile(null); setParsedData(null); }} isProcessing={isProcessing} error={fileError} />}
-          {currentStep === 'entity' && <EntityTypeSelector detectedEntity={detectedEntity} selectedEntity={selectedEntity} onSelect={setSelectedEntity} />}
-          {currentStep === 'mapping' && selectedEntity && parsedData && <ColumnMapper entityType={selectedEntity} sourceHeaders={parsedData.headers} sourceRows={parsedData.rows} mappings={columnMappings} onMappingsChange={setColumnMappings} />}
-          {currentStep === 'preview' && selectedEntity && validationResult && <ValidationPreview entityType={selectedEntity} validationResult={validationResult} />}
-          {currentStep === 'import' && <ImportProgress progress={importProgress} />}
-        </div>
+      {/* Step Content */}
+      <div className="flex-1 overflow-y-auto py-4">
+        {currentStep === 'upload' && <FileUploadZone onFileSelect={handleFileSelect} selectedFile={selectedFile} onClear={() => { setSelectedFile(null); setParsedData(null); }} isProcessing={isProcessing} error={fileError} />}
+        {currentStep === 'entity' && <EntityTypeSelector detectedEntity={detectedEntity} selectedEntity={selectedEntity} onSelect={setSelectedEntity} />}
+        {currentStep === 'mapping' && selectedEntity && parsedData && <ColumnMapper entityType={selectedEntity} sourceHeaders={parsedData.headers} sourceRows={parsedData.rows} mappings={columnMappings} onMappingsChange={setColumnMappings} />}
+        {currentStep === 'preview' && selectedEntity && validationResult && <ValidationPreview entityType={selectedEntity} validationResult={validationResult} />}
+        {currentStep === 'import' && <ImportProgress progress={importProgress} />}
+      </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-between pt-4 border-t">
-          <Button variant="outline" onClick={handleBack} disabled={currentStepIndex === 0 || importProgress.status === 'importing'}>
-            <ArrowLeft className="h-4 w-4 mr-2" />Back
+      {/* Footer */}
+      <div className="flex items-center justify-between pt-4 border-t">
+        <Button variant="outline" onClick={handleBack} disabled={currentStepIndex === 0 || importProgress.status === 'importing'}>
+          <ArrowLeft className="h-4 w-4 mr-2" />Back
+        </Button>
+        {currentStep !== 'import' ? (
+          <Button onClick={handleNext} disabled={!canProceed()}>
+            {currentStep === 'preview' ? 'Start Import' : 'Next'}<ArrowRight className="h-4 w-4 ml-2" />
           </Button>
-          {currentStep !== 'import' ? (
-            <Button onClick={handleNext} disabled={!canProceed()}>
-              {currentStep === 'preview' ? 'Start Import' : 'Next'}<ArrowRight className="h-4 w-4 ml-2" />
-            </Button>
-          ) : (
-            <Button onClick={() => { resetWizard(); onOpenChange(false); }} disabled={importProgress.status === 'importing'}>
-              {importProgress.status === 'completed' ? 'Done' : 'Close'}
-            </Button>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
+        ) : (
+          <Button onClick={() => { resetWizard(); onClose?.(); }} disabled={importProgress.status === 'importing'}>
+            {importProgress.status === 'completed' ? 'Done' : 'Close'}
+          </Button>
+        )}
+      </div>
+    </div>
   );
 }

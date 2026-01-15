@@ -792,6 +792,62 @@ export type Database = {
           },
         ]
       }
+      import_batches: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          entity_type: string
+          error_details: Json | null
+          failed_count: number | null
+          file_name: string | null
+          id: string
+          imported_count: number | null
+          skipped_count: number | null
+          status: string | null
+          team_id: string | null
+          total_rows: number | null
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          entity_type: string
+          error_details?: Json | null
+          failed_count?: number | null
+          file_name?: string | null
+          id?: string
+          imported_count?: number | null
+          skipped_count?: number | null
+          status?: string | null
+          team_id?: string | null
+          total_rows?: number | null
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          entity_type?: string
+          error_details?: Json | null
+          failed_count?: number | null
+          file_name?: string | null
+          id?: string
+          imported_count?: number | null
+          skipped_count?: number | null
+          status?: string | null
+          team_id?: string | null
+          total_rows?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_batches_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inspection_photos: {
         Row: {
           description: string | null
