@@ -36,12 +36,6 @@ export const SystemSettingsSection = () => {
       maintenanceAlerts: true,
       paymentNotifications: true
     },
-    automation: {
-      autoConfirmBookings: false,
-      autoPricing: true,
-      autoMaintenanceScheduling: true,
-      aiAssistance: true
-    },
     business: {
       businessName: "Exotiq Fleet Management",
       timezone: "America/New_York",
@@ -197,60 +191,6 @@ export const SystemSettingsSection = () => {
             <Switch
               checked={settings.notifications.paymentNotifications}
               onCheckedChange={() => toggleSetting('notifications', 'paymentNotifications')}
-            />
-          </div>
-        </div>
-      </Card>
-
-      {/* Automation Settings */}
-      <Card className="card-premium p-6">
-        <div className="flex items-center space-x-3 mb-6">
-          <Zap className="w-5 h-5 text-primary" />
-          <h3 className="text-xl font-semibold">Automation & AI</h3>
-        </div>
-
-        <div className="space-y-4">
-          <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30">
-            <div>
-              <Label className="font-medium">Auto-Confirm Bookings</Label>
-              <p className="text-sm text-muted-foreground">Automatically confirm eligible bookings</p>
-            </div>
-            <Switch
-              checked={settings.automation.autoConfirmBookings}
-              onCheckedChange={() => toggleSetting('automation', 'autoConfirmBookings')}
-            />
-          </div>
-
-          <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30">
-            <div>
-              <Label className="font-medium">Dynamic Pricing</Label>
-              <p className="text-sm text-muted-foreground">AI-powered automatic pricing optimization</p>
-            </div>
-            <Switch
-              checked={settings.automation.autoPricing}
-              onCheckedChange={() => toggleSetting('automation', 'autoPricing')}
-            />
-          </div>
-
-          <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30">
-            <div>
-              <Label className="font-medium">Auto Maintenance Scheduling</Label>
-              <p className="text-sm text-muted-foreground">Automatically schedule routine maintenance</p>
-            </div>
-            <Switch
-              checked={settings.automation.autoMaintenanceScheduling}
-              onCheckedChange={() => toggleSetting('automation', 'autoMaintenanceScheduling')}
-            />
-          </div>
-
-          <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30">
-            <div>
-              <Label className="font-medium">FleetCopilot™ AI Assistance</Label>
-              <p className="text-sm text-muted-foreground">Enable AI-powered insights and recommendations</p>
-            </div>
-            <Switch
-              checked={settings.automation.aiAssistance}
-              onCheckedChange={() => toggleSetting('automation', 'aiAssistance')}
             />
           </div>
         </div>

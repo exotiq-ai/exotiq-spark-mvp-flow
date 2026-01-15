@@ -197,7 +197,7 @@ export const DashboardSidebarEnhanced = ({
       id: "team",
       name: "Team",
       items: [
-        { id: "activity", name: "Team Activity", icon: Activity, minRole: 'manager' },
+        { id: "team-hub", name: "Team Hub", icon: Activity, minRole: 'manager' },
         { id: "messages", name: "Messages", icon: MessageSquare, minRole: 'operator' },
       ]
     },

@@ -1,25 +1,40 @@
+import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card } from "@/components/ui/card";
-import { Users, UserPlus, Settings } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Users, UserPlus, Settings, Activity, History } from "lucide-react";
 import { TeamDirectorySection } from "./TeamDirectorySection";
 import { TeamInvitationsSection } from "./TeamInvitationsSection";
 import { TeamSettingsSection } from "./TeamSettingsSection";
+import { TeamActivityDashboard } from "./TeamActivityDashboard";
+import { RoleAuditLogSection } from "./RoleAuditLogSection";
 import { useUserRole } from "@/hooks/useUserRole";
+import { InviteUserDialog } from "@/components/dialogs/InviteUserDialog";
 
 export const TeamHub = () => {
   const { isAdmin } = useUserRole();
+  const [showInviteDialog, setShowInviteDialog] = useState(false);
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Team Management</h2>
-          <p className="text-muted-foreground">Manage your team members, invitations, and settings</p>
+          <h2 className="text-2xl font-bold">Team Hub</h2>
+          <p className="text-muted-foreground">Manage your team members, activity, and settings</p>
         </div>
+        {isAdmin && (
+          <Button onClick={() => setShowInviteDialog(true)} className="gap-2">
+            <UserPlus className="h-4 w-4" />
+            Invite Member
+          </Button>
+        )}
       </div>
 
-      <Tabs defaultValue="directory" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3 lg:w-[400px]">
+      <Tabs defaultValue="activity" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-5 lg:w-[600px]">
+          <TabsTrigger value="activity" className="flex items-center gap-2">
+            <Activity className="h-4 w-4" />
+            <span className="hidden sm:inline">Activity</span>
+          </TabsTrigger>
           <TabsTrigger value="directory" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             <span className="hidden sm:inline">Directory</span>
@@ -30,11 +45,23 @@ export const TeamHub = () => {
               <span className="hidden sm:inline">Invitations</span>
             </TabsTrigger>
           )}
-          <TabsTrigger value="settings" className="flex items-center gap-2">
-            <Settings className="h-4 w-4" />
-            <span className="hidden sm:inline">Settings</span>
-          </TabsTrigger>
+          {isAdmin && (
+            <TabsTrigger value="audit" className="flex items-center gap-2">
+              <History className="h-4 w-4" />
+              <span className="hidden sm:inline">Audit Log</span>
+            </TabsTrigger>
+          )}
+          {isAdmin && (
+            <TabsTrigger value="settings" className="flex items-center gap-2">
+              <Settings className="h-4 w-4" />
+              <span className="hidden sm:inline">Settings</span>
+            </TabsTrigger>
+          )}
         </TabsList>
+
+        <TabsContent value="activity">
+          <TeamActivityDashboard />
+        </TabsContent>
 
         <TabsContent value="directory">
           <TeamDirectorySection />
@@ -46,10 +73,25 @@ export const TeamHub = () => {
           </TabsContent>
         )}
 
-        <TabsContent value="settings">
-          <TeamSettingsSection />
-        </TabsContent>
+        {isAdmin && (
+          <TabsContent value="audit">
+            <RoleAuditLogSection />
+          </TabsContent>
+        )}
+
+        {isAdmin && (
+          <TabsContent value="settings">
+            <TeamSettingsSection />
+          </TabsContent>
+        )}
       </Tabs>
+
+      {/* Invite User Dialog */}
+      <InviteUserDialog
+        open={showInviteDialog}
+        onOpenChange={setShowInviteDialog}
+        onSuccess={() => setShowInviteDialog(false)}
+      />
     </div>
   );
 };

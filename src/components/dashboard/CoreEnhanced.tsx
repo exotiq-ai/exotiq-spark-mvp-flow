@@ -26,7 +26,7 @@ import { GenerateReportDialog } from "@/components/dialogs/GenerateReportDialog"
 import { PriceOptimizationDialog } from "@/components/dialogs/PriceOptimizationDialog";
 import { RariVoiceInterface } from "@/components/rari/RariVoiceInterface";
 import { CRMSection } from "@/components/dashboard/CRMSection";
-import { TeamHub } from "@/components/dashboard/TeamHub";
+import { AISettingsSection } from "@/components/dashboard/AISettingsSection";
 
 export const CoreEnhanced = () => {
   const { vehicles, bookings, createVehicle, createBooking, createMaintenance, sendMessage, generateReport, applyPriceOptimization, loading } = useLocationFilteredFleet();
@@ -183,7 +183,7 @@ export const CoreEnhanced = () => {
         tabs={[
           { id: "rari", label: "Rari", shortLabel: "Rari", icon: Brain },
           { id: "insights", label: "Insights", shortLabel: "Stats", icon: Zap },
-          { id: "settings", label: "Settings", shortLabel: "Setup", icon: Settings },
+          { id: "ai-settings", label: "AI Settings", shortLabel: "AI", icon: Settings },
         ]}
         defaultValue="rari"
       >
@@ -281,8 +281,8 @@ export const CoreEnhanced = () => {
           </div>
         </TabsContent>
 
-        <TabsContent value="settings" className="space-y-6">
-          <TeamHub />
+        <TabsContent value="ai-settings" className="space-y-6">
+          <AISettingsSection />
         </TabsContent>
       </ModuleTabs>
 
