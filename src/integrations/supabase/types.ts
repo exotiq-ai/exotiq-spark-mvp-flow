@@ -2126,6 +2126,7 @@ export type Database = {
           permissions: string[] | null
           role: string | null
           status: string | null
+          team_id: string | null
           token: string
         }
         Insert: {
@@ -2137,6 +2138,7 @@ export type Database = {
           permissions?: string[] | null
           role?: string | null
           status?: string | null
+          team_id?: string | null
           token: string
         }
         Update: {
@@ -2148,9 +2150,18 @@ export type Database = {
           permissions?: string[] | null
           role?: string | null
           status?: string | null
+          team_id?: string | null
           token?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_invitations_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_presence: {
         Row: {

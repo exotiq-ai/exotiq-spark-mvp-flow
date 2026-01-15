@@ -259,6 +259,29 @@ serve(async (req: Request) => {
         // Don't throw - profile is already updated
       }
 
+      // Create team membership for invited user
+      if (invitation.team_id) {
+        const { error: teamMemberError } = await supabaseAdmin
+          .from("team_members")
+          .insert({
+            team_id: invitation.team_id,
+            user_id: userId,
+            role: invitation.role || "viewer",
+            is_active: true,
+            invited_by: invitation.invited_by,
+            joined_at: new Date().toISOString(),
+          });
+
+        if (teamMemberError) {
+          console.error("Error creating team membership:", teamMemberError);
+          // Log but don't fail - role is already assigned
+        } else {
+          console.log("Team membership created for user:", userId, "in team:", invitation.team_id);
+        }
+      } else {
+        console.warn("No team_id on invitation - user will not have team access");
+      }
+
       // Mark invitation as accepted
       const { error: updateError } = await supabaseAdmin
         .from("user_invitations")

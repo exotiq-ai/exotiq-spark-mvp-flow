@@ -31,10 +31,21 @@ export default function Auth() {
   const inviteToken = searchParams.get('invite');
   const modeParam = searchParams.get('mode');
   
-  const [authMode, setAuthMode] = useState<AuthMode>(
-    modeParam === 'update-password' ? 'update-password' : 
-    inviteToken ? 'signup' : 'signin'
-  );
+  // Detect if this is a password recovery link from URL hash or query params
+  const isRecoveryFromUrl = (() => {
+    const hash = window.location.hash;
+    // Check for recovery indicators in URL
+    return modeParam === 'update-password' || 
+           hash.includes('type=recovery') || 
+           hash.includes('access_token') ||
+           searchParams.get('type') === 'recovery';
+  })();
+  
+  const [authMode, setAuthMode] = useState<AuthMode>(() => {
+    if (isRecoveryFromUrl) return 'update-password';
+    return modeParam === 'update-password' ? 'update-password' : 
+      inviteToken ? 'signup' : 'signin';
+  });
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -42,6 +53,9 @@ export default function Auth() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  
+  // Track recovery email for display
+  const [recoveryEmail, setRecoveryEmail] = useState<string | null>(null);
   
   // Invitation state
   const [invitation, setInvitation] = useState<InvitationDetails | null>(null);
@@ -108,12 +122,27 @@ export default function Auth() {
     }
   };
 
+  // Handle recovery mode detection and capture email
+  useEffect(() => {
+    if (isRecoveryFromUrl || isPasswordRecovery) {
+      setAuthMode('update-password');
+      // Extract email from current user session if available
+      if (user?.email) {
+        setRecoveryEmail(user.email);
+      }
+    }
+  }, [isRecoveryFromUrl, isPasswordRecovery, user?.email]);
+
   // Redirect authenticated users to dashboard (unless in password update mode)
   useEffect(() => {
-    if (!authLoading && user && authMode !== 'update-password' && !isPasswordRecovery) {
+    // Block redirect if in recovery mode or updating password
+    if (isRecoveryFromUrl || isPasswordRecovery || authMode === 'update-password') {
+      return;
+    }
+    if (!authLoading && user) {
       navigate('/dashboard', { replace: true });
     }
-  }, [user, authLoading, navigate, authMode, isPasswordRecovery]);
+  }, [user, authLoading, navigate, authMode, isPasswordRecovery, isRecoveryFromUrl]);
 
   const handlePasswordAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -192,6 +221,11 @@ export default function Auth() {
       const { error: updateError } = await updatePassword(password);
       if (updateError) {
         setError(updateError.message || "Failed to update password. Please try again.");
+      } else {
+        // Clear recovery state
+        setRecoveryEmail(null);
+        // Clear URL hash to prevent re-triggering on refresh
+        window.history.replaceState(null, '', window.location.pathname);
       }
       // Success navigation is handled in AuthContext
     } catch (err) {
@@ -325,6 +359,11 @@ export default function Auth() {
               <h1 className="text-2xl sm:text-3xl font-bold mb-2">
                 Set New Password
               </h1>
+              {(recoveryEmail || user?.email) && (
+                <p className="text-sm text-muted-foreground mb-2">
+                  Resetting password for: <span className="font-medium text-foreground">{recoveryEmail || user?.email}</span>
+                </p>
+              )}
               <p className="text-sm sm:text-base text-muted-foreground">
                 Please enter your new password below
               </p>
