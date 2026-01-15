@@ -1,4 +1,6 @@
 import { useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { Json } from '@/integrations/supabase/types';
 
 export type ConversationTag = 
   | 'booking_inquiry'
@@ -23,9 +25,7 @@ const TAG_KEYWORDS: Record<ConversationTag, string[]> = {
 };
 
 /**
- * In-memory Rari tags hook
- * Database table (rari_conversations) doesn't exist yet
- * Detects tags in-memory only
+ * Rari tags hook - saves tags to rari_conversations table
  */
 export function useRariTags() {
   const detectTags = useCallback((content: string): ConversationTag[] => {
@@ -51,8 +51,35 @@ export function useRariTags() {
     conversationId: string,
     tags: ConversationTag[]
   ): Promise<void> => {
-    // No database table exists yet, just log
-    console.log('[Rari Tags] Would update tags for conversation:', conversationId, tags);
+    try {
+      // Get current entities from conversation
+      const { data: conversation, error: fetchError } = await supabase
+        .from('rari_conversations')
+        .select('id')
+        .eq('id', conversationId)
+        .single();
+
+      if (fetchError || !conversation) {
+        console.error('[Rari Tags] Conversation not found:', conversationId);
+        return;
+      }
+
+      // Store tags in context_summary as JSON
+      const tagsData = { detected_tags: tags, updated_at: new Date().toISOString() };
+      
+      const { error: updateError } = await supabase
+        .from('rari_conversations')
+        .update({ 
+          context_summary: JSON.stringify(tagsData)
+        })
+        .eq('id', conversationId);
+
+      if (updateError) {
+        console.error('[Rari Tags] Error updating tags:', updateError);
+      }
+    } catch (err) {
+      console.error('[Rari Tags] Failed to update tags:', err);
+    }
   }, []);
 
   const detectAndUpdateTags = useCallback(async (
@@ -63,11 +90,37 @@ export function useRariTags() {
     const allContent = messages.map(m => m.content).join(' ');
     const tags = detectTags(allContent);
 
-    // Would update in database if it existed
+    // Update in database
     await updateConversationTags(conversationId, tags);
 
     return tags;
   }, [detectTags, updateConversationTags]);
+
+  const getConversationTags = useCallback(async (
+    conversationId: string
+  ): Promise<ConversationTag[]> => {
+    try {
+      const { data, error } = await supabase
+        .from('rari_conversations')
+        .select('context_summary')
+        .eq('id', conversationId)
+        .single();
+
+      if (error || !data?.context_summary) {
+        return [];
+      }
+
+      try {
+        const parsed = JSON.parse(data.context_summary);
+        return parsed.detected_tags || [];
+      } catch {
+        return [];
+      }
+    } catch (err) {
+      console.error('[Rari Tags] Failed to get tags:', err);
+      return [];
+    }
+  }, []);
 
   const formatTagLabel = useCallback((tag: ConversationTag): string => {
     return tag
@@ -80,6 +133,7 @@ export function useRariTags() {
     detectTags,
     updateConversationTags,
     detectAndUpdateTags,
+    getConversationTags,
     formatTagLabel,
   };
 }

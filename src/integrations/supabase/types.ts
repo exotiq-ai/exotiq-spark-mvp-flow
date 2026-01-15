@@ -553,6 +553,50 @@ export type Database = {
           },
         ]
       }
+      data_backups: {
+        Row: {
+          backup_name: string
+          backup_type: string
+          created_at: string | null
+          file_size_bytes: number | null
+          id: string
+          status: string
+          storage_path: string | null
+          team_id: string | null
+          user_id: string
+        }
+        Insert: {
+          backup_name: string
+          backup_type: string
+          created_at?: string | null
+          file_size_bytes?: number | null
+          id?: string
+          status?: string
+          storage_path?: string | null
+          team_id?: string | null
+          user_id: string
+        }
+        Update: {
+          backup_name?: string
+          backup_type?: string
+          created_at?: string | null
+          file_size_bytes?: number | null
+          id?: string
+          status?: string
+          storage_path?: string | null
+          team_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "data_backups_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deletion_requests: {
         Row: {
           cancelled_at: string | null
@@ -2110,6 +2154,44 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      user_settings: {
+        Row: {
+          category: string
+          created_at: string | null
+          id: string
+          settings: Json
+          team_id: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          category: string
+          created_at?: string | null
+          id?: string
+          settings?: Json
+          team_id?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          id?: string
+          settings?: Json
+          team_id?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_settings_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       vehicle_inspections: {
         Row: {

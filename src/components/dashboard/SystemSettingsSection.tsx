@@ -4,18 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { 
-  Settings, 
   Bell, 
-  Mail, 
   Shield, 
-  Zap,
-  DollarSign,
-  Clock,
   Globe,
-  Save
+  Save,
+  Loader2
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useUserSettings } from "@/hooks/useUserSettings";
 import {
   Select,
   SelectContent,
@@ -24,31 +22,66 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+interface SystemSettings {
+  notifications: {
+    emailAlerts: boolean;
+    smsAlerts: boolean;
+    bookingReminders: boolean;
+    maintenanceAlerts: boolean;
+    paymentNotifications: boolean;
+  };
+  business: {
+    businessName: string;
+    timezone: string;
+    currency: string;
+    language: string;
+    taxRate: string;
+  };
+  security: {
+    twoFactorAuth: boolean;
+    sessionTimeout: string;
+    passwordExpiry: string;
+    ipWhitelist: boolean;
+  };
+}
+
+const defaultSettings: SystemSettings = {
+  notifications: {
+    emailAlerts: true,
+    smsAlerts: false,
+    bookingReminders: true,
+    maintenanceAlerts: true,
+    paymentNotifications: true
+  },
+  business: {
+    businessName: "Exotiq Fleet Management",
+    timezone: "America/New_York",
+    currency: "USD",
+    language: "en",
+    taxRate: "8.5"
+  },
+  security: {
+    twoFactorAuth: true,
+    sessionTimeout: "60",
+    passwordExpiry: "90",
+    ipWhitelist: false
+  }
+};
+
 export const SystemSettingsSection = () => {
   const { toast } = useToast();
   const [errors, setErrors] = useState<Record<string, string>>({});
   
-  const [settings, setSettings] = useState({
-    notifications: {
-      emailAlerts: true,
-      smsAlerts: false,
-      bookingReminders: true,
-      maintenanceAlerts: true,
-      paymentNotifications: true
-    },
-    business: {
-      businessName: "Exotiq Fleet Management",
-      timezone: "America/New_York",
-      currency: "USD",
-      language: "en",
-      taxRate: "8.5"
-    },
-    security: {
-      twoFactorAuth: true,
-      sessionTimeout: "60",
-      passwordExpiry: "90",
-      ipWhitelist: false
-    }
+  const {
+    settings,
+    toggleNestedSetting,
+    updateNestedSetting,
+    saveSettings,
+    isLoading,
+    isSaving
+  } = useUserSettings<SystemSettings>({
+    category: 'system',
+    defaultSettings,
   });
 
   const validateSettings = (): boolean => {
@@ -83,7 +116,7 @@ export const SystemSettingsSection = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSaveSettings = () => {
+  const handleSaveSettings = async () => {
     if (!validateSettings()) {
       toast({
         title: "Validation Error",
@@ -93,24 +126,21 @@ export const SystemSettingsSection = () => {
       return;
     }
 
-    toast({
-      title: "Settings Saved",
-      description: "Your system settings have been updated successfully.",
-    });
-    setErrors({});
+    const success = await saveSettings();
+    if (success) {
+      toast({
+        title: "Settings Saved",
+        description: "Your system settings have been updated successfully.",
+      });
+      setErrors({});
+    }
   };
 
-  const toggleSetting = (category: keyof typeof settings, key: string) => {
-    setSettings(prev => ({
-      ...prev,
-      [category]: {
-        ...prev[category],
-        [key]: !prev[category][key as keyof typeof prev[typeof category]]
-      }
-    }));
-  };
-
-  const updateSetting = (category: keyof typeof settings, key: string, value: string) => {
+  const handleUpdateNestedSetting = <K extends keyof SystemSettings>(
+    category: K,
+    key: string,
+    value: string
+  ) => {
     // Clear error for this field when user types
     if (errors[key]) {
       setErrors(prev => {
@@ -120,14 +150,25 @@ export const SystemSettingsSection = () => {
       });
     }
 
-    setSettings(prev => ({
-      ...prev,
-      [category]: {
-        ...prev[category],
-        [key]: value
-      }
-    }));
+    updateNestedSetting(category, key, value);
   };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        {[1, 2, 3].map((i) => (
+          <Card key={i} className="card-premium p-6">
+            <Skeleton className="h-6 w-48 mb-6" />
+            <div className="space-y-4">
+              {[1, 2, 3].map((j) => (
+                <Skeleton key={j} className="h-16 w-full" />
+              ))}
+            </div>
+          </Card>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -146,7 +187,7 @@ export const SystemSettingsSection = () => {
             </div>
             <Switch
               checked={settings.notifications.emailAlerts}
-              onCheckedChange={() => toggleSetting('notifications', 'emailAlerts')}
+              onCheckedChange={() => toggleNestedSetting('notifications', 'emailAlerts')}
             />
           </div>
 
@@ -157,7 +198,7 @@ export const SystemSettingsSection = () => {
             </div>
             <Switch
               checked={settings.notifications.smsAlerts}
-              onCheckedChange={() => toggleSetting('notifications', 'smsAlerts')}
+              onCheckedChange={() => toggleNestedSetting('notifications', 'smsAlerts')}
             />
           </div>
 
@@ -168,7 +209,7 @@ export const SystemSettingsSection = () => {
             </div>
             <Switch
               checked={settings.notifications.bookingReminders}
-              onCheckedChange={() => toggleSetting('notifications', 'bookingReminders')}
+              onCheckedChange={() => toggleNestedSetting('notifications', 'bookingReminders')}
             />
           </div>
 
@@ -179,7 +220,7 @@ export const SystemSettingsSection = () => {
             </div>
             <Switch
               checked={settings.notifications.maintenanceAlerts}
-              onCheckedChange={() => toggleSetting('notifications', 'maintenanceAlerts')}
+              onCheckedChange={() => toggleNestedSetting('notifications', 'maintenanceAlerts')}
             />
           </div>
 
@@ -190,7 +231,7 @@ export const SystemSettingsSection = () => {
             </div>
             <Switch
               checked={settings.notifications.paymentNotifications}
-              onCheckedChange={() => toggleSetting('notifications', 'paymentNotifications')}
+              onCheckedChange={() => toggleNestedSetting('notifications', 'paymentNotifications')}
             />
           </div>
         </div>
@@ -208,7 +249,7 @@ export const SystemSettingsSection = () => {
             <Label>Business Name</Label>
             <Input
               value={settings.business.businessName}
-              onChange={(e) => updateSetting('business', 'businessName', e.target.value)}
+              onChange={(e) => handleUpdateNestedSetting('business', 'businessName', e.target.value)}
               maxLength={100}
               className={errors.businessName ? "border-destructive" : ""}
             />
@@ -221,7 +262,7 @@ export const SystemSettingsSection = () => {
             <Label>Timezone</Label>
             <Select
               value={settings.business.timezone}
-              onValueChange={(value) => updateSetting('business', 'timezone', value)}
+              onValueChange={(value) => handleUpdateNestedSetting('business', 'timezone', value)}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -240,7 +281,7 @@ export const SystemSettingsSection = () => {
             <Label>Currency</Label>
             <Select
               value={settings.business.currency}
-              onValueChange={(value) => updateSetting('business', 'currency', value)}
+              onValueChange={(value) => handleUpdateNestedSetting('business', 'currency', value)}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -259,7 +300,7 @@ export const SystemSettingsSection = () => {
             <Input
               type="number"
               value={settings.business.taxRate}
-              onChange={(e) => updateSetting('business', 'taxRate', e.target.value)}
+              onChange={(e) => handleUpdateNestedSetting('business', 'taxRate', e.target.value)}
               min="0"
               max="100"
               step="0.1"
@@ -287,7 +328,7 @@ export const SystemSettingsSection = () => {
             </div>
             <Switch
               checked={settings.security.twoFactorAuth}
-              onCheckedChange={() => toggleSetting('security', 'twoFactorAuth')}
+              onCheckedChange={() => toggleNestedSetting('security', 'twoFactorAuth')}
             />
           </div>
 
@@ -298,7 +339,7 @@ export const SystemSettingsSection = () => {
             </div>
             <Switch
               checked={settings.security.ipWhitelist}
-              onCheckedChange={() => toggleSetting('security', 'ipWhitelist')}
+              onCheckedChange={() => toggleNestedSetting('security', 'ipWhitelist')}
             />
           </div>
 
@@ -308,7 +349,7 @@ export const SystemSettingsSection = () => {
               <Input
                 type="number"
                 value={settings.security.sessionTimeout}
-                onChange={(e) => updateSetting('security', 'sessionTimeout', e.target.value)}
+                onChange={(e) => handleUpdateNestedSetting('security', 'sessionTimeout', e.target.value)}
                 min="15"
                 max="480"
                 className={errors.sessionTimeout ? "border-destructive" : ""}
@@ -323,7 +364,7 @@ export const SystemSettingsSection = () => {
               <Input
                 type="number"
                 value={settings.security.passwordExpiry}
-                onChange={(e) => updateSetting('security', 'passwordExpiry', e.target.value)}
+                onChange={(e) => handleUpdateNestedSetting('security', 'passwordExpiry', e.target.value)}
                 min="30"
                 max="365"
                 className={errors.passwordExpiry ? "border-destructive" : ""}
@@ -338,9 +379,18 @@ export const SystemSettingsSection = () => {
 
       {/* Save Button */}
       <div className="flex justify-end">
-        <Button onClick={handleSaveSettings} className="btn-premium" size="lg">
-          <Save className="w-4 h-4 mr-2" />
-          Save All Settings
+        <Button 
+          onClick={handleSaveSettings} 
+          className="btn-premium" 
+          size="lg"
+          disabled={isSaving}
+        >
+          {isSaving ? (
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          ) : (
+            <Save className="w-4 h-4 mr-2" />
+          )}
+          {isSaving ? 'Saving...' : 'Save All Settings'}
         </Button>
       </div>
     </div>
