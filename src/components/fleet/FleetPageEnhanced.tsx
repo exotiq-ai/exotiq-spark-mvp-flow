@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { useLocationFilteredFleet } from '@/hooks/useLocationFilteredFleet';
 import { useFleetTasks } from '@/hooks/useFleetTasks';
 import { useVehicleOpsStatus, OpsStatus } from '@/hooks/useVehicleOpsStatus';
 import { useTeam } from '@/contexts/TeamContext';
+import { supabase } from '@/integrations/supabase/client';
 import { FleetVehicleCard } from './FleetVehicleCard';
 import { FleetFilters, FleetFiltersState, ViewMode } from './FleetFilters';
 import { TaskQueue } from './TaskQueue';
@@ -29,12 +30,57 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+interface TeamMember {
+  id: string;
+  user_id: string;
+  role: string;
+  profile?: {
+    full_name: string | null;
+    email: string;
+    avatar_url: string | null;
+  };
+}
+
 export const FleetPageEnhanced = () => {
   const isMobile = useIsMobile();
   const { vehicles, bookings, loading, applyPriceOptimization, refreshData } = useLocationFilteredFleet();
   const { tasks, myTasks, unassignedTasks, createTask, updateTaskStatus, claimTask } = useFleetTasks();
   const { updateOpsStatus } = useVehicleOpsStatus();
-  const { teamMembers } = useTeam();
+  const { currentTeam } = useTeam();
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+
+  // Fetch team members
+  useEffect(() => {
+    const fetchTeamMembers = async () => {
+      if (!currentTeam?.id) return;
+      
+      const { data } = await supabase
+        .from('team_members')
+        .select(`
+          id,
+          user_id,
+          role,
+          profiles:user_id (
+            full_name,
+            email,
+            avatar_url
+          )
+        `)
+        .eq('team_id', currentTeam.id)
+        .eq('is_active', true);
+      
+      if (data) {
+        setTeamMembers(data.map(m => ({
+          id: m.id,
+          user_id: m.user_id,
+          role: m.role,
+          profile: m.profiles as any
+        })));
+      }
+    };
+    
+    fetchTeamMembers();
+  }, [currentTeam?.id]);
 
   // View state
   const [isOpsMode, setIsOpsMode] = useState(isMobile);
