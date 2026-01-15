@@ -2332,6 +2332,106 @@ export type Database = {
           },
         ]
       }
+      vehicle_tasks: {
+        Row: {
+          assigned_to: string | null
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string | null
+          created_by: string
+          due_at: string | null
+          id: string
+          location_id: string | null
+          notes: string | null
+          priority: string
+          status: string
+          task_type: string
+          team_id: string | null
+          title: string
+          updated_at: string | null
+          vehicle_id: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string | null
+          created_by: string
+          due_at?: string | null
+          id?: string
+          location_id?: string | null
+          notes?: string | null
+          priority?: string
+          status?: string
+          task_type: string
+          team_id?: string | null
+          title: string
+          updated_at?: string | null
+          vehicle_id: string
+        }
+        Update: {
+          assigned_to?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string | null
+          created_by?: string
+          due_at?: string | null
+          id?: string
+          location_id?: string | null
+          notes?: string | null
+          priority?: string
+          status?: string
+          task_type?: string
+          team_id?: string | null
+          title?: string
+          updated_at?: string | null
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_tasks_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_tasks_completed_by_fkey"
+            columns: ["completed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_tasks_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_tasks_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_tasks_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_tasks_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vehicle_transfers: {
         Row: {
           from_location_id: string | null
@@ -2396,12 +2496,14 @@ export type Database = {
           current_rate: number
           id: string
           image_url: string | null
+          last_ops_update: string | null
           license_plate: string | null
           location: string | null
           location_id: string | null
           make: string
           model: string
           name: string
+          ops_status: string | null
           revenue: number | null
           status: string | null
           suggested_rate: number | null
@@ -2417,12 +2519,14 @@ export type Database = {
           current_rate?: number
           id?: string
           image_url?: string | null
+          last_ops_update?: string | null
           license_plate?: string | null
           location?: string | null
           location_id?: string | null
           make: string
           model: string
           name: string
+          ops_status?: string | null
           revenue?: number | null
           status?: string | null
           suggested_rate?: number | null
@@ -2438,12 +2542,14 @@ export type Database = {
           current_rate?: number
           id?: string
           image_url?: string | null
+          last_ops_update?: string | null
           license_plate?: string | null
           location?: string | null
           location_id?: string | null
           make?: string
           model?: string
           name?: string
+          ops_status?: string | null
           revenue?: number | null
           status?: string | null
           suggested_rate?: number | null
