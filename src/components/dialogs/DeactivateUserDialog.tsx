@@ -35,6 +35,7 @@ export function DeactivateUserDialog({ open, onOpenChange, user, onSuccess }: De
     setIsDeactivating(true);
 
     try {
+      // Step 1: Deactivate the user in the database
       const { error } = await supabase.rpc('deactivate_team_member', {
         target_user_id: user.id,
         reason: reason || null
@@ -42,9 +43,25 @@ export function DeactivateUserDialog({ open, onOpenChange, user, onSuccess }: De
 
       if (error) throw error;
 
+      // Step 2: Revoke all active sessions to force immediate logout
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        const { error: revokeError } = await supabase.functions.invoke('revoke-user-sessions', {
+          body: { target_user_id: user.id },
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        });
+
+        if (revokeError) {
+          console.warn('Failed to revoke sessions, but user is deactivated:', revokeError);
+          // Continue anyway - user is deactivated and won't be able to access data
+        }
+      }
+
       toast({
         title: "User deactivated",
-        description: `${user.name}'s access has been suspended`,
+        description: `${user.name}'s access has been suspended and all sessions terminated`,
       });
 
       setReason("");

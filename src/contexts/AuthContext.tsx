@@ -24,16 +24,19 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   subscription: SubscriptionStatus;
+  isPasswordRecovery: boolean;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: any }>;
   signUpWithInvite: (email: string, password: string, fullName: string, inviteToken: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signInWithMagicLink: (email: string) => Promise<{ error: any }>;
   resetPassword: (email: string) => Promise<{ error: any }>;
+  updatePassword: (newPassword: string) => Promise<{ error: any }>;
   signInAsDemo: () => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   checkSubscription: () => Promise<void>;
   openCustomerPortal: () => Promise<void>;
   isFeatureAvailable: (requiredTier: SubscriptionTier) => boolean;
+  clearPasswordRecovery: () => void;
 }
 
 const defaultSubscription: SubscriptionStatus = {
@@ -64,8 +67,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [subscription, setSubscription] = useState<SubscriptionStatus>(defaultSubscription);
   const [pendingInviteToken, setPendingInviteToken] = useState<string | null>(null);
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  // Check if user account is active
+  const checkUserActiveStatus = useCallback(async (userId: string): Promise<boolean> => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('is_active')
+        .eq('id', userId)
+        .single();
+
+      if (error) {
+        console.error('Error checking user active status:', error);
+        return true; // Allow access if we can't check (fail open for UX, RLS will block)
+      }
+
+      return data?.is_active ?? true;
+    } catch (err) {
+      console.error('Error in checkUserActiveStatus:', err);
+      return true;
+    }
+  }, []);
 
   // Check subscription status
   const checkSubscription = useCallback(async () => {
@@ -204,14 +229,50 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [toast]);
 
+  // Clear password recovery flag
+  const clearPasswordRecovery = useCallback(() => {
+    setIsPasswordRecovery(false);
+  }, []);
+
   useEffect(() => {
     // Set up auth state listener
     const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth event:', event);
         setSession(session);
         setUser(session?.user ?? null);
         
+        // Handle PASSWORD_RECOVERY event - user clicked reset link
+        if (event === 'PASSWORD_RECOVERY') {
+          console.log('Password recovery event detected');
+          setIsPasswordRecovery(true);
+          // Navigate to auth page with update-password mode
+          navigate('/auth?mode=update-password', { replace: true });
+          return; // Don't proceed with normal sign-in flow
+        }
+        
         if (event === 'SIGNED_IN' && session?.user) {
+          // Skip active check and navigation if in password recovery mode
+          if (isPasswordRecovery) {
+            console.log('In password recovery mode, skipping normal navigation');
+            return;
+          }
+
+          // Check if user account is active
+          const isActive = await checkUserActiveStatus(session.user.id);
+          
+          if (!isActive) {
+            console.log('User account is deactivated, signing out');
+            toast({
+              title: "Account Deactivated",
+              description: "Your account has been deactivated. Please contact your administrator.",
+              variant: "destructive",
+            });
+            await supabase.auth.signOut();
+            navigate('/auth');
+            return;
+          }
+
           // Check if there's a pending invite to process
           if (pendingInviteToken) {
             await processPendingInvite(session.user.id, pendingInviteToken);
@@ -235,7 +296,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
 
     return () => authSubscription.unsubscribe();
-  }, [pendingInviteToken, processPendingInvite, navigate]);
+  }, [pendingInviteToken, processPendingInvite, navigate, checkUserActiveStatus, toast, isPasswordRecovery]);
 
   const checkOnboardingStatus = async (userId: string | undefined) => {
     if (!userId) return;
@@ -379,6 +440,45 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return { error };
   };
 
+  const updatePassword = async (newPassword: string) => {
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword
+    });
+
+    if (error) {
+      toast({
+        title: "Password Update Failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    } else {
+      toast({
+        title: "Password Updated",
+        description: "Your password has been successfully updated.",
+      });
+      
+      // Clear recovery mode and check if user is active before redirecting
+      setIsPasswordRecovery(false);
+      
+      if (user) {
+        const isActive = await checkUserActiveStatus(user.id);
+        if (!isActive) {
+          toast({
+            title: "Account Deactivated",
+            description: "Your account has been deactivated. Please contact your administrator.",
+            variant: "destructive",
+          });
+          await supabase.auth.signOut();
+          navigate('/auth');
+        } else {
+          navigate('/dashboard');
+        }
+      }
+    }
+
+    return { error };
+  };
+
   const signInAsDemo = async () => {
     try {
       // Call secure demo-login edge function
@@ -428,6 +528,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signOut = async () => {
     await supabase.auth.signOut();
     setSubscription({ ...defaultSubscription, loading: false });
+    setIsPasswordRecovery(false);
     navigate('/auth');
     toast({
       title: "Signed Out",
@@ -441,16 +542,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       session,
       loading,
       subscription,
+      isPasswordRecovery,
       signUp,
       signUpWithInvite,
       signIn,
       signInWithMagicLink,
       resetPassword,
+      updatePassword,
       signInAsDemo,
       signOut,
       checkSubscription,
       openCustomerPortal,
       isFeatureAvailable,
+      clearPasswordRecovery,
     }}>
       {children}
     </AuthContext.Provider>
