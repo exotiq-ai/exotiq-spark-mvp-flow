@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CollapsibleSection } from "./CollapsibleSection";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
@@ -7,13 +6,14 @@ import { useNavigate } from "react-router-dom";
 import { 
   Car, 
   Clock, 
-  MapPin, 
   User,
   AlertTriangle,
   CheckCircle2,
-  Timer
+  Timer,
+  ChevronRight
 } from "lucide-react";
-import { differenceInMinutes, differenceInHours, isPast } from "date-fns";
+import { differenceInMinutes, differenceInHours, isPast, differenceInDays } from "date-fns";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface RentalWithCountdown {
   id: string;
@@ -36,13 +36,16 @@ export const VehiclesOutNow = () => {
     const calculateRentals = () => {
       const now = new Date();
       
-      // FIX: Only show vehicles currently out (start_date <= now AND status is confirmed/active)
-      // This filters to bookings where the rental has started
+      // Only show vehicles currently out (start_date <= now AND status is confirmed/active)
+      // Filter out bookings more than 48 hours overdue (should be resolved)
       const activeBookings = bookings.filter(b => {
         const startDate = new Date(b.start_date);
+        const endDate = new Date(b.end_date);
         const isActive = b.status === 'active' || b.status === 'confirmed';
-        // Vehicle is "out" if booking has started (regardless of whether it's overdue)
-        return isActive && startDate <= now;
+        const daysOverdue = differenceInDays(now, endDate);
+        
+        // Vehicle is "out" if booking has started and not more than 2 days overdue
+        return isActive && startDate <= now && daysOverdue <= 2;
       });
 
       const rentalsWithCountdown: RentalWithCountdown[] = activeBookings.map(booking => {
@@ -51,16 +54,25 @@ export const VehiclesOutNow = () => {
         
         const minutesRemaining = differenceInMinutes(returnDate, now);
         const hoursRemaining = differenceInHours(returnDate, now);
+        const daysOverdue = differenceInDays(now, returnDate);
         
         let status: 'on-time' | 'returning-soon' | 'overdue' = 'on-time';
         let timeRemaining = '';
         
         if (isPast(returnDate)) {
           status = 'overdue';
-          const overdueMins = Math.abs(minutesRemaining);
-          timeRemaining = overdueMins >= 60 
-            ? `${Math.floor(overdueMins / 60)}h ${overdueMins % 60}m late`
-            : `${overdueMins}m late`;
+          const overdueHours = Math.abs(hoursRemaining);
+          
+          // Capped overdue display for cleaner UI
+          if (daysOverdue >= 3) {
+            timeRemaining = '3+ days late';
+          } else if (daysOverdue >= 1) {
+            timeRemaining = `${daysOverdue}d late`;
+          } else if (overdueHours >= 1) {
+            timeRemaining = `${overdueHours}h late`;
+          } else {
+            timeRemaining = `${Math.abs(minutesRemaining)}m late`;
+          }
         } else if (hoursRemaining <= 2) {
           status = 'returning-soon';
           timeRemaining = minutesRemaining >= 60 
@@ -148,24 +160,33 @@ export const VehiclesOutNow = () => {
           const StatusIcon = styles.icon;
           
           return (
-            <div
-              key={rental.id}
-              className={`p-3 rounded-lg ${styles.bg} cursor-pointer hover:scale-[1.02] transition-transform`}
-              onClick={() => handleCardClick(rental.bookingId)}
-            >
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-medium truncate flex-1">{rental.vehicleName}</span>
-                <StatusIcon className={`h-3 w-3 ${styles.text} flex-shrink-0 ml-1`} />
-              </div>
-              <div className="flex items-center text-xs text-muted-foreground mb-1">
-                <User className="h-3 w-3 mr-1 flex-shrink-0" />
-                <span className="truncate">{rental.customerName}</span>
-              </div>
-              <div className={`flex items-center text-xs font-semibold ${styles.text}`}>
-                <Clock className="h-3 w-3 mr-1" />
-                {rental.timeRemaining}
-              </div>
-            </div>
+            <Tooltip key={rental.id}>
+              <TooltipTrigger asChild>
+                <div
+                  className={`p-3 rounded-lg ${styles.bg} cursor-pointer hover:scale-[1.02] transition-all group border border-transparent hover:border-primary/20`}
+                  onClick={() => handleCardClick(rental.bookingId)}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-medium truncate flex-1">{rental.vehicleName}</span>
+                    <div className="flex items-center gap-0.5 flex-shrink-0 ml-1">
+                      <StatusIcon className={`h-3 w-3 ${styles.text}`} />
+                      <ChevronRight className="h-3 w-3 text-muted-foreground/50 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
+                  </div>
+                  <div className="flex items-center text-xs text-muted-foreground mb-1">
+                    <User className="h-3 w-3 mr-1 flex-shrink-0" />
+                    <span className="truncate">{rental.customerName}</span>
+                  </div>
+                  <div className={`flex items-center text-xs font-semibold ${styles.text}`}>
+                    <Clock className="h-3 w-3 mr-1" />
+                    {rental.timeRemaining}
+                  </div>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-xs">
+                View booking details
+              </TooltipContent>
+            </Tooltip>
           );
         })}
       </div>

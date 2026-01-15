@@ -13,10 +13,7 @@ export const HappeningNow = () => {
         <TodaySnapshot />
       </div>
 
-      {/* Vehicles Out Now */}
-      <VehiclesOutNow />
-
-      {/* Two column layout */}
+      {/* Two column layout: Fleet Status + Next 4 Hours */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Fleet Status */}
         <CollapsibleSection
@@ -30,6 +27,9 @@ export const HappeningNow = () => {
         {/* Next 4 Hours */}
         <NextFourHours />
       </div>
+
+      {/* Vehicles Out Now - Moved below for better hierarchy */}
+      <VehiclesOutNow />
     </div>
   );
 };
