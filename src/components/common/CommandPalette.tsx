@@ -22,7 +22,7 @@ import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { supabase } from '@/integrations/supabase/client';
-import { exportToCSV } from '@/utils/chartExport';
+import { exportToCSV } from '@/lib/exportUtils';
 import { useToast } from '@/hooks/use-toast';
 
 interface CommandItem {
@@ -202,7 +202,9 @@ export const CommandPalette = ({ open, onOpenChange }: CommandPaletteProps) => {
     },
   ];
 
-  // Global Actions - Quick tasks and exports
+  const { toast } = useToast();
+
+  // Global Actions - Quick tasks and exports with real implementation
   const globalActions: CommandItem[] = [
     {
       id: 'export-fleet',
@@ -210,10 +212,20 @@ export const CommandPalette = ({ open, onOpenChange }: CommandPaletteProps) => {
       description: 'Download CSV of all vehicles',
       icon: <Download className="h-4 w-4 text-success" />,
       keywords: ['export', 'download', 'csv', 'fleet', 'vehicles', 'data'],
-      onSelect: () => {
+      onSelect: async () => {
         trackItemUsage('export-fleet');
-        // Trigger export logic (placeholder)
-        console.log('Exporting fleet data...');
+        try {
+          const { data, error } = await supabase.from('vehicles').select('*');
+          if (error) throw error;
+          if (data && data.length > 0) {
+            exportToCSV(data, 'fleet-data');
+            toast({ title: 'Export complete', description: `${data.length} vehicles exported` });
+          } else {
+            toast({ title: 'No data', description: 'No vehicles to export', variant: 'destructive' });
+          }
+        } catch (error) {
+          toast({ title: 'Export failed', description: 'Could not export fleet data', variant: 'destructive' });
+        }
         onOpenChange(false);
       },
       category: 'actions',
@@ -225,28 +237,23 @@ export const CommandPalette = ({ open, onOpenChange }: CommandPaletteProps) => {
       description: 'Download booking history',
       icon: <Download className="h-4 w-4 text-primary" />,
       keywords: ['export', 'download', 'bookings', 'reservations', 'history'],
-      onSelect: () => {
+      onSelect: async () => {
         trackItemUsage('export-bookings');
-        // Trigger export logic (placeholder)
-        console.log('Exporting bookings...');
+        try {
+          const { data, error } = await supabase.from('bookings').select('*');
+          if (error) throw error;
+          if (data && data.length > 0) {
+            exportToCSV(data, 'bookings-export');
+            toast({ title: 'Export complete', description: `${data.length} bookings exported` });
+          } else {
+            toast({ title: 'No data', description: 'No bookings to export', variant: 'destructive' });
+          }
+        } catch (error) {
+          toast({ title: 'Export failed', description: 'Could not export bookings', variant: 'destructive' });
+        }
         onOpenChange(false);
       },
       category: 'actions',
-    },
-    {
-      id: 'quick-task',
-      title: 'Quick Task',
-      description: 'Create a quick task reminder',
-      icon: <Zap className="h-4 w-4 text-warning" />,
-      keywords: ['task', 'reminder', 'todo', 'quick', 'note'],
-      onSelect: () => {
-        trackItemUsage('quick-task');
-        // Open quick task dialog (placeholder)
-        console.log('Opening quick task...');
-        onOpenChange(false);
-      },
-      category: 'actions',
-      badge: '⇧⌘T',
     },
   ];
 
