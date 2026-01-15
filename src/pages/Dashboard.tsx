@@ -31,6 +31,7 @@ import { PulseEnhanced } from "@/components/dashboard/PulseEnhanced";
 import { BookEnhanced } from "@/components/dashboard/BookEnhanced";
 import { VaultEnhanced } from "@/components/dashboard/VaultEnhanced";
 import { CoreEnhanced } from "@/components/dashboard/CoreEnhanced";
+import { FleetPageEnhanced } from "@/components/fleet/FleetPageEnhanced";
 import { DashboardOverviewEnhanced } from "@/components/dashboard/DashboardOverviewEnhanced";
 import { DashboardSidebarEnhanced } from "@/components/dashboard/DashboardSidebarEnhanced";
 import { SettingsLayout } from "@/components/dashboard/settings/SettingsLayout";
@@ -172,6 +173,9 @@ const Dashboard = () => {
         break;
       case "core":
         content = <CoreEnhanced />;
+        break;
+      case "fleet":
+        content = <FleetPageEnhanced />;
         break;
       case "settings":
         content = <SettingsLayout />;
