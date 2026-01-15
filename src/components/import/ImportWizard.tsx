@@ -120,9 +120,12 @@ export function ImportWizard({ open, onOpenChange, onComplete }: ImportWizardPro
       
       for (let i = 0; i < totalBatches; i++) {
         const batch = rows.slice(i * batchSize, (i + 1) * batchSize);
+        const recordsToInsert = batch.map(row => ({ ...row, user_id: user.id }));
+        
+        // Use type assertion since entity type is dynamic at runtime
         const { data, error } = await supabase
           .from(selectedEntity)
-          .insert(batch.map(row => ({ ...row, user_id: user.id })))
+          .insert(recordsToInsert as any)
           .select();
         
         if (error) { failed += batch.length; } 
