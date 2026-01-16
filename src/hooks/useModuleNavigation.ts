@@ -1,5 +1,10 @@
 import { useSearchParams } from 'react-router-dom';
 
+// Helper to scroll to top of page smoothly
+const scrollToTop = () => {
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
 export const useModuleNavigation = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -9,6 +14,7 @@ export const useModuleNavigation = () => {
       view: 'crm', 
       customerId 
     });
+    scrollToTop();
   };
 
   const goToBookingDetails = (bookingId: string) => {
@@ -16,6 +22,7 @@ export const useModuleNavigation = () => {
       module: 'book', 
       bookingId 
     });
+    scrollToTop();
   };
 
   const goToVehicleDetails = (vehicleId: string) => {
@@ -23,6 +30,7 @@ export const useModuleNavigation = () => {
       module: 'core', 
       vehicleId 
     });
+    scrollToTop();
   };
 
   const goToDamageReport = (damageClaimId: string) => {
@@ -31,6 +39,7 @@ export const useModuleNavigation = () => {
       view: 'damage', 
       damageClaimId 
     });
+    scrollToTop();
   };
 
   const goToInspection = (inspectionId: string) => {
@@ -39,6 +48,7 @@ export const useModuleNavigation = () => {
       view: 'inspections', 
       inspectionId 
     });
+    scrollToTop();
   };
 
   const goToPayments = (bookingId?: string) => {
@@ -47,6 +57,7 @@ export const useModuleNavigation = () => {
       view: 'payments',
       ...(bookingId && { bookingId })
     });
+    scrollToTop();
   };
 
   const goToCustomerBookings = (customerId: string) => {
@@ -54,6 +65,7 @@ export const useModuleNavigation = () => {
       module: 'book', 
       customerId 
     });
+    scrollToTop();
   };
 
   const getCurrentModule = () => searchParams.get('module') || 'core';
