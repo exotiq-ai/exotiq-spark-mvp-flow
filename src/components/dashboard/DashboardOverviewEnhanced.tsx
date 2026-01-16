@@ -18,6 +18,7 @@ import { GenerateReportDialog } from "@/components/dialogs/GenerateReportDialog"
 import { ScheduleMaintenanceDialog } from "@/components/dialogs/ScheduleMaintenanceDialog";
 import { RecordPaymentDialog } from "@/components/dialogs/RecordPaymentDialog";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
+import { useFleetAIInsight } from "@/hooks/useFleetAIInsight";
 import { LocationContextBanner } from "@/components/common/LocationBadge";
 import { DemoOnboarding } from "@/components/demo/DemoOnboarding";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
@@ -92,6 +93,9 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
       ? Math.round(vehicles.reduce((acc, v) => acc + (v.current_rate || 0), 0) / vehicles.length) 
       : 0;
   }, [vehicles]);
+
+  // Get AI insight recommendation based on real fleet data
+  const aiInsight = useFleetAIInsight(vehicles, bookings);
 
   const firstBooking = bookings[0];
 
@@ -191,15 +195,17 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
             <RevenueWidget />
           </div>
 
-          {/* Compact AI Insight Banner */}
-          <CompactAIInsightBanner
-            vehicleName={vehicles[0]?.name || "your vehicle"}
-            suggestedIncrease={15}
-            potentialRevenue={vehicles.length > 0 ? Math.round((vehicles[0]?.current_rate || 0) * 0.15 * 30) : 0}
-            onApply={() => setShowOptimizationDialog(true)}
-            onViewAnalysis={() => onModuleClick('motoriq')}
-            hasFleetData={vehicles.length > 0}
-          />
+          {/* Compact AI Insight Banner - only shows if there's a real recommendation */}
+          {aiInsight && (
+            <CompactAIInsightBanner
+              vehicleName={aiInsight.vehicleName}
+              suggestedIncrease={aiInsight.suggestedIncreasePercent}
+              potentialRevenue={aiInsight.potentialMonthlyRevenue}
+              onApply={() => setShowOptimizationDialog(true)}
+              onViewAnalysis={() => onModuleClick('motoriq')}
+              hasFleetData={vehicles.length > 0}
+            />
+          )}
 
           {/* Fleet Status & Schedule - Collapsible */}
           <div className="space-y-3">
