@@ -12,8 +12,14 @@ interface AuthRedirectState {
  * Clears URL parameters after processing to prevent re-processing on refresh
  */
 export const useAuthRedirect = () => {
+  const initialHasAuthParams =
+    window.location.hash.includes('access_token') ||
+    window.location.hash.includes('error=') ||
+    window.location.search.includes('code=') ||
+    window.location.search.includes('error=');
+
   const [state, setState] = useState<AuthRedirectState>({
-    isProcessing: false,
+    isProcessing: initialHasAuthParams,
     error: null,
   });
   const location = useLocation();
@@ -29,7 +35,9 @@ export const useAuthRedirect = () => {
     const hasError = hash.includes('error=') || search.includes('error=');
     
     if (!hasAccessToken && !hasAuthCode && !hasError) {
-      return; // No auth redirect to process
+      // No auth redirect to process (important: clear any stale "processing" state)
+      setState({ isProcessing: false, error: null });
+      return;
     }
 
     console.log('[AuthRedirect] Processing auth callback...', { hasAccessToken, hasAuthCode, hasError });
