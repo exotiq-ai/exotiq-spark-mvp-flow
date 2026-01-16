@@ -4,6 +4,8 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { DemoProvider, useDemo } from "@/contexts/DemoContext";
 import { DemoBanner } from "@/components/demo/DemoBanner";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTeam } from "@/contexts/TeamContext";
+import { useFleet } from "@/contexts/FleetContext";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import Dashboard from "./Dashboard";
 
@@ -12,6 +14,8 @@ const DemoContent = () => {
   const [searchParams] = useSearchParams();
   const { setPersona } = useDemo();
   const { signInAsDemo, user } = useAuth();
+  const { loading: teamLoading } = useTeam();
+  const { loading: fleetLoading } = useFleet();
   const [isAuthenticating, setIsAuthenticating] = useState(false);
 
   useEffect(() => {
@@ -40,7 +44,8 @@ const DemoContent = () => {
     authenticateDemo();
   }, [user, isAuthenticating, signInAsDemo, navigate]);
 
-  if (isAuthenticating || !user) {
+  // Wait for auth, team context, and fleet context to all be ready
+  if (isAuthenticating || !user || teamLoading || fleetLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <LoadingSpinner />
