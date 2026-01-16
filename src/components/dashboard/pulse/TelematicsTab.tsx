@@ -1,13 +1,11 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { DriverPerformanceTrend } from "@/components/charts/DriverPerformanceTrend";
 import { useDemo } from "@/contexts/DemoContext";
 import { 
   User,
   Gauge,
-  Plug,
-  ExternalLink
+  Plug
 } from "lucide-react";
 
 // Demo data for showcase purposes
@@ -75,39 +73,37 @@ const getScoreColor = (score: number) => {
 };
 
 export const TelematicsTab = () => {
-  // Check if demo account
-  let isDemo = false;
-  try {
-    const { demoState } = useDemo();
-    isDemo = demoState.isDemo;
-  } catch {
-    isDemo = false;
-  }
+  // Check if demo account - use hook at top level
+  const demoContext = useDemo();
+  const isDemo = demoContext?.demoState?.isDemo ?? false;
 
   if (!isDemo) {
     return (
-      <Card className="p-8 text-center">
-        <div className="p-4 rounded-full bg-muted/50 w-fit mx-auto mb-4">
-          <Plug className="h-8 w-8 text-muted-foreground" />
+      <Card className="p-8 text-center border-2 border-dashed border-muted-foreground/20">
+        <div className="p-4 rounded-full bg-primary/10 w-fit mx-auto mb-4">
+          <Gauge className="h-8 w-8 text-primary" />
         </div>
-        <h3 className="text-lg font-semibold mb-2">Connect Telematics Provider</h3>
-        <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
-          Integrate with your telematics provider to see real-time driver behavior, safety scores, and vehicle tracking.
+        <h3 className="text-lg font-semibold mb-2">Telematics Integration</h3>
+        <p className="text-sm text-muted-foreground mb-4 max-w-md mx-auto">
+          Connect your telematics provider to see real-time driver behavior, safety scores, and live vehicle tracking.
         </p>
-        <div className="flex flex-wrap gap-3 justify-center">
-          <Button variant="outline" disabled>
-            <ExternalLink className="h-4 w-4 mr-2" />
-            Zubie (Coming Soon)
-          </Button>
-          <Button variant="outline" disabled>
-            <ExternalLink className="h-4 w-4 mr-2" />
-            Bouncie (Coming Soon)
-          </Button>
-          <Button variant="outline" disabled>
-            <ExternalLink className="h-4 w-4 mr-2" />
-            Samsara (Coming Soon)
-          </Button>
+        <div className="flex flex-wrap gap-3 justify-center mb-4">
+          <Badge variant="secondary" className="text-xs">
+            <Plug className="h-3 w-3 mr-1" />
+            Zubie
+          </Badge>
+          <Badge variant="secondary" className="text-xs">
+            <Plug className="h-3 w-3 mr-1" />
+            Bouncie
+          </Badge>
+          <Badge variant="secondary" className="text-xs">
+            <Plug className="h-3 w-3 mr-1" />
+            Samsara
+          </Badge>
         </div>
+        <Badge variant="outline" className="text-xs text-muted-foreground">
+          Coming Soon
+        </Badge>
       </Card>
     );
   }

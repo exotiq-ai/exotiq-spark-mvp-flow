@@ -1,22 +1,30 @@
-import { Navigate, useLocation } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { LoadingSpinner } from './LoadingSpinner';
+import { useAuthRedirect, hasAuthRedirectParams } from '@/components/auth/AuthRedirectHandler';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
 }
 
 export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
-  const { user, loading } = useAuth();
-  const location = useLocation();
+  const { user, loading, isPasswordRecovery } = useAuth();
+  const { isProcessing: authRedirectProcessing, error: authError } = useAuthRedirect();
 
-  // Detect auth redirect state (magic link, password recovery) and avoid premature redirects
-  const isAuthRedirect = Boolean(
-    (location && (location.hash?.includes('access_token') || location.search?.includes('code=')))
-  );
+  // Check if we have auth params in URL that need processing
+  const hasAuthParams = hasAuthRedirectParams();
 
-  if (loading || isAuthRedirect) {
+  // Show loading while:
+  // 1. Auth context is initializing
+  // 2. Auth redirect is being processed
+  // 3. We have auth params that haven't been processed yet
+  if (loading || authRedirectProcessing || (hasAuthParams && !authError)) {
     return <LoadingSpinner fullScreen text="Signing you in..." />;
+  }
+
+  // If password recovery is in progress, allow access (user will be redirected to update password)
+  if (isPasswordRecovery) {
+    return <>{children}</>;
   }
 
   if (!user) {
