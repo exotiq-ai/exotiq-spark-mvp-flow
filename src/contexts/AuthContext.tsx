@@ -241,7 +241,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.log('Auth event:', event);
         setSession(session);
         setUser(session?.user ?? null);
-        
+        // Never let the app get stuck in an "initializing" state
+        setLoading(false);
+
         // Handle PASSWORD_RECOVERY event - user clicked reset link
         if (event === 'PASSWORD_RECOVERY') {
           console.log('Password recovery event detected');
@@ -250,7 +252,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           navigate('/auth?mode=update-password', { replace: true });
           return; // Don't proceed with normal sign-in flow
         }
-        
+
         if (event === 'SIGNED_IN' && session?.user) {
           // Skip active check and navigation if in password recovery mode
           if (isPasswordRecovery) {
@@ -260,7 +262,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
           // Check if user account is active
           const isActive = await checkUserActiveStatus(session.user.id);
-          
+
           if (!isActive) {
             console.log('User account is deactivated, signing out');
             toast({
@@ -288,12 +290,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     );
 
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    // Check for existing session (make sure failures can't keep `loading=true` forever)
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        setSession(session);
+        setUser(session?.user ?? null);
+      } catch (err) {
+        console.error('Error getting session:', err);
+      } finally {
+        setLoading(false);
+      }
+    })();
 
     return () => authSubscription.unsubscribe();
   }, [pendingInviteToken, processPendingInvite, navigate, checkUserActiveStatus, toast, isPasswordRecovery]);
