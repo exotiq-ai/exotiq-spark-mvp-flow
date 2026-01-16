@@ -70,8 +70,9 @@ const FleetContext = createContext<FleetContextType | undefined>(undefined);
 export const FleetProvider = ({ children }: { children: ReactNode }) => {
   const { toast } = useToast();
   const { user } = useAuth();
-  const { currentTeam, selectedLocationId } = useTeam();
+  const { currentTeam, selectedLocationId, loading: teamLoading } = useTeam();
   const [loading, setLoading] = useState(true);
+  const refreshInProgressRef = useRef(false);
   
   const [revenue, setRevenue] = useState({
     today: 0,
@@ -94,12 +95,16 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
   const getTeamId = useCallback(() => currentTeam?.id, [currentTeam]);
   const getUserId = useCallback(() => user?.id, [user]);
 
-  const refreshData = async () => {
+  const refreshData = useCallback(async () => {
+    // Prevent concurrent refreshes (race condition guard)
+    if (refreshInProgressRef.current) return;
+    
     if (!user) {
       setLoading(false);
       return;
     }
     
+    refreshInProgressRef.current = true;
     setLoading(true);
     try {
       const teamId = getTeamId();
@@ -253,13 +258,15 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       });
     } finally {
       setLoading(false);
+      refreshInProgressRef.current = false;
     }
-  };
+  }, [user, currentTeam?.id, getTeamId, getUserId, toast]);
 
-  // Refresh when user or team changes
+  // Refresh when user or team changes - wait for team context to finish loading first
   useEffect(() => {
+    if (teamLoading) return; // Don't fetch until TeamContext is ready
     refreshData();
-  }, [user, currentTeam?.id]);
+  }, [user, currentTeam?.id, teamLoading, refreshData]);
 
   const applyPriceOptimization = async (vehicleId: string, newRate: number) => {
     if (!user) return;
