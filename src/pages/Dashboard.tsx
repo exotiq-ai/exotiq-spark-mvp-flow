@@ -64,6 +64,24 @@ const Dashboard = () => {
   const { conversations } = useTeamMessaging();
   const { refreshTeam } = useTeam();
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Always start at dashboard module on new browser session
+  useEffect(() => {
+    const isInitialLoad = !sessionStorage.getItem('dashboard_initialized');
+    if (isInitialLoad) {
+      setActiveModule('dashboard');
+      sessionStorage.setItem('dashboard_initialized', 'true');
+    }
+  }, []);
+
+  // Clean up session flag on browser/tab close
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      sessionStorage.removeItem('dashboard_initialized');
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
   
   // Get user ID for welcome video
   const [userId, setUserId] = useState<string | null>(null);
@@ -104,6 +122,10 @@ const Dashboard = () => {
     }
     track('module_switch', { from: activeModule, to: moduleId });
     setActiveModule(moduleId);
+    
+    // Scroll to top of page smoothly
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    containerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const moduleNames: Record<string, string> = {
