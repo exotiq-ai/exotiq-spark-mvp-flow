@@ -113,6 +113,9 @@ const Dashboard = () => {
     };
   }, [page]);
 
+  // Module transition state for loading feedback
+  const [isModuleTransitioning, setIsModuleTransitioning] = useState(false);
+  
   // Handle module change - special case for messages opens chat instead
   const handleModuleChange = (moduleId: string) => {
     if (moduleId === 'messages') {
@@ -120,12 +123,18 @@ const Dashboard = () => {
       setChatMinimized(false);
       return;
     }
+    
+    // Show brief loading transition
+    setIsModuleTransitioning(true);
     track('module_switch', { from: activeModule, to: moduleId });
     setActiveModule(moduleId);
     
     // Scroll to top of page smoothly
     window.scrollTo({ top: 0, behavior: 'smooth' });
     containerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    
+    // Clear transition state after brief delay
+    setTimeout(() => setIsModuleTransitioning(false), 200);
   };
 
   const moduleNames: Record<string, string> = {
@@ -211,18 +220,35 @@ const Dashboard = () => {
     }
 
     return (
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={activeModule}
-          initial="initial"
-          animate="in"
-          exit="out"
-          variants={pageVariants}
-          transition={pageTransition}
-        >
-          {content}
-        </motion.div>
-      </AnimatePresence>
+      <div className="relative">
+        {/* Subtle loading overlay during module transition */}
+        <AnimatePresence>
+          {isModuleTransitioning && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.1 }}
+              className="absolute inset-0 bg-background/50 z-10 flex items-center justify-center"
+            >
+              <div className="h-6 w-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            </motion.div>
+          )}
+        </AnimatePresence>
+        
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeModule}
+            initial="initial"
+            animate="in"
+            exit="out"
+            variants={pageVariants}
+            transition={pageTransition}
+          >
+            {content}
+          </motion.div>
+        </AnimatePresence>
+      </div>
     );
   };
 

@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -106,26 +105,33 @@ const getPersonalizedSteps = (profile: UserProfile | null): TooltipStep[] => {
   ];
 };
 
+interface ProfileWithTour extends UserProfile {
+  tour_completed: boolean | null;
+}
+
 export const DashboardOnboarding = () => {
   const { user } = useAuth();
-  // Use user-specific key for onboarding state so each user gets their own tour
-  const storageKey = user?.id ? `dashboard-onboarding-complete-${user.id}` : 'dashboard-onboarding-complete';
-  const [onboardingComplete, setOnboardingComplete] = useLocalStorage(storageKey, false);
   const [currentStep, setCurrentStep] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [profile, setProfile] = useState<ProfileWithTour | null>(null);
+  const [tourCompleted, setTourCompleted] = useState<boolean | null>(null); // null = loading
   const { toast } = useToast();
 
-  // Fetch user profile for personalization
+  // Fetch user profile for personalization AND tour completion status from DB
   useEffect(() => {
     const fetchProfile = async () => {
       if (!user?.id) return;
       const { data } = await supabase
         .from('profiles')
-        .select('full_name, company_name, fleet_size, business_type')
+        .select('full_name, company_name, fleet_size, business_type, tour_completed')
         .eq('id', user.id)
         .single();
-      if (data) setProfile(data);
+      if (data) {
+        setProfile(data);
+        setTourCompleted(data.tour_completed ?? false);
+      } else {
+        setTourCompleted(false); // No profile = show tour
+      }
     };
     fetchProfile();
   }, [user?.id]);
@@ -134,12 +140,12 @@ export const DashboardOnboarding = () => {
   const onboardingSteps = useMemo(() => getPersonalizedSteps(profile), [profile]);
 
   useEffect(() => {
-    // Show onboarding after a short delay if not completed
-    if (!onboardingComplete) {
+    // Show onboarding after a short delay if not completed (check DB status)
+    if (tourCompleted === false) {
       const timer = setTimeout(() => setIsVisible(true), 1000);
       return () => clearTimeout(timer);
     }
-  }, [onboardingComplete]);
+  }, [tourCompleted]);
 
   const currentStepData = onboardingSteps[currentStep];
   const Icon = currentStepData.icon;
@@ -165,7 +171,7 @@ export const DashboardOnboarding = () => {
     handleComplete();
   };
 
-  const handleComplete = () => {
+  const handleComplete = async () => {
     // Haptic feedback for mobile devices
     if ('vibrate' in navigator) {
       navigator.vibrate([50, 30, 50]); // Pattern: vibrate, pause, vibrate
@@ -206,12 +212,24 @@ export const DashboardOnboarding = () => {
       duration: 4000,
     });
 
+    // Persist tour completion to database
+    if (user?.id) {
+      await supabase
+        .from('profiles')
+        .update({ tour_completed: true })
+        .eq('id', user.id);
+    }
+
     // Mark onboarding as complete and hide
-    setOnboardingComplete(true);
+    setTourCompleted(true);
     setIsVisible(false);
   };
 
-  if (!isVisible || onboardingComplete) return null;
+  // Still loading tour status from DB
+  if (tourCompleted === null) return null;
+  
+  // Tour already completed or not visible
+  if (tourCompleted || !isVisible) return null;
 
   return (
     <AnimatePresence>
