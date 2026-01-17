@@ -1,12 +1,10 @@
-
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { DemoProvider, useDemo } from "@/contexts/DemoContext";
 import { DemoBanner } from "@/components/demo/DemoBanner";
 import { useAuth } from "@/contexts/AuthContext";
-import { useTeam } from "@/contexts/TeamContext";
-import { useFleet } from "@/contexts/FleetContext";
-import { LoadingSpinner } from "@/components/common/LoadingSpinner";
+import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
 import Dashboard from "./Dashboard";
 
 const DemoContent = () => {
@@ -14,10 +12,10 @@ const DemoContent = () => {
   const [searchParams] = useSearchParams();
   const { setPersona } = useDemo();
   const { signInAsDemo, user } = useAuth();
-  const { loading: teamLoading } = useTeam();
-  const { loading: fleetLoading } = useFleet();
-  const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const [isReady, setIsReady] = useState(false);
+  const [hasAttemptedLogin, setHasAttemptedLogin] = useState(false);
 
+  // Set persona from URL params
   useEffect(() => {
     const persona = searchParams.get('persona');
     if (persona) {
@@ -25,30 +23,56 @@ const DemoContent = () => {
     }
   }, [searchParams, setPersona]);
 
+  // Auto-login to demo account
   useEffect(() => {
-    // Auto-login to demo account if not authenticated
     const authenticateDemo = async () => {
-      if (!user && !isAuthenticating) {
-        setIsAuthenticating(true);
-        try {
-          await signInAsDemo();
-        } catch (error) {
-          console.error('Demo authentication failed:', error);
-          navigate('/auth');
-        } finally {
-          setIsAuthenticating(false);
-        }
+      if (hasAttemptedLogin) return;
+      
+      // If already logged in as demo user, we're ready
+      if (user?.email?.toLowerCase() === 'hello@exotiq.ai') {
+        setIsReady(true);
+        return;
+      }
+      
+      // If logged in as different user, show notice and switch
+      if (user) {
+        toast.info("Switching to Demo Mode", {
+          description: "You'll be logged out of your account temporarily."
+        });
+      }
+      
+      setHasAttemptedLogin(true);
+      
+      try {
+        await signInAsDemo();
+        // Give a small delay for contexts to initialize
+        setTimeout(() => setIsReady(true), 500);
+      } catch (error) {
+        console.error('Demo authentication failed:', error);
+        navigate('/auth');
       }
     };
 
     authenticateDemo();
-  }, [user, isAuthenticating, signInAsDemo, navigate]);
+  }, [user, hasAttemptedLogin, signInAsDemo, navigate]);
 
-  // Wait for auth, team context, and fleet context to all be ready
-  if (isAuthenticating || !user || teamLoading || fleetLoading) {
+  // Show skeleton while loading (not blank spinner)
+  if (!isReady) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <LoadingSpinner />
+      <div className="min-h-screen bg-background">
+        <div className="fixed top-0 left-0 right-0 z-50 bg-primary h-16" />
+        <div className="pt-20 p-6 space-y-6">
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-10 w-64" />
+            <Skeleton className="h-10 w-32" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Skeleton className="h-32 rounded-lg" />
+            <Skeleton className="h-32 rounded-lg" />
+            <Skeleton className="h-32 rounded-lg" />
+          </div>
+          <Skeleton className="h-64 rounded-lg" />
+        </div>
       </div>
     );
   }
