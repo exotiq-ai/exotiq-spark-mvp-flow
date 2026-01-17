@@ -297,6 +297,8 @@ export default function Auth() {
 
     try {
       await signInAsDemo();
+      // CRITICAL: Navigate directly to /demo for deterministic demo flow
+      navigate('/demo', { replace: true });
     } catch (err) {
       setError("Failed to start demo mode. Please try again.");
       console.error("Demo mode error:", err);

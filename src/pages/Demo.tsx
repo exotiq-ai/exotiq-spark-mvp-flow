@@ -15,6 +15,7 @@ const DemoContent = () => {
   const { signInAsDemo, user, loading: authLoading } = useAuth();
   const [isReady, setIsReady] = useState(false);
   const attemptedRef = useRef(false);
+  const mountedRef = useRef(true);
 
   // Set persona from URL params
   useEffect(() => {
@@ -24,13 +25,32 @@ const DemoContent = () => {
     }
   }, [searchParams, setPersona]);
 
+  // Cleanup on unmount
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
   // Auto-login to demo account - runs once
   useEffect(() => {
     // Wait for auth to finish loading before doing anything
-    if (authLoading) return;
+    if (authLoading) {
+      console.log('[Demo] Waiting for auth to finish loading...');
+      return;
+    }
     
     // Prevent multiple attempts
-    if (attemptedRef.current) return;
+    if (attemptedRef.current) {
+      console.log('[Demo] Already attempted login, checking status...');
+      // If we already attempted and user is demo user, we're ready
+      if (user?.email?.toLowerCase() === DEMO_EMAIL.toLowerCase()) {
+        console.log('[Demo] Already logged in as demo user, setting ready');
+        setIsReady(true);
+      }
+      return;
+    }
 
     const authenticateDemo = async () => {
       // If already logged in as demo user, we're ready immediately
@@ -49,10 +69,17 @@ const DemoContent = () => {
         await signInAsDemo();
         console.log('[Demo] Demo login successful');
         // Give contexts time to hydrate with new session
-        setTimeout(() => setIsReady(true), 300);
+        setTimeout(() => {
+          if (mountedRef.current) {
+            console.log('[Demo] Setting ready state');
+            setIsReady(true);
+          }
+        }, 500);
       } catch (error) {
         console.error('[Demo] Demo authentication failed:', error);
-        navigate('/auth', { replace: true });
+        if (mountedRef.current) {
+          navigate('/auth', { replace: true });
+        }
       }
     };
 

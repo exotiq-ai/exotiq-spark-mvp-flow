@@ -67,7 +67,10 @@ export const TeamProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [selectedLocationId, setSelectedLocationId] = useState<string | 'all'>('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const fetchInProgressRef = useRef(false);
+  
+  // Use request token pattern instead of boolean guard to handle race conditions
+  const fetchSeqRef = useRef(0);
+  const lastUserIdRef = useRef<string | null>(null);
 
   // Derived values
   const isOwner = userRole === 'owner';
@@ -95,10 +98,31 @@ export const TeamProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem(LOCATION_STORAGE_KEY, locationId);
   }, []);
 
-  // Fetch team data
+  // CRITICAL: Reset state immediately when user changes to prevent stale data
+  useEffect(() => {
+    if (user?.id !== lastUserIdRef.current) {
+      console.log('[TeamContext] User changed:', lastUserIdRef.current, '->', user?.id);
+      lastUserIdRef.current = user?.id || null;
+      
+      // Clear demo-specific localStorage when switching users
+      localStorage.removeItem(LOCATION_STORAGE_KEY);
+      
+      // Immediately reset all state to prevent showing old user's data
+      setCurrentTeam(null);
+      setLocations([]);
+      setAssignedLocationIds([]);
+      setUserRole(null);
+      setSelectedLocationId('all');
+      setLoading(true);
+      setError(null);
+    }
+  }, [user?.id]);
+
+  // Fetch team data with request token pattern
   const fetchTeamData = useCallback(async () => {
-    // Prevent concurrent fetches (race condition guard)
-    if (fetchInProgressRef.current) return;
+    // Increment sequence to mark this as the "latest" request
+    const seq = ++fetchSeqRef.current;
+    console.log('[TeamContext] Fetch started, seq:', seq, 'userId:', user?.id);
     
     if (!user?.id) {
       setCurrentTeam(null);
@@ -108,8 +132,6 @@ export const TeamProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(false);
       return;
     }
-
-    fetchInProgressRef.current = true;
     try {
       setLoading(true);
       setError(null);
@@ -122,9 +144,15 @@ export const TeamProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .eq('is_active', true)
         .single();
 
+      // Check if this request is still the latest (race condition guard)
+      if (seq !== fetchSeqRef.current) {
+        console.log('[TeamContext] Stale fetch abandoned, seq:', seq, 'current:', fetchSeqRef.current);
+        return;
+      }
+
       if (teamMemberError) {
         // User might not have a team yet
-        console.log('No team membership found:', teamMemberError.message);
+        console.log('[TeamContext] No team membership found:', teamMemberError.message);
         setLoading(false);
         return;
       }
@@ -139,8 +167,15 @@ export const TeamProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .eq('is_deleted', false)
         .single();
 
+      // Check if still latest request
+      if (seq !== fetchSeqRef.current) {
+        console.log('[TeamContext] Stale fetch abandoned after team query');
+        return;
+      }
+
       if (teamError) throw teamError;
       setCurrentTeam(team);
+      console.log('[TeamContext] Team loaded:', team.name, team.id);
 
       // Fetch all locations for this team
       const { data: teamLocations, error: locationsError } = await supabase
@@ -152,6 +187,13 @@ export const TeamProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .order('name');
 
       if (locationsError) throw locationsError;
+      
+      // Check if still latest request
+      if (seq !== fetchSeqRef.current) {
+        console.log('[TeamContext] Stale fetch abandoned after locations query');
+        return;
+      }
+      
       setLocations(teamLocations || []);
 
       // Fetch user's assigned locations (for non-admin/owner users)
@@ -161,6 +203,13 @@ export const TeamProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .eq('user_id', user.id);
 
       if (staffError) throw staffError;
+      
+      // Final staleness check before setting all remaining state
+      if (seq !== fetchSeqRef.current) {
+        console.log('[TeamContext] Stale fetch abandoned at final step');
+        return;
+      }
+      
       setAssignedLocationIds((staffLocations || []).map(s => s.location_id));
 
       // Restore selected location from localStorage
@@ -183,13 +232,22 @@ export const TeamProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setSelectedLocationId('all');
         }
       }
+      
+      console.log('[TeamContext] Fetch complete, seq:', seq, 'team:', team.name);
 
     } catch (err) {
-      console.error('Error fetching team data:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch team data');
-    } finally {
+      // Only set error if this is still the latest request
+      if (seq === fetchSeqRef.current) {
+        console.error('[TeamContext] Error fetching team data:', err);
+        setError(err instanceof Error ? err.message : 'Failed to fetch team data');
+        setLoading(false);
+      }
+      return;
+    }
+    
+    // Only update loading state if this is still the latest request
+    if (seq === fetchSeqRef.current) {
       setLoading(false);
-      fetchInProgressRef.current = false;
     }
   }, [user?.id]);
 

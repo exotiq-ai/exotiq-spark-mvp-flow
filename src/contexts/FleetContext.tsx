@@ -72,7 +72,11 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
   const { currentTeam, selectedLocationId, loading: teamLoading } = useTeam();
   const [loading, setLoading] = useState(true);
-  const refreshInProgressRef = useRef(false);
+  
+  // Use request token pattern instead of boolean guard to handle race conditions
+  const refreshSeqRef = useRef(0);
+  const lastUserIdRef = useRef<string | null>(null);
+  const lastTeamIdRef = useRef<string | null>(null);
   
   const [revenue, setRevenue] = useState({
     today: 0,
@@ -95,16 +99,45 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
   const getTeamId = useCallback(() => currentTeam?.id, [currentTeam]);
   const getUserId = useCallback(() => user?.id, [user]);
 
+  // CRITICAL: Reset state immediately when user or team changes to prevent stale data
+  useEffect(() => {
+    const userChanged = user?.id !== lastUserIdRef.current;
+    const teamChanged = currentTeam?.id !== lastTeamIdRef.current;
+    
+    if (userChanged || teamChanged) {
+      console.log('[FleetContext] User/Team changed:', 
+        'user:', lastUserIdRef.current, '->', user?.id,
+        'team:', lastTeamIdRef.current, '->', currentTeam?.id
+      );
+      lastUserIdRef.current = user?.id || null;
+      lastTeamIdRef.current = currentTeam?.id || null;
+      
+      // Immediately reset all data arrays to prevent showing old user's data
+      setVehicles([]);
+      setBookings([]);
+      setDocuments([]);
+      setMaintenance([]);
+      setMessages([]);
+      setCustomers([]);
+      setCustomerNotes([]);
+      setInspections([]);
+      setDamageClaims([]);
+      setPayments([]);
+      setRevenue({ today: 0, month: 0, change: 0 });
+      setLoading(true);
+    }
+  }, [user?.id, currentTeam?.id]);
+
   const refreshData = useCallback(async () => {
-    // Prevent concurrent refreshes (race condition guard)
-    if (refreshInProgressRef.current) return;
+    // Increment sequence to mark this as the "latest" request
+    const seq = ++refreshSeqRef.current;
+    console.log('[FleetContext] Refresh started, seq:', seq, 'userId:', user?.id, 'teamId:', currentTeam?.id);
     
     if (!user) {
       setLoading(false);
       return;
     }
     
-    refreshInProgressRef.current = true;
     setLoading(true);
     try {
       const teamId = getTeamId();
@@ -118,8 +151,13 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
         vehicleQuery = vehicleQuery.eq('user_id', userId!);
       }
       const { data: vehiclesData, error: vehiclesError } = await vehicleQuery.order('created_at', { ascending: false });
-
       if (vehiclesError) throw vehiclesError;
+      
+      // Check if this request is still the latest (race condition guard)
+      if (seq !== refreshSeqRef.current) {
+        console.log('[FleetContext] Stale refresh abandoned after vehicles query');
+        return;
+      }
       setVehicles(vehiclesData || []);
 
       // Build bookings query
@@ -130,8 +168,8 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
         bookingsQuery = bookingsQuery.eq('user_id', userId!);
       }
       const { data: bookingsData, error: bookingsError } = await bookingsQuery.order('created_at', { ascending: false });
-
       if (bookingsError) throw bookingsError;
+      if (seq !== refreshSeqRef.current) return;
       setBookings(bookingsData || []);
 
       // Build documents query
@@ -142,8 +180,8 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
         documentsQuery = documentsQuery.eq('user_id', userId!);
       }
       const { data: documentsData, error: documentsError } = await documentsQuery.order('created_at', { ascending: false });
-
       if (documentsError) throw documentsError;
+      if (seq !== refreshSeqRef.current) return;
       setDocuments(documentsData || []);
 
       // Build maintenance query
@@ -154,8 +192,8 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
         maintenanceQuery = maintenanceQuery.eq('user_id', userId!);
       }
       const { data: maintenanceData, error: maintenanceError } = await maintenanceQuery.order('scheduled_date', { ascending: true });
-
       if (maintenanceError) throw maintenanceError;
+      if (seq !== refreshSeqRef.current) return;
       setMaintenance(maintenanceData || []);
 
       // Build messages query (user-specific, not team-wide)
@@ -164,8 +202,8 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
         .select('*')
         .eq('user_id', userId!)
         .order('created_at', { ascending: false });
-
       if (messagesError) throw messagesError;
+      if (seq !== refreshSeqRef.current) return;
       setMessages(messagesData || []);
 
       // Build customers query
@@ -176,12 +214,11 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
         customersQuery = customersQuery.eq('user_id', userId!);
       }
       const { data: customersData, error: customersError } = await customersQuery.order('created_at', { ascending: false });
-
       if (customersError) throw customersError;
+      if (seq !== refreshSeqRef.current) return;
       setCustomers(customersData || []);
 
       // Build customer notes query - team-based via customer relationship
-      // RLS handles team access, we just need to get all notes for team's customers
       const customerIds = customersData?.map(c => c.id) || [];
       let notesData: CustomerNote[] = [];
       if (customerIds.length > 0) {
@@ -193,6 +230,7 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
         if (notesError) throw notesError;
         notesData = data || [];
       }
+      if (seq !== refreshSeqRef.current) return;
       setCustomerNotes(notesData);
 
       // Build inspections query - team-based
@@ -203,8 +241,8 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
         inspectionsQuery = inspectionsQuery.eq('user_id', userId!);
       }
       const { data: inspectionsData, error: inspectionsError } = await inspectionsQuery.order('created_at', { ascending: false });
-
       if (inspectionsError) throw inspectionsError;
+      if (seq !== refreshSeqRef.current) return;
       setInspections(inspectionsData || []);
 
       // Build damage claims query
@@ -215,8 +253,8 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
         claimsQuery = claimsQuery.eq('user_id', userId!);
       }
       const { data: claimsData, error: claimsError } = await claimsQuery.order('created_at', { ascending: false });
-
       if (claimsError) throw claimsError;
+      if (seq !== refreshSeqRef.current) return;
       setDamageClaims(claimsData || []);
 
       // Build payments query
@@ -227,8 +265,8 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
         paymentsQuery = paymentsQuery.eq('user_id', userId!);
       }
       const { data: paymentsData, error: paymentsError } = await paymentsQuery.order('created_at', { ascending: false });
-
       if (paymentsError) throw paymentsError;
+      if (seq !== refreshSeqRef.current) return;
       setPayments(paymentsData || []);
 
       // Calculate revenue
@@ -243,22 +281,37 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       const monthRevenue = confirmedBookings
         .reduce((sum, b) => sum + parseFloat(b.total_value?.toString() || '0'), 0);
 
+      // Final staleness check before setting revenue
+      if (seq !== refreshSeqRef.current) {
+        console.log('[FleetContext] Stale refresh abandoned at revenue step');
+        return;
+      }
+
       setRevenue({
         today: todayRevenue,
         month: monthRevenue,
         change: 12
       });
+      
+      console.log('[FleetContext] Refresh complete, seq:', seq, 'vehicles:', vehiclesData?.length || 0);
 
     } catch (error: any) {
-      console.error('Error loading data:', error);
-      toast({
-        title: "Error Loading Data",
-        description: error.message,
-        variant: "destructive"
-      });
-    } finally {
+      // Only set error if this is still the latest request
+      if (seq === refreshSeqRef.current) {
+        console.error('[FleetContext] Error loading data:', error);
+        toast({
+          title: "Error Loading Data",
+          description: error.message,
+          variant: "destructive"
+        });
+        setLoading(false);
+      }
+      return;
+    }
+    
+    // Only update loading state if this is still the latest request
+    if (seq === refreshSeqRef.current) {
       setLoading(false);
-      refreshInProgressRef.current = false;
     }
   }, [user, currentTeam?.id, getTeamId, getUserId, toast]);
 
