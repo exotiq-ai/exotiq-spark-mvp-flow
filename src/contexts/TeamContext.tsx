@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { AppRole } from '@/hooks/useUserRole';
@@ -67,6 +67,7 @@ export const TeamProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [selectedLocationId, setSelectedLocationId] = useState<string | 'all'>('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const fetchInProgressRef = useRef(false);
 
   // Derived values
   const isOwner = userRole === 'owner';
@@ -96,6 +97,9 @@ export const TeamProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Fetch team data
   const fetchTeamData = useCallback(async () => {
+    // Prevent concurrent fetches (race condition guard)
+    if (fetchInProgressRef.current) return;
+    
     if (!user?.id) {
       setCurrentTeam(null);
       setLocations([]);
@@ -105,6 +109,7 @@ export const TeamProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
+    fetchInProgressRef.current = true;
     try {
       setLoading(true);
       setError(null);
@@ -184,6 +189,7 @@ export const TeamProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setError(err instanceof Error ? err.message : 'Failed to fetch team data');
     } finally {
       setLoading(false);
+      fetchInProgressRef.current = false;
     }
   }, [user?.id]);
 
