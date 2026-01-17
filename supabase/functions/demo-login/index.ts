@@ -9,47 +9,44 @@ const corsHeaders = {
 // In-memory rate limiting (simple implementation)
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
-const checkRateLimit = (ip: string): boolean => {
+const getClientIP = (req: Request) => {
+  const forwarded = req.headers.get('x-forwarded-for');
+  const firstForwarded = forwarded?.split(',')?.[0]?.trim();
+  return (
+    firstForwarded ||
+    req.headers.get('cf-connecting-ip') ||
+    req.headers.get('x-real-ip') ||
+    'unknown'
+  );
+};
+
+const checkRateLimit = (key: string): boolean => {
+  // If we can't reliably identify the client, don't apply a global rate limit
+  // (otherwise all demo visitors may share the same bucket and get blocked).
+  if (!key || key === 'unknown') return true;
+
   const now = Date.now();
-  const limit = rateLimitMap.get(ip);
-  
+  const limit = rateLimitMap.get(key);
+
+  // Allow up to 100 demo logins per hour per IP
+  const MAX_PER_HOUR = 100;
+
   if (limit && limit.resetAt > now) {
-    if (limit.count >= 10) { // Max 10 requests per hour
+    if (limit.count >= MAX_PER_HOUR) {
       return false;
     }
     limit.count++;
     return true;
   }
-  
+
   // Reset or create new limit
-  rateLimitMap.set(ip, {
+  rateLimitMap.set(key, {
     count: 1,
-    resetAt: now + 3600000 // 1 hour
+    resetAt: now + 3600000, // 1 hour
   });
-  
+
   return true;
 };
-
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
-
-  try {
-    // Get client IP for rate limiting
-    const clientIP = req.headers.get('x-forwarded-for') || 'unknown';
-    
-    // Check rate limit
-    if (!checkRateLimit(clientIP)) {
-      console.log(`🚫 Rate limit exceeded for IP: ${clientIP}`);
-      return new Response(
-        JSON.stringify({ error: 'Too many demo login attempts. Please try again later.' }),
-        { 
-          status: 429, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
-    }
 
     // Get demo credentials from environment
     const DEMO_EMAIL = 'hello@exotiq.ai';
