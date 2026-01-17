@@ -56,6 +56,11 @@ const Dashboard = () => {
   const [chatMinimized, setChatMinimized] = useState(false);
   const [mobileAddLocationOpen, setMobileAddLocationOpen] = useState(false);
   const rariSidebar = useRariSidebar();
+
+  // Ensure module transition overlay never gets stuck
+  useEffect(() => {
+    setIsModuleTransitioning(false);
+  }, [activeModule]);
   
   // Keyboard shortcuts with Rari toggle
   useKeyboardShortcuts({ onToggleRari: rariSidebar.toggle });
@@ -64,6 +69,7 @@ const Dashboard = () => {
   const { conversations } = useTeamMessaging();
   const { refreshTeam } = useTeam();
   const containerRef = useRef<HTMLDivElement>(null);
+  const moduleTransitionTimeoutRef = useRef<number | null>(null);
 
   // Always start at dashboard module on new browser session
   useEffect(() => {
@@ -123,18 +129,29 @@ const Dashboard = () => {
       setChatMinimized(false);
       return;
     }
-    
-    // Show brief loading transition
+
+    // No-op if already on this module (prevents stuck overlays)
+    if (moduleId === activeModule) return;
+
+    // Clear any pending transition timer
+    if (moduleTransitionTimeoutRef.current) {
+      window.clearTimeout(moduleTransitionTimeoutRef.current);
+      moduleTransitionTimeoutRef.current = null;
+    }
+
     setIsModuleTransitioning(true);
     track('module_switch', { from: activeModule, to: moduleId });
     setActiveModule(moduleId);
-    
+
     // Scroll to top of page smoothly
     window.scrollTo({ top: 0, behavior: 'smooth' });
     containerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-    
+
     // Clear transition state after brief delay
-    setTimeout(() => setIsModuleTransitioning(false), 200);
+    moduleTransitionTimeoutRef.current = window.setTimeout(() => {
+      setIsModuleTransitioning(false);
+      moduleTransitionTimeoutRef.current = null;
+    }, 200);
   };
 
   const moduleNames: Record<string, string> = {
