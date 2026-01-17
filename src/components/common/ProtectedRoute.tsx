@@ -14,7 +14,13 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const [timedOut, setTimedOut] = useState(false);
 
   // Timeout after 3 seconds to prevent infinite loading (reduced from 5)
+  // But NEVER trigger timeout redirect if we're already on /reset or /signout
   useEffect(() => {
+    const currentPath = window.location.pathname;
+    if (currentPath === '/reset' || currentPath === '/signout') {
+      return; // Don't set timeout on these paths
+    }
+    
     if (loading || authRedirectProcessing) {
       const timeout = setTimeout(() => {
         console.warn('ProtectedRoute: Auth loading timed out after 3 seconds');
@@ -25,9 +31,13 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   }, [loading, authRedirectProcessing]);
 
   // If timed out, redirect to /reset for nuclear cleanup
+  // But never redirect if already on /reset or /signout
   if (timedOut) {
-    window.location.href = '/reset';
-    return <LoadingSpinner fullScreen text="Session timed out, clearing cache..." />;
+    const currentPath = window.location.pathname;
+    if (currentPath !== '/reset' && currentPath !== '/signout') {
+      window.location.href = '/reset';
+      return <LoadingSpinner fullScreen text="Session timed out, clearing cache..." />;
+    }
   }
 
   // Show loading while auth context is initializing or an auth redirect is being processed

@@ -246,6 +246,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
 
         console.log('Auth event:', event);
+        
+        // CRITICAL: Skip ALL side effects if we're on /reset or /signout
+        // This prevents auth events from interfering with the reset flow
+        const currentPath = window.location.pathname;
+        if (currentPath === '/reset' || currentPath === '/signout') {
+          console.log('On reset/signout path, skipping auth side effects');
+          setSession(session);
+          setUser(session?.user ?? null);
+          setLoading(false);
+          return;
+        }
+        
         setSession(session);
         setUser(session?.user ?? null);
         // Never let the app get stuck in an "initializing" state
