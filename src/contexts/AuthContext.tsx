@@ -310,14 +310,37 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     );
 
-    // Check for existing session (make sure failures can't keep `loading=true` forever)
+    // Check for existing session with validation (make sure failures can't keep `loading=true` forever)
     (async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        setSession(session);
-        setUser(session?.user ?? null);
+        
+        if (session) {
+          // CRITICAL: Verify the cached session is still valid with the server
+          // This prevents "flash of wrong account" when switching between users
+          const { data: { user: verifiedUser }, error: verifyError } = await supabase.auth.getUser();
+          
+          if (verifyError || !verifiedUser) {
+            console.warn('[Auth] Stale/invalid session detected, clearing...', verifyError?.message);
+            await supabase.auth.signOut({ scope: 'local' });
+            setSession(null);
+            setUser(null);
+            setLoading(false);
+            return;
+          }
+          
+          // Session is valid - use verified user data
+          setSession(session);
+          setUser(verifiedUser);
+          console.log('[Auth] Session verified for user:', verifiedUser.id);
+        } else {
+          setSession(null);
+          setUser(null);
+        }
       } catch (err) {
-        console.error('Error getting session:', err);
+        console.error('[Auth] Error getting/verifying session:', err);
+        setSession(null);
+        setUser(null);
       } finally {
         setLoading(false);
       }
