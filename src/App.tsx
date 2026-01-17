@@ -4,7 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { OfflineBanner } from "@/components/common/OfflineBanner";
@@ -19,8 +19,6 @@ import { SuperAdminGuard } from "@/components/guards/SuperAdminGuard";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import { SuperAdminDashboard } from "./pages/SuperAdminDashboard";
-import Demo from "./pages/Demo";
-import DemoLanding from "./pages/DemoLanding";
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
 import Welcome from "./pages/Welcome";
@@ -62,8 +60,9 @@ const AppWithRouter = () => {
                     <SuperAdminDashboard />
                   </SuperAdminGuard>
                 } />
-                <Route path="/demo-landing" element={<DemoLanding />} />
-                <Route path="/demo" element={<Demo />} />
+                {/* Demo pages temporarily disabled - demo login uses /dashboard */}
+                <Route path="/demo-landing" element={<Navigate to="/auth" replace />} />
+                <Route path="/demo" element={<Navigate to="/auth" replace />} />
                 <Route path="/welcome" element={<Welcome />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
