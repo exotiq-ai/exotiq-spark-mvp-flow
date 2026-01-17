@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
@@ -70,6 +70,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const onboardingNavTimeoutRef = useRef<number | null>(null);
 
   // Check if user account is active
   const checkUserActiveStatus = useCallback(async (userId: string): Promise<boolean> => {
@@ -238,6 +239,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Set up auth state listener
     const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        // Cancel any queued post-login navigation (prevents "can't sign out" loops)
+        if (onboardingNavTimeoutRef.current) {
+          window.clearTimeout(onboardingNavTimeoutRef.current);
+          onboardingNavTimeoutRef.current = null;
+        }
+
         console.log('Auth event:', event);
         setSession(session);
         setUser(session?.user ?? null);
@@ -282,7 +289,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             navigate('/dashboard');
           } else {
             // Check if onboarding is complete
-            setTimeout(() => {
+            onboardingNavTimeoutRef.current = window.setTimeout(() => {
               checkOnboardingStatus(session?.user?.id);
             }, 0);
           }
@@ -303,7 +310,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     })();
 
-    return () => authSubscription.unsubscribe();
+    return () => {
+      if (onboardingNavTimeoutRef.current) {
+        window.clearTimeout(onboardingNavTimeoutRef.current);
+        onboardingNavTimeoutRef.current = null;
+      }
+      authSubscription.unsubscribe();
+    };
   }, [pendingInviteToken, processPendingInvite, navigate, checkUserActiveStatus, toast, isPasswordRecovery]);
 
   const checkOnboardingStatus = async (userId: string | undefined) => {
@@ -539,14 +552,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
-    setSubscription({ ...defaultSubscription, loading: false });
-    setIsPasswordRecovery(false);
-    navigate('/auth');
-    toast({
-      title: "Signed Out",
-      description: "You have been signed out successfully.",
-    });
+    // Prevent any queued post-login navigation from firing after sign-out
+    if (onboardingNavTimeoutRef.current) {
+      window.clearTimeout(onboardingNavTimeoutRef.current);
+      onboardingNavTimeoutRef.current = null;
+    }
+
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+    } catch (err) {
+      console.error('Sign out error:', err);
+      // Always ensure the local session is cleared even if network/global signout fails
+      await supabase.auth.signOut({ scope: 'local' });
+    } finally {
+      setSession(null);
+      setUser(null);
+      setSubscription({ ...defaultSubscription, loading: false });
+      setIsPasswordRecovery(false);
+      navigate('/auth', { replace: true });
+      toast({
+        title: "Signed Out",
+        description: "You have been signed out successfully.",
+      });
+    }
   };
 
   return (
