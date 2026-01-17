@@ -59,7 +59,7 @@ const TeamContext = createContext<TeamContextType | undefined>(undefined);
 const LOCATION_STORAGE_KEY = 'exotiq_selected_location';
 
 export const TeamProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [currentTeam, setCurrentTeam] = useState<Team | null>(null);
   const [locations, setLocations] = useState<Location[]>([]);
   const [assignedLocationIds, setAssignedLocationIds] = useState<string[]>([]);
@@ -122,7 +122,13 @@ export const TeamProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const fetchTeamData = useCallback(async () => {
     // Increment sequence to mark this as the "latest" request
     const seq = ++fetchSeqRef.current;
-    console.log('[TeamContext] Fetch started, seq:', seq, 'userId:', user?.id);
+    console.log('[TeamContext] Fetch started, seq:', seq, 'userId:', user?.id, 'authLoading:', authLoading);
+    
+    // CRITICAL: Don't fetch if auth is still loading - wait for it to settle
+    if (authLoading) {
+      console.log('[TeamContext] Auth still loading, waiting...');
+      return;
+    }
     
     if (!user?.id) {
       setCurrentTeam(null);
@@ -164,7 +170,6 @@ export const TeamProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .from('teams')
         .select('*')
         .eq('id', teamMember.team_id)
-        .eq('is_deleted', false)
         .single();
 
       // Check if still latest request
@@ -177,16 +182,24 @@ export const TeamProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setCurrentTeam(team);
       console.log('[TeamContext] Team loaded:', team.name, team.id);
 
-      // Fetch all locations for this team
-      const { data: teamLocations, error: locationsError } = await supabase
-        .from('locations')
-        .select('*')
-        .eq('team_id', teamMember.team_id)
-        .eq('is_active', true)
-        .order('is_default', { ascending: false })
-        .order('name');
+      // Try to fetch locations - handle gracefully if table doesn't exist
+      let teamLocations: Location[] = [];
+      try {
+        const { data: locData, error: locationsError } = await supabase
+          .from('locations')
+          .select('*')
+          .eq('team_id', teamMember.team_id)
+          .eq('is_active', true)
+          .order('is_default', { ascending: false })
+          .order('name');
 
-      if (locationsError) throw locationsError;
+        if (!locationsError) {
+          teamLocations = locData || [];
+        }
+      } catch (e) {
+        // Locations table may not exist - continue without it
+        console.log('[TeamContext] Locations table not available');
+      }
       
       // Check if still latest request
       if (seq !== fetchSeqRef.current) {
@@ -194,15 +207,23 @@ export const TeamProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
       
-      setLocations(teamLocations || []);
+      setLocations(teamLocations);
 
-      // Fetch user's assigned locations (for non-admin/owner users)
-      const { data: staffLocations, error: staffError } = await supabase
-        .from('location_staff')
-        .select('location_id')
-        .eq('user_id', user.id);
+      // Try to fetch user's assigned locations - handle gracefully if table doesn't exist
+      let staffLocationIds: string[] = [];
+      try {
+        const { data: staffLocations, error: staffError } = await supabase
+          .from('location_staff')
+          .select('location_id')
+          .eq('user_id', user.id);
 
-      if (staffError) throw staffError;
+        if (!staffError && staffLocations) {
+          staffLocationIds = staffLocations.map(s => s.location_id);
+        }
+      } catch (e) {
+        // location_staff table may not exist - continue without it
+        console.log('[TeamContext] location_staff table not available');
+      }
       
       // Final staleness check before setting all remaining state
       if (seq !== fetchSeqRef.current) {
@@ -210,27 +231,11 @@ export const TeamProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
       
-      setAssignedLocationIds((staffLocations || []).map(s => s.location_id));
+      setAssignedLocationIds(staffLocationIds);
 
-      // Restore selected location from localStorage
-      const storedLocation = localStorage.getItem(LOCATION_STORAGE_KEY);
-      if (storedLocation) {
-        const isValidLocation = storedLocation === 'all' || 
-          teamLocations?.some(l => l.id === storedLocation);
-        if (isValidLocation) {
-          setSelectedLocationId(storedLocation);
-        } else {
-          // Default to 'all' for owners/admins, or first assigned location
-          const defaultSelection = teamMember.role === 'owner' || teamMember.role === 'admin' 
-            ? 'all' 
-            : (staffLocations?.[0]?.location_id || 'all');
-          setSelectedLocationId(defaultSelection);
-        }
-      } else {
-        // Default to 'all' for owners/admins
-        if (teamMember.role === 'owner' || teamMember.role === 'admin') {
-          setSelectedLocationId('all');
-        }
+      // Default to 'all' for owners/admins
+      if (teamMember.role === 'owner' || teamMember.role === 'admin') {
+        setSelectedLocationId('all');
       }
       
       console.log('[TeamContext] Fetch complete, seq:', seq, 'team:', team.name);
@@ -249,17 +254,19 @@ export const TeamProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (seq === fetchSeqRef.current) {
       setLoading(false);
     }
-  }, [user?.id]);
+  }, [user?.id, authLoading]);
 
   // Refresh team data
   const refreshTeam = useCallback(async () => {
     await fetchTeamData();
   }, [fetchTeamData]);
 
-  // Fetch on mount and when user changes
+  // Fetch on mount and when user changes - only after auth is done loading
   useEffect(() => {
-    fetchTeamData();
-  }, [fetchTeamData]);
+    if (!authLoading) {
+      fetchTeamData();
+    }
+  }, [fetchTeamData, authLoading]);
 
   const value: TeamContextType = {
     currentTeam,

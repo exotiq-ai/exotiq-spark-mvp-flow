@@ -79,16 +79,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .from('profiles')
         .select('is_active')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
       if (error) {
-        console.error('Error checking user active status:', error);
+        console.error('[Auth] Error checking user active status:', error);
         return true; // Allow access if we can't check (fail open for UX, RLS will block)
       }
 
+      // If profile doesn't exist or is_active is null/undefined, default to true
       return data?.is_active ?? true;
     } catch (err) {
-      console.error('Error in checkUserActiveStatus:', err);
+      console.error('[Auth] Exception in checkUserActiveStatus:', err);
       return true;
     }
   }, []);
@@ -332,17 +333,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [pendingInviteToken, processPendingInvite, navigate, checkUserActiveStatus, toast, isPasswordRecovery]);
 
   const checkOnboardingStatus = async (userId: string | undefined) => {
-    if (!userId) return;
+    if (!userId) {
+      console.log('[Auth] No userId provided to checkOnboardingStatus');
+      navigate('/dashboard');
+      return;
+    }
     
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('onboarding_completed')
-      .eq('id', userId)
-      .single();
+    try {
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('onboarding_completed')
+        .eq('id', userId)
+        .maybeSingle();
 
-    if (profile && !profile.onboarding_completed) {
-      navigate('/onboarding');
-    } else {
+      if (error) {
+        console.error('[Auth] Error checking onboarding status:', error);
+        // On error, default to dashboard rather than getting stuck
+        navigate('/dashboard');
+        return;
+      }
+
+      if (profile && profile.onboarding_completed === false) {
+        navigate('/onboarding');
+      } else {
+        // If profile doesn't exist or onboarding_completed is true/null, go to dashboard
+        navigate('/dashboard');
+      }
+    } catch (err) {
+      console.error('[Auth] Exception in checkOnboardingStatus:', err);
       navigate('/dashboard');
     }
   };

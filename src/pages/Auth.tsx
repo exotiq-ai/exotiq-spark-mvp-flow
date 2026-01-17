@@ -290,7 +290,6 @@ export default function Auth() {
     }
   };
 
-
   const handleCancelPasswordUpdate = () => {
     clearPasswordRecovery();
     setAuthMode('signin');

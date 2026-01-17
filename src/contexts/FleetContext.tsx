@@ -69,7 +69,7 @@ const FleetContext = createContext<FleetContextType | undefined>(undefined);
 
 export const FleetProvider = ({ children }: { children: ReactNode }) => {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { currentTeam, selectedLocationId, loading: teamLoading } = useTeam();
   const [loading, setLoading] = useState(true);
   
@@ -131,7 +131,13 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
   const refreshData = useCallback(async () => {
     // Increment sequence to mark this as the "latest" request
     const seq = ++refreshSeqRef.current;
-    console.log('[FleetContext] Refresh started, seq:', seq, 'userId:', user?.id, 'teamId:', currentTeam?.id);
+    console.log('[FleetContext] Refresh started, seq:', seq, 'userId:', user?.id, 'teamId:', currentTeam?.id, 'authLoading:', authLoading, 'teamLoading:', teamLoading);
+    
+    // CRITICAL: Don't fetch if auth or team is still loading - wait for it to settle
+    if (authLoading || teamLoading) {
+      console.log('[FleetContext] Auth/Team still loading, waiting...');
+      return;
+    }
     
     if (!user) {
       setLoading(false);
@@ -317,9 +323,10 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
 
   // Refresh when user or team changes - wait for team context to finish loading first
   useEffect(() => {
-    if (teamLoading) return; // Don't fetch until TeamContext is ready
+    // Don't fetch until both Auth and Team contexts are ready
+    if (authLoading || teamLoading) return;
     refreshData();
-  }, [user, currentTeam?.id, teamLoading, refreshData]);
+  }, [user, currentTeam?.id, authLoading, teamLoading, refreshData]);
 
   const applyPriceOptimization = async (vehicleId: string, newRate: number) => {
     if (!user) return;
