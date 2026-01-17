@@ -23,6 +23,7 @@ import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
 import Welcome from "./pages/Welcome";
 import SignOut from "./pages/SignOut";
+import Reset from "./pages/Reset";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -44,6 +45,8 @@ const AppWithRouter = () => {
           <TeamProvider>
             <FleetProvider>
               <Routes>
+                {/* Nuclear reset route - must be first, no auth required */}
+                <Route path="/reset" element={<Reset />} />
                 <Route path="/" element={<Index />} />
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/signout" element={<SignOut />} />
