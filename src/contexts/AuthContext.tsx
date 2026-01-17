@@ -244,17 +244,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // Never let the app get stuck in an "initializing" state
         setLoading(false);
 
-        // Demo sessions are shared across many visitors; auto-refresh can cause
-        // intermittent sign-outs if refresh tokens get invalidated.
-        // For demo users, keep the session stable by disabling auto refresh.
-        if (event === 'SIGNED_OUT') {
-          supabase.auth.startAutoRefresh();
-        } else if (session?.user?.email?.toLowerCase() === 'hello@exotiq.ai') {
-          supabase.auth.stopAutoRefresh();
-        } else if (session) {
-          supabase.auth.startAutoRefresh();
-        }
-
         // Handle PASSWORD_RECOVERY event - user clicked reset link
         if (event === 'PASSWORD_RECOVERY') {
           console.log('Password recovery event detected');
