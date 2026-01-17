@@ -40,42 +40,48 @@ const AppWithRouter = () => {
         open={commandPaletteOpen} 
         onOpenChange={setCommandPaletteOpen} 
       />
-      <AuthProvider>
-        <DemoProvider>
-          <TeamProvider>
-            <FleetProvider>
-              <Routes>
-                {/* Nuclear reset route - must be first, no auth required */}
-                <Route path="/reset" element={<Reset />} />
-                <Route path="/" element={<Index />} />
-                <Route path="/auth" element={<Auth />} />
-                <Route path="/signout" element={<SignOut />} />
-                <Route path="/onboarding" element={
-                  <ProtectedRoute>
-                    <Onboarding />
-                  </ProtectedRoute>
-                } />
-                <Route path="/dashboard" element={
-                  <ProtectedRoute>
-                    <Dashboard />
-                  </ProtectedRoute>
-                } />
-                <Route path="/super-admin" element={
-                  <SuperAdminGuard>
-                    <SuperAdminDashboard />
-                  </SuperAdminGuard>
-                } />
-                {/* Demo pages temporarily disabled - demo login uses /dashboard */}
-                <Route path="/demo-landing" element={<Navigate to="/auth" replace />} />
-                <Route path="/demo" element={<Navigate to="/auth" replace />} />
-                <Route path="/welcome" element={<Welcome />} />
-                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </FleetProvider>
-          </TeamProvider>
-        </DemoProvider>
-      </AuthProvider>
+      <Routes>
+        {/* Nuclear reset & signout routes - OUTSIDE all providers to prevent interference */}
+        <Route path="/reset" element={<Reset />} />
+        <Route path="/signout" element={<SignOut />} />
+        
+        {/* All other routes wrapped in providers */}
+        <Route path="/*" element={
+          <AuthProvider>
+            <DemoProvider>
+              <TeamProvider>
+                <FleetProvider>
+                  <Routes>
+                    <Route path="/" element={<Index />} />
+                    <Route path="/auth" element={<Auth />} />
+                    <Route path="/onboarding" element={
+                      <ProtectedRoute>
+                        <Onboarding />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/dashboard" element={
+                      <ProtectedRoute>
+                        <Dashboard />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/super-admin" element={
+                      <SuperAdminGuard>
+                        <SuperAdminDashboard />
+                      </SuperAdminGuard>
+                    } />
+                    {/* Demo pages temporarily disabled - demo login uses /dashboard */}
+                    <Route path="/demo-landing" element={<Navigate to="/auth" replace />} />
+                    <Route path="/demo" element={<Navigate to="/auth" replace />} />
+                    <Route path="/welcome" element={<Welcome />} />
+                    {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </FleetProvider>
+              </TeamProvider>
+            </DemoProvider>
+          </AuthProvider>
+        } />
+      </Routes>
     </>
   );
 };

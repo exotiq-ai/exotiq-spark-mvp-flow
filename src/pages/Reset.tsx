@@ -1,11 +1,23 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
+import { Button } from '@/components/ui/button';
 
 const Reset = () => {
   const [status, setStatus] = useState('Clearing all cached data...');
+  const [showManualEscape, setShowManualEscape] = useState(false);
+
+  const forceRedirect = () => {
+    // Use replace so back button doesn't return to /reset
+    window.location.replace('/auth?reset=1');
+  };
 
   useEffect(() => {
+    // Show manual escape button after 3 seconds
+    const escapeTimeout = setTimeout(() => {
+      setShowManualEscape(true);
+    }, 3000);
+
     const nuclearReset = async () => {
       try {
         // Step 1: Unregister all service workers
@@ -39,27 +51,34 @@ const Reset = () => {
         });
         console.log('Cookies cleared');
 
-        // Step 5: Sign out from Supabase
+        // Step 5: Sign out from Supabase with timeout race
+        // If signOut hangs for more than 1.5 seconds, proceed anyway
         setStatus('Signing out...');
-        await supabase.auth.signOut({ scope: 'global' });
-        console.log('Supabase signed out');
+        const signOutWithTimeout = Promise.race([
+          supabase.auth.signOut({ scope: 'global' }).catch(e => {
+            console.warn('SignOut error (proceeding anyway):', e);
+          }),
+          new Promise(resolve => setTimeout(resolve, 1500))
+        ]);
+        await signOutWithTimeout;
+        console.log('Supabase signed out (or timed out)');
 
-        // Step 6: Hard redirect to auth
+        // Step 6: Redirect
         setStatus('Redirecting to login...');
-        
-        // Small delay to ensure everything is processed
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Hard redirect - not React Router
-        window.location.href = '/auth';
       } catch (error) {
         console.error('Reset error:', error);
-        // Even if something fails, still redirect
-        window.location.href = '/auth';
+      } finally {
+        // ALWAYS redirect, even if something fails
+        clearTimeout(escapeTimeout);
+        forceRedirect();
       }
     };
 
     nuclearReset();
+
+    return () => {
+      clearTimeout(escapeTimeout);
+    };
   }, []);
 
   return (
@@ -67,6 +86,16 @@ const Reset = () => {
       <LoadingSpinner />
       <p className="mt-4 text-muted-foreground">{status}</p>
       <p className="mt-2 text-xs text-muted-foreground/60">Clearing all cached data and session state...</p>
+      
+      {showManualEscape && (
+        <Button 
+          onClick={forceRedirect}
+          variant="outline"
+          className="mt-6"
+        >
+          Continue to Login →
+        </Button>
+      )}
     </div>
   );
 };
