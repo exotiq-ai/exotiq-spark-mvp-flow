@@ -621,7 +621,7 @@ serve(async (req) => {
         }
       } catch (error) {
         console.error(`Error in ${functionName}:`, error);
-        return { error: error.message };
+        return { error: error instanceof Error ? error.message : String(error) };
       }
     }
 
@@ -898,9 +898,11 @@ Remember: You're not just a database assistant - you're an automotive enthusiast
     
     // Handle specific error types
     let status = 500;
-    let message = error.message || "Internal server error";
+    let message = error instanceof Error ? error.message : "Internal server error";
     
-    if (error.name === 'AbortError') {
+    // Check for AbortError (timeout)
+    const isAbortError = error instanceof Error && (error as any).name === 'AbortError';
+    if (isAbortError) {
       status = 408;
       message = "Request timeout";
     }

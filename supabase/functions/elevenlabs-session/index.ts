@@ -10,7 +10,9 @@ const corsHeaders = {
 // Generate a signed tool token for secure tool calls
 // Convert Uint8Array to base64url string
 function toBase64Url(bytes: Uint8Array): string {
-  const base64 = base64Encode(bytes);
+  // Convert Uint8Array to ArrayBuffer slice for proper base64 encoding
+  const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+  const base64 = base64Encode(buffer);
   return base64.replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
 }
 

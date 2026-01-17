@@ -1064,9 +1064,9 @@ async function executeFunction(functionName: string, args: any, supabase: any, t
           .lte('start_date', now)
           .gte('end_date', now);
         
-        const rentedVehicleIds = new Set(activeBookings?.map(b => b.vehicle_id) || []);
+        const rentedVehicleIds = new Set(activeBookings?.map((b: any) => b.vehicle_id) || []);
 
-        const vehicleList = vehicles.map(v => {
+        const vehicleList = vehicles.map((v: any) => {
           const realStatus = rentedVehicleIds.has(v.id) ? 'rented' : v.status;
           return {
             name: `${v.year} ${v.make} ${v.model}`,
@@ -1079,7 +1079,7 @@ async function executeFunction(functionName: string, args: any, supabase: any, t
 
         let filteredList = vehicleList;
         if (status && status !== 'all') {
-          filteredList = vehicleList.filter(v => v.status === status);
+          filteredList = vehicleList.filter((v: any) => v.status === status);
         }
 
         return {
@@ -1124,7 +1124,7 @@ async function executeFunction(functionName: string, args: any, supabase: any, t
           return b.status === 'confirmed' && start <= now && end >= now;
         }).length;
         
-        const avgUtilization = vehicles.length > 0 ? vehicles.reduce((sum, v) => sum + (v.utilization || 0), 0) / vehicles.length : 0;
+        const avgUtilization = vehicles.length > 0 ? vehicles.reduce((sum: number, v: any) => sum + (v.utilization || 0), 0) / vehicles.length : 0;
         const peakSeason = getCurrentPeakSeason(location);
 
         return {
@@ -1196,8 +1196,8 @@ async function executeFunction(functionName: string, args: any, supabase: any, t
         if (location && location !== 'all') filteredPayments = filteredPayments.filter((p: any) => p.bookings?.vehicles?.location?.toLowerCase() === location.toLowerCase());
         if (status && status !== 'all') filteredPayments = filteredPayments.filter((p: any) => p.payment_status === status);
 
-        const totalAmount = filteredPayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
-        const byStatus = filteredPayments.reduce((acc, p) => { const s = p.payment_status || 'unknown'; acc[s] = (acc[s] || 0) + Number(p.amount || 0); return acc; }, {} as Record<string, number>);
+        const totalAmount = filteredPayments.reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+        const byStatus = filteredPayments.reduce((acc: Record<string, number>, p: any) => { const s = p.payment_status || 'unknown'; acc[s] = (acc[s] || 0) + Number(p.amount || 0); return acc; }, {} as Record<string, number>);
 
         return {
           totalPayments: filteredPayments.length,
@@ -1219,7 +1219,7 @@ async function executeFunction(functionName: string, args: any, supabase: any, t
         let filteredBookings = bookings || [];
         if (location && location !== 'all') filteredBookings = filteredBookings.filter((b: any) => b.vehicles?.location?.toLowerCase() === location.toLowerCase());
 
-        const totalRevenue = filteredBookings.reduce((sum, b) => sum + Number(b.total_value || 0), 0);
+        const totalRevenue = filteredBookings.reduce((sum: number, b: any) => sum + Number(b.total_value || 0), 0);
         return {
           count: filteredBookings.length,
           totalRevenue: `$${totalRevenue.toFixed(0)}`,
@@ -1236,7 +1236,7 @@ async function executeFunction(functionName: string, args: any, supabase: any, t
           timeAgo: getTimeAgo(new Date(b.created_at))
         })) || [];
 
-        return { count: activities.length, activities, summary: `Recent: ${activities.slice(0, 3).map(a => a.description).join('. ')}` };
+        return { count: activities.length, activities, summary: `Recent: ${activities.slice(0, 3).map((a: any) => a.description).join('. ')}` };
       }
 
       case "getVehicleDetails": {
@@ -1247,7 +1247,7 @@ async function executeFunction(functionName: string, args: any, supabase: any, t
         let bookingsData = null;
         if (includeBookings) {
           const { data: bookings } = await supabase.from('bookings').select('*, customers(full_name)').eq('vehicle_id', vehicle.id).order('start_date', { ascending: false }).limit(5);
-          bookingsData = bookings?.map(b => ({ customer: b.customers?.full_name || b.customer_name, status: b.status, total: `$${Number(b.total_value || 0).toFixed(0)}` }));
+          bookingsData = bookings?.map((b: any) => ({ customer: b.customers?.full_name || b.customer_name, status: b.status, total: `$${Number(b.total_value || 0).toFixed(0)}` }));
         }
 
         return {
@@ -1309,12 +1309,12 @@ async function executeFunction(functionName: string, args: any, supabase: any, t
           if (location && location !== 'all') query = query.eq('location', location);
           
           const { data: vehicles } = await query.order(metric, { ascending: false }).limit(limit);
-          const performers = vehicles?.map(v => ({ name: `${v.year} ${v.make} ${v.model}`, value: metric === 'revenue' ? `$${Number(v.revenue || 0).toFixed(0)}` : `${v.utilization}%` })) || [];
-          return { metric, performers, summary: `Top by ${metric}: ${performers.map(p => `${p.name} (${p.value})`).join(', ')}.` };
+          const performers = vehicles?.map((v: any) => ({ name: `${v.year} ${v.make} ${v.model}`, value: metric === 'revenue' ? `$${Number(v.revenue || 0).toFixed(0)}` : `${v.utilization}%` })) || [];
+          return { metric, performers, summary: `Top by ${metric}: ${performers.map((p: any) => `${p.name} (${p.value})`).join(', ')}.` };
         } else {
           const { data: customers } = await supabase.from('customers').select('full_name, total_bookings, lifetime_value').eq('team_id', teamId).order('lifetime_value', { ascending: false }).limit(limit);
-          const performers = customers?.map(c => ({ name: c.full_name, value: `$${Number(c.lifetime_value || 0).toFixed(0)}` })) || [];
-          return { metric: 'customers', performers, summary: `Top customers: ${performers.map(p => `${p.name} (${p.value})`).join(', ')}.` };
+          const performers = customers?.map((c: any) => ({ name: c.full_name, value: `$${Number(c.lifetime_value || 0).toFixed(0)}` })) || [];
+          return { metric: 'customers', performers, summary: `Top customers: ${performers.map((p: any) => `${p.name} (${p.value})`).join(', ')}.` };
         }
       }
 
@@ -1332,7 +1332,7 @@ async function executeFunction(functionName: string, args: any, supabase: any, t
         let filtered = bookings || [];
         if (location && location !== 'all') filtered = filtered.filter((b: any) => b.vehicles?.location?.toLowerCase() === location.toLowerCase());
 
-        const totalValue = filtered.reduce((sum, b) => sum + Number(b.total_value || 0), 0);
+        const totalValue = filtered.reduce((sum: number, b: any) => sum + Number(b.total_value || 0), 0);
         return { count: filtered.length, totalValue: `$${totalValue.toFixed(0)}`, summary: `Found ${filtered.length} bookings${status ? ` (${status})` : ''}${location ? ` in ${location}` : ''}.` };
       }
 
@@ -1344,7 +1344,7 @@ async function executeFunction(functionName: string, args: any, supabase: any, t
         let bookingsData = null;
         if (includeHistory) {
           const { data: bookings } = await supabase.from('bookings').select('*, vehicles(name, make, model, year, location)').eq('customer_id', customer.id).order('start_date', { ascending: false }).limit(10);
-          bookingsData = bookings?.map(b => ({ vehicle: b.vehicles ? `${b.vehicles.year} ${b.vehicles.make} ${b.vehicles.model}` : 'Unknown', status: b.status, total: `$${Number(b.total_value || 0).toFixed(0)}` }));
+          bookingsData = bookings?.map((b: any) => ({ vehicle: b.vehicles ? `${b.vehicles.year} ${b.vehicles.make} ${b.vehicles.model}` : 'Unknown', status: b.status, total: `$${Number(b.total_value || 0).toFixed(0)}` }));
         }
 
         return {
@@ -1402,9 +1402,9 @@ async function executeFunction(functionName: string, args: any, supabase: any, t
         if (!vehicles?.length) return { summary: `No vehicles${location ? ` in ${location}` : ''} to analyze.` };
 
         const totalVehicles = vehicles.length;
-        const avgRate = vehicles.reduce((sum, v) => sum + Number(v.current_rate), 0) / totalVehicles;
-        const avgUtilization = vehicles.reduce((sum, v) => sum + (v.utilization || 0), 0) / totalVehicles;
-        const totalRevenue = vehicles.reduce((sum, v) => sum + Number(v.revenue || 0), 0);
+        const avgRate = vehicles.reduce((sum: number, v: any) => sum + Number(v.current_rate), 0) / totalVehicles;
+        const avgUtilization = vehicles.reduce((sum: number, v: any) => sum + (v.utilization || 0), 0) / totalVehicles;
+        const totalRevenue = vehicles.reduce((sum: number, v: any) => sum + Number(v.revenue || 0), 0);
 
         return {
           totalVehicles,
@@ -1426,7 +1426,7 @@ async function executeFunction(functionName: string, args: any, supabase: any, t
         if (effectiveLocation !== 'all') filtered = filtered.filter((b: any) => b.vehicles?.location?.toLowerCase().includes(effectiveLocation.toLowerCase()));
 
         const upcomingBookings = filtered.length;
-        const upcomingRevenue = filtered.reduce((sum, b) => sum + Number(b.total_value || 0), 0);
+        const upcomingRevenue = filtered.reduce((sum: number, b: any) => sum + Number(b.total_value || 0), 0);
 
         return {
           location: effectiveLocation,
