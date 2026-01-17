@@ -261,12 +261,23 @@ export const TeamProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await fetchTeamData();
   }, [fetchTeamData]);
 
-  // Fetch on mount and when user changes - only after auth is done loading
+  // Fetch on mount and when user changes - only after auth is DONE and we have definitive user state
   useEffect(() => {
-    if (!authLoading) {
-      fetchTeamData();
+    // Wait for auth to be completely done loading
+    if (authLoading) {
+      console.log('[TeamContext] Waiting for auth to complete...');
+      return;
     }
-  }, [fetchTeamData, authLoading]);
+    // Auth is done - if no user, don't fetch
+    if (!user) {
+      console.log('[TeamContext] No user after auth complete, clearing state');
+      setLoading(false);
+      return;
+    }
+    // Auth done + user exists = safe to fetch
+    console.log('[TeamContext] Auth complete with user, fetching team data...');
+    fetchTeamData();
+  }, [authLoading, user?.id, fetchTeamData]);
 
   const value: TeamContextType = {
     currentTeam,

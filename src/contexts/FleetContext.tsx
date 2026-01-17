@@ -381,14 +381,23 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
   }, [user, currentTeam?.id, getTeamId, getUserId, toast]);
 
   // Refresh when user or team changes
-  // We trigger on currentTeam?.id changes which happens when TeamContext finishes loading
+  // CRITICAL: Only trigger when auth is DONE and we have definitive user state
   useEffect(() => {
-    // Don't fetch until Auth is ready
-    if (authLoading) return;
-    // Don't fetch if no user
-    if (!user) return;
+    // Wait for auth to be completely done loading
+    if (authLoading) {
+      console.log('[FleetContext] Waiting for auth to complete...');
+      return;
+    }
+    // Auth is done - if no user, don't fetch
+    if (!user) {
+      console.log('[FleetContext] No user after auth complete, clearing loading state');
+      setLoading(false);
+      return;
+    }
+    // Auth done + user exists = safe to fetch
+    console.log('[FleetContext] Auth complete with user, fetching fleet data...');
     refreshData();
-  }, [user, currentTeam?.id, authLoading, refreshData]);
+  }, [authLoading, user?.id, currentTeam?.id, refreshData]);
 
   // Auto-recovery: refresh when tab becomes visible or network comes online
   useEffect(() => {
