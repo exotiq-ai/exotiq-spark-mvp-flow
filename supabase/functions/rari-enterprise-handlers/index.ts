@@ -360,10 +360,13 @@ export async function getOutstandingBalances(
   });
   
   // Sort by urgency and amount
+  type Urgency = 'critical' | 'high' | 'medium' | 'low';
+  const urgencyOrder: Record<Urgency, number> = { critical: 0, high: 1, medium: 2, low: 3 };
   outstandingList.sort((a: any, b: any) => {
-    const urgencyOrder = { critical: 0, high: 1, medium: 2, low: 3 };
-    if (urgencyOrder[a.urgency] !== urgencyOrder[b.urgency]) {
-      return urgencyOrder[a.urgency] - urgencyOrder[b.urgency];
+    const aUrgency = (a.urgency as Urgency) || 'low';
+    const bUrgency = (b.urgency as Urgency) || 'low';
+    if (urgencyOrder[aUrgency] !== urgencyOrder[bUrgency]) {
+      return urgencyOrder[aUrgency] - urgencyOrder[bUrgency];
     }
     return parseFloat(b.balanceDue.replace('$', '')) - parseFloat(a.balanceDue.replace('$', ''));
   });

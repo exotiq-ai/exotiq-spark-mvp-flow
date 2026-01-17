@@ -93,20 +93,26 @@ serve(async (req) => {
       ];
 
       const rows = (payments || []).map((p) => {
-        const booking = p.bookings as Record<string, unknown> | null;
-        const vehicle = booking?.vehicles as Record<string, unknown> | null;
+        // Normalize bookings - can be array or object depending on query structure
+        const bookingsRaw = p.bookings as unknown;
+        const booking = Array.isArray(bookingsRaw) ? bookingsRaw[0] : bookingsRaw;
+        const bookingObj = booking as Record<string, unknown> | null;
+        // Normalize vehicles - can also be array or object
+        const vehiclesRaw = bookingObj?.vehicles as unknown;
+        const vehicle = Array.isArray(vehiclesRaw) ? vehiclesRaw[0] : vehiclesRaw;
+        const vehicleObj = vehicle as Record<string, unknown> | null;
         return [
           new Date(p.created_at || "").toLocaleDateString(),
           p.id,
-          booking?.customer_name || "",
-          booking?.customer_email || "",
-          vehicle ? `${vehicle.make} ${vehicle.model}` : "",
+          bookingObj?.customer_name || "",
+          bookingObj?.customer_email || "",
+          vehicleObj ? `${vehicleObj.make} ${vehicleObj.model}` : "",
           p.payment_type || "",
           p.payment_method || "",
           p.amount?.toFixed(2) || "0.00",
           p.payment_status || "",
-          booking?.start_date || "",
-          booking?.end_date || "",
+          bookingObj?.start_date || "",
+          bookingObj?.end_date || "",
           (p.notes || "").replace(/,/g, ";").replace(/\n/g, " ")
         ];
       });
@@ -135,9 +141,12 @@ serve(async (req) => {
       ];
 
       (payments || []).forEach((p) => {
-        const booking = p.bookings as Record<string, unknown> | null;
+        // Normalize bookings - can be array or object depending on query structure
+        const bookingsRaw = p.bookings as unknown;
+        const booking = Array.isArray(bookingsRaw) ? bookingsRaw[0] : bookingsRaw;
+        const bookingObj = booking as Record<string, unknown> | null;
         const date = new Date(p.created_at || "").toLocaleDateString("en-US");
-        const customerName = (booking?.customer_name as string || "Customer").replace(/\t/g, " ");
+        const customerName = (bookingObj?.customer_name as string || "Customer").replace(/\t/g, " ");
         const amount = p.amount?.toFixed(2) || "0.00";
         const memo = (p.notes || p.payment_type || "").replace(/\t/g, " ");
 
