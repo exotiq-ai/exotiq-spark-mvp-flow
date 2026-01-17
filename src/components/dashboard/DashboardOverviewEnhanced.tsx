@@ -38,6 +38,8 @@ import {
   DollarSign,
   Sparkles,
   FileText,
+  Plus,
+  AlertCircle,
   ChevronRight,
   ChevronDown,
   RefreshCw,
@@ -58,9 +60,10 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
   const [showAddVehicleDialog, setShowAddVehicleDialog] = useState(false);
   const [loadingDuration, setLoadingDuration] = useState(0);
   
-  const { vehicles, bookings, loading, applyPriceOptimization, createBooking, createCustomer, generateReport, createMaintenance, createPayment, createVehicle, refreshData } = useLocationFilteredFleet();
+  const { vehicles, bookings, loading, error, applyPriceOptimization, createBooking, createCustomer, generateReport, createMaintenance, createPayment, createVehicle, refreshData } = useLocationFilteredFleet();
   const rariSidebar = useRariSidebar();
   const navigate = useNavigate();
+  const [isRetrying, setIsRetrying] = useState(false);
   
   // Track loading duration to show recovery options if stuck
   useEffect(() => {
@@ -169,6 +172,74 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
           <SkeletonTable rows={3} />
         </div>
         <SkeletonModuleNav count={4} />
+      </div>
+    );
+  }
+
+  // Error state - show recovery UI
+  if (error && !loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 space-y-4">
+        <div className="h-16 w-16 rounded-full bg-destructive/10 flex items-center justify-center">
+          <AlertCircle className="h-8 w-8 text-destructive" />
+        </div>
+        <h2 className="text-xl font-semibold text-foreground">Unable to Load Data</h2>
+        <p className="text-muted-foreground text-center max-w-md">
+          {error.includes('Timeout') 
+            ? "The connection is taking too long. This could be a network issue or cached data problem."
+            : error}
+        </p>
+        <div className="flex gap-3 mt-4">
+          <Button
+            onClick={async () => {
+              setIsRetrying(true);
+              await refreshData();
+              setIsRetrying(false);
+            }}
+            disabled={isRetrying}
+            className="gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${isRetrying ? 'animate-spin' : ''}`} />
+            {isRetrying ? 'Retrying...' : 'Retry'}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => navigate('/reset')}
+            className="gap-2"
+          >
+            Clear Cache & Reload
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Empty state - show getting started UI for new users
+  if (!loading && vehicles.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 space-y-4">
+        <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
+          <Car className="h-8 w-8 text-primary" />
+        </div>
+        <h2 className="text-2xl font-semibold text-foreground">Welcome to Exotiq!</h2>
+        <p className="text-muted-foreground text-center max-w-md">
+          Let's get your fleet set up. Add your first vehicle to start managing bookings, tracking revenue, and optimizing your rental business.
+        </p>
+        <Button
+          size="lg"
+          onClick={() => setShowAddVehicleDialog(true)}
+          className="gap-2 mt-4"
+        >
+          <Plus className="h-5 w-5" />
+          Add Your First Vehicle
+        </Button>
+        
+        {/* Still show the add vehicle dialog */}
+        <AddVehicleDialog
+          open={showAddVehicleDialog}
+          onOpenChange={setShowAddVehicleDialog}
+          onSubmit={createVehicle}
+        />
       </div>
     );
   }

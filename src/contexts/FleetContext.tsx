@@ -39,6 +39,7 @@ interface FleetContextType {
   payments: Payment[];
   revenue: { today: number; month: number; change: number };
   loading: boolean;
+  error: string | null; // New: expose error state for UI recovery
   applyPriceOptimization: (vehicleId: string, newRate: number) => Promise<void>;
   createVehicle: (vehicle: Omit<Database['public']['Tables']['vehicles']['Insert'], 'user_id'>) => Promise<void>;
   createBooking: (booking: Omit<Database['public']['Tables']['bookings']['Insert'], 'user_id'>) => Promise<void>;
@@ -72,6 +73,7 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
   const { user, loading: authLoading } = useAuth();
   const { currentTeam, selectedLocationId, loading: teamLoading } = useTeam();
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null); // New: track error state
   
   // Use request token pattern instead of boolean guard to handle race conditions
   const refreshSeqRef = useRef(0);
@@ -143,6 +145,25 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const QUERY_TIMEOUT = 15000; // 15 seconds per query
+  const MAX_RETRIES = 2; // Retry failed queries up to 2 times
+
+  // Retry wrapper for resilient data fetching
+  const fetchWithRetry = async <T,>(
+    queryFn: () => PromiseLike<T>,
+    label: string,
+    maxRetries = MAX_RETRIES
+  ): Promise<T> => {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await withTimeout(queryFn(), QUERY_TIMEOUT, label);
+      } catch (err) {
+        if (attempt === maxRetries) throw err;
+        console.log(`[FleetContext] ${label} attempt ${attempt} failed, retrying in 1s...`);
+        await new Promise(r => setTimeout(r, 1000)); // 1s delay between retries
+      }
+    }
+    throw new Error(`Failed after ${maxRetries} attempts`);
+  };
 
   const refreshData = useCallback(async () => {
     // Increment sequence to mark this as the "latest" request
@@ -157,6 +178,7 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     
     if (!user) {
       setLoading(false);
+      setError(null);
       return;
     }
     
@@ -164,23 +186,25 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     // The team may still be loading or user may not have a team
     
     setLoading(true);
+    setError(null); // Clear any previous error
     try {
       const teamId = getTeamId();
       const userId = getUserId();
       
       // Build vehicle query - filter by team_id if available, otherwise user_id
-      let vehicleQuery = supabase.from('vehicles').select('*');
-      if (teamId) {
-        vehicleQuery = vehicleQuery.eq('team_id', teamId);
-      } else {
-        vehicleQuery = vehicleQuery.eq('user_id', userId!);
-      }
-      const { data: vehiclesData, error: vehiclesError } = await withTimeout(
-        vehicleQuery.order('created_at', { ascending: false }),
-        QUERY_TIMEOUT,
-        'vehicles'
-      );
-      if (vehiclesError) throw vehiclesError;
+      // Use fetchWithRetry for resilience against transient failures
+      const vehiclesResult = await fetchWithRetry(async () => {
+        let vehicleQuery = supabase.from('vehicles').select('*');
+        if (teamId) {
+          vehicleQuery = vehicleQuery.eq('team_id', teamId);
+        } else {
+          vehicleQuery = vehicleQuery.eq('user_id', userId!);
+        }
+        return vehicleQuery.order('created_at', { ascending: false });
+      }, 'vehicles');
+      
+      if (vehiclesResult.error) throw vehiclesResult.error;
+      const vehiclesData = vehiclesResult.data;
       
       // Check if this request is still the latest (race condition guard)
       if (seq !== refreshSeqRef.current) {
@@ -360,13 +384,15 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       
       console.log('[FleetContext] Refresh complete, seq:', seq, 'vehicles:', vehiclesData?.length || 0);
 
-    } catch (error: any) {
+    } catch (err: any) {
       // Only set error if this is still the latest request
       if (seq === refreshSeqRef.current) {
-        console.error('[FleetContext] Error loading data:', error);
+        const errorMessage = err.message || 'Failed to load data';
+        console.error('[FleetContext] Error loading data:', err);
+        setError(errorMessage); // Store error for UI to display
         toast({
           title: "Error Loading Data",
-          description: error.message,
+          description: errorMessage,
           variant: "destructive"
         });
         setLoading(false);
@@ -1352,6 +1378,7 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       payments,
       revenue,
       loading,
+      error,
       applyPriceOptimization,
       createVehicle,
       createBooking,

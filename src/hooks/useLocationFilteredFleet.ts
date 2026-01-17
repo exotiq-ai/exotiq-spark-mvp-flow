@@ -163,6 +163,7 @@ export const useLocationFilteredFleet = () => {
     customers: fleet.customers,
     customerNotes: fleet.customerNotes,
     loading: fleet.loading,
+    error: fleet.error, // Expose error state for UI recovery
 
     // Pass through all actions
     applyPriceOptimization: fleet.applyPriceOptimization,

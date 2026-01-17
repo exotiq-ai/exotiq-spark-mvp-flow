@@ -6,6 +6,9 @@ import { toast } from 'sonner';
 /**
  * ServiceWorkerUpdatePrompt - Notifies users when a new version is available
  * and allows them to update with a single click.
+ * 
+ * CRITICAL: Also auto-activates waiting service workers on load to ensure
+ * users get the latest version without stale cached data.
  */
 export const ServiceWorkerUpdatePrompt = () => {
   const [showUpdate, setShowUpdate] = useState(false);
@@ -20,12 +23,17 @@ export const ServiceWorkerUpdatePrompt = () => {
 
       navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
 
-      // Check for waiting service worker
+      // Check for waiting service worker - AUTO-ACTIVATE if found
       navigator.serviceWorker.ready.then((reg) => {
         setRegistration(reg);
         
         if (reg.waiting) {
-          setShowUpdate(true);
+          console.log('[SW] Found waiting service worker, auto-activating...');
+          // AUTO-ACTIVATE: Force the new SW to take over immediately
+          // This ensures users get the latest code without stale cache issues
+          reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+          // Show notification but update is already happening
+          toast.info('Updating to latest version...', { duration: 3000 });
         }
 
         reg.addEventListener('updatefound', () => {
@@ -33,18 +41,22 @@ export const ServiceWorkerUpdatePrompt = () => {
           if (newWorker) {
             newWorker.addEventListener('statechange', () => {
               if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                setShowUpdate(true);
-                toast.info('A new version is available!', {
-                  duration: 10000,
-                  action: {
-                    label: 'Update',
-                    onClick: () => handleUpdate(),
-                  },
-                });
+                console.log('[SW] New service worker installed, auto-activating...');
+                // AUTO-ACTIVATE: Don't wait for user interaction
+                newWorker.postMessage({ type: 'SKIP_WAITING' });
+                toast.info('Updating to latest version...', { duration: 3000 });
               }
             });
           }
         });
+      });
+
+      // Also check immediately on page load for any waiting SW
+      navigator.serviceWorker.getRegistration().then((reg) => {
+        if (reg?.waiting) {
+          console.log('[SW] Page load: Found waiting SW, forcing activation...');
+          reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+        }
       });
 
       return () => {
@@ -59,6 +71,7 @@ export const ServiceWorkerUpdatePrompt = () => {
     }
   };
 
+  // UI is mostly hidden since we auto-activate, but keep as fallback
   if (!showUpdate) return null;
 
   return (
