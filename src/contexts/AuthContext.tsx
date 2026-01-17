@@ -246,7 +246,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           onboardingNavTimeoutRef.current = null;
         }
 
-        console.log('Auth event:', event);
+        console.log('Auth event:', event, 'user:', session?.user?.id || 'null');
         
         // CRITICAL: Skip ALL side effects if we're on /reset or /signout
         // This prevents auth events from interfering with the reset flow
@@ -256,6 +256,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setSession(session);
           setUser(session?.user ?? null);
           setLoading(false);
+          return;
+        }
+        
+        // CRITICAL: If we get INITIAL_SESSION with no user, and we're on a protected route,
+        // redirect to auth. This prevents the "null user stuck state"
+        if (event === 'INITIAL_SESSION' && !session?.user) {
+          console.log('[Auth] No user in initial session');
+          setSession(null);
+          setUser(null);
+          setLoading(false);
+          // If on a protected route, redirect to auth
+          if (currentPath === '/dashboard' || currentPath === '/onboarding') {
+            console.log('[Auth] Redirecting to /auth from protected route');
+            navigate('/auth', { replace: true });
+          }
           return;
         }
         
@@ -310,14 +325,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     );
 
-    // Check for existing session with validation (make sure failures can't keep `loading=true` forever)
+    // Check for existing session with server validation (prevents null user stuck state)
     (async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         
         if (session) {
           // CRITICAL: Verify the cached session is still valid with the server
-          // This prevents "flash of wrong account" when switching between users
+          // This prevents "null user" and "flash of wrong account" issues
           const { data: { user: verifiedUser }, error: verifyError } = await supabase.auth.getUser();
           
           if (verifyError || !verifiedUser) {
@@ -326,6 +341,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             setSession(null);
             setUser(null);
             setLoading(false);
+            // Redirect to auth if on a protected route
+            const currentPath = window.location.pathname;
+            if (currentPath === '/dashboard' || currentPath === '/onboarding') {
+              window.location.href = '/auth';
+            }
             return;
           }
           
