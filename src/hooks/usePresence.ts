@@ -145,13 +145,28 @@ export const usePresence = (conversationId?: string | null) => {
       }
     };
 
-    // Handle before unload
+    // Handle before unload - use supabase client for proper auth headers
     const handleBeforeUnload = () => {
-      // Synchronous update before page unloads
-      navigator.sendBeacon?.(
-        `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/user_presence?user_id=eq.${user.id}`,
-        JSON.stringify({ status: 'offline', last_seen: new Date().toISOString() })
-      );
+      // sendBeacon doesn't support custom headers properly, so we use a fire-and-forget fetch
+      // wrapped in keepalive to survive page unload
+      try {
+        fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/user_presence?user_id=eq.${user.id}`,
+          {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+              'Prefer': 'return=minimal',
+            },
+            body: JSON.stringify({ status: 'offline', last_seen: new Date().toISOString() }),
+            keepalive: true,
+          }
+        );
+      } catch {
+        // Ignore errors on page unload
+      }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
