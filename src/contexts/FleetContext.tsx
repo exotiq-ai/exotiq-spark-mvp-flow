@@ -128,6 +128,22 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [user?.id, currentTeam?.id]);
 
+  // Timeout helper to prevent infinite loading states
+  const withTimeout = async <T,>(
+    queryPromise: PromiseLike<T>, 
+    ms: number, 
+    label: string
+  ): Promise<T> => {
+    return Promise.race([
+      Promise.resolve(queryPromise),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error(`Timeout: ${label} exceeded ${ms}ms`)), ms)
+      )
+    ]);
+  };
+
+  const QUERY_TIMEOUT = 15000; // 15 seconds per query
+
   const refreshData = useCallback(async () => {
     // Increment sequence to mark this as the "latest" request
     const seq = ++refreshSeqRef.current;
@@ -159,7 +175,11 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       } else {
         vehicleQuery = vehicleQuery.eq('user_id', userId!);
       }
-      const { data: vehiclesData, error: vehiclesError } = await vehicleQuery.order('created_at', { ascending: false });
+      const { data: vehiclesData, error: vehiclesError } = await withTimeout(
+        vehicleQuery.order('created_at', { ascending: false }),
+        QUERY_TIMEOUT,
+        'vehicles'
+      );
       if (vehiclesError) throw vehiclesError;
       
       // Check if this request is still the latest (race condition guard)
@@ -176,7 +196,11 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       } else {
         bookingsQuery = bookingsQuery.eq('user_id', userId!);
       }
-      const { data: bookingsData, error: bookingsError } = await bookingsQuery.order('created_at', { ascending: false });
+      const { data: bookingsData, error: bookingsError } = await withTimeout(
+        bookingsQuery.order('created_at', { ascending: false }),
+        QUERY_TIMEOUT,
+        'bookings'
+      );
       if (bookingsError) throw bookingsError;
       if (seq !== refreshSeqRef.current) return;
       setBookings(bookingsData || []);
@@ -188,7 +212,11 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       } else {
         documentsQuery = documentsQuery.eq('user_id', userId!);
       }
-      const { data: documentsData, error: documentsError } = await documentsQuery.order('created_at', { ascending: false });
+      const { data: documentsData, error: documentsError } = await withTimeout(
+        documentsQuery.order('created_at', { ascending: false }),
+        QUERY_TIMEOUT,
+        'documents'
+      );
       if (documentsError) throw documentsError;
       if (seq !== refreshSeqRef.current) return;
       setDocuments(documentsData || []);
@@ -200,17 +228,25 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       } else {
         maintenanceQuery = maintenanceQuery.eq('user_id', userId!);
       }
-      const { data: maintenanceData, error: maintenanceError } = await maintenanceQuery.order('scheduled_date', { ascending: true });
+      const { data: maintenanceData, error: maintenanceError } = await withTimeout(
+        maintenanceQuery.order('scheduled_date', { ascending: true }),
+        QUERY_TIMEOUT,
+        'maintenance'
+      );
       if (maintenanceError) throw maintenanceError;
       if (seq !== refreshSeqRef.current) return;
       setMaintenance(maintenanceData || []);
 
       // Build messages query (user-specific, not team-wide)
-      const { data: messagesData, error: messagesError } = await supabase
-        .from('messages')
-        .select('*')
-        .eq('user_id', userId!)
-        .order('created_at', { ascending: false });
+      const { data: messagesData, error: messagesError } = await withTimeout(
+        supabase
+          .from('messages')
+          .select('*')
+          .eq('user_id', userId!)
+          .order('created_at', { ascending: false }),
+        QUERY_TIMEOUT,
+        'messages'
+      );
       if (messagesError) throw messagesError;
       if (seq !== refreshSeqRef.current) return;
       setMessages(messagesData || []);
@@ -222,7 +258,11 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       } else {
         customersQuery = customersQuery.eq('user_id', userId!);
       }
-      const { data: customersData, error: customersError } = await customersQuery.order('created_at', { ascending: false });
+      const { data: customersData, error: customersError } = await withTimeout(
+        customersQuery.order('created_at', { ascending: false }),
+        QUERY_TIMEOUT,
+        'customers'
+      );
       if (customersError) throw customersError;
       if (seq !== refreshSeqRef.current) return;
       setCustomers(customersData || []);
@@ -231,11 +271,15 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       const customerIds = customersData?.map(c => c.id) || [];
       let notesData: CustomerNote[] = [];
       if (customerIds.length > 0) {
-        const { data, error: notesError } = await supabase
-          .from('customer_notes')
-          .select('*')
-          .in('customer_id', customerIds)
-          .order('created_at', { ascending: false });
+        const { data, error: notesError } = await withTimeout(
+          supabase
+            .from('customer_notes')
+            .select('*')
+            .in('customer_id', customerIds)
+            .order('created_at', { ascending: false }),
+          QUERY_TIMEOUT,
+          'customer_notes'
+        );
         if (notesError) throw notesError;
         notesData = data || [];
       }
@@ -249,7 +293,11 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       } else {
         inspectionsQuery = inspectionsQuery.eq('user_id', userId!);
       }
-      const { data: inspectionsData, error: inspectionsError } = await inspectionsQuery.order('created_at', { ascending: false });
+      const { data: inspectionsData, error: inspectionsError } = await withTimeout(
+        inspectionsQuery.order('created_at', { ascending: false }),
+        QUERY_TIMEOUT,
+        'inspections'
+      );
       if (inspectionsError) throw inspectionsError;
       if (seq !== refreshSeqRef.current) return;
       setInspections(inspectionsData || []);
@@ -261,7 +309,11 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       } else {
         claimsQuery = claimsQuery.eq('user_id', userId!);
       }
-      const { data: claimsData, error: claimsError } = await claimsQuery.order('created_at', { ascending: false });
+      const { data: claimsData, error: claimsError } = await withTimeout(
+        claimsQuery.order('created_at', { ascending: false }),
+        QUERY_TIMEOUT,
+        'damage_claims'
+      );
       if (claimsError) throw claimsError;
       if (seq !== refreshSeqRef.current) return;
       setDamageClaims(claimsData || []);
@@ -273,7 +325,11 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       } else {
         paymentsQuery = paymentsQuery.eq('user_id', userId!);
       }
-      const { data: paymentsData, error: paymentsError } = await paymentsQuery.order('created_at', { ascending: false });
+      const { data: paymentsData, error: paymentsError } = await withTimeout(
+        paymentsQuery.order('created_at', { ascending: false }),
+        QUERY_TIMEOUT,
+        'payments'
+      );
       if (paymentsError) throw paymentsError;
       if (seq !== refreshSeqRef.current) return;
       setPayments(paymentsData || []);
@@ -333,6 +389,33 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     if (!user) return;
     refreshData();
   }, [user, currentTeam?.id, authLoading, refreshData]);
+
+  // Auto-recovery: refresh when tab becomes visible or network comes online
+  useEffect(() => {
+    if (!user || authLoading) return;
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && !loading) {
+        console.log('[FleetContext] Tab visible, refreshing data...');
+        refreshData();
+      }
+    };
+    
+    const handleOnline = () => {
+      if (!loading) {
+        console.log('[FleetContext] Network online, refreshing data...');
+        refreshData();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('online', handleOnline);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('online', handleOnline);
+    };
+  }, [user, authLoading, loading, refreshData]);
 
   const applyPriceOptimization = async (vehicleId: string, newRate: number) => {
     if (!user) return;

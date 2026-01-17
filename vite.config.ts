@@ -39,14 +39,16 @@ export default defineConfig(({ mode }) => ({
         clientsClaim: true,
         cleanupOutdatedCaches: true,
         runtimeCaching: [
+          // ONLY cache public storage assets (images), NOT API calls
+          // API caching caused stale data issues after deployments
           {
-            urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
-            handler: 'NetworkFirst',
+            urlPattern: /^https:\/\/.*\.supabase\.co\/storage\/v1\/object\/public\/.*/i,
+            handler: 'CacheFirst',
             options: {
-              cacheName: 'supabase-cache',
+              cacheName: 'supabase-public-assets',
               expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 60 * 60 * 24 // 24 hours
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 60 * 24 * 7 // 7 days for static images
               }
             }
           }

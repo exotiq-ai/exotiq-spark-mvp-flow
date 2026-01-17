@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,7 @@ import { LocationContextBanner } from "@/components/common/LocationBadge";
 import { DemoOnboarding } from "@/components/demo/DemoOnboarding";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useRariSidebar } from "@/hooks/useRariSidebar";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   SkeletonBanner, 
@@ -38,7 +39,9 @@ import {
   Sparkles,
   FileText,
   ChevronRight,
-  ChevronDown
+  ChevronDown,
+  RefreshCw,
+  AlertTriangle
 } from "lucide-react";
 
 interface DashboardOverviewEnhancedProps {
@@ -53,9 +56,24 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
   const [showMaintenanceDialog, setShowMaintenanceDialog] = useState(false);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [showAddVehicleDialog, setShowAddVehicleDialog] = useState(false);
+  const [loadingDuration, setLoadingDuration] = useState(0);
   
-  const { vehicles, bookings, loading, applyPriceOptimization, createBooking, createCustomer, generateReport, createMaintenance, createPayment, createVehicle } = useLocationFilteredFleet();
+  const { vehicles, bookings, loading, applyPriceOptimization, createBooking, createCustomer, generateReport, createMaintenance, createPayment, createVehicle, refreshData } = useLocationFilteredFleet();
   const rariSidebar = useRariSidebar();
+  const navigate = useNavigate();
+  
+  // Track loading duration to show recovery options if stuck
+  useEffect(() => {
+    if (loading) {
+      setLoadingDuration(0);
+      const interval = setInterval(() => {
+        setLoadingDuration(d => d + 1);
+      }, 1000);
+      return () => clearInterval(interval);
+    } else {
+      setLoadingDuration(0);
+    }
+  }, [loading]);
   
   // Collapsible state persistence
   const [showFleetSchedule, setShowFleetSchedule] = useLocalStorage<boolean>("dashboardFleetSchedule", false);
@@ -99,10 +117,50 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
 
   const firstBooking = bookings[0];
 
-  // Loading state with streamlined skeletons
+  // Loading state with streamlined skeletons and recovery options
   if (loading) {
+    const showRecoveryBanner = loadingDuration >= 12;
+    
     return (
       <div className="space-y-4 sm:space-y-6 pb-20 md:pb-24">
+        {/* Recovery banner if loading takes too long */}
+        {showRecoveryBanner && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-warning/10 border border-warning/30 rounded-lg p-4"
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <AlertTriangle className="h-5 w-5 text-warning shrink-0" />
+              <div>
+                <p className="font-medium text-foreground">Taking longer than expected</p>
+                <p className="text-sm text-muted-foreground">
+                  Loading has been running for {loadingDuration} seconds. You can try these recovery options:
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => refreshData()}
+                className="gap-2"
+              >
+                <RefreshCw className="h-4 w-4" />
+                Retry
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/reset')}
+                className="gap-2"
+              >
+                Clear Cache
+              </Button>
+            </div>
+          </motion.div>
+        )}
+        
         <SkeletonBanner />
         <SkeletonQuickActions count={3} />
         <SkeletonLineChart height={200} />
