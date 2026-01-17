@@ -4,7 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { OfflineBanner } from "@/components/common/OfflineBanner";
@@ -28,6 +28,21 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
+// Layout wrapper that provides all contexts - used with Outlet for proper React Router v6 pattern
+const ProvidersWrapper = () => {
+  return (
+    <AuthProvider>
+      <DemoProvider>
+        <TeamProvider>
+          <FleetProvider>
+            <Outlet />
+          </FleetProvider>
+        </TeamProvider>
+      </DemoProvider>
+    </AuthProvider>
+  );
+};
+
 const AppWithRouter = () => {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   
@@ -45,42 +60,32 @@ const AppWithRouter = () => {
         <Route path="/reset" element={<Reset />} />
         <Route path="/signout" element={<SignOut />} />
         
-        {/* All other routes wrapped in providers */}
-        <Route path="/*" element={
-          <AuthProvider>
-            <DemoProvider>
-              <TeamProvider>
-                <FleetProvider>
-                  <Routes>
-                    <Route path="/" element={<Index />} />
-                    <Route path="/auth" element={<Auth />} />
-                    <Route path="/onboarding" element={
-                      <ProtectedRoute>
-                        <Onboarding />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/dashboard" element={
-                      <ProtectedRoute>
-                        <Dashboard />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/super-admin" element={
-                      <SuperAdminGuard>
-                        <SuperAdminDashboard />
-                      </SuperAdminGuard>
-                    } />
-                    {/* Demo pages temporarily disabled - demo login uses /dashboard */}
-                    <Route path="/demo-landing" element={<Navigate to="/auth" replace />} />
-                    <Route path="/demo" element={<Navigate to="/auth" replace />} />
-                    <Route path="/welcome" element={<Welcome />} />
-                    {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                    <Route path="*" element={<NotFound />} />
-                  </Routes>
-                </FleetProvider>
-              </TeamProvider>
-            </DemoProvider>
-          </AuthProvider>
-        } />
+        {/* All other routes use layout route pattern with ProvidersWrapper */}
+        <Route element={<ProvidersWrapper />}>
+          <Route path="/" element={<Index />} />
+          <Route path="/auth" element={<Auth />} />
+          <Route path="/onboarding" element={
+            <ProtectedRoute>
+              <Onboarding />
+            </ProtectedRoute>
+          } />
+          <Route path="/dashboard" element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          } />
+          <Route path="/super-admin" element={
+            <SuperAdminGuard>
+              <SuperAdminDashboard />
+            </SuperAdminGuard>
+          } />
+          {/* Demo pages temporarily disabled - demo login uses /dashboard */}
+          <Route path="/demo-landing" element={<Navigate to="/auth" replace />} />
+          <Route path="/demo" element={<Navigate to="/auth" replace />} />
+          <Route path="/welcome" element={<Welcome />} />
+          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          <Route path="*" element={<NotFound />} />
+        </Route>
       </Routes>
     </>
   );
