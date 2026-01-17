@@ -145,6 +145,7 @@ export const DashboardSidebar = ({ activeModule, onModuleChange }: DashboardSide
             <button
               key={module.id}
               onClick={() => onModuleChange(module.id)}
+              data-tour={`nav-${module.id}`}
               className={cn(
                 "w-full flex items-center rounded-lg transition-all duration-200 group relative",
                 "min-h-[44px]", // Touch-friendly 44px minimum
