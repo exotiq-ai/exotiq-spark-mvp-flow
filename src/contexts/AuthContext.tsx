@@ -502,6 +502,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signInAsDemo = async () => {
     try {
+      // CRITICAL: First, clear any existing session to prevent conflicts
+      // This ensures a clean slate before demo login
+      try {
+        await supabase.auth.signOut({ scope: 'local' });
+      } catch {
+        // Ignore sign-out errors - we just want to clear local state
+      }
+      
+      // Small delay to ensure session is fully cleared
+      await new Promise(resolve => setTimeout(resolve, 100));
+
       // Call secure demo-login edge function
       const { data, error } = await supabase.functions.invoke('demo-login', {
         method: 'POST',

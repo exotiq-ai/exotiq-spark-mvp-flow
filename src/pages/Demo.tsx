@@ -1,19 +1,20 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { DemoProvider, useDemo } from "@/contexts/DemoContext";
 import { DemoBanner } from "@/components/demo/DemoBanner";
 import { useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
-import { toast } from "sonner";
 import Dashboard from "./Dashboard";
+
+const DEMO_EMAIL = 'hello@exotiq.ai';
 
 const DemoContent = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { setPersona } = useDemo();
-  const { signInAsDemo, user } = useAuth();
+  const { signInAsDemo, user, loading: authLoading } = useAuth();
   const [isReady, setIsReady] = useState(false);
-  const [hasAttemptedLogin, setHasAttemptedLogin] = useState(false);
+  const attemptedRef = useRef(false);
 
   // Set persona from URL params
   useEffect(() => {
@@ -23,44 +24,48 @@ const DemoContent = () => {
     }
   }, [searchParams, setPersona]);
 
-  // Auto-login to demo account
+  // Auto-login to demo account - runs once
   useEffect(() => {
+    // Wait for auth to finish loading before doing anything
+    if (authLoading) return;
+    
+    // Prevent multiple attempts
+    if (attemptedRef.current) return;
+
     const authenticateDemo = async () => {
-      if (hasAttemptedLogin) return;
-      
-      // If already logged in as demo user, we're ready
-      if (user?.email?.toLowerCase() === 'hello@exotiq.ai') {
+      // If already logged in as demo user, we're ready immediately
+      if (user?.email?.toLowerCase() === DEMO_EMAIL.toLowerCase()) {
+        console.log('[Demo] Already logged in as demo user');
         setIsReady(true);
         return;
       }
+
+      // Mark that we've attempted login
+      attemptedRef.current = true;
       
-      // If logged in as different user, show notice and switch
-      if (user) {
-        toast.info("Switching to Demo Mode", {
-          description: "You'll be logged out of your account temporarily."
-        });
-      }
-      
-      setHasAttemptedLogin(true);
+      console.log('[Demo] Signing in as demo user...');
       
       try {
         await signInAsDemo();
-        // Give a small delay for contexts to initialize
-        setTimeout(() => setIsReady(true), 500);
+        console.log('[Demo] Demo login successful');
+        // Give contexts time to hydrate with new session
+        setTimeout(() => setIsReady(true), 300);
       } catch (error) {
-        console.error('Demo authentication failed:', error);
-        navigate('/auth');
+        console.error('[Demo] Demo authentication failed:', error);
+        navigate('/auth', { replace: true });
       }
     };
 
     authenticateDemo();
-  }, [user, hasAttemptedLogin, signInAsDemo, navigate]);
+  }, [authLoading, user, signInAsDemo, navigate]);
 
-  // Show skeleton while loading (not blank spinner)
+  // Show skeleton while loading
   if (!isReady) {
     return (
       <div className="min-h-screen bg-background">
-        <div className="fixed top-0 left-0 right-0 z-50 bg-primary h-16" />
+        <div className="fixed top-0 left-0 right-0 z-50 bg-primary h-16 flex items-center px-4">
+          <span className="text-primary-foreground font-medium">Loading Demo...</span>
+        </div>
         <div className="pt-20 p-6 space-y-6">
           <div className="flex items-center justify-between">
             <Skeleton className="h-10 w-64" />
