@@ -290,22 +290,6 @@ export default function Auth() {
     }
   };
 
-  const handleDemoMode = async () => {
-    setError(null);
-    setSuccess(null);
-    setLoading(true);
-
-    try {
-      await signInAsDemo();
-      // Demo now uses the normal dashboard (demo pages temporarily disabled)
-      navigate('/dashboard', { replace: true });
-    } catch (err) {
-      setError("Failed to start demo mode. Please try again.");
-      console.error("Demo mode error:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleCancelPasswordUpdate = () => {
     clearPasswordRecovery();
@@ -488,17 +472,18 @@ export default function Auth() {
             )}
           </div>
 
-          {/* Demo Mode Button - Only show if not an invitation */}
+          {/* Contact for Demo Button - Only show if not an invitation */}
           {!invitation && (
             <>
               <Button 
-                onClick={handleDemoMode}
-                disabled={loading}
+                asChild
                 className="w-full mb-6 btn-premium bg-gradient-to-r from-accent to-primary hover:opacity-90 transition-opacity"
                 size="lg"
               >
-                <Sparkles className="w-5 h-5 mr-2" />
-                Try Demo Mode
+                <a href="mailto:Hello@exotiq.com?subject=Exotiq Demo Request">
+                  <Mail className="w-5 h-5 mr-2" />
+                  Contact for Demo
+                </a>
               </Button>
 
               <div className="relative mb-6">
