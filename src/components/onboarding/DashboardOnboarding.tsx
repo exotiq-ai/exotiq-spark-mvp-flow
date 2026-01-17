@@ -167,11 +167,31 @@ export const DashboardOnboarding = () => {
     }
   };
 
-  const handleSkip = () => {
-    handleComplete();
+  const markTourCompleted = async () => {
+    try {
+      if (!user?.id) return;
+      await supabase
+        .from('profiles')
+        .update({ tour_completed: true })
+        .eq('id', user.id);
+    } catch {
+      // If this fails, we still hide the tour; it may reappear next login.
+    }
   };
 
-  const handleComplete = async () => {
+  const handleSkip = () => {
+    // Hide immediately (no lingering overlay), then persist in background
+    setTourCompleted(true);
+    setIsVisible(false);
+    void markTourCompleted();
+  };
+
+  const handleComplete = () => {
+    // Hide immediately (prevents grey overlay getting stuck)
+    setTourCompleted(true);
+    setIsVisible(false);
+    void markTourCompleted();
+
     // Haptic feedback for mobile devices
     if ('vibrate' in navigator) {
       navigator.vibrate([50, 30, 50]); // Pattern: vibrate, pause, vibrate
@@ -180,7 +200,7 @@ export const DashboardOnboarding = () => {
     // Fire confetti celebration
     const duration = 3000;
     const animationEnd = Date.now() + duration;
-    
+
     const randomInRange = (min: number, max: number) => {
       return Math.random() * (max - min) + min;
     };
@@ -205,24 +225,11 @@ export const DashboardOnboarding = () => {
       });
     }, 50);
 
-    // Show success toast with trophy icon
     toast({
       title: "Welcome to Exotiq! 🚀",
       description: "Let's build something amazing together!",
       duration: 4000,
     });
-
-    // Persist tour completion to database
-    if (user?.id) {
-      await supabase
-        .from('profiles')
-        .update({ tour_completed: true })
-        .eq('id', user.id);
-    }
-
-    // Mark onboarding as complete and hide
-    setTourCompleted(true);
-    setIsVisible(false);
   };
 
   // Still loading tour status from DB
