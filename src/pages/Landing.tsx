@@ -28,7 +28,7 @@ const Landing = () => {
   };
 
   const handleTryDemo = () => {
-    navigate('/demo-landing');
+    navigate('/auth');
   };
 
   const handleScheduleDemo = () => {
