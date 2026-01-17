@@ -1,3 +1,13 @@
+/**
+ * @deprecated This component is deprecated. Use InteractiveModuleTour instead.
+ * The InteractiveModuleTour component provides the same functionality with:
+ * - Database-backed persistence (profiles.tour_completed)
+ * - Glass morphism design
+ * - Mobile bottom sheet
+ * - Proper spotlight positioning
+ * 
+ * This file is kept for reference but should not be used.
+ */
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -7,7 +17,7 @@ import { supabase } from '@/integrations/supabase/client';
 import confetti from 'canvas-confetti';
 import { 
   X, 
-  TrendingUp, 
+  TrendingUp,
   Calendar, 
   BarChart3, 
   Shield, 
