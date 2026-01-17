@@ -331,12 +331,14 @@ export const MyAccountSection = () => {
             </div>
             <Button 
               variant="outline" 
-              onClick={() => {
-                // Clear both old and new tour completion keys
-                const oldKey = user?.id ? `dashboard-onboarding-complete-${user.id}` : 'dashboard-onboarding-complete';
-                const newKey = user?.id ? `interactive-tour-complete-${user.id}` : 'interactive-tour-complete';
-                localStorage.removeItem(oldKey);
-                localStorage.removeItem(newKey);
+              onClick={async () => {
+                // Reset tour_completed in database
+                if (user?.id) {
+                  await supabase
+                    .from('profiles')
+                    .update({ tour_completed: false })
+                    .eq('id', user.id);
+                }
                 toast({
                   title: "Tour Restarting",
                   description: "Starting the interactive tour now...",

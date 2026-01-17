@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
-import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface TourStep {
   id: string;
@@ -9,7 +9,6 @@ export interface TourStep {
   description: string;
   icon: React.ComponentType<{ className?: string }>;
   spotlights: SpotlightTarget[];
-  microInteraction?: MicroInteraction;
   duration?: number;
 }
 
@@ -18,13 +17,6 @@ export interface SpotlightTarget {
   tooltip: string;
   position: 'top' | 'bottom' | 'left' | 'right';
   pulse?: boolean;
-}
-
-export interface MicroInteraction {
-  type: 'click' | 'hover' | 'input';
-  target: string;
-  prompt: string;
-  onComplete?: () => void;
 }
 
 interface UseTourNavigationOptions {
@@ -39,9 +31,9 @@ export const useTourNavigation = ({
   onComplete,
 }: UseTourNavigationOptions) => {
   const { user } = useAuth();
-  const storageKey = user?.id ? `interactive-tour-complete-${user.id}` : 'interactive-tour-complete';
-  const [tourComplete, setTourComplete] = useLocalStorage(storageKey, false);
   
+  // Database-backed tour completion status
+  const [tourComplete, setTourComplete] = useState<boolean | null>(null);
   const [isActive, setIsActive] = useState(false);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
@@ -51,10 +43,55 @@ export const useTourNavigation = ({
   const isFirstStep = currentStepIndex === 0;
   const isLastStep = currentStepIndex === steps.length - 1;
   const progress = ((currentStepIndex + 1) / steps.length) * 100;
-  
-  // Estimate remaining time (roughly 20 seconds per step)
-  const remainingSteps = steps.length - currentStepIndex - 1;
-  const estimatedTimeRemaining = Math.ceil(remainingSteps * 0.3); // in minutes
+
+  // Fetch tour_completed from database on mount
+  useEffect(() => {
+    const fetchTourStatus = async () => {
+      if (!user?.id) {
+        setTourComplete(null);
+        return;
+      }
+
+      const { data } = await supabase
+        .from('profiles')
+        .select('tour_completed')
+        .eq('id', user.id)
+        .single();
+
+      setTourComplete(data?.tour_completed ?? false);
+    };
+
+    fetchTourStatus();
+  }, [user?.id]);
+
+  // Update database when tour is completed
+  const markTourCompletedInDB = useCallback(async () => {
+    if (!user?.id) return;
+    
+    try {
+      await supabase
+        .from('profiles')
+        .update({ tour_completed: true })
+        .eq('id', user.id);
+    } catch {
+      // Silent fail - we tried
+    }
+  }, [user?.id]);
+
+  // Reset tour_completed in database (for restart)
+  const resetTourInDB = useCallback(async () => {
+    if (!user?.id) return;
+    
+    try {
+      await supabase
+        .from('profiles')
+        .update({ tour_completed: false })
+        .eq('id', user.id);
+      setTourComplete(false);
+    } catch {
+      // Silent fail
+    }
+  }, [user?.id]);
 
   const startTour = useCallback(() => {
     setCurrentStepIndex(0);
@@ -69,9 +106,10 @@ export const useTourNavigation = ({
     
     if (completed) {
       setTourComplete(true);
+      void markTourCompletedInDB();
       onComplete?.();
     }
-  }, [setTourComplete, onComplete]);
+  }, [markTourCompletedInDB, onComplete]);
 
   const goToStep = useCallback(async (stepIndex: number) => {
     if (stepIndex < 0 || stepIndex >= steps.length) return;
@@ -79,13 +117,13 @@ export const useTourNavigation = ({
     const targetStep = steps[stepIndex];
     
     // If module is different, navigate first
-    if (targetStep.module !== currentStep.module) {
+    if (targetStep.module !== currentStep?.module) {
       setIsTransitioning(true);
       setSpotlightsReady(false);
       onModuleChange(targetStep.module);
       
-      // Wait for module to render
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Wait for module to render (reduced for snappier transitions)
+      await new Promise(resolve => setTimeout(resolve, 300));
       setIsTransitioning(false);
     }
     
@@ -93,7 +131,7 @@ export const useTourNavigation = ({
     
     // Wait for spotlights to find elements
     if (targetStep.spotlights.length > 0) {
-      await new Promise(resolve => setTimeout(resolve, 300));
+      await new Promise(resolve => setTimeout(resolve, 100));
     }
     setSpotlightsReady(true);
   }, [steps, currentStep, onModuleChange]);
@@ -113,8 +151,13 @@ export const useTourNavigation = ({
   }, [isFirstStep, currentStepIndex, goToStep]);
 
   const skipTour = useCallback(() => {
-    endTour(false);
-  }, [endTour]);
+    // Skipping also marks as completed to prevent re-showing
+    setTourComplete(true);
+    void markTourCompletedInDB();
+    setIsActive(false);
+    setCurrentStepIndex(0);
+    setSpotlightsReady(false);
+  }, [markTourCompletedInDB]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -162,7 +205,6 @@ export const useTourNavigation = ({
     isTransitioning,
     spotlightsReady,
     progress,
-    estimatedTimeRemaining,
     tourComplete,
     startTour,
     endTour,
@@ -170,5 +212,6 @@ export const useTourNavigation = ({
     prevStep,
     skipTour,
     goToStep,
+    resetTourInDB,
   };
 };
