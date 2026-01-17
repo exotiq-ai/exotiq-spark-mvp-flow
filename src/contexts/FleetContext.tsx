@@ -80,9 +80,8 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
   const lastUserIdRef = useRef<string | null>(null);
   const lastTeamIdRef = useRef<string | null>(null);
   
-  // Debounce ref for visibility/online refresh triggers
+  // Track last refresh time for logging purposes
   const lastRefreshTimeRef = useRef<number>(0);
-  const REFRESH_DEBOUNCE_MS = 30000; // 30 seconds minimum between auto-refreshes
   
   const [revenue, setRevenue] = useState({
     today: 0,
@@ -134,40 +133,11 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [user?.id, currentTeam?.id]);
 
-  // Timeout helper to prevent infinite loading states
-  const withTimeout = async <T,>(
-    queryPromise: PromiseLike<T>, 
-    ms: number, 
-    label: string
-  ): Promise<T> => {
-    return Promise.race([
-      Promise.resolve(queryPromise),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error(`Timeout: ${label} exceeded ${ms}ms`)), ms)
-      )
-    ]);
-  };
-
-  const QUERY_TIMEOUT = 30000; // 30 seconds per query (increased for slower networks)
-  const MAX_RETRIES = 1; // Only retry once to avoid cascade failures
-
-  // Retry wrapper for resilient data fetching
-  const fetchWithRetry = async <T,>(
-    queryFn: () => PromiseLike<T>,
-    label: string,
-    maxRetries = MAX_RETRIES
-  ): Promise<T> => {
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        return await withTimeout(queryFn(), QUERY_TIMEOUT, label);
-      } catch (err) {
-        if (attempt === maxRetries) throw err;
-        console.log(`[FleetContext] ${label} attempt ${attempt} failed, retrying in 1s...`);
-        await new Promise(r => setTimeout(r, 1000)); // 1s delay between retries
-      }
-    }
-    throw new Error(`Failed after ${maxRetries} attempts`);
-  };
+  // SIMPLIFIED: Removed timeout/retry wrappers - let Supabase handle its own timeouts
+  // The previous wrappers were causing more problems than they solved by:
+  // 1. Triggering artificial timeout errors that showed "Unable to Load Data"
+  // 2. Multiplying failed requests through retries
+  // 3. Racing with multiple concurrent refresh attempts
 
   const refreshData = useCallback(async () => {
     // Increment sequence to mark this as the "latest" request
@@ -196,19 +166,15 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       const userId = getUserId();
       
       // Build vehicle query - filter by team_id if available, otherwise user_id
-      // Use fetchWithRetry for resilience against transient failures
-      const vehiclesResult = await fetchWithRetry(async () => {
-        let vehicleQuery = supabase.from('vehicles').select('*');
-        if (teamId) {
-          vehicleQuery = vehicleQuery.eq('team_id', teamId);
-        } else {
-          vehicleQuery = vehicleQuery.eq('user_id', userId!);
-        }
-        return vehicleQuery.order('created_at', { ascending: false });
-      }, 'vehicles');
+      let vehicleQuery = supabase.from('vehicles').select('*');
+      if (teamId) {
+        vehicleQuery = vehicleQuery.eq('team_id', teamId);
+      } else {
+        vehicleQuery = vehicleQuery.eq('user_id', userId!);
+      }
+      const { data: vehiclesData, error: vehiclesError } = await vehicleQuery.order('created_at', { ascending: false });
       
-      if (vehiclesResult.error) throw vehiclesResult.error;
-      const vehiclesData = vehiclesResult.data;
+      if (vehiclesError) throw vehiclesError;
       
       // Check if this request is still the latest (race condition guard)
       if (seq !== refreshSeqRef.current) {
@@ -224,11 +190,7 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       } else {
         bookingsQuery = bookingsQuery.eq('user_id', userId!);
       }
-      const { data: bookingsData, error: bookingsError } = await withTimeout(
-        bookingsQuery.order('created_at', { ascending: false }),
-        QUERY_TIMEOUT,
-        'bookings'
-      );
+      const { data: bookingsData, error: bookingsError } = await bookingsQuery.order('created_at', { ascending: false });
       if (bookingsError) throw bookingsError;
       if (seq !== refreshSeqRef.current) return;
       setBookings(bookingsData || []);
@@ -240,11 +202,7 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       } else {
         documentsQuery = documentsQuery.eq('user_id', userId!);
       }
-      const { data: documentsData, error: documentsError } = await withTimeout(
-        documentsQuery.order('created_at', { ascending: false }),
-        QUERY_TIMEOUT,
-        'documents'
-      );
+      const { data: documentsData, error: documentsError } = await documentsQuery.order('created_at', { ascending: false });
       if (documentsError) throw documentsError;
       if (seq !== refreshSeqRef.current) return;
       setDocuments(documentsData || []);
@@ -256,25 +214,17 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       } else {
         maintenanceQuery = maintenanceQuery.eq('user_id', userId!);
       }
-      const { data: maintenanceData, error: maintenanceError } = await withTimeout(
-        maintenanceQuery.order('scheduled_date', { ascending: true }),
-        QUERY_TIMEOUT,
-        'maintenance'
-      );
+      const { data: maintenanceData, error: maintenanceError } = await maintenanceQuery.order('scheduled_date', { ascending: true });
       if (maintenanceError) throw maintenanceError;
       if (seq !== refreshSeqRef.current) return;
       setMaintenance(maintenanceData || []);
 
       // Build messages query (user-specific, not team-wide)
-      const { data: messagesData, error: messagesError } = await withTimeout(
-        supabase
-          .from('messages')
-          .select('*')
-          .eq('user_id', userId!)
-          .order('created_at', { ascending: false }),
-        QUERY_TIMEOUT,
-        'messages'
-      );
+      const { data: messagesData, error: messagesError } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('user_id', userId!)
+        .order('created_at', { ascending: false });
       if (messagesError) throw messagesError;
       if (seq !== refreshSeqRef.current) return;
       setMessages(messagesData || []);
@@ -286,11 +236,7 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       } else {
         customersQuery = customersQuery.eq('user_id', userId!);
       }
-      const { data: customersData, error: customersError } = await withTimeout(
-        customersQuery.order('created_at', { ascending: false }),
-        QUERY_TIMEOUT,
-        'customers'
-      );
+      const { data: customersData, error: customersError } = await customersQuery.order('created_at', { ascending: false });
       if (customersError) throw customersError;
       if (seq !== refreshSeqRef.current) return;
       setCustomers(customersData || []);
@@ -299,15 +245,11 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       const customerIds = customersData?.map(c => c.id) || [];
       let notesData: CustomerNote[] = [];
       if (customerIds.length > 0) {
-        const { data, error: notesError } = await withTimeout(
-          supabase
-            .from('customer_notes')
-            .select('*')
-            .in('customer_id', customerIds)
-            .order('created_at', { ascending: false }),
-          QUERY_TIMEOUT,
-          'customer_notes'
-        );
+        const { data, error: notesError } = await supabase
+          .from('customer_notes')
+          .select('*')
+          .in('customer_id', customerIds)
+          .order('created_at', { ascending: false });
         if (notesError) throw notesError;
         notesData = data || [];
       }
@@ -321,11 +263,7 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       } else {
         inspectionsQuery = inspectionsQuery.eq('user_id', userId!);
       }
-      const { data: inspectionsData, error: inspectionsError } = await withTimeout(
-        inspectionsQuery.order('created_at', { ascending: false }),
-        QUERY_TIMEOUT,
-        'inspections'
-      );
+      const { data: inspectionsData, error: inspectionsError } = await inspectionsQuery.order('created_at', { ascending: false });
       if (inspectionsError) throw inspectionsError;
       if (seq !== refreshSeqRef.current) return;
       setInspections(inspectionsData || []);
@@ -337,11 +275,7 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       } else {
         claimsQuery = claimsQuery.eq('user_id', userId!);
       }
-      const { data: claimsData, error: claimsError } = await withTimeout(
-        claimsQuery.order('created_at', { ascending: false }),
-        QUERY_TIMEOUT,
-        'damage_claims'
-      );
+      const { data: claimsData, error: claimsError } = await claimsQuery.order('created_at', { ascending: false });
       if (claimsError) throw claimsError;
       if (seq !== refreshSeqRef.current) return;
       setDamageClaims(claimsData || []);
@@ -353,11 +287,7 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       } else {
         paymentsQuery = paymentsQuery.eq('user_id', userId!);
       }
-      const { data: paymentsData, error: paymentsError } = await withTimeout(
-        paymentsQuery.order('created_at', { ascending: false }),
-        QUERY_TIMEOUT,
-        'payments'
-      );
+      const { data: paymentsData, error: paymentsError } = await paymentsQuery.order('created_at', { ascending: false });
       if (paymentsError) throw paymentsError;
       if (seq !== refreshSeqRef.current) return;
       setPayments(paymentsData || []);
@@ -431,44 +361,9 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     refreshData();
   }, [authLoading, user?.id, refreshData]);
 
-  // Auto-recovery: refresh when tab becomes visible or network comes online
-  useEffect(() => {
-    if (!user || authLoading) return;
-
-    const handleVisibilityChange = () => {
-      const now = Date.now();
-      const timeSinceLastRefresh = now - lastRefreshTimeRef.current;
-      
-      if (document.visibilityState === 'visible' && !loading && timeSinceLastRefresh > REFRESH_DEBOUNCE_MS) {
-        console.log('[FleetContext] Tab visible, debounce passed, refreshing data...');
-        lastRefreshTimeRef.current = now;
-        refreshData();
-      } else if (document.visibilityState === 'visible') {
-        console.log(`[FleetContext] Tab visible, but debounce not passed (${Math.round(timeSinceLastRefresh / 1000)}s < 30s), skipping refresh`);
-      }
-    };
-    
-    const handleOnline = () => {
-      const now = Date.now();
-      const timeSinceLastRefresh = now - lastRefreshTimeRef.current;
-      
-      if (!loading && timeSinceLastRefresh > REFRESH_DEBOUNCE_MS) {
-        console.log('[FleetContext] Network online, debounce passed, refreshing data...');
-        lastRefreshTimeRef.current = now;
-        refreshData();
-      } else {
-        console.log(`[FleetContext] Network online, but debounce not passed (${Math.round(timeSinceLastRefresh / 1000)}s < 30s), skipping refresh`);
-      }
-    };
-    
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('online', handleOnline);
-    
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('online', handleOnline);
-    };
-  }, [user, authLoading, loading, refreshData]);
+  // DISABLED: Auto-recovery on visibility/online was causing extra refresh attempts
+  // that competed with the initial load. Users can manually refresh if needed.
+  // Re-enable this later once the core loading is stable.
 
   const applyPriceOptimization = async (vehicleId: string, newRate: number) => {
     if (!user) return;
