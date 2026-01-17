@@ -498,7 +498,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.error('Demo login edge function error:', error);
         throw error;
       }
-      
+
       if (!data?.session) {
         throw new Error('No session returned from demo login');
       }
@@ -520,16 +520,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         description: "Exploring Exotiq with pre-populated data.",
         duration: 3000,
       });
-      
+
       return { error: null };
     } catch (error: any) {
       console.error('Demo mode error:', error);
+
+      const message = error?.message || 'Please try again or contact support.';
       toast({
         title: "Demo Mode Unavailable",
-        description: error.message || "Please try again or contact support.",
-        variant: "destructive"
+        description: message,
+        variant: "destructive",
       });
-      return { error };
+
+      // IMPORTANT: rethrow so callers (Demo page / Auth page) can break out of
+      // loading spinners and route the user appropriately.
+      throw (error instanceof Error ? error : new Error(message));
     }
   };
 
