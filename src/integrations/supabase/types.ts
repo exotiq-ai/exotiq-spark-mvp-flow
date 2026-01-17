@@ -1519,6 +1519,7 @@ export type Database = {
           number_of_locations: number | null
           onboarding_completed: boolean | null
           phone: string | null
+          tour_completed: boolean | null
           updated_at: string | null
           website: string | null
         }
@@ -1537,6 +1538,7 @@ export type Database = {
           number_of_locations?: number | null
           onboarding_completed?: boolean | null
           phone?: string | null
+          tour_completed?: boolean | null
           updated_at?: string | null
           website?: string | null
         }
@@ -1555,6 +1557,7 @@ export type Database = {
           number_of_locations?: number | null
           onboarding_completed?: boolean | null
           phone?: string | null
+          tour_completed?: boolean | null
           updated_at?: string | null
           website?: string | null
         }

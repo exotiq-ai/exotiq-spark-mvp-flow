@@ -80,6 +80,10 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
   const lastUserIdRef = useRef<string | null>(null);
   const lastTeamIdRef = useRef<string | null>(null);
   
+  // Debounce ref for visibility/online refresh triggers
+  const lastRefreshTimeRef = useRef<number>(0);
+  const REFRESH_DEBOUNCE_MS = 30000; // 30 seconds minimum between auto-refreshes
+  
   const [revenue, setRevenue] = useState({
     today: 0,
     month: 0,
@@ -430,16 +434,28 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     if (!user || authLoading) return;
 
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && !loading) {
-        console.log('[FleetContext] Tab visible, refreshing data...');
+      const now = Date.now();
+      const timeSinceLastRefresh = now - lastRefreshTimeRef.current;
+      
+      if (document.visibilityState === 'visible' && !loading && timeSinceLastRefresh > REFRESH_DEBOUNCE_MS) {
+        console.log('[FleetContext] Tab visible, debounce passed, refreshing data...');
+        lastRefreshTimeRef.current = now;
         refreshData();
+      } else if (document.visibilityState === 'visible') {
+        console.log(`[FleetContext] Tab visible, but debounce not passed (${Math.round(timeSinceLastRefresh / 1000)}s < 30s), skipping refresh`);
       }
     };
     
     const handleOnline = () => {
-      if (!loading) {
-        console.log('[FleetContext] Network online, refreshing data...');
+      const now = Date.now();
+      const timeSinceLastRefresh = now - lastRefreshTimeRef.current;
+      
+      if (!loading && timeSinceLastRefresh > REFRESH_DEBOUNCE_MS) {
+        console.log('[FleetContext] Network online, debounce passed, refreshing data...');
+        lastRefreshTimeRef.current = now;
         refreshData();
+      } else {
+        console.log(`[FleetContext] Network online, but debounce not passed (${Math.round(timeSinceLastRefresh / 1000)}s < 30s), skipping refresh`);
       }
     };
     
