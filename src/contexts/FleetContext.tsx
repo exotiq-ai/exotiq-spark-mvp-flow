@@ -131,11 +131,11 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
   const refreshData = useCallback(async () => {
     // Increment sequence to mark this as the "latest" request
     const seq = ++refreshSeqRef.current;
-    console.log('[FleetContext] Refresh started, seq:', seq, 'userId:', user?.id, 'teamId:', currentTeam?.id, 'authLoading:', authLoading, 'teamLoading:', teamLoading);
+    console.log('[FleetContext] Refresh started, seq:', seq, 'userId:', user?.id, 'teamId:', currentTeam?.id, 'authLoading:', authLoading);
     
-    // CRITICAL: Don't fetch if auth or team is still loading - wait for it to settle
-    if (authLoading || teamLoading) {
-      console.log('[FleetContext] Auth/Team still loading, waiting...');
+    // CRITICAL: Don't fetch if auth is still loading
+    if (authLoading) {
+      console.log('[FleetContext] Auth still loading, waiting...');
       return;
     }
     
@@ -143,6 +143,9 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       setLoading(false);
       return;
     }
+    
+    // If user exists but no team yet, that's okay - we can still fetch user-level data
+    // The team may still be loading or user may not have a team
     
     setLoading(true);
     try {
@@ -321,12 +324,15 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [user, currentTeam?.id, getTeamId, getUserId, toast]);
 
-  // Refresh when user or team changes - wait for team context to finish loading first
+  // Refresh when user or team changes
+  // We trigger on currentTeam?.id changes which happens when TeamContext finishes loading
   useEffect(() => {
-    // Don't fetch until both Auth and Team contexts are ready
-    if (authLoading || teamLoading) return;
+    // Don't fetch until Auth is ready
+    if (authLoading) return;
+    // Don't fetch if no user
+    if (!user) return;
     refreshData();
-  }, [user, currentTeam?.id, authLoading, teamLoading, refreshData]);
+  }, [user, currentTeam?.id, authLoading, refreshData]);
 
   const applyPriceOptimization = async (vehicleId: string, newRate: number) => {
     if (!user) return;
