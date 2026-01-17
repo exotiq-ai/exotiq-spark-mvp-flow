@@ -48,16 +48,38 @@ const checkRateLimit = (key: string): boolean => {
   return true;
 };
 
+serve(async (req) => {
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    // Get client IP for rate limiting
+    const clientIP = getClientIP(req);
+
+    // Check rate limit
+    if (!checkRateLimit(clientIP)) {
+      console.log(`🚫 Rate limit exceeded for IP: ${clientIP}`);
+      return new Response(
+        JSON.stringify({ error: 'Too many demo login attempts. Please try again later.' }),
+        {
+          status: 429,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
     // Get demo credentials from environment
     const DEMO_EMAIL = 'hello@exotiq.ai';
     const DEMO_PASSWORD = Deno.env.get('DEMO_PASSWORD') || 'demo123456';
-    
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-    
+
     // Create Supabase client
     const supabase = createClient(supabaseUrl, supabaseAnonKey);
-    
+
     // Sign in with demo credentials
     const { data, error } = await supabase.auth.signInWithPassword({
       email: DEMO_EMAIL,
@@ -68,9 +90,9 @@ const checkRateLimit = (key: string): boolean => {
       console.error('🚨 Demo login error:', error);
       return new Response(
         JSON.stringify({ error: 'Demo mode temporarily unavailable' }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         }
       );
     }
