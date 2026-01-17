@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { LoadingSpinner } from './LoadingSpinner';
@@ -10,6 +11,24 @@ interface ProtectedRouteProps {
 export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const { user, loading, isPasswordRecovery } = useAuth();
   const { isProcessing: authRedirectProcessing, error: authError } = useAuthRedirect();
+  const [timedOut, setTimedOut] = useState(false);
+
+  // Timeout after 5 seconds to prevent infinite loading
+  useEffect(() => {
+    if (loading || authRedirectProcessing) {
+      const timeout = setTimeout(() => {
+        console.warn('ProtectedRoute: Auth loading timed out after 5 seconds');
+        setTimedOut(true);
+      }, 5000);
+      return () => clearTimeout(timeout);
+    }
+  }, [loading, authRedirectProcessing]);
+
+  // If timed out, redirect to signout to clear corrupted state
+  if (timedOut) {
+    window.location.href = '/signout';
+    return <LoadingSpinner fullScreen text="Session timed out, redirecting..." />;
+  }
 
   // Show loading while auth context is initializing or an auth redirect is being processed
   if (loading || authRedirectProcessing) {

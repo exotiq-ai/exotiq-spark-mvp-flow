@@ -22,6 +22,7 @@ import { SuperAdminDashboard } from "./pages/SuperAdminDashboard";
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
 import Welcome from "./pages/Welcome";
+import SignOut from "./pages/SignOut";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -45,6 +46,7 @@ const AppWithRouter = () => {
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/auth" element={<Auth />} />
+                <Route path="/signout" element={<SignOut />} />
                 <Route path="/onboarding" element={
                   <ProtectedRoute>
                     <Onboarding />
