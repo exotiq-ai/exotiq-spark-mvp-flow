@@ -99,7 +99,13 @@ export const DashboardHeader = ({ onOpenChat }: DashboardHeaderProps) => {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={signOut} className="text-destructive cursor-pointer">
+              <DropdownMenuItem
+                onSelect={(e) => {
+                  e.preventDefault();
+                  void signOut();
+                }}
+                className="text-destructive cursor-pointer"
+              >
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Sign out</span>
               </DropdownMenuItem>
