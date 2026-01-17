@@ -148,8 +148,8 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     ]);
   };
 
-  const QUERY_TIMEOUT = 15000; // 15 seconds per query
-  const MAX_RETRIES = 2; // Retry failed queries up to 2 times
+  const QUERY_TIMEOUT = 30000; // 30 seconds per query (increased for slower networks)
+  const MAX_RETRIES = 1; // Only retry once to avoid cascade failures
 
   // Retry wrapper for resilient data fetching
   const fetchWithRetry = async <T,>(
@@ -410,8 +410,8 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [user, currentTeam?.id, getTeamId, getUserId, toast]);
 
-  // Refresh when user or team changes
-  // CRITICAL: Only trigger when auth is DONE and we have definitive user state
+  // Refresh when user changes (initial load)
+  // CRITICAL: Only trigger on user change, NOT on team change (team change triggers via refreshData's own deps)
   useEffect(() => {
     // Wait for auth to be completely done loading
     if (authLoading) {
@@ -424,10 +424,12 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       setLoading(false);
       return;
     }
-    // Auth done + user exists = safe to fetch
+    // Auth done + user exists = safe to fetch (only once per user)
+    // Update lastRefreshTime to prevent visibility handler from immediately re-triggering
+    lastRefreshTimeRef.current = Date.now();
     console.log('[FleetContext] Auth complete with user, fetching fleet data...');
     refreshData();
-  }, [authLoading, user?.id, currentTeam?.id, refreshData]);
+  }, [authLoading, user?.id, refreshData]);
 
   // Auto-recovery: refresh when tab becomes visible or network comes online
   useEffect(() => {
