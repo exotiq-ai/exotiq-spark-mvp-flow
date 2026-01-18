@@ -118,7 +118,7 @@ const generateTourSteps = (profile: UserProfile | null): TourStep[] => {
 };
 
 // Get smart card position based on current step to avoid overlapping spotlights
-// Card should NEVER cover what it's describing - 24px minimum gap
+// Card should NEVER cover what it's describing - positioned away from spotlight
 const getCardPosition = (stepId: string, isCenterStep: boolean): string => {
   if (isCenterStep) {
     return 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2';
@@ -126,19 +126,19 @@ const getCardPosition = (stepId: string, isCenterStep: boolean): string => {
 
   switch (stepId) {
     case 'rari-assistant':
-      // Rari FAB is bottom-right, so card goes top-left
-      return 'top-8 left-6';
+      // Rari FAB is bottom-right, card goes top-left (clear of sidebar)
+      return 'top-24 left-24';
     case 'pulse-overview':
       // Fleet snapshot is top area, card goes bottom-right
-      return 'bottom-32 right-6 md:bottom-8';
+      return 'bottom-24 right-8';
     case 'book-overview':
-      // Next pickup is left side, card goes bottom-right
-      return 'bottom-32 right-6 md:bottom-8';
+      // Next pickup is LEFT side, card goes TOP-RIGHT to avoid overlap
+      return 'top-24 right-8';
     case 'vault-overview':
       // Compliance overview center/top, card goes top-left
-      return 'top-8 left-6';
+      return 'top-24 left-24';
     default:
-      return 'bottom-32 left-6 md:bottom-8';
+      return 'bottom-24 right-8';
   }
 };
 
@@ -276,24 +276,24 @@ export const InteractiveModuleTour = ({ onModuleChange }: InteractiveModuleTourP
             cardPosition
           )}
         >
-          {/* Glass morphism card */}
+          {/* Theme-aware glass morphism card - compact design */}
           <div 
             className={cn(
-              'relative w-[380px] p-6 rounded-[20px]',
-              // Glass morphism
-              'bg-white/[0.08]',
-              'backdrop-blur-[20px] [-webkit-backdrop-filter:blur(20px)]',
-              'border border-white/[0.15]',
-              // Shadows
-              'shadow-[0_8px_32px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.1)]'
+              'relative w-[320px] p-5 rounded-2xl',
+              // Theme-aware glass morphism
+              'bg-white/95 dark:bg-slate-900/90',
+              'backdrop-blur-xl',
+              'border border-border/50 dark:border-white/10',
+              // Shadows - subtle in light, deeper in dark
+              'shadow-xl dark:shadow-[0_8px_32px_rgba(0,0,0,0.4)]'
             )}
           >
             {/* Progress bar with step indicator */}
-            <div className="mb-5">
-              <div className="flex items-center justify-between text-xs text-white/50 mb-2">
+            <div className="mb-4">
+              <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
                 <span>Step {tour.currentStepIndex + 1} of {tourSteps.length}</span>
               </div>
-              <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+              <div className="h-1 bg-muted rounded-full overflow-hidden">
                 <motion.div
                   className="h-full bg-primary rounded-full"
                   initial={{ width: 0 }}
@@ -306,33 +306,32 @@ export const InteractiveModuleTour = ({ onModuleChange }: InteractiveModuleTourP
             {/* Close button */}
             <button
               onClick={tour.skipTour}
-              className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+              className="absolute top-3 right-3 p-2 rounded-full bg-muted hover:bg-muted-foreground/20 transition-colors"
               aria-label="Skip tour"
             >
-              <X className="h-4 w-4 text-white/80" />
+              <X className="h-4 w-4 text-foreground" />
             </button>
 
-            {/* Icon with glow effect */}
-            <div className="relative mb-5">
-              <div className="absolute inset-0 w-16 h-16 bg-primary/40 blur-2xl rounded-full" />
-              <div className="relative flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-accent shadow-lg">
-                <Icon className="h-8 w-8 text-white" />
+            {/* Icon - cleaner, smaller */}
+            <div className="relative mb-4">
+              <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-primary/80 shadow-lg shadow-primary/20">
+                <Icon className="h-6 w-6 text-white" />
               </div>
             </div>
 
             {/* Content */}
-            <h3 className="text-xl font-bold mb-3 pr-8 text-white">{tour.currentStep.title}</h3>
-            <p className="text-white/70 mb-6 leading-relaxed">{tour.currentStep.description}</p>
+            <h3 className="text-lg font-bold mb-2 pr-8 text-foreground">{tour.currentStep.title}</h3>
+            <p className="text-muted-foreground text-sm mb-5 leading-relaxed">{tour.currentStep.description}</p>
 
             {/* Navigation */}
-            <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center justify-between gap-3">
               <div className="flex-1">
                 {!tour.isFirstStep && (
                   <Button
                     variant="ghost"
-                    size="default"
+                    size="sm"
                     onClick={tour.prevStep}
-                    className="text-white/70 hover:text-white hover:bg-white/10"
+                    className="text-muted-foreground hover:text-foreground hover:bg-muted"
                   >
                     <ChevronLeft className="h-4 w-4 mr-1" />
                     Back
@@ -340,28 +339,28 @@ export const InteractiveModuleTour = ({ onModuleChange }: InteractiveModuleTourP
                 )}
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 <Button
                   variant="ghost"
-                  size="default"
+                  size="sm"
                   onClick={tour.skipTour}
-                  className="text-white/50 hover:text-white/80 hover:bg-white/10"
+                  className="text-muted-foreground hover:text-foreground hover:bg-muted"
                 >
                   Skip
                 </Button>
                 <Button
-                  size="default"
+                  size="sm"
                   onClick={tour.nextStep}
-                  className="bg-white text-black hover:bg-white/90 font-medium min-w-[100px]"
+                  className="bg-primary text-primary-foreground hover:bg-primary/90 font-medium min-w-[90px]"
                 >
-                  {tour.isLastStep ? 'Get Started' : 'Next'}
+                  {tour.isLastStep ? 'Done' : 'Next'}
                   {!tour.isLastStep && <ChevronRight className="h-4 w-4 ml-1" />}
                 </Button>
               </div>
             </div>
 
             {/* Keyboard hint */}
-            <p className="text-[10px] text-white/40 text-center mt-4">
+            <p className="text-[10px] text-muted-foreground/60 text-center mt-3">
               Use ← → arrows or Escape to skip
             </p>
           </div>
