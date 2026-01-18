@@ -68,9 +68,10 @@ export const TeamProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  // Use request token pattern instead of boolean guard to handle race conditions
+  // Enterprise-grade concurrency controls
   const fetchSeqRef = useRef(0);
-  const lastUserIdRef = useRef<string | null>(null);
+  const hasInitializedForUserRef = useRef<string | null>(null);
+  const isFetchingRef = useRef(false);
 
   // Derived values
   const isOwner = userRole === 'owner';
@@ -80,7 +81,6 @@ export const TeamProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Get current location based on selection
   const currentLocation = useMemo(() => {
     if (selectedLocationId === 'all') {
-      // Return default location when "All Locations" is selected
       return locations.find(l => l.is_default) || locations[0] || null;
     }
     return locations.find(l => l.id === selectedLocationId) || null;
@@ -98,33 +98,38 @@ export const TeamProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem(LOCATION_STORAGE_KEY, locationId);
   }, []);
 
-  // CRITICAL: Reset state immediately when user changes to prevent stale data
+  // CRITICAL: Only hard-reset when USER changes (actual account switch)
   useEffect(() => {
-    if (user?.id !== lastUserIdRef.current) {
-      console.log('[TeamContext] User changed:', lastUserIdRef.current, '->', user?.id);
-      lastUserIdRef.current = user?.id || null;
-      
-      // Clear demo-specific localStorage when switching users
-      localStorage.removeItem(LOCATION_STORAGE_KEY);
-      
-      // Immediately reset all state to prevent showing old user's data
-      setCurrentTeam(null);
-      setLocations([]);
-      setAssignedLocationIds([]);
-      setUserRole(null);
-      setSelectedLocationId('all');
-      setLoading(true);
-      setError(null);
+    if (user?.id !== hasInitializedForUserRef.current) {
+      if (hasInitializedForUserRef.current !== null) {
+        console.log('[TeamContext] User switched:', hasInitializedForUserRef.current, '->', user?.id);
+        // Clear localStorage for new user
+        localStorage.removeItem(LOCATION_STORAGE_KEY);
+        // Hard reset all state
+        setCurrentTeam(null);
+        setLocations([]);
+        setAssignedLocationIds([]);
+        setUserRole(null);
+        setSelectedLocationId('all');
+        setLoading(true);
+        setError(null);
+      }
+      hasInitializedForUserRef.current = user?.id || null;
     }
   }, [user?.id]);
 
-  // Fetch team data with request token pattern
+  // Fetch team data with concurrency guard
   const fetchTeamData = useCallback(async () => {
-    // Increment sequence to mark this as the "latest" request
-    const seq = ++fetchSeqRef.current;
-    console.log('[TeamContext] Fetch started, seq:', seq, 'userId:', user?.id, 'authLoading:', authLoading);
+    // Concurrency guard
+    if (isFetchingRef.current) {
+      console.log('[TeamContext] Fetch already in progress, skipping');
+      return;
+    }
     
-    // CRITICAL: Don't fetch if auth is still loading - wait for it to settle
+    const seq = ++fetchSeqRef.current;
+    console.log('[TeamContext] Fetch started, seq:', seq, 'userId:', user?.id);
+    
+    // Wait for auth to settle
     if (authLoading) {
       console.log('[TeamContext] Auth still loading, waiting...');
       return;
@@ -138,27 +143,36 @@ export const TeamProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(false);
       return;
     }
+    
+    isFetchingRef.current = true;
+    setError(null);
+    
     try {
-      setLoading(true);
-      setError(null);
-
-      // Fetch user's team membership
+      // Use maybeSingle() to handle "no row found" gracefully
       const { data: teamMember, error: teamMemberError } = await supabase
         .from('team_members')
         .select('team_id, role')
         .eq('user_id', user.id)
         .eq('is_active', true)
-        .single();
+        .maybeSingle();
 
-      // Check if this request is still the latest (race condition guard)
+      // Stale check
       if (seq !== fetchSeqRef.current) {
-        console.log('[TeamContext] Stale fetch abandoned, seq:', seq, 'current:', fetchSeqRef.current);
+        console.log('[TeamContext] Stale fetch abandoned, seq:', seq);
         return;
       }
 
       if (teamMemberError) {
-        // User might not have a team yet
-        console.log('[TeamContext] No team membership found:', teamMemberError.message);
+        console.error('[TeamContext] Error fetching team membership:', teamMemberError);
+        setLoading(false);
+        return;
+      }
+      
+      // No team membership - that's okay, user just doesn't have a team
+      if (!teamMember) {
+        console.log('[TeamContext] No team membership found for user');
+        setCurrentTeam(null);
+        setUserRole(null);
         setLoading(false);
         return;
       }
@@ -170,19 +184,26 @@ export const TeamProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .from('teams')
         .select('*')
         .eq('id', teamMember.team_id)
-        .single();
+        .maybeSingle();
 
-      // Check if still latest request
-      if (seq !== fetchSeqRef.current) {
-        console.log('[TeamContext] Stale fetch abandoned after team query');
+      if (seq !== fetchSeqRef.current) return;
+
+      if (teamError) {
+        console.error('[TeamContext] Error fetching team:', teamError);
+        setLoading(false);
         return;
       }
-
-      if (teamError) throw teamError;
+      
+      if (!team) {
+        console.log('[TeamContext] Team not found for id:', teamMember.team_id);
+        setLoading(false);
+        return;
+      }
+      
       setCurrentTeam(team);
       console.log('[TeamContext] Team loaded:', team.name, team.id);
 
-      // Try to fetch locations - handle gracefully if table doesn't exist
+      // Fetch locations (graceful failure)
       let teamLocations: Location[] = [];
       try {
         const { data: locData, error: locationsError } = await supabase
@@ -193,23 +214,17 @@ export const TeamProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .order('is_default', { ascending: false })
           .order('name');
 
-        if (!locationsError) {
-          teamLocations = locData || [];
+        if (!locationsError && locData) {
+          teamLocations = locData;
         }
       } catch (e) {
-        // Locations table may not exist - continue without it
         console.log('[TeamContext] Locations table not available');
       }
       
-      // Check if still latest request
-      if (seq !== fetchSeqRef.current) {
-        console.log('[TeamContext] Stale fetch abandoned after locations query');
-        return;
-      }
-      
+      if (seq !== fetchSeqRef.current) return;
       setLocations(teamLocations);
 
-      // Try to fetch user's assigned locations - handle gracefully if table doesn't exist
+      // Fetch assigned locations (graceful failure)
       let staffLocationIds: string[] = [];
       try {
         const { data: staffLocations, error: staffError } = await supabase
@@ -221,16 +236,10 @@ export const TeamProvider: React.FC<{ children: React.ReactNode }> = ({ children
           staffLocationIds = staffLocations.map(s => s.location_id);
         }
       } catch (e) {
-        // location_staff table may not exist - continue without it
         console.log('[TeamContext] location_staff table not available');
       }
       
-      // Final staleness check before setting all remaining state
-      if (seq !== fetchSeqRef.current) {
-        console.log('[TeamContext] Stale fetch abandoned at final step');
-        return;
-      }
-      
+      if (seq !== fetchSeqRef.current) return;
       setAssignedLocationIds(staffLocationIds);
 
       // Default to 'all' for owners/admins
@@ -241,18 +250,15 @@ export const TeamProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('[TeamContext] Fetch complete, seq:', seq, 'team:', team.name);
 
     } catch (err) {
-      // Only set error if this is still the latest request
       if (seq === fetchSeqRef.current) {
         console.error('[TeamContext] Error fetching team data:', err);
         setError(err instanceof Error ? err.message : 'Failed to fetch team data');
+      }
+    } finally {
+      if (seq === fetchSeqRef.current) {
         setLoading(false);
       }
-      return;
-    }
-    
-    // Only update loading state if this is still the latest request
-    if (seq === fetchSeqRef.current) {
-      setLoading(false);
+      isFetchingRef.current = false;
     }
   }, [user?.id, authLoading]);
 
@@ -261,23 +267,30 @@ export const TeamProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await fetchTeamData();
   }, [fetchTeamData]);
 
-  // Fetch on mount and when user changes - only after auth is DONE and we have definitive user state
+  // INITIAL LOAD: Only trigger ONCE per user session
   useEffect(() => {
-    // Wait for auth to be completely done loading
+    // Wait for auth to settle
     if (authLoading) {
-      console.log('[TeamContext] Waiting for auth to complete...');
+      console.log('[TeamContext] Waiting for auth...');
       return;
     }
-    // Auth is done - if no user, don't fetch
+    
+    // No user = no team needed
     if (!user) {
-      console.log('[TeamContext] No user after auth complete, clearing state');
+      console.log('[TeamContext] No user, clearing state');
       setLoading(false);
       return;
     }
-    // Auth done + user exists = safe to fetch
-    console.log('[TeamContext] Auth complete with user, fetching team data...');
+    
+    // Check if we already initialized for this user
+    if (hasInitializedForUserRef.current === user.id && currentTeam !== null) {
+      console.log('[TeamContext] Already initialized for user', user.id);
+      return;
+    }
+    
+    console.log('[TeamContext] Initial load for user:', user.id);
     fetchTeamData();
-  }, [authLoading, user?.id, fetchTeamData]);
+  }, [authLoading, user?.id]); // Intentionally exclude fetchTeamData to prevent cascades
 
   const value: TeamContextType = {
     currentTeam,
