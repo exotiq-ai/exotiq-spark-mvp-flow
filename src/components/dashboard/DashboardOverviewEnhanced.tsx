@@ -246,7 +246,7 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
 
   return (
     <>
-      <DemoOnboarding />
+      {/* DemoOnboarding removed - consolidated into InteractiveModuleTour */}
       
       {/* Dialogs */}
       <PriceOptimizationDialog
