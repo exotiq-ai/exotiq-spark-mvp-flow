@@ -169,23 +169,11 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     setError(null);
     
     try {
-      // Build queries with proper typing
-      const vehicleQuery = supabase.from('vehicles').select('*');
-      const bookingQuery = supabase.from('bookings').select('*');
-      const documentQuery = supabase.from('documents').select('*');
-      const maintenanceQuery = supabase.from('maintenance_schedules').select('*');
-      const customerQuery = supabase.from('customers').select('*');
-      const inspectionQuery = supabase.from('vehicle_inspections').select('*');
-      const claimsQuery = supabase.from('damage_claims').select('*');
-      const paymentsQuery = supabase.from('payments').select('*');
+      // Determine filter column and value
+      const filterCol = teamId ? 'team_id' : 'user_id';
+      const filterVal = teamId || userId!;
 
-      // Apply team or user filter
-      const applyFilter = <T extends { eq: (col: string, val: string) => T }>(q: T): T => {
-        if (teamId) return q.eq('team_id', teamId);
-        return q.eq('user_id', userId!);
-      };
-
-      // Parallel fetch for performance
+      // Parallel fetch for performance - explicit queries avoid TS infinite recursion
       const [
         vehiclesResult,
         bookingsResult,
@@ -197,15 +185,15 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
         claimsResult,
         paymentsResult,
       ] = await Promise.all([
-        applyFilter(vehicleQuery).order('created_at', { ascending: false }),
-        applyFilter(bookingQuery).order('created_at', { ascending: false }),
-        applyFilter(documentQuery).order('created_at', { ascending: false }),
-        applyFilter(maintenanceQuery).order('scheduled_date', { ascending: true }),
+        supabase.from('vehicles').select('*').eq(filterCol, filterVal).order('created_at', { ascending: false }),
+        supabase.from('bookings').select('*').eq(filterCol, filterVal).order('created_at', { ascending: false }),
+        supabase.from('documents').select('*').eq(filterCol, filterVal).order('created_at', { ascending: false }),
+        supabase.from('maintenance_schedules').select('*').eq(filterCol, filterVal).order('scheduled_date', { ascending: true }),
         supabase.from('messages').select('*').eq('user_id', userId!).order('created_at', { ascending: false }),
-        applyFilter(customerQuery).order('created_at', { ascending: false }),
-        applyFilter(inspectionQuery).order('created_at', { ascending: false }),
-        applyFilter(claimsQuery).order('created_at', { ascending: false }),
-        applyFilter(paymentsQuery).order('created_at', { ascending: false }),
+        supabase.from('customers').select('*').eq(filterCol, filterVal).order('created_at', { ascending: false }),
+        supabase.from('vehicle_inspections').select('*').eq(filterCol, filterVal).order('created_at', { ascending: false }),
+        supabase.from('damage_claims').select('*').eq(filterCol, filterVal).order('created_at', { ascending: false }),
+        supabase.from('payments').select('*').eq(filterCol, filterVal).order('created_at', { ascending: false }),
       ]);
       
       // Check if this request is stale
