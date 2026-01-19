@@ -4,65 +4,92 @@ import { RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 
 /**
- * ServiceWorkerUpdatePrompt - Notifies users when a new version is available
- * and allows them to update with a single click.
+ * ServiceWorkerUpdatePrompt - Manages PWA service worker updates.
  * 
- * CRITICAL: Also auto-activates waiting service workers on load to ensure
- * users get the latest version without stale cached data.
+ * CRITICAL BEHAVIOR:
+ * 1. On PREVIEW hosts (id-preview--*): Completely disable SW to prevent stale cache loops
+ * 2. On PRODUCTION hosts: Auto-activate waiting service workers immediately
  */
+
+const isPreviewEnvironment = () => {
+  if (typeof window === 'undefined') return false;
+  const hostname = window.location.hostname;
+  // Lovable preview URLs start with "id-preview--"
+  return hostname.startsWith('id-preview--') || hostname.includes('localhost');
+};
+
+const clearAllCachesAndUnregisterSW = async () => {
+  try {
+    // Unregister all service workers
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(registrations.map(reg => reg.unregister()));
+    
+    // Clear all caches
+    const cacheNames = await caches.keys();
+    await Promise.all(cacheNames.map(name => caches.delete(name)));
+    
+    console.log('[SW] Preview mode: Cleared all caches and unregistered service workers');
+  } catch (err) {
+    console.warn('[SW] Error clearing caches:', err);
+  }
+};
+
 export const ServiceWorkerUpdatePrompt = () => {
   const [showUpdate, setShowUpdate] = useState(false);
   const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
 
   useEffect(() => {
-    if ('serviceWorker' in navigator) {
-      // Listen for new service workers
-      const handleControllerChange = () => {
-        window.location.reload();
-      };
+    if (!('serviceWorker' in navigator)) return;
 
-      navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
-
-      // Check for waiting service worker - AUTO-ACTIVATE if found
-      navigator.serviceWorker.ready.then((reg) => {
-        setRegistration(reg);
-        
-        if (reg.waiting) {
-          console.log('[SW] Found waiting service worker, auto-activating...');
-          // AUTO-ACTIVATE: Force the new SW to take over immediately
-          // This ensures users get the latest code without stale cache issues
-          reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-          // Show notification but update is already happening
-          toast.info('Updating to latest version...', { duration: 3000 });
-        }
-
-        reg.addEventListener('updatefound', () => {
-          const newWorker = reg.installing;
-          if (newWorker) {
-            newWorker.addEventListener('statechange', () => {
-              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                console.log('[SW] New service worker installed, auto-activating...');
-                // AUTO-ACTIVATE: Don't wait for user interaction
-                newWorker.postMessage({ type: 'SKIP_WAITING' });
-                toast.info('Updating to latest version...', { duration: 3000 });
-              }
-            });
-          }
-        });
-      });
-
-      // Also check immediately on page load for any waiting SW
-      navigator.serviceWorker.getRegistration().then((reg) => {
-        if (reg?.waiting) {
-          console.log('[SW] Page load: Found waiting SW, forcing activation...');
-          reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-        }
-      });
-
-      return () => {
-        navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
-      };
+    // PREVIEW MODE: Disable service workers entirely for stability
+    if (isPreviewEnvironment()) {
+      console.log('[SW] Preview environment detected - disabling service workers for stability');
+      clearAllCachesAndUnregisterSW();
+      return; // Don't set up any SW listeners
     }
+
+    // PRODUCTION MODE: Normal SW handling with auto-activation
+    const handleControllerChange = () => {
+      window.location.reload();
+    };
+
+    navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
+
+    // Check for waiting service worker - AUTO-ACTIVATE if found
+    navigator.serviceWorker.ready.then((reg) => {
+      setRegistration(reg);
+      
+      if (reg.waiting) {
+        console.log('[SW] Found waiting service worker, auto-activating...');
+        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+        toast.info('Updating to latest version...', { duration: 3000 });
+      }
+
+      reg.addEventListener('updatefound', () => {
+        const newWorker = reg.installing;
+        if (newWorker) {
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              console.log('[SW] New service worker installed, auto-activating...');
+              newWorker.postMessage({ type: 'SKIP_WAITING' });
+              toast.info('Updating to latest version...', { duration: 3000 });
+            }
+          });
+        }
+      });
+    });
+
+    // Also check immediately on page load
+    navigator.serviceWorker.getRegistration().then((reg) => {
+      if (reg?.waiting) {
+        console.log('[SW] Page load: Found waiting SW, forcing activation...');
+        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+      }
+    });
+
+    return () => {
+      navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
+    };
   }, []);
 
   const handleUpdate = () => {

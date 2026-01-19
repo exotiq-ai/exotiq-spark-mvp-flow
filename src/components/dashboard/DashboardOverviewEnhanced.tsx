@@ -149,22 +149,33 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
-              {/* Retry - primary action for slow loading */}
+              {/* Hard Reload - most reliable fix for stale assets */}
               <Button
                 size="sm"
-                onClick={() => refreshData()}
+                onClick={() => performHardReload()}
+                className="gap-2"
+              >
+                <RotateCcw className="h-4 w-4" />
+                Hard Reload
+              </Button>
+              {/* Retry - try fetching data again */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => refreshData(true)} 
                 className="gap-2"
               >
                 <RefreshCw className="h-4 w-4" />
-                Retry
+                Retry Data
               </Button>
-              {/* Clear Cache - fallback if retry fails */}
+              {/* Clear Cache - nuclear option */}
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => {
                   if (confirm('This will sign you out and clear all cached data. Continue?')) {
-                    navigate('/reset');
+                    // Use direct navigation to bypass React Router issues
+                    window.location.href = '/reset';
                   }
                 }}
                 className="gap-2"
@@ -217,25 +228,34 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
             : error}
         </p>
         <div className="flex flex-wrap gap-3 mt-4 justify-center">
-          {/* Retry - primary action for timeout/network errors */}
+          {/* Hard Reload - most reliable fix */}
           <Button
+            onClick={() => performHardReload()}
+            className="gap-2"
+          >
+            <RotateCcw className="h-4 w-4" />
+            Hard Reload
+          </Button>
+          {/* Retry - force a fresh data fetch */}
+          <Button
+            variant="outline"
             onClick={async () => {
               setIsRetrying(true);
-              await refreshData();
+              await refreshData(true); // Force refresh bypasses concurrency guard
               setIsRetrying(false);
             }}
             disabled={isRetrying}
             className="gap-2"
           >
             <RefreshCw className={`h-4 w-4 ${isRetrying ? 'animate-spin' : ''}`} />
-            {isRetrying ? 'Retrying...' : 'Retry'}
+            {isRetrying ? 'Retrying...' : 'Retry Data'}
           </Button>
-          {/* Clear Cache - fallback if retry fails */}
+          {/* Clear Cache - nuclear option */}
           <Button
             variant="outline"
             onClick={() => {
               if (confirm('This will sign you out and clear all cached data. Continue?')) {
-                navigate('/reset');
+                window.location.href = '/reset';
               }
             }}
             className="gap-2"
