@@ -234,79 +234,42 @@ export const devTable = (data: unknown): void => {
 
 ---
 
-## Phase 3: Stability Improvements (P1) 🟡
+## Phase 3: Stability Improvements (P1) ✅ COMPLETE
 
-> **Prevent race conditions and improve reliability. Complete before launch.**
+> **Prevent race conditions and improve reliability. Completed!**
 
-### 3.1 Replace Demo Page setTimeout
+### 3.1 Replace Demo Page setTimeout ✅
 
-- [ ] **File**: `src/pages/Demo.tsx`
+- [x] **File**: `src/pages/Demo.tsx`
 - **Priority**: P1
 - **Effort**: 20 minutes
-- **Risk**: Race condition causing blank page or auth errors
+- **Completed**: Replaced fragile `setTimeout` with state-driven `useEffect` that waits for `!authLoading && user?.email === DEMO_EMAIL`
 
-**Current State** (fragile):
-```typescript
-setTimeout(() => {
-  setIsReady(true);
-}, 500);
-```
+**Implementation**:
+- Removed `setTimeout(() => setIsReady(true), 500)` 
+- Added dedicated `useEffect` that sets `isReady` only when auth is complete AND user is confirmed as demo user
+- Authentication attempt effect no longer sets ready state directly
 
-**Required Changes**:
-```typescript
-// Replace setTimeout with proper state-driven logic
-useEffect(() => {
-  // Only set ready when auth is complete AND user is the demo user
-  if (!authLoading && user?.email?.toLowerCase() === DEMO_EMAIL.toLowerCase()) {
-    setIsReady(true);
-  }
-}, [authLoading, user?.email]);
-```
-
-**Success Criteria**:
+**Success Criteria**: ✅
 - Demo page loads reliably without timing issues
 - No race conditions on slow connections
 
 ---
 
-### 3.2 Add Debounced Refresh for Real-time Updates
+### 3.2 Add Debounced Refresh for Real-time Updates ✅
 
-- [ ] **File**: `src/contexts/FleetContext.tsx`
+- [x] **File**: `src/contexts/FleetContext.tsx`
 - **Priority**: P1
 - **Effort**: 30 minutes
-- **Risk**: Multiple rapid refreshes causing UI flicker and API spam
+- **Completed**: Added per-table debounced refresh with 500ms coalescing window
 
-**Current State**: 7 tables on one real-time channel, each triggering individual refreshes.
+**Implementation**:
+- Created `debouncedRefresh` function using `useMemo` with per-table timeout tracking
+- Each of the 7 real-time table subscriptions now uses `debouncedRefresh('tableName')` instead of direct refresh calls
+- Added cleanup effect to clear pending timeouts on unmount
+- Debounce timeouts stored in ref to prevent stale closure issues
 
-**Required Changes**:
-```typescript
-// Add debounce utility (or import from lodash)
-const debounce = <T extends (...args: unknown[]) => unknown>(
-  fn: T, 
-  delay: number
-): ((...args: Parameters<T>) => void) => {
-  let timeoutId: ReturnType<typeof setTimeout>;
-  return (...args: Parameters<T>) => {
-    clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => fn(...args), delay);
-  };
-};
-
-// Create debounced refresh (inside component)
-const debouncedRefresh = useMemo(
-  () => debounce(() => {
-    refreshData({ isInitialLoad: false });
-  }, 500),
-  [refreshData]
-);
-
-// Use in real-time subscription handlers
-.on('postgres_changes', { event: '*', schema: 'public', table: 'vehicles' }, 
-  () => debouncedRefresh()
-)
-```
-
-**Success Criteria**:
+**Success Criteria**: ✅
 - Multiple rapid updates coalesce into single refresh
 - No UI flicker on bulk operations
 

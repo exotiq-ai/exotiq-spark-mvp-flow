@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { useTeam } from './TeamContext';
@@ -444,7 +444,7 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       .then(({ data }) => setMaintenance(data || []));
   }, []);
 
-  // ENTERPRISE REAL-TIME: Team-filtered subscriptions
+  // ENTERPRISE REAL-TIME: Team-filtered subscriptions with debouncing
   // Using refs to keep refresh functions stable
   const refreshFnsRef = useRef({
     bookings: refreshBookings,
@@ -467,6 +467,34 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       maintenance: refreshMaintenance,
     };
   }, [refreshBookings, refreshPayments, refreshDamageClaims, refreshCustomers, refreshVehicles, refreshInspections, refreshMaintenance]);
+
+  // Debounced refresh functions to coalesce rapid real-time updates
+  const debounceTimeoutsRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  
+  const debouncedRefresh = useMemo(() => {
+    const DEBOUNCE_MS = 500; // Coalesce updates within 500ms window
+    
+    return (tableName: keyof typeof refreshFnsRef.current) => {
+      // Clear existing timeout for this table
+      if (debounceTimeoutsRef.current[tableName]) {
+        clearTimeout(debounceTimeoutsRef.current[tableName]);
+      }
+      
+      // Schedule debounced refresh
+      debounceTimeoutsRef.current[tableName] = setTimeout(() => {
+        devLog(`[FleetContext] Debounced refresh for: ${tableName}`);
+        refreshFnsRef.current[tableName]();
+        delete debounceTimeoutsRef.current[tableName];
+      }, DEBOUNCE_MS);
+    };
+  }, []);
+
+  // Cleanup debounce timeouts on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(debounceTimeoutsRef.current).forEach(clearTimeout);
+    };
+  }, []);
 
   // Real-time subscription management
   const channelRef = useRef<any>(null);
@@ -493,6 +521,7 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     
     // Create a single multiplexed channel for all table changes
     // This is more efficient than multiple channels
+    // Using debounced refresh to coalesce rapid updates
     const channel = supabase
       .channel(`fleet-realtime-${subscriptionKey}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' },
@@ -500,43 +529,43 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
           // Only refresh if the change is for our team
           const record = payload.new as any || payload.old as any;
           if (teamId && record?.team_id && record.team_id !== teamId) return;
-          refreshFnsRef.current.bookings();
+          debouncedRefresh('bookings');
         })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' },
         (payload) => {
           const record = payload.new as any || payload.old as any;
           if (teamId && record?.team_id && record.team_id !== teamId) return;
-          refreshFnsRef.current.payments();
+          debouncedRefresh('payments');
         })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'damage_claims' },
         (payload) => {
           const record = payload.new as any || payload.old as any;
           if (teamId && record?.team_id && record.team_id !== teamId) return;
-          refreshFnsRef.current.damageClaims();
+          debouncedRefresh('damageClaims');
         })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'customers' },
         (payload) => {
           const record = payload.new as any || payload.old as any;
           if (teamId && record?.team_id && record.team_id !== teamId) return;
-          refreshFnsRef.current.customers();
+          debouncedRefresh('customers');
         })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'vehicles' },
         (payload) => {
           const record = payload.new as any || payload.old as any;
           if (teamId && record?.team_id && record.team_id !== teamId) return;
-          refreshFnsRef.current.vehicles();
+          debouncedRefresh('vehicles');
         })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'vehicle_inspections' },
         (payload) => {
           const record = payload.new as any || payload.old as any;
           if (teamId && record?.team_id && record.team_id !== teamId) return;
-          refreshFnsRef.current.inspections();
+          debouncedRefresh('inspections');
         })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'maintenance_schedules' },
         (payload) => {
           const record = payload.new as any || payload.old as any;
           if (teamId && record?.team_id && record.team_id !== teamId) return;
-          refreshFnsRef.current.maintenance();
+          debouncedRefresh('maintenance');
         })
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {

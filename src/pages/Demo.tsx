@@ -45,11 +45,6 @@ const DemoContent = () => {
     // Prevent multiple attempts
     if (attemptedRef.current) {
       devLog('[Demo] Already attempted login, checking status...');
-      // If we already attempted and user is demo user, we're ready
-      if (user?.email?.toLowerCase() === DEMO_EMAIL.toLowerCase()) {
-        devLog('[Demo] Already logged in as demo user, setting ready');
-        setIsReady(true);
-      }
       return;
     }
 
@@ -57,7 +52,6 @@ const DemoContent = () => {
       // If already logged in as demo user, we're ready immediately
       if (user?.email?.toLowerCase() === DEMO_EMAIL.toLowerCase()) {
         devLog('[Demo] Already logged in as demo user');
-        setIsReady(true);
         return;
       }
 
@@ -69,13 +63,7 @@ const DemoContent = () => {
       try {
         await signInAsDemo();
         devLog('[Demo] Demo login successful');
-        // Give contexts time to hydrate with new session
-        setTimeout(() => {
-          if (mountedRef.current) {
-            devLog('[Demo] Setting ready state');
-            setIsReady(true);
-          }
-        }, 500);
+        // State-driven ready check will handle the transition via the effect below
       } catch (error) {
         devError('[Demo] Demo authentication failed:', error);
         if (mountedRef.current) {
@@ -86,6 +74,14 @@ const DemoContent = () => {
 
     authenticateDemo();
   }, [authLoading, user, signInAsDemo, navigate]);
+
+  // State-driven ready check - replaces fragile setTimeout approach
+  useEffect(() => {
+    if (!authLoading && user?.email?.toLowerCase() === DEMO_EMAIL.toLowerCase()) {
+      devLog('[Demo] Auth complete and demo user confirmed, setting ready');
+      setIsReady(true);
+    }
+  }, [authLoading, user?.email]);
 
   // Show skeleton while loading
   if (!isReady) {
