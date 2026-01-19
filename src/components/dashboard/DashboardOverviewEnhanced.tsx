@@ -149,18 +149,8 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
-              {/* Hard Reload - recommended first action (keeps login) */}
+              {/* Retry - primary action for slow loading */}
               <Button
-                size="sm"
-                onClick={() => performHardReload()}
-                className="gap-2"
-              >
-                <RotateCcw className="h-4 w-4" />
-                Hard Reload
-              </Button>
-              {/* Retry - just refetches data */}
-              <Button
-                variant="outline"
                 size="sm"
                 onClick={() => refreshData()}
                 className="gap-2"
@@ -168,18 +158,29 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
                 <RefreshCw className="h-4 w-4" />
                 Retry
               </Button>
-              {/* Clear Cache - nuclear option, warns about logout */}
+              {/* Clear Cache - fallback if retry fails */}
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
                 onClick={() => {
                   if (confirm('This will sign you out and clear all cached data. Continue?')) {
                     navigate('/reset');
                   }
                 }}
-                className="gap-2 text-muted-foreground hover:text-destructive"
+                className="gap-2"
               >
-                Clear Cache (logs out)
+                Clear Cache
+              </Button>
+              {/* Contact support link for persistent issues */}
+              <Button
+                variant="ghost"
+                size="sm"
+                asChild
+                className="gap-2 text-muted-foreground"
+              >
+                <a href="mailto:hello@exotiq.ai?subject=Dashboard%20Loading%20Issue">
+                  Contact Support
+                </a>
               </Button>
             </div>
           </motion.div>
@@ -216,16 +217,8 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
             : error}
         </p>
         <div className="flex flex-wrap gap-3 mt-4 justify-center">
-          {/* Hard Reload - first recommendation for stale cache issues */}
+          {/* Retry - primary action for timeout/network errors */}
           <Button
-            onClick={() => performHardReload()}
-            className="gap-2"
-          >
-            <RotateCcw className="h-4 w-4" />
-            Hard Reload
-          </Button>
-          <Button
-            variant="outline"
             onClick={async () => {
               setIsRetrying(true);
               await refreshData();
@@ -237,17 +230,30 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
             <RefreshCw className={`h-4 w-4 ${isRetrying ? 'animate-spin' : ''}`} />
             {isRetrying ? 'Retrying...' : 'Retry'}
           </Button>
+          {/* Clear Cache - fallback if retry fails */}
           <Button
-            variant="ghost"
+            variant="outline"
             onClick={() => {
               if (confirm('This will sign you out and clear all cached data. Continue?')) {
                 navigate('/reset');
               }
             }}
-            className="gap-2 text-muted-foreground"
+            className="gap-2"
           >
-            Clear Cache (logs out)
+            Clear Cache
           </Button>
+          {/* Contact support for persistent issues */}
+          {isTimeoutError && (
+            <Button
+              variant="ghost"
+              asChild
+              className="gap-2 text-muted-foreground"
+            >
+              <a href="mailto:hello@exotiq.ai?subject=Dashboard%20Timeout%20Error">
+                Contact Support
+              </a>
+            </Button>
+          )}
         </div>
       </div>
     );

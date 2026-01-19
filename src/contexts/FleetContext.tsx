@@ -175,7 +175,8 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       const filterVal = teamId || userId!;
 
       // Timeout wrapper to prevent infinite loading
-      const FETCH_TIMEOUT_MS = 30000; // 30 seconds
+      // Use longer timeout for initial load (60s) vs background refresh (30s)
+      const FETCH_TIMEOUT_MS = isInitialLoad ? 60000 : 30000;
       const fetchWithTimeout = async <T,>(promise: Promise<T>, label: string): Promise<T> => {
         return Promise.race([
           promise,

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useProfile } from "@/hooks/useProfile";
 import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -56,6 +57,7 @@ const Dashboard = () => {
   const [chatMinimized, setChatMinimized] = useState(false);
   const [mobileAddLocationOpen, setMobileAddLocationOpen] = useState(false);
   const rariSidebar = useRariSidebar();
+  const { displayName } = useProfile();
 
   // Ensure module transition overlay never gets stuck
   useEffect(() => {
@@ -345,7 +347,7 @@ const Dashboard = () => {
                 <div className="w-8 h-8 bg-gradient-primary rounded-full flex items-center justify-center">
                   <Users className="h-4 w-4 text-primary-foreground" />
                 </div>
-                <span className="text-sm font-medium">John Doe</span>
+                <span className="text-sm font-medium">{displayName}</span>
               </div>
             </div>
           </div>
