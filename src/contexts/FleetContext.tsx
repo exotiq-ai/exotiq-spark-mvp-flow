@@ -6,6 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Database } from '@/integrations/supabase/types';
 import { z } from 'zod';
 import confetti from 'canvas-confetti';
+import { devLog, devError } from '@/lib/logger';
 import {
   customerSchema,
   bookingSchema,
@@ -110,7 +111,7 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     if (user?.id !== hasInitializedForUserRef.current) {
       // User actually changed - hard reset
       if (hasInitializedForUserRef.current !== null) {
-        console.log('[FleetContext] User switched:', hasInitializedForUserRef.current, '->', user?.id);
+        devLog('[FleetContext] User switched:', hasInitializedForUserRef.current, '->', user?.id);
         // Clear all data for security
         setVehicles([]);
         setBookings([]);
@@ -140,7 +141,7 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     
     // Concurrency guard - prevent parallel refreshes
     if (isRefreshingRef.current) {
-      console.log('[FleetContext] Refresh already in progress, skipping');
+      devLog('[FleetContext] Refresh already in progress, skipping');
       return;
     }
     
@@ -150,10 +151,10 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     const teamId = forceTeamId !== undefined ? forceTeamId : currentTeamData?.id;
     const userId = currentUser?.id;
     
-    console.log('[FleetContext] Refresh started, seq:', seq, 'initial:', isInitialLoad, 'teamId:', teamId, 'userId:', userId);
+    devLog('[FleetContext] Refresh started, seq:', seq, 'initial:', isInitialLoad, 'teamId:', teamId, 'userId:', userId);
     
     if (!currentUser || authLoading) {
-      console.log('[FleetContext] No user or auth loading, skipping');
+      devLog('[FleetContext] No user or auth loading, skipping');
       setLoading(false);
       return;
     }
@@ -198,7 +199,7 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       
       // Check if this request is stale
       if (seq !== refreshSeqRef.current) {
-        console.log('[FleetContext] Stale refresh abandoned, seq:', seq);
+        devLog('[FleetContext] Stale refresh abandoned, seq:', seq);
         return;
       }
 
@@ -262,13 +263,13 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
 
       if (seq === refreshSeqRef.current) {
         setRevenue({ today: todayRevenue, month: monthRevenue, change: 12 });
-        console.log('[FleetContext] Refresh complete, seq:', seq, 'vehicles:', vehiclesResult.data?.length || 0);
+        devLog('[FleetContext] Refresh complete, seq:', seq, 'vehicles:', vehiclesResult.data?.length || 0);
       }
 
     } catch (err: any) {
       if (seq === refreshSeqRef.current) {
         const errorMessage = err.message || 'Failed to load data';
-        console.error('[FleetContext] Error loading data:', err);
+        devError('[FleetContext] Error loading data:', err);
         setError(errorMessage);
         toast({
           title: "Error Loading Data",
@@ -295,24 +296,24 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     // Wait for auth to settle
     if (authLoading) {
-      console.log('[FleetContext] Waiting for auth...');
+      devLog('[FleetContext] Waiting for auth...');
       return;
     }
     
     // No user = no data needed
     if (!user) {
-      console.log('[FleetContext] No user, clearing state');
+      devLog('[FleetContext] No user, clearing state');
       setLoading(false);
       return;
     }
     
     // Check if we already initialized for this user
     if (hasInitializedForUserRef.current === user.id && lastTeamIdRef.current !== null) {
-      console.log('[FleetContext] Already initialized for user', user.id);
+      devLog('[FleetContext] Already initialized for user', user.id);
       return;
     }
     
-    console.log('[FleetContext] Initial load for user:', user.id);
+    devLog('[FleetContext] Initial load for user:', user.id);
     lastTeamIdRef.current = currentTeam?.id || 'pending';
     refreshDataCore({ isInitialLoad: true });
   }, [authLoading, user?.id]); // Intentionally exclude refreshDataCore to prevent cascades
@@ -330,7 +331,7 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
     
-    console.log('[FleetContext] Team changed:', lastTeamIdRef.current, '->', newTeamId);
+    devLog('[FleetContext] Team changed:', lastTeamIdRef.current, '->', newTeamId);
     lastTeamIdRef.current = newTeamId;
     
     // Soft refresh - don't wipe UI, just update data
@@ -482,13 +483,13 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     
     // Cleanup previous subscription
     if (channelRef.current) {
-      console.log('[FleetContext] Cleaning up previous realtime subscription');
+      devLog('[FleetContext] Cleaning up previous realtime subscription');
       supabase.removeChannel(channelRef.current);
       channelRef.current = null;
     }
     
     subscribedForRef.current = subscriptionKey;
-    console.log('[FleetContext] Setting up realtime for:', subscriptionKey);
+    devLog('[FleetContext] Setting up realtime for:', subscriptionKey);
     
     // Create a single multiplexed channel for all table changes
     // This is more efficient than multiple channels
@@ -539,9 +540,9 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
         })
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
-          console.log('[FleetContext] ✅ Realtime subscriptions active');
+          devLog('[FleetContext] ✅ Realtime subscriptions active');
         } else if (status === 'CHANNEL_ERROR') {
-          console.error('[FleetContext] ❌ Realtime subscription error');
+          devError('[FleetContext] ❌ Realtime subscription error');
         }
       });
     
@@ -549,7 +550,7 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     
     return () => {
       if (channelRef.current) {
-        console.log('[FleetContext] Cleaning up realtime subscription');
+        devLog('[FleetContext] Cleaning up realtime subscription');
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
         subscribedForRef.current = null;

@@ -3,6 +3,7 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
+import { devLog, devError, devWarn } from '@/lib/logger';
 
 // Subscription tier types
 export type SubscriptionTier = 'starter' | 'growth' | 'professional' | 'enterprise' | null;
@@ -82,14 +83,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .maybeSingle();
 
       if (error) {
-        console.error('[Auth] Error checking user active status:', error);
+        devError('[Auth] Error checking user active status:', error);
         return true; // Allow access if we can't check (fail open for UX, RLS will block)
       }
 
       // If profile doesn't exist or is_active is null/undefined, default to true
       return data?.is_active ?? true;
     } catch (err) {
-      console.error('[Auth] Exception in checkUserActiveStatus:', err);
+      devError('[Auth] Exception in checkUserActiveStatus:', err);
       return true;
     }
   }, []);
@@ -124,7 +125,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         error: null,
       });
     } catch (error: any) {
-      console.error('Error checking subscription:', error);
+      devError('Error checking subscription:', error);
       setSubscription(prev => ({
         ...prev,
         loading: false,
@@ -159,7 +160,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         throw new Error('No portal URL returned');
       }
     } catch (error: any) {
-      console.error('Error opening customer portal:', error);
+      devError('Error opening customer portal:', error);
       toast({
         title: "Unable to Open Billing Portal",
         description: error.message || "Please try again or contact support.",
@@ -202,7 +203,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Process pending invite after user is created
   const processPendingInvite = useCallback(async (userId: string, token: string) => {
     try {
-      console.log('Processing pending invite for user:', userId);
+      devLog('Processing pending invite for user:', userId);
       
       const { data, error } = await supabase.functions.invoke('accept-invite?action=accept', {
         body: { token, userId },
@@ -210,7 +211,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
 
       if (error || data?.error) {
-        console.error('Error accepting invite:', error || data?.error);
+        devError('Error accepting invite:', error || data?.error);
         // Don't throw - user is already created, just log the error
         toast({
           title: "Warning",
@@ -218,14 +219,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           variant: "destructive",
         });
       } else {
-        console.log('Invite accepted successfully:', data);
+        devLog('Invite accepted successfully:', data);
         toast({
           title: `Welcome to ${data.companyName || 'the team'}!`,
           description: `You've joined as a ${data.role || 'team member'}.`,
         });
       }
     } catch (err) {
-      console.error('Error processing invite:', err);
+      devError('Error processing invite:', err);
     } finally {
       setPendingInviteToken(null);
     }
@@ -246,13 +247,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           onboardingNavTimeoutRef.current = null;
         }
 
-        console.log('Auth event:', event, 'user:', session?.user?.id || 'null');
+        devLog('Auth event:', event, 'user:', session?.user?.id || 'null');
         
         // CRITICAL: Skip ALL side effects if we're on /reset or /signout
         // This prevents auth events from interfering with the reset flow
         const currentPath = window.location.pathname;
         if (currentPath === '/reset' || currentPath === '/signout') {
-          console.log('On reset/signout path, skipping auth side effects');
+          devLog('On reset/signout path, skipping auth side effects');
           setSession(session);
           setUser(session?.user ?? null);
           setLoading(false);
@@ -262,13 +263,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // CRITICAL: If we get INITIAL_SESSION with no user, and we're on a protected route,
         // redirect to auth. This prevents the "null user stuck state"
         if (event === 'INITIAL_SESSION' && !session?.user) {
-          console.log('[Auth] No user in initial session');
+          devLog('[Auth] No user in initial session');
           setSession(null);
           setUser(null);
           setLoading(false);
           // If on a protected route, redirect to auth
           if (currentPath === '/dashboard' || currentPath === '/onboarding') {
-            console.log('[Auth] Redirecting to /auth from protected route');
+            devLog('[Auth] Redirecting to /auth from protected route');
             navigate('/auth', { replace: true });
           }
           return;
@@ -281,7 +282,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         // Handle PASSWORD_RECOVERY event - user clicked reset link
         if (event === 'PASSWORD_RECOVERY') {
-          console.log('Password recovery event detected');
+          devLog('Password recovery event detected');
           setIsPasswordRecovery(true);
           // Navigate to auth page with update-password mode
           navigate('/auth?mode=update-password', { replace: true });
@@ -291,7 +292,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (event === 'SIGNED_IN' && session?.user) {
           // Skip active check and navigation if in password recovery mode
           if (isPasswordRecovery) {
-            console.log('In password recovery mode, skipping normal navigation');
+            devLog('In password recovery mode, skipping normal navigation');
             return;
           }
 
@@ -299,7 +300,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           const isActive = await checkUserActiveStatus(session.user.id);
 
           if (!isActive) {
-            console.log('User account is deactivated, signing out');
+            devLog('User account is deactivated, signing out');
             toast({
               title: "Account Deactivated",
               description: "Your account has been deactivated. Please contact your administrator.",
@@ -336,7 +337,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           const { data: { user: verifiedUser }, error: verifyError } = await supabase.auth.getUser();
           
           if (verifyError || !verifiedUser) {
-            console.warn('[Auth] Stale/invalid session detected, clearing...', verifyError?.message);
+            devWarn('[Auth] Stale/invalid session detected, clearing...', verifyError?.message);
             await supabase.auth.signOut({ scope: 'local' });
             setSession(null);
             setUser(null);
@@ -352,13 +353,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           // Session is valid - use verified user data
           setSession(session);
           setUser(verifiedUser);
-          console.log('[Auth] Session verified for user:', verifiedUser.id);
+          devLog('[Auth] Session verified for user:', verifiedUser.id);
         } else {
           setSession(null);
           setUser(null);
         }
       } catch (err) {
-        console.error('[Auth] Error getting/verifying session:', err);
+        devError('[Auth] Error getting/verifying session:', err);
         setSession(null);
         setUser(null);
       } finally {
@@ -377,7 +378,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const checkOnboardingStatus = async (userId: string | undefined) => {
     if (!userId) {
-      console.log('[Auth] No userId provided to checkOnboardingStatus');
+      devLog('[Auth] No userId provided to checkOnboardingStatus');
       navigate('/dashboard');
       return;
     }
@@ -390,7 +391,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .maybeSingle();
 
       if (error) {
-        console.error('[Auth] Error checking onboarding status:', error);
+        devError('[Auth] Error checking onboarding status:', error);
         // On error, default to dashboard rather than getting stuck
         navigate('/dashboard');
         return;
@@ -403,7 +404,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         navigate('/dashboard');
       }
     } catch (err) {
-      console.error('[Auth] Exception in checkOnboardingStatus:', err);
+      devError('[Auth] Exception in checkOnboardingStatus:', err);
       navigate('/dashboard');
     }
   };
@@ -592,7 +593,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
 
       if (error) {
-        console.error('Demo login edge function error:', error);
+        devError('Demo login edge function error:', error);
         throw error;
       }
 
@@ -607,7 +608,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
 
       if (sessionError) {
-        console.error('Error setting demo session:', sessionError);
+        devError('Error setting demo session:', sessionError);
         throw sessionError;
       }
 
@@ -620,7 +621,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       return { error: null };
     } catch (error: any) {
-      console.error('Demo mode error:', error);
+      devError('Demo mode error:', error);
 
       const message = error?.message || 'Please try again or contact support.';
       toast({
@@ -646,7 +647,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
     } catch (err) {
-      console.error('Sign out error:', err);
+      devError('Sign out error:', err);
       // Always ensure the local session is cleared even if network/global signout fails
       await supabase.auth.signOut({ scope: 'local' });
     } finally {
