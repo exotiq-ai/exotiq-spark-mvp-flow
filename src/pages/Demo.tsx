@@ -5,6 +5,7 @@ import { DemoBanner } from "@/components/demo/DemoBanner";
 import { useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import Dashboard from "./Dashboard";
+import { devLog, devError } from "@/lib/logger";
 
 const DEMO_EMAIL = 'hello@exotiq.ai';
 
@@ -37,16 +38,16 @@ const DemoContent = () => {
   useEffect(() => {
     // Wait for auth to finish loading before doing anything
     if (authLoading) {
-      console.log('[Demo] Waiting for auth to finish loading...');
+      devLog('[Demo] Waiting for auth to finish loading...');
       return;
     }
     
     // Prevent multiple attempts
     if (attemptedRef.current) {
-      console.log('[Demo] Already attempted login, checking status...');
+      devLog('[Demo] Already attempted login, checking status...');
       // If we already attempted and user is demo user, we're ready
       if (user?.email?.toLowerCase() === DEMO_EMAIL.toLowerCase()) {
-        console.log('[Demo] Already logged in as demo user, setting ready');
+        devLog('[Demo] Already logged in as demo user, setting ready');
         setIsReady(true);
       }
       return;
@@ -55,7 +56,7 @@ const DemoContent = () => {
     const authenticateDemo = async () => {
       // If already logged in as demo user, we're ready immediately
       if (user?.email?.toLowerCase() === DEMO_EMAIL.toLowerCase()) {
-        console.log('[Demo] Already logged in as demo user');
+        devLog('[Demo] Already logged in as demo user');
         setIsReady(true);
         return;
       }
@@ -63,20 +64,20 @@ const DemoContent = () => {
       // Mark that we've attempted login
       attemptedRef.current = true;
       
-      console.log('[Demo] Signing in as demo user...');
+      devLog('[Demo] Signing in as demo user...');
       
       try {
         await signInAsDemo();
-        console.log('[Demo] Demo login successful');
+        devLog('[Demo] Demo login successful');
         // Give contexts time to hydrate with new session
         setTimeout(() => {
           if (mountedRef.current) {
-            console.log('[Demo] Setting ready state');
+            devLog('[Demo] Setting ready state');
             setIsReady(true);
           }
         }, 500);
       } catch (error) {
-        console.error('[Demo] Demo authentication failed:', error);
+        devError('[Demo] Demo authentication failed:', error);
         if (mountedRef.current) {
           navigate('/auth', { replace: true });
         }
