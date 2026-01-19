@@ -33,30 +33,21 @@ export default defineConfig(({ mode }) => ({
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        // CRITICAL: Do NOT cache HTML - prevents stale index.html after deploys
+        globPatterns: ['**/*.{js,css,ico,png,svg,woff2}'],
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024, // 6 MiB
         skipWaiting: true,
         clientsClaim: true,
         cleanupOutdatedCaches: true,
-        // Use NetworkFirst for navigation to reduce stale HTML issues
-        navigateFallback: null, // Disable navigateFallback to avoid serving stale index.html
+        navigateFallback: null, // Disable navigateFallback entirely
         runtimeCaching: [
-          // Navigation requests - always go to network first
-          // This prevents stale HTML from being served after deployments
+          // Navigation requests - NetworkOnly to NEVER serve stale HTML
+          // This is the #1 fix for "stale app after deploy" issues
           {
             urlPattern: ({ request }) => request.mode === 'navigate',
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'navigation-cache',
-              networkTimeoutSeconds: 5,
-              expiration: {
-                maxEntries: 10,
-                maxAgeSeconds: 60 * 5 // 5 minutes max for HTML
-              }
-            }
+            handler: 'NetworkOnly',
           },
           // ONLY cache public storage assets (images), NOT API calls
-          // API caching caused stale data issues after deployments
           {
             urlPattern: /^https:\/\/.*\.supabase\.co\/storage\/v1\/object\/public\/.*/i,
             handler: 'CacheFirst',

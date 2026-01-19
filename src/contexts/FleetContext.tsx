@@ -61,7 +61,7 @@ interface FleetContextType {
   createInspectionWithPhotos: (inspection: Omit<Database['public']['Tables']['vehicle_inspections']['Insert'], 'user_id'>, photos: Array<{ photo_url: string; photo_type: string; storage_path: string }>) => Promise<void>;
   createDamageClaim: (claim: Omit<Database['public']['Tables']['damage_claims']['Insert'], 'user_id'>) => Promise<void>;
   createPayment: (payment: Omit<Database['public']['Tables']['payments']['Insert'], 'user_id'>) => Promise<void>;
-  refreshData: () => Promise<void>;
+  refreshData: (force?: boolean) => Promise<void>;
   refreshBookings: () => void;
   refreshPayments: () => void;
   refreshDamageClaims: () => void;
@@ -302,7 +302,14 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
   }, [authLoading, toast]);
 
   // Public refresh function - always does a background refresh
-  const refreshData = useCallback(async () => {
+  // force=true bypasses the concurrency guard (use for recovery UI)
+  const refreshData = useCallback(async (force?: boolean) => {
+    if (force) {
+      // Force mode: reset the guard so we can start a fresh fetch
+      isRefreshingRef.current = false;
+      refreshSeqRef.current++;
+      devLog('[FleetContext] Force refresh requested, resetting guards');
+    }
     await refreshDataCore({ isInitialLoad: false });
   }, [refreshDataCore]);
 
