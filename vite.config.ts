@@ -38,7 +38,23 @@ export default defineConfig(({ mode }) => ({
         skipWaiting: true,
         clientsClaim: true,
         cleanupOutdatedCaches: true,
+        // Use NetworkFirst for navigation to reduce stale HTML issues
+        navigateFallback: null, // Disable navigateFallback to avoid serving stale index.html
         runtimeCaching: [
+          // Navigation requests - always go to network first
+          // This prevents stale HTML from being served after deployments
+          {
+            urlPattern: ({ request }) => request.mode === 'navigate',
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'navigation-cache',
+              networkTimeoutSeconds: 5,
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 60 * 5 // 5 minutes max for HTML
+              }
+            }
+          },
           // ONLY cache public storage assets (images), NOT API calls
           // API caching caused stale data issues after deployments
           {

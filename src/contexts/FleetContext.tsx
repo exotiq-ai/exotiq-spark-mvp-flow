@@ -174,6 +174,17 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       const filterCol = teamId ? 'team_id' : 'user_id';
       const filterVal = teamId || userId!;
 
+      // Timeout wrapper to prevent infinite loading
+      const FETCH_TIMEOUT_MS = 30000; // 30 seconds
+      const fetchWithTimeout = async <T,>(promise: Promise<T>, label: string): Promise<T> => {
+        return Promise.race([
+          promise,
+          new Promise<never>((_, reject) => 
+            setTimeout(() => reject(new Error(`Timeout: ${label} took longer than ${FETCH_TIMEOUT_MS / 1000}s`)), FETCH_TIMEOUT_MS)
+          )
+        ]);
+      };
+
       // Parallel fetch for performance - explicit queries avoid TS infinite recursion
       const [
         vehiclesResult,
@@ -185,17 +196,20 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
         inspectionsResult,
         claimsResult,
         paymentsResult,
-      ] = await Promise.all([
-        supabase.from('vehicles').select('*').eq(filterCol, filterVal).order('created_at', { ascending: false }),
-        supabase.from('bookings').select('*').eq(filterCol, filterVal).order('created_at', { ascending: false }),
-        supabase.from('documents').select('*').eq(filterCol, filterVal).order('created_at', { ascending: false }),
-        supabase.from('maintenance_schedules').select('*').eq(filterCol, filterVal).order('scheduled_date', { ascending: true }),
-        supabase.from('messages').select('*').eq('user_id', userId!).order('created_at', { ascending: false }),
-        supabase.from('customers').select('*').eq(filterCol, filterVal).order('created_at', { ascending: false }),
-        supabase.from('vehicle_inspections').select('*').eq(filterCol, filterVal).order('created_at', { ascending: false }),
-        supabase.from('damage_claims').select('*').eq(filterCol, filterVal).order('created_at', { ascending: false }),
-        supabase.from('payments').select('*').eq(filterCol, filterVal).order('created_at', { ascending: false }),
-      ]);
+      ] = await fetchWithTimeout(
+        Promise.all([
+          supabase.from('vehicles').select('*').eq(filterCol, filterVal).order('created_at', { ascending: false }),
+          supabase.from('bookings').select('*').eq(filterCol, filterVal).order('created_at', { ascending: false }),
+          supabase.from('documents').select('*').eq(filterCol, filterVal).order('created_at', { ascending: false }),
+          supabase.from('maintenance_schedules').select('*').eq(filterCol, filterVal).order('scheduled_date', { ascending: true }),
+          supabase.from('messages').select('*').eq('user_id', userId!).order('created_at', { ascending: false }),
+          supabase.from('customers').select('*').eq(filterCol, filterVal).order('created_at', { ascending: false }),
+          supabase.from('vehicle_inspections').select('*').eq(filterCol, filterVal).order('created_at', { ascending: false }),
+          supabase.from('damage_claims').select('*').eq(filterCol, filterVal).order('created_at', { ascending: false }),
+          supabase.from('payments').select('*').eq(filterCol, filterVal).order('created_at', { ascending: false }),
+        ]),
+        'fleet data fetch'
+      );
       
       // Check if this request is stale
       if (seq !== refreshSeqRef.current) {
