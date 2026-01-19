@@ -31,6 +31,7 @@ import {
   SkeletonModuleNav 
 } from "@/components/ui/skeleton-specialized";
 import { SkeletonLineChart, SkeletonDonutChart, SkeletonTable } from "@/components/ui/skeleton-card";
+import { performHardReload, isInRecoveryMode } from "@/lib/staleBuildRecovery";
 import { 
   TrendingUp, 
   Calendar, 
@@ -43,7 +44,8 @@ import {
   ChevronRight,
   ChevronDown,
   RefreshCw,
-  AlertTriangle
+  AlertTriangle,
+  RotateCcw
 } from "lucide-react";
 
 interface DashboardOverviewEnhancedProps {
@@ -123,6 +125,7 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
   // Loading state with streamlined skeletons and recovery options
   if (loading) {
     const showRecoveryBanner = loadingDuration >= 12;
+    const inRecoveryMode = isInRecoveryMode();
     
     return (
       <div className="space-y-4 sm:space-y-6 pb-20 md:pb-24">
@@ -138,11 +141,24 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
               <div>
                 <p className="font-medium text-foreground">Taking longer than expected</p>
                 <p className="text-sm text-muted-foreground">
-                  Loading has been running for {loadingDuration} seconds. You can try these recovery options:
+                  {inRecoveryMode 
+                    ? "We already tried refreshing. Try clearing the cache if the issue persists."
+                    : `Loading has been running for ${loadingDuration} seconds. Try these recovery options:`
+                  }
                 </p>
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
+              {/* Hard Reload - recommended first action (keeps login) */}
+              <Button
+                size="sm"
+                onClick={() => performHardReload()}
+                className="gap-2"
+              >
+                <RotateCcw className="h-4 w-4" />
+                Hard Reload
+              </Button>
+              {/* Retry - just refetches data */}
               <Button
                 variant="outline"
                 size="sm"
@@ -152,13 +168,18 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
                 <RefreshCw className="h-4 w-4" />
                 Retry
               </Button>
+              {/* Clear Cache - nuclear option, warns about logout */}
               <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
-                onClick={() => navigate('/reset')}
-                className="gap-2"
+                onClick={() => {
+                  if (confirm('This will sign you out and clear all cached data. Continue?')) {
+                    navigate('/reset');
+                  }
+                }}
+                className="gap-2 text-muted-foreground hover:text-destructive"
               >
-                Clear Cache
+                Clear Cache (logs out)
               </Button>
             </div>
           </motion.div>
@@ -176,8 +197,11 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
     );
   }
 
-  // Error state - show recovery UI
+  // Error state - show recovery UI with improved options
   if (error && !loading) {
+    const isTimeoutError = error.includes('Timeout') || error.includes('timeout');
+    const isNetworkError = error.includes('network') || error.includes('fetch');
+    
     return (
       <div className="flex flex-col items-center justify-center py-16 space-y-4">
         <div className="h-16 w-16 rounded-full bg-destructive/10 flex items-center justify-center">
@@ -185,12 +209,23 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
         </div>
         <h2 className="text-xl font-semibold text-foreground">Unable to Load Data</h2>
         <p className="text-muted-foreground text-center max-w-md">
-          {error.includes('Timeout') 
-            ? "The connection is taking too long. This could be a network issue or cached data problem."
+          {isTimeoutError 
+            ? "The connection timed out. This could be a slow network or a temporary issue."
+            : isNetworkError
+            ? "Network error. Check your internet connection and try again."
             : error}
         </p>
-        <div className="flex gap-3 mt-4">
+        <div className="flex flex-wrap gap-3 mt-4 justify-center">
+          {/* Hard Reload - first recommendation for stale cache issues */}
           <Button
+            onClick={() => performHardReload()}
+            className="gap-2"
+          >
+            <RotateCcw className="h-4 w-4" />
+            Hard Reload
+          </Button>
+          <Button
+            variant="outline"
             onClick={async () => {
               setIsRetrying(true);
               await refreshData();
@@ -203,11 +238,15 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
             {isRetrying ? 'Retrying...' : 'Retry'}
           </Button>
           <Button
-            variant="outline"
-            onClick={() => navigate('/reset')}
-            className="gap-2"
+            variant="ghost"
+            onClick={() => {
+              if (confirm('This will sign you out and clear all cached data. Continue?')) {
+                navigate('/reset');
+              }
+            }}
+            className="gap-2 text-muted-foreground"
           >
-            Clear Cache & Reload
+            Clear Cache (logs out)
           </Button>
         </div>
       </div>
