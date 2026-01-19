@@ -11,17 +11,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { 
   Database, 
   Download, 
@@ -41,12 +30,14 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTeam } from "@/contexts/TeamContext";
 import { format } from "date-fns";
+import { DeleteAllDataDialog } from "@/components/dialogs/DeleteAllDataDialog";
 
 export const DataManagementSection = () => {
   const { toast } = useToast();
   const { currentTeam } = useTeam();
   const [isExporting, setIsExporting] = useState(false);
   const [showImportWizard, setShowImportWizard] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   // Fetch import history
   const { data: importHistory, refetch: refetchHistory } = useQuery({
@@ -377,39 +368,21 @@ export const DataManagementSection = () => {
         </div>
 
         <div className="p-4 rounded-lg bg-destructive/5 border border-destructive/20">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h4 className="font-medium">Delete All Data</h4>
               <p className="text-sm text-muted-foreground">
-                Permanently delete all your data. This action cannot be undone.
+                Permanently delete all your data. This requires email verification and cannot be undone.
               </p>
             </div>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive">
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Delete All Data
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This action cannot be undone. This will permanently delete all your
-                    vehicles, bookings, customers, documents, and other data from our servers.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction 
-                    onClick={handleDeleteAllData}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  >
-                    Delete Everything
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            <Button 
+              variant="destructive" 
+              onClick={() => setShowDeleteDialog(true)}
+              className="w-full sm:w-auto shrink-0"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete All Data
+            </Button>
           </div>
         </div>
       </Card>
@@ -426,6 +399,12 @@ export const DataManagementSection = () => {
           />
         </DialogContent>
       </Dialog>
+
+      {/* Delete All Data Dialog */}
+      <DeleteAllDataDialog 
+        open={showDeleteDialog} 
+        onOpenChange={setShowDeleteDialog} 
+      />
     </div>
   );
 };
