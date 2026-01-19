@@ -225,29 +225,37 @@ export const IntegrationsSection = () => {
               {items.map((integration) => (
                 <div 
                   key={integration.id}
-                  className="flex items-center justify-between p-4 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
+                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="p-2 rounded-lg bg-background border">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="p-2 rounded-lg bg-background border shrink-0">
                       <integration.icon className="w-5 h-5 text-primary" />
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <h4 className="font-medium">{integration.name}</h4>
-                        {getStatusBadge(integration.status)}
+                        {integration.status === "connected" && (
+                          <Check className="w-4 h-4 text-success shrink-0" />
+                        )}
+                        {integration.status === "error" && (
+                          <AlertCircle className="w-4 h-4 text-destructive shrink-0" />
+                        )}
+                        {integration.status === "disconnected" && (
+                          <span className="text-xs text-muted-foreground">Not connected</span>
+                        )}
                       </div>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-muted-foreground truncate">
                         {integration.description}
                       </p>
                       {integration.lastSync && integration.status === "connected" && (
-                        <p className="text-xs text-muted-foreground mt-1">
+                        <p className="text-xs text-muted-foreground mt-0.5">
                           Last sync: {integration.lastSync}
                         </p>
                       )}
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 shrink-0 sm:ml-auto">
                     {integration.status === "connected" && (
                       <>
                         <Button 
@@ -255,6 +263,7 @@ export const IntegrationsSection = () => {
                           size="sm"
                           onClick={() => handleSync(integration.id)}
                           disabled={isLoading === integration.id}
+                          className="h-8 w-8 p-0"
                         >
                           <RefreshCw className={`w-4 h-4 ${isLoading === integration.id ? 'animate-spin' : ''}`} />
                         </Button>
@@ -263,6 +272,7 @@ export const IntegrationsSection = () => {
                           size="sm"
                           onClick={() => handleDisconnect(integration.id)}
                           disabled={isLoading === integration.id}
+                          className="h-8"
                         >
                           Disconnect
                         </Button>
@@ -273,7 +283,7 @@ export const IntegrationsSection = () => {
                         size="sm"
                         onClick={() => handleConnect(integration.id)}
                         disabled={isLoading === integration.id}
-                        className="btn-premium"
+                        className="btn-premium h-8"
                       >
                         {isLoading === integration.id ? (
                           <RefreshCw className="w-4 h-4 animate-spin mr-2" />
@@ -289,6 +299,7 @@ export const IntegrationsSection = () => {
                         size="sm"
                         onClick={() => handleConnect(integration.id)}
                         disabled={isLoading === integration.id}
+                        className="h-8"
                       >
                         Reconnect
                       </Button>

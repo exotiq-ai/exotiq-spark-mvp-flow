@@ -396,8 +396,8 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Floating Action Button for quick actions */}
-        <FloatingActionMenu actions={fabActions} />
+        {/* Floating Action Button for quick actions - hide in Settings */}
+        {activeModule !== "settings" && <FloatingActionMenu actions={fabActions} />}
 
         {/* Main Content */}
         <main
