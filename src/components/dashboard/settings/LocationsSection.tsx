@@ -67,18 +67,18 @@ export const LocationsSection = () => {
   return (
     <div className="space-y-6">
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="space-y-4">
           <div>
             <CardTitle className="flex items-center gap-2">
               <MapPin className="h-5 w-5" />
               Locations
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="mt-1.5">
               Manage your business locations. Each location can have its own vehicles, staff, and bookings.
             </CardDescription>
           </div>
           {isOwner && (
-            <Button onClick={() => setAddDialogOpen(true)}>
+            <Button onClick={() => setAddDialogOpen(true)} className="w-full sm:w-auto">
               <Plus className="h-4 w-4 mr-2" />
               Add Location
             </Button>
@@ -106,14 +106,14 @@ export const LocationsSection = () => {
                 <div 
                   key={location.id} 
                   className={cn(
-                    "flex items-start justify-between p-4 border rounded-lg transition-colors",
+                    "flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 p-4 border rounded-lg transition-colors",
                     location.is_active 
                       ? "hover:bg-muted/50" 
                       : "opacity-60 bg-muted/30"
                   )}
                 >
-                  <div className="space-y-1.5">
-                    <div className="flex items-center gap-2">
+                  <div className="space-y-1.5 min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <h4 className="font-medium">{location.name}</h4>
                       {location.is_default && (
                         <Badge variant="secondary" className="text-xs">
@@ -136,7 +136,7 @@ export const LocationsSection = () => {
                       </p>
                     )}
                     
-                    <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                    <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
                       {location.phone && (
                         <span className="flex items-center gap-1">
                           <Phone className="h-3 w-3" />
@@ -146,7 +146,7 @@ export const LocationsSection = () => {
                       {location.email && (
                         <span className="flex items-center gap-1">
                           <Mail className="h-3 w-3" />
-                          {location.email}
+                          <span className="truncate max-w-[180px]">{location.email}</span>
                         </span>
                       )}
                       {location.timezone && (
@@ -158,27 +158,29 @@ export const LocationsSection = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    {!location.is_default && isOwner && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleSetDefault(location.id)}
-                        disabled={settingDefault === location.id}
-                      >
-                        {settingDefault === location.id ? 'Setting...' : 'Set as Default'}
-                      </Button>
-                    )}
-                    {isOwner && (
+                  {isOwner && (
+                    <div className="flex items-center gap-2 shrink-0">
+                      {!location.is_default && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleSetDefault(location.id)}
+                          disabled={settingDefault === location.id}
+                          className="h-8 text-xs"
+                        >
+                          {settingDefault === location.id ? 'Setting...' : 'Set Default'}
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="icon"
                         onClick={() => setEditingLocation(location)}
+                        className="h-8 w-8"
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

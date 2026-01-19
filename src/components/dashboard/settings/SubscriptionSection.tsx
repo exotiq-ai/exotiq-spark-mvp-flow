@@ -182,12 +182,12 @@ export const SubscriptionSection = () => {
           ))}
         </div>
 
-        <div className="mt-6 flex gap-3">
-          <Button onClick={handleManageBilling} disabled={isLoading} className="btn-premium">
+        <div className="mt-6 flex flex-col sm:flex-row gap-3">
+          <Button onClick={handleManageBilling} disabled={isLoading} className="btn-premium w-full sm:w-auto">
             <CreditCard className="w-4 h-4 mr-2" />
             Manage Billing
           </Button>
-          <Button variant="outline">
+          <Button variant="outline" className="w-full sm:w-auto">
             <Download className="w-4 h-4 mr-2" />
             Download Invoices
           </Button>
