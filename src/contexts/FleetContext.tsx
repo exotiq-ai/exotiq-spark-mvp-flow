@@ -6,7 +6,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Database } from '@/integrations/supabase/types';
 import { z } from 'zod';
 import confetti from 'canvas-confetti';
-import { devLog, devError } from '@/lib/logger';
+import { devLog, devError, devWarn } from '@/lib/logger';
+import { useRealtimeReconnect } from '@/hooks/useRealtimeReconnect';
 import {
   customerSchema,
   bookingSchema,
@@ -132,7 +133,7 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [user?.id]);
 
-  // Core refresh logic - enterprise-grade with concurrency guard
+  // Core refresh logic - enterprise-grade with concurrency guard and session validation
   const refreshDataCore = useCallback(async (opts: { 
     isInitialLoad?: boolean;
     forceTeamId?: string | null;
@@ -170,6 +171,42 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     setError(null);
     
     try {
+      // PHASE 2: Pre-fetch session validation
+      // Verify session is valid before attempting data fetch
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        devWarn('[FleetContext] No valid session, aborting data fetch');
+        setLoading(false);
+        setIsRefreshing(false);
+        isRefreshingRef.current = false;
+        setError('Session expired. Please sign in again.');
+        return;
+      }
+      
+      // Check if token is close to expiry (< 5 minutes remaining)
+      const expiresAt = session.expires_at;
+      if (expiresAt) {
+        const expiresAtMs = expiresAt * 1000;
+        const timeRemaining = expiresAtMs - Date.now();
+        const FIVE_MINUTES = 5 * 60 * 1000;
+        
+        if (timeRemaining < FIVE_MINUTES) {
+          devLog('[FleetContext] Token near expiry, attempting refresh...');
+          const { error: refreshError } = await supabase.auth.refreshSession();
+          
+          if (refreshError) {
+            devWarn('[FleetContext] Session refresh failed:', refreshError.message);
+            setLoading(false);
+            setIsRefreshing(false);
+            isRefreshingRef.current = false;
+            setError('Session expired. Please sign in again.');
+            return;
+          }
+          devLog('[FleetContext] Session refreshed successfully');
+        }
+      }
+
       // Determine filter column and value
       const filterCol = teamId ? 'team_id' : 'user_id';
       const filterVal = teamId || userId!;
@@ -522,6 +559,24 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
   const channelRef = useRef<any>(null);
   const subscribedForRef = useRef<string | null>(null);
 
+  // Force realtime reconnection
+  const forceRealtimeReconnect = useCallback(() => {
+    devLog('[FleetContext] Forcing realtime reconnection');
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+    }
+    subscribedForRef.current = null;
+    // This will trigger the effect below to recreate the channel
+  }, []);
+
+  // PHASE 3: Realtime reconnection on visibility change
+  const { recordRealtimeEvent } = useRealtimeReconnect({
+    staleThresholdMs: 5 * 60 * 1000, // 5 minutes
+    onReconnectNeeded: forceRealtimeReconnect,
+    isActive: !!user,
+  });
+
   useEffect(() => {
     if (!user) return;
     
@@ -548,43 +603,49 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       .channel(`fleet-realtime-${subscriptionKey}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' },
         (payload) => {
-          // Only refresh if the change is for our team
+          recordRealtimeEvent(); // Track event for stale detection
           const record = payload.new as any || payload.old as any;
           if (teamId && record?.team_id && record.team_id !== teamId) return;
           debouncedRefresh('bookings');
         })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' },
         (payload) => {
+          recordRealtimeEvent();
           const record = payload.new as any || payload.old as any;
           if (teamId && record?.team_id && record.team_id !== teamId) return;
           debouncedRefresh('payments');
         })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'damage_claims' },
         (payload) => {
+          recordRealtimeEvent();
           const record = payload.new as any || payload.old as any;
           if (teamId && record?.team_id && record.team_id !== teamId) return;
           debouncedRefresh('damageClaims');
         })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'customers' },
         (payload) => {
+          recordRealtimeEvent();
           const record = payload.new as any || payload.old as any;
           if (teamId && record?.team_id && record.team_id !== teamId) return;
           debouncedRefresh('customers');
         })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'vehicles' },
         (payload) => {
+          recordRealtimeEvent();
           const record = payload.new as any || payload.old as any;
           if (teamId && record?.team_id && record.team_id !== teamId) return;
           debouncedRefresh('vehicles');
         })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'vehicle_inspections' },
         (payload) => {
+          recordRealtimeEvent();
           const record = payload.new as any || payload.old as any;
           if (teamId && record?.team_id && record.team_id !== teamId) return;
           debouncedRefresh('inspections');
         })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'maintenance_schedules' },
         (payload) => {
+          recordRealtimeEvent();
           const record = payload.new as any || payload.old as any;
           if (teamId && record?.team_id && record.team_id !== teamId) return;
           debouncedRefresh('maintenance');
@@ -592,6 +653,7 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
           devLog('[FleetContext] ✅ Realtime subscriptions active');
+          recordRealtimeEvent(); // Mark initial subscription as "event"
         } else if (status === 'CHANNEL_ERROR') {
           devError('[FleetContext] ❌ Realtime subscription error');
         }
@@ -607,7 +669,7 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
         subscribedForRef.current = null;
       }
     };
-  }, [user?.id, currentTeam?.id]);
+  }, [user?.id, currentTeam?.id, recordRealtimeEvent]);
 
   // CRUD Operations with optimistic updates where appropriate
   const applyPriceOptimization = async (vehicleId: string, newRate: number) => {
