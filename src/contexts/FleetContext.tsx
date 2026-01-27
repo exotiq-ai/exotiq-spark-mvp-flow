@@ -582,7 +582,9 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
   });
 
   useEffect(() => {
-    if (!user) return;
+    // CRITICAL: Wait for team resolution before setting up realtime
+    // This prevents "no-team" subscriptions and unnecessary churn
+    if (!user || teamLoading) return;
     
     const teamId = currentTeam?.id;
     const subscriptionKey = `${user.id}:${teamId || 'no-team'}`;
@@ -673,7 +675,7 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
         subscribedForRef.current = null;
       }
     };
-  }, [user?.id, currentTeam?.id, recordRealtimeEvent]);
+  }, [user?.id, currentTeam?.id, teamLoading, recordRealtimeEvent]);
 
   // CRUD Operations with optimistic updates where appropriate
   const applyPriceOptimization = async (vehicleId: string, newRate: number) => {

@@ -165,6 +165,7 @@ export const TeamProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (teamMemberError) {
         devError('[TeamContext] Error fetching team membership:', teamMemberError);
+        setError(`Team membership error: ${teamMemberError.message}`);
         setLoading(false);
         return;
       }
@@ -191,12 +192,14 @@ export const TeamProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (teamError) {
         devError('[TeamContext] Error fetching team:', teamError);
+        setError(`Team fetch error: ${teamError.message}`);
         setLoading(false);
         return;
       }
       
       if (!team) {
         devLog('[TeamContext] Team not found for id:', teamMember.team_id);
+        setError(`Team not found for membership`);
         setLoading(false);
         return;
       }

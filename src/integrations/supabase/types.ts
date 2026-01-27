@@ -2662,6 +2662,8 @@ export type Database = {
         Args: { p_conversation_id: string; p_user_id: string }
         Returns: boolean
       }
+      is_my_team_admin: { Args: { p_team_id: string }; Returns: boolean }
+      is_my_team_member: { Args: { p_team_id: string }; Returns: boolean }
       is_same_team: {
         Args: { _target_user_id: string; _user_id: string }
         Returns: boolean
