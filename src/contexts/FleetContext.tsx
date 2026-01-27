@@ -353,9 +353,11 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
   // INITIAL LOAD: Only trigger ONCE per user session
   // This is the ONLY place that sets loading=true on first load
   useEffect(() => {
-    // Wait for auth to settle
-    if (authLoading) {
-      devLog('[FleetContext] Waiting for auth...');
+    // Wait for auth + team resolution to settle.
+    // IMPORTANT: fetching with user_id before team is known can be extremely slow
+    // under RLS (and may not return the correct team-scoped data).
+    if (authLoading || teamLoading) {
+      devLog('[FleetContext] Waiting for auth/team...', { authLoading, teamLoading });
       return;
     }
     
@@ -366,36 +368,38 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
     
-    // Check if we already initialized for this user
-    if (hasInitializedForUserRef.current === user.id && lastTeamIdRef.current !== null) {
-      devLog('[FleetContext] Already initialized for user', user.id);
+    const resolvedTeamId = currentTeam?.id ?? null;
+    const teamKey = resolvedTeamId ?? 'no-team';
+
+    // Check if we already initialized for this user+team
+    if (hasInitializedForUserRef.current === user.id && lastTeamIdRef.current === teamKey) {
+      devLog('[FleetContext] Already initialized for user/team', { userId: user.id, teamKey });
       return;
     }
     
     devLog('[FleetContext] Initial load for user:', user.id);
-    lastTeamIdRef.current = currentTeam?.id || 'pending';
-    refreshDataCore({ isInitialLoad: true });
-  }, [authLoading, user?.id]); // Intentionally exclude refreshDataCore to prevent cascades
+    lastTeamIdRef.current = teamKey;
+    refreshDataCore({ isInitialLoad: true, forceTeamId: resolvedTeamId });
+  }, [authLoading, teamLoading, user?.id, currentTeam?.id]);
 
   // TEAM CHANGE: Soft refresh (no UI wipe) when team changes AFTER initial load
   useEffect(() => {
     // Skip if no user or still in initial load phase
-    if (!user || authLoading) return;
+    if (!user || authLoading || teamLoading) return;
     if (lastTeamIdRef.current === null) return; // Initial load not done yet
     
     // Check if team actually changed
-    const newTeamId = currentTeam?.id || null;
-    if (lastTeamIdRef.current === newTeamId || lastTeamIdRef.current === 'pending') {
-      lastTeamIdRef.current = newTeamId;
-      return;
-    }
+    const newTeamId = currentTeam?.id ?? null;
+    const newTeamKey = newTeamId ?? 'no-team';
+
+    if (lastTeamIdRef.current === newTeamKey) return;
     
-    devLog('[FleetContext] Team changed:', lastTeamIdRef.current, '->', newTeamId);
-    lastTeamIdRef.current = newTeamId;
+    devLog('[FleetContext] Team changed:', lastTeamIdRef.current, '->', newTeamKey);
+    lastTeamIdRef.current = newTeamKey;
     
     // Soft refresh - don't wipe UI, just update data
     refreshDataCore({ isInitialLoad: false, forceTeamId: newTeamId });
-  }, [currentTeam?.id, user?.id, authLoading]); // Intentionally exclude refreshDataCore
+  }, [currentTeam?.id, user?.id, authLoading, teamLoading]); // Intentionally exclude refreshDataCore
 
   // Individual refresh methods for real-time updates
   const refreshBookings = useCallback(() => {
