@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { Resend } from 'npm:resend@4.0.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -122,32 +123,54 @@ serve(async (req) => {
 </html>
     `;
 
-    // In a production environment, you would use a service like Resend or SendGrid here
-    // For this implementation, we'll log it and return success
-    console.log('[Email Summary] Email would be sent to:', recipientEmail);
-    console.log('[Email Summary] Content length:', htmlContent.length);
+    // Initialize Resend with API key
+    const resendApiKey = Deno.env.get('RESEND_API_KEY');
+    
+    if (!resendApiKey) {
+      console.error('[Email Summary] RESEND_API_KEY not configured');
+      return new Response(
+        JSON.stringify({ 
+          success: false,
+          error: 'Email service not configured'
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
 
-    // TODO: Integrate with email service (Resend, SendGrid, etc.)
-    // Example with Resend:
-    // const resendApiKey = Deno.env.get('RESEND_API_KEY');
-    // const response = await fetch('https://api.resend.com/emails', {
-    //   method: 'POST',
-    //   headers: {
-    //     'Authorization': `Bearer ${resendApiKey}`,
-    //     'Content-Type': 'application/json',
-    //   },
-    //   body: JSON.stringify({
-    //     from: 'Rari <noreply@exotiq.ai>',
-    //     to: recipientEmail,
-    //     subject: `Rari Conversation Summary - ${startTime.toLocaleDateString()}`,
-    //     html: htmlContent,
-    //   }),
-    // });
+    const resend = new Resend(resendApiKey);
+    
+    // Send the email via Resend
+    const { data: emailData, error: emailError } = await resend.emails.send({
+      from: 'Rari AI <noreply@exotiq.ai>',
+      to: [recipientEmail],
+      subject: `Rari Conversation Summary - ${startTime.toLocaleDateString()}`,
+      html: htmlContent,
+    });
+
+    if (emailError) {
+      console.error('[Email Summary] Resend error:', emailError);
+      return new Response(
+        JSON.stringify({ 
+          success: false,
+          error: emailError.message || 'Failed to send email'
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
+    console.log('[Email Summary] Email sent successfully:', emailData?.id);
 
     return new Response(
       JSON.stringify({ 
         success: true,
-        message: 'Email summary prepared (integration pending)'
+        message: 'Email sent successfully',
+        emailId: emailData?.id
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
