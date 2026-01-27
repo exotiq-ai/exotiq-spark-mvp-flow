@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { devLog, devError, devWarn } from '@/lib/logger';
+import { useSessionHealth, SessionHealthStatus } from '@/hooks/useSessionHealth';
 
 // Subscription tier types
 export type SubscriptionTier = 'starter' | 'growth' | 'professional' | 'enterprise' | null;
@@ -26,6 +27,8 @@ interface AuthContextType {
   loading: boolean;
   subscription: SubscriptionStatus;
   isPasswordRecovery: boolean;
+  sessionHealth: SessionHealthStatus;
+  refreshSession: () => Promise<boolean>;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: any }>;
   signUpWithInvite: (email: string, password: string, fullName: string, inviteToken: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
@@ -663,6 +666,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Session health management - handles tab visibility, inactivity timeouts
+  const { sessionHealth, refreshSession: doRefreshSession } = useSessionHealth({
+    minHiddenDuration: 60000, // 60 seconds
+    inactivityTimeoutMs: 60 * 60 * 1000, // Default 60 min, will be overridden by user settings
+    gracePeriodMs: 60000, // 60 second grace period
+    onSessionExpired: signOut,
+    isAuthenticated: !!user,
+    userId: user?.id || null,
+  });
+
+  // Expose refreshSession with a stable reference
+  const refreshSession = useCallback(async (): Promise<boolean> => {
+    return doRefreshSession();
+  }, [doRefreshSession]);
+
   return (
     <AuthContext.Provider value={{
       user,
@@ -670,6 +688,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       loading,
       subscription,
       isPasswordRecovery,
+      sessionHealth,
+      refreshSession,
       signUp,
       signUpWithInvite,
       signIn,

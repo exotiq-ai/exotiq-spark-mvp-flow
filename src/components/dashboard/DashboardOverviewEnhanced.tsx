@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,11 +19,13 @@ import { ScheduleMaintenanceDialog } from "@/components/dialogs/ScheduleMaintena
 import { RecordPaymentDialog } from "@/components/dialogs/RecordPaymentDialog";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { useFleetAIInsight } from "@/hooks/useFleetAIInsight";
+import { useAuth } from "@/contexts/AuthContext";
 import { LocationContextBanner } from "@/components/common/LocationBadge";
 import { DemoOnboarding } from "@/components/demo/DemoOnboarding";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useRariSidebar } from "@/hooks/useRariSidebar";
 import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   SkeletonBanner, 
@@ -32,6 +34,7 @@ import {
 } from "@/components/ui/skeleton-specialized";
 import { SkeletonLineChart, SkeletonDonutChart, SkeletonTable } from "@/components/ui/skeleton-card";
 import { performHardReload, isInRecoveryMode } from "@/lib/staleBuildRecovery";
+import { supabase } from "@/integrations/supabase/client";
 import { 
   TrendingUp, 
   Calendar, 
@@ -45,7 +48,8 @@ import {
   ChevronDown,
   RefreshCw,
   AlertTriangle,
-  RotateCcw
+  RotateCcw,
+  LogOut
 } from "lucide-react";
 
 interface DashboardOverviewEnhancedProps {
@@ -63,6 +67,8 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
   const [loadingDuration, setLoadingDuration] = useState(0);
   
   const { vehicles, bookings, loading, error, applyPriceOptimization, createBooking, createCustomer, generateReport, createMaintenance, createPayment, createVehicle, refreshData } = useLocationFilteredFleet();
+  const { signOut } = useAuth();
+  const { toast } = useToast();
   const rariSidebar = useRariSidebar();
   const navigate = useNavigate();
   const [isRetrying, setIsRetrying] = useState(false);
@@ -79,6 +85,35 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
       setLoadingDuration(0);
     }
   }, [loading]);
+
+  // PHASE 5: Session-aware retry handler
+  const handleSessionAwareRetry = useCallback(async () => {
+    setIsRetrying(true);
+    
+    try {
+      // First, attempt to refresh the session
+      const { error: refreshError } = await supabase.auth.refreshSession();
+      
+      if (refreshError) {
+        // Session is truly expired, redirect to login
+        toast({
+          title: 'Session Expired',
+          description: 'Redirecting to login...',
+          variant: 'destructive',
+        });
+        window.location.href = '/auth';
+        return;
+      }
+      
+      // Session refreshed successfully, retry data fetch
+      await refreshData(true);
+    } catch (err) {
+      // Fallback: just try the data refresh anyway
+      await refreshData(true);
+    } finally {
+      setIsRetrying(false);
+    }
+  }, [refreshData, toast]);
   
   // Collapsible state persistence
   const [showFleetSchedule, setShowFleetSchedule] = useLocalStorage<boolean>("dashboardFleetSchedule", false);
@@ -158,15 +193,16 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
                 <RotateCcw className="h-4 w-4" />
                 Hard Reload
               </Button>
-              {/* Retry - try fetching data again */}
+              {/* Session-aware Retry - refreshes session first */}
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => refreshData(true)} 
+                onClick={handleSessionAwareRetry}
+                disabled={isRetrying}
                 className="gap-2"
               >
-                <RefreshCw className="h-4 w-4" />
-                Retry Data
+                <RefreshCw className={`h-4 w-4 ${isRetrying ? 'animate-spin' : ''}`} />
+                {isRetrying ? 'Refreshing...' : 'Refresh & Retry'}
               </Button>
               {/* Clear Cache - nuclear option */}
               <Button
@@ -209,10 +245,11 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
     );
   }
 
-  // Error state - show recovery UI with improved options
+  // Error state - show recovery UI with improved session-aware options
   if (error && !loading) {
     const isTimeoutError = error.includes('Timeout') || error.includes('timeout');
     const isNetworkError = error.includes('network') || error.includes('fetch');
+    const isSessionError = error.includes('Session') || error.includes('session') || error.includes('expired');
     
     return (
       <div className="flex flex-col items-center justify-center py-16 space-y-4">
@@ -221,55 +258,59 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
         </div>
         <h2 className="text-xl font-semibold text-foreground">Unable to Load Data</h2>
         <p className="text-muted-foreground text-center max-w-md">
-          {isTimeoutError 
+          {isSessionError
+            ? "Your session may have expired. Try refreshing your session or sign in again."
+            : isTimeoutError 
             ? "The connection timed out. This could be a slow network or a temporary issue."
             : isNetworkError
             ? "Network error. Check your internet connection and try again."
             : error}
         </p>
         <div className="flex flex-wrap gap-3 mt-4 justify-center">
-          {/* Hard Reload - most reliable fix */}
+          {/* Session-aware Retry - refreshes session first, then retries data */}
           <Button
+            onClick={handleSessionAwareRetry}
+            disabled={isRetrying}
+            className="gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${isRetrying ? 'animate-spin' : ''}`} />
+            {isRetrying ? 'Refreshing...' : 'Refresh & Retry'}
+          </Button>
+          
+          {/* Hard Reload - most reliable fix for stale assets */}
+          <Button
+            variant="outline"
             onClick={() => performHardReload()}
             className="gap-2"
           >
             <RotateCcw className="h-4 w-4" />
             Hard Reload
           </Button>
-          {/* Retry - force a fresh data fetch */}
+          
+          {/* Sign Out & Restart - clean escape hatch for auth issues */}
           <Button
             variant="outline"
             onClick={async () => {
-              setIsRetrying(true);
-              await refreshData(true); // Force refresh bypasses concurrency guard
-              setIsRetrying(false);
-            }}
-            disabled={isRetrying}
-            className="gap-2"
-          >
-            <RefreshCw className={`h-4 w-4 ${isRetrying ? 'animate-spin' : ''}`} />
-            {isRetrying ? 'Retrying...' : 'Retry Data'}
-          </Button>
-          {/* Clear Cache - nuclear option */}
-          <Button
-            variant="outline"
-            onClick={() => {
-              if (confirm('This will sign you out and clear all cached data. Continue?')) {
-                window.location.href = '/reset';
-              }
+              toast({
+                title: 'Signing out...',
+                description: 'You will be redirected to the login page.',
+              });
+              await signOut();
             }}
             className="gap-2"
           >
-            Clear Cache
+            <LogOut className="h-4 w-4" />
+            Sign Out & Restart
           </Button>
+          
           {/* Contact support for persistent issues */}
-          {isTimeoutError && (
+          {(isTimeoutError || isNetworkError) && (
             <Button
               variant="ghost"
               asChild
               className="gap-2 text-muted-foreground"
             >
-              <a href="mailto:hello@exotiq.ai?subject=Dashboard%20Timeout%20Error">
+              <a href="mailto:hello@exotiq.ai?subject=Dashboard%20Loading%20Error">
                 Contact Support
               </a>
             </Button>
