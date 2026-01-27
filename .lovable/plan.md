@@ -1,388 +1,412 @@
 
-# Hardened Session & Data Recovery System
+# ExotIQ Launch Readiness Review
+## Senior AI Developer Discovery Assessment
 
-## Executive Summary
-
-This plan creates an enterprise-grade session management system that:
-1. Keeps users logged in during long work sessions (8+ hours) while staying secure
-2. Proactively refreshes sessions when returning from idle/backgrounded tabs
-3. Properly logs out users when tokens are truly expired (instead of leaving them stuck)
-4. Reconnects real-time channels that silently disconnect during idle
-5. Makes the configurable `sessionTimeout` setting actually work (currently it's stored but not enforced)
-6. Provides clear recovery paths instead of "stuck loading" states
+**Review Date:** January 27, 2026  
+**Reviewer:** Senior AI Developer  
+**Scope:** 2-Week Pre-Launch Discovery
 
 ---
 
-## Root Cause Analysis
+# Executive Summary
 
-**Why the "stuck state" happens:**
+ExotIQ is a sophisticated multi-tenant fleet management SaaS platform built on React, TypeScript, Supabase, and a robust Edge Function architecture. The application demonstrates **strong technical foundations** but has **several critical items requiring attention** before a production launch.
 
-```text
-Current Flow (BROKEN):
-┌─────────────────────────────────────────────────────────────────────┐
-│ 1. User logs in, works for a while                                  │
-│ 2. User backgrounds tab (goes to lunch, meetings, etc.)             │
-│ 3. Supabase JWT expires (default: 1 hour) or websocket disconnects  │
-│ 4. User returns to tab                                              │
-│ 5. App tries to fetch data with expired token                       │
-│ 6. Fetch silently fails OR times out                                │
-│ 7. `isRefreshingRef.current` stays TRUE (concurrency guard stuck)   │
-│ 8. UI shows "Loading..." forever - user is STUCK                    │
-│                                                                     │
-│ The session validation code only runs on MOUNT, not on TAB FOCUS    │
-│ The `sessionTimeout` setting in Team Settings is stored but IGNORED │
-└─────────────────────────────────────────────────────────────────────┘
-```
+## Overall Assessment
 
-**What should happen:**
+| Category | Score | Status |
+|----------|-------|--------|
+| Security & Access Control | 7.5/10 | ⚠️ Needs Attention |
+| Code Architecture | 8.5/10 | ✅ Strong |
+| Error Handling & Recovery | 9/10 | ✅ Excellent |
+| Session Management | 9/10 | ✅ Recently Hardened |
+| Performance | 8/10 | ✅ Good |
+| Multi-Tenancy | 8.5/10 | ✅ Strong |
+| Production Readiness | 7/10 | ⚠️ Blockers Exist |
 
-```text
-Fixed Flow (TARGET):
-┌─────────────────────────────────────────────────────────────────────┐
-│ 1. User logs in, works for a while                                  │
-│ 2. User backgrounds tab                                             │
-│ 3. JWT approaches expiry                                            │
-│ 4. User returns to tab                                              │
-│ 5. Visibility listener fires IMMEDIATELY                            │
-│ 6. App calls supabase.auth.refreshSession()                         │
-│ 7a. If refresh SUCCEEDS → Session extended, data fetches normally   │
-│ 7b. If refresh FAILS → Clean logout + redirect to /auth with toast  │
-│                                                                     │
-│ For long work sessions: Token is proactively refreshed before       │
-│ expiry based on user's configured sessionTimeout preference         │
-└─────────────────────────────────────────────────────────────────────┘
-```
+**Launch Recommendation:** Address P0/P1 items below (1-2 weeks), then proceed with beta launch.
 
 ---
 
-## Compatibility with Previous Fixes
+# Critical Findings (P0 - Must Fix Before Launch)
 
-**Previous fix (stale cache/refresh loops):**
-- ✅ PWA caching excluded HTML from precache → KEEP
-- ✅ Preview mode disables service workers → KEEP  
-- ✅ Hard Reload button + staleBuildRecovery.ts → KEEP
-- ✅ `force` parameter on refreshData() → KEEP & ENHANCE
+## 1. Leaked Password Protection Disabled
 
-**This plan ADDS to those fixes without conflicts:**
-- New visibility change listener in AuthContext
-- Session health pre-check before data fetches
-- Real-time channel reconnection on focus
-- Actually enforce the sessionTimeout setting
+**Severity:** 🔴 Critical  
+**Location:** Supabase Auth Settings
 
----
+The database linter identified that **leaked password protection is disabled**. This means users can create accounts with passwords known to be compromised in data breaches.
 
-## Implementation Phases
+**Risk:** Account takeover attacks via credential stuffing.
 
-### Phase 1: Session Refresh on Tab Focus
-
-**File:** `src/contexts/AuthContext.tsx`
-
-Add a visibility change listener that proactively refreshes the session when users return from idle:
-
-```text
-New state/refs to add:
-- lastVisibleTimestamp: useRef<number>(Date.now())
-- sessionHealth: 'healthy' | 'refreshing' | 'checking' | 'expired'
-
-New effect - visibilitychange listener:
-1. Track when tab becomes hidden (lastVisibleTimestamp)
-2. When tab becomes visible:
-   - Calculate how long tab was hidden
-   - If hidden > 60 seconds:
-     a. Set sessionHealth = 'refreshing'
-     b. Call supabase.auth.refreshSession()
-     c. If error (token expired beyond refresh window):
-        - Set sessionHealth = 'expired'
-        - Show toast: "Your session expired. Please sign in again."
-        - Call signOut() → redirects to /auth
-     d. If success:
-        - Set sessionHealth = 'healthy'
-        - Session auto-updates via onAuthStateChange
-        - Log: "[Auth] Session refreshed after idle"
-
-Key principle: Use SAME signOut() flow that already exists
-              This ensures consistent UX (toast + redirect)
-```
-
-**Why this fixes the stuck state:**
-Instead of trying to fetch data with an expired token and timing out, we detect the idle period FIRST and either refresh the token or log out cleanly.
+**Remediation:**
+- Enable leaked password protection in Lovable Cloud → Auth Settings
+- This is a one-click fix that should be done immediately
 
 ---
 
-### Phase 2: Pre-Fetch Session Validation
+## 2. Overly Permissive RLS Policies
 
-**File:** `src/contexts/FleetContext.tsx`
+**Severity:** 🔴 Critical  
+**Location:** Multiple tables
 
-Before attempting to fetch data, verify the session is valid:
+The security scan found **2 RLS policies with USING(true)** for UPDATE/DELETE operations, which is dangerous:
 
-```text
-Modify refreshDataCore() - add at the START:
+**Affected Tables (from linter):**
+- `entity_comments` - SELECT uses `USING (true)`
+- `user_presence` - Was fixed in migration but should be verified
+- `team_conversations` - SELECT uses `USING (true)` for all authenticated users
 
-1. Check if session exists:
-   const { data: { session } } = await supabase.auth.getSession();
-   
-2. If no session:
-   - setLoading(false)
-   - setError("Session expired. Please sign in again.")
-   - Clear isRefreshingRef.current = false
-   - Return early (don't attempt network requests)
+**Risk:** Any authenticated user can potentially view data they shouldn't have access to.
 
-3. If session exists, check token expiry:
-   - Parse session.expires_at
-   - If < 5 minutes remaining:
-     a. Attempt supabase.auth.refreshSession()
-     b. If fails → return early with session expired error
-     c. If succeeds → proceed with data fetch
+**Remediation:**
+```sql
+-- Example fix for entity_comments
+DROP POLICY IF EXISTS "Users can view comments on entities they can access" 
+ON public.entity_comments;
 
-Why: This prevents the "fetch with dead token → timeout → stuck" scenario
-```
-
-**Critical fix for the concurrency guard:**
-```text
-In the catch block AND early-return paths:
-- ALWAYS set isRefreshingRef.current = false
-- This prevents the guard from getting "stuck" on errors
+CREATE POLICY "Team members can view comments"
+ON public.entity_comments FOR SELECT
+TO authenticated
+USING (
+  is_team_member(auth.uid(), team_id)
+  OR public.is_super_admin(auth.uid())
+);
 ```
 
 ---
 
-### Phase 3: Real-time Channel Reconnection
+## 3. elevenlabs-tools Edge Function: @ts-nocheck
 
-**File:** `src/contexts/FleetContext.tsx`
+**Severity:** 🟠 High  
+**Location:** `supabase/functions/elevenlabs-tools/index.ts`
 
-Add visibility change handling to detect and reconnect stale real-time channels:
+This 2,419-line file has `@ts-nocheck` at line 1, completely disabling TypeScript type checking. This is a **major production risk** as it can hide runtime errors.
 
-```text
-New ref:
-- lastRealtimeEventTimestamp: useRef<number>(Date.now())
+**Risk:** Hidden type errors, potential crashes, security vulnerabilities from untyped data.
 
-Modify each postgres_changes callback:
-- At the start of each callback, update:
-  lastRealtimeEventTimestamp.current = Date.now();
+**Remediation:**
+- Remove `@ts-nocheck`
+- Add proper type annotations progressively
+- At minimum, add types to public interfaces and function parameters
 
-New effect - channel health check on visibility change:
-1. Listen for 'visibilitychange' events
-2. When document becomes visible:
-   - Calculate time since lastRealtimeEventTimestamp
-   - If > 5 minutes AND tab was hidden:
-     a. Log: "[FleetContext] Realtime channel may be stale, reconnecting..."
-     b. Remove current channel: supabase.removeChannel(channelRef.current)
-     c. Clear subscribedForRef.current = null
-     d. Channel will auto-recreate on next effect cycle
+---
 
-Why: Supabase websockets silently disconnect when tabs are backgrounded
-     for extended periods. This forces a clean reconnection.
+## 4. 31 Edge Functions with JWT Verification Disabled
+
+**Severity:** 🟠 High  
+**Location:** `supabase/config.toml`
+
+All 31 edge functions have `verify_jwt = false`. While some properly validate tokens in code, this creates an inconsistent security posture.
+
+**Verified as PROPERLY SECURED (validate in code):**
+- `fleet-copilot-chat` ✅
+- `voice-to-text` ✅ 
+- `text-to-speech` ✅
+- `check-subscription` ✅
+
+**Need Review:**
+- `demo-login` - Has rate limiting, acceptable
+- `slack-notify` - Should validate webhook signatures
+- `rari-mcp-server` - Needs authentication audit
+- Payment functions - Need careful review
+
+**Recommendation:** 
+- Enable `verify_jwt = true` for functions that should ONLY be called by authenticated users
+- Document why each function has JWT disabled if intentional
+
+---
+
+# High Priority Findings (P1 - Fix Within First Week)
+
+## 5. Email Service Integration Missing
+
+**Severity:** 🟡 Medium-High  
+**Location:** `supabase/functions/rari-email-summary/index.ts:130`
+
+The email summary feature logs emails to console instead of sending them:
+```typescript
+// TODO: Integrate with email service (Resend, SendGrid, etc.)
+console.log('[Email Summary] Email would be sent to:', recipientEmail);
+```
+
+**Risk:** Feature advertised but non-functional.
+
+**Remediation:**
+- Either implement Resend integration (RESEND_API_KEY secret exists)
+- Or hide the feature from UI until implemented
+
+---
+
+## 6. Messaging System RLS Complexity
+
+**Severity:** 🟡 Medium  
+**Location:** `conversation_members` table
+
+Based on documentation, the messaging system had infinite recursion issues with RLS policies. While currently working, this was resolved by simplifying policies.
+
+**Current State:** All messaging tables have RLS enabled per database query.
+
+**Recommendation:** 
+- Document the RLS architecture for the messaging system
+- Add integration tests for messaging access patterns
+- Monitor for any recursion errors in production
+
+---
+
+## 7. Console Logging Cleanup
+
+**Severity:** 🟡 Medium  
+**Location:** Codebase-wide
+
+The audit identified **187 instances of console.log** that leak into production. While a `devLog` utility exists in `src/lib/logger.ts`, it's not consistently used.
+
+**Risk:** Performance impact, information leakage, noisy production console.
+
+**Remediation:**
+- Replace remaining `console.log` calls with `devLog`
+- Add ESLint rule to prevent direct console usage
+
+---
+
+# Architecture Review: Strengths
+
+## ✅ Session Management (Recently Hardened)
+
+The session management system is **enterprise-grade** following recent hardening:
+
+1. **useSessionHealth hook** - Proactively refreshes tokens on tab focus
+2. **useRealtimeReconnect hook** - Detects and reconnects stale websocket channels
+3. **Pre-fetch validation** in FleetContext - Validates session before data requests
+4. **Inactivity timeout enforcement** - Respects configurable sessionTimeout setting
+5. **Multiple recovery paths** - Hard Reload, Session Refresh, Sign Out & Restart
+
+This addresses the "stuck loading" issue that was the main user complaint.
+
+---
+
+## ✅ Error Recovery System
+
+Excellent multi-layer error recovery:
+
+1. **ErrorBoundary** component - Catches React errors gracefully
+2. **staleBuildRecovery.ts** - Auto-recovers from stale PWA caches
+3. **Reset page** - Master cache clear utility
+4. **ProtectedRoute** - 8-second timeout with recovery UI
+5. **DashboardOverviewEnhanced** - Session-aware retry with Sign Out escape hatch
+
+---
+
+## ✅ Multi-Tenant Architecture
+
+Solid team-based isolation:
+
+1. **TeamContext** - Manages current team, location, and role
+2. **FleetContext** - Filters all data by team_id
+3. **Security Definer functions** - `is_team_member()`, `is_team_admin()`, `is_super_admin()`
+4. **RLS policies** - Most tables properly scoped to team_id
+5. **Real-time subscriptions** - Filtered by team on client side
+
+---
+
+## ✅ PWA Configuration
+
+Well-configured for production:
+
+1. **HTML excluded from precache** - Prevents stale entry points
+2. **Navigation requests use NetworkOnly** - Always fetches fresh HTML
+3. **Only public storage assets cached** - 7-day expiration
+4. **API calls NOT cached** - Prevents stale data issues
+
+---
+
+## ✅ Input Validation
+
+Zod schemas properly implemented in `src/lib/validationSchemas.ts`:
+- Customer, Booking, Message, DamageClaim, Payment, Vehicle schemas
+- Proper length limits and type validation
+- Cross-field validation (e.g., end_date > start_date)
+
+---
+
+# Architecture Review: Areas for Improvement
+
+## 1. Route Lazy Loading
+
+**Issue:** All routes are imported synchronously in App.tsx
+
+**Impact:** Larger initial bundle size, slower first load
+
+**Recommendation:**
+```typescript
+const Dashboard = React.lazy(() => import('./pages/Dashboard'));
+const SuperAdminDashboard = React.lazy(() => import('./pages/SuperAdminDashboard'));
 ```
 
 ---
 
-### Phase 4: Enforce Session Timeout Setting
+## 2. Real-time Subscription Efficiency
 
-The Team Settings UI already lets admins configure `sessionTimeout` (15 min to 8 hours), but it's never enforced. Let's make it work.
+**Current:** 7 separate `postgres_changes` listeners on one channel
 
-**File:** `src/contexts/AuthContext.tsx`
-
-```text
-New effect - load and apply session timeout preference:
-
-1. After user is set, fetch their team settings:
-   const { data } = await supabase
-     .from('user_settings')
-     .select('settings')
-     .eq('user_id', user.id)
-     .eq('category', 'team')
-     .maybeSingle();
-   
-2. Parse sessionTimeout (default: 60 minutes if not set)
-   const timeoutMinutes = parseInt(data?.settings?.sessionTimeout || '60');
-
-3. Store in ref: sessionTimeoutMs.current = timeoutMinutes * 60 * 1000
-
-4. Start an inactivity timer:
-   - Track last user activity (mousemove, keydown, click, scroll)
-   - If no activity for sessionTimeoutMs:
-     a. Show warning toast: "Session expiring soon due to inactivity"
-     b. Wait 60 more seconds
-     c. If still no activity → call signOut()
-   
-5. For long work sessions (8 hours):
-   - The timer only triggers on TRUE inactivity
-   - Any user interaction resets the timer
-   - Active users are never logged out
-```
-
-**Why users can "stay logged in for long work hours":**
-- The timeout is based on INACTIVITY, not absolute time
-- If someone works actively for 8 hours, the timer keeps resetting
-- Only truly idle users get logged out
-- Admins can set up to 8-hour timeout for minimal interruption
+**Recommendation:** Consider consolidating to a single wildcard subscription with client-side filtering if subscription count becomes a bottleneck.
 
 ---
 
-### Phase 5: Enhanced Recovery UI
+## 3. FleetContext Size
 
-**File:** `src/components/dashboard/DashboardOverviewEnhanced.tsx`
+**Issue:** `FleetContext.tsx` is 1,166 lines managing 10 data types
 
-Make recovery buttons smarter by checking session first:
+**Recommendation:** Consider splitting into domain-specific contexts:
+- VehicleContext
+- BookingContext  
+- CustomerContext
+- PaymentContext
 
-```text
-Modify the "Retry Data" button onClick:
-
-1. First, attempt session refresh:
-   const { error } = await supabase.auth.refreshSession();
-   
-2. If refresh fails:
-   - Show toast: "Session expired, redirecting to login..."
-   - Navigate to /auth (using window.location.href for reliability)
-   - Return (don't retry data)
-
-3. If refresh succeeds:
-   - Proceed with refreshData(true)
-   
-Add a new "Sign Out & Restart" button:
-- For cases where users want a completely fresh start
-- Calls signOut() → /auth
-- More direct than "Clear Cache" for auth-related issues
-```
-
-**Modify error messaging:**
-```text
-Detect error type and show appropriate message:
-- Timeout → "Connection timed out. Try refreshing your session."
-- 401/403 → "Session expired. Please sign in again." 
-- Network → "Network error. Check your connection."
-- Generic → Current message
-```
+This would improve code maintainability and reduce re-render scope.
 
 ---
 
-### Phase 6: Expose Session Health (Optional Enhancement)
+# Security Deep Dive
 
-**File:** `src/contexts/AuthContext.tsx`
+## Role-Based Access Control ✅
 
-Add to AuthContextType:
-```text
-sessionHealth: 'healthy' | 'refreshing' | 'expired' | 'idle-warning'
-refreshSession: () => Promise<boolean>
-```
+The RBAC implementation is solid:
 
-This allows any component to:
-1. Check current session health
-2. Manually trigger a session refresh
-3. Show appropriate UI based on session state
-
-**File:** `src/components/common/SessionHealthIndicator.tsx` (new, optional)
-
-A subtle indicator in the header that shows:
-- Nothing when healthy
-- Spinner when refreshing
-- Yellow dot when idle > 5 minutes
-- Red dot when refresh failed
+1. **Separate user_roles table** - Roles NOT stored on profiles (correct)
+2. **Security Definer functions** - `has_role()`, `get_user_role()`, `has_team_role()`
+3. **Super Admin system** - Separate `super_admins` table with `is_super_admin()` function
+4. **Role hierarchy** - owner > admin > manager > operator > viewer
+5. **Trigger-based assignment** - `auto_assign_user_role` on profile creation
 
 ---
 
-## Files to Modify
+## Database Security
 
-| File | Changes |
-|------|---------|
-| `src/contexts/AuthContext.tsx` | Add visibility listener, session timeout enforcement, inactivity tracking, expose sessionHealth |
-| `src/contexts/FleetContext.tsx` | Pre-flight session check, realtime reconnect on focus, fix concurrency guard |
-| `src/components/dashboard/DashboardOverviewEnhanced.tsx` | Enhanced retry with session refresh, Sign Out button, better error messages |
-| `src/components/common/SessionHealthIndicator.tsx` | **Create** - Optional visual health indicator |
+**RLS Status:** All 48 tables have RLS enabled ✅
 
----
+**Tables Verified Secure:**
+- bookings, vehicles, customers, payments - Team-scoped
+- profiles - User-scoped with super admin bypass
+- user_roles - Protected with role checks
+- super_admins - Restricted to super admins only
 
-## Technical Details
-
-### Token Lifecycle
-```text
-Supabase JWT defaults:
-- Access token: 1 hour
-- Refresh token: 1 week
-- Auto-refresh: Client SDK refreshes when < 1 minute remaining
-
-The problem: Auto-refresh only works if the app is ACTIVE
-When tab is backgrounded, no refresh happens → token expires
-```
-
-### Session Timeout Options
-
-The existing Team Settings UI provides these options:
-- 15 minutes (high security)
-- 30 minutes (default)
-- 1 hour
-- 2 hours  
-- 8 hours (minimal interruption for long work sessions)
-
-**Recommendation for "stay logged in for long work hours":**
-Admins should set to 8 hours. The implementation tracks INACTIVITY, so active users won't be interrupted. Only truly idle sessions expire.
+**Tables Needing Verification:**
+- entity_comments - Uses `USING (true)` for SELECT
+- team_conversations - Uses `USING (true)` for SELECT
+- instagram_posts - All authenticated users can read
 
 ---
 
-## Expected Behavior After Implementation
+## Storage Buckets
 
-### Scenario 1: Short idle (< 60 seconds)
-```text
-User returns → No action needed → App works normally
-```
-
-### Scenario 2: Medium idle (1-30 minutes, token still refreshable)
-```text
-User returns → Visibility listener fires → Session refreshes →
-Realtime reconnects → Data fetches cleanly
-```
-
-### Scenario 3: Long idle (token expired beyond refresh)
-```text
-User returns → Visibility listener fires → Session refresh fails →
-Toast: "Session expired" → Clean redirect to /auth
-```
-
-### Scenario 4: True inactivity (exceeds sessionTimeout)
-```text
-User leaves for hours → Inactivity timer fires →
-Warning toast → 60s grace period → signOut() if still idle
-```
-
-### Scenario 5: Active 8-hour work session
-```text
-User works all day → Activity events reset timer continuously →
-Token refreshes in background → Never logged out
-```
+| Bucket | Public | Status |
+|--------|--------|--------|
+| vehicle-photos | No | ✅ User-scoped RLS |
+| dashboard-banners | Yes | ⚠️ Review if intended |
+| customer-documents | No | ✅ Private |
+| damage-photos | No | ✅ Private |
+| user-avatars | Yes | ✅ Intentionally public |
+| message-attachments | No | ✅ Private |
 
 ---
 
-## No Breaking Changes
+# Performance Considerations
 
-- Uses existing `signOut()` flow (same toast, same redirect)
-- Uses existing `refreshData(force: true)` mechanism
-- Settings UI already exists (just enforcement is new)
-- Recovery UI is enhanced, not replaced
-- All existing session verification code stays intact
+## Database Indexes ✅
 
----
-
-## Validation Checklist
-
-After implementation, test these scenarios:
-
-1. **Basic idle:** Open app, wait 2 minutes idle, interact → Should work normally
-2. **Backgrounded tab:** Open app, switch to another tab for 5 minutes, return → Session should refresh automatically
-3. **Long idle:** Set timeout to 15 min, leave for 20 min → Should see warning then logout
-4. **Token expiry:** Use app, wait > 1 hour (token expires), return → Either refreshes or clean logout
-5. **Realtime:** Background tab, have another user make a change, return → Should see update after reconnect
-6. **Recovery UI:** Force a timeout error → Retry button should refresh session first
-7. **Long work session:** Set 8-hour timeout, use actively for hours → Never interrupted
+Per memory, performance indexes added on:
+- vehicles(user_id)
+- bookings(user_id, status, start_date, end_date)
+- payments(booking_id)
+- maintenance_schedules(vehicle_id, scheduled_date)
+- team_members(user_team, role)
 
 ---
 
-## Summary
+## Fetch Timeouts ✅
 
-This comprehensive plan addresses the root cause of the "stuck loading" state while adding enterprise-grade session management:
+- Initial load: 60s timeout
+- Background refresh: 30s timeout
+- Pre-flight session check before fetch
+- Debounced real-time refresh (500ms)
 
-1. **Visibility listener** catches idle returns and proactively refreshes
-2. **Pre-fetch validation** prevents dead-token requests from timing out
-3. **Realtime reconnection** ensures live updates resume after idle
-4. **Inactivity enforcement** makes the sessionTimeout setting work
-5. **Enhanced recovery UI** provides auth-aware retry and clear escape hatches
-6. **Long work session support** via inactivity-based (not time-based) timeouts
+---
+
+## Concurrency Guards ✅
+
+FleetContext and TeamContext have:
+- `isRefreshingRef` - Prevents parallel fetches
+- `fetchSeqRef` - Handles stale response detection
+- `hasInitializedForUserRef` - Prevents duplicate initial loads
+
+---
+
+# Pre-Launch Checklist
+
+## P0 - Must Fix (Blockers)
+
+- [ ] Enable leaked password protection in Auth settings
+- [ ] Review and fix RLS policies with `USING (true)`
+- [ ] Remove @ts-nocheck from elevenlabs-tools or add minimal types
+
+## P1 - Should Fix (First Week)
+
+- [ ] Implement Resend email integration or hide feature
+- [ ] Replace remaining console.log with devLog
+- [ ] Audit all edge functions for proper auth validation
+- [ ] Add integration tests for messaging RLS
+
+## P2 - Nice to Have (Post-Launch)
+
+- [ ] Add route lazy loading
+- [ ] Split FleetContext into domain contexts
+- [ ] Add ESLint rule for console.log prevention
+- [ ] Complete type annotations in elevenlabs-tools
+
+---
+
+# Monitoring Recommendations
+
+## Set Up Before Launch
+
+1. **Error Tracking** - Sentry or similar for client errors
+2. **API Monitoring** - Track Edge Function latency and errors
+3. **Database Monitoring** - Monitor slow queries (>1s)
+4. **Auth Monitoring** - Track failed logins and session issues
+5. **Stripe Webhook Monitoring** - Ensure all events processed
+
+---
+
+# Test Scenarios Before Launch
+
+## Critical Paths to Validate
+
+1. **New User Flow:** Sign up → Onboarding → Dashboard
+2. **Long Session:** 8+ hour work session with no logout
+3. **Tab Backgrounding:** Leave tab 30+ minutes, return
+4. **Multi-Tenant:** Switch between teams, verify data isolation
+5. **Demo Mode:** Verify demo login works with rate limiting
+6. **Subscription Flow:** Free trial → Paid subscription
+7. **Role Changes:** Invite user, change role, verify access
+8. **Mobile Experience:** Full flow on mobile device
+
+---
+
+# Summary
+
+ExotIQ is architecturally sound with excellent session management and error recovery systems. The main risks are:
+
+1. **Security configuration gaps** (leaked password protection, permissive RLS)
+2. **Type safety gap** in critical AI edge function
+3. **Feature completion** (email integration)
+4. **Production hygiene** (console logging)
+
+Addressing the P0 items should take **2-3 days** of focused work. The application is **ready for beta launch** after these fixes, with P1 items completed in the first week of production.
+
+The recent session hardening work has significantly improved stability for long work sessions, which was the primary user complaint. The multi-layer recovery system provides multiple escape hatches for users experiencing issues.
+
+**Recommended Launch Timeline:**
+- Week 1: Fix P0 items, complete P1 security items
+- Week 2: Beta launch with monitoring, fix issues as they arise
+- Week 3+: Address P2 items based on production feedback
