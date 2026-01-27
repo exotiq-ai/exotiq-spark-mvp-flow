@@ -20,6 +20,7 @@ import { RecordPaymentDialog } from "@/components/dialogs/RecordPaymentDialog";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { useFleetAIInsight } from "@/hooks/useFleetAIInsight";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTeam } from "@/contexts/TeamContext";
 import { LocationContextBanner } from "@/components/common/LocationBadge";
 import { DemoOnboarding } from "@/components/demo/DemoOnboarding";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
@@ -67,7 +68,8 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
   const [loadingDuration, setLoadingDuration] = useState(0);
   
   const { vehicles, bookings, loading, error, applyPriceOptimization, createBooking, createCustomer, generateReport, createMaintenance, createPayment, createVehicle, refreshData } = useLocationFilteredFleet();
-  const { signOut } = useAuth();
+  const { signOut, loading: authLoading } = useAuth();
+  const { currentTeam, loading: teamLoading, error: teamError } = useTeam();
   const { toast } = useToast();
   const rariSidebar = useRariSidebar();
   const navigate = useNavigate();
@@ -180,6 +182,11 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
                     ? "We already tried refreshing. Try clearing the cache if the issue persists."
                     : `Loading has been running for ${loadingDuration} seconds. Try these recovery options:`
                   }
+                </p>
+                {/* Diagnostic line: what are we waiting on? */}
+                <p className="text-xs text-muted-foreground/70 mt-1 font-mono">
+                  Status: {authLoading ? 'auth' : teamLoading ? 'team' : !currentTeam ? 'no-team' : 'fleet-data'}
+                  {teamError && ` | Team error: ${teamError}`}
                 </p>
               </div>
             </div>

@@ -240,37 +240,42 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsPasswordRecovery(false);
   }, []);
 
+  // Side-effect sequence guard - prevents stale async work from applying
+  const authEventSeqRef = useRef(0);
+
   useEffect(() => {
-    // Set up auth state listener
+    // Set up auth state listener - SYNCHRONOUS callback, deferred side-effects
     const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
+        // Increment sequence to invalidate any pending async work
+        const seq = ++authEventSeqRef.current;
+        
         // Cancel any queued post-login navigation (prevents "can't sign out" loops)
         if (onboardingNavTimeoutRef.current) {
           window.clearTimeout(onboardingNavTimeoutRef.current);
           onboardingNavTimeoutRef.current = null;
         }
 
-        devLog('Auth event:', event, 'user:', session?.user?.id || 'null');
+        devLog('[Auth] Event:', event, 'user:', session?.user?.id || 'null', 'seq:', seq);
+        
+        // SYNCHRONOUS: Update state immediately
+        const currentPath = window.location.pathname;
         
         // CRITICAL: Skip ALL side effects if we're on /reset or /signout
-        // This prevents auth events from interfering with the reset flow
-        const currentPath = window.location.pathname;
         if (currentPath === '/reset' || currentPath === '/signout') {
-          devLog('On reset/signout path, skipping auth side effects');
+          devLog('[Auth] On reset/signout path, skipping side effects');
           setSession(session);
           setUser(session?.user ?? null);
           setLoading(false);
           return;
         }
         
-        // CRITICAL: If we get INITIAL_SESSION with no user, and we're on a protected route,
-        // redirect to auth. This prevents the "null user stuck state"
+        // CRITICAL: If we get INITIAL_SESSION with no user on protected route
         if (event === 'INITIAL_SESSION' && !session?.user) {
           devLog('[Auth] No user in initial session');
           setSession(null);
           setUser(null);
           setLoading(false);
-          // If on a protected route, redirect to auth
           if (currentPath === '/dashboard' || currentPath === '/onboarding') {
             devLog('[Auth] Redirecting to /auth from protected route');
             navigate('/auth', { replace: true });
@@ -278,53 +283,71 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           return;
         }
         
+        // SYNCHRONOUS: Set session/user immediately
         setSession(session);
         setUser(session?.user ?? null);
-        // Never let the app get stuck in an "initializing" state
         setLoading(false);
 
-        // Handle PASSWORD_RECOVERY event - user clicked reset link
+        // Handle PASSWORD_RECOVERY event
         if (event === 'PASSWORD_RECOVERY') {
-          devLog('Password recovery event detected');
+          devLog('[Auth] Password recovery event detected');
           setIsPasswordRecovery(true);
-          // Navigate to auth page with update-password mode
           navigate('/auth?mode=update-password', { replace: true });
-          return; // Don't proceed with normal sign-in flow
+          return;
         }
 
+        // DEFERRED: All Supabase calls go into setTimeout to prevent deadlocks
         if (event === 'SIGNED_IN' && session?.user) {
-          // Skip active check and navigation if in password recovery mode
-          if (isPasswordRecovery) {
-            devLog('In password recovery mode, skipping normal navigation');
-            return;
-          }
+          const userId = session.user.id;
+          const currentPendingToken = pendingInviteToken;
+          const currentIsPasswordRecovery = isPasswordRecovery;
+          
+          // Defer all DB/API calls to next tick
+          setTimeout(async () => {
+            // Guard: if a newer auth event arrived, abandon this work
+            if (seq !== authEventSeqRef.current) {
+              devLog('[Auth] Stale SIGNED_IN handler, seq:', seq, 'current:', authEventSeqRef.current);
+              return;
+            }
+            
+            // Skip if in password recovery mode
+            if (currentIsPasswordRecovery) {
+              devLog('[Auth] In password recovery mode, skipping normal navigation');
+              return;
+            }
 
-          // Check if user account is active
-          const isActive = await checkUserActiveStatus(session.user.id);
+            try {
+              // Check if user account is active
+              const isActive = await checkUserActiveStatus(userId);
+              
+              // Guard again after async
+              if (seq !== authEventSeqRef.current) return;
 
-          if (!isActive) {
-            devLog('User account is deactivated, signing out');
-            toast({
-              title: "Account Deactivated",
-              description: "Your account has been deactivated. Please contact your administrator.",
-              variant: "destructive",
-            });
-            await supabase.auth.signOut();
-            navigate('/auth');
-            return;
-          }
+              if (!isActive) {
+                devLog('[Auth] User account is deactivated, signing out');
+                toast({
+                  title: "Account Deactivated",
+                  description: "Your account has been deactivated. Please contact your administrator.",
+                  variant: "destructive",
+                });
+                await supabase.auth.signOut();
+                navigate('/auth');
+                return;
+              }
 
-          // Check if there's a pending invite to process
-          if (pendingInviteToken) {
-            await processPendingInvite(session.user.id, pendingInviteToken);
-            // Invited users go directly to dashboard (onboarding_completed is set by edge function)
-            navigate('/dashboard');
-          } else {
-            // Check if onboarding is complete
-            onboardingNavTimeoutRef.current = window.setTimeout(() => {
-              checkOnboardingStatus(session?.user?.id);
-            }, 0);
-          }
+              // Check if there's a pending invite to process
+              if (currentPendingToken) {
+                await processPendingInvite(userId, currentPendingToken);
+                if (seq !== authEventSeqRef.current) return;
+                navigate('/dashboard');
+              } else {
+                // Check onboarding status
+                checkOnboardingStatus(userId);
+              }
+            } catch (err) {
+              devError('[Auth] Error in deferred SIGNED_IN handler:', err);
+            }
+          }, 0);
         }
       }
     );
