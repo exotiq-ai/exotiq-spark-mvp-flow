@@ -83,7 +83,7 @@ export const DamageCaptureModal = ({
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && handleClose()}>
-      <DialogContent className="max-w-md p-0 gap-0 max-h-[90vh] overflow-hidden">
+      <DialogContent className="max-w-md p-0 gap-0 max-h-[85vh] overflow-hidden">
         {step === 'capture' && (
           <>
             <DialogHeader className="p-4 border-b">
@@ -126,7 +126,7 @@ export const DamageCaptureModal = ({
               </div>
             </DialogHeader>
 
-            <div className="flex-1 overflow-auto p-4 space-y-4">
+            <div className="flex-1 overflow-auto p-4 space-y-4 min-h-0">
               {/* Photo Preview */}
               {photoUrl && (
                 <div className="relative rounded-lg overflow-hidden">

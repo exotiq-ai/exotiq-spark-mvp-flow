@@ -35,7 +35,7 @@ export default defineConfig(({ mode }) => ({
       workbox: {
         // CRITICAL: Do NOT cache HTML - prevents stale index.html after deploys
         globPatterns: ['**/*.{js,css,ico,png,svg,woff2}'],
-        maximumFileSizeToCacheInBytes: 6 * 1024 * 1024, // 6 MiB
+        maximumFileSizeToCacheInBytes: 7 * 1024 * 1024, // 7 MiB
         skipWaiting: true,
         clientsClaim: true,
         cleanupOutdatedCaches: true,

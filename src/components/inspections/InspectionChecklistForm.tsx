@@ -99,7 +99,7 @@ export const InspectionChecklistForm = ({
   const isValid = inspectorName.trim() !== '' && checklist.odometerReading !== null;
 
   return (
-    <div className="flex flex-col h-full bg-background">
+    <div className="flex flex-col h-full max-h-full overflow-hidden bg-background">
       {/* Header */}
       <div className="flex items-center p-4 border-b">
         <Button variant="ghost" size="sm" onClick={onBack} className="-ml-2">
@@ -112,7 +112,7 @@ export const InspectionChecklistForm = ({
       </div>
 
       {/* Form Content */}
-      <div className="flex-1 overflow-auto p-4 space-y-6">
+      <div className="flex-1 overflow-auto p-4 space-y-6 min-h-0">
         {/* Inspector Name */}
         <Card className="p-4">
           <Label htmlFor="inspector_name" className="text-base font-medium">
