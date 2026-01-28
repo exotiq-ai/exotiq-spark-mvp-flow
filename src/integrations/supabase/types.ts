@@ -848,29 +848,85 @@ export type Database = {
           },
         ]
       }
+      inspection_damage_items: {
+        Row: {
+          created_at: string | null
+          damage_type: string
+          id: string
+          inspection_id: string
+          notes: string | null
+          photo_url: string
+          quality_warning: boolean | null
+          severity: string | null
+          vehicle_location: string
+        }
+        Insert: {
+          created_at?: string | null
+          damage_type: string
+          id?: string
+          inspection_id: string
+          notes?: string | null
+          photo_url: string
+          quality_warning?: boolean | null
+          severity?: string | null
+          vehicle_location: string
+        }
+        Update: {
+          created_at?: string | null
+          damage_type?: string
+          id?: string
+          inspection_id?: string
+          notes?: string | null
+          photo_url?: string
+          quality_warning?: boolean | null
+          severity?: string | null
+          vehicle_location?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inspection_damage_items_inspection_id_fkey"
+            columns: ["inspection_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_inspections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inspection_photos: {
         Row: {
+          captured_at: string | null
           description: string | null
           id: string
           inspection_id: string
+          photo_role: string | null
           photo_type: string | null
           photo_url: string
+          quality_warning: boolean | null
+          skipped: boolean | null
           uploaded_at: string | null
         }
         Insert: {
+          captured_at?: string | null
           description?: string | null
           id?: string
           inspection_id: string
+          photo_role?: string | null
           photo_type?: string | null
           photo_url: string
+          quality_warning?: boolean | null
+          skipped?: boolean | null
           uploaded_at?: string | null
         }
         Update: {
+          captured_at?: string | null
           description?: string | null
           id?: string
           inspection_id?: string
+          photo_role?: string | null
           photo_type?: string | null
           photo_url?: string
+          quality_warning?: boolean | null
+          skipped?: boolean | null
           uploaded_at?: string | null
         }
         Relationships: [
@@ -2266,15 +2322,29 @@ export type Database = {
       vehicle_inspections: {
         Row: {
           booking_id: string | null
+          cleanliness_rating: number | null
+          completed_at: string | null
           created_at: string | null
+          device_info: Json | null
           exterior_condition: string | null
           fuel_level: number
           id: string
+          inspection_direction: string | null
           inspection_type: string
           inspector_name: string | null
           interior_condition: string | null
+          keys_count: number | null
+          location_lat: number | null
+          location_lng: number | null
           notes: string | null
           odometer_reading: number
+          report_url: string | null
+          report_web_url: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          signature_url: string | null
+          started_at: string | null
+          status: string | null
           team_id: string | null
           tire_condition: string | null
           updated_at: string | null
@@ -2283,15 +2353,29 @@ export type Database = {
         }
         Insert: {
           booking_id?: string | null
+          cleanliness_rating?: number | null
+          completed_at?: string | null
           created_at?: string | null
+          device_info?: Json | null
           exterior_condition?: string | null
           fuel_level: number
           id?: string
+          inspection_direction?: string | null
           inspection_type: string
           inspector_name?: string | null
           interior_condition?: string | null
+          keys_count?: number | null
+          location_lat?: number | null
+          location_lng?: number | null
           notes?: string | null
           odometer_reading: number
+          report_url?: string | null
+          report_web_url?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          signature_url?: string | null
+          started_at?: string | null
+          status?: string | null
           team_id?: string | null
           tire_condition?: string | null
           updated_at?: string | null
@@ -2300,15 +2384,29 @@ export type Database = {
         }
         Update: {
           booking_id?: string | null
+          cleanliness_rating?: number | null
+          completed_at?: string | null
           created_at?: string | null
+          device_info?: Json | null
           exterior_condition?: string | null
           fuel_level?: number
           id?: string
+          inspection_direction?: string | null
           inspection_type?: string
           inspector_name?: string | null
           interior_condition?: string | null
+          keys_count?: number | null
+          location_lat?: number | null
+          location_lng?: number | null
           notes?: string | null
           odometer_reading?: number
+          report_url?: string | null
+          report_web_url?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          signature_url?: string | null
+          started_at?: string | null
+          status?: string | null
           team_id?: string | null
           tire_condition?: string | null
           updated_at?: string | null
@@ -2321,6 +2419,13 @@ export type Database = {
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_inspections_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
