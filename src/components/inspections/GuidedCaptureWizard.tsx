@@ -231,7 +231,7 @@ export const GuidedCaptureWizard = ({
 
   // Review Mode
   return (
-    <div className="flex flex-col h-full bg-background">
+    <div className="flex flex-col h-full max-h-full overflow-hidden bg-background">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b">
         <Button
@@ -249,7 +249,7 @@ export const GuidedCaptureWizard = ({
       </div>
 
       {/* Photo Grid */}
-      <div className="flex-1 overflow-auto p-4">
+      <div className="flex-1 overflow-auto p-4 min-h-0">
         <div className="grid grid-cols-3 gap-2 mb-6">
           {photos.map((photo, index) => (
             <button

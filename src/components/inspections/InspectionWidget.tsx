@@ -321,7 +321,7 @@ export const InspectionWidget = ({
 
       {/* Full Screen Dialog */}
       <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-        <DialogContent className="max-w-full h-full max-h-full p-0 gap-0 rounded-none sm:rounded-lg sm:max-w-lg sm:h-[90vh]">
+        <DialogContent className="max-w-full h-[100dvh] max-h-[100dvh] p-0 gap-0 rounded-none sm:rounded-lg sm:max-w-lg sm:h-auto sm:max-h-[85vh]">
           {step === 'start' && (
             <div className="flex flex-col h-full">
               <DialogHeader className="p-4 border-b">
