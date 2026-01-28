@@ -198,7 +198,6 @@ export const InspectionWidget = ({
       );
 
       // Create inspection record
-      // Note: Using type assertion until Lovable regenerates types with new columns
       const { error: inspectionError } = await supabase
         .from('vehicle_inspections')
         .insert({
@@ -214,26 +213,23 @@ export const InspectionWidget = ({
           interior_condition: checklist.interiorCondition,
           tire_condition: checklist.tireCondition,
           notes: notes || null,
-          // New columns - will work after migration is applied
           inspection_direction: direction,
           status: 'completed',
           keys_count: checklist.keysCount,
           cleanliness_rating: checklist.cleanlinessRating,
           started_at: new Date().toISOString(),
           completed_at: new Date().toISOString(),
-        } as any);
+        });
 
       if (inspectionError) throw inspectionError;
 
       // Insert inspection photos
-      // Note: Using type assertion until Lovable regenerates types
       const photoRecords = uploadedPhotos
         .filter(p => p.uploadedUrl)
         .map(p => ({
           inspection_id: inspectionId,
           photo_url: p.uploadedUrl!,
           photo_type: p.label,
-          // New columns - will work after migration
           photo_role: p.role,
           skipped: false,
           captured_at: p.capturedAt?.toISOString() || new Date().toISOString(),
@@ -242,12 +238,12 @@ export const InspectionWidget = ({
       if (photoRecords.length > 0) {
         const { error: photosError } = await supabase
           .from('inspection_photos')
-          .insert(photoRecords as any);
+          .insert(photoRecords);
 
         if (photosError) console.error('Error inserting photos:', photosError);
       }
 
-      // Insert damage items (new table - requires migration)
+      // Insert damage items
       const damageRecords = uploadedDamage
         .filter(d => d.uploadedUrl)
         .map(d => ({
@@ -261,7 +257,7 @@ export const InspectionWidget = ({
         }));
 
       if (damageRecords.length > 0) {
-        const { error: damageError } = await (supabase as any)
+        const { error: damageError } = await supabase
           .from('inspection_damage_items')
           .insert(damageRecords);
 
