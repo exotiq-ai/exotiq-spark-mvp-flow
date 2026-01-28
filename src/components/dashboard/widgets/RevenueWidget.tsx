@@ -15,6 +15,26 @@ interface RevenueWidgetProps {
 export const RevenueWidget = ({ isLoading }: RevenueWidgetProps) => {
   const { vehicles, bookings } = useLocationFilteredFleet();
 
+  // Calculate actual revenue per vehicle from bookings (sorted by revenue) - must be before early return
+  const vehicleRevenue = useMemo(() => {
+    const revenueMap = new Map<string, number>();
+    
+    bookings
+      .filter(b => b.status === 'completed')
+      .forEach(booking => {
+        const current = revenueMap.get(booking.vehicle_id) || 0;
+        revenueMap.set(booking.vehicle_id, current + (booking.total_value || 0));
+      });
+    
+    return vehicles
+      .map(vehicle => ({
+        ...vehicle,
+        actualRevenue: revenueMap.get(vehicle.id) || 0
+      }))
+      .sort((a, b) => b.actualRevenue - a.actualRevenue)
+      .slice(0, 3);
+  }, [vehicles, bookings]);
+
   if (isLoading) {
     return <SkeletonLineChart height={200} />;
   }
@@ -54,31 +74,26 @@ export const RevenueWidget = ({ isLoading }: RevenueWidgetProps) => {
 
   const avgRevenuePerVehicle = vehicles.length > 0 ? totalRevenue / vehicles.length : 0;
   
-  // Calculate real utilization from active/confirmed bookings
-  const activeBookingsCount = bookings.filter(b => b.status === 'active' || b.status === 'confirmed').length;
-  const utilizationRate = vehicles.length > 0 
-    ? Math.min((activeBookingsCount / vehicles.length) * 100, 100)
-    : 0;
+  // Calculate utilization: unique vehicles with active rentals spanning TODAY
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const todayEnd = new Date();
+  todayEnd.setHours(23, 59, 59, 999);
 
-  // Calculate actual revenue per vehicle from bookings (sorted by revenue)
-  const vehicleRevenue = useMemo(() => {
-    const revenueMap = new Map<string, number>();
-    
+  const vehiclesRentedToday = new Set(
     bookings
-      .filter(b => b.status === 'completed')
-      .forEach(booking => {
-        const current = revenueMap.get(booking.vehicle_id) || 0;
-        revenueMap.set(booking.vehicle_id, current + (booking.total_value || 0));
-      });
-    
-    return vehicles
-      .map(vehicle => ({
-        ...vehicle,
-        actualRevenue: revenueMap.get(vehicle.id) || 0
-      }))
-      .sort((a, b) => b.actualRevenue - a.actualRevenue)
-      .slice(0, 3);
-  }, [vehicles, bookings]);
+      .filter(b => 
+        b.status === 'confirmed' &&
+        new Date(b.start_date) <= todayEnd &&
+        new Date(b.end_date) >= todayStart
+      )
+      .map(b => b.vehicle_id)
+  );
+
+  const activeBookingsCount = vehiclesRentedToday.size;
+  const utilizationRate = vehicles.length > 0 
+    ? Math.round((activeBookingsCount / vehicles.length) * 100)
+    : 0;
 
   const preview = (
     <div className="space-y-4">
@@ -109,14 +124,15 @@ export const RevenueWidget = ({ isLoading }: RevenueWidgetProps) => {
             value={utilizationRate} 
             max={100}
             label="Utilization"
-            variant="gulf"
+            variant={utilizationRate >= 70 ? "success" : utilizationRate >= 40 ? "gulf" : "warning"}
             size="md"
           />
+          <p className="text-xs text-muted-foreground mt-1">Industry avg: 60-70%</p>
         </div>
         <div className="space-y-2">
           <p className="text-sm text-muted-foreground">Avg Revenue/Vehicle</p>
           <p className="text-3xl font-dfaalt font-bold text-gulf-blue">
-            <CountUp value={avgRevenuePerVehicle} prefix="$" decimals={0} />
+            ${Math.round(avgRevenuePerVehicle).toLocaleString()}
           </p>
           <div className={`flex items-center gap-2 text-sm ${monthlyChange >= 0 ? 'text-success' : 'text-destructive'}`}>
             {monthlyChange >= 0 ? (
@@ -128,7 +144,7 @@ export const RevenueWidget = ({ isLoading }: RevenueWidgetProps) => {
           </div>
         </div>
         <div className="space-y-2">
-          <p className="text-sm text-muted-foreground">Active Bookings</p>
+          <p className="text-sm text-muted-foreground">Vehicles Rented Today</p>
           <p className="text-3xl font-dfaalt font-bold text-performance-orange">
             {activeBookingsCount}
           </p>
