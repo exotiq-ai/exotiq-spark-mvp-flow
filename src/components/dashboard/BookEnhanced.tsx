@@ -11,7 +11,7 @@ import { NewBookingDialog } from "@/components/dialogs/NewBookingDialog";
 import { BookingDetailsDialog } from "@/components/dialogs/BookingDetailsDialog";
 import { BookingCalendar } from "@/components/dashboard/BookingCalendar";
 import { PaymentTracker } from "@/components/dashboard/PaymentTracker";
-import { InspectionForm } from "@/components/dashboard/InspectionForm";
+import { InspectionsTab } from "@/components/dashboard/InspectionsTab";
 import { CRMSection } from "@/components/dashboard/CRMSection";
 import { VehicleImageDialog } from "@/components/dialogs/VehicleImageDialog";
 import { AskRariQuickAction } from "@/components/common/AskRariQuickAction";
@@ -511,25 +511,7 @@ export const BookEnhanced = () => {
         </TabsContent>
 
         <TabsContent value="inspections">
-          <div className="space-y-6">
-            <Card className="card-premium p-6">
-              <h3 className="text-lg font-semibold mb-4">Vehicle Inspections</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Select a vehicle to perform an inspection
-              </p>
-              {vehicles.length > 0 ? (
-                <InspectionForm
-                  vehicleId={vehicles[0].id}
-                  inspectionType="pre_rental"
-                />
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <ClipboardCheck className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p>No vehicles available for inspection</p>
-                </div>
-              )}
-            </Card>
-          </div>
+          <InspectionsTab vehicles={vehicles} />
         </TabsContent>
       </ModuleTabs>
     </>
