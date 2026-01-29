@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   Image,
   Upload,
@@ -14,12 +15,15 @@ import {
   Camera,
   ArrowRight,
   Sparkles,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { usePhotoHubStats } from '@/hooks/useVehiclePhotos';
+import { usePhotoHubStats, useVehiclePhotos } from '@/hooks/useVehiclePhotos';
 import { usePhotoReviewQueue } from '@/hooks/usePhotoReviewQueue';
 import { BulkUploadModal } from './BulkUploadModal';
 import { PhotoReviewQueue } from './PhotoReviewQueue';
+import { VehiclePhotoManager } from './VehiclePhotoManager';
 import { EmptyState } from '@/components/common/EmptyState';
 
 interface Vehicle {
@@ -37,9 +41,12 @@ interface PhotoHubTabProps {
 
 export const PhotoHubTab = ({ vehicles, loading: vehiclesLoading }: PhotoHubTabProps) => {
   const { stats, loading: statsLoading } = usePhotoHubStats();
+  const { photoCountByVehicle } = useVehiclePhotos({ realtime: false });
   const { queueCount } = usePhotoReviewQueue();
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [showReviewQueue, setShowReviewQueue] = useState(false);
+  const [expandedVehicle, setExpandedVehicle] = useState<string | null>(null);
+  const [uploadForVehicle, setUploadForVehicle] = useState<string | null>(null);
 
   const loading = vehiclesLoading || statsLoading;
 
@@ -161,7 +168,7 @@ export const PhotoHubTab = ({ vehicles, loading: vehiclesLoading }: PhotoHubTabP
               <CardContent>
                 <div className="space-y-2">
                   {vehicles
-                    .filter(v => !stats.vehiclesWithPhotos) // This is simplified - in real implementation, check per vehicle
+                    .filter(v => !photoCountByVehicle[v.id] || photoCountByVehicle[v.id] === 0)
                     .slice(0, 3)
                     .map(vehicle => (
                       <div 
@@ -172,9 +179,17 @@ export const PhotoHubTab = ({ vehicles, loading: vehiclesLoading }: PhotoHubTabP
                           <Car className="h-4 w-4 text-muted-foreground" />
                           <span className="text-sm font-medium">{vehicle.name}</span>
                         </div>
-                        <Badge variant="outline" className="text-xs">
-                          0 photos
-                        </Badge>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => {
+                            setUploadForVehicle(vehicle.id);
+                            setUploadModalOpen(true);
+                          }}
+                        >
+                          <Upload className="h-3 w-3 mr-1" />
+                          Add
+                        </Button>
                       </div>
                     ))}
                 </div>
@@ -238,11 +253,91 @@ export const PhotoHubTab = ({ vehicles, loading: vehiclesLoading }: PhotoHubTabP
         </div>
       )}
 
+      {/* Vehicle Photo Browser */}
+      {stats.totalPhotos > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Car className="h-4 w-4 text-primary" />
+              Photos by Vehicle
+            </CardTitle>
+            <CardDescription>
+              Click a vehicle to manage its photos
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {vehicles.map(vehicle => {
+              const count = photoCountByVehicle[vehicle.id] || 0;
+              const isExpanded = expandedVehicle === vehicle.id;
+              
+              return (
+                <Collapsible 
+                  key={vehicle.id} 
+                  open={isExpanded} 
+                  onOpenChange={(open) => setExpandedVehicle(open ? vehicle.id : null)}
+                >
+                  <CollapsibleTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      className="w-full justify-between hover:bg-muted/50 h-auto py-3"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Car className="h-4 w-4 text-muted-foreground" />
+                        <div className="text-left">
+                          <p className="font-medium">{vehicle.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {vehicle.year} {vehicle.make} {vehicle.model}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge 
+                          variant="outline" 
+                          className={cn(
+                            'text-xs',
+                            count >= 8 && 'border-success/50 text-success',
+                            count >= 4 && count < 8 && 'border-amber-500/50 text-amber-600',
+                            count < 4 && 'border-muted-foreground/30 text-muted-foreground'
+                          )}
+                        >
+                          <Camera className="h-3 w-3 mr-1" />
+                          {count}/11
+                        </Badge>
+                        {isExpanded ? (
+                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </div>
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="pt-2 pb-4 px-2">
+                    <VehiclePhotoManager
+                      vehicleId={vehicle.id}
+                      vehicleName={vehicle.name}
+                      onUploadClick={() => {
+                        setUploadForVehicle(vehicle.id);
+                        setUploadModalOpen(true);
+                      }}
+                      compact
+                    />
+                  </CollapsibleContent>
+                </Collapsible>
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Bulk Upload Modal */}
       <BulkUploadModal
         open={uploadModalOpen}
-        onOpenChange={setUploadModalOpen}
+        onOpenChange={(open) => {
+          setUploadModalOpen(open);
+          if (!open) setUploadForVehicle(null);
+        }}
         vehicles={vehicles}
+        preSelectedVehicleId={uploadForVehicle || undefined}
         onComplete={() => {
           // Stats will auto-refresh
         }}

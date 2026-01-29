@@ -18,6 +18,7 @@ import {
   LogIn,
   Loader2,
   ChevronRight,
+  Camera,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -59,6 +60,7 @@ interface FleetVehicleCardProps {
   activeBooking?: Booking | null;
   nextBooking?: Booking | null;
   taskCount?: number;
+  photoCount?: number;
   onEditPrice: (vehicle: Vehicle) => void;
   onCreateTask: (vehicle: Vehicle) => void;
   onViewDetails: (vehicle: Vehicle) => void;
@@ -83,6 +85,7 @@ export const FleetVehicleCard = ({
   activeBooking,
   nextBooking,
   taskCount = 0,
+  photoCount,
   onEditPrice,
   onCreateTask,
   onViewDetails,
@@ -243,6 +246,22 @@ export const FleetVehicleCard = ({
                 <StatusIcon className="h-3 w-3 mr-1" />
                 {statusConfig.label}
               </Badge>
+
+              {/* Photo Count Badge */}
+              {photoCount !== undefined && (
+                <Badge 
+                  variant="outline" 
+                  className={cn(
+                    'text-xs gap-1',
+                    photoCount >= 8 && 'border-success/50 text-success',
+                    photoCount >= 4 && photoCount < 8 && 'border-amber-500/50 text-amber-600',
+                    photoCount < 4 && 'border-muted-foreground/30 text-muted-foreground'
+                  )}
+                >
+                  <Camera className="h-3 w-3" />
+                  {photoCount}/11
+                </Badge>
+              )}
 
               {/* License Plate */}
               {vehicle.license_plate && (
