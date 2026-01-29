@@ -239,13 +239,25 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
         
         results.push(completeProgress[i]);
       } catch (error) {
+        // Better error messages for common storage failures
+        let errorMessage = 'Upload failed';
+        if (error instanceof Error) {
+          if (error.message.includes('Payload too large') || 
+              error.message.includes('exceeded the maximum') ||
+              error.message.includes('413')) {
+            errorMessage = 'File too large - max 50MB';
+          } else {
+            errorMessage = error.message;
+          }
+        }
+        
         // Update to error
         const errorProgress = [...initialProgress];
         errorProgress[i] = {
           ...errorProgress[i],
           status: 'error',
           progress: 0,
-          error: error instanceof Error ? error.message : 'Upload failed'
+          error: errorMessage
         };
         setProgress(errorProgress);
         options.onProgress?.(errorProgress);
