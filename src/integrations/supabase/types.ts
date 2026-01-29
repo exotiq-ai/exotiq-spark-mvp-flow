@@ -1520,6 +1520,68 @@ export type Database = {
         }
         Relationships: []
       }
+      photo_upload_batches: {
+        Row: {
+          batch_name: string | null
+          completed_at: string | null
+          created_at: string | null
+          error_message: string | null
+          failed_files: number | null
+          id: string
+          matched_files: number | null
+          processed_files: number | null
+          source: string | null
+          started_at: string | null
+          status: string | null
+          team_id: string | null
+          total_files: number | null
+          unmatched_files: number | null
+          user_id: string
+        }
+        Insert: {
+          batch_name?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          failed_files?: number | null
+          id?: string
+          matched_files?: number | null
+          processed_files?: number | null
+          source?: string | null
+          started_at?: string | null
+          status?: string | null
+          team_id?: string | null
+          total_files?: number | null
+          unmatched_files?: number | null
+          user_id: string
+        }
+        Update: {
+          batch_name?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          failed_files?: number | null
+          id?: string
+          matched_files?: number | null
+          processed_files?: number | null
+          source?: string | null
+          started_at?: string | null
+          status?: string | null
+          team_id?: string | null
+          total_files?: number | null
+          unmatched_files?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "photo_upload_batches_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pinned_messages: {
         Row: {
           conversation_id: string
@@ -2085,6 +2147,98 @@ export type Database = {
         }
         Relationships: []
       }
+      unmatched_photos: {
+        Row: {
+          ai_analysis: Json | null
+          batch_id: string | null
+          created_at: string | null
+          id: string
+          matched_vehicle_id: string | null
+          original_filename: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string | null
+          storage_path: string
+          suggested_color: string | null
+          suggested_make: string | null
+          suggested_model: string | null
+          suggested_vehicle_id: string | null
+          suggestion_confidence: number | null
+          team_id: string | null
+          url: string
+          user_id: string
+        }
+        Insert: {
+          ai_analysis?: Json | null
+          batch_id?: string | null
+          created_at?: string | null
+          id?: string
+          matched_vehicle_id?: string | null
+          original_filename?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string | null
+          storage_path: string
+          suggested_color?: string | null
+          suggested_make?: string | null
+          suggested_model?: string | null
+          suggested_vehicle_id?: string | null
+          suggestion_confidence?: number | null
+          team_id?: string | null
+          url: string
+          user_id: string
+        }
+        Update: {
+          ai_analysis?: Json | null
+          batch_id?: string | null
+          created_at?: string | null
+          id?: string
+          matched_vehicle_id?: string | null
+          original_filename?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string | null
+          storage_path?: string
+          suggested_color?: string | null
+          suggested_make?: string | null
+          suggested_model?: string | null
+          suggested_vehicle_id?: string | null
+          suggestion_confidence?: number | null
+          team_id?: string | null
+          url?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "unmatched_photos_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "photo_upload_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "unmatched_photos_matched_vehicle_id_fkey"
+            columns: ["matched_vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "unmatched_photos_suggested_vehicle_id_fkey"
+            columns: ["suggested_vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "unmatched_photos_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_activity_log: {
         Row: {
           activity_type: string
@@ -2451,6 +2605,111 @@ export type Database = {
           },
         ]
       }
+      vehicle_photos: {
+        Row: {
+          ai_analysis: Json | null
+          analyzed_at: string | null
+          created_at: string | null
+          detected_angle: string | null
+          display_order: number | null
+          enhanced_at: string | null
+          enhanced_url: string | null
+          enhancement_settings: Json | null
+          file_size_bytes: number | null
+          height: number | null
+          id: string
+          is_enhanced: boolean | null
+          is_vehicle_confirmed: boolean | null
+          is_visible: boolean | null
+          mime_type: string | null
+          original_filename: string | null
+          photo_type: string | null
+          quality_issues: string[] | null
+          quality_score: number | null
+          storage_path: string
+          team_id: string | null
+          thumbnail_url: string | null
+          updated_at: string | null
+          url: string
+          user_id: string
+          vehicle_id: string
+          width: number | null
+        }
+        Insert: {
+          ai_analysis?: Json | null
+          analyzed_at?: string | null
+          created_at?: string | null
+          detected_angle?: string | null
+          display_order?: number | null
+          enhanced_at?: string | null
+          enhanced_url?: string | null
+          enhancement_settings?: Json | null
+          file_size_bytes?: number | null
+          height?: number | null
+          id?: string
+          is_enhanced?: boolean | null
+          is_vehicle_confirmed?: boolean | null
+          is_visible?: boolean | null
+          mime_type?: string | null
+          original_filename?: string | null
+          photo_type?: string | null
+          quality_issues?: string[] | null
+          quality_score?: number | null
+          storage_path: string
+          team_id?: string | null
+          thumbnail_url?: string | null
+          updated_at?: string | null
+          url: string
+          user_id: string
+          vehicle_id: string
+          width?: number | null
+        }
+        Update: {
+          ai_analysis?: Json | null
+          analyzed_at?: string | null
+          created_at?: string | null
+          detected_angle?: string | null
+          display_order?: number | null
+          enhanced_at?: string | null
+          enhanced_url?: string | null
+          enhancement_settings?: Json | null
+          file_size_bytes?: number | null
+          height?: number | null
+          id?: string
+          is_enhanced?: boolean | null
+          is_vehicle_confirmed?: boolean | null
+          is_visible?: boolean | null
+          mime_type?: string | null
+          original_filename?: string | null
+          photo_type?: string | null
+          quality_issues?: string[] | null
+          quality_score?: number | null
+          storage_path?: string
+          team_id?: string | null
+          thumbnail_url?: string | null
+          updated_at?: string | null
+          url?: string
+          user_id?: string
+          vehicle_id?: string
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_photos_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_photos_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vehicle_tasks: {
         Row: {
           assigned_to: string | null
@@ -2705,7 +2964,58 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      vehicle_photos_with_vehicle: {
+        Row: {
+          ai_analysis: Json | null
+          analyzed_at: string | null
+          created_at: string | null
+          detected_angle: string | null
+          display_order: number | null
+          enhanced_at: string | null
+          enhanced_url: string | null
+          enhancement_settings: Json | null
+          file_size_bytes: number | null
+          height: number | null
+          id: string | null
+          is_enhanced: boolean | null
+          is_vehicle_confirmed: boolean | null
+          is_visible: boolean | null
+          mime_type: string | null
+          original_filename: string | null
+          photo_type: string | null
+          quality_issues: string[] | null
+          quality_score: number | null
+          storage_path: string | null
+          team_id: string | null
+          thumbnail_url: string | null
+          updated_at: string | null
+          url: string | null
+          user_id: string | null
+          vehicle_id: string | null
+          vehicle_make: string | null
+          vehicle_model: string | null
+          vehicle_name: string | null
+          vehicle_plate: string | null
+          vehicle_year: number | null
+          width: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_photos_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_photos_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       can_access_location: {
@@ -2740,6 +3050,10 @@ export type Database = {
         Returns: Database["public"]["Enums"]["app_role"]
       }
       get_user_teams: { Args: { _user_id: string }; Returns: string[] }
+      get_vehicle_hero_photo: {
+        Args: { p_vehicle_id: string }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
