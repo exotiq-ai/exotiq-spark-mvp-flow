@@ -4,9 +4,8 @@
 export * from './types';
 export * from './usePhotoAnalysis';
 
-// Components will be added by Lovable:
-// export { PhotoHubPage } from './PhotoHubPage';
-// export { BulkUploadModal } from './BulkUploadModal';
-// export { PhotoReviewQueue } from './PhotoReviewQueue';
-// export { VehiclePhotoManager } from './VehiclePhotoManager';
-// export { PhotoCard } from './PhotoCard';
+// Components
+export { PhotoHubTab } from './PhotoHubTab';
+export { BulkUploadModal } from './BulkUploadModal';
+export { PhotoReviewQueue } from './PhotoReviewQueue';
+export { PhotoCard } from './PhotoCard';

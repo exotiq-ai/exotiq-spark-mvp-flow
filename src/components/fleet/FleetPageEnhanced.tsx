@@ -4,7 +4,6 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useLocationFilteredFleet } from '@/hooks/useLocationFilteredFleet';
@@ -18,16 +17,16 @@ import { TaskQueue } from './TaskQueue';
 import { CreateVehicleTaskDialog } from '@/components/dialogs/CreateVehicleTaskDialog';
 import { QuickPriceEditorDialog } from '@/components/dialogs/QuickPriceEditorDialog';
 import { VehicleImageDialog } from '@/components/dialogs/VehicleImageDialog';
-import { LocationBadge } from '@/components/common/LocationBadge';
 import { EmptyState } from '@/components/common/EmptyState';
 import { SkeletonVehicleCard } from '@/components/ui/skeleton-specialized';
+import { ModuleTabs, TabsContent } from '@/components/common/ModuleTabs';
+import { PhotoHubTab } from '@/components/photos/PhotoHubTab';
 import {
   Car,
-  ClipboardList,
   Smartphone,
   Monitor,
-  Plus,
   RefreshCw,
+  Camera,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -83,6 +82,9 @@ export const FleetPageEnhanced = () => {
     fetchTeamMembers();
   }, [currentTeam?.id]);
 
+  // Tab state
+  const [activeTab, setActiveTab] = useState('fleet');
+
   // View state
   const [isOpsMode, setIsOpsMode] = useState(isMobile);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
@@ -103,7 +105,6 @@ export const FleetPageEnhanced = () => {
   const filteredVehicles = useMemo(() => {
     let result = [...vehicles];
 
-    // Search filter
     if (filters.search) {
       const search = filters.search.toLowerCase();
       result = result.filter(v =>
@@ -114,17 +115,14 @@ export const FleetPageEnhanced = () => {
       );
     }
 
-    // Booking status filter
     if (filters.bookingStatus.length > 0) {
       result = result.filter(v => filters.bookingStatus.includes(v.status || 'available'));
     }
 
-    // Ops status filter
     if (filters.opsStatus.length > 0) {
       result = result.filter(v => filters.opsStatus.includes((v.ops_status || 'clean_ready') as OpsStatus));
     }
 
-    // Sort
     result.sort((a, b) => {
       let comparison = 0;
       switch (filters.sortBy) {
@@ -155,7 +153,6 @@ export const FleetPageEnhanced = () => {
     }, {} as Record<string, { name: string }>);
   }, [vehicles]);
 
-  // Get active/next booking for each vehicle
   const getActiveBooking = (vehicleId: string) => {
     return bookings.find(b => b.vehicle_id === vehicleId && (b.status === 'active' || b.status === 'confirmed'));
   };
@@ -167,7 +164,6 @@ export const FleetPageEnhanced = () => {
       .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime())[0];
   };
 
-  // Task count per vehicle
   const taskCountMap = useMemo(() => {
     return tasks.reduce((acc, t) => {
       if (t.status !== 'completed' && t.status !== 'cancelled') {
@@ -177,7 +173,6 @@ export const FleetPageEnhanced = () => {
     }, {} as Record<string, number>);
   }, [tasks]);
 
-  // Handlers
   const handleStatusChange = async (vehicle: any, newStatus: OpsStatus) => {
     await updateOpsStatus(vehicle.id, newStatus);
   };
@@ -185,6 +180,23 @@ export const FleetPageEnhanced = () => {
   const handleCompleteTask = async (taskId: string) => {
     await updateTaskStatus(taskId, 'completed');
   };
+
+  // Prepare vehicles for PhotoHubTab
+  const vehiclesForPhotos = useMemo(() => {
+    return vehicles.map(v => ({
+      id: v.id,
+      name: v.name,
+      make: v.make,
+      model: v.model,
+      year: v.year,
+    }));
+  }, [vehicles]);
+
+  // Module tabs configuration
+  const moduleTabs = [
+    { id: 'fleet', label: 'Fleet', shortLabel: 'Fleet', icon: Car },
+    { id: 'photos', label: 'Photos', shortLabel: 'Photos', icon: Camera },
+  ];
 
   if (loading) {
     return (
@@ -213,19 +225,21 @@ export const FleetPageEnhanced = () => {
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Ops Mode Toggle */}
-          <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 border">
-            <Monitor className={cn('h-4 w-4', !isOpsMode && 'text-primary')} />
-            <Switch
-              checked={isOpsMode}
-              onCheckedChange={setIsOpsMode}
-              aria-label="Toggle ops mode"
-            />
-            <Smartphone className={cn('h-4 w-4', isOpsMode && 'text-primary')} />
-            <span className="text-xs text-muted-foreground hidden sm:inline">
-              {isOpsMode ? 'Ops Mode' : 'Admin View'}
-            </span>
-          </div>
+          {/* Ops Mode Toggle - only show on Fleet tab */}
+          {activeTab === 'fleet' && (
+            <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 border">
+              <Monitor className={cn('h-4 w-4', !isOpsMode && 'text-primary')} />
+              <Switch
+                checked={isOpsMode}
+                onCheckedChange={setIsOpsMode}
+                aria-label="Toggle ops mode"
+              />
+              <Smartphone className={cn('h-4 w-4', isOpsMode && 'text-primary')} />
+              <span className="text-xs text-muted-foreground hidden sm:inline">
+                {isOpsMode ? 'Ops Mode' : 'Admin View'}
+              </span>
+            </div>
+          )}
 
           <Button variant="outline" size="icon" onClick={() => refreshData()}>
             <RefreshCw className="h-4 w-4" />
@@ -233,84 +247,100 @@ export const FleetPageEnhanced = () => {
         </div>
       </div>
 
-      {/* Ops Mode: My Tasks */}
-      {isOpsMode && myTasks.length > 0 && (
-        <Card className="p-4 border-primary/20 bg-primary/5">
-          <TaskQueue
-            tasks={myTasks}
-            vehicleMap={vehicleMap}
-            onCompleteTask={handleCompleteTask}
-            onClaimTask={claimTask}
-            onViewTask={() => {}}
-            title="My Tasks"
-            emptyMessage="No tasks assigned to you"
-            compact
-          />
-        </Card>
-      )}
-
-      {/* Filters */}
-      <FleetFilters
-        filters={filters}
-        onFiltersChange={setFilters}
-        viewMode={viewMode}
-        onViewModeChange={setViewMode}
-        vehicleCount={vehicles.length}
-        filteredCount={filteredVehicles.length}
-        isOpsMode={isOpsMode}
-      />
-
-      {/* Vehicle Grid/List */}
-      {filteredVehicles.length === 0 ? (
-        <EmptyState
-          icon={Car}
-          title="No vehicles found"
-          description={filters.search ? "Try adjusting your search or filters" : "Add your first vehicle to get started"}
-        />
-      ) : (
-        <div className={cn(
-          'grid gap-4',
-          isOpsMode 
-            ? 'grid-cols-1' 
-            : viewMode === 'grid'
-              ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3'
-              : 'grid-cols-1'
-        )}>
-          <AnimatePresence mode="popLayout">
-            {filteredVehicles.map((vehicle) => (
-              <FleetVehicleCard
-                key={vehicle.id}
-                vehicle={vehicle as any}
-                activeBooking={getActiveBooking(vehicle.id) as any}
-                nextBooking={getNextBooking(vehicle.id) as any}
-                taskCount={taskCountMap[vehicle.id] || 0}
-                onEditPrice={(v) => setPriceEditVehicle(v)}
-                onCreateTask={(v) => setTaskVehicle(v)}
-                onViewDetails={(v) => setDetailsVehicle(v)}
-                onStatusChange={handleStatusChange}
-                isOpsMode={isOpsMode}
+      {/* Module Tabs */}
+      <ModuleTabs
+        tabs={moduleTabs}
+        defaultValue="fleet"
+        value={activeTab}
+        onValueChange={setActiveTab}
+      >
+        {/* Fleet Tab Content */}
+        <TabsContent value="fleet" className="space-y-6 mt-0">
+          {/* Ops Mode: My Tasks */}
+          {isOpsMode && myTasks.length > 0 && (
+            <Card className="p-4 border-primary/20 bg-primary/5">
+              <TaskQueue
+                tasks={myTasks}
+                vehicleMap={vehicleMap}
+                onCompleteTask={handleCompleteTask}
+                onClaimTask={claimTask}
+                onViewTask={() => {}}
+                title="My Tasks"
+                emptyMessage="No tasks assigned to you"
+                compact
               />
-            ))}
-          </AnimatePresence>
-        </div>
-      )}
+            </Card>
+          )}
 
-      {/* Unassigned Tasks (Admin View) */}
-      {!isOpsMode && unassignedTasks.length > 0 && (
-        <>
-          <Separator />
-          <TaskQueue
-            tasks={unassignedTasks}
-            vehicleMap={vehicleMap}
-            onCompleteTask={handleCompleteTask}
-            onClaimTask={claimTask}
-            onViewTask={() => {}}
-            showClaimButton
-            title="Unassigned Tasks"
-            emptyMessage="All tasks are assigned"
+          {/* Filters */}
+          <FleetFilters
+            filters={filters}
+            onFiltersChange={setFilters}
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+            vehicleCount={vehicles.length}
+            filteredCount={filteredVehicles.length}
+            isOpsMode={isOpsMode}
           />
-        </>
-      )}
+
+          {/* Vehicle Grid/List */}
+          {filteredVehicles.length === 0 ? (
+            <EmptyState
+              icon={Car}
+              title="No vehicles found"
+              description={filters.search ? "Try adjusting your search or filters" : "Add your first vehicle to get started"}
+            />
+          ) : (
+            <div className={cn(
+              'grid gap-4',
+              isOpsMode 
+                ? 'grid-cols-1' 
+                : viewMode === 'grid'
+                  ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3'
+                  : 'grid-cols-1'
+            )}>
+              <AnimatePresence mode="popLayout">
+                {filteredVehicles.map((vehicle) => (
+                  <FleetVehicleCard
+                    key={vehicle.id}
+                    vehicle={vehicle as any}
+                    activeBooking={getActiveBooking(vehicle.id) as any}
+                    nextBooking={getNextBooking(vehicle.id) as any}
+                    taskCount={taskCountMap[vehicle.id] || 0}
+                    onEditPrice={(v) => setPriceEditVehicle(v)}
+                    onCreateTask={(v) => setTaskVehicle(v)}
+                    onViewDetails={(v) => setDetailsVehicle(v)}
+                    onStatusChange={handleStatusChange}
+                    isOpsMode={isOpsMode}
+                  />
+                ))}
+              </AnimatePresence>
+            </div>
+          )}
+
+          {/* Unassigned Tasks (Admin View) */}
+          {!isOpsMode && unassignedTasks.length > 0 && (
+            <>
+              <Separator />
+              <TaskQueue
+                tasks={unassignedTasks}
+                vehicleMap={vehicleMap}
+                onCompleteTask={handleCompleteTask}
+                onClaimTask={claimTask}
+                onViewTask={() => {}}
+                showClaimButton
+                title="Unassigned Tasks"
+                emptyMessage="All tasks are assigned"
+              />
+            </>
+          )}
+        </TabsContent>
+
+        {/* Photos Tab Content */}
+        <TabsContent value="photos" className="mt-0">
+          <PhotoHubTab vehicles={vehiclesForPhotos} loading={loading} />
+        </TabsContent>
+      </ModuleTabs>
 
       {/* Dialogs */}
       <QuickPriceEditorDialog
