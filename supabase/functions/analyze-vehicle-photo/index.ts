@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -35,6 +36,37 @@ serve(async (req) => {
   }
 
   try {
+    // Auth check - validate JWT
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      console.warn('Unauthorized access attempt to analyze-vehicle-photo');
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Validate the JWT
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+    
+    if (claimsError || !claimsData?.claims) {
+      console.warn('Invalid JWT token in analyze-vehicle-photo');
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const userId = claimsData.claims.sub;
+    console.log(`Authenticated request from user: ${userId}`);
+
     const { imageUrl, vehicleId, filename } = await req.json() as AnalyzePhotoRequest;
     
     const GOOGLE_VISION_API_KEY = Deno.env.get('GOOGLE_VISION_API_KEY');
@@ -121,8 +153,6 @@ serve(async (req) => {
       quality,
       labels: labels.slice(0, 10),
       suggestedVehicleMatch,
-      // Optionally include raw response for debugging (remove in production)
-      // rawVisionResponse: result
     };
 
     console.log('Analysis result:', JSON.stringify(response, null, 2));

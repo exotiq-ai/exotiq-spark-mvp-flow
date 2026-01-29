@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTeam } from '@/contexts/TeamContext';
 import { AIAnalysisResult, PhotoUploadProgress } from './types';
+import type { Json } from '@/integrations/supabase/types';
 
 interface UsePhotoAnalysisOptions {
   onProgress?: (progress: PhotoUploadProgress[]) => void;
@@ -17,7 +18,7 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
   const [progress, setProgress] = useState<PhotoUploadProgress[]>([]);
 
   /**
-   * Upload a single photo to Supabase storage
+   * Upload a single photo to Supabase storage and get a signed URL
    */
   const uploadToStorage = useCallback(async (
     file: File,
@@ -39,11 +40,16 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
 
     if (error) throw error;
 
-    const { data: urlData } = supabase.storage
+    // Use signed URL for private bucket access (valid for 1 year)
+    const { data: signedData, error: signedError } = await supabase.storage
       .from('vehicle-photos')
-      .getPublicUrl(data.path);
+      .createSignedUrl(data.path, 60 * 60 * 24 * 365); // 1 year
 
-    return { path: data.path, url: urlData.publicUrl };
+    if (signedError || !signedData?.signedUrl) {
+      throw new Error('Failed to create signed URL');
+    }
+
+    return { path: data.path, url: signedData.signedUrl };
   }, [user]);
 
   /**
@@ -95,7 +101,7 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
           url: url,
           photo_type: 'exterior',
           detected_angle: analysis.angle,
-          ai_analysis: analysis as any,
+          ai_analysis: analysis as unknown as Json,
           is_vehicle_confirmed: analysis.isVehicle,
           quality_score: analysis.quality.score,
           quality_issues: analysis.quality.issues,
@@ -103,7 +109,7 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
           file_size_bytes: file.size,
           mime_type: file.type,
           analyzed_at: new Date().toISOString()
-        } as any)
+        })
         .select()
         .single();
 
@@ -120,11 +126,11 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
           storage_path: path,
           url: url,
           original_filename: file.name,
-          ai_analysis: analysis as any,
+          ai_analysis: analysis as unknown as Json,
           suggested_make: analysis.suggestedVehicleMatch?.make,
           suggested_color: analysis.suggestedVehicleMatch?.color,
           suggestion_confidence: analysis.confidence
-        } as any);
+        });
 
       if (unmatchedError) throw unmatchedError;
       
@@ -191,7 +197,7 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
               url: url,
               photo_type: 'exterior',
               detected_angle: analysis.angle,
-              ai_analysis: analysis as any,
+              ai_analysis: analysis as unknown as Json,
               is_vehicle_confirmed: analysis.isVehicle,
               quality_score: analysis.quality.score,
               quality_issues: analysis.quality.issues,
@@ -199,7 +205,7 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
               file_size_bytes: file.size,
               mime_type: file.type,
               analyzed_at: new Date().toISOString()
-            } as any)
+            })
             .select()
             .single();
           
@@ -213,11 +219,11 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
               storage_path: path,
               url: url,
               original_filename: file.name,
-              ai_analysis: analysis as any,
+              ai_analysis: analysis as unknown as Json,
               suggested_make: analysis.suggestedVehicleMatch?.make,
               suggested_color: analysis.suggestedVehicleMatch?.color,
               suggestion_confidence: analysis.confidence
-            } as any);
+            });
         }
 
         // Update to complete
@@ -272,6 +278,9 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
 
     if (fetchError || !unmatchedPhoto) throw new Error('Photo not found');
 
+    // Parse AI analysis safely
+    const aiAnalysis = unmatchedPhoto.ai_analysis as Record<string, unknown> | null;
+
     // 2. Create vehicle_photo record
     const { data: vehiclePhoto, error: insertError } = await supabase
       .from('vehicle_photos')
@@ -282,14 +291,14 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
         storage_path: unmatchedPhoto.storage_path,
         url: unmatchedPhoto.url,
         photo_type: 'exterior',
-        detected_angle: (unmatchedPhoto.ai_analysis as any)?.angle || 'unknown',
+        detected_angle: (aiAnalysis?.angle as string) || 'unknown',
         ai_analysis: unmatchedPhoto.ai_analysis,
         is_vehicle_confirmed: true,
-        quality_score: (unmatchedPhoto.ai_analysis as any)?.quality?.score || 100,
-        quality_issues: (unmatchedPhoto.ai_analysis as any)?.quality?.issues || [],
+        quality_score: (aiAnalysis?.quality as Record<string, unknown>)?.score as number || 100,
+        quality_issues: (aiAnalysis?.quality as Record<string, unknown>)?.issues as string[] || [],
         original_filename: unmatchedPhoto.original_filename,
         analyzed_at: new Date().toISOString()
-      } as any)
+      })
       .select()
       .single();
 
@@ -303,7 +312,7 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
         matched_vehicle_id: vehicleId,
         resolved_at: new Date().toISOString(),
         resolved_by: user.id
-      } as any)
+      })
       .eq('id', unmatchedPhotoId);
 
     return vehiclePhoto?.id;
@@ -315,7 +324,7 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
   const setAsHero = useCallback(async (photoId: string): Promise<void> => {
     const { error } = await supabase
       .from('vehicle_photos')
-      .update({ photo_type: 'hero' } as any)
+      .update({ photo_type: 'hero' })
       .eq('id', photoId);
 
     if (error) throw error;
@@ -357,7 +366,7 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
     const updates = photoIds.map((id, index) => 
       supabase
         .from('vehicle_photos')
-        .update({ display_order: index } as any)
+        .update({ display_order: index })
         .eq('id', id)
     );
 

@@ -80,3 +80,9 @@ verify_jwt = false
 
 [functions.revoke-user-sessions]
 verify_jwt = false
+
+[functions.analyze-vehicle-photo]
+verify_jwt = false
+
+[functions.enhance-hero-photo]
+verify_jwt = false

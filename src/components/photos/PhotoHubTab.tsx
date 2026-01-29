@@ -41,14 +41,45 @@ interface PhotoHubTabProps {
 
 export const PhotoHubTab = ({ vehicles, loading: vehiclesLoading }: PhotoHubTabProps) => {
   const { stats, loading: statsLoading } = usePhotoHubStats();
-  const { photoCountByVehicle } = useVehiclePhotos({ realtime: false });
-  const { queueCount } = usePhotoReviewQueue();
+  const { photoCountByVehicle, error: photosError, refetch: refetchPhotos } = useVehiclePhotos({ realtime: false });
+  const { queueCount, error: queueError, refetch: refetchQueue } = usePhotoReviewQueue();
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [showReviewQueue, setShowReviewQueue] = useState(false);
   const [expandedVehicle, setExpandedVehicle] = useState<string | null>(null);
   const [uploadForVehicle, setUploadForVehicle] = useState<string | null>(null);
 
   const loading = vehiclesLoading || statsLoading;
+  const hasError = photosError || queueError;
+
+  // Handle error state
+  if (hasError && !loading) {
+    return (
+      <Card className="border-destructive/30 bg-destructive/5">
+        <CardContent className="py-12">
+          <div className="text-center space-y-4">
+            <div className="h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center mx-auto">
+              <AlertTriangle className="h-6 w-6 text-destructive" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-destructive">Failed to load Photo Hub</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                {photosError || queueError || 'Unable to connect to the database'}
+              </p>
+            </div>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                refetchPhotos?.();
+                refetchQueue?.();
+              }}
+            >
+              Try Again
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (showReviewQueue) {
     return (
