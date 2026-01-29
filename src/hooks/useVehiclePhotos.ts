@@ -180,68 +180,68 @@ export function usePhotoHubStats() {
   });
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchStats = async () => {
-      if (!user) return;
+  const fetchStats = useCallback(async () => {
+    if (!user) return;
 
-      try {
-        setLoading(true);
+    try {
+      setLoading(true);
 
-        // Build team filter
-        const teamFilter = currentTeam?.id 
-          ? { team_id: currentTeam.id }
-          : { user_id: user.id };
+      // Build team filter
+      const teamFilter = currentTeam?.id 
+        ? { team_id: currentTeam.id }
+        : { user_id: user.id };
 
-        // Fetch vehicle photos count and stats
-        const { data: photosData, error: photosError } = await supabase
-          .from('vehicle_photos')
-          .select('id, vehicle_id, photo_type, quality_score')
-          .match(teamFilter);
+      // Fetch vehicle photos count and stats
+      const { data: photosData, error: photosError } = await supabase
+        .from('vehicle_photos')
+        .select('id, vehicle_id, photo_type, quality_score')
+        .match(teamFilter);
 
-        if (photosError) throw photosError;
+      if (photosError) throw photosError;
 
-        // Fetch unmatched photos count
-        const { count: unmatchedCount, error: unmatchedError } = await supabase
-          .from('unmatched_photos')
-          .select('id', { count: 'exact', head: true })
-          .match(teamFilter)
-          .eq('status', 'pending');
+      // Fetch unmatched photos count
+      const { count: unmatchedCount, error: unmatchedError } = await supabase
+        .from('unmatched_photos')
+        .select('id', { count: 'exact', head: true })
+        .match(teamFilter)
+        .eq('status', 'pending');
 
-        if (unmatchedError) throw unmatchedError;
+      if (unmatchedError) throw unmatchedError;
 
-        // Fetch total vehicles count
-        const { count: vehicleCount, error: vehicleError } = await supabase
-          .from('vehicles')
-          .select('id', { count: 'exact', head: true })
-          .match(teamFilter);
+      // Fetch total vehicles count
+      const { count: vehicleCount, error: vehicleError } = await supabase
+        .from('vehicles')
+        .select('id', { count: 'exact', head: true })
+        .match(teamFilter);
 
-        if (vehicleError) throw vehicleError;
+      if (vehicleError) throw vehicleError;
 
-        // Calculate stats
-        const photos = photosData || [];
-        const vehicleIdsWithPhotos = new Set(photos.map(p => p.vehicle_id));
-        const heroPhotos = photos.filter(p => p.photo_type === 'hero').length;
-        const avgQuality = photos.length > 0
-          ? photos.reduce((sum, p) => sum + (p.quality_score || 0), 0) / photos.length
-          : 0;
+      // Calculate stats
+      const photos = photosData || [];
+      const vehicleIdsWithPhotos = new Set(photos.map(p => p.vehicle_id));
+      const heroPhotos = photos.filter(p => p.photo_type === 'hero').length;
+      const avgQuality = photos.length > 0
+        ? photos.reduce((sum, p) => sum + (p.quality_score || 0), 0) / photos.length
+        : 0;
 
-        setStats({
-          totalPhotos: photos.length,
-          vehiclesWithPhotos: vehicleIdsWithPhotos.size,
-          vehiclesWithoutPhotos: Math.max(0, (vehicleCount || 0) - vehicleIdsWithPhotos.size),
-          heroPhotos,
-          unmatchedPhotos: unmatchedCount || 0,
-          averageQualityScore: Math.round(avgQuality),
-        });
-      } catch (err) {
-        console.error('Failed to fetch photo stats:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchStats();
+      setStats({
+        totalPhotos: photos.length,
+        vehiclesWithPhotos: vehicleIdsWithPhotos.size,
+        vehiclesWithoutPhotos: Math.max(0, (vehicleCount || 0) - vehicleIdsWithPhotos.size),
+        heroPhotos,
+        unmatchedPhotos: unmatchedCount || 0,
+        averageQualityScore: Math.round(avgQuality),
+      });
+    } catch (err) {
+      console.error('Failed to fetch photo stats:', err);
+    } finally {
+      setLoading(false);
+    }
   }, [user, currentTeam]);
 
-  return { stats, loading };
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
+
+  return { stats, loading, refetch: fetchStats };
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,7 @@ import {
 import { cn } from '@/lib/utils';
 import { usePhotoHubStats, useVehiclePhotos } from '@/hooks/useVehiclePhotos';
 import { usePhotoReviewQueue } from '@/hooks/usePhotoReviewQueue';
+import { toast } from 'sonner';
 import { BulkUploadModal } from './BulkUploadModal';
 import { PhotoReviewQueue } from './PhotoReviewQueue';
 import { VehiclePhotoManager } from './VehiclePhotoManager';
@@ -40,16 +41,43 @@ interface PhotoHubTabProps {
 }
 
 export const PhotoHubTab = ({ vehicles, loading: vehiclesLoading }: PhotoHubTabProps) => {
-  const { stats, loading: statsLoading } = usePhotoHubStats();
+  const { stats, loading: statsLoading, refetch: refetchStats } = usePhotoHubStats();
   const { photoCountByVehicle, error: photosError, refetch: refetchPhotos } = useVehiclePhotos({ realtime: false });
   const { queueCount, error: queueError, refetch: refetchQueue } = usePhotoReviewQueue();
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [showReviewQueue, setShowReviewQueue] = useState(false);
   const [expandedVehicle, setExpandedVehicle] = useState<string | null>(null);
   const [uploadForVehicle, setUploadForVehicle] = useState<string | null>(null);
+  const previousQueueCountRef = useRef<number>(queueCount);
 
   const loading = vehiclesLoading || statsLoading;
   const hasError = photosError || queueError;
+
+  // Track previous queue count for success message
+  useEffect(() => {
+    if (!showReviewQueue) {
+      previousQueueCountRef.current = queueCount;
+    }
+  }, [queueCount, showReviewQueue]);
+
+  // Handle returning from review queue with stats refresh
+  const handleBackFromReview = useCallback(() => {
+    const hadItems = previousQueueCountRef.current > 0;
+    
+    setShowReviewQueue(false);
+    
+    // Refresh all data
+    refetchStats?.();
+    refetchPhotos?.();
+    refetchQueue?.();
+    
+    // Show success toast if queue was cleared
+    if (hadItems && queueCount === 0) {
+      toast.success('All photos reviewed!', {
+        description: 'Great job clearing the queue.',
+      });
+    }
+  }, [queueCount, refetchStats, refetchPhotos, refetchQueue]);
 
   // Handle error state
   if (hasError && !loading) {
@@ -86,7 +114,7 @@ export const PhotoHubTab = ({ vehicles, loading: vehiclesLoading }: PhotoHubTabP
       <div className="space-y-4">
         <Button 
           variant="ghost" 
-          onClick={() => setShowReviewQueue(false)}
+          onClick={handleBackFromReview}
           className="mb-2"
         >
           ← Back to Photo Hub

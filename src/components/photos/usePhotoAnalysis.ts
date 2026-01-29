@@ -90,6 +90,15 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
 
     // 3. Save to database
     if (vehicleId && analysis.isVehicle) {
+      // Map detected angle to photo type
+      const getPhotoType = (angle: string | undefined): string => {
+        if (!angle) return 'exterior';
+        if (angle === 'interior' || angle.includes('interior')) return 'interior';
+        if (angle === 'detail' || angle.includes('detail')) return 'detail';
+        if (angle === 'engine') return 'engine';
+        return 'exterior';
+      };
+
       // Save as vehicle photo
       const { data: photoData, error: insertError } = await supabase
         .from('vehicle_photos')
@@ -99,7 +108,7 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
           team_id: currentTeam?.id || null,
           storage_path: path,
           url: url,
-          photo_type: 'exterior',
+          photo_type: getPhotoType(analysis.angle),
           detected_angle: analysis.angle,
           ai_analysis: analysis as unknown as Json,
           is_vehicle_confirmed: analysis.isVehicle,
@@ -187,6 +196,15 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
         let photoId: string | undefined;
         
         if (vehicleId && analysis.isVehicle) {
+          // Map detected angle to photo type
+          const getPhotoType = (angle: string | undefined): string => {
+            if (!angle) return 'exterior';
+            if (angle === 'interior' || angle.includes('interior')) return 'interior';
+            if (angle === 'detail' || angle.includes('detail')) return 'detail';
+            if (angle === 'engine') return 'engine';
+            return 'exterior';
+          };
+
           const { data } = await supabase
             .from('vehicle_photos')
             .insert({
@@ -195,7 +213,7 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
               team_id: currentTeam?.id || null,
               storage_path: path,
               url: url,
-              photo_type: 'exterior',
+              photo_type: getPhotoType(analysis.angle),
               detected_angle: analysis.angle,
               ai_analysis: analysis as unknown as Json,
               is_vehicle_confirmed: analysis.isVehicle,

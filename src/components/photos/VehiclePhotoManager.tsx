@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, forwardRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -71,22 +71,43 @@ export const VehiclePhotoManager = ({
     [photos]
   );
 
-  // Coverage calculation
+  // Coverage calculation - show unique angles covered
   const coverage = useMemo(() => {
     const detectedAngles = new Set(photos.map(p => p.detected_angle).filter(Boolean));
+    const uniqueAngleCount = detectedAngles.size;
+    const totalAngles = RECOMMENDED_ANGLES.length;
     const recommendedRequired = RECOMMENDED_ANGLES.filter(a => a.required);
-    const covered = recommendedRequired.filter(a => detectedAngles.has(a.angle));
-    const missing = recommendedRequired.filter(a => !detectedAngles.has(a.angle));
+    const missing = RECOMMENDED_ANGLES.filter(a => !detectedAngles.has(a.angle));
     
     return {
-      count: photos.length,
-      total: RECOMMENDED_ANGLES.length,
-      requiredCovered: covered.length,
+      uniqueAngles: uniqueAngleCount,
+      totalPhotos: photos.length,
+      total: totalAngles,
+      requiredCovered: recommendedRequired.filter(a => detectedAngles.has(a.angle)).length,
       requiredTotal: recommendedRequired.length,
-      percentage: Math.round((photos.length / RECOMMENDED_ANGLES.length) * 100),
+      percentage: Math.round((uniqueAngleCount / totalAngles) * 100),
       missing: missing.map(a => a.label),
     };
   }, [photos]);
+
+  // Suggest best hero photo (front_quarter with highest quality)
+  const suggestedHero = useMemo(() => {
+    if (heroPhoto) return null;
+    
+    // Priority: front_quarter > front > side angles, then by quality
+    const priorityAngles = ['front_quarter', 'front', 'side_left', 'side_right'];
+    const sorted = [...photos].sort((a, b) => {
+      const aIndex = priorityAngles.indexOf(a.detected_angle || '');
+      const bIndex = priorityAngles.indexOf(b.detected_angle || '');
+      const aPriority = aIndex === -1 ? 100 : aIndex;
+      const bPriority = bIndex === -1 ? 100 : bIndex;
+      
+      if (aPriority !== bPriority) return aPriority - bPriority;
+      return (b.quality_score || 0) - (a.quality_score || 0);
+    });
+    
+    return sorted[0] || null;
+  }, [photos, heroPhoto]);
 
   const handleSetAsHero = async (photoId: string) => {
     try {
@@ -189,12 +210,35 @@ export const VehiclePhotoManager = ({
         </div>
       ) : (
         <Card className="border-dashed border-amber-500/50 bg-amber-500/5">
-          <CardContent className="py-6 text-center">
-            <Star className="h-8 w-8 mx-auto text-amber-500 mb-2" />
-            <p className="text-sm font-medium text-amber-600">No hero photo selected</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Click "Set as Hero" on any photo below
-            </p>
+          <CardContent className="py-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Star className="h-8 w-8 text-amber-500" />
+                <div>
+                  <p className="text-sm font-medium text-amber-600">No hero photo selected</p>
+                  {suggestedHero ? (
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      AI suggests: {ANGLE_LABELS[suggestedHero.detected_angle as DetectedAngle] || 'Best available shot'}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Click "Set as Hero" on any photo below
+                    </p>
+                  )}
+                </div>
+              </div>
+              {suggestedHero && (
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={() => handleSetAsHero(suggestedHero.id)}
+                  className="border-amber-500/50 text-amber-600 hover:bg-amber-500/10"
+                >
+                  <Star className="h-3 w-3 mr-1" />
+                  Use Suggested
+                </Button>
+              )}
+            </div>
           </CardContent>
         </Card>
       )}
@@ -209,7 +253,10 @@ export const VehiclePhotoManager = ({
             coverage.percentage >= 40 ? 'text-amber-600' :
             'text-muted-foreground'
           )}>
-            {coverage.count}/{coverage.total} shots
+            {coverage.uniqueAngles}/{coverage.total} angles
+            <span className="text-muted-foreground font-normal ml-1">
+              ({coverage.totalPhotos} photos)
+            </span>
           </span>
         </div>
         <Progress 
@@ -299,14 +346,8 @@ interface PhotoThumbnailProps {
   compact?: boolean;
 }
 
-const PhotoThumbnail = ({
-  photo,
-  isLoading,
-  onView,
-  onSetHero,
-  onDelete,
-  compact,
-}: PhotoThumbnailProps) => {
+const PhotoThumbnail = forwardRef<HTMLDivElement, PhotoThumbnailProps>(
+  ({ photo, isLoading, onView, onSetHero, onDelete, compact }, ref) => {
   const hasQualityIssues = (photo.quality_issues?.length ?? 0) > 0 || (photo.quality_score ?? 100) < 70;
 
   return (
@@ -397,5 +438,7 @@ const PhotoThumbnail = ({
       )}
     </motion.div>
   );
-};
+});
+
+PhotoThumbnail.displayName = 'PhotoThumbnail';
 

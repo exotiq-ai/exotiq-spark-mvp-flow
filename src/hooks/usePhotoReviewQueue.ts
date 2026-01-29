@@ -120,6 +120,15 @@ export function usePhotoReviewQueue(options: UsePhotoReviewQueueOptions = {}) {
 
     if (fetchError || !unmatchedPhoto) throw new Error('Photo not found');
 
+    // Map detected angle to photo type
+    const detectedAngle = (unmatchedPhoto.ai_analysis as any)?.angle || 'unknown';
+    const getPhotoType = (angle: string): string => {
+      if (angle === 'interior' || angle.includes('interior')) return 'interior';
+      if (angle === 'detail' || angle.includes('detail')) return 'detail';
+      if (angle === 'engine') return 'engine';
+      return 'exterior';
+    };
+
     // Create vehicle_photo record
     const { error: insertError } = await supabase
       .from('vehicle_photos')
@@ -129,8 +138,8 @@ export function usePhotoReviewQueue(options: UsePhotoReviewQueueOptions = {}) {
         team_id: currentTeam?.id || null,
         storage_path: unmatchedPhoto.storage_path,
         url: unmatchedPhoto.url,
-        photo_type: 'exterior',
-        detected_angle: (unmatchedPhoto.ai_analysis as any)?.angle || 'unknown',
+        photo_type: getPhotoType(detectedAngle),
+        detected_angle: detectedAngle,
         ai_analysis: unmatchedPhoto.ai_analysis,
         is_vehicle_confirmed: true,
         quality_score: (unmatchedPhoto.ai_analysis as any)?.quality?.score || 100,
