@@ -1,84 +1,131 @@
-# Photo Hub Production Readiness - COMPLETE ✅
 
-## Summary
+# Photo Hub Upload Fix Plan
 
-All production readiness issues have been resolved. The Photo Hub is now ready to ship.
+## Issues Identified
 
----
+### Issue 1: Storage Bucket File Size Limit (CRITICAL)
+The `vehicle-photos` bucket has a **5 MB file size limit**, but:
+- The UI tells users "Max 10MB per file" - this is incorrect
+- User's photos are larger than 5MB, causing ALL uploads to fail with "Payload too large"
 
-## Completed Fixes
+**Solution:** Increase the bucket's file size limit to at least 20MB (or 50MB for high-res photos)
 
-### ✅ Phase 1: Critical Bug Fix
+### Issue 2: Duplicate React Keys (WARNING)
+In `BulkUploadModal.tsx` line 310:
+```tsx
+key={item.file.name}  // Duplicate filenames cause React errors
+```
 
-**BulkUploadModal.tsx** - Fixed empty SelectItem value crash
-- Changed `value=""` to `value="auto-detect"` 
-- Updated state handling to convert placeholder back to `undefined`
-- Default state now uses `'auto-detect'` instead of empty string
+The user has two files with identical names ("Gregory - Tortilla Flats (Full Size)-48.jpg"), causing the React warning:
+> "Encountered two children with the same key"
 
-### ✅ Phase 2: Backend Hardening
+**Solution:** Use a unique key that combines filename with index
 
-**supabase/config.toml** - Added edge function configs
-- `analyze-vehicle-photo` with `verify_jwt = false`
-- `enhance-hero-photo` with `verify_jwt = false`
-
-**analyze-vehicle-photo/index.ts** - Added JWT auth
-- Validates Authorization header
-- Uses `supabase.auth.getClaims()` to verify user
-- Logs unauthorized access attempts
-- Returns 401 for invalid/missing tokens
-
-**enhance-hero-photo/index.ts** - Added JWT auth
-- Same auth pattern as analyze-vehicle-photo
-- Protects PhotoRoom API from unauthorized usage
-
-### ✅ Phase 3: Storage & Types
-
-**usePhotoAnalysis.ts** - Fixed storage URLs
-- Changed `getPublicUrl()` to `createSignedUrl()` with 1-year expiry
-- Private bucket now works correctly with AI services
-
-**usePhotoAnalysis.ts** - Removed type assertions
-- Replaced all `as any` with proper type handling
-- Using `as unknown as Json` for AI analysis JSON fields
-- Proper type narrowing for nested AI analysis objects
-
-### ✅ Phase 4: Error Handling
-
-**PhotoHubTab.tsx** - Added error states
-- Shows error card when database queries fail
-- Includes "Try Again" button with refetch
-- Displays specific error messages
-
-### ✅ Edge Functions Deployed
-
-Both photo edge functions have been deployed successfully:
-- `analyze-vehicle-photo`
-- `enhance-hero-photo`
+### Issue 3: Inconsistent Error Handling
+When storage upload fails, the error isn't being surfaced clearly - files show as "Pending" but with 0% progress and "1 Failed" in summary.
 
 ---
 
-## Files Changed
+## Implementation
 
-| File | Changes |
-|------|---------|
-| `src/components/photos/BulkUploadModal.tsx` | Fixed SelectItem crash |
-| `supabase/config.toml` | Added photo function configs |
-| `supabase/functions/analyze-vehicle-photo/index.ts` | Added JWT auth |
-| `supabase/functions/enhance-hero-photo/index.ts` | Added JWT auth |
-| `src/components/photos/usePhotoAnalysis.ts` | Signed URLs + type safety |
-| `src/components/photos/PhotoHubTab.tsx` | Error handling UI |
+### Step 1: Increase Storage Bucket File Size Limit (Backend)
+Run SQL migration to update the bucket configuration:
+
+```sql
+UPDATE storage.buckets 
+SET file_size_limit = 52428800  -- 50 MB
+WHERE name = 'vehicle-photos';
+```
+
+### Step 2: Fix Duplicate Key Issue (Frontend)
+Update `BulkUploadModal.tsx` line 310:
+
+```tsx
+// Before
+key={item.file.name}
+
+// After - use unique key with index
+key={`${item.file.name}-${index}`}
+```
+
+### Step 3: Update UI File Size Messaging
+Update `BulkUploadModal.tsx` line 217 to match the actual limit:
+
+```tsx
+// After increasing limit
+<p className="text-sm text-muted-foreground mt-1">
+  Supports JPG, PNG, WEBP • Max 50MB per file
+</p>
+```
+
+### Step 4: Add Client-Side File Size Validation (Optional Enhancement)
+Add pre-upload validation to catch oversized files before they hit the server:
+
+```tsx
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+
+const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const selectedFiles = Array.from(e.target.files || []).filter(f => {
+    if (!f.type.startsWith('image/')) return false;
+    if (f.size > MAX_FILE_SIZE) {
+      toast.error(`${f.name} exceeds 50MB limit`);
+      return false;
+    }
+    return true;
+  });
+  setFiles(prev => [...prev, ...selectedFiles]);
+}, []);
+```
+
+### Step 5: Improve Error Messages
+Update `usePhotoAnalysis.ts` to provide clearer error messages for storage failures:
+
+```tsx
+} catch (error) {
+  let errorMessage = 'Upload failed';
+  if (error instanceof Error) {
+    if (error.message.includes('Payload too large') || 
+        error.message.includes('exceeded the maximum')) {
+      errorMessage = 'File too large - max 50MB';
+    } else {
+      errorMessage = error.message;
+    }
+  }
+  // ... use errorMessage in progress update
+}
+```
 
 ---
 
-## Verification Checklist
+## Files to Modify
 
-- [x] Navigate to `/fleet` and switch to "Photos" tab - loads without crash
-- [x] Open Bulk Upload Modal - no empty SelectItem error
-- [x] Edge functions protected with JWT auth
-- [x] Storage uses signed URLs for private bucket
-- [x] Error states display when DB fails
-- [x] Type assertions removed from photo hooks
+| File | Change | Priority |
+|------|--------|----------|
+| Database migration | Increase bucket file_size_limit to 50MB | Critical |
+| `src/components/photos/BulkUploadModal.tsx` | Fix duplicate key issue | High |
+| `src/components/photos/BulkUploadModal.tsx` | Update file size messaging | High |
+| `src/components/photos/BulkUploadModal.tsx` | Add client-side size validation | Medium |
+| `src/components/photos/usePhotoAnalysis.ts` | Better error messages | Low |
 
 ---
 
-## Status: PRODUCTION READY 🚀
+## Verification Steps
+
+After fixes:
+1. Upload a large photo (10-20MB) - should succeed
+2. Upload multiple photos with same filename - no React warnings
+3. Upload oversized file (>50MB) - should show clear error before upload
+4. Check console - no duplicate key warnings
+
+---
+
+## Technical Details
+
+### Current Bucket Configuration
+- **file_size_limit:** 5,242,880 bytes (5 MB)
+- **allowed_mime_types:** image/jpeg, image/png, image/webp, image/heic
+- **public:** false (correct)
+
+### Recommended Bucket Configuration
+- **file_size_limit:** 52,428,800 bytes (50 MB)
+- Keeps same MIME types and privacy settings
