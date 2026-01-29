@@ -1,4 +1,4 @@
-import { useState, useMemo, forwardRef } from 'react';
+import { useState, useMemo, forwardRef, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,9 @@ import {
   Camera,
   ImageOff,
   MoreVertical,
+  Sparkles,
+  RefreshCw,
+  Wand2,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -36,6 +39,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useVehiclePhotos } from '@/hooks/useVehiclePhotos';
 import { usePhotoAnalysis } from './usePhotoAnalysis';
+import { HeroEnhancementPreview } from './HeroEnhancementPreview';
 import { RECOMMENDED_ANGLES, ANGLE_LABELS, PHOTO_TYPE_LABELS, VehiclePhoto, DetectedAngle } from './types';
 import { toast } from 'sonner';
 
@@ -55,9 +59,13 @@ export const VehiclePhotoManager = ({
   compact = false,
 }: VehiclePhotoManagerProps) => {
   const { photos, loading, refetch } = useVehiclePhotos({ vehicleId, realtime: true });
-  const { setAsHero, deletePhoto } = usePhotoAnalysis();
+  const { setAsHero, deletePhoto, uploadAndAnalyze } = usePhotoAnalysis();
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [enhanceDialogOpen, setEnhanceDialogOpen] = useState(false);
+  const [selectedHeroPhoto, setSelectedHeroPhoto] = useState<{ id: string; url: string } | null>(null);
+  const [replacePhotoId, setReplacePhotoId] = useState<string | null>(null);
+  const replaceInputRef = useRef<HTMLInputElement>(null);
 
   // Find hero photo
   const heroPhoto = useMemo(() => 
@@ -109,12 +117,18 @@ export const VehiclePhotoManager = ({
     return sorted[0] || null;
   }, [photos, heroPhoto]);
 
-  const handleSetAsHero = async (photoId: string) => {
+  const handleSetAsHero = async (photoId: string, photoUrl?: string) => {
     try {
       setActionLoading(photoId);
       await setAsHero(photoId);
       await refetch();
       toast.success('Hero photo updated');
+      
+      // After setting as hero, offer enhancement
+      if (photoUrl) {
+        setSelectedHeroPhoto({ id: photoId, url: photoUrl });
+        setEnhanceDialogOpen(true);
+      }
     } catch (error) {
       toast.error('Failed to set hero photo');
     } finally {
@@ -133,6 +147,33 @@ export const VehiclePhotoManager = ({
     } finally {
       setActionLoading(null);
       setDeleteConfirm(null);
+    }
+  };
+
+  const handleReplacePhoto = async (photoId: string, file: File) => {
+    try {
+      setActionLoading(photoId);
+      
+      // Upload and analyze the new photo
+      const result = await uploadAndAnalyze(file, vehicleId);
+      
+      // Delete the old photo
+      await deletePhoto(photoId);
+      
+      await refetch();
+      toast.success('Photo replaced successfully');
+    } catch (error) {
+      toast.error('Failed to replace photo');
+    } finally {
+      setActionLoading(null);
+      setReplacePhotoId(null);
+    }
+  };
+
+  const handleEnhanceHero = () => {
+    if (heroPhoto) {
+      setSelectedHeroPhoto({ id: heroPhoto.id, url: heroPhoto.url });
+      setEnhanceDialogOpen(true);
     }
   };
 
@@ -173,15 +214,23 @@ export const VehiclePhotoManager = ({
         <div className="relative group">
           <div className="relative aspect-video rounded-lg overflow-hidden bg-muted border">
             <img
-              src={heroPhoto.url}
+              src={heroPhoto.enhanced_url || heroPhoto.url}
               alt={`${vehicleName} - Hero`}
               className="w-full h-full object-cover"
               loading="lazy"
             />
-            <Badge className="absolute top-2 left-2 bg-amber-500 text-white gap-1">
-              <Star className="h-3 w-3 fill-current" />
-              Hero Photo
-            </Badge>
+            <div className="absolute top-2 left-2 flex items-center gap-2">
+              <Badge className="bg-amber-500 text-white gap-1">
+                <Star className="h-3 w-3 fill-current" />
+                Hero Photo
+              </Badge>
+              {heroPhoto.is_enhanced && (
+                <Badge variant="secondary" className="gap-1">
+                  <Sparkles className="h-3 w-3" />
+                  Enhanced
+                </Badge>
+              )}
+            </div>
             
             {/* Hover Actions */}
             <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
@@ -195,6 +244,14 @@ export const VehiclePhotoManager = ({
                   View
                 </Button>
               )}
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={handleEnhanceHero}
+              >
+                <Wand2 className="h-4 w-4 mr-1" />
+                {heroPhoto.is_enhanced ? 'Re-enhance' : 'Enhance'}
+              </Button>
             </div>
           </div>
           
@@ -231,7 +288,7 @@ export const VehiclePhotoManager = ({
                 <Button 
                   size="sm" 
                   variant="outline"
-                  onClick={() => handleSetAsHero(suggestedHero.id)}
+                  onClick={() => handleSetAsHero(suggestedHero.id, suggestedHero.url)}
                   className="border-amber-500/50 text-amber-600 hover:bg-amber-500/10"
                 >
                   <Star className="h-3 w-3 mr-1" />
@@ -287,7 +344,7 @@ export const VehiclePhotoManager = ({
               photo={photo as unknown as VehiclePhoto}
               isLoading={actionLoading === photo.id}
               onView={onPhotoClick ? () => onPhotoClick(photo as unknown as VehiclePhoto) : undefined}
-              onSetHero={() => handleSetAsHero(photo.id)}
+              onSetHero={() => handleSetAsHero(photo.id, photo.url)}
               onDelete={() => setDeleteConfirm(photo.id)}
               compact={compact}
             />
@@ -332,6 +389,21 @@ export const VehiclePhotoManager = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Hero Enhancement Dialog */}
+      {selectedHeroPhoto && (
+        <HeroEnhancementPreview
+          open={enhanceDialogOpen}
+          onOpenChange={(open) => {
+            setEnhanceDialogOpen(open);
+            if (!open) setSelectedHeroPhoto(null);
+          }}
+          photoId={selectedHeroPhoto.id}
+          photoUrl={selectedHeroPhoto.url}
+          vehicleName={vehicleName}
+          onEnhanced={() => refetch()}
+        />
+      )}
     </div>
   );
 };
