@@ -73,15 +73,13 @@ export const BulkUploadModal = ({
   onComplete,
 }: BulkUploadModalProps) => {
   const [files, setFiles] = useState<File[]>([]);
-  const [selectedVehicleId, setSelectedVehicleId] = useState<string>(preSelectedVehicleId || '');
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string>(preSelectedVehicleId || 'auto-detect');
   const [uploadProgress, setUploadProgress] = useState<PhotoUploadProgress[]>([]);
   const [isComplete, setIsComplete] = useState(false);
 
   // Sync preSelectedVehicleId when it changes
   useEffect(() => {
-    if (preSelectedVehicleId) {
-      setSelectedVehicleId(preSelectedVehicleId);
-    }
+    setSelectedVehicleId(preSelectedVehicleId || 'auto-detect');
   }, [preSelectedVehicleId]);
 
   const { isProcessing, processBatch } = usePhotoAnalysis({
@@ -114,7 +112,8 @@ export const BulkUploadModal = ({
   const handleStartUpload = async () => {
     if (files.length === 0) return;
     
-    const vehicleId = selectedVehicleId || undefined;
+    // Convert 'auto-detect' placeholder back to undefined
+    const vehicleId = selectedVehicleId === 'auto-detect' ? undefined : selectedVehicleId;
     await processBatch(files, vehicleId);
   };
 
@@ -123,7 +122,7 @@ export const BulkUploadModal = ({
     setFiles([]);
     setUploadProgress([]);
     setIsComplete(false);
-    setSelectedVehicleId('');
+    setSelectedVehicleId('auto-detect');
     onOpenChange(false);
   };
 
@@ -160,7 +159,7 @@ export const BulkUploadModal = ({
                   <SelectValue placeholder="Auto-detect or select a vehicle..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">
+                  <SelectItem value="auto-detect">
                     <span className="flex items-center gap-2">
                       <Sparkles className="h-4 w-4" />
                       Auto-detect (AI matching)

@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -28,6 +29,47 @@ serve(async (req) => {
   const startTime = Date.now();
 
   try {
+    // Auth check - validate JWT
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      console.warn('Unauthorized access attempt to enhance-hero-photo');
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          originalUrl: '', 
+          processingTimeMs: Date.now() - startTime,
+          error: 'Unauthorized' 
+        }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Validate the JWT
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+    
+    if (claimsError || !claimsData?.claims) {
+      console.warn('Invalid JWT token in enhance-hero-photo');
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          originalUrl: '', 
+          processingTimeMs: Date.now() - startTime,
+          error: 'Unauthorized' 
+        }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const userId = claimsData.claims.sub;
+    console.log(`Authenticated request from user: ${userId}`);
+
     const { imageUrl, photoId, background = 'white', outputFormat = 'png' } = await req.json() as EnhancePhotoRequest;
     
     const PHOTOROOM_API_KEY = Deno.env.get('PHOTOROOM_API_KEY');
