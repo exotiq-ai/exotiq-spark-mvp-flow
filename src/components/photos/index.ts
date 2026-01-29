@@ -9,3 +9,4 @@ export { PhotoHubTab } from './PhotoHubTab';
 export { BulkUploadModal } from './BulkUploadModal';
 export { PhotoReviewQueue } from './PhotoReviewQueue';
 export { PhotoCard } from './PhotoCard';
+export { VehiclePhotoManager } from './VehiclePhotoManager';

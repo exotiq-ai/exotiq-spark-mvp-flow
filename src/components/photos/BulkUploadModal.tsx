@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Dialog,
@@ -45,6 +45,7 @@ interface BulkUploadModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   vehicles: Vehicle[];
+  preSelectedVehicleId?: string;
   onComplete?: (results: PhotoUploadProgress[]) => void;
 }
 
@@ -68,12 +69,20 @@ export const BulkUploadModal = ({
   open,
   onOpenChange,
   vehicles,
+  preSelectedVehicleId,
   onComplete,
 }: BulkUploadModalProps) => {
   const [files, setFiles] = useState<File[]>([]);
-  const [selectedVehicleId, setSelectedVehicleId] = useState<string>('');
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string>(preSelectedVehicleId || '');
   const [uploadProgress, setUploadProgress] = useState<PhotoUploadProgress[]>([]);
   const [isComplete, setIsComplete] = useState(false);
+
+  // Sync preSelectedVehicleId when it changes
+  useEffect(() => {
+    if (preSelectedVehicleId) {
+      setSelectedVehicleId(preSelectedVehicleId);
+    }
+  }, [preSelectedVehicleId]);
 
   const { isProcessing, processBatch } = usePhotoAnalysis({
     onProgress: setUploadProgress,

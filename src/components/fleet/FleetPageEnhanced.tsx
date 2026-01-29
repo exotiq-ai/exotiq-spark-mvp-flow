@@ -9,6 +9,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { useLocationFilteredFleet } from '@/hooks/useLocationFilteredFleet';
 import { useFleetTasks } from '@/hooks/useFleetTasks';
 import { useVehicleOpsStatus, OpsStatus } from '@/hooks/useVehicleOpsStatus';
+import { useVehiclePhotos } from '@/hooks/useVehiclePhotos';
 import { useTeam } from '@/contexts/TeamContext';
 import { supabase } from '@/integrations/supabase/client';
 import { FleetVehicleCard } from './FleetVehicleCard';
@@ -46,6 +47,7 @@ export const FleetPageEnhanced = () => {
   const { vehicles, bookings, loading, applyPriceOptimization, refreshData } = useLocationFilteredFleet();
   const { tasks, myTasks, unassignedTasks, createTask, updateTaskStatus, claimTask } = useFleetTasks();
   const { updateOpsStatus } = useVehicleOpsStatus();
+  const { photoCountByVehicle } = useVehiclePhotos({ realtime: false });
   const { currentTeam } = useTeam();
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
 
@@ -307,6 +309,7 @@ export const FleetPageEnhanced = () => {
                     activeBooking={getActiveBooking(vehicle.id) as any}
                     nextBooking={getNextBooking(vehicle.id) as any}
                     taskCount={taskCountMap[vehicle.id] || 0}
+                    photoCount={photoCountByVehicle[vehicle.id]}
                     onEditPrice={(v) => setPriceEditVehicle(v)}
                     onCreateTask={(v) => setTaskVehicle(v)}
                     onViewDetails={(v) => setDetailsVehicle(v)}
@@ -362,6 +365,7 @@ export const FleetPageEnhanced = () => {
         open={!!detailsVehicle}
         onOpenChange={(open) => !open && setDetailsVehicle(null)}
         vehicleName={detailsVehicle?.name || ''}
+        vehicleId={detailsVehicle?.id}
         vehicleDetails={{
           make: detailsVehicle?.make,
           model: detailsVehicle?.model,
