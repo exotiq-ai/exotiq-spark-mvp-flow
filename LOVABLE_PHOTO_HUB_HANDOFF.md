@@ -14,9 +14,11 @@ Before running migrations, add these secrets in Lovable's Supabase settings:
 
 ```
 GOOGLE_VISION_API_KEY = [User will provide this]
+PHOTOROOM_API_KEY = [User will provide this - for hero photo enhancement]
 ```
 
-The API key is already created in GCP project `fine-program-464718-e2`.
+The Google Vision API key is from GCP project `fine-program-464718-e2`.
+The Photoroom API key is from photoroom.com (sandbox/free tier is fine).
 
 ## Step 2: Run Database Migration
 
@@ -30,14 +32,26 @@ This creates:
 - Trigger to ensure only one hero photo per vehicle
 - Helper function `get_vehicle_hero_photo(vehicle_id)`
 
-## Step 3: Deploy Edge Function
+## Step 3: Deploy Edge Functions
 
-Deploy the Edge Function at `supabase/functions/analyze-vehicle-photo/`
+Deploy these Edge Functions:
+
+### 3a. `analyze-vehicle-photo`
+Location: `supabase/functions/analyze-vehicle-photo/`
 
 This function:
 - Accepts an image URL or base64 data
 - Calls Google Cloud Vision API
 - Returns: isVehicle, angle classification, quality score, suggested make/color
+
+### 3b. `enhance-hero-photo` (Phase 2 - Optional for now)
+Location: `supabase/functions/enhance-hero-photo/`
+
+This function:
+- Accepts an image URL
+- Calls Photoroom API to remove background
+- Returns: enhanced image with white/gradient background
+- Used for creating showroom-quality hero photos
 
 ## Step 4: Build Photo Hub UI
 
