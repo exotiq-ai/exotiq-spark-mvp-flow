@@ -17,6 +17,7 @@ import {
   Sparkles,
   ChevronDown,
   ChevronRight,
+  Plus,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePhotoHubStats, useVehiclePhotos } from '@/hooks/useVehiclePhotos';
@@ -25,6 +26,7 @@ import { toast } from 'sonner';
 import { BulkUploadModal } from './BulkUploadModal';
 import { PhotoReviewQueue } from './PhotoReviewQueue';
 import { VehiclePhotoManager } from './VehiclePhotoManager';
+import { AddVehicleFromPhotoWizard } from './AddVehicleFromPhotoWizard';
 import { EmptyState } from '@/components/common/EmptyState';
 
 interface Vehicle {
@@ -48,6 +50,7 @@ export const PhotoHubTab = ({ vehicles, loading: vehiclesLoading }: PhotoHubTabP
   const [showReviewQueue, setShowReviewQueue] = useState(false);
   const [expandedVehicle, setExpandedVehicle] = useState<string | null>(null);
   const [uploadForVehicle, setUploadForVehicle] = useState<string | null>(null);
+  const [addVehicleWizardOpen, setAddVehicleWizardOpen] = useState(false);
   const previousQueueCountRef = useRef<number>(queueCount);
 
   const loading = vehiclesLoading || statsLoading;
@@ -154,6 +157,10 @@ export const PhotoHubTab = ({ vehicles, loading: vehiclesLoading }: PhotoHubTabP
               </Badge>
             </Button>
           )}
+          <Button variant="outline" onClick={() => setAddVehicleWizardOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            New Vehicle
+          </Button>
           <Button onClick={() => setUploadModalOpen(true)}>
             <Upload className="h-4 w-4 mr-2" />
             Bulk Upload
@@ -399,6 +406,16 @@ export const PhotoHubTab = ({ vehicles, loading: vehiclesLoading }: PhotoHubTabP
         preSelectedVehicleId={uploadForVehicle || undefined}
         onComplete={() => {
           // Stats will auto-refresh
+        }}
+      />
+
+      {/* Add Vehicle from Photo Wizard */}
+      <AddVehicleFromPhotoWizard
+        open={addVehicleWizardOpen}
+        onOpenChange={setAddVehicleWizardOpen}
+        onComplete={() => {
+          refetchStats?.();
+          refetchPhotos?.();
         }}
       />
     </div>

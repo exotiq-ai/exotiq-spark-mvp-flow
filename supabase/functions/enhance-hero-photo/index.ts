@@ -51,10 +51,9 @@ serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    const token = authHeader.replace('Bearer ', '');
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
     
-    if (claimsError || !claimsData?.claims) {
+    if (userError || !user) {
       console.warn('Invalid JWT token in enhance-hero-photo');
       return new Response(
         JSON.stringify({ 
@@ -67,8 +66,7 @@ serve(async (req) => {
       );
     }
 
-    const userId = claimsData.claims.sub;
-    console.log(`Authenticated request from user: ${userId}`);
+    console.log(`Authenticated request from user: ${user.id}`);
 
     const { imageUrl, photoId, background = 'white', outputFormat = 'png' } = await req.json() as EnhancePhotoRequest;
     
