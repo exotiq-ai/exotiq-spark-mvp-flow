@@ -1,216 +1,140 @@
 
-# Photo Hub Implementation Plan
 
-## Overview
+# Photo Hub UI Completion Plan
 
-Build a Photo Hub as a **new tab within the Fleet module** (following the pattern used in Book with Inspections). This will provide centralized photo management with AI-powered analysis, bulk upload with drag-and-drop, and a review queue for matching photos to vehicles.
+## Current Status
 
----
-
-## Architecture Summary
-
-```text
-FleetPageEnhanced.tsx (existing)
-├── Tab: "Fleet" (default - existing vehicle grid)
-└── Tab: "Photos" (new - Photo Hub)
-         ├── PhotoStats - Dashboard cards with photo coverage metrics
-         ├── BulkUploadModal - Drag-and-drop + AI analysis
-         ├── PhotoReviewQueue - Match unmatched photos to vehicles
-         └── VehiclePhotoGrid - Browse photos by vehicle
-```
+The Photo Hub Phase 1 is already implemented with core components working. The Fleet page has a "Photos" tab that shows the PhotoHubTab with stats, bulk upload, and review queue functionality.
 
 ---
 
-## Step 1: Refactor FleetPageEnhanced to Use ModuleTabs
+## Remaining Work
 
-**File:** `src/components/fleet/FleetPageEnhanced.tsx`
-
-Add tabs pattern like BookEnhanced.tsx:
-
-```tsx
-<ModuleTabs
-  tabs={[
-    { id: "fleet", label: "Fleet", shortLabel: "Fleet", icon: Car },
-    { id: "photos", label: "Photos", shortLabel: "Photos", icon: Camera },
-  ]}
-  defaultValue="fleet"
->
-  <TabsContent value="fleet">
-    {/* Move existing FleetPageEnhanced content here */}
-  </TabsContent>
-  <TabsContent value="photos">
-    <PhotoHubTab vehicles={vehicles} loading={loading} />
-  </TabsContent>
-</ModuleTabs>
-```
-
----
-
-## Step 2: Create Photo Hub Tab Component
-
-**New File:** `src/components/photos/PhotoHubTab.tsx`
-
-Main container with:
-- Stats cards (total photos, vehicles with/without photos, unmatched queue count)
-- "Bulk Upload" button (opens modal)
-- Review Queue section (pending photos needing vehicle assignment)
-- Vehicle Photo Grid (browse all vehicles and their photos)
-
-**Key features:**
-- Real-time stats from `vehicle_photos` and `unmatched_photos` tables
-- Quick access to upload and review workflows
-- Search/filter vehicles by photo coverage
-
----
-
-## Step 3: Create Bulk Upload Modal
-
-**New File:** `src/components/photos/BulkUploadModal.tsx`
-
-Leveraging the existing `FileUploadZone` and `InspectionPhotoUpload` patterns:
-
-**Features:**
-- Drag-and-drop zone accepting multiple images
-- Optional vehicle pre-selection (if user knows which vehicle photos belong to)
-- Progress tracking for each file (using existing `PhotoUploadProgress` type)
-- Real-time AI analysis results displayed per photo
-- Batch processing using existing `usePhotoAnalysis.processBatch()`
-- Summary view showing matched/unmatched results
-
-**UI Flow:**
-1. User drags/drops 10 photos
-2. Each photo shows: uploading → analyzing → complete (with AI result)
-3. Photos go to either `vehicle_photos` (if matched) or `unmatched_photos` (for review)
-4. Modal shows final summary with counts
-
----
-
-## Step 4: Create Photo Review Queue
-
-**New File:** `src/components/photos/PhotoReviewQueue.tsx`
-
-**Two modes:**
-1. **Single-photo mode:** Review one photo at a time with vehicle suggestions
-2. **Batch mode:** Grid view to quickly assign multiple photos
-
-**Features:**
-- Show AI-suggested vehicle (with confidence score)
-- Vehicle selector dropdown with search
-- Quick actions: Match, Skip, Reject
-- Visual vehicle thumbnails for easy identification
-- Keyboard shortcuts for power users (Arrow keys + Enter)
-
-**Data source:** `unmatched_photos` table with status='pending'
-
----
-
-## Step 5: Create Vehicle Photo Manager
+### 1. Create VehiclePhotoManager Component
 
 **New File:** `src/components/photos/VehiclePhotoManager.tsx`
 
-Per-vehicle photo grid showing:
-- Hero photo (highlighted with star badge)
-- All other photos by type (exterior, interior, detail)
-- Photo coverage indicator (e.g., "8/11 recommended shots")
-- Drag-to-reorder functionality
-- "Set as Hero" action on any photo
-- Delete photo action
-- Upload more photos button
+A per-vehicle photo grid that displays:
+- Hero photo prominently at the top with a star badge
+- Grid of other photos organized by type (exterior, interior, detail)
+- Photo coverage indicator (e.g., "7/11 recommended shots")
+- Drag-to-reorder functionality using existing patterns
+- Actions per photo: "Set as Hero", "Delete", "View Full Size"
+- "Upload More" button that opens BulkUploadModal with vehicle pre-selected
 
-**Used in:**
-- PhotoHubTab (inline expanded view)
-- Vehicle detail dialog (future integration)
+**Props:**
+```tsx
+interface VehiclePhotoManagerProps {
+  vehicleId: string;
+  vehicleName: string;
+  onPhotoClick?: (photo: VehiclePhoto) => void;
+  compact?: boolean; // For inline expansion in grids
+}
+```
 
----
-
-## Step 6: Create Reusable PhotoCard Component
-
-**New File:** `src/components/photos/PhotoCard.tsx`
-
-Displays a single photo with:
-- Thumbnail image with lazy loading
-- Type badge (Hero, Exterior, Interior, etc.)
-- Quality score indicator (if below threshold, show warning)
-- Detected angle label
-- Action buttons (Set Hero, Delete, View Full)
-- Loading/error states
+**Features:**
+- Uses `useVehiclePhotos({ vehicleId })` for data
+- Uses `usePhotoAnalysis` for setAsHero, deletePhoto, reorderPhotos
+- Shows recommended angles checklist from `RECOMMENDED_ANGLES` constant
+- Responsive grid: 2 cols mobile, 3-4 cols desktop
 
 ---
 
-## Step 7: Add Photo Count to FleetVehicleCard
+### 2. Add Photo Count Badge to FleetVehicleCard
 
 **File:** `src/components/fleet/FleetVehicleCard.tsx`
 
-Add photo coverage indicator:
+Add a photo coverage indicator showing count against recommended total:
 
 ```tsx
-// Near license plate or ops status
+// New prop
+photoCount?: number;
+
+// In the Status Row section (after Ops Status badge)
 {photoCount !== undefined && (
-  <Badge variant="outline" className="text-xs gap-1">
+  <Badge 
+    variant="outline" 
+    className={cn(
+      'text-xs gap-1',
+      photoCount >= 8 && 'border-success/50 text-success',
+      photoCount >= 4 && photoCount < 8 && 'border-amber-500/50 text-amber-600',
+      photoCount < 4 && 'border-muted-foreground/30 text-muted-foreground'
+    )}
+  >
     <Camera className="h-3 w-3" />
     {photoCount}/11
   </Badge>
 )}
 ```
 
-**Data fetching:**
-- Add a new hook `useVehiclePhotoStats()` that fetches photo counts per vehicle
-- Or extend `useLocationFilteredFleet()` to include photo counts via a view
-
 ---
 
-## Step 8: Create useVehiclePhotos Hook
+### 3. Wire Photo Counts into FleetPageEnhanced
 
-**New File:** `src/hooks/useVehiclePhotos.ts`
+**File:** `src/components/fleet/FleetPageEnhanced.tsx`
 
-Fetches and manages vehicle photos:
+- Import `useVehiclePhotos` hook
+- Fetch `photoCountByVehicle` map
+- Pass counts to each `FleetVehicleCard`
 
 ```tsx
-export function useVehiclePhotos(vehicleId?: string) {
-  // Fetch photos for a specific vehicle or all team photos
-  // Subscribe to realtime updates
-  // Return: photos, stats, loading, refetch
-}
+const { photoCountByVehicle } = useVehiclePhotos({ realtime: false });
+
+// In FleetVehicleCard rendering:
+<FleetVehicleCard
+  vehicle={vehicle}
+  photoCount={photoCountByVehicle[vehicle.id] || 0}
+  // ... other props
+/>
 ```
 
 ---
 
-## Step 9: Create usePhotoReviewQueue Hook
+### 4. Add VehiclePhotoManager to PhotoHubTab
 
-**New File:** `src/hooks/usePhotoReviewQueue.ts`
+**File:** `src/components/photos/PhotoHubTab.tsx`
 
-Manages the unmatched photo queue:
-
-```tsx
-export function usePhotoReviewQueue() {
-  // Fetch unmatched photos with status='pending'
-  // Return: queue, matchPhoto, skipPhoto, rejectPhoto, loading
-}
-```
+Add an expandable section to browse photos by vehicle:
+- List of vehicles with photo counts
+- Click to expand and show VehiclePhotoManager inline
+- Quick access to upload more photos per vehicle
 
 ---
 
-## Step 10: Update Types and Exports
+### 5. Integrate with Vehicle Details Dialog
 
-**File:** `src/components/photos/index.ts`
+**File:** `src/components/dialogs/VehicleImageDialog.tsx`
 
-Export all new components:
-
-```tsx
-export { PhotoHubTab } from './PhotoHubTab';
-export { BulkUploadModal } from './BulkUploadModal';
-export { PhotoReviewQueue } from './PhotoReviewQueue';
-export { VehiclePhotoManager } from './VehiclePhotoManager';
-export { PhotoCard } from './PhotoCard';
-```
+Replace static image preview with VehiclePhotoManager:
+- Show full photo gallery for the vehicle
+- Allow setting hero photo
+- Enable photo management directly from vehicle details
 
 ---
 
-## Step 11: Cleanup usePhotoAnalysis.ts
+### 6. Cleanup Type Assertions
 
 **File:** `src/components/photos/usePhotoAnalysis.ts`
 
-Remove `as any` type assertions now that database types are generated.
+Remove all `as any` type assertions now that database types are generated. The types file should now include `vehicle_photos` and `unmatched_photos` table definitions.
+
+**Lines to update:**
+- Line 98, 106: Remove `as any` from insert objects
+- Line 127: Remove `as any` from insert objects  
+- Line 202, 220: Remove `as any` from insert objects
+- Line 292, 306, 319, 360: Remove `as any` from update operations
+
+---
+
+### 7. Export VehiclePhotoManager
+
+**File:** `src/components/photos/index.ts`
+
+Add export for the new component:
+
+```tsx
+export { VehiclePhotoManager } from './VehiclePhotoManager';
+```
 
 ---
 
@@ -218,67 +142,53 @@ Remove `as any` type assertions now that database types are generated.
 
 | File | Action | Purpose |
 |------|--------|---------|
-| `src/components/fleet/FleetPageEnhanced.tsx` | Modify | Add ModuleTabs with Fleet/Photos tabs |
-| `src/components/photos/PhotoHubTab.tsx` | Create | Main Photo Hub container |
-| `src/components/photos/BulkUploadModal.tsx` | Create | Drag-and-drop batch upload |
-| `src/components/photos/PhotoReviewQueue.tsx` | Create | Match unmatched photos |
-| `src/components/photos/VehiclePhotoManager.tsx` | Create | Per-vehicle photo grid |
-| `src/components/photos/PhotoCard.tsx` | Create | Reusable photo display |
+| `src/components/photos/VehiclePhotoManager.tsx` | Create | Per-vehicle photo grid with management |
 | `src/components/fleet/FleetVehicleCard.tsx` | Modify | Add photo count badge |
-| `src/hooks/useVehiclePhotos.ts` | Create | Photo data fetching |
-| `src/hooks/usePhotoReviewQueue.ts` | Create | Review queue management |
-| `src/components/photos/index.ts` | Modify | Export new components |
+| `src/components/fleet/FleetPageEnhanced.tsx` | Modify | Wire photo counts to cards |
+| `src/components/photos/PhotoHubTab.tsx` | Modify | Add vehicle browser section |
+| `src/components/dialogs/VehicleImageDialog.tsx` | Modify | Integrate photo manager |
 | `src/components/photos/usePhotoAnalysis.ts` | Modify | Remove type assertions |
+| `src/components/photos/index.ts` | Modify | Export new component |
 
 ---
 
-## UI/UX Design Decisions
+## UI/UX Details
 
-### Photo Hub Stats Section
-- Card grid showing: Total Photos, Vehicles with Photos, Missing Hero Photos, Pending Review
-- Action buttons: "Bulk Upload" and "Review Queue" (with badge count)
+### VehiclePhotoManager Layout
 
-### Bulk Upload Modal
-- Full-screen on mobile, large modal on desktop (like InspectionWidget)
-- Shows real-time upload progress with AI analysis results
-- Final summary with "Go to Review Queue" CTA for unmatched photos
+```text
+┌─────────────────────────────────────────────────┐
+│ ★ Hero Photo (large, full width)                │
+│ ┌─────────────────────────────────────────────┐ │
+│ │                                             │ │
+│ │              [Hero Image]                   │ │
+│ │                                             │ │
+│ └─────────────────────────────────────────────┘ │
+│                                                 │
+│ Coverage: 7/11 shots ████████░░░                │
+│                                                 │
+│ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐            │
+│ │ Ext  │ │ Ext  │ │ Int  │ │ Dtl  │ [+ Add]   │
+│ └──────┘ └──────┘ └──────┘ └──────┘            │
+│                                                 │
+│ Missing: Engine Bay, Right Side                 │
+└─────────────────────────────────────────────────┘
+```
 
-### Review Queue
-- Toggle between "Single" and "Batch" modes
-- Single mode: Large photo preview with vehicle suggestions
-- Batch mode: Grid with quick-select checkboxes and bulk assign
-
-### Photo Coverage Indicator
-- Format: `8/11` with tooltip showing which shots are missing
-- Color coding: Green (8+), Yellow (5-7), Red (0-4)
-- Uses `RECOMMENDED_ANGLES` from types.ts as reference
-
----
-
-## Technical Considerations
-
-1. **Performance:** Lazy load images in grid views, use intersection observer
-2. **Realtime:** Consider enabling realtime on `unmatched_photos` for multi-user teams
-3. **Mobile:** Touch-friendly review queue, swipe gestures for single-photo mode
-4. **Accessibility:** Keyboard navigation in review queue, proper ARIA labels
-5. **Error Handling:** Graceful degradation if AI analysis fails
+### Photo Coverage Badge Colors
+- Green (8+): Excellent coverage
+- Amber (4-7): Good, some missing
+- Gray (0-3): Needs attention
 
 ---
 
 ## Implementation Order
 
-1. **Phase 1 (Core):**
-   - FleetPageEnhanced tabs refactor
-   - PhotoHubTab with basic stats
-   - BulkUploadModal (using existing usePhotoAnalysis)
+1. Create `VehiclePhotoManager.tsx` component
+2. Add photo count badge to `FleetVehicleCard.tsx`
+3. Wire counts in `FleetPageEnhanced.tsx`
+4. Add vehicle browser to `PhotoHubTab.tsx`
+5. Update `VehicleImageDialog.tsx` integration
+6. Clean up type assertions in `usePhotoAnalysis.ts`
+7. Update exports in `index.ts`
 
-2. **Phase 2 (Review):**
-   - PhotoReviewQueue (single mode first)
-   - usePhotoReviewQueue hook
-   - PhotoCard component
-
-3. **Phase 3 (Polish):**
-   - VehiclePhotoManager
-   - Photo count on FleetVehicleCard
-   - Batch review mode
-   - Type cleanup
