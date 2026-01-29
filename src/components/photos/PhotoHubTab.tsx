@@ -144,7 +144,7 @@ export const PhotoHubTab = ({ vehicles, loading: vehiclesLoading }: PhotoHubTabP
         <StatCard
           title="Vehicles with Photos"
           value={stats.vehiclesWithPhotos}
-          subtitle={`of ${vehicles.length} vehicles`}
+          subtitle={`${stats.vehiclesWithPhotos} of ${vehicles.length} vehicles`}
           icon={Car}
           loading={loading}
           highlight={stats.vehiclesWithPhotos === vehicles.length}
@@ -152,7 +152,7 @@ export const PhotoHubTab = ({ vehicles, loading: vehiclesLoading }: PhotoHubTabP
         <StatCard
           title="Hero Photos"
           value={stats.heroPhotos}
-          subtitle={`${vehicles.length - stats.heroPhotos} missing`}
+          subtitle={stats.heroPhotos === vehicles.length ? 'All set!' : `${vehicles.length - stats.heroPhotos} missing`}
           icon={Star}
           loading={loading}
           warning={stats.heroPhotos < vehicles.length}

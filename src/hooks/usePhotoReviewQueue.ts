@@ -29,6 +29,14 @@ interface UsePhotoReviewQueueOptions {
   realtime?: boolean;
 }
 
+export interface BatchOperationProgress {
+  current: number;
+  total: number;
+  status: 'matching' | 'rejecting' | 'complete' | 'error';
+  successCount: number;
+  failCount: number;
+}
+
 export function usePhotoReviewQueue(options: UsePhotoReviewQueueOptions = {}) {
   const { realtime = true } = options;
   const { user } = useAuth();
@@ -36,6 +44,7 @@ export function usePhotoReviewQueue(options: UsePhotoReviewQueueOptions = {}) {
   const [queue, setQueue] = useState<UnmatchedPhotoRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [batchProgress, setBatchProgress] = useState<BatchOperationProgress | null>(null);
 
   const fetchQueue = useCallback(async () => {
     if (!user) return;
@@ -183,16 +192,128 @@ export function usePhotoReviewQueue(options: UsePhotoReviewQueueOptions = {}) {
   }, [user]);
 
   /**
-   * Batch match multiple photos to a vehicle
+   * Batch match multiple photos to a vehicle with progress tracking
    */
   const batchMatchPhotos = useCallback(async (
     photoIds: string[],
     vehicleId: string
-  ): Promise<void> => {
-    for (const photoId of photoIds) {
-      await matchPhoto(photoId, vehicleId);
+  ): Promise<{ success: number; failed: number }> => {
+    const total = photoIds.length;
+    let successCount = 0;
+    let failCount = 0;
+
+    setBatchProgress({
+      current: 0,
+      total,
+      status: 'matching',
+      successCount: 0,
+      failCount: 0,
+    });
+
+    // Process in chunks of 5 for better performance
+    const chunkSize = 5;
+    for (let i = 0; i < photoIds.length; i += chunkSize) {
+      const chunk = photoIds.slice(i, i + chunkSize);
+      
+      const results = await Promise.allSettled(
+        chunk.map(photoId => matchPhoto(photoId, vehicleId))
+      );
+
+      results.forEach(result => {
+        if (result.status === 'fulfilled') {
+          successCount++;
+        } else {
+          failCount++;
+        }
+      });
+
+      setBatchProgress({
+        current: Math.min(i + chunkSize, total),
+        total,
+        status: 'matching',
+        successCount,
+        failCount,
+      });
     }
+
+    setBatchProgress({
+      current: total,
+      total,
+      status: 'complete',
+      successCount,
+      failCount,
+    });
+
+    // Clear progress after a delay
+    setTimeout(() => setBatchProgress(null), 2000);
+
+    return { success: successCount, failed: failCount };
   }, [matchPhoto]);
+
+  /**
+   * Batch reject multiple photos with progress tracking
+   */
+  const batchRejectPhotos = useCallback(async (
+    photoIds: string[]
+  ): Promise<{ success: number; failed: number }> => {
+    const total = photoIds.length;
+    let successCount = 0;
+    let failCount = 0;
+
+    setBatchProgress({
+      current: 0,
+      total,
+      status: 'rejecting',
+      successCount: 0,
+      failCount: 0,
+    });
+
+    // Process in chunks of 5 for better performance
+    const chunkSize = 5;
+    for (let i = 0; i < photoIds.length; i += chunkSize) {
+      const chunk = photoIds.slice(i, i + chunkSize);
+      
+      const results = await Promise.allSettled(
+        chunk.map(photoId => rejectPhoto(photoId))
+      );
+
+      results.forEach(result => {
+        if (result.status === 'fulfilled') {
+          successCount++;
+        } else {
+          failCount++;
+        }
+      });
+
+      setBatchProgress({
+        current: Math.min(i + chunkSize, total),
+        total,
+        status: 'rejecting',
+        successCount,
+        failCount,
+      });
+    }
+
+    setBatchProgress({
+      current: total,
+      total,
+      status: 'complete',
+      successCount,
+      failCount,
+    });
+
+    // Clear progress after a delay
+    setTimeout(() => setBatchProgress(null), 2000);
+
+    return { success: successCount, failed: failCount };
+  }, [rejectPhoto]);
+
+  /**
+   * Clear batch progress manually
+   */
+  const clearBatchProgress = useCallback(() => {
+    setBatchProgress(null);
+  }, []);
 
   return {
     queue,
@@ -202,6 +323,9 @@ export function usePhotoReviewQueue(options: UsePhotoReviewQueueOptions = {}) {
     skipPhoto,
     rejectPhoto,
     batchMatchPhotos,
+    batchRejectPhotos,
+    batchProgress,
+    clearBatchProgress,
     refetch: fetchQueue,
     queueCount: queue.length,
   };
