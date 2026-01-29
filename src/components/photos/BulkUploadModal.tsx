@@ -90,18 +90,30 @@ export const BulkUploadModal = ({
     },
   });
 
+  const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
-    const droppedFiles = Array.from(e.dataTransfer.files).filter(
-      f => f.type.startsWith('image/')
-    );
+    const droppedFiles = Array.from(e.dataTransfer.files).filter(f => {
+      if (!f.type.startsWith('image/')) return false;
+      if (f.size > MAX_FILE_SIZE) {
+        console.warn(`${f.name} exceeds 50MB limit and was not added`);
+        return false;
+      }
+      return true;
+    });
     setFiles(prev => [...prev, ...droppedFiles]);
   }, []);
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = Array.from(e.target.files || []).filter(
-      f => f.type.startsWith('image/')
-    );
+    const selectedFiles = Array.from(e.target.files || []).filter(f => {
+      if (!f.type.startsWith('image/')) return false;
+      if (f.size > MAX_FILE_SIZE) {
+        console.warn(`${f.name} exceeds 50MB limit and was not added`);
+        return false;
+      }
+      return true;
+    });
     setFiles(prev => [...prev, ...selectedFiles]);
   }, []);
 
@@ -214,7 +226,7 @@ export const BulkUploadModal = ({
                   <div>
                     <p className="font-medium">Drop photos here or click to browse</p>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Supports JPG, PNG, WEBP • Max 10MB per file
+                      Supports JPG, PNG, WEBP • Max 50MB per file
                     </p>
                   </div>
                 </label>
@@ -307,7 +319,7 @@ export const BulkUploadModal = ({
                     <AnimatePresence mode="popLayout">
                       {uploadProgress.map((item, index) => (
                         <motion.div
-                          key={item.file.name}
+                          key={`${item.file.name}-${index}`}
                           initial={{ opacity: 0, x: -10 }}
                           animate={{ opacity: 1, x: 0 }}
                           className="flex items-center gap-3 p-2 rounded-md bg-muted/50"
