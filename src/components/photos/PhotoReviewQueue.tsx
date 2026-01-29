@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,6 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Progress } from '@/components/ui/progress';
 import {
   Select,
   SelectContent,
@@ -26,6 +28,8 @@ import {
   ChevronRight,
   LayoutGrid,
   Rows3,
+  CheckSquare,
+  Square,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePhotoReviewQueue } from '@/hooks/usePhotoReviewQueue';
@@ -47,12 +51,26 @@ interface PhotoReviewQueueProps {
 type ViewMode = 'single' | 'batch';
 
 export const PhotoReviewQueue = ({ vehicles }: PhotoReviewQueueProps) => {
-  const { queue, loading, matchPhoto, skipPhoto, rejectPhoto } = usePhotoReviewQueue();
+  const { 
+    queue, 
+    loading, 
+    matchPhoto, 
+    skipPhoto, 
+    rejectPhoto,
+    batchMatchPhotos,
+    batchRejectPhotos,
+    batchProgress,
+  } = usePhotoReviewQueue();
+  
   const [viewMode, setViewMode] = useState<ViewMode>('single');
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>('');
   const [vehicleSearch, setVehicleSearch] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  
+  // Batch mode state
+  const [selectedPhotoIds, setSelectedPhotoIds] = useState<Set<string>>(new Set());
+  const [batchVehicleId, setBatchVehicleId] = useState<string>('');
 
   // Filter vehicles by search
   const filteredVehicles = vehicles.filter(v => 
@@ -62,6 +80,46 @@ export const PhotoReviewQueue = ({ vehicles }: PhotoReviewQueueProps) => {
   );
 
   const currentPhoto = queue[currentIndex];
+
+  // Batch selection helpers
+  const allSelected = useMemo(() => 
+    queue.length > 0 && selectedPhotoIds.size === queue.length,
+    [queue.length, selectedPhotoIds.size]
+  );
+
+  const someSelected = useMemo(() => 
+    selectedPhotoIds.size > 0 && selectedPhotoIds.size < queue.length,
+    [queue.length, selectedPhotoIds.size]
+  );
+
+  const toggleSelectAll = useCallback(() => {
+    if (allSelected) {
+      setSelectedPhotoIds(new Set());
+    } else {
+      setSelectedPhotoIds(new Set(queue.map(p => p.id)));
+    }
+  }, [allSelected, queue]);
+
+  const togglePhotoSelection = useCallback((photoId: string) => {
+    setSelectedPhotoIds(prev => {
+      const next = new Set(prev);
+      if (next.has(photoId)) {
+        next.delete(photoId);
+      } else {
+        next.add(photoId);
+      }
+      return next;
+    });
+  }, []);
+
+  // Clear selection when switching modes
+  const handleViewModeChange = useCallback((mode: ViewMode) => {
+    setViewMode(mode);
+    if (mode === 'single') {
+      setSelectedPhotoIds(new Set());
+      setBatchVehicleId('');
+    }
+  }, []);
 
   const handleMatch = useCallback(async () => {
     if (!currentPhoto || !selectedVehicleId) {
@@ -108,12 +166,62 @@ export const PhotoReviewQueue = ({ vehicles }: PhotoReviewQueueProps) => {
     }
   }, [currentPhoto, rejectPhoto, currentIndex, queue.length]);
 
+  // Batch operations
+  const handleBatchMatch = useCallback(async () => {
+    if (selectedPhotoIds.size === 0 || !batchVehicleId) {
+      toast.error('Select photos and a vehicle');
+      return;
+    }
+
+    try {
+      setIsProcessing(true);
+      const result = await batchMatchPhotos(Array.from(selectedPhotoIds), batchVehicleId);
+      
+      if (result.failed > 0) {
+        toast.warning(`Matched ${result.success} photos, ${result.failed} failed`);
+      } else {
+        toast.success(`Matched ${result.success} photos to vehicle`);
+      }
+      
+      setSelectedPhotoIds(new Set());
+      setBatchVehicleId('');
+    } catch (error) {
+      toast.error('Batch match failed');
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [selectedPhotoIds, batchVehicleId, batchMatchPhotos]);
+
+  const handleBatchReject = useCallback(async () => {
+    if (selectedPhotoIds.size === 0) {
+      toast.error('Select photos to reject');
+      return;
+    }
+
+    try {
+      setIsProcessing(true);
+      const result = await batchRejectPhotos(Array.from(selectedPhotoIds));
+      
+      if (result.failed > 0) {
+        toast.warning(`Rejected ${result.success} photos, ${result.failed} failed`);
+      } else {
+        toast.success(`Rejected ${result.success} photos`);
+      }
+      
+      setSelectedPhotoIds(new Set());
+    } catch (error) {
+      toast.error('Batch reject failed');
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [selectedPhotoIds, batchRejectPhotos]);
+
   const goToNext = () => setCurrentIndex(prev => Math.min(prev + 1, queue.length - 1));
   const goToPrev = () => setCurrentIndex(prev => Math.max(prev - 1, 0));
 
   // Keyboard navigation
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (isProcessing) return;
+    if (isProcessing || viewMode === 'batch') return;
     
     switch (e.key) {
       case 'ArrowLeft':
@@ -129,7 +237,7 @@ export const PhotoReviewQueue = ({ vehicles }: PhotoReviewQueueProps) => {
         handleSkip();
         break;
     }
-  }, [selectedVehicleId, handleMatch, handleSkip, isProcessing]);
+  }, [selectedVehicleId, handleMatch, handleSkip, isProcessing, viewMode]);
 
   if (loading) {
     return (
@@ -174,7 +282,7 @@ export const PhotoReviewQueue = ({ vehicles }: PhotoReviewQueueProps) => {
           <Button
             variant={viewMode === 'single' ? 'default' : 'outline'}
             size="sm"
-            onClick={() => setViewMode('single')}
+            onClick={() => handleViewModeChange('single')}
           >
             <Rows3 className="h-4 w-4 mr-1" />
             Single
@@ -182,13 +290,42 @@ export const PhotoReviewQueue = ({ vehicles }: PhotoReviewQueueProps) => {
           <Button
             variant={viewMode === 'batch' ? 'default' : 'outline'}
             size="sm"
-            onClick={() => setViewMode('batch')}
+            onClick={() => handleViewModeChange('batch')}
           >
             <LayoutGrid className="h-4 w-4 mr-1" />
             Batch
           </Button>
         </div>
       </div>
+
+      {/* Batch Progress Indicator */}
+      {batchProgress && (
+        <Card className="border-primary/50 bg-primary/5">
+          <CardContent className="py-4">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-medium">
+                  {batchProgress.status === 'matching' ? 'Matching' : 
+                   batchProgress.status === 'rejecting' ? 'Rejecting' : 'Complete'}...
+                </span>
+                <span className="text-muted-foreground">
+                  {batchProgress.current} of {batchProgress.total}
+                </span>
+              </div>
+              <Progress 
+                value={(batchProgress.current / batchProgress.total) * 100} 
+                className="h-2"
+              />
+              {batchProgress.status === 'complete' && (
+                <p className="text-xs text-muted-foreground">
+                  ✓ {batchProgress.successCount} successful
+                  {batchProgress.failCount > 0 && `, ${batchProgress.failCount} failed`}
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {viewMode === 'single' ? (
         <div className="grid md:grid-cols-2 gap-6">
@@ -365,40 +502,150 @@ export const PhotoReviewQueue = ({ vehicles }: PhotoReviewQueueProps) => {
         </div>
       ) : (
         /* Batch Mode */
-        <Card>
-          <CardContent className="p-4">
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-              {queue.map((photo, index) => (
-                <motion.div
-                  key={photo.id}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: index * 0.05 }}
-                  className={cn(
-                    'relative aspect-square rounded-lg overflow-hidden cursor-pointer border-2 transition-colors',
-                    currentIndex === index ? 'border-primary' : 'border-transparent hover:border-muted-foreground/30'
-                  )}
-                  onClick={() => {
-                    setCurrentIndex(index);
-                    setViewMode('single');
-                  }}
-                >
-                  <img
-                    src={photo.url}
-                    alt={photo.original_filename || 'Photo'}
-                    className="w-full h-full object-cover"
-                    loading="lazy"
-                  />
-                  <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-2">
-                    <p className="text-white text-xs truncate">
-                      {photo.suggested_make || 'Unknown vehicle'}
-                    </p>
+        <div className="space-y-4">
+          {/* Batch Actions Bar */}
+          <Card>
+            <CardContent className="py-4">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                {/* Select All */}
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={toggleSelectAll}
+                    className="flex items-center gap-2 text-sm font-medium hover:text-primary transition-colors"
+                  >
+                    {allSelected ? (
+                      <CheckSquare className="h-5 w-5 text-primary" />
+                    ) : someSelected ? (
+                      <div className="h-5 w-5 border-2 border-primary rounded flex items-center justify-center">
+                        <div className="h-2 w-2 bg-primary rounded-sm" />
+                      </div>
+                    ) : (
+                      <Square className="h-5 w-5 text-muted-foreground" />
+                    )}
+                    <span>
+                      {allSelected ? 'Deselect All' : 'Select All'}
+                    </span>
+                  </button>
+                  <Badge variant="secondary" className="text-xs">
+                    {selectedPhotoIds.size} of {queue.length} selected
+                  </Badge>
+                </div>
+
+                {/* Vehicle Selector and Actions */}
+                <div className="flex-1 flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-end">
+                  <Select 
+                    value={batchVehicleId} 
+                    onValueChange={setBatchVehicleId}
+                    disabled={selectedPhotoIds.size === 0}
+                  >
+                    <SelectTrigger className="w-full sm:w-[250px]">
+                      <SelectValue placeholder="Select vehicle to match..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {vehicles.map(vehicle => (
+                        <SelectItem key={vehicle.id} value={vehicle.id}>
+                          <div className="flex items-center gap-2">
+                            <Car className="h-4 w-4" />
+                            <span>{vehicle.name}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={handleBatchMatch}
+                      disabled={selectedPhotoIds.size === 0 || !batchVehicleId || isProcessing}
+                      className="flex-1 sm:flex-none"
+                    >
+                      {isProcessing ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Check className="h-4 w-4 mr-2" />
+                      )}
+                      Match {selectedPhotoIds.size > 0 ? selectedPhotoIds.size : ''} Selected
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={handleBatchReject}
+                      disabled={selectedPhotoIds.size === 0 || isProcessing}
+                    >
+                      <X className="h-4 w-4 sm:mr-2" />
+                      <span className="hidden sm:inline">Reject</span>
+                    </Button>
                   </div>
-                </motion.div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Photo Grid */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                {queue.map((photo, index) => {
+                  const isSelected = selectedPhotoIds.has(photo.id);
+                  
+                  return (
+                    <motion.div
+                      key={photo.id}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: index * 0.02 }}
+                      className={cn(
+                        'relative aspect-square rounded-lg overflow-hidden cursor-pointer border-2 transition-all',
+                        isSelected 
+                          ? 'border-primary ring-2 ring-primary/20' 
+                          : 'border-transparent hover:border-muted-foreground/30'
+                      )}
+                      onClick={() => togglePhotoSelection(photo.id)}
+                    >
+                      <img
+                        src={photo.url}
+                        alt={photo.original_filename || 'Photo'}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                      
+                      {/* Checkbox Overlay */}
+                      <div className="absolute top-2 left-2">
+                        <div className={cn(
+                          'h-6 w-6 rounded border-2 flex items-center justify-center transition-colors',
+                          isSelected 
+                            ? 'bg-primary border-primary' 
+                            : 'bg-background/80 border-muted-foreground/50 backdrop-blur-sm'
+                        )}>
+                          {isSelected && <Check className="h-4 w-4 text-primary-foreground" />}
+                        </div>
+                      </div>
+
+                      {/* AI Suggestion Badge */}
+                      {photo.suggested_make && (
+                        <div className="absolute top-2 right-2">
+                          <Badge 
+                            variant="secondary" 
+                            className="text-[10px] bg-background/80 backdrop-blur-sm"
+                          >
+                            <Sparkles className="h-3 w-3 mr-1" />
+                            {Math.round(photo.suggestion_confidence * 100)}%
+                          </Badge>
+                        </div>
+                      )}
+
+                      {/* Info Overlay */}
+                      <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-2">
+                        <p className="text-white text-xs truncate">
+                          {photo.suggested_make || 'Unknown vehicle'}
+                        </p>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       )}
     </div>
   );
