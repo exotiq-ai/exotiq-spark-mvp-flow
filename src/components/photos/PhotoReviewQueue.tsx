@@ -388,7 +388,7 @@ export const PhotoReviewQueue = ({ vehicles }: PhotoReviewQueueProps) => {
                   </div>
                   <div>
                     <span className="text-muted-foreground">Confidence: </span>
-                    <span>{Math.round(currentPhoto.suggestion_confidence * 100)}%</span>
+                    <span>{Math.round(currentPhoto.suggestion_confidence)}%</span>
                   </div>
                   {currentPhoto.suggested_make && (
                     <div className="col-span-2">
@@ -628,7 +628,7 @@ export const PhotoReviewQueue = ({ vehicles }: PhotoReviewQueueProps) => {
                             className="text-[10px] bg-background/80 backdrop-blur-sm"
                           >
                             <Sparkles className="h-3 w-3 mr-1" />
-                            {Math.round(photo.suggestion_confidence * 100)}%
+                            {Math.round(photo.suggestion_confidence)}%
                           </Badge>
                         </div>
                       )}
