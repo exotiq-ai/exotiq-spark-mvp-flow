@@ -1,131 +1,141 @@
 
-# Photo Hub Upload Fix Plan
+# Photo Hub Review Queue Enhancement Plan
 
-## Issues Identified
-
-### Issue 1: Storage Bucket File Size Limit (CRITICAL)
-The `vehicle-photos` bucket has a **5 MB file size limit**, but:
-- The UI tells users "Max 10MB per file" - this is incorrect
-- User's photos are larger than 5MB, causing ALL uploads to fail with "Payload too large"
-
-**Solution:** Increase the bucket's file size limit to at least 20MB (or 50MB for high-res photos)
-
-### Issue 2: Duplicate React Keys (WARNING)
-In `BulkUploadModal.tsx` line 310:
-```tsx
-key={item.file.name}  // Duplicate filenames cause React errors
-```
-
-The user has two files with identical names ("Gregory - Tortilla Flats (Full Size)-48.jpg"), causing the React warning:
-> "Encountered two children with the same key"
-
-**Solution:** Use a unique key that combines filename with index
-
-### Issue 3: Inconsistent Error Handling
-When storage upload fails, the error isn't being surfaced clearly - files show as "Pending" but with 0% progress and "1 Failed" in summary.
+## Summary
+The Review Queue's "Batch" mode is incomplete - it currently shows a photo grid but lacks selection functionality. We need to add:
+1. Multi-select capability with checkboxes
+2. "Select All" button for batch operations
+3. Vehicle selector for batch matching
+4. Improved stats display showing total vehicles
 
 ---
 
-## Implementation
+## What We're Building
 
-### Step 1: Increase Storage Bucket File Size Limit (Backend)
-Run SQL migration to update the bucket configuration:
+### Current Batch Mode
+- Shows photos in a grid
+- Clicking a photo goes to single-view mode
+- No way to select multiple photos
 
-```sql
-UPDATE storage.buckets 
-SET file_size_limit = 52428800  -- 50 MB
-WHERE name = 'vehicle-photos';
+### Enhanced Batch Mode
+- Checkboxes on each photo for selection
+- "Select All" / "Deselect All" toggle
+- Vehicle selector dropdown for batch assignment
+- "Match All Selected" button
+- Progress indicator during batch operation
+- Selection counter showing "X of Y selected"
+
+---
+
+## Implementation Details
+
+### 1. PhotoReviewQueue.tsx - Add Multi-Select Batch Mode
+
+**New State Variables:**
+```text
+selectedPhotoIds: string[]     - Track selected photo IDs
+batchVehicleId: string         - Vehicle to match batch to
+isBatchProcessing: boolean     - Loading state for batch ops
 ```
 
-### Step 2: Fix Duplicate Key Issue (Frontend)
-Update `BulkUploadModal.tsx` line 310:
-
-```tsx
-// Before
-key={item.file.name}
-
-// After - use unique key with index
-key={`${item.file.name}-${index}`}
+**New UI Elements in Batch Mode:**
+```text
+┌────────────────────────────────────────────────────────┐
+│  Review Queue                       [Single] [Batch]   │
+├────────────────────────────────────────────────────────┤
+│  ☑ Select All (12 selected of 24)                      │
+│  ┌────────────────────────────────────────────────┐    │
+│  │ Vehicle: [ Select vehicle to match... ▼ ]      │    │
+│  │ [ Match 12 Selected Photos ]                   │    │
+│  └────────────────────────────────────────────────┘    │
+├────────────────────────────────────────────────────────┤
+│  ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐              │
+│  │ ☑   │ │ ☑   │ │ ☐   │ │ ☑   │ │ ☐   │              │
+│  │ img │ │ img │ │ img │ │ img │ │ img │              │
+│  └─────┘ └─────┘ └─────┘ └─────┘ └─────┘              │
+│  ...                                                   │
+└────────────────────────────────────────────────────────┘
 ```
 
-### Step 3: Update UI File Size Messaging
-Update `BulkUploadModal.tsx` line 217 to match the actual limit:
+**Batch Actions Bar:**
+- Select All / Deselect All checkbox
+- Selection counter ("12 of 24 selected")
+- Vehicle dropdown selector
+- "Match Selected" button (disabled until vehicle selected)
+- "Reject Selected" button for non-vehicle photos
 
-```tsx
-// After increasing limit
-<p className="text-sm text-muted-foreground mt-1">
-  Supports JPG, PNG, WEBP • Max 50MB per file
-</p>
-```
+### 2. Enhanced Photo Cards in Batch Mode
 
-### Step 4: Add Client-Side File Size Validation (Optional Enhancement)
-Add pre-upload validation to catch oversized files before they hit the server:
+Each photo in batch mode will have:
+- Checkbox overlay in top-left corner
+- Visual selected state (border highlight)
+- Click toggles selection (not navigation)
+- AI suggestion badge visible
 
-```tsx
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+### 3. Stats Improvements in PhotoHubTab
 
-const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-  const selectedFiles = Array.from(e.target.files || []).filter(f => {
-    if (!f.type.startsWith('image/')) return false;
-    if (f.size > MAX_FILE_SIZE) {
-      toast.error(`${f.name} exceeds 50MB limit`);
-      return false;
-    }
-    return true;
-  });
-  setFiles(prev => [...prev, ...selectedFiles]);
-}, []);
-```
+Update the stats display to be clearer:
+- "Vehicles with Photos: 5 of 12" - explicit total
+- Add tooltip explaining what stats mean
+- Ensure stats refresh after batch operations
 
-### Step 5: Improve Error Messages
-Update `usePhotoAnalysis.ts` to provide clearer error messages for storage failures:
+### 4. Hook Integration
 
-```tsx
-} catch (error) {
-  let errorMessage = 'Upload failed';
-  if (error instanceof Error) {
-    if (error.message.includes('Payload too large') || 
-        error.message.includes('exceeded the maximum')) {
-      errorMessage = 'File too large - max 50MB';
-    } else {
-      errorMessage = error.message;
-    }
+The `batchMatchPhotos` function already exists in `usePhotoReviewQueue`:
+```typescript
+const batchMatchPhotos = useCallback(async (
+  photoIds: string[],
+  vehicleId: string
+): Promise<void> => {
+  for (const photoId of photoIds) {
+    await matchPhoto(photoId, vehicleId);
   }
-  // ... use errorMessage in progress update
-}
+}, [matchPhoto]);
 ```
 
----
-
-## Files to Modify
-
-| File | Change | Priority |
-|------|--------|----------|
-| Database migration | Increase bucket file_size_limit to 50MB | Critical |
-| `src/components/photos/BulkUploadModal.tsx` | Fix duplicate key issue | High |
-| `src/components/photos/BulkUploadModal.tsx` | Update file size messaging | High |
-| `src/components/photos/BulkUploadModal.tsx` | Add client-side size validation | Medium |
-| `src/components/photos/usePhotoAnalysis.ts` | Better error messages | Low |
+We'll add progress callback support for better UX.
 
 ---
 
-## Verification Steps
+## File Changes
 
-After fixes:
-1. Upload a large photo (10-20MB) - should succeed
-2. Upload multiple photos with same filename - no React warnings
-3. Upload oversized file (>50MB) - should show clear error before upload
-4. Check console - no duplicate key warnings
+| File | Changes |
+|------|---------|
+| `src/components/photos/PhotoReviewQueue.tsx` | Add selection state, batch action bar, checkbox overlays, batch processing UI |
+| `src/hooks/usePhotoReviewQueue.ts` | Add batch reject, progress callback for batch operations |
+| `src/components/photos/PhotoHubTab.tsx` | Improve stats display to show "X of Y vehicles" |
 
 ---
 
-## Technical Details
+## User Flow After Changes
 
-### Current Bucket Configuration
-- **file_size_limit:** 5,242,880 bytes (5 MB)
-- **allowed_mime_types:** image/jpeg, image/png, image/webp, image/heic
-- **public:** false (correct)
+1. User uploads 50 photos → goes to Review Queue
+2. Switches to "Batch" mode
+3. Clicks "Select All" → all 50 photos selected
+4. Chooses vehicle from dropdown (e.g., "2024 Lamborghini Huracan")
+5. Clicks "Match 50 Selected Photos"
+6. Progress bar shows matching in progress
+7. Optionally, AI flags photos that don't match the selected vehicle's make/color
+8. Matched photos removed from queue
+9. User returns to Photo Hub → sees updated stats
 
-### Recommended Bucket Configuration
-- **file_size_limit:** 52,428,800 bytes (50 MB)
-- Keeps same MIME types and privacy settings
+---
+
+## Technical Notes
+
+### Selection Logic
+- Track by photo ID in Set for O(1) lookups
+- "Select All" adds all current queue IDs
+- Individual toggle adds/removes from set
+- Clear selection when switching to single mode
+
+### Batch Processing
+- Show progress: "Matching 5 of 50..."
+- Handle partial failures gracefully
+- Toast summary: "45 matched, 5 failed"
+- Auto-refresh queue after completion
+
+### Performance
+- Batch operations process in parallel (up to 5 concurrent)
+- Chunked processing for large batches
+- Optimistic UI updates where possible
