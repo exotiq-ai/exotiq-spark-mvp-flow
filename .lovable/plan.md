@@ -1,305 +1,124 @@
 
+# Fix: Hero Photo Enhancement - Stack Overflow Error
 
-# Photo Hub Comprehensive Review & Enhancement Plan
+## Problem Identified
 
-## Your Questions Answered
+The `enhance-hero-photo` edge function crashes with **"Maximum call stack size exceeded"** when processing vehicle photos.
 
-### 1. AI Make/Model Detection - Is it Real or Made Up?
+### Root Cause
 
-**Reality Check**: The Google Cloud Vision API **CAN** detect car makes, but it's **limited to well-known luxury brands** and is **not highly accurate for models**.
-
-From the edge function code (lines 274-292):
-```javascript
-const makes = ['ferrari', 'lamborghini', 'porsche', 'mercedes', 'bmw', 
-  'audi', 'mclaren', 'aston martin', 'bentley', 'rolls-royce', 
-  'maserati', 'bugatti', 'pagani', 'koenigsegg'];
-```
-
-**What this means:**
-- Vision API looks for these brand names in detected labels
-- Works well for distinctive cars (Ferrari red, Lamborghini angles)
-- Doesn't detect models (720S vs 765LT)
-- Misses non-luxury brands (Honda, Toyota, Ford)
-- User verification is ALWAYS required
-
-**Recommendation**: Keep AI as a "hint" but never auto-assign. The current flow of sending to Review Queue for confirmation is correct.
-
----
-
-### 2. "Add New Vehicle" Button in Photo Hub
-
-**Current State**: No way to add a new vehicle FROM the Photo Hub. Users must:
-1. Go to Fleet module
-2. Click "Add Vehicle" button
-3. Fill out form manually
-4. Then come back to Photo Hub to upload photos
-
-**Your Insight is Correct** - This is a friction point! When uploading photos and the AI says "This looks like a red Ferrari", the user should be able to:
-- Create the vehicle right there
-- Have AI pre-fill make/color
-- Complete the process in one flow
-
----
-
-### 3. PhotoRoom Hero Enhancement - Current Status
-
-**Edge Function Exists**: `supabase/functions/enhance-hero-photo/index.ts`  
-**API Key Configured**: `PHOTOROOM_API_KEY` is in secrets  
-**UI Integration**: NOT IMPLEMENTED YET
-
-The function removes the background and replaces it with:
-- White background (default)
-- Gradient background  
-- Transparent background
-
-This is Phase 2 functionality that was built but never wired to the UI.
-
----
-
-## Comprehensive User Flow Review
-
-### Flow A: Upload Photos for Existing Vehicle (WORKING)
-
-```text
-Photo Hub → Bulk Upload → Select Vehicle → Upload → AI Analyzes
-                                              ↓
-                                    Photos saved to vehicle_photos
-                                    (Correct DB, correct mapping)
-```
-
-**Status**: Works correctly.
-
----
-
-### Flow B: Upload Photos with Auto-Detect (WORKING)
-
-```text
-Photo Hub → Bulk Upload → "Auto-detect" → Upload → AI Analyzes
-                                              ↓
-                                    Photos go to unmatched_photos
-                                              ↓
-                                    Review Queue → Match to Vehicle
-                                              ↓
-                                    Moved to vehicle_photos table
-```
-
-**Status**: Works correctly. Stats refresh was fixed in recent updates.
-
----
-
-### Flow C: Add New Vehicle + Photos (MISSING)
-
-```text
-Photo Hub → [No Option Currently] → ???
-```
-
-**Needed Flow:**
-```text
-Photo Hub → "+ Add New Vehicle" → Upload Photo(s) FIRST
-                                              ↓
-                                    AI Analyzes → Suggests Make/Color
-                                              ↓
-                                    Pre-filled Vehicle Form appears
-                                    (User confirms/edits details)
-                                              ↓
-                                    Vehicle created + Photos attached
-                                              ↓
-                                    Both in correct DB tables
-```
-
----
-
-### Flow D: Update Photos for Existing Vehicle (PARTIALLY WORKING)
-
-**Current Flow:**
-```text
-Photo Hub → Vehicle Card → VehiclePhotoManager → Add More → Upload
-                                              ↓
-                                    New photos added alongside existing
-```
-
-**Missing Features:**
-- No "Replace Photo" option (delete + add)
-- No "Replace by Angle" workflow (e.g., "Replace all front shots")
-- No bulk replace capability
-- No way to see which angles to prioritize for replacement
-
----
-
-### Flow E: Hero Photo Enhancement (NOT IMPLEMENTED)
-
-```text
-VehiclePhotoManager → Set as Hero → [Should trigger enhancement]
-                                              ↓
-                                    Call enhance-hero-photo function
-                                              ↓
-                                    Store enhanced_url in vehicle_photos
-                                              ↓
-                                    Show enhanced version on listings
-```
-
-**Status**: Edge function exists but UI doesn't call it.
-
----
-
-## Proposed Implementation Plan
-
-### Phase 1: "Add New Vehicle" from Photo Hub
-
-**Add a prominent button in Photo Hub when:**
-- No vehicle is selected during upload
-- AI couldn't match the photo
-- User explicitly wants to add a new car
-
-**New Component: `AddVehicleFromPhotoWizard.tsx`**
-
-A multi-step wizard:
-
-```text
-Step 1: Upload Photo(s)
-   ┌────────────────────────────┐
-   │    [Drop Zone]             │
-   │    AI will pre-fill        │
-   │    vehicle details         │
-   └────────────────────────────┘
-
-Step 2: AI Analysis (Auto)
-   ┌────────────────────────────┐
-   │  Detected: Red sports car  │
-   │  Make: Ferrari (80%)       │
-   │  Type: Coupe               │
-   │  Processing...             │
-   └────────────────────────────┘
-
-Step 3: Vehicle Details (Pre-filled)
-   ┌────────────────────────────┐
-   │  Name: [Ferrari _______ ]  │
-   │  Make: [Ferrari       ▼]   │  ← Pre-filled from AI
-   │  Model: [_____________ ]   │  ← User must enter
-   │  Year:  [2024          ]   │
-   │  Color: [Red          ▼]   │  ← Pre-filled from AI
-   │  Rate:  [$______/day   ]   │
-   └────────────────────────────┘
-
-Step 4: Photo Assignment
-   ┌────────────────────────────┐
-   │  ☑ Set as Hero Photo       │
-   │  Photo Type: Exterior ▼    │
-   │  [Upload More] [Done]      │
-   └────────────────────────────┘
-```
-
-**Files to Create:**
-- `src/components/photos/AddVehicleFromPhotoWizard.tsx`
-- Integrate into `PhotoHubTab.tsx` and `BulkUploadModal.tsx`
-
----
-
-### Phase 2: Hero Photo Enhancement Integration
-
-**Add "Enhance" button to hero photos:**
-
+**Line 131** in `supabase/functions/enhance-hero-photo/index.ts`:
 ```typescript
-// In VehiclePhotoManager.tsx, after setting as hero:
-const handleEnhanceHero = async (photoId: string) => {
-  const { data } = await supabase.functions.invoke('enhance-hero-photo', {
-    body: { 
-      imageUrl: photoUrl,
-      photoId: photoId,
-      background: 'white'  // or user choice
-    }
+const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+```
+
+This code uses the spread operator (`...`) to pass every byte of the image as a separate argument to `String.fromCharCode()`. For a typical 2-3MB vehicle photo, this means spreading 2-3 million arguments, which instantly exceeds JavaScript's call stack limit.
+
+### Evidence from Logs
+```
+RangeError: Maximum call stack size exceeded
+    at Server.<anonymous> (...enhance-hero-photo/index.ts:105:32)
+```
+
+The error points to line 105 in the compiled version, which corresponds to the base64 conversion logic.
+
+---
+
+## Solution
+
+Replace the problematic base64 encoding with Deno's standard library `base64Encode` function, which handles large binary data properly by processing it in chunks.
+
+### Before (Broken)
+```typescript
+const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+```
+
+### After (Fixed)
+```typescript
+import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
+
+// ... in the handler:
+const base64 = base64Encode(arrayBuffer);
+```
+
+This pattern is already used successfully in the `elevenlabs-session` function.
+
+---
+
+## Additional Improvements
+
+While fixing this, I'll also make the enhancement flow more robust:
+
+### 1. Better Error Messages
+Add specific error messages for common failure scenarios (file too large, network timeout, PhotoRoom API issues).
+
+### 2. Option to Upload Enhanced Image to Storage
+Currently, the enhanced image is returned as a base64 data URI, which can be very large (3-5MB for high-res photos). Consider uploading to Supabase Storage instead and returning a proper URL.
+
+### 3. Processing Size Limit
+Add a file size check to prevent processing extremely large images that might still cause issues.
+
+---
+
+## Implementation Plan
+
+### File: `supabase/functions/enhance-hero-photo/index.ts`
+
+**Changes:**
+
+1. **Line 2** - Add import for Deno's base64 encoder:
+```typescript
+import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
+```
+
+2. **Line 131** - Replace the broken base64 conversion:
+```typescript
+// BEFORE:
+const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+
+// AFTER:
+const base64 = base64Encode(arrayBuffer);
+```
+
+3. **Add file size validation** - Before processing, check if the image is too large:
+```typescript
+if (imageBlob.size > 15 * 1024 * 1024) { // 15MB limit
+  throw new Error('Image too large for enhancement. Maximum size is 15MB.');
+}
+```
+
+4. **Optional: Upload to Storage instead of base64 return** - For better performance and to avoid large payloads:
+```typescript
+// Upload enhanced image to storage bucket
+const fileName = `enhanced/${photoId}_${Date.now()}.${outputFormat}`;
+const { data: uploadData, error: uploadError } = await supabase
+  .storage
+  .from('vehicle-photos')
+  .upload(fileName, enhancedBlob, {
+    contentType: mimeType,
+    upsert: true
   });
-  
-  if (data.success) {
-    // Update photo record with enhanced_url
-    await supabase.from('vehicle_photos')
-      .update({ 
-        enhanced_url: data.enhancedUrl,
-        is_enhanced: true,
-        enhanced_at: new Date().toISOString()
-      })
-      .eq('id', photoId);
-  }
-};
+
+if (uploadError) throw uploadError;
+
+const { data: urlData } = supabase.storage
+  .from('vehicle-photos')
+  .getPublicUrl(fileName);
+
+const enhancedUrl = urlData.publicUrl;
 ```
 
-**UI Enhancement:**
-```text
-Hero Photo Card
-┌─────────────────────────────────────┐
-│  [Hero Photo Image]                 │
-│                                     │
-│  ★ Hero Photo                       │
-│  ┌──────────┐ ┌──────────────────┐  │
-│  │ Original │ │ Enhance with AI  │  │
-│  └──────────┘ └──────────────────┘  │
-│                                     │
-│  Background: [White ▼]              │
-└─────────────────────────────────────┘
-```
-
-**Best Practices for Hero Enhancement:**
-1. Only enhance AFTER user confirms the hero selection
-2. Keep original file - enhancement is a separate URL
-3. Let user preview before saving
-4. Offer background options (white, transparent, gradient)
-5. Show processing time estimate (~3-5 seconds)
-6. Store both URLs so user can revert
-
 ---
 
-### Phase 3: Photo Replacement Flow
+## Summary
 
-**Add to VehiclePhotoManager:**
+| Change | Impact |
+|--------|--------|
+| Fix base64 encoding | Eliminates stack overflow error |
+| Add file size check | Prevents processing files too large for PhotoRoom |
+| Upload to storage (optional) | Reduces response payload size, faster UI updates |
 
-1. **"Replace" action on each photo thumbnail**
-   - Opens file picker
-   - Uploads new photo
-   - Deletes old photo after successful upload
-   - Maintains display_order
+### Files to Modify
+- `supabase/functions/enhance-hero-photo/index.ts`
 
-2. **"Replace All" bulk option**
-   - For re-shooting an entire vehicle
-   - Archives old photos (optional)
-   - Starts fresh with new batch
-
-3. **"Update Missing Angles" smart feature**
-   - Shows which angles are missing
-   - Opens upload modal pre-filtered to those angles
-   - AI validates new uploads match intended angles
-
----
-
-## Files to Modify
-
-| File | Changes |
-|------|---------|
-| `src/components/photos/PhotoHubTab.tsx` | Add "New Vehicle" button, integrate wizard |
-| `src/components/photos/BulkUploadModal.tsx` | Add "Create New Vehicle" option when no match |
-| `src/components/photos/VehiclePhotoManager.tsx` | Add "Enhance Hero", "Replace Photo" actions |
-| `src/components/photos/AddVehicleFromPhotoWizard.tsx` | NEW - multi-step wizard component |
-| `src/components/photos/HeroEnhancementPreview.tsx` | NEW - preview/confirm enhancement UI |
-| `src/hooks/useVehiclePhotos.ts` | Add enhanceHeroPhoto, replacePhoto functions |
-
----
-
-## Database Verification
-
-**Confirmed Correct:**
-- `vehicle_photos` table has proper schema
-- `unmatched_photos` table works for queue
-- Foreign keys to `vehicles` table are correct
-- RLS policies allow team-based access
-
-**No DB changes needed** - existing schema supports all proposed features.
-
----
-
-## Summary of Recommendations
-
-1. **AI Make Detection**: Keep as suggestion only, never auto-assign
-2. **Add Vehicle Flow**: Build wizard that goes Photo → AI Analysis → Pre-filled Form
-3. **PhotoRoom Enhancement**: Wire up existing edge function to UI with preview
-4. **Photo Replacement**: Add replace/update actions to photo cards
-5. **Coverage Guidance**: Show missing angles and guide users to complete sets
-
+This is a one-file fix that will make the hero enhancement feature work properly. The UI component (`HeroEnhancementPreview.tsx`) is already correctly implemented and doesn't need changes.
