@@ -1,211 +1,247 @@
 
-# Comprehensive Review: Dashboard Cleanup & Hero Photo Integration
+# Review & Implementation Plan: Onboarding CRM Enterprise Readiness
 
-## Executive Summary
+## Document Accuracy Assessment
 
-I've completed a thorough review of both backend and frontend architecture. Here are my findings and the prioritized improvements:
+### What's Correct
+- **`src/hooks/useDemoAccount.ts`**: Well-implemented hook with good documentation
+- **`src/lib/importDuplicateCheck.ts`**: Enterprise-grade with batch queries, proper normalization
+- **`src/components/dashboard/RealAIInsights.tsx`**: Correctly uses existing hooks, handles all edge cases
+- **`src/components/import/DuplicateResolver.tsx`**: Clean UI with side-by-side comparison
+- **`src/contexts/TeamContext.tsx`**: Properly includes `is_demo_account` in Team interface
+- **`src/pages/Onboarding.tsx`**: Step 3 choice screen is well-designed
+
+### Issues Found
+
+**1. Database Schema - `is_demo_account` column missing**
+The `teams` table doesn't have the `is_demo_account` column yet. Current columns:
+```
+id, name, owner_id, slug, logo_url, timezone, settings, 
+is_deleted, deleted_at, deleted_by, deletion_scheduled_for, 
+created_at, updated_at
+```
+
+**2. Build Errors in Edge Functions**
+Multiple TypeScript errors in `elevenlabs-tools` and `rari-mcp-server` (pre-existing, unrelated to this feature):
+- Type casting issues with `Uint8Array`
+- Missing type annotations on callback parameters
+- `.catch()` method misuse on Supabase queries
+
+**3. Photo Import - Incomplete Integration**
+The current "Add from Photos" option just shows a toast. Per your preference, we need to integrate `AddVehicleFromPhotoWizard` directly.
+
+**4. Insight Persistence - Not Implemented**
+Per your preference to persist insights, `RealAIInsights` needs to save generated insights to `rari_insights` table.
+
+**5. Post-Import Navigation - Not Implemented**
+Per your preference, after bulk import in onboarding, users should navigate to Fleet module, not continue onboarding.
 
 ---
 
-## Part 1: Critical Issue - Hero Photo Not Replacing Vehicle Thumbnail
+## Implementation Plan
 
-### Current Problem
+### Phase 1: Database Migration (Priority)
 
-When you select a hero photo for a vehicle (like the Audi S8), that photo should become the primary image displayed throughout the app. **Currently, this doesn't happen.**
+Add `is_demo_account` column to `teams` table:
 
-### Root Cause Analysis
+```sql
+-- Add demo account flag
+ALTER TABLE teams ADD COLUMN IF NOT EXISTS is_demo_account BOOLEAN DEFAULT false;
 
-The `VehicleThumbnail` component uses a **static image mapping** that only looks up pre-bundled assets:
+-- Set demo account for hello@exotiq.ai
+UPDATE teams 
+SET is_demo_account = true 
+WHERE id = (
+  SELECT tm.team_id 
+  FROM team_members tm
+  JOIN profiles p ON p.id = tm.user_id
+  WHERE LOWER(p.email) = 'hello@exotiq.ai'
+  AND tm.is_active = true
+  LIMIT 1
+);
+```
+
+### Phase 2: Integrate AddVehicleFromPhotoWizard into Onboarding
+
+Update `src/pages/Onboarding.tsx`:
+1. Import `AddVehicleFromPhotoWizard` component
+2. Add dialog state for photo wizard
+3. Replace the toast with actual dialog integration
+4. Handle completion callback to advance to step 4
+
+```text
+Files to modify:
+- src/pages/Onboarding.tsx (add photo wizard dialog integration)
+```
+
+### Phase 3: Integrate Duplicate Detection into ImportWizard
+
+Update `src/components/import/ImportWizard.tsx`:
+1. Add `'duplicates'` step between `'preview'` and `'import'`
+2. Import duplicate checking utilities
+3. After validation, check for duplicates
+4. If duplicates found, show `DuplicateResolver` component
+5. Apply resolutions before performing import
+
+```text
+Files to modify:
+- src/components/import/ImportWizard.tsx (add duplicate step)
+```
+
+### Phase 4: Insight Persistence to Database
+
+Update `src/components/dashboard/RealAIInsights.tsx`:
+1. After generating insights, save new ones to `rari_insights` table
+2. Check for existing insights with same `internal_id` to avoid duplicates
+3. Mark insights as `is_read` when user takes action
+4. Add mutation for dismissing insights
+
+```text
+Files to modify:
+- src/components/dashboard/RealAIInsights.tsx (add persistence)
+```
+
+### Phase 5: Replace Hardcoded Data in Core.tsx
+
+Update `src/components/dashboard/Core.tsx`:
+1. Replace hardcoded `aiInsights` array with `RealAIInsights` component
+2. Replace hardcoded `systemAlerts` with real notifications from database
+3. Replace hardcoded `performanceMetrics` with calculated values
+
+```text
+Files to modify:
+- src/components/dashboard/Core.tsx (integrate real data)
+```
+
+### Phase 6: Calculate Real Growth Percentages
+
+Update growth calculations in:
+- `src/components/dashboard/CRMSection.tsx` - customer growth
+- `src/components/dashboard/PaymentTracker.tsx` - payment growth
+- `src/components/dashboard/MotorIQEnhanced.tsx` - revenue data
+
+```text
+Files to modify:
+- src/components/dashboard/CRMSection.tsx
+- src/components/dashboard/PaymentTracker.tsx
+- src/components/dashboard/MotorIQEnhanced.tsx
+```
+
+### Phase 7: Post-Import Navigation to Fleet
+
+Update import completion handling:
+1. In `Onboarding.tsx`, after import completes, navigate to `/dashboard?tab=fleet`
+2. In `ImportWizard.tsx`, add navigation helper
+
+```text
+Files to modify:
+- src/pages/Onboarding.tsx (navigate to fleet after import)
+```
+
+### Phase 8: Fix Edge Function Build Errors
+
+Fix TypeScript errors in:
+- `supabase/functions/elevenlabs-session/index.ts`
+- `supabase/functions/elevenlabs-tools/index.ts`
+- `supabase/functions/rari-mcp-server/index.ts`
+- `supabase/functions/rari-universal-query/index.ts`
+
+These are mostly type annotation issues on callback parameters and proper casting.
+
+---
+
+## Technical Details
+
+### Duplicate Detection Flow
+
+```text
+Preview Step → Duplicate Check → Resolution Step (if needed) → Import
+
+If duplicates found:
+┌─────────────────────────────────────┐
+│ DuplicateResolver Component         │
+├─────────────────────────────────────┤
+│ Apply to all: [Skip] [Overwrite] [Merge] │
+├─────────────────────────────────────┤
+│ Row 2: VIN ABC123 matches existing  │
+│ ○ Skip  ○ Overwrite  ○ Merge        │
+│ [Compare values ▼]                  │
+├─────────────────────────────────────┤
+│ Row 5: Email john@... matches       │
+│ ○ Skip  ○ Overwrite  ○ Merge        │
+└─────────────────────────────────────┘
+```
+
+### Insight Persistence Schema
 
 ```typescript
-// src/lib/vehicleImageMapping.ts
-export const getVehicleImage = (vehicleName: string): string | undefined => {
-  return vehicleImageMap[vehicleName];  // Only checks static assets!
+// New insights saved to rari_insights table
+{
+  user_id: user.id,
+  team_id: currentTeam?.id,
+  insight_type: insight.type,       // 'pricing' | 'utilization' | etc.
+  priority: insight.priority,       // 'high' | 'medium' | 'low'
+  title: insight.title,
+  description: insight.description,
+  related_entity_type: 'vehicle' | 'customer',
+  related_entity_id: insight.vehicleId || insight.customerId,
+  metadata: { confidence: insight.confidence, impact: insight.impact },
+  expires_at: // 24 hours from now (insights refresh daily)
+}
+```
+
+### Growth Calculation Pattern
+
+```typescript
+// Reusable growth calculation
+const calculateGrowth = (items: { created_at: string }[], days: number = 30) => {
+  const now = new Date();
+  const periodEnd = new Date(now);
+  const periodStart = new Date(now.setDate(now.getDate() - days));
+  const prevPeriodStart = new Date(periodStart);
+  prevPeriodStart.setDate(prevPeriodStart.getDate() - days);
+  
+  const current = items.filter(i => 
+    new Date(i.created_at) >= periodStart && new Date(i.created_at) < periodEnd
+  ).length;
+  
+  const previous = items.filter(i => 
+    new Date(i.created_at) >= prevPeriodStart && new Date(i.created_at) < periodStart
+  ).length;
+  
+  if (previous === 0) return current > 0 ? 100 : null;
+  return Math.round(((current - previous) / previous) * 100);
 };
 ```
 
-It never checks:
-1. The `vehicles.image_url` database column
-2. The `vehicle_photos` table for hero photos
-3. The enhanced hero URL from PhotoRoom
+---
 
-### Database Evidence
+## Files Summary
 
-The Audi S8 has:
-- **Hero photo set**: ✅ (`vehicle_photos` table shows `photo_type: 'hero'`)
-- **Enhanced URL**: ✅ (PhotoRoom processed successfully)
-- **But `vehicles.image_url`**: Still points to `/src/assets/vehicles/audi-s8-plus.jpg` (static asset)
+### New/Already Created by Cursor
+| File | Status |
+|------|--------|
+| `src/hooks/useDemoAccount.ts` | Done |
+| `src/lib/importDuplicateCheck.ts` | Done |
+| `src/components/dashboard/RealAIInsights.tsx` | Done |
+| `src/components/import/DuplicateResolver.tsx` | Done |
 
-### The Fix
-
-Create a **cascading image resolution** system:
-
-```text
-Priority Order:
-1. Hero photo enhanced_url (PhotoRoom processed)
-2. Hero photo url (original uploaded photo)
-3. vehicles.image_url (database field)
-4. Static asset mapping (fallback for demo data)
-5. Car icon (final fallback)
-```
-
-### Implementation Plan
-
-**File: `src/lib/vehicleImageMapping.ts`**
-- Add new async function `getVehicleHeroImage(vehicleId, vehicleName)` 
-- Returns enhanced hero URL → hero URL → static fallback
-
-**File: `src/components/common/VehicleThumbnail.tsx`**
-- Add optional `vehicleId` and `heroUrl` props
-- Prioritize `heroUrl` over static mapping when provided
-
-**File: `src/hooks/useVehiclePhotos.ts`**
-- Export a `useVehicleHeroImage(vehicleId)` hook for easy integration
-
-**File: `src/components/photos/usePhotoAnalysis.ts`**
-- After setting hero, update `vehicles.image_url` with the hero photo URL
-- This ensures the hero propagates to all vehicle cards
+### To Be Modified
+| File | Change |
+|------|--------|
+| Database migration | Add `is_demo_account` column |
+| `src/pages/Onboarding.tsx` | Add photo wizard integration + fleet navigation |
+| `src/components/import/ImportWizard.tsx` | Add duplicate detection step |
+| `src/components/dashboard/RealAIInsights.tsx` | Add persistence to database |
+| `src/components/dashboard/Core.tsx` | Replace hardcoded data |
+| `src/components/dashboard/CRMSection.tsx` | Calculate real growth |
+| `src/components/dashboard/PaymentTracker.tsx` | Calculate real growth |
+| `src/components/dashboard/MotorIQEnhanced.tsx` | Use real revenue |
+| `supabase/functions/elevenlabs-*.ts` | Fix TypeScript errors |
 
 ---
 
-## Part 2: Dashboard Cleanup Opportunities
-
-### A. Redundant Components
-
-| Component | Issue | Recommendation |
-|-----------|-------|----------------|
-| `LocationContextBanner` | Rendered twice (Dashboard.tsx + DashboardOverviewEnhanced.tsx) | Remove duplicate from DashboardOverviewEnhanced |
-| `QuickActionsWidget.tsx` | Not used anywhere | Delete file |
-| `ModuleGridWidget.tsx` | Not used anywhere | Delete file |
-| `MetricsWidget.tsx` | Superseded by `CompactMetricsBar` | Delete file |
-| `AIInsightWidget.tsx` | Superseded by `CompactAIInsightBanner` | Delete file |
-
-### B. Dashboard Layout Improvements
-
-**Current Issues:**
-- "Fleet Status & Schedule" section is collapsed by default, hiding useful info
-- Module navigation cards at bottom get less visibility than they deserve
-- Revenue widget dominates the view (good, but could be more compact)
-
-**Suggested Improvements:**
-1. Keep "Fleet Status & Schedule" expanded by default for returning users
-2. Make module cards more visually distinct with subtle gradients
-3. Add visual indicator when hero photos are missing for vehicles
-
-### C. Code Organization
-
-**Files to consolidate:**
-- `src/components/dashboard/widgets/` has 10 files but only 4 are actively used
-- Consider creating an `index.ts` barrel export for cleaner imports
-
----
-
-## Part 3: Backend Improvements
-
-### A. Hero Photo Sync (Priority)
-
-When a hero photo is set or enhanced, the system should:
-
-1. Update `vehicle_photos.photo_type = 'hero'` ✅ (already happens)
-2. **NEW**: Update `vehicles.image_url` with the hero photo URL
-3. **NEW**: Clear previous hero's `photo_type` (trigger exists but needs verification)
-
-```sql
--- Proposed trigger enhancement
-CREATE OR REPLACE FUNCTION sync_hero_to_vehicle()
-RETURNS TRIGGER AS $$
-BEGIN
-  IF NEW.photo_type = 'hero' THEN
-    UPDATE vehicles 
-    SET image_url = COALESCE(NEW.enhanced_url, NEW.url)
-    WHERE id = NEW.vehicle_id;
-  END IF;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-```
-
-### B. Database Function Exists But Unused
-
-There's a `get_vehicle_hero_photo(p_vehicle_id uuid)` function in the database that's not being called anywhere in the frontend. This function already:
-- Returns enhanced_url if available
-- Falls back to regular URL
-- Falls back to first visible photo
-
-**Recommendation:** Use this function via RPC call instead of reinventing the logic.
-
-### C. Storage Path Consistency
-
-Enhanced photos are currently stored at:
-```
-vehicle-photos/enhanced/{photoId}_{timestamp}.png
-```
-
-But original photos use:
-```
-vehicle-photos/{userId}/vehicles/{vehicleId}/{filename}
-```
-
-**Recommendation:** Align enhanced photo paths for easier cleanup:
-```
-vehicle-photos/{userId}/vehicles/{vehicleId}/enhanced/{photoId}.png
-```
-
----
-
-## Part 4: Specific Implementation Steps
-
-### Step 1: Fix Hero Photo Display (Priority)
-
-1. **Modify `VehicleThumbnail.tsx`**:
-   - Add optional `imageUrl` prop that takes precedence
-   - Allow passing the hero URL directly from parent
-
-2. **Modify `setAsHero` function**:
-   - After setting `photo_type = 'hero'`, also update `vehicles.image_url`
-
-3. **Add database trigger**:
-   - Automatically sync hero photo URL to `vehicles.image_url`
-
-### Step 2: Dashboard Cleanup
-
-1. Delete unused widget files
-2. Remove duplicate `LocationContextBanner`
-3. Persist "Fleet Status & Schedule" expanded state
-
-### Step 3: Backend Optimization
-
-1. Use existing `get_vehicle_hero_photo` function
-2. Add trigger to sync hero URL to vehicles table
-3. Standardize storage paths
-
----
-
-## Files to Modify
-
-| File | Changes |
-|------|---------|
-| `src/components/common/VehicleThumbnail.tsx` | Add `imageUrl` prop for direct URL support |
-| `src/components/photos/usePhotoAnalysis.ts` | Update `vehicles.image_url` when setting hero |
-| `src/components/dashboard/DashboardOverviewEnhanced.tsx` | Remove duplicate LocationContextBanner |
-| `src/components/fleet/FleetVehicleCard.tsx` | Pass hero URL to VehicleThumbnail |
-| Database migration | Add trigger to sync hero photo to vehicles table |
-
-## Files to Delete (Cleanup)
-
-- `src/components/dashboard/widgets/QuickActionsWidget.tsx`
-- `src/components/dashboard/widgets/ModuleGridWidget.tsx`
-- `src/components/dashboard/widgets/MetricsWidget.tsx`
-- `src/components/dashboard/widgets/AIInsightWidget.tsx`
-
----
-
-## Summary
-
-The **#1 priority** is fixing the hero photo integration so that when you select a hero image, it appears as the thumbnail everywhere in the app. This requires:
-
-1. A small change to how `VehicleThumbnail` resolves images
-2. Updating `vehicles.image_url` when a hero is set
-3. A database trigger to keep things in sync automatically
-
-The dashboard cleanup is secondary but will improve maintainability by removing 4 unused widget files.
+## Questions Resolved
+- **Photo Import**: Will integrate `AddVehicleFromPhotoWizard` directly in onboarding
+- **Insight Storage**: Will persist to `rari_insights` table
+- **Post-Import Navigation**: Will navigate to Fleet module after bulk import
