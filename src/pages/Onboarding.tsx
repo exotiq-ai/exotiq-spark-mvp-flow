@@ -29,10 +29,16 @@ import {
   Globe,
   Phone,
   Mail,
-  MapPin
+  MapPin,
+  Upload,
+  Camera,
+  FileSpreadsheet
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useTeam } from '@/contexts/TeamContext';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { ImportWizard } from '@/components/import/ImportWizard';
+import { Badge } from '@/components/ui/badge';
 
 interface OnboardingFormData {
   companyName: string;
@@ -80,6 +86,10 @@ export default function Onboarding() {
   const [model, setModel] = useState('');
   const [year, setYear] = useState('');
   const [dailyRate, setDailyRate] = useState('');
+
+  // Step 3 mode: 'choice' | 'manual' | 'import'
+  const [step3Mode, setStep3Mode] = useState<'choice' | 'manual'>('choice');
+  const [showImportDialog, setShowImportDialog] = useState(false);
 
   // Set email from auth
   useEffect(() => {
@@ -643,10 +653,117 @@ export default function Onboarding() {
               </motion.div>
             )}
 
-            {/* Step 3: Add First Vehicle (skip in edit mode) */}
-            {step === 3 && !isEditMode && (
+            {/* Step 3: Add Fleet - Choice or Manual Entry */}
+            {step === 3 && !isEditMode && step3Mode === 'choice' && (
               <motion.div
-                key="step3"
+                key="step3-choice"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="space-y-6"
+              >
+                <div className="text-center">
+                  <Car className="w-16 h-16 mx-auto mb-4 text-primary" />
+                  <h2 className="text-2xl font-bold mb-2">Add Your Fleet</h2>
+                  <p className="text-muted-foreground">
+                    How would you like to add your vehicles?
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Bulk Import Option */}
+                  <Card 
+                    className="p-6 cursor-pointer hover:border-primary hover:bg-primary/5 transition-all group"
+                    onClick={() => setShowImportDialog(true)}
+                  >
+                    <div className="text-center">
+                      <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4 group-hover:bg-primary/20 transition-colors">
+                        <FileSpreadsheet className="w-7 h-7 text-primary" />
+                      </div>
+                      <h3 className="font-semibold mb-2">Bulk Import</h3>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        Upload a CSV or Excel file with your fleet data
+                      </p>
+                      <Badge className="bg-primary/10 text-primary border-primary/20">
+                        Recommended
+                      </Badge>
+                    </div>
+                  </Card>
+
+                  {/* Single Vehicle Option */}
+                  <Card 
+                    className="p-6 cursor-pointer hover:border-primary hover:bg-primary/5 transition-all group"
+                    onClick={() => setStep3Mode('manual')}
+                  >
+                    <div className="text-center">
+                      <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center mx-auto mb-4 group-hover:bg-muted/80 transition-colors">
+                        <Car className="w-7 h-7 text-muted-foreground" />
+                      </div>
+                      <h3 className="font-semibold mb-2">Add Manually</h3>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        Enter vehicle details one at a time
+                      </p>
+                      <Badge variant="outline" className="opacity-0">
+                        Placeholder
+                      </Badge>
+                    </div>
+                  </Card>
+                </div>
+
+                {/* Add from Photos - Premium Option */}
+                <Card 
+                  className="p-5 cursor-pointer hover:border-accent transition-all bg-gradient-to-r from-accent/5 to-primary/5 border-accent/20"
+                  onClick={() => {
+                    // Navigate to photo upload after onboarding
+                    toast({
+                      title: "Photo Import",
+                      description: "Complete setup first, then use Photo Hub to add vehicles from photos.",
+                    });
+                  }}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center flex-shrink-0">
+                      <Camera className="w-6 h-6 text-accent" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold mb-1 flex items-center gap-2">
+                        Add from Photos
+                        <Sparkles className="w-4 h-4 text-accent" />
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        Upload vehicle photos — AI extracts make, model, and details
+                      </p>
+                    </div>
+                  </div>
+                </Card>
+
+                <div className="flex flex-col gap-3 pt-2">
+                  <Button
+                    variant="ghost"
+                    onClick={handleSkipVehicle}
+                    disabled={loading}
+                    className="w-full text-muted-foreground hover:text-foreground"
+                  >
+                    Skip for now — I'll add vehicles later
+                  </Button>
+
+                  <Button
+                    variant="ghost"
+                    onClick={handleBack}
+                    disabled={loading}
+                    className="w-full text-muted-foreground hover:text-foreground"
+                  >
+                    <ArrowLeft className="w-4 h-4 mr-2" />
+                    Back
+                  </Button>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Step 3: Manual Vehicle Entry */}
+            {step === 3 && !isEditMode && step3Mode === 'manual' && (
+              <motion.div
+                key="step3-manual"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
@@ -746,12 +863,12 @@ export default function Onboarding() {
 
                   <Button
                     variant="ghost"
-                    onClick={handleBack}
+                    onClick={() => setStep3Mode('choice')}
                     disabled={loading}
                     className="w-full text-muted-foreground hover:text-foreground"
                   >
                     <ArrowLeft className="w-4 h-4 mr-2" />
-                    Back
+                    Back to options
                   </Button>
                 </div>
               </motion.div>
@@ -831,6 +948,31 @@ export default function Onboarding() {
           </AnimatePresence>
         </Card>
       </motion.div>
+
+      {/* Bulk Import Dialog */}
+      <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Import Your Fleet</DialogTitle>
+            <DialogDescription>
+              Upload your vehicle data from a CSV or Excel file
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto">
+            <ImportWizard 
+              onClose={() => setShowImportDialog(false)}
+              onComplete={(entityType, count) => {
+                setShowImportDialog(false);
+                toast({
+                  title: "Import Complete! 🎉",
+                  description: `Successfully imported ${count} ${entityType}. Let's finish setting up your account.`,
+                });
+                setStep(4); // Move to completion step
+              }}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
