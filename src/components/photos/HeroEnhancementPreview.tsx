@@ -259,6 +259,11 @@ export const HeroEnhancementPreview = ({
                       src={enhancedUrl}
                       alt={`${vehicleName} - Enhanced`}
                       className="w-full h-full object-contain"
+                      onError={() => {
+                        console.error('Failed to load enhanced image:', enhancedUrl);
+                        setError('Enhanced image failed to load. Please try again.');
+                        setEnhancedUrl(null);
+                      }}
                     />
                   )}
                 </div>

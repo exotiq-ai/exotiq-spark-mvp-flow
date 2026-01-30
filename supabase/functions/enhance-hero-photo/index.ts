@@ -160,11 +160,16 @@ serve(async (req) => {
         throw new Error(`Failed to upload enhanced image: ${uploadError.message}`);
       }
 
-      const { data: urlData } = serviceClient.storage
+      const { data: signedData, error: signedError } = await serviceClient.storage
         .from('vehicle-photos')
-        .getPublicUrl(fileName);
+        .createSignedUrl(fileName, 60 * 60 * 24 * 365); // 1 year expiry
 
-      enhancedUrl = urlData.publicUrl;
+      if (signedError) {
+        console.error('Signed URL creation error:', signedError);
+        throw new Error(`Failed to create signed URL: ${signedError.message}`);
+      }
+
+      enhancedUrl = signedData.signedUrl;
       console.log(`Enhanced image uploaded to storage: ${fileName}`);
     } else {
       // Fallback to base64 if no photoId (shouldn't happen in normal flow)
