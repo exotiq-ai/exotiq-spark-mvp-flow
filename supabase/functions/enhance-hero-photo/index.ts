@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -85,6 +86,13 @@ serve(async (req) => {
     
     const imageBlob = await imageResponse.blob();
     
+    // File size validation - 15MB limit
+    if (imageBlob.size > 15 * 1024 * 1024) {
+      throw new Error('Image too large for enhancement. Maximum size is 15MB.');
+    }
+    
+    console.log(`Image size: ${(imageBlob.size / 1024 / 1024).toFixed(2)}MB`);
+    
     // Prepare form data for Photoroom API
     const formData = new FormData();
     formData.append('image_file', imageBlob, 'photo.jpg');
@@ -125,19 +133,53 @@ serve(async (req) => {
 
     // Get the enhanced image as blob
     const enhancedBlob = await photoroomResponse.blob();
-    
-    // Convert to base64 for return (or could upload to storage)
-    const arrayBuffer = await enhancedBlob.arrayBuffer();
-    const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
     const mimeType = outputFormat === 'png' ? 'image/png' : 'image/jpeg';
-    const enhancedDataUri = `data:${mimeType};base64,${base64}`;
+    
+    let enhancedUrl: string;
+    
+    // If photoId provided, upload to storage for better performance
+    if (photoId) {
+      const fileName = `enhanced/${photoId}_${Date.now()}.${outputFormat}`;
+      
+      // Use service role client for storage upload
+      const serviceClient = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+      );
+      
+      const { error: uploadError } = await serviceClient
+        .storage
+        .from('vehicle-photos')
+        .upload(fileName, enhancedBlob, {
+          contentType: mimeType,
+          upsert: true
+        });
+
+      if (uploadError) {
+        console.error('Storage upload error:', uploadError);
+        throw new Error(`Failed to upload enhanced image: ${uploadError.message}`);
+      }
+
+      const { data: urlData } = serviceClient.storage
+        .from('vehicle-photos')
+        .getPublicUrl(fileName);
+
+      enhancedUrl = urlData.publicUrl;
+      console.log(`Enhanced image uploaded to storage: ${fileName}`);
+    } else {
+      // Fallback to base64 if no photoId (shouldn't happen in normal flow)
+      const arrayBuffer = await enhancedBlob.arrayBuffer();
+      const base64 = base64Encode(arrayBuffer);
+      enhancedUrl = `data:${mimeType};base64,${base64}`;
+      console.log('Returning base64 data URI (no photoId provided)');
+    }
 
     const processingTimeMs = Date.now() - startTime;
     console.log(`Hero photo enhanced in ${processingTimeMs}ms`);
 
     const response: EnhancePhotoResponse = {
       success: true,
-      enhancedUrl: enhancedDataUri,
+      enhancedUrl,
       originalUrl: imageUrl,
       processingTimeMs
     };
