@@ -1,117 +1,211 @@
 
-# Fix: Hero Photo Enhancement - Private Bucket URL Issue
+# Comprehensive Review: Dashboard Cleanup & Hero Photo Integration
 
-## Root Cause Analysis
+## Executive Summary
 
-I've completed a thorough review of the backend and found the **exact issue** preventing the hero enhancement from working:
-
-### The Problem
-
-**The `vehicle-photos` bucket is PRIVATE**, but the edge function uses `getPublicUrl()` to generate the enhanced image URL.
-
-```sql
--- Current bucket configuration:
-id: 'vehicle-photos'
-public: false  ← PRIVATE BUCKET
-```
-
-When PhotoRoom successfully enhances the image and the edge function uploads it to storage:
-1. Upload succeeds (`Enhanced image uploaded to storage: enhanced/b6bd...`)
-2. `getPublicUrl()` returns a URL like: `https://...supabase.co/storage/v1/object/public/vehicle-photos/enhanced/...`
-3. This URL returns **404** because the bucket is private - only **signed URLs** work for private buckets
-
-### Evidence from Logs & Network
-
-**Edge function logs show success:**
-```
-2026-01-30T00:09:03Z INFO Enhanced image uploaded to storage: enhanced/b6bddef8-...
-2026-01-30T00:09:03Z INFO Hero photo enhanced in 2809ms
-```
-
-**But client shows 404:**
-```
-Failed to load resource: the server responded with a status of 404 ()
-```
-
-The URL `https://...supabase.co/storage/v1/object/public/vehicle-photos/enhanced/...` doesn't work because `/object/public/` requires a public bucket.
+I've completed a thorough review of both backend and frontend architecture. Here are my findings and the prioritized improvements:
 
 ---
 
-## The Fix
+## Part 1: Critical Issue - Hero Photo Not Replacing Vehicle Thumbnail
 
-### Option A: Use Signed URLs (Recommended)
-Keep the bucket private for security, but generate a signed URL instead of a public URL.
+### Current Problem
 
-**Change in `supabase/functions/enhance-hero-photo/index.ts`:**
+When you select a hero photo for a vehicle (like the Audi S8), that photo should become the primary image displayed throughout the app. **Currently, this doesn't happen.**
+
+### Root Cause Analysis
+
+The `VehicleThumbnail` component uses a **static image mapping** that only looks up pre-bundled assets:
 
 ```typescript
-// BEFORE (broken for private bucket):
-const { data: urlData } = serviceClient.storage
-  .from('vehicle-photos')
-  .getPublicUrl(fileName);
-enhancedUrl = urlData.publicUrl;
-
-// AFTER (works for private bucket):
-const { data: signedData, error: signedError } = await serviceClient.storage
-  .from('vehicle-photos')
-  .createSignedUrl(fileName, 60 * 60 * 24 * 365); // 1 year
-
-if (signedError) {
-  throw new Error(`Failed to create signed URL: ${signedError.message}`);
-}
-enhancedUrl = signedData.signedUrl;
+// src/lib/vehicleImageMapping.ts
+export const getVehicleImage = (vehicleName: string): string | undefined => {
+  return vehicleImageMap[vehicleName];  // Only checks static assets!
+};
 ```
 
-This matches the pattern already used successfully in `usePhotoAnalysis.ts` and `AddVehicleFromPhotoWizard.tsx`.
+It never checks:
+1. The `vehicles.image_url` database column
+2. The `vehicle_photos` table for hero photos
+3. The enhanced hero URL from PhotoRoom
 
-### Option B: Make Bucket Public (Not Recommended)
-We could change the bucket to public, but this would expose all vehicle photos to the internet without authentication - not ideal for a fleet management system.
+### Database Evidence
 
----
+The Audi S8 has:
+- **Hero photo set**: ✅ (`vehicle_photos` table shows `photo_type: 'hero'`)
+- **Enhanced URL**: ✅ (PhotoRoom processed successfully)
+- **But `vehicles.image_url`**: Still points to `/src/assets/vehicles/audi-s8-plus.jpg` (static asset)
 
-## Additional Issues Found
+### The Fix
 
-### 1. UI Shows Blank Enhanced Panel
-The console logs show the enhanced image URL returning 404, which causes the `<img>` tag to render nothing. The error isn't being caught properly.
+Create a **cascading image resolution** system:
 
-**Fix:** Add `onError` handler to the enhanced image:
-```tsx
-<motion.img
-  src={enhancedUrl}
-  onError={(e) => {
-    console.error('Failed to load enhanced image:', enhancedUrl);
-    setError('Enhanced image failed to load');
-  }}
-/>
+```text
+Priority Order:
+1. Hero photo enhanced_url (PhotoRoom processed)
+2. Hero photo url (original uploaded photo)
+3. vehicles.image_url (database field)
+4. Static asset mapping (fallback for demo data)
+5. Car icon (final fallback)
 ```
 
-### 2. Stack Overflow - Already Fixed
-The previous "Maximum call stack size exceeded" error was fixed by using `base64Encode` from Deno's standard library. This is now working (confirmed in logs after 00:08:46).
+### Implementation Plan
+
+**File: `src/lib/vehicleImageMapping.ts`**
+- Add new async function `getVehicleHeroImage(vehicleId, vehicleName)` 
+- Returns enhanced hero URL → hero URL → static fallback
+
+**File: `src/components/common/VehicleThumbnail.tsx`**
+- Add optional `vehicleId` and `heroUrl` props
+- Prioritize `heroUrl` over static mapping when provided
+
+**File: `src/hooks/useVehiclePhotos.ts`**
+- Export a `useVehicleHeroImage(vehicleId)` hook for easy integration
+
+**File: `src/components/photos/usePhotoAnalysis.ts`**
+- After setting hero, update `vehicles.image_url` with the hero photo URL
+- This ensures the hero propagates to all vehicle cards
 
 ---
 
-## Implementation Summary
+## Part 2: Dashboard Cleanup Opportunities
 
-| File | Change |
-|------|--------|
-| `supabase/functions/enhance-hero-photo/index.ts` | Replace `getPublicUrl()` with `createSignedUrl()` |
-| `src/components/photos/HeroEnhancementPreview.tsx` | Add `onError` handler for better error feedback |
+### A. Redundant Components
 
-### Technical Details
+| Component | Issue | Recommendation |
+|-----------|-------|----------------|
+| `LocationContextBanner` | Rendered twice (Dashboard.tsx + DashboardOverviewEnhanced.tsx) | Remove duplicate from DashboardOverviewEnhanced |
+| `QuickActionsWidget.tsx` | Not used anywhere | Delete file |
+| `ModuleGridWidget.tsx` | Not used anywhere | Delete file |
+| `MetricsWidget.tsx` | Superseded by `CompactMetricsBar` | Delete file |
+| `AIInsightWidget.tsx` | Superseded by `CompactAIInsightBanner` | Delete file |
 
-The signed URL pattern is already used consistently throughout the codebase:
-- `src/lib/photoUpload.ts` (line 66-68) - 1 hour expiry
-- `src/components/photos/usePhotoAnalysis.ts` (line 44-46) - 1 year expiry  
-- `src/components/photos/AddVehicleFromPhotoWizard.tsx` (line 161-163) - 1 year expiry
+### B. Dashboard Layout Improvements
 
-Using 1-year signed URLs for enhanced photos matches existing patterns and ensures URLs remain valid long-term.
+**Current Issues:**
+- "Fleet Status & Schedule" section is collapsed by default, hiding useful info
+- Module navigation cards at bottom get less visibility than they deserve
+- Revenue widget dominates the view (good, but could be more compact)
+
+**Suggested Improvements:**
+1. Keep "Fleet Status & Schedule" expanded by default for returning users
+2. Make module cards more visually distinct with subtle gradients
+3. Add visual indicator when hero photos are missing for vehicles
+
+### C. Code Organization
+
+**Files to consolidate:**
+- `src/components/dashboard/widgets/` has 10 files but only 4 are actively used
+- Consider creating an `index.ts` barrel export for cleaner imports
 
 ---
 
-## Why This Keeps Breaking
+## Part 3: Backend Improvements
 
-The root issue is a **pattern inconsistency**:
-- Original photos use `createSignedUrl()` (private-compatible)
-- Enhanced photos used `getPublicUrl()` (public-only)
+### A. Hero Photo Sync (Priority)
 
-Both should use the same pattern for a private bucket.
+When a hero photo is set or enhanced, the system should:
+
+1. Update `vehicle_photos.photo_type = 'hero'` ✅ (already happens)
+2. **NEW**: Update `vehicles.image_url` with the hero photo URL
+3. **NEW**: Clear previous hero's `photo_type` (trigger exists but needs verification)
+
+```sql
+-- Proposed trigger enhancement
+CREATE OR REPLACE FUNCTION sync_hero_to_vehicle()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.photo_type = 'hero' THEN
+    UPDATE vehicles 
+    SET image_url = COALESCE(NEW.enhanced_url, NEW.url)
+    WHERE id = NEW.vehicle_id;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+### B. Database Function Exists But Unused
+
+There's a `get_vehicle_hero_photo(p_vehicle_id uuid)` function in the database that's not being called anywhere in the frontend. This function already:
+- Returns enhanced_url if available
+- Falls back to regular URL
+- Falls back to first visible photo
+
+**Recommendation:** Use this function via RPC call instead of reinventing the logic.
+
+### C. Storage Path Consistency
+
+Enhanced photos are currently stored at:
+```
+vehicle-photos/enhanced/{photoId}_{timestamp}.png
+```
+
+But original photos use:
+```
+vehicle-photos/{userId}/vehicles/{vehicleId}/{filename}
+```
+
+**Recommendation:** Align enhanced photo paths for easier cleanup:
+```
+vehicle-photos/{userId}/vehicles/{vehicleId}/enhanced/{photoId}.png
+```
+
+---
+
+## Part 4: Specific Implementation Steps
+
+### Step 1: Fix Hero Photo Display (Priority)
+
+1. **Modify `VehicleThumbnail.tsx`**:
+   - Add optional `imageUrl` prop that takes precedence
+   - Allow passing the hero URL directly from parent
+
+2. **Modify `setAsHero` function**:
+   - After setting `photo_type = 'hero'`, also update `vehicles.image_url`
+
+3. **Add database trigger**:
+   - Automatically sync hero photo URL to `vehicles.image_url`
+
+### Step 2: Dashboard Cleanup
+
+1. Delete unused widget files
+2. Remove duplicate `LocationContextBanner`
+3. Persist "Fleet Status & Schedule" expanded state
+
+### Step 3: Backend Optimization
+
+1. Use existing `get_vehicle_hero_photo` function
+2. Add trigger to sync hero URL to vehicles table
+3. Standardize storage paths
+
+---
+
+## Files to Modify
+
+| File | Changes |
+|------|---------|
+| `src/components/common/VehicleThumbnail.tsx` | Add `imageUrl` prop for direct URL support |
+| `src/components/photos/usePhotoAnalysis.ts` | Update `vehicles.image_url` when setting hero |
+| `src/components/dashboard/DashboardOverviewEnhanced.tsx` | Remove duplicate LocationContextBanner |
+| `src/components/fleet/FleetVehicleCard.tsx` | Pass hero URL to VehicleThumbnail |
+| Database migration | Add trigger to sync hero photo to vehicles table |
+
+## Files to Delete (Cleanup)
+
+- `src/components/dashboard/widgets/QuickActionsWidget.tsx`
+- `src/components/dashboard/widgets/ModuleGridWidget.tsx`
+- `src/components/dashboard/widgets/MetricsWidget.tsx`
+- `src/components/dashboard/widgets/AIInsightWidget.tsx`
+
+---
+
+## Summary
+
+The **#1 priority** is fixing the hero photo integration so that when you select a hero image, it appears as the thumbnail everywhere in the app. This requires:
+
+1. A small change to how `VehicleThumbnail` resolves images
+2. Updating `vehicles.image_url` when a hero is set
+3. A database trigger to keep things in sync automatically
+
+The dashboard cleanup is secondary but will improve maintainability by removing 4 unused widget files.
