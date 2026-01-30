@@ -39,6 +39,7 @@ import { useTeam } from '@/contexts/TeamContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { ImportWizard } from '@/components/import/ImportWizard';
 import { Badge } from '@/components/ui/badge';
+import { AddVehicleFromPhotoWizard } from '@/components/photos/AddVehicleFromPhotoWizard';
 
 interface OnboardingFormData {
   companyName: string;
@@ -87,8 +88,9 @@ export default function Onboarding() {
   const [year, setYear] = useState('');
   const [dailyRate, setDailyRate] = useState('');
 
-  // Step 3 mode: 'choice' | 'manual' | 'import'
+  // Step 3 mode: 'choice' | 'manual'
   const [step3Mode, setStep3Mode] = useState<'choice' | 'manual'>('choice');
+  const [showPhotoWizard, setShowPhotoWizard] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
 
   // Set email from auth
@@ -713,13 +715,7 @@ export default function Onboarding() {
                 {/* Add from Photos - Premium Option */}
                 <Card 
                   className="p-5 cursor-pointer hover:border-accent transition-all bg-gradient-to-r from-accent/5 to-primary/5 border-accent/20"
-                  onClick={() => {
-                    // Navigate to photo upload after onboarding
-                    toast({
-                      title: "Photo Import",
-                      description: "Complete setup first, then use Photo Hub to add vehicles from photos.",
-                    });
-                  }}
+                  onClick={() => setShowPhotoWizard(true)}
                 >
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center flex-shrink-0">
@@ -965,14 +961,30 @@ export default function Onboarding() {
                 setShowImportDialog(false);
                 toast({
                   title: "Import Complete! 🎉",
-                  description: `Successfully imported ${count} ${entityType}. Let's finish setting up your account.`,
+                  description: `Successfully imported ${count} ${entityType}. Taking you to your fleet.`,
                 });
-                setStep(4); // Move to completion step
+                // Navigate to fleet module per user preference
+                navigate('/dashboard?tab=fleet');
               }}
             />
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Photo Wizard Dialog */}
+      <AddVehicleFromPhotoWizard
+        open={showPhotoWizard}
+        onOpenChange={setShowPhotoWizard}
+        onComplete={(vehicleId) => {
+          setShowPhotoWizard(false);
+          toast({
+            title: "Vehicle Added! 🎉",
+            description: "Your vehicle has been created with photos. Taking you to your fleet.",
+          });
+          // Navigate to fleet module per user preference
+          navigate('/dashboard?tab=fleet');
+        }}
+      />
     </div>
   );
 }

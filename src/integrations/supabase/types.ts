@@ -2107,6 +2107,7 @@ export type Database = {
           deletion_scheduled_for: string | null
           id: string
           is_deleted: boolean | null
+          is_demo_account: boolean | null
           logo_url: string | null
           name: string
           owner_id: string
@@ -2122,6 +2123,7 @@ export type Database = {
           deletion_scheduled_for?: string | null
           id?: string
           is_deleted?: boolean | null
+          is_demo_account?: boolean | null
           logo_url?: string | null
           name: string
           owner_id: string
@@ -2137,6 +2139,7 @@ export type Database = {
           deletion_scheduled_for?: string | null
           id?: string
           is_deleted?: boolean | null
+          is_demo_account?: boolean | null
           logo_url?: string | null
           name?: string
           owner_id?: string

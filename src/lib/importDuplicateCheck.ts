@@ -102,15 +102,17 @@ export async function checkForDuplicates(
     for (let i = 0; i < uniqueValues.length; i += batchSize) {
       const batch = uniqueValues.slice(i, i + batchSize);
       
-      // Use ilike for case-insensitive matching
-      const { data: existingRecords } = await supabase
+      // Use explicit typing to avoid deep type instantiation
+      const query = supabase
         .from(entityType)
         .select('*')
-        .eq('team_id', teamId)
-        .in(field, batch);
+        .eq('team_id', teamId);
+      
+      // Use filter for array matching to avoid deep type recursion
+      const { data: existingRecords } = await query.filter(field, 'in', `(${batch.join(',')})`);
 
       if (existingRecords) {
-        existingRecords.forEach(record => {
+        (existingRecords as Record<string, unknown>[]).forEach((record) => {
           const recordValue = String(record[field] || '').trim().toLowerCase();
           existingRecordsMap.set(recordValue, record);
         });

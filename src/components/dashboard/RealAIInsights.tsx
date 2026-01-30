@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect, useRef } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -6,6 +6,9 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { useLocationFilteredFleet } from '@/hooks/useLocationFilteredFleet';
 import { useFleetAIInsight } from '@/hooks/useFleetAIInsight';
 import { useDemoAccount } from '@/hooks/useDemoAccount';
+import { useAuth } from '@/contexts/AuthContext';
+import { useTeam } from '@/contexts/TeamContext';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   Brain, 
   TrendingUp, 
@@ -159,6 +162,11 @@ export function RealAIInsights({
   const { vehicles, bookings, customers, loading } = useLocationFilteredFleet();
   const pricingInsight = useFleetAIInsight(vehicles, bookings);
   const isDemoAccount = useDemoAccount();
+  const { user } = useAuth();
+  const { currentTeam } = useTeam();
+  
+  // Track which insights have been persisted to avoid duplicates
+  const persistedInsightsRef = useRef<Set<string>>(new Set());
 
   // Generate real insights from fleet data
   const insights = useMemo(() => {
@@ -296,6 +304,73 @@ export function RealAIInsights({
 
     return result;
   }, [vehicles, bookings, customers, loading, pricingInsight]);
+
+  // Persist new insights to database
+  useEffect(() => {
+    const persistInsights = async () => {
+      if (!user || !insights.length || isDemoAccount) return;
+      
+      const newInsights = insights.filter(
+        insight => !persistedInsightsRef.current.has(insight.id)
+      );
+      
+      if (newInsights.length === 0) return;
+      
+      // Calculate expiry (24 hours from now)
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 24);
+      
+      for (const insight of newInsights) {
+        try {
+          // Check if this insight already exists (by title + entity)
+          const { data: existing } = await supabase
+            .from('rari_insights')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('title', insight.title)
+            .eq('is_dismissed', false)
+            .maybeSingle();
+          
+          if (!existing) {
+            // Map our insight type to database insight_type
+            const insightTypeMap: Record<string, string> = {
+              pricing: 'pricing',
+              utilization: 'utilization',
+              retention: 'customer',
+              maintenance: 'maintenance',
+              compliance: 'compliance',
+              revenue: 'revenue'
+            };
+            
+            await supabase
+              .from('rari_insights')
+              .insert({
+                user_id: user.id,
+                team_id: currentTeam?.id || null,
+                insight_type: insightTypeMap[insight.type] || 'revenue',
+                priority: insight.priority,
+                title: insight.title,
+                description: insight.description,
+                related_entity_type: insight.vehicleId ? 'vehicle' : insight.customerId ? 'customer' : null,
+                related_entity_id: insight.vehicleId || insight.customerId || null,
+                metadata: { 
+                  confidence: insight.confidence, 
+                  impact: insight.impact,
+                  internalId: insight.id
+                },
+                expires_at: expiresAt.toISOString(),
+              });
+          }
+          
+          persistedInsightsRef.current.add(insight.id);
+        } catch (error) {
+          console.error('Failed to persist insight:', error);
+        }
+      }
+    };
+    
+    persistInsights();
+  }, [insights, user, currentTeam, isDemoAccount]);
 
   // Add onAction handlers
   const insightsWithActions = insights.map(insight => ({
