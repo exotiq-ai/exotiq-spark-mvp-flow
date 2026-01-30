@@ -142,6 +142,7 @@ export const FleetVehicleCard = ({
           <div className="relative flex-shrink-0">
             <VehicleThumbnail 
               vehicleName={vehicle.name}
+              imageUrl={vehicle.image_url}
               size={isOpsMode ? 'md' : 'lg'}
               onClick={() => onViewDetails(vehicle)}
               badge={taskCount > 0 ? (

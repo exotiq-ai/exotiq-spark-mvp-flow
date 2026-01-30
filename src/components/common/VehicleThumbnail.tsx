@@ -14,6 +14,8 @@ interface SizeConfig {
 
 interface VehicleThumbnailProps {
   vehicleName: string;
+  /** Direct image URL - takes precedence over static mapping */
+  imageUrl?: string | null;
   size?: ThumbnailSize;
   className?: string;
   showFallback?: boolean;
@@ -69,6 +71,7 @@ const sizeConfig: Record<ThumbnailSize, SizeConfig> = {
 
 export const VehicleThumbnail = ({
   vehicleName,
+  imageUrl: providedImageUrl,
   size = 'md',
   className,
   showFallback = true,
@@ -76,7 +79,8 @@ export const VehicleThumbnail = ({
   badge,
   loading = 'lazy',
 }: VehicleThumbnailProps) => {
-  const imageUrl = getVehicleImage(vehicleName);
+  // Cascading image resolution: provided URL → static mapping → fallback
+  const resolvedImageUrl = providedImageUrl || getVehicleImage(vehicleName);
   const config = sizeConfig[size];
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
@@ -91,7 +95,7 @@ export const VehicleThumbnail = ({
   );
 
   // No image or error - show fallback
-  if (!imageUrl || imageError) {
+  if (!resolvedImageUrl || imageError) {
     if (!showFallback) return null;
     
     return (
@@ -127,7 +131,7 @@ export const VehicleThumbnail = ({
       
       {/* Image */}
       <img
-        src={imageUrl}
+        src={resolvedImageUrl}
         alt={vehicleName}
         loading={loading}
         onLoad={() => setImageLoaded(true)}

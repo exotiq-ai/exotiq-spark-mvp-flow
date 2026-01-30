@@ -9,13 +9,13 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { WidgetLibrary } from "./WidgetLibrary";
 import { BannerWidget } from "./widgets/BannerWidget";
 import { RevenueWidget } from "./widgets/RevenueWidget";
-import { MetricsWidget } from "./widgets/MetricsWidget";
-import { AIInsightWidget } from "./widgets/AIInsightWidget";
+import { CompactMetricsBar } from "./widgets/CompactMetricsBar";
+import { CompactAIInsightBanner } from "./widgets/CompactAIInsightBanner";
 import { FleetStatusWidget } from "./widgets/FleetStatusWidget";
 import { ScheduleWidget } from "./widgets/ScheduleWidget";
-import { ModuleGridWidget } from "./widgets/ModuleGridWidget";
 import { PriceOptimizationDialog } from "@/components/dialogs/PriceOptimizationDialog";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
+import { useFleetAIInsight } from "@/hooks/useFleetAIInsight";
 import { AskRariQuickAction } from "@/components/common/AskRariQuickAction";
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
@@ -45,8 +45,18 @@ export const CustomizableDashboard = ({ modules, onModuleClick }: CustomizableDa
   
   const containerRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
-  const { vehicles, applyPriceOptimization } = useLocationFilteredFleet();
+  const { vehicles, bookings, applyPriceOptimization } = useLocationFilteredFleet();
   const { layout, visibleWidgets, loading, saveLayout, resetLayout, toggleWidget, setLayout } = useDashboardLayout();
+  const aiInsight = useFleetAIInsight(vehicles, bookings);
+
+  // Calculate metrics for CompactMetricsBar
+  const activeBookingsCount = bookings.filter(b => b.status === 'confirmed').length;
+  const currentUtilization = vehicles.length > 0 
+    ? Math.round((activeBookingsCount / vehicles.length) * 100) 
+    : 0;
+  const averageRate = vehicles.length > 0 
+    ? Math.round(vehicles.reduce((acc, v) => acc + (v.current_rate || 0), 0) / vehicles.length) 
+    : 0;
 
   // Responsive width with ResizeObserver
   useEffect(() => {
@@ -83,14 +93,41 @@ export const CustomizableDashboard = ({ modules, onModuleClick }: CustomizableDa
     const widgetComponents: { [key: string]: JSX.Element } = {
       'banner': <BannerWidget />,
       'revenue': <RevenueWidget />,
-      'metrics': <MetricsWidget />,
-      'ai-insight': <AIInsightWidget 
-        onApplyOptimization={() => setShowOptimizationDialog(true)}
-        onViewAnalysis={() => onModuleClick('motoriq')}
-      />,
+      'metrics': (
+        <CompactMetricsBar
+          activeBookings={activeBookingsCount}
+          utilization={currentUtilization}
+          averageRate={averageRate}
+          onNavigate={onModuleClick}
+        />
+      ),
+      'ai-insight': aiInsight ? (
+        <CompactAIInsightBanner
+          vehicleName={aiInsight.vehicleName}
+          suggestedIncrease={aiInsight.suggestedIncreasePercent}
+          potentialRevenue={aiInsight.potentialMonthlyRevenue}
+          onApply={() => setShowOptimizationDialog(true)}
+          onViewAnalysis={() => onModuleClick('motoriq')}
+          hasFleetData={vehicles.length > 0}
+        />
+      ) : <div />,
       'fleet-status': <FleetStatusWidget onViewAll={() => onModuleClick('motoriq')} />,
       'schedule': <ScheduleWidget onViewCalendar={() => onModuleClick('book')} />,
-      'modules': <ModuleGridWidget modules={modules} onModuleClick={onModuleClick} />,
+      'modules': (
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          {modules.map((module) => (
+            <Button
+              key={module.id}
+              variant="outline"
+              className="h-20 flex flex-col items-center justify-center gap-2"
+              onClick={() => onModuleClick(module.id)}
+            >
+              <module.icon className={`h-6 w-6 ${module.color}`} />
+              <span className="text-xs font-medium">{module.name}</span>
+            </Button>
+          ))}
+        </div>
+      ),
     };
 
     return widgetComponents[widgetId] || null;

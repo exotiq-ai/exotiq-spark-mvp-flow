@@ -409,9 +409,6 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
         <div className="space-y-5 sm:space-y-6 pb-6 md:pb-24">
           {/* Hero Banner */}
           <BannerWidget />
-          
-          {/* Location Context Banner */}
-          <LocationContextBanner />
 
           {/* Compact Metrics Bar - Clickable chips */}
           <div className="space-y-2">
