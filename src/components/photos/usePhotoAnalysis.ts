@@ -350,14 +350,35 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
 
   /**
    * Set a photo as the hero photo for its vehicle
+   * Also updates the vehicle's image_url for display throughout the app
    */
   const setAsHero = useCallback(async (photoId: string): Promise<void> => {
+    // First get the photo details to update the vehicle
+    const { data: photo, error: fetchError } = await supabase
+      .from('vehicle_photos')
+      .select('vehicle_id, url, enhanced_url')
+      .eq('id', photoId)
+      .single();
+
+    if (fetchError) throw fetchError;
+
+    // Update the photo to hero type (trigger will handle the rest, but we also update explicitly)
     const { error } = await supabase
       .from('vehicle_photos')
       .update({ photo_type: 'hero' })
       .eq('id', photoId);
 
     if (error) throw error;
+
+    // Also explicitly update the vehicle's image_url for immediate UI update
+    // (The trigger handles this too, but this ensures immediate consistency)
+    const heroUrl = photo.enhanced_url || photo.url;
+    if (heroUrl) {
+      await supabase
+        .from('vehicles')
+        .update({ image_url: heroUrl })
+        .eq('id', photo.vehicle_id);
+    }
   }, []);
 
   /**
