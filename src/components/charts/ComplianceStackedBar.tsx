@@ -1,51 +1,70 @@
+import { useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
-import { Shield, FileText, CheckCircle, AlertTriangle } from "lucide-react";
+import { Shield, FileText, CheckCircle, AlertTriangle, Upload } from "lucide-react";
 import { motion } from "framer-motion";
 import { useChartHeight, getResponsiveAxisConfig, getMobileLegendProps } from "@/components/ui/adaptive-chart";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
+import { Button } from "@/components/ui/button";
 
-const complianceData = [
-  {
-    category: 'Insurance',
-    compliant: 10,
-    expiringSoon: 2,
-    expired: 0,
-    total: 12,
-    icon: Shield
-  },
-  {
-    category: 'Registration',
-    compliant: 6,
-    expiringSoon: 3,
-    expired: 1,
-    total: 10,
-    icon: FileText
-  },
-  {
-    category: 'Inspections',
-    compliant: 7,
-    expiringSoon: 1,
-    expired: 0,
-    total: 8,
-    icon: CheckCircle
-  },
-  {
-    category: 'Licenses',
-    compliant: 4,
-    expiringSoon: 1,
-    expired: 1,
-    total: 6,
-    icon: AlertTriangle
-  }
-];
+const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  'Insurance': Shield,
+  'Registration': FileText,
+  'Inspections': CheckCircle,
+  'Licenses': AlertTriangle
+};
+
+const EXPIRING_SOON_DAYS = 30;
 
 export const ComplianceStackedBar = () => {
   const isMobile = useIsMobile();
   const chartHeight = useChartHeight(200, 260, 300);
   const axisConfig = getResponsiveAxisConfig(isMobile);
   const legendProps = getMobileLegendProps(isMobile);
+  const { documents } = useLocationFilteredFleet();
+
+  // Calculate compliance data from real documents
+  const complianceData = useMemo(() => {
+    const categories = ['Insurance', 'Registration', 'Inspections', 'Licenses'];
+    const now = new Date();
+    
+    return categories.map(category => {
+      // Filter documents that match this category (case-insensitive partial match)
+      const categoryDocs = (documents || []).filter(d => 
+        d.type?.toLowerCase().includes(category.toLowerCase().slice(0, -1)) || // Remove plural 's' for matching
+        d.type?.toLowerCase() === category.toLowerCase()
+      );
+      
+      const expired = categoryDocs.filter(d => {
+        if (!d.expires_at) return false;
+        return new Date(d.expires_at) < now;
+      }).length;
+      
+      const expiringSoon = categoryDocs.filter(d => {
+        if (!d.expires_at) return false;
+        const expiry = new Date(d.expires_at);
+        const daysUntil = (expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+        return daysUntil > 0 && daysUntil <= EXPIRING_SOON_DAYS;
+      }).length;
+      
+      const compliant = categoryDocs.length - expired - expiringSoon;
+      
+      return { 
+        category, 
+        compliant: Math.max(0, compliant), 
+        expiringSoon, 
+        expired, 
+        total: categoryDocs.length,
+        icon: CATEGORY_ICONS[category] || FileText
+      };
+    });
+  }, [documents]);
+
+  const totalItems = complianceData.reduce((sum, cat) => sum + cat.total, 0);
+  const totalCompliant = complianceData.reduce((sum, cat) => sum + cat.compliant, 0);
+  const compliancePercentage = totalItems > 0 ? Math.round((totalCompliant / totalItems) * 100) : 0;
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
@@ -65,21 +84,21 @@ export const ComplianceStackedBar = () => {
                 <span className="w-2 h-2 rounded-full bg-success" />
                 Compliant:
               </span>
-              <span className="font-semibold">{payload[0]?.value}</span>
+              <span className="font-semibold">{payload[0]?.value || 0}</span>
             </div>
             <div className="flex items-center justify-between gap-4">
               <span className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-warning" />
                 Expiring:
               </span>
-              <span className="font-semibold">{payload[1]?.value}</span>
+              <span className="font-semibold">{payload[1]?.value || 0}</span>
             </div>
             <div className="flex items-center justify-between gap-4">
               <span className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-destructive" />
                 Expired:
               </span>
-              <span className="font-semibold">{payload[2]?.value}</span>
+              <span className="font-semibold">{payload[2]?.value || 0}</span>
             </div>
             <div className="flex items-center justify-between gap-4 pt-2 border-t border-border">
               <span className="text-muted-foreground">Total:</span>
@@ -92,9 +111,32 @@ export const ComplianceStackedBar = () => {
     return null;
   };
 
-  const totalItems = complianceData.reduce((sum, cat) => sum + cat.total, 0);
-  const totalCompliant = complianceData.reduce((sum, cat) => sum + cat.compliant, 0);
-  const compliancePercentage = Math.round((totalCompliant / totalItems) * 100);
+  // Empty state when no documents
+  if (totalItems === 0) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <Card 
+          className="p-4 sm:p-6 border-2 border-dashed border-border"
+          role="region"
+          aria-label="Compliance distribution chart"
+        >
+          <div className="flex flex-col items-center justify-center py-8 text-center">
+            <div className="p-4 rounded-full bg-muted/50 mb-4">
+              <Shield className="w-10 h-10 text-muted-foreground" />
+            </div>
+            <h3 className="text-lg font-semibold mb-2">No Documents Yet</h3>
+            <p className="text-sm text-muted-foreground max-w-md mb-4">
+              Upload insurance, registration, inspection, and license documents to track compliance across your fleet.
+            </p>
+          </div>
+        </Card>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div
@@ -124,7 +166,7 @@ export const ComplianceStackedBar = () => {
             animate={{ scale: 1, opacity: 1 }}
             transition={{ duration: 0.3, delay: 0.3 }}
           >
-            <Badge className={`text-xs ${compliancePercentage >= 80 ? 'bg-success/20 text-success' : 'bg-warning/20 text-warning'}`}>
+            <Badge className={`text-xs ${compliancePercentage >= 80 ? 'bg-success/20 text-success' : compliancePercentage >= 50 ? 'bg-warning/20 text-warning' : 'bg-destructive/20 text-destructive'}`}>
               {compliancePercentage}% Compliant
             </Badge>
           </motion.div>
@@ -199,7 +241,7 @@ export const ComplianceStackedBar = () => {
         {/* Category Cards - Hidden on mobile */}
         <div className="hidden sm:grid grid-cols-2 md:grid-cols-4 gap-3 mt-6">
           {complianceData.map((category, index) => {
-            const complianceRate = Math.round((category.compliant / category.total) * 100);
+            const complianceRate = category.total > 0 ? Math.round((category.compliant / category.total) * 100) : 0;
             const CategoryIcon = category.icon;
             
             return (
@@ -216,13 +258,16 @@ export const ComplianceStackedBar = () => {
                 whileTap={{ scale: 0.98 }}
               >
                 <CategoryIcon className={`h-5 w-5 mb-2 transition-transform group-hover:scale-110 ${
+                  category.total === 0 ? 'text-muted-foreground' :
                   complianceRate >= 80 ? 'text-success' :
                   complianceRate >= 60 ? 'text-warning' : 'text-destructive'
                 }`} aria-hidden="true" />
                 <div className="font-semibold text-sm mb-1">{category.category}</div>
-                <div className="text-2xl font-bold mb-1">{complianceRate}%</div>
+                <div className="text-2xl font-bold mb-1">
+                  {category.total > 0 ? `${complianceRate}%` : '—'}
+                </div>
                 <div className="text-xs text-muted-foreground">
-                  {category.compliant}/{category.total}
+                  {category.total > 0 ? `${category.compliant}/${category.total}` : 'No documents'}
                 </div>
               </motion.div>
             );
@@ -236,9 +281,13 @@ export const ComplianceStackedBar = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.8 }}
         >
-          <strong className="text-foreground">Action:</strong> {
-            complianceData.reduce((sum, cat) => sum + cat.expiringSoon + cat.expired, 0)
-          } documents need attention.
+          {(() => {
+            const needsAttention = complianceData.reduce((sum, cat) => sum + cat.expiringSoon + cat.expired, 0);
+            if (needsAttention === 0) {
+              return <><strong className="text-foreground">All clear!</strong> No documents need immediate attention.</>;
+            }
+            return <><strong className="text-foreground">Action:</strong> {needsAttention} document{needsAttention !== 1 ? 's' : ''} need attention.</>;
+          })()}
         </motion.div>
       </Card>
     </motion.div>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -32,34 +32,121 @@ import {
   X
 } from "lucide-react";
 
+const EXPIRING_SOON_DAYS = 30;
+const CATEGORY_TYPES = ['Insurance', 'Registration', 'Inspection', 'License'];
+
 export const VaultEnhanced = () => {
-  const { documents, uploadDocument, deleteDocument, loading } = useLocationFilteredFleet();
+  const { documents, vehicles, uploadDocument, deleteDocument, loading } = useLocationFilteredFleet();
   const { toast } = useToast();
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [alertDismissed, setAlertDismissed] = useState(false);
   const [alertExpanded, setAlertExpanded] = useState(false);
 
-  const urgentAlert = {
-    title: "License Expiring Soon",
-    document: "Driver License - Sarah M.",
-    vehicle: "Porsche 911 GT3",
-    daysLeft: 5,
-    priority: "high"
-  };
+  // Calculate urgent alert from real documents (soonest expiring within 30 days)
+  const urgentAlert = useMemo(() => {
+    const now = new Date();
+    const soonThreshold = new Date(now.getTime() + EXPIRING_SOON_DAYS * 24 * 60 * 60 * 1000);
+    
+    const expiringDocs = (documents || [])
+      .filter(d => {
+        if (!d.expires_at) return false;
+        const expiry = new Date(d.expires_at);
+        return expiry > now && expiry <= soonThreshold;
+      })
+      .sort((a, b) => new Date(a.expires_at!).getTime() - new Date(b.expires_at!).getTime());
 
-  const complianceScore = {
-    percentage: 87,
-    status: "good",
-    itemsCompliant: 36,
-    itemsTotal: 42
-  };
+    if (expiringDocs.length === 0) return null;
 
-  const categories = [
-    { name: "Insurance", status: "compliant", items: 12, expiring: 2, icon: Shield },
-    { name: "Registration", status: "warning", items: 10, expiring: 4, icon: FileText },
-    { name: "Inspections", status: "compliant", items: 8, expiring: 1, icon: CheckCircle },
-    { name: "Licenses", status: "urgent", items: 6, expiring: 1, icon: AlertTriangle }
-  ];
+    const doc = expiringDocs[0];
+    const daysLeft = Math.ceil((new Date(doc.expires_at!).getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    
+    // Try to find the associated vehicle name
+    const vehicle = vehicles?.find(v => v.id === doc.vehicle_id);
+    const vehicleName = vehicle ? `${vehicle.year || ''} ${vehicle.make || ''} ${vehicle.model || ''}`.trim() : null;
+
+    return {
+      title: `${doc.type || 'Document'} Expiring Soon`,
+      document: doc.name,
+      vehicle: vehicleName,
+      daysLeft,
+      priority: daysLeft <= 7 ? "high" : "medium"
+    };
+  }, [documents, vehicles]);
+
+  // Calculate compliance score from real documents
+  const complianceScore = useMemo(() => {
+    const now = new Date();
+    const docs = documents || [];
+    
+    if (docs.length === 0) {
+      return {
+        percentage: 0,
+        status: "empty",
+        itemsCompliant: 0,
+        itemsTotal: 0
+      };
+    }
+
+    const compliantDocs = docs.filter(d => {
+      if (!d.expires_at) return true; // No expiry = compliant
+      return new Date(d.expires_at) > now;
+    }).length;
+
+    const percentage = Math.round((compliantDocs / docs.length) * 100);
+    
+    return {
+      percentage,
+      status: percentage >= 80 ? "good" : percentage >= 50 ? "warning" : "critical",
+      itemsCompliant: compliantDocs,
+      itemsTotal: docs.length
+    };
+  }, [documents]);
+
+  // Calculate categories from real documents
+  const categories = useMemo(() => {
+    const now = new Date();
+    const docs = documents || [];
+    
+    return CATEGORY_TYPES.map(categoryName => {
+      // Match documents by type (partial match, case-insensitive)
+      const categoryDocs = docs.filter(d => 
+        d.type?.toLowerCase().includes(categoryName.toLowerCase()) ||
+        d.type?.toLowerCase().includes(categoryName.slice(0, -1).toLowerCase()) // Handle plural/singular
+      );
+      
+      const expired = categoryDocs.filter(d => 
+        d.expires_at && new Date(d.expires_at) < now
+      ).length;
+      
+      const expiring = categoryDocs.filter(d => {
+        if (!d.expires_at) return false;
+        const expiry = new Date(d.expires_at);
+        const daysUntil = (expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+        return daysUntil > 0 && daysUntil <= EXPIRING_SOON_DAYS;
+      }).length;
+      
+      const compliant = categoryDocs.length - expired - expiring;
+      
+      let status: "compliant" | "warning" | "urgent" = "compliant";
+      if (expired > 0) status = "urgent";
+      else if (expiring > 0) status = "warning";
+      
+      const iconMap: Record<string, any> = {
+        'Insurance': Shield,
+        'Registration': FileText,
+        'Inspection': CheckCircle,
+        'License': AlertTriangle
+      };
+      
+      return {
+        name: categoryName,
+        status,
+        items: categoryDocs.length,
+        expiring: expiring + expired,
+        icon: iconMap[categoryName] || FileText
+      };
+    });
+  }, [documents]);
 
   const recentDocuments = Array.isArray(documents) ? documents.slice(0, 5) : [];
 
@@ -117,8 +204,8 @@ export const VaultEnhanced = () => {
         data-tour="vault-tabs"
       >
         <TabsContent value="documents" className="space-y-4 sm:space-y-6">
-      {/* Compact Urgent Alert - Collapsible */}
-      {!alertDismissed && (
+      {/* Compact Urgent Alert - Only show if there's actually an expiring document */}
+      {urgentAlert && !alertDismissed && (
         <Collapsible open={alertExpanded} onOpenChange={setAlertExpanded}>
           <Card className="border-l-4 border-l-warning bg-warning/5 overflow-hidden">
             <CollapsibleTrigger asChild>
@@ -156,9 +243,11 @@ export const VaultEnhanced = () => {
             </CollapsibleTrigger>
             <CollapsibleContent>
               <div className="px-3 pb-3 pt-0 space-y-3">
-                <div className="text-xs text-muted-foreground">
-                  Vehicle: {urgentAlert.vehicle}
-                </div>
+                {urgentAlert.vehicle && (
+                  <div className="text-xs text-muted-foreground">
+                    Vehicle: {urgentAlert.vehicle}
+                  </div>
+                )}
                 <div className="flex gap-2">
                   <Button 
                     size="sm"
@@ -187,35 +276,62 @@ export const VaultEnhanced = () => {
       <Card className="card-premium p-4 sm:p-6" data-tour="compliance-overview">
         <div className="flex items-center justify-between mb-4 sm:mb-6">
           <h3 className="text-lg sm:text-xl font-semibold">Compliance Overview</h3>
-          <Badge className={complianceScore.status === 'good' ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'}>
-            {complianceScore.status.toUpperCase()}
-          </Badge>
+          {complianceScore.itemsTotal > 0 && (
+            <Badge className={
+              complianceScore.status === 'good' ? 'bg-success/10 text-success' : 
+              complianceScore.status === 'warning' ? 'bg-warning/10 text-warning' : 
+              'bg-destructive/10 text-destructive'
+            }>
+              {complianceScore.status === 'good' ? 'GOOD' : complianceScore.status === 'warning' ? 'NEEDS ATTENTION' : 'CRITICAL'}
+            </Badge>
+          )}
         </div>
 
-        <div className="flex items-center justify-center mb-4 sm:mb-6">
-          <div className="relative text-center">
-            <div className="text-4xl sm:text-6xl font-bold text-primary">{complianceScore.percentage}%</div>
-            <div className="text-xs sm:text-sm text-muted-foreground mt-1 sm:mt-2">
-              {complianceScore.itemsCompliant} of {complianceScore.itemsTotal} items compliant
+        {complianceScore.itemsTotal === 0 ? (
+          <div className="flex flex-col items-center justify-center py-8 text-center">
+            <div className="p-4 rounded-full bg-muted/50 mb-4">
+              <Shield className="w-10 h-10 text-muted-foreground" />
             </div>
+            <h4 className="text-lg font-semibold mb-2">No Documents Tracked</h4>
+            <p className="text-sm text-muted-foreground max-w-md mb-4">
+              Upload documents to start tracking compliance for your fleet.
+            </p>
+            <Button onClick={() => setShowUploadDialog(true)}>
+              <Upload className="w-4 h-4 mr-2" />
+              Upload Document
+            </Button>
           </div>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
-          {categories.map((category) => (
-            <div key={category.name} className="p-3 sm:p-4 rounded-lg sm:rounded-xl bg-muted/30 text-center hover-scale cursor-pointer">
-              <category.icon className={`h-5 w-5 sm:h-6 sm:w-6 mx-auto mb-1 sm:mb-2 ${
-                category.status === 'compliant' ? 'text-success' :
-                category.status === 'warning' ? 'text-warning' : 'text-destructive'
-              }`} />
-              <div className="font-semibold text-xs sm:text-sm mb-0.5 sm:mb-1">{category.name}</div>
-              <div className="text-[10px] sm:text-xs text-muted-foreground">{category.items} items</div>
-              {category.expiring > 0 && (
-                <div className="text-[10px] sm:text-xs text-warning mt-0.5 sm:mt-1">{category.expiring} expiring</div>
-              )}
+        ) : (
+          <>
+            <div className="flex items-center justify-center mb-4 sm:mb-6">
+              <div className="relative text-center">
+                <div className="text-4xl sm:text-6xl font-bold text-primary">{complianceScore.percentage}%</div>
+                <div className="text-xs sm:text-sm text-muted-foreground mt-1 sm:mt-2">
+                  {complianceScore.itemsCompliant} of {complianceScore.itemsTotal} items compliant
+                </div>
+              </div>
             </div>
-          ))}
-        </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
+              {categories.map((category) => (
+                <div key={category.name} className="p-3 sm:p-4 rounded-lg sm:rounded-xl bg-muted/30 text-center hover-scale cursor-pointer">
+                  <category.icon className={`h-5 w-5 sm:h-6 sm:w-6 mx-auto mb-1 sm:mb-2 ${
+                    category.items === 0 ? 'text-muted-foreground' :
+                    category.status === 'compliant' ? 'text-success' :
+                    category.status === 'warning' ? 'text-warning' : 'text-destructive'
+                  }`} />
+                  <div className="font-semibold text-xs sm:text-sm mb-0.5 sm:mb-1">{category.name}</div>
+                  <div className="text-[10px] sm:text-xs text-muted-foreground">
+                    {category.items > 0 ? `${category.items} items` : 'No docs'}
+                  </div>
+                  {category.expiring > 0 && (
+                    <div className="text-[10px] sm:text-xs text-warning mt-0.5 sm:mt-1">{category.expiring} expiring</div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </Card>
 
       {/* Compliance Distribution Chart */}
