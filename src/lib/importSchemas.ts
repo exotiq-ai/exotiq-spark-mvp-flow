@@ -153,10 +153,10 @@ export const customerImportSchema: ImportEntitySchema = {
     {
       name: 'email',
       label: 'Email',
-      required: true,
+      required: false,
       type: 'email',
       aliases: ['email_address', 'e-mail', 'customer_email', 'contact_email'],
-      description: 'Customer email address',
+      description: 'Customer email address (email or phone required)',
       example: 'john.smith@email.com'
     },
     {
@@ -165,7 +165,7 @@ export const customerImportSchema: ImportEntitySchema = {
       required: false,
       type: 'phone',
       aliases: ['phone_number', 'telephone', 'mobile', 'cell', 'contact_phone', 'cell_phone'],
-      description: 'Customer phone number',
+      description: 'Customer phone number (email or phone required)',
       example: '+1 (305) 555-1234'
     },
     {
@@ -496,7 +496,7 @@ export const vehicleImportValidation = z.object({
 
 export const customerImportValidation = z.object({
   full_name: z.string().min(1, 'Full name is required'),
-  email: z.string().email('Invalid email address'),
+  email: z.string().email('Invalid email address').optional().nullable().or(z.literal('')),
   phone: z.string().optional().nullable(),
   address: z.string().optional().nullable(),
   drivers_license: z.string().optional().nullable(),
@@ -507,7 +507,10 @@ export const customerImportValidation = z.object({
   insurance_expiry: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
   customer_status: z.enum(['active', 'inactive', 'blacklisted']).optional().default('active')
-});
+}).refine(
+  (data) => (data.email && data.email.length > 0) || (data.phone && data.phone.length > 0),
+  { message: 'Either email or phone is required', path: ['email'] }
+);
 
 export const bookingImportValidation = z.object({
   customer_name: z.string().min(1, 'Customer name is required'),
