@@ -45,6 +45,8 @@ interface FleetContextType {
   error: string | null;
   applyPriceOptimization: (vehicleId: string, newRate: number) => Promise<void>;
   createVehicle: (vehicle: Omit<Database['public']['Tables']['vehicles']['Insert'], 'user_id'>) => Promise<void>;
+  deleteVehicle: (vehicleId: string) => Promise<boolean>;
+  deleteVehicles: (vehicleIds: string[]) => Promise<{ success: number; failed: number }>;
   createBooking: (booking: Omit<Database['public']['Tables']['bookings']['Insert'], 'user_id'>) => Promise<void>;
   updateBookingStatus: (bookingId: string, status: Booking['status']) => Promise<void>;
   updateBookingVehicle: (bookingId: string, newVehicleId: string) => Promise<void>;
@@ -1128,6 +1130,79 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Delete a single vehicle
+  const deleteVehicle = async (vehicleId: string): Promise<boolean> => {
+    if (!user) return false;
+
+    const vehicle = vehicles.find(v => v.id === vehicleId);
+    
+    const { error } = await supabase
+      .from('vehicles')
+      .delete()
+      .eq('id', vehicleId);
+
+    if (error) {
+      devError('[FleetContext] Error deleting vehicle:', error);
+      toast({ 
+        title: "Error", 
+        description: error.message, 
+        variant: "destructive" 
+      });
+      return false;
+    }
+
+    // Optimistically remove from local state
+    setVehicles(prev => prev.filter(v => v.id !== vehicleId));
+    
+    toast({ 
+      title: "Vehicle Deleted", 
+      description: vehicle ? `${vehicle.name} has been removed from your fleet.` : "Vehicle has been removed." 
+    });
+    
+    return true;
+  };
+
+  // Batch delete multiple vehicles
+  const deleteVehicles = async (vehicleIds: string[]): Promise<{ success: number; failed: number }> => {
+    if (!user || vehicleIds.length === 0) return { success: 0, failed: 0 };
+
+    let success = 0;
+    let failed = 0;
+
+    // Delete in batches to avoid overwhelming the database
+    for (const id of vehicleIds) {
+      const { error } = await supabase
+        .from('vehicles')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        devError('[FleetContext] Error deleting vehicle:', id, error);
+        failed++;
+      } else {
+        success++;
+      }
+    }
+
+    // Update local state
+    setVehicles(prev => prev.filter(v => !vehicleIds.includes(v.id)));
+    
+    if (failed === 0) {
+      toast({ 
+        title: "Vehicles Deleted", 
+        description: `${success} vehicle${success !== 1 ? 's' : ''} removed from your fleet.` 
+      });
+    } else {
+      toast({ 
+        title: "Partial Success", 
+        description: `Deleted ${success} vehicle${success !== 1 ? 's' : ''}, ${failed} failed.`,
+        variant: "destructive"
+      });
+    }
+    
+    return { success, failed };
+  };
+
   return (
     <FleetContext.Provider value={{
       vehicles,
@@ -1146,6 +1221,8 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       error,
       applyPriceOptimization,
       createVehicle,
+      deleteVehicle,
+      deleteVehicles,
       createBooking,
       updateBookingStatus,
       updateBookingVehicle,
