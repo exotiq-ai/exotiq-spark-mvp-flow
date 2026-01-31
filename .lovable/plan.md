@@ -1,205 +1,248 @@
 
-# Fix Vehicle Not Saving During Onboarding
+# Remove Hardcoded Data from New Customer Accounts
 
 ## Problem Summary
 
-When a new customer (`denverexoticrentalcars@gmail.com`) added their first vehicle (Ferrari 488) during onboarding, the vehicle **was not saved to the database** and did not appear in their fleet inventory.
+A new customer (`denverexoticrentalcars@gmail.com`) sees fake/hardcoded data throughout their account that doesn't reflect their actual data state. The screenshots show:
 
-**Evidence:**
-- User's team (`c71d6655-710a-46da-95b4-f9b0e5f91386`) has **zero vehicles** in the database
-- No database errors logged — indicating the insert never reached the database
-- The user got a success toast but no actual data was persisted
-
----
-
-## Root Cause Analysis
-
-I identified **3 compounding issues**:
-
-### Issue 1: Missing FleetContext Refresh After Create
-
-**File:** `src/contexts/FleetContext.tsx` (lines 703-747)
-
-The `createVehicle` function inserts the vehicle but **never refreshes the local state**:
-
-```typescript
-const createVehicle = async (vehicle) => {
-  // ... insert to database ...
-  if (error) {
-    toast({ title: "Error", ... });
-    return;
-  }
-  // ❌ MISSING: refreshVehicles() or refreshData()
-  toast({ title: "Vehicle Added", ... });
-};
-```
-
-**Impact:** Even if the insert succeeded, the UI wouldn't reflect it until a manual refresh or page reload.
-
-### Issue 2: AddVehicleFromPhotoWizard Bypasses FleetContext
-
-**File:** `src/components/photos/AddVehicleFromPhotoWizard.tsx` (lines 221-237)
-
-The wizard inserts directly via Supabase client but:
-1. Does NOT call `refreshData()` or invalidate any React Query cache
-2. Does NOT notify FleetContext that new data exists
-
-```typescript
-// Creates vehicle directly
-const { data: vehicleData, error: vehicleError } = await supabase
-  .from('vehicles')
-  .insert({ ... })
-  .select()
-  .single();
-
-// ❌ No cache invalidation
-// ❌ No FleetContext.refreshData()
-```
-
-### Issue 3: Onboarding Flow Has Same Problem
-
-**File:** `src/pages/Onboarding.tsx` (lines 326-339)
-
-The manual vehicle entry (`handleAddVehicle`) inserts directly but:
-1. Does NOT call `refreshData()` 
-2. Immediately advances to step 4 without waiting for data sync
-
-```typescript
-const handleAddVehicle = async () => {
-  const { error } = await supabase.from('vehicles').insert({ ... });
-  if (error) throw error;
-  await handleStepChange(4);  // ❌ Advances before refresh
-};
-```
+1. **Subscription Section** - Fake "Professional" plan, fake billing date (Jan 23, 2025), fake "12 of 25" vehicle usage, fake payment history
+2. **Compliance Chart** - Hardcoded document counts (Insurance: 12 items, Registration: 10 items, etc.)
+3. **Vault Module** - Hardcoded compliance scores, fake urgent alerts
 
 ---
 
-## Technical Solution
+## Hardcoded Data Found
 
-### Fix 1: FleetContext `createVehicle` Must Refresh
-
-Update `src/contexts/FleetContext.tsx` to call `refreshVehicles()` after successful insert:
+### 1. SubscriptionSection.tsx (Lines 39-52, 260-264)
 
 ```typescript
-const createVehicle = async (vehicle) => {
-  if (!user) return;
-  try {
-    const validated = vehicleSchema.parse(vehicle);
-    const teamId = currentTeam?.id;
-
-    const { error } = await supabase
-      .from('vehicles')
-      .insert({ ... });
-
-    if (error) {
-      toast({ title: "Error", ... });
-      return;
-    }
-
-    // ✅ ADD: Refresh vehicles list
-    refreshVehicles();
-
-    // Show celebration/toast...
-  } catch (error) { ... }
+// HARDCODED: Fake plan data
+const currentPlan = {
+  name: "Professional",
+  status: "active", 
+  renewalDate: "2025-01-24",
+  vehicleLimit: 25,
+  vehiclesUsed: 12,  // ← Fake vehicle count
+  features: [...]
 };
+
+// HARDCODED: Fake payment history
+{[
+  { date: "Dec 24, 2024", amount: 249, status: "Paid" },
+  { date: "Nov 24, 2024", amount: 249, status: "Paid" },
+  { date: "Oct 24, 2024", amount: 249, status: "Paid" }
+].map(...)}
 ```
 
-### Fix 2: AddVehicleFromPhotoWizard Must Sync State
-
-Update `src/components/photos/AddVehicleFromPhotoWizard.tsx` to invalidate cache:
+### 2. ComplianceStackedBar.tsx (Lines 9-42)
 
 ```typescript
-import { useQueryClient } from '@tanstack/react-query';
-import { useFleet } from '@/contexts/FleetContext';
-
-// Inside component:
-const queryClient = useQueryClient();
-const { refreshData } = useFleet();
-
-const handleCreateVehicle = async () => {
-  // ... existing insert logic ...
-  
-  if (vehicleError) throw vehicleError;
-  
-  // ✅ ADD: Sync state after successful insert
-  await refreshData();
-  queryClient.invalidateQueries({ queryKey: ['vehicles'] });
-  
-  setCreatedVehicleId(vehicleData.id);
-  // ...
-};
+// HARDCODED: Fake compliance data
+const complianceData = [
+  { category: 'Insurance', compliant: 10, expiringSoon: 2, expired: 0, total: 12 },
+  { category: 'Registration', compliant: 6, expiringSoon: 3, expired: 1, total: 10 },
+  { category: 'Inspections', compliant: 7, expiringSoon: 1, expired: 0, total: 8 },
+  { category: 'Licenses', compliant: 4, expiringSoon: 1, expired: 1, total: 6 }
+];
 ```
 
-### Fix 3: Onboarding Must Wait for Data Sync
-
-Update `src/pages/Onboarding.tsx` to refresh FleetContext:
+### 3. VaultEnhanced.tsx (Lines 42-62)
 
 ```typescript
-import { useFleet } from '@/contexts/FleetContext';
+// HARDCODED: Fake urgent alert
+const urgentAlert = {
+  title: "License Expiring Soon",
+  document: "Driver License - Sarah M.",
+  vehicle: "Porsche 911 GT3",
+  daysLeft: 5,
+};
 
-// Inside component:
-const { refreshData } = useFleet();
+// HARDCODED: Fake compliance score
+const complianceScore = {
+  percentage: 87,
+  status: "good",
+  itemsCompliant: 36,
+  itemsTotal: 42
+};
 
-const handleAddVehicle = async () => {
-  if (!user) return;
-  setLoading(true);
-  try {
-    const { error } = await supabase.from('vehicles').insert({ ... });
-    if (error) throw error;
+// HARDCODED: Fake category counts
+const categories = [
+  { name: "Insurance", status: "compliant", items: 12, expiring: 2 },
+  ...
+];
+```
 
-    // ✅ ADD: Wait for data sync before advancing
-    await refreshData();
+---
+
+## Solution Plan
+
+### Fix 1: SubscriptionSection - Use Real Stripe Data
+
+**File:** `src/components/dashboard/settings/SubscriptionSection.tsx`
+
+**Changes:**
+1. Import `useAuth` to get real subscription state from AuthContext
+2. Import `useFleet` to get real vehicle count
+3. Replace hardcoded `currentPlan` with data from `subscription` context
+4. Show empty state / "No subscription" for unsubscribed users
+5. Remove fake payment history - either:
+   - Show empty state: "No payment history yet"
+   - OR fetch real invoices from Stripe via edge function (future enhancement)
+
+**Logic:**
+```typescript
+const { subscription } = useAuth();
+const { vehicles } = useFleet();
+
+// Real vehicle count
+const vehiclesUsed = vehicles.length;
+
+// Map tier to vehicle limit
+const tierLimits = {
+  starter: 10,
+  growth: 25,
+  professional: 50,
+  enterprise: Infinity
+};
+const vehicleLimit = tierLimits[subscription.tier] || 0;
+
+// If no subscription, show different UI
+if (!subscription.subscribed) {
+  return <NoSubscriptionState />;
+}
+```
+
+### Fix 2: ComplianceStackedBar - Use Real Documents
+
+**File:** `src/components/charts/ComplianceStackedBar.tsx`
+
+**Changes:**
+1. Import `useLocationFilteredFleet` to get real documents
+2. Calculate compliance data dynamically from actual documents
+3. Show empty state when no documents exist
+
+**Logic:**
+```typescript
+const { documents } = useLocationFilteredFleet();
+
+// Calculate real compliance from documents
+const complianceData = useMemo(() => {
+  const categories = ['Insurance', 'Registration', 'Inspections', 'Licenses'];
+  const now = new Date();
+  const soonDays = 30; // Documents expiring within 30 days
+  
+  return categories.map(category => {
+    const categoryDocs = documents.filter(d => 
+      d.type?.toLowerCase().includes(category.toLowerCase())
+    );
     
-    await handleStepChange(4);
-  } catch (error) { ... }
-};
+    const expired = categoryDocs.filter(d => 
+      d.expires_at && new Date(d.expires_at) < now
+    ).length;
+    
+    const expiringSoon = categoryDocs.filter(d => {
+      if (!d.expires_at) return false;
+      const expiry = new Date(d.expires_at);
+      const daysUntil = (expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+      return daysUntil > 0 && daysUntil <= soonDays;
+    }).length;
+    
+    const compliant = categoryDocs.length - expired - expiringSoon;
+    
+    return { category, compliant, expiringSoon, expired, total: categoryDocs.length };
+  });
+}, [documents]);
+
+// If no documents, show empty state
+if (documents.length === 0) {
+  return <EmptyComplianceState />;
+}
+```
+
+### Fix 3: VaultEnhanced - Use Real Data
+
+**File:** `src/components/dashboard/VaultEnhanced.tsx`
+
+**Changes:**
+1. Calculate `urgentAlert` from real documents with nearest expiry
+2. Calculate `complianceScore` from real document data
+3. Calculate `categories` dynamically from documents
+4. Only show urgent alert if there's actually an expiring document
+5. Show appropriate empty states for new accounts
+
+**Logic:**
+```typescript
+// Find actually expiring documents
+const urgentDocs = documents
+  .filter(d => d.expires_at && new Date(d.expires_at) > new Date())
+  .sort((a, b) => new Date(a.expires_at!).getTime() - new Date(b.expires_at!).getTime());
+
+const urgentAlert = urgentDocs.length > 0 ? {
+  title: `${urgentDocs[0].type} Expiring Soon`,
+  document: urgentDocs[0].name,
+  vehicle: urgentDocs[0].vehicle_id ? "Related Vehicle" : null,
+  daysLeft: Math.ceil((new Date(urgentDocs[0].expires_at!).getTime() - Date.now()) / (1000*60*60*24))
+} : null;
+
+// Only render alert if urgentAlert exists
+{urgentAlert && !alertDismissed && (...)}
 ```
 
 ---
 
 ## Files to Modify
 
-| File | Change |
-|------|--------|
-| `src/contexts/FleetContext.tsx` | Add `refreshVehicles()` call after insert in `createVehicle` |
-| `src/components/photos/AddVehicleFromPhotoWizard.tsx` | Add `refreshData()` and `queryClient.invalidateQueries` after insert |
-| `src/pages/Onboarding.tsx` | Add `refreshData()` in `handleAddVehicle` before step change |
+| File | Changes |
+|------|---------|
+| `src/components/dashboard/settings/SubscriptionSection.tsx` | Use real subscription + vehicle data, show empty states |
+| `src/components/charts/ComplianceStackedBar.tsx` | Calculate from real documents, add empty state |
+| `src/components/dashboard/VaultEnhanced.tsx` | Calculate alerts/scores from real documents, add empty states |
 
 ---
 
-## Secondary Improvement: Optimistic UI Update
+## Empty State Design
 
-For faster perceived performance, we can also add the vehicle to local state immediately (optimistic update), then reconcile with the server:
+For new accounts with no data, show clean empty states instead of fake data:
 
-```typescript
-// In FleetContext createVehicle:
-// 1. Generate temp ID
-// 2. Add to local state immediately
-// 3. Insert to database
-// 4. Replace temp with real ID on success, or rollback on error
-```
+**Subscription (no active plan):**
+- "No Active Subscription"
+- "Choose a plan to unlock fleet management features"
+- [View Plans] button
 
-This is optional but improves UX significantly.
+**Compliance (no documents):**
+- "No Documents Yet"
+- "Upload insurance, registration, and inspection documents to track compliance"
+- [Upload Document] button
+
+**Urgent Alerts (nothing expiring):**
+- Simply don't show the alert card at all
 
 ---
 
-## Testing Plan
+## Technical Details
 
-1. Create a new test account
-2. Complete onboarding steps 1-2
-3. Add a vehicle via:
-   - Manual entry form
-   - Photo wizard
-   - Bulk import
-4. Verify vehicle appears immediately in fleet inventory (no page reload needed)
-5. Navigate away and back to confirm persistence
-6. Check database directly to confirm row exists
+### Data Sources Available
+
+- **Subscription:** `useAuth().subscription` (tier, subscriptionEnd, subscribed)
+- **Vehicles:** `useFleet().vehicles` or `useLocationFilteredFleet().vehicles`
+- **Documents:** `useLocationFilteredFleet().documents` (has `type`, `expires_at`, `status`)
+
+### Vehicle Limits by Tier
+
+| Tier | Vehicle Limit |
+|------|---------------|
+| Starter | 10 |
+| Growth | 25 |
+| Professional | 50 |
+| Enterprise | Unlimited |
 
 ---
 
 ## Expected Outcome
 
-After these fixes:
-- Vehicles added during onboarding will persist to the database
-- UI will immediately reflect new vehicles without manual refresh
-- All three vehicle creation paths (manual, photo wizard, import) will sync properly
+After these changes:
+- New customers see accurate "No subscription" or "No documents" states
+- Existing customers see their real data
+- No fake demo data appears unless the account has `is_demo_account: true`
+- Compliance percentages calculated from actual uploaded documents
+- Payment history shows real Stripe data or appropriate empty state
