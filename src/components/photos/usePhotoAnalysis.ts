@@ -40,16 +40,20 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
 
     if (error) throw error;
 
+    // Use the actual stored path from response (data.path) for consistency
+    const storedPath = data.path;
+
     // Use signed URL for private bucket access (valid for 1 year)
     const { data: signedData, error: signedError } = await supabase.storage
       .from('vehicle-photos')
-      .createSignedUrl(data.path, 60 * 60 * 24 * 365); // 1 year
+      .createSignedUrl(storedPath, 60 * 60 * 24 * 365); // 1 year
 
     if (signedError || !signedData?.signedUrl) {
+      console.error('Failed to create signed URL:', signedError);
       throw new Error('Failed to create signed URL');
     }
 
-    return { path: data.path, url: signedData.signedUrl };
+    return { path: storedPath, url: signedData.signedUrl };
   }, [user]);
 
   /**

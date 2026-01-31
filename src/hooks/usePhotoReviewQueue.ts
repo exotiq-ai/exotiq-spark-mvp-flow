@@ -65,7 +65,29 @@ export function usePhotoReviewQueue(options: UsePhotoReviewQueueOptions = {}) {
         .order('created_at', { ascending: true });
 
       if (fetchError) throw fetchError;
-      setQueue((data || []) as UnmatchedPhotoRow[]);
+
+      // Generate fresh signed URLs for each photo to avoid stale/broken URLs
+      const photosWithFreshUrls = await Promise.all(
+        (data || []).map(async (photo) => {
+          if (!photo.storage_path) return photo as UnmatchedPhotoRow;
+          
+          const { data: signedData, error: signError } = await supabase.storage
+            .from('vehicle-photos')
+            .createSignedUrl(photo.storage_path, 60 * 60); // 1 hour validity
+          
+          if (signError) {
+            console.warn('Failed to generate signed URL for:', photo.storage_path, signError);
+            return photo as UnmatchedPhotoRow;
+          }
+          
+          return {
+            ...photo,
+            url: signedData?.signedUrl || photo.url,
+          } as UnmatchedPhotoRow;
+        })
+      );
+
+      setQueue(photosWithFreshUrls);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch review queue');
     } finally {
