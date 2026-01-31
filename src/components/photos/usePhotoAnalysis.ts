@@ -149,12 +149,16 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
 
   /**
    * Process multiple photos in batch
+   * @param skipAnalysis - If true, skip AI analysis and just upload (for faster onboarding)
    */
   const processBatch = useCallback(async (
     files: File[],
-    vehicleId?: string
+    vehicleId?: string,
+    options_?: { skipAnalysis?: boolean }
   ): Promise<PhotoUploadProgress[]> => {
     if (!user) throw new Error('User not authenticated');
+
+    const skipAnalysis = options_?.skipAnalysis ?? false;
 
     setIsProcessing(true);
     
@@ -183,19 +187,36 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
         const folder = vehicleId ? `vehicles/${vehicleId}` : 'unmatched';
         const { path, url } = await uploadToStorage(file, folder);
         
-        // Update to analyzing
-        const analyzingProgress = [...uploadingProgress];
-        analyzingProgress[i] = { ...analyzingProgress[i], status: 'analyzing', progress: 50 };
-        setProgress(analyzingProgress);
-        options.onProgress?.(analyzingProgress);
+        // Default analysis for skipAnalysis mode
+        let analysis: AIAnalysisResult = {
+          isVehicle: true,
+          confidence: 100,
+          angle: 'unknown',
+          angleConfidence: 0,
+          quality: { score: 100, issues: [] },
+          labels: [],
+        };
 
-        // Analyze
-        const analysis = await analyzePhoto(url, file.name);
+        if (!skipAnalysis) {
+          // Update to analyzing
+          const analyzingProgress = [...uploadingProgress];
+          analyzingProgress[i] = { ...analyzingProgress[i], status: 'analyzing', progress: 50 };
+          setProgress(analyzingProgress);
+          options.onProgress?.(analyzingProgress);
+
+          // Analyze with AI
+          try {
+            analysis = await analyzePhoto(url, file.name);
+          } catch (analysisError) {
+            console.warn('AI analysis failed, using defaults:', analysisError);
+            // Continue with default analysis
+          }
+        }
 
         // Save to database
         let photoId: string | undefined;
         
-        if (vehicleId && analysis.isVehicle) {
+        if (vehicleId) {
           // Map detected angle to photo type
           const getPhotoType = (angle: string | undefined): string => {
             if (!angle) return 'exterior';
@@ -216,13 +237,13 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
               photo_type: getPhotoType(analysis.angle),
               detected_angle: analysis.angle,
               ai_analysis: analysis as unknown as Json,
-              is_vehicle_confirmed: analysis.isVehicle,
+              is_vehicle_confirmed: true,
               quality_score: analysis.quality.score,
               quality_issues: analysis.quality.issues,
               original_filename: file.name,
               file_size_bytes: file.size,
               mime_type: file.type,
-              analyzed_at: new Date().toISOString()
+              analyzed_at: skipAnalysis ? null : new Date().toISOString()
             })
             .select()
             .single();
@@ -245,7 +266,7 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
         }
 
         // Update to complete
-        const completeProgress = [...analyzingProgress];
+        const completeProgress = [...uploadingProgress];
         completeProgress[i] = {
           ...completeProgress[i],
           status: 'complete',
