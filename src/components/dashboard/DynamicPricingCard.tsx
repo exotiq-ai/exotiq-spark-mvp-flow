@@ -289,7 +289,7 @@ export const DynamicPricingCard = ({ onApplyOptimization }: DynamicPricingCardPr
         <div className="flex items-center justify-between">
           <h4 className="font-medium">Vehicle Pricing Analysis</h4>
           <Select 
-            value={selectedVehicle || ''} 
+            value={selectedVehicle ?? undefined} 
             onValueChange={(v) => handleAnalyzeVehicle(v)}
           >
             <SelectTrigger className="w-[200px]">

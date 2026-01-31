@@ -167,15 +167,20 @@ export function ValidationPreview({
     }
     
     if (suggestion.type === 'select' && suggestion.options) {
+      const currentValue = editedData[error.field];
+      const selectValue = currentValue ? String(currentValue) : '__empty__';
       return (
         <Select
-          value={String(editedData[error.field] || '')}
-          onValueChange={(val) => handleQuickFix(error.field, val)}
+          value={selectValue}
+          onValueChange={(val) => handleQuickFix(error.field, val === '__empty__' ? '' : val)}
         >
           <SelectTrigger className="h-7 text-xs w-32">
             <SelectValue placeholder="Select..." />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value="__empty__" className="text-xs text-muted-foreground">
+              -- None --
+            </SelectItem>
             {suggestion.options.map(opt => (
               <SelectItem key={opt} value={opt} className="text-xs">
                 {opt}
