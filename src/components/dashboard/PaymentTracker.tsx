@@ -3,13 +3,15 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
+import { useGrowthCalculation } from "@/hooks/useGrowthCalculation";
 import { VehicleImageDialog } from "@/components/dialogs/VehicleImageDialog";
 import { 
   DollarSign, 
   Clock, 
   CheckCircle,
   AlertCircle,
-  TrendingUp
+  TrendingUp,
+  TrendingDown
 } from "lucide-react";
 import { RecordPaymentDialog } from "@/components/dialogs/RecordPaymentDialog";
 import { Database } from "@/integrations/supabase/types";
@@ -75,6 +77,12 @@ export const PaymentTracker = () => {
 
   const totalPending = pendingPayments.reduce((sum, b) => sum + (Number(b.total_value) - b.totalPaid), 0);
   const totalOverdue = overduePayments.reduce((sum, b) => sum + (Number(b.total_value) - b.totalPaid), 0);
+  
+  // Calculate real payment growth
+  const completedPaymentsWithDates = payments
+    .filter(p => p.payment_status === 'completed')
+    .map(p => ({ created_at: p.created_at, amount: Number(p.amount) }));
+  const paymentGrowth = useGrowthCalculation(completedPaymentsWithDates);
 
   const handleRecordPayment = (booking: Booking) => {
     setSelectedBooking(booking);
@@ -131,7 +139,11 @@ export const PaymentTracker = () => {
         <Card className="card-premium p-6">
           <div className="flex items-center justify-between mb-2">
             <CheckCircle className="h-5 w-5 text-primary" />
-            <span className="text-xs text-success">+12%</span>
+            {paymentGrowth !== null && (
+              <span className={`text-xs ${paymentGrowth >= 0 ? 'text-success' : 'text-destructive'}`}>
+                {paymentGrowth >= 0 ? '+' : ''}{paymentGrowth}%
+              </span>
+            )}
           </div>
           <div className="text-2xl font-bold">
             {bookingsWithPaymentStatus.filter(b => b.balancePaid).length}

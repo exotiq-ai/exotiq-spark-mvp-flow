@@ -6,27 +6,31 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { ImportEntityType } from '@/lib/importSchemas';
 import { parseFile, detectEntityType, transformRows, validateRows, ColumnMapping, ParsedFileData, ValidationResult, EntityDetectionResult } from '@/lib/importUtils';
+import { checkForDuplicates, applyDuplicateResolutions, linkBookingsToExistingRecords, DuplicateCheckResult, DuplicateMatch } from '@/lib/importDuplicateCheck';
 import { FileUploadZone } from './FileUploadZone';
 import { EntityTypeSelector } from './EntityTypeSelector';
 import { ColumnMapper } from './ColumnMapper';
 import { ValidationPreview } from './ValidationPreview';
 import { ImportProgress, ImportProgressState } from './ImportProgress';
+import { DuplicateResolver, DuplicateResolution } from './DuplicateResolver';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTeam } from '@/contexts/TeamContext';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface ImportWizardProps {
   onClose?: () => void;
   onComplete?: (entityType: ImportEntityType | string, count: number) => void;
 }
 
-type WizardStep = 'upload' | 'entity' | 'mapping' | 'preview' | 'import';
+type WizardStep = 'upload' | 'entity' | 'mapping' | 'preview' | 'duplicates' | 'import';
 
 const steps: { key: WizardStep; label: string }[] = [
   { key: 'upload', label: 'Upload File' },
   { key: 'entity', label: 'Select Type' },
   { key: 'mapping', label: 'Map Columns' },
   { key: 'preview', label: 'Preview' },
+  { key: 'duplicates', label: 'Review' },
   { key: 'import', label: 'Import' }
 ];
 
@@ -34,6 +38,7 @@ export function ImportWizard({ onClose, onComplete }: ImportWizardProps) {
   const { toast } = useToast();
   const { user } = useAuth();
   const { currentTeam } = useTeam();
+  const queryClient = useQueryClient();
   
   const [currentStep, setCurrentStep] = useState<WizardStep>('upload');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -44,6 +49,8 @@ export function ImportWizard({ onClose, onComplete }: ImportWizardProps) {
   const [selectedEntity, setSelectedEntity] = useState<ImportEntityType | null>(null);
   const [columnMappings, setColumnMappings] = useState<ColumnMapping[]>([]);
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
+  const [duplicateResult, setDuplicateResult] = useState<DuplicateCheckResult | null>(null);
+  const [duplicateResolutions, setDuplicateResolutions] = useState<Map<number, DuplicateResolution>>(new Map());
   const [importProgress, setImportProgress] = useState<ImportProgressState>({
     status: 'idle', totalRows: 0, processedRows: 0, importedCount: 0,
     skippedCount: 0, failedCount: 0, currentBatch: 0, totalBatches: 0
@@ -60,6 +67,8 @@ export function ImportWizard({ onClose, onComplete }: ImportWizardProps) {
     setSelectedEntity(null);
     setColumnMappings([]);
     setValidationResult(null);
+    setDuplicateResult(null);
+    setDuplicateResolutions(new Map());
     setImportProgress({ status: 'idle', totalRows: 0, processedRows: 0, importedCount: 0, skippedCount: 0, failedCount: 0, currentBatch: 0, totalBatches: 0 });
   }, []);
 
@@ -87,11 +96,41 @@ export function ImportWizard({ onClose, onComplete }: ImportWizardProps) {
     } else if (currentStep === 'entity' && selectedEntity) {
       setCurrentStep('mapping');
     } else if (currentStep === 'mapping' && selectedEntity && parsedData) {
-      const transformed = transformRows(parsedData.rows, columnMappings);
-      const result = validateRows(transformed, selectedEntity);
-      setValidationResult(result);
-      setCurrentStep('preview');
-    } else if (currentStep === 'preview' && validationResult) {
+      setIsProcessing(true);
+      try {
+        const transformed = transformRows(parsedData.rows, columnMappings);
+        const result = validateRows(transformed, selectedEntity);
+        setValidationResult(result);
+        setCurrentStep('preview');
+      } finally {
+        setIsProcessing(false);
+      }
+    } else if (currentStep === 'preview' && validationResult && selectedEntity && currentTeam) {
+      setIsProcessing(true);
+      try {
+        // Check for duplicates
+        const dupResult = await checkForDuplicates(
+          validationResult.validRows,
+          selectedEntity,
+          currentTeam.id
+        );
+        setDuplicateResult(dupResult);
+        
+        if (dupResult.duplicates.length > 0) {
+          // Initialize resolutions to 'skip'
+          const initialResolutions = new Map<number, DuplicateResolution>();
+          dupResult.duplicates.forEach(d => initialResolutions.set(d.importRowIndex, 'skip'));
+          setDuplicateResolutions(initialResolutions);
+          setCurrentStep('duplicates');
+        } else {
+          // No duplicates, proceed to import
+          setCurrentStep('import');
+          await performImport();
+        }
+      } finally {
+        setIsProcessing(false);
+      }
+    } else if (currentStep === 'duplicates') {
       setCurrentStep('import');
       await performImport();
     }
@@ -102,16 +141,57 @@ export function ImportWizard({ onClose, onComplete }: ImportWizardProps) {
     if (prevIndex >= 0) setCurrentStep(steps[prevIndex].key);
   };
 
+  const handleDuplicateResolution = (resolutions: Map<number, DuplicateResolution>) => {
+    setDuplicateResolutions(resolutions);
+  };
+
   const performImport = async () => {
-    if (!validationResult || !selectedEntity || !user) return;
+    if (!validationResult || !selectedEntity || !user || !currentTeam) return;
     
-    const rows = validationResult.validRows;
     const batchSize = 50;
-    const totalBatches = Math.ceil(rows.length / batchSize);
+    
+    // Apply duplicate resolutions if any
+    let recordsToProcess: Record<string, unknown>[];
+    let updatesToProcess: { id: string; data: Record<string, unknown> }[] = [];
+    let skippedFromDuplicates = 0;
+    
+    if (duplicateResult && duplicateResult.duplicates.length > 0) {
+      // Apply resolutions
+      const duplicatesWithResolutions = duplicateResult.duplicates.map(d => ({
+        ...d,
+        resolution: duplicateResolutions.get(d.importRowIndex) || 'skip'
+      }));
+      
+      const { toInsert, toUpdate, skipped } = await applyDuplicateResolutions(
+        duplicatesWithResolutions,
+        duplicateResult.newRecords,
+        selectedEntity,
+        currentTeam.id,
+        user.id
+      );
+      
+      recordsToProcess = toInsert;
+      updatesToProcess = toUpdate;
+      skippedFromDuplicates = skipped;
+    } else {
+      recordsToProcess = validationResult.validRows.map(row => ({
+        ...row,
+        user_id: user.id,
+        team_id: currentTeam.id
+      }));
+    }
+
+    // For bookings, auto-create customers and link entities
+    if (selectedEntity === 'bookings') {
+      recordsToProcess = await autoCreateCustomersAndLink(recordsToProcess, currentTeam.id, user.id);
+    }
+    
+    const totalRows = recordsToProcess.length + updatesToProcess.length;
+    const totalBatches = Math.ceil(recordsToProcess.length / batchSize) + (updatesToProcess.length > 0 ? 1 : 0);
     
     setImportProgress({
-      status: 'importing', totalRows: rows.length, processedRows: 0,
-      importedCount: 0, skippedCount: validationResult.invalidRows.length,
+      status: 'importing', totalRows, processedRows: 0,
+      importedCount: 0, skippedCount: validationResult.invalidRows.length + skippedFromDuplicates,
       failedCount: 0, currentBatch: 0, totalBatches
     });
 
@@ -123,27 +203,23 @@ export function ImportWizard({ onClose, onComplete }: ImportWizardProps) {
         .from('import_batches')
         .insert({
           user_id: user.id,
-          team_id: currentTeam?.id || null,
+          team_id: currentTeam.id,
           entity_type: selectedEntity,
           file_name: selectedFile?.name,
-          total_rows: rows.length + validationResult.invalidRows.length,
+          total_rows: totalRows + validationResult.invalidRows.length,
           status: 'processing'
         } as any)
         .select()
         .single();
       
-      for (let i = 0; i < totalBatches; i++) {
-        const batch = rows.slice(i * batchSize, (i + 1) * batchSize);
-        const recordsToInsert = batch.map(row => ({ 
-          ...row, 
-          user_id: user.id,
-          team_id: currentTeam?.id || null
-        }));
+      // Process inserts in batches
+      const insertBatches = Math.ceil(recordsToProcess.length / batchSize);
+      for (let i = 0; i < insertBatches; i++) {
+        const batch = recordsToProcess.slice(i * batchSize, (i + 1) * batchSize);
         
-        // Use type assertion since entity type is dynamic at runtime
         const { data, error } = await supabase
           .from(selectedEntity)
-          .insert(recordsToInsert as any)
+          .insert(batch as any)
           .select();
         
         if (error) { failed += batch.length; } 
@@ -155,6 +231,27 @@ export function ImportWizard({ onClose, onComplete }: ImportWizardProps) {
         }));
       }
       
+      // Process updates
+      if (updatesToProcess.length > 0) {
+        for (const update of updatesToProcess) {
+          const { error } = await supabase
+            .from(selectedEntity)
+            .update(update.data as any)
+            .eq('id', update.id);
+          
+          if (error) { failed++; } 
+          else { imported++; }
+        }
+        
+        setImportProgress(prev => ({
+          ...prev, 
+          processedRows: recordsToProcess.length + updatesToProcess.length,
+          currentBatch: totalBatches, 
+          importedCount: imported, 
+          failedCount: failed
+        }));
+      }
+      
       // Update batch record
       if (batchRecord?.id) {
         await supabase
@@ -162,14 +259,18 @@ export function ImportWizard({ onClose, onComplete }: ImportWizardProps) {
           .update({
             status: 'completed',
             imported_count: imported,
-            skipped_count: validationResult.invalidRows.length,
+            skipped_count: validationResult.invalidRows.length + skippedFromDuplicates,
             failed_count: failed,
             completed_at: new Date().toISOString()
           } as any)
           .eq('id', batchRecord.id);
       }
       
-      setImportProgress(prev => ({ ...prev, status: 'completed', processedRows: rows.length }));
+      setImportProgress(prev => ({ ...prev, status: 'completed', processedRows: totalRows }));
+      
+      // Invalidate queries to refresh data
+      await invalidateRelatedQueries(selectedEntity);
+      
       onComplete?.(selectedEntity, imported);
       toast({ title: 'Import Complete', description: `Successfully imported ${imported} ${selectedEntity}.` });
     } catch (error) {
@@ -177,48 +278,186 @@ export function ImportWizard({ onClose, onComplete }: ImportWizardProps) {
     }
   };
 
+  const autoCreateCustomersAndLink = async (
+    rows: Record<string, unknown>[],
+    teamId: string,
+    userId: string
+  ): Promise<Record<string, unknown>[]> => {
+    // First link to existing records
+    const linkedRows = await linkBookingsToExistingRecords(rows, teamId);
+    
+    // Find rows that need customer creation
+    const rowsNeedingCustomers = linkedRows.filter(
+      row => !row.customer_id && row.customer_email
+    );
+    
+    if (rowsNeedingCustomers.length === 0) return linkedRows;
+    
+    // Get unique emails that need customer creation
+    const uniqueEmails = [...new Set(
+      rowsNeedingCustomers
+        .map(r => String(r.customer_email).toLowerCase())
+        .filter(Boolean)
+    )];
+    
+    // Create customers for each unique email
+    const emailToCustomerId = new Map<string, string>();
+    
+    for (const email of uniqueEmails) {
+      const matchingRow = rowsNeedingCustomers.find(
+        r => String(r.customer_email).toLowerCase() === email
+      );
+      
+      if (!matchingRow) continue;
+      
+      const { data: newCustomer, error } = await supabase
+        .from('customers')
+        .insert({
+          full_name: String(matchingRow.customer_name || 'Unknown'),
+          email: email,
+          phone: matchingRow.customer_phone ? String(matchingRow.customer_phone) : null,
+          user_id: userId,
+          team_id: teamId,
+          customer_status: 'active' as const
+        } as any)
+        .select('id')
+        .single();
+      
+      if (!error && newCustomer) {
+        emailToCustomerId.set(email, newCustomer.id);
+      }
+    }
+    
+    // Update rows with new customer IDs
+    return linkedRows.map(row => {
+      if (row.customer_id) return row;
+      
+      const email = String(row.customer_email || '').toLowerCase();
+      const customerId = emailToCustomerId.get(email);
+      
+      if (customerId) {
+        return { ...row, customer_id: customerId };
+      }
+      
+      return row;
+    });
+  };
+
+  const invalidateRelatedQueries = async (entityType: ImportEntityType) => {
+    const queryKeys = [entityType];
+    
+    // Also invalidate related queries
+    if (entityType === 'bookings') {
+      queryKeys.push('customers' as any);
+    }
+    if (entityType === 'vehicles') {
+      queryKeys.push('fleet' as any);
+    }
+    
+    // Invalidate all related queries
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['fleet'] }),
+      queryClient.invalidateQueries({ queryKey: ['customers'] }),
+      queryClient.invalidateQueries({ queryKey: ['bookings'] }),
+      queryClient.invalidateQueries({ queryKey: ['vehicles'] }),
+      queryClient.invalidateQueries({ queryKey: ['locations'] }),
+    ]);
+  };
+
   const canProceed = () => {
     if (currentStep === 'upload') return !!parsedData && !isProcessing;
     if (currentStep === 'entity') return !!selectedEntity;
-    if (currentStep === 'mapping') return columnMappings.some(m => m.sourceColumn);
-    if (currentStep === 'preview') return validationResult && validationResult.validRows.length > 0;
+    if (currentStep === 'mapping') return columnMappings.some(m => m.sourceColumn) && !isProcessing;
+    if (currentStep === 'preview') return validationResult && validationResult.validRows.length > 0 && !isProcessing;
+    if (currentStep === 'duplicates') return true; // Can always proceed from duplicates
     return false;
   };
+
+  // Skip duplicates step in progress indicator if no duplicates
+  const visibleSteps = duplicateResult?.duplicates?.length 
+    ? steps 
+    : steps.filter(s => s.key !== 'duplicates');
+  
+  const visibleStepIndex = visibleSteps.findIndex(s => s.key === currentStep);
 
   return (
     <div className="flex flex-col h-full min-h-[500px]">
       {/* Progress Steps */}
       <div className="flex items-center gap-2 py-4">
-        {steps.map((step, index) => (
+        {visibleSteps.map((step, index) => (
           <React.Fragment key={step.key}>
-            <div className={cn('flex items-center gap-2', index <= currentStepIndex ? 'text-primary' : 'text-muted-foreground')}>
-              <div className={cn('w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium', index < currentStepIndex ? 'bg-primary text-primary-foreground' : index === currentStepIndex ? 'bg-primary/20 text-primary border-2 border-primary' : 'bg-muted')}>
-                {index < currentStepIndex ? <Check className="h-4 w-4" /> : index + 1}
+            <div className={cn('flex items-center gap-2', index <= visibleStepIndex ? 'text-primary' : 'text-muted-foreground')}>
+              <div className={cn('w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium', index < visibleStepIndex ? 'bg-primary text-primary-foreground' : index === visibleStepIndex ? 'bg-primary/20 text-primary border-2 border-primary' : 'bg-muted')}>
+                {index < visibleStepIndex ? <Check className="h-4 w-4" /> : index + 1}
               </div>
               <span className="text-sm hidden sm:inline">{step.label}</span>
             </div>
-            {index < steps.length - 1 && <div className={cn('flex-1 h-0.5', index < currentStepIndex ? 'bg-primary' : 'bg-muted')} />}
+            {index < visibleSteps.length - 1 && <div className={cn('flex-1 h-0.5', index < visibleStepIndex ? 'bg-primary' : 'bg-muted')} />}
           </React.Fragment>
         ))}
       </div>
 
       {/* Step Content */}
       <div className="flex-1 overflow-y-auto py-4">
-        {currentStep === 'upload' && <FileUploadZone onFileSelect={handleFileSelect} selectedFile={selectedFile} onClear={() => { setSelectedFile(null); setParsedData(null); }} isProcessing={isProcessing} error={fileError} />}
-        {currentStep === 'entity' && <EntityTypeSelector detectedEntity={detectedEntity} selectedEntity={selectedEntity} onSelect={setSelectedEntity} />}
-        {currentStep === 'mapping' && selectedEntity && parsedData && <ColumnMapper entityType={selectedEntity} sourceHeaders={parsedData.headers} sourceRows={parsedData.rows} mappings={columnMappings} onMappingsChange={setColumnMappings} />}
-        {currentStep === 'preview' && selectedEntity && validationResult && <ValidationPreview entityType={selectedEntity} validationResult={validationResult} />}
+        {currentStep === 'upload' && (
+          <FileUploadZone 
+            onFileSelect={handleFileSelect} 
+            selectedFile={selectedFile} 
+            onClear={() => { setSelectedFile(null); setParsedData(null); }} 
+            isProcessing={isProcessing} 
+            error={fileError} 
+          />
+        )}
+        {currentStep === 'entity' && (
+          <EntityTypeSelector 
+            detectedEntity={detectedEntity} 
+            selectedEntity={selectedEntity} 
+            onSelect={setSelectedEntity} 
+          />
+        )}
+        {currentStep === 'mapping' && selectedEntity && parsedData && (
+          <ColumnMapper 
+            entityType={selectedEntity} 
+            sourceHeaders={parsedData.headers} 
+            sourceRows={parsedData.rows} 
+            mappings={columnMappings} 
+            onMappingsChange={setColumnMappings} 
+          />
+        )}
+        {currentStep === 'preview' && selectedEntity && validationResult && (
+          <ValidationPreview 
+            entityType={selectedEntity} 
+            validationResult={validationResult} 
+          />
+        )}
+        {currentStep === 'duplicates' && duplicateResult && (
+          <DuplicateResolver
+            duplicates={duplicateResult.duplicates}
+            onResolve={handleDuplicateResolution}
+            onBack={() => setCurrentStep('preview')}
+          />
+        )}
         {currentStep === 'import' && <ImportProgress progress={importProgress} />}
       </div>
 
       {/* Footer */}
       <div className="flex items-center justify-between pt-4 border-t">
-        <Button variant="outline" onClick={handleBack} disabled={currentStepIndex === 0 || importProgress.status === 'importing'}>
+        <Button 
+          variant="outline" 
+          onClick={handleBack} 
+          disabled={currentStepIndex === 0 || importProgress.status === 'importing'}
+        >
           <ArrowLeft className="h-4 w-4 mr-2" />Back
         </Button>
-        {currentStep !== 'import' ? (
+        {currentStep !== 'import' && currentStep !== 'duplicates' ? (
           <Button onClick={handleNext} disabled={!canProceed()}>
-            {currentStep === 'preview' ? 'Start Import' : 'Next'}<ArrowRight className="h-4 w-4 ml-2" />
+            {currentStep === 'preview' ? 'Check Duplicates' : 'Next'}
+            <ArrowRight className="h-4 w-4 ml-2" />
+          </Button>
+        ) : currentStep === 'duplicates' ? (
+          <Button onClick={handleNext}>
+            Continue with Import
+            <ArrowRight className="h-4 w-4 ml-2" />
           </Button>
         ) : (
           <Button onClick={() => { resetWizard(); onClose?.(); }} disabled={importProgress.status === 'importing'}>

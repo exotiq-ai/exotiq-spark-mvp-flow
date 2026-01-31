@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
+import { useGrowthCalculation, useRevenueGrowth } from "@/hooks/useGrowthCalculation";
 import { SkeletonMetric, SkeletonTable } from "@/components/ui/skeleton-card";
 import { EmptyState } from "@/components/common/EmptyState";
 import { 
@@ -12,6 +13,7 @@ import {
   Star, 
   AlertTriangle,
   TrendingUp,
+  TrendingDown,
   Phone,
   Mail,
   Plus,
@@ -47,6 +49,12 @@ export const CRMSection = () => {
   const avgBookings = customers.length > 0 
     ? (customers.reduce((sum, c) => sum + (c.total_bookings || 0), 0) / customers.length).toFixed(1)
     : '0';
+
+  // Calculate real growth percentages
+  const customerGrowth = useGrowthCalculation(customers);
+  const { growth: revenueGrowth } = useRevenueGrowth(
+    customers.map(c => ({ created_at: c.created_at, total_value: c.lifetime_value }))
+  );
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -106,8 +114,18 @@ export const CRMSection = () => {
 
         <Card className="card-premium p-6">
           <div className="flex items-center justify-between mb-2">
-            <TrendingUp className="h-5 w-5 text-success" />
-            <span className="text-xs text-success">+12%</span>
+            {revenueGrowth !== null && revenueGrowth >= 0 ? (
+              <TrendingUp className="h-5 w-5 text-success" />
+            ) : revenueGrowth !== null ? (
+              <TrendingDown className="h-5 w-5 text-destructive" />
+            ) : (
+              <TrendingUp className="h-5 w-5 text-muted-foreground" />
+            )}
+            {revenueGrowth !== null && (
+              <span className={`text-xs ${revenueGrowth >= 0 ? 'text-success' : 'text-destructive'}`}>
+                {revenueGrowth >= 0 ? '+' : ''}{revenueGrowth}%
+              </span>
+            )}
           </div>
           <div className="text-2xl font-bold">${totalRevenue.toLocaleString()}</div>
           <div className="text-sm text-muted-foreground">Total CLV</div>

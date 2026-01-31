@@ -1,6 +1,12 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { RealAIInsights } from "./RealAIInsights";
+import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { useDemoAccount } from "@/hooks/useDemoAccount";
 import { 
   Brain, 
   Zap, 
@@ -17,34 +23,35 @@ import {
 } from "lucide-react";
 
 export const Core = () => {
-  const aiInsights = [
-    {
-      title: "Pricing Optimization Opportunity",
-      description: "McLaren 720S is underpriced by $75/day based on demand patterns",
-      impact: "+$2,250/month",
-      confidence: "94%",
-      priority: "high",
-      action: "Adjust pricing strategy"
-    },
-    {
-      title: "Fleet Utilization Alert",
-      description: "BMW i8 has been idle for 5 days. Consider promotional pricing",
-      impact: "+$840/week",
-      confidence: "87%", 
-      priority: "medium",
-      action: "Create special offer"
-    },
-    {
-      title: "Customer Retention Risk",
-      description: "3 VIP customers haven't booked in 30+ days",
-      impact: "-$1,200/month",
-      confidence: "78%",
-      priority: "high",
-      action: "Launch retention campaign"
-    }
-  ];
+  const { user } = useAuth();
+  const { vehicles, bookings } = useLocationFilteredFleet();
+  const isDemoAccount = useDemoAccount();
 
-  const systemAlerts = [
+  // Fetch real notifications
+  const { data: notifications } = useQuery({
+    queryKey: ['notifications', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('read', false)
+        .order('created_at', { ascending: false })
+        .limit(5);
+      return data || [];
+    },
+    enabled: !!user
+  });
+
+  // Calculate real metrics
+  const totalVehicles = vehicles.length;
+  const activeBookings = bookings.filter(b => b.status === 'active' || b.status === 'confirmed').length;
+  const automatedTasks = totalVehicles > 0 ? Math.round((activeBookings / totalVehicles) * 100) : 0;
+  const timeSavedHours = totalVehicles > 0 ? (totalVehicles * 0.5).toFixed(1) : '0';
+
+  // Demo fallback data
+  const demoAlerts = [
     {
       type: "warning",
       message: "Insurance renewal needed for Lamborghini Huracán in 5 days",
@@ -58,24 +65,22 @@ export const Core = () => {
       priority: "medium"
     },
     {
-      type: "info",
-      message: "New booking inquiry by Sam for weekend - Ferarri 458",
-      time: "15 minutes ago",
-      priority: "medium"
-    },
-    {
       type: "success",
       message: "Payment received: $2,100 for completed rental",
       time: "1 hour ago",
       priority: "low"
-    },
-    {
-      type: "error",
-      message: "Maintenance required: Porsche 911 GT3 service overdue",
-      time: "4 hours ago",
-      priority: "high"
     }
   ];
+
+  // Use real notifications or demo data
+  const systemAlerts = notifications && notifications.length > 0 
+    ? notifications.map(n => ({
+        type: n.type === 'error' ? 'error' : n.type === 'warning' ? 'warning' : 'info',
+        message: n.message,
+        time: formatTimeAgo(new Date(n.created_at)),
+        priority: n.type === 'error' ? 'high' : 'medium'
+      }))
+    : isDemoAccount ? demoAlerts : [];
 
   const quickActions = [
     { title: "Add New Vehicle", icon: Car, color: "text-primary" },
@@ -84,13 +89,6 @@ export const Core = () => {
     { title: "Update Pricing", icon: DollarSign, color: "text-warning" },
     { title: "Schedule Maintenance", icon: Settings, color: "text-destructive" },
     { title: "Send Message", icon: MessageSquare, color: "text-purple-500" }
-  ];
-
-  const performanceMetrics = [
-    { label: "AI Accuracy", value: "94.2%", change: "+2.1%", trend: "up" },
-    { label: "Automation Rate", value: "87%", change: "+5%", trend: "up" },
-    { label: "Response Time", value: "1.2s", change: "-0.3s", trend: "up" },
-    { label: "Cost Savings", value: "$4,250", change: "+12%", trend: "up" }
   ];
 
   const getAlertIcon = (type: string) => {
@@ -147,7 +145,7 @@ export const Core = () => {
               <div className="absolute inset-0 bg-success/10 dark:bg-success/20 rounded-full blur-xl"></div>
               <Zap className="relative w-10 h-10 text-success mx-auto dark:drop-shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
             </div>
-            <div className="text-2xl font-bold text-foreground">87%</div>
+            <div className="text-2xl font-bold text-foreground">{automatedTasks}%</div>
             <div className="text-sm text-muted-foreground mt-1">Tasks Automated</div>
           </div>
           
@@ -156,63 +154,15 @@ export const Core = () => {
               <div className="absolute inset-0 bg-performance-orange/10 dark:bg-performance-orange/20 rounded-full blur-xl"></div>
               <Clock className="relative w-10 h-10 text-performance-orange mx-auto dark:drop-shadow-[0_0_8px_rgba(255,107,53,0.6)]" />
             </div>
-            <div className="text-2xl font-bold text-foreground">4.2h</div>
+            <div className="text-2xl font-bold text-foreground">{timeSavedHours}h</div>
             <div className="text-sm text-muted-foreground mt-1">Time Saved Daily</div>
           </div>
         </div>
       </Card>
 
-      {/* Performance Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {performanceMetrics.map((metric, index) => (
-          <Card key={index} className="card-premium p-6">
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-2xl font-bold">{metric.value}</div>
-              <TrendingUp className="h-5 w-5 text-success" />
-            </div>
-            <div className="text-sm font-medium mb-1">{metric.label}</div>
-            <div className="text-xs text-success">
-              {metric.change} vs last month
-            </div>
-          </Card>
-        ))}
-      </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* AI Insights */}
-        <Card className="card-premium p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-semibold">AI Insights</h3>
-            <Badge className="bg-primary/10 text-primary border-primary/20">
-              <Zap className="w-3 h-3 mr-1" />
-              3 Active
-            </Badge>
-          </div>
-          
-          <div className="space-y-4">
-            {aiInsights.map((insight, index) => (
-              <div key={index} className="p-4 rounded-lg bg-muted/30 border border-primary/20">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-sm mb-1">{insight.title}</h4>
-                    <p className="text-xs text-muted-foreground mb-2">{insight.description}</p>
-                    <div className="flex items-center space-x-4 text-xs">
-                      <span className="font-medium text-success">{insight.impact}</span>
-                      <span className="text-muted-foreground">Confidence: {insight.confidence}</span>
-                    </div>
-                  </div>
-                  <Badge className={getPriorityColor(insight.priority)}>
-                    {insight.priority}
-                  </Badge>
-                </div>
-                
-                <Button size="sm" variant="outline" className="w-full">
-                  {insight.action}
-                </Button>
-              </div>
-            ))}
-          </div>
-        </Card>
+        {/* Real AI Insights */}
+        <RealAIInsights maxInsights={3} />
 
         {/* System Alerts */}
         <Card className="card-premium p-6">
@@ -223,22 +173,29 @@ export const Core = () => {
             </Button>
           </div>
           
-          <div className="space-y-4">
-            {systemAlerts.map((alert, index) => (
-              <div key={index} className="flex items-start space-x-3 p-3 rounded-lg bg-muted/30">
-                {getAlertIcon(alert.type)}
-                <div className="flex-1">
-                  <div className="text-sm font-medium">{alert.message}</div>
-                  <div className="flex items-center justify-between mt-1">
-                    <div className="text-xs text-muted-foreground">{alert.time}</div>
-                    <Badge className={getPriorityColor(alert.priority)}>
-                      {alert.priority}
-                    </Badge>
+          {systemAlerts.length > 0 ? (
+            <div className="space-y-4">
+              {systemAlerts.map((alert, index) => (
+                <div key={index} className="flex items-start space-x-3 p-3 rounded-lg bg-muted/30">
+                  {getAlertIcon(alert.type)}
+                  <div className="flex-1">
+                    <div className="text-sm font-medium">{alert.message}</div>
+                    <div className="flex items-center justify-between mt-1">
+                      <div className="text-xs text-muted-foreground">{alert.time}</div>
+                      <Badge className={getPriorityColor(alert.priority)}>
+                        {alert.priority}
+                      </Badge>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <CheckCircle className="w-12 h-12 mx-auto mb-3 opacity-50 text-success" />
+              <p>No pending alerts</p>
+            </div>
+          )}
         </Card>
       </div>
 
@@ -259,7 +216,19 @@ export const Core = () => {
           ))}
         </div>
       </Card>
-
     </div>
   );
 };
+
+function formatTimeAgo(date: Date): string {
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
+  if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+  return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+}
