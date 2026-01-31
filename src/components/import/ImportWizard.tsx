@@ -272,7 +272,22 @@ export function ImportWizard({ onClose, onComplete }: ImportWizardProps) {
       await invalidateRelatedQueries(selectedEntity);
       
       onComplete?.(selectedEntity, imported);
-      toast({ title: 'Import Complete', description: `Successfully imported ${imported} ${selectedEntity}.` });
+      
+      // Show appropriate toast based on entity type and results
+      if (selectedEntity === 'bookings') {
+        // Check if any bookings are missing customer linkage
+        const bookingsWithoutCustomer = recordsToProcess.filter(r => !r.customer_id).length;
+        if (bookingsWithoutCustomer > 0) {
+          toast({ 
+            title: 'Import Complete', 
+            description: `Imported ${imported} bookings. ${bookingsWithoutCustomer} booking(s) need customer details - you can link them in the Bookings view.`
+          });
+        } else {
+          toast({ title: 'Import Complete', description: `Successfully imported ${imported} bookings with customer links.` });
+        }
+      } else {
+        toast({ title: 'Import Complete', description: `Successfully imported ${imported} ${selectedEntity}.` });
+      }
     } catch (error) {
       setImportProgress(prev => ({ ...prev, status: 'error', errorMessage: error instanceof Error ? error.message : 'Import failed' }));
     }
@@ -286,12 +301,10 @@ export function ImportWizard({ onClose, onComplete }: ImportWizardProps) {
     // First link to existing records
     const linkedRows = await linkBookingsToExistingRecords(rows, teamId);
     
-    // Find rows that need customer creation
+    // Find rows that need customer creation (only if they have email)
     const rowsNeedingCustomers = linkedRows.filter(
       row => !row.customer_id && row.customer_email
     );
-    
-    if (rowsNeedingCustomers.length === 0) return linkedRows;
     
     // Get unique emails that need customer creation
     const uniqueEmails = [...new Set(
@@ -328,18 +341,27 @@ export function ImportWizard({ onClose, onComplete }: ImportWizardProps) {
       }
     }
     
-    // Update rows with new customer IDs
+    // Update rows with new customer IDs and preserve vehicle_name
     return linkedRows.map(row => {
-      if (row.customer_id) return row;
+      const processedRow = { ...row };
       
-      const email = String(row.customer_email || '').toLowerCase();
-      const customerId = emailToCustomerId.get(email);
-      
-      if (customerId) {
-        return { ...row, customer_id: customerId };
+      // Link customer if we created one
+      if (!processedRow.customer_id) {
+        const email = String(row.customer_email || '').toLowerCase();
+        const customerId = emailToCustomerId.get(email);
+        if (customerId) {
+          processedRow.customer_id = customerId;
+        }
       }
       
-      return row;
+      // IMPORTANT: Keep vehicle_name for storage even if vehicle_id is null
+      // The vehicle_name column now exists in the database
+      // Remove helper fields that don't belong in final insert
+      delete processedRow.customer_email;
+      delete processedRow.customer_phone;
+      // Keep vehicle_name - it's now a real column!
+      
+      return processedRow;
     });
   };
 

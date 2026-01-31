@@ -487,7 +487,7 @@ export const vehicleImportValidation = z.object({
   year: z.coerce.number().min(1900, 'Year must be 1900 or later').max(2027, 'Year cannot exceed 2027'),
   license_plate: z.string().optional().nullable(),
   vin: z.string().length(17, 'VIN must be exactly 17 characters').optional().nullable().or(z.literal('')),
-  current_rate: z.coerce.number().min(0, 'Rate must be positive').optional().nullable(),
+  current_rate: z.coerce.number().min(0, 'Rate must be positive').default(0), // Now defaults to 0
   status: z.enum(['available', 'rented', 'maintenance', 'unavailable']).optional().default('available'),
   location: z.string().optional().nullable(),
   color: z.string().optional().nullable(),
