@@ -1,192 +1,366 @@
 
-# Phase 3: Enhanced Onboarding - Implementation Status
+# Migrate Onboarding Progress to Database with localStorage Fallback
 
-## ✅ COMPLETED - Sprint Implementation
+## Overview
 
----
-
-## Summary of Implementation
-
-All 5 core features from Phase 3 have been implemented:
-
-### 1. ✅ Database-Backed Onboarding Progress
-**Status: COMPLETE**
-
-- Created `onboarding_progress` table with RLS policies
-- Built `useOnboardingProgress` hook with:
-  - Cross-device state persistence
-  - Debounced auto-save (2s)
-  - Optimistic cache updates
-  - Step completion tracking
-  - Form data preservation
-
-**Files Created:**
-- `src/hooks/useOnboardingProgress.ts`
-
-**Database:**
-- `onboarding_progress` table with `current_step`, `steps_completed[]`, `form_data (JSONB)`, timestamps
+This migration replaces localStorage-only persistence with a database-first approach that falls back to localStorage when network requests fail. This gives users the best of both worlds: cross-device sync when online, and uninterrupted progress when offline.
 
 ---
 
-### 2. ✅ Smart Import Templates with Format Detection
-**Status: COMPLETE**
+## Implementation Strategy
 
-- Software-specific format detection for:
-  - Rent Centric (`rc_*` prefixes)
-  - HQ Rental (`HQ-` prefixes)
-  - Navotar (`nav_*` prefixes)
-  - Fleet Complete (`fc_*` prefixes)
-  - TSD Rental
-- Auto-mapping suggestions with confidence scores
-- Date format detection per software
+### Architecture: Database-First with localStorage Fallback
 
-**Files Created:**
-- `src/lib/importFormatDetection.ts` - Detection logic
-- `src/components/import/FormatDetectionBanner.tsx` - UI banner
-
----
-
-### 3. ✅ Team Member Onboarding Path
-**Status: COMPLETE**
-
-- Lightweight 2-step flow for invited users:
-  1. Profile Setup (name, phone, avatar)
-  2. Role-Based Tips & Quick Start
-- Auto-detection of invited members vs team owners
-- Role-specific guidance (admin, manager, operator, viewer)
-- Confetti celebration on completion
-
-**Files Created:**
-- `src/pages/TeamMemberOnboarding.tsx`
-- `src/components/onboarding/RoleTips.tsx`
-
-**Files Modified:**
-- `src/contexts/AuthContext.tsx` - Detect invited members, route to `/team-onboarding`
-- `src/App.tsx` - Added `/team-onboarding` route
-
----
-
-### 4. 🔲 First Booking Quick-Start Flow
-**Status: PLANNED (Next Sprint)**
-
-Designed but not yet implemented:
-- Vehicle selection cards
-- Inline customer quick-add
-- Date/location selection
-- Confetti celebration
-
----
-
-### 5. ✅ Import Batch History and Recovery
-**Status: COMPLETE**
-
-- Enhanced `import_batches` table with:
-  - `column_mappings` (JSONB)
-  - `failed_rows` (JSONB)
-  - `original_file_url`
-  - `can_retry` flag
-- Import history UI with:
-  - Date-grouped display
-  - Status indicators
-  - Failed rows download
-  - Delete functionality
-
-**Files Created:**
-- `src/hooks/useImportHistory.ts`
-- `src/components/import/ImportHistory.tsx`
-
----
-
-## Database Changes Applied
-
-```sql
--- 1. Onboarding Progress Table
-CREATE TABLE public.onboarding_progress (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  team_id UUID REFERENCES public.teams(id) ON DELETE SET NULL,
-  current_step INTEGER NOT NULL DEFAULT 1,
-  steps_completed INTEGER[] DEFAULT '{}',
-  form_data JSONB DEFAULT '{}',
-  started_at TIMESTAMPTZ DEFAULT now(),
-  last_activity_at TIMESTAMPTZ DEFAULT now(),
-  completed_at TIMESTAMPTZ,
-  source TEXT DEFAULT 'web',
-  onboarding_type TEXT DEFAULT 'owner',
-  UNIQUE(user_id)
-);
-
--- RLS Policy
-CREATE POLICY "Users can manage own onboarding progress"
-  ON public.onboarding_progress FOR ALL
-  USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
-
--- 2. Import Batches Enhancement
-ALTER TABLE public.import_batches
-  ADD COLUMN column_mappings JSONB DEFAULT '[]',
-  ADD COLUMN failed_rows JSONB DEFAULT '[]',
-  ADD COLUMN original_file_url TEXT,
-  ADD COLUMN can_retry BOOLEAN DEFAULT false;
+```text
+User makes a change
+        |
+        v
++------------------+
+|  Save to Database |-----> Success? ---> Update localStorage cache
++------------------+           |
+        |                      |
+        v                      |
+   Network Error?              |
+        |                      |
+        v                      |
++-------------------+          |
+| Save to localStorage |        |
+| (fallback mode)    |          |
++-------------------+          |
+        |                      |
+        +----------------------+
+                   |
+                   v
+           On next load:
+           Check for unsynced localStorage data
+           and attempt to sync to database
 ```
 
 ---
 
-## Files Created
+## Step-by-Step Implementation
 
-| File | Purpose |
-|------|---------|
-| `src/hooks/useOnboardingProgress.ts` | Database-backed progress tracking |
-| `src/hooks/useImportHistory.ts` | Fetch/manage import history |
-| `src/pages/TeamMemberOnboarding.tsx` | Lightweight 2-step invited user flow |
-| `src/lib/importFormatDetection.ts` | Software-specific format detection |
-| `src/components/import/FormatDetectionBanner.tsx` | Show detected format UI |
-| `src/components/import/ImportHistory.tsx` | Past imports list with actions |
-| `src/components/onboarding/RoleTips.tsx` | Role-specific guidance cards |
+### Step 1: Enhance useOnboardingProgress Hook
 
-## Files Modified
+Add localStorage fallback and sync detection:
 
-| File | Changes |
-|------|---------|
-| `src/contexts/AuthContext.tsx` | Detect team members, route to team onboarding |
-| `src/App.tsx` | Added `/team-onboarding` route |
+**File: `src/hooks/useOnboardingProgress.ts`**
+
+New capabilities:
+- `isOffline` state to track network status
+- `hasPendingSync` to indicate unsynced localStorage data
+- `syncPendingChanges()` to push localStorage data to database when back online
+- Fallback write to localStorage when database save fails
+- On load: check localStorage for pending changes and attempt sync
+
+```typescript
+// New state
+const [isOffline, setIsOffline] = useState(false);
+const [hasPendingSync, setHasPendingSync] = useState(false);
+
+// localStorage keys for fallback
+const FALLBACK_KEY = `onboarding-fallback-${user?.id}`;
+const PENDING_SYNC_KEY = `onboarding-pending-sync-${user?.id}`;
+```
+
+**Modified updateProgress function:**
+```typescript
+try {
+  const { error } = await supabase
+    .from('onboarding_progress')
+    .update(dbUpdates)
+    .eq('user_id', user.id);
+
+  if (error) throw error;
+
+  // Success - also update localStorage cache
+  localStorage.setItem(FALLBACK_KEY, JSON.stringify({
+    currentStep: updates.currentStep ?? progress?.currentStep,
+    formData: dbUpdates.form_data ?? progress?.formData,
+    stepsCompleted: updates.stepsCompleted ?? progress?.stepsCompleted,
+  }));
+  localStorage.removeItem(PENDING_SYNC_KEY);
+  setIsOffline(false);
+
+} catch (error) {
+  // Network failure - fall back to localStorage
+  devError('[OnboardingProgress] DB save failed, using localStorage fallback:', error);
+  
+  localStorage.setItem(FALLBACK_KEY, JSON.stringify({
+    currentStep: updates.currentStep ?? progress?.currentStep,
+    formData: updates.formData ? { ...progress?.formData, ...updates.formData } : progress?.formData,
+    stepsCompleted: updates.stepsCompleted ?? progress?.stepsCompleted,
+  }));
+  localStorage.setItem(PENDING_SYNC_KEY, 'true');
+  
+  setIsOffline(true);
+  setHasPendingSync(true);
+}
+```
+
+**New sync function:**
+```typescript
+const syncPendingChanges = useCallback(async () => {
+  if (!user?.id) return false;
+  
+  const pendingData = localStorage.getItem(FALLBACK_KEY);
+  const hasPending = localStorage.getItem(PENDING_SYNC_KEY);
+  
+  if (!pendingData || !hasPending) return true;
+  
+  try {
+    const parsed = JSON.parse(pendingData);
+    const { error } = await supabase
+      .from('onboarding_progress')
+      .update({
+        current_step: parsed.currentStep,
+        form_data: parsed.formData,
+        steps_completed: parsed.stepsCompleted,
+      })
+      .eq('user_id', user.id);
+    
+    if (error) throw error;
+    
+    localStorage.removeItem(PENDING_SYNC_KEY);
+    setHasPendingSync(false);
+    setIsOffline(false);
+    return true;
+  } catch {
+    return false;
+  }
+}, [user?.id]);
+```
+
+**Auto-sync on mount and online event:**
+```typescript
+useEffect(() => {
+  const handleOnline = () => syncPendingChanges();
+  window.addEventListener('online', handleOnline);
+  
+  // Check for pending sync on mount
+  if (localStorage.getItem(PENDING_SYNC_KEY)) {
+    setHasPendingSync(true);
+    syncPendingChanges();
+  }
+  
+  return () => window.removeEventListener('online', handleOnline);
+}, [syncPendingChanges]);
+```
 
 ---
 
-## Remaining Work (Next Sprint)
+### Step 2: Update Onboarding.tsx
 
-### First Booking Quick-Start Wizard
-- [ ] Create `src/components/booking/FirstBookingWizard.tsx`
-- [ ] Add empty state CTA in Dashboard
-- [ ] Vehicle card selection UI
-- [ ] Inline customer creation
-- [ ] Confetti celebration
+**Remove:**
+- `useLocalStorage` import (line 18)
+- localStorage hooks (lines 74-77)
+- localStorage sync effects (lines 162-173)
+- localStorage cleanup in handleComplete (lines 361-363)
 
-### Integration Tasks
-- [ ] Wire FormatDetectionBanner into ImportWizard
-- [ ] Migrate Onboarding.tsx to use useOnboardingProgress hook
-- [ ] Add ImportHistory to Settings tab
+**Add:**
+- `useOnboardingProgress` import and hook usage
+- Local UI state that syncs with database values
+- Sync from database on load
+- Step change handler that persists to database
+- Offline indicator in UI
+
+**Key changes:**
+
+```typescript
+// Replace imports
+import { useOnboardingProgress } from '@/hooks/useOnboardingProgress';
+// Remove: import { useLocalStorage } from '@/hooks/useLocalStorage';
+
+// Replace state management (lines 74-82)
+const {
+  currentStep: dbCurrentStep,
+  formData: dbFormData,
+  isLoading: progressLoading,
+  isSaving,
+  isOffline,
+  hasPendingSync,
+  updateProgress,
+  updateFormDataDebounced,
+  goToStep,
+  completeStep,
+  markComplete,
+  syncPendingChanges,
+} = useOnboardingProgress();
+
+// Local state for immediate UI response
+const [step, setStep] = useState<number>(1);
+const [formData, setFormData] = useState<OnboardingFormData>(initialFormData);
+
+// Sync from database on load
+useEffect(() => {
+  if (!progressLoading && !isEditMode) {
+    setStep(dbCurrentStep);
+    if (dbFormData && Object.keys(dbFormData).length > 0) {
+      setFormData(prev => ({ ...prev, ...dbFormData }));
+    }
+  }
+}, [progressLoading, dbCurrentStep, dbFormData, isEditMode]);
+```
+
+**Wrap step transitions:**
+```typescript
+// New handler for step changes
+const handleStepChange = async (newStep: number, markPreviousComplete = true) => {
+  setStep(newStep); // Immediate UI update
+  
+  if (!isEditMode) {
+    await goToStep(newStep);
+    if (markPreviousComplete && newStep > 1) {
+      await completeStep(newStep - 1);
+    }
+  }
+};
+
+// Update all setStep(X) calls to use handleStepChange:
+// Line 201: handleStepChange(2)
+// Line 290: handleStepChange(3)
+// Line 323: handleStepChange(4)
+// Line 337: handleStepChange(4, false) // skip case
+// Line 967: handleStepChange(4) // import complete
+// Line 985: handleStepChange(4) // photo wizard complete
+```
+
+**Update form data handler:**
+```typescript
+const updateFormData = <K extends keyof OnboardingFormData>(field: K, value: OnboardingFormData[K]) => {
+  const updated = { ...formData, [field]: value };
+  setFormData(updated);
+  
+  // Auto-save to database (debounced) - fallback handled in hook
+  if (!isEditMode) {
+    updateFormDataDebounced({ [field]: value });
+  }
+};
+```
+
+**Update handleComplete:**
+```typescript
+const handleComplete = async () => {
+  if (!user) return;
+  setLoading(true);
+
+  try {
+    // Mark profile as completed
+    const { error } = await supabase
+      .from('profiles')
+      .update({ onboarding_completed: true })
+      .eq('id', user.id);
+
+    if (error) throw error;
+
+    // Mark onboarding progress as complete
+    await markComplete();
+    await completeStep(4);
+
+    // Fire confetti... (unchanged)
+  }
+};
+```
+
+**Add loading state and offline indicator:**
+```typescript
+// Update loading check
+if (initialLoading || (progressLoading && !isEditMode)) {
+  return (
+    <div className="min-h-screen bg-gradient-to-br...">
+      <Loader2 className="w-8 h-8 animate-spin text-primary" />
+    </div>
+  );
+}
+
+// Add sync indicator after the progress bar (around line 439)
+{(isSaving || hasPendingSync) && (
+  <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground mb-4">
+    {isOffline ? (
+      <>
+        <div className="w-2 h-2 rounded-full bg-amber-500" />
+        Saved locally — will sync when online
+      </>
+    ) : isSaving ? (
+      <>
+        <Loader2 className="w-3 h-3 animate-spin" />
+        Saving...
+      </>
+    ) : null}
+  </div>
+)}
+```
+
+---
+
+## Files to Modify
+
+| File | Changes |
+|------|---------|
+| `src/hooks/useOnboardingProgress.ts` | Add localStorage fallback, sync detection, online/offline handling |
+| `src/pages/Onboarding.tsx` | Replace localStorage with database hook, add offline indicator |
+
+---
+
+## New Hook Return Values
+
+```typescript
+return {
+  // Existing
+  progress,
+  isLoading,
+  error,
+  isSaving,
+  lastSavedAt,
+  currentStep,
+  stepsCompleted,
+  formData,
+  onboardingType,
+  initializeProgress,
+  updateProgress,
+  updateFormDataDebounced,
+  completeStep,
+  goToStep,
+  markComplete,
+  refetch,
+  
+  // New for fallback
+  isOffline,          // true if last save failed
+  hasPendingSync,     // true if localStorage has unsynced data
+  syncPendingChanges, // manual sync trigger
+};
+```
+
+---
+
+## User Experience
+
+| Scenario | Behavior |
+|----------|----------|
+| **Normal flow** | Saves to database, updates localStorage cache |
+| **Network fails** | Shows amber indicator, saves to localStorage |
+| **Comes back online** | Auto-syncs localStorage data to database |
+| **Switch devices (was offline)** | Loads from database (localStorage data is device-specific) |
+| **Close tab while saving** | Data preserved in localStorage, syncs on return |
+
+---
+
+## Edge Cases Handled
+
+1. **Tab closed during debounce** - localStorage fallback ensures data survives
+2. **Network timeout** - Caught as error, falls back to localStorage
+3. **Database unreachable on load** - Uses localStorage cache if available
+4. **Concurrent edits on multiple devices** - Last write wins (database is source of truth when online)
 
 ---
 
 ## Testing Checklist
 
-### Onboarding Progress ✅
-- [x] Table created with proper RLS
-- [x] Hook loads/saves progress
-- [x] Debounced auto-save works
-
-### Smart Templates ✅
-- [x] Detection logic for 5 software formats
-- [x] Confidence scoring
-- [x] Banner component ready
-
-### Team Member Onboarding ✅
-- [x] 2-step flow implemented
-- [x] Role detection working
-- [x] Route added and protected
-
-### Import History ✅
-- [x] Table enhanced with new columns
-- [x] Hook fetches and groups by date
-- [x] UI displays with actions
+- [ ] New user: progress saved to database
+- [ ] Existing user: resumes from database step
+- [ ] Network offline: saves to localStorage, shows indicator
+- [ ] Network restored: auto-syncs pending changes
+- [ ] Form changes auto-save after 2s debounce
+- [ ] Step transitions immediately persist
+- [ ] Edit mode still works (skips database persistence)
+- [ ] Cross-device: progress synced via database
