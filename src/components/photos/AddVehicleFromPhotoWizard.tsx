@@ -38,8 +38,10 @@ import {
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTeam } from '@/contexts/TeamContext';
+import { useFleet } from '@/contexts/FleetContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
 import { AIAnalysisResult } from './types';
 import type { Json } from '@/integrations/supabase/types';
 
@@ -73,6 +75,8 @@ export const AddVehicleFromPhotoWizard = ({
 }: AddVehicleFromPhotoWizardProps) => {
   const { user } = useAuth();
   const { currentTeam, locations, selectedLocationId } = useTeam();
+  const { refreshData } = useFleet();
+  const queryClient = useQueryClient();
   
   // Wizard state
   const [step, setStep] = useState<WizardStep>('upload');
@@ -273,6 +277,10 @@ export const AddVehicleFromPhotoWizard = ({
             analyzed_at: new Date().toISOString(),
           });
       }
+      
+      // Sync state after successful insert
+      await refreshData();
+      queryClient.invalidateQueries({ queryKey: ['vehicles'] });
       
       setCreatedVehicleId(vehicleData.id);
       setStep('complete');

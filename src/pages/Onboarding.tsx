@@ -35,6 +35,7 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useTeam } from '@/contexts/TeamContext';
+import { useFleet } from '@/contexts/FleetContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { ImportWizard } from '@/components/import/ImportWizard';
 import { Badge } from '@/components/ui/badge';
@@ -54,6 +55,7 @@ const initialFormData: OnboardingFormData = {
 export default function Onboarding() {
   const { user } = useAuth();
   const { currentTeam, refreshTeam } = useTeam();
+  const { refreshData } = useFleet();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
@@ -337,6 +339,9 @@ export default function Onboarding() {
         });
 
       if (error) throw error;
+
+      // Refresh fleet data to sync state before advancing
+      await refreshData();
 
       await handleStepChange(4);
     } catch (error: any) {
