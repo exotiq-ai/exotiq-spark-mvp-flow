@@ -1,232 +1,321 @@
 
-# Fix Booking Approval Flow & Data Display Issues
+# Comprehensive Onboarding Audit & Improvement Plan
 
-## Issues Identified
+## Executive Summary
 
-After thorough investigation, I found **5 distinct issues** that need to be addressed:
-
-### Issue 1: Missing "View Details" Button in Pending Approval Section
-**Location**: `src/components/dashboard/BookEnhanced.tsx` (lines 273-296)
-
-**Current State**: The Pending Approval section only shows Decline and Approve buttons, with no way to view booking details first.
-
-**Impact**: Users cannot verify or edit booking information before approving.
-
-**Fix**: Add a "View Details" button that opens the booking details dialog before any action is taken.
+After deep analysis of the ExotIQ onboarding system across CRM, photos, bookings, customer info, and data import flows, I've identified **critical issues** blocking tomorrow's customer onboarding, along with UX/UI improvements to create a world-class first-run experience.
 
 ---
 
-### Issue 2: Search Results Don't Navigate to Booking Details
-**Location**: `src/components/common/EnhancedGlobalSearch.tsx` (lines 217-233)
+## Current State Analysis
 
-**Current State**: When clicking a booking in search results, it navigates to `/dashboard?module=book` without the `bookingId` parameter:
-```typescript
-action: () => navigate("/dashboard?module=book")  // Missing bookingId!
-```
-
-**Impact**: Gregory's booking appears in search but clicking it goes nowhere useful - doesn't open the booking details.
-
-**Fix**: Update the navigation to include the bookingId:
-```typescript
-action: () => navigate(`/dashboard?module=book&bookingId=${b.id}`)
-```
-
----
-
-### Issue 3: Vehicle Name Not Displayed for Imported Bookings
-**Location**: `src/components/dashboard/BookEnhanced.tsx` (lines 120-127)
-
-**Current State**: The `getVehicleDisplay()` function only looks up by `vehicle_id`:
-```typescript
-const getVehicleDisplay = (vehicleId: string) => {
-  const vehicle = vehicles.find(v => v.id === vehicleId);
-  if (!vehicle) {
-    return 'Unknown Vehicle';  // Ignores booking.vehicle_name!
-  }
-  return `${vehicle.year} ${vehicle.make} ${vehicle.model}`;
-};
-```
-
-**Database Evidence**: Gregory's booking has:
-- `vehicle_id: null`
-- `vehicle_name: "2017 Audi S8 Plus"` (correctly stored!)
-
-**Impact**: Shows "Unknown Vehicle" instead of the imported vehicle name.
-
-**Fix**: Update to accept the booking object and fall back to `vehicle_name`:
-```typescript
-const getVehicleDisplay = (booking: Booking) => {
-  const vehicle = vehicles.find(v => v.id === booking.vehicle_id);
-  if (vehicle) {
-    return `${vehicle.year} ${vehicle.make} ${vehicle.model}`;
-  }
-  // Fall back to stored vehicle_name from import
-  if (booking.vehicle_name) {
-    return booking.vehicle_name;
-  }
-  return 'Unknown Vehicle';
-};
-```
-
----
-
-### Issue 4: Booking Not Appearing on Calendar
-**Location**: Multiple places, but root cause in data
-
-**Database Evidence**:
-```
-Gregory Ringler:
-  start_date: 2026-02-10
-  end_date: 2026-02-08  ← END is BEFORE START!
-```
-
-**Root Causes**:
-1. **Invalid date range**: The CSV import stored `end_date` before `start_date`, which breaks date interval filtering
-2. **Location filtering**: Bookings with `vehicle_id: null` and no `pickup_location_id` may be filtered out when a specific location is selected (line 29-37 in `useLocationFilteredFleet.ts`)
-
-**Fixes**:
-1. Add date validation during import to ensure `end_date >= start_date`
-2. Ensure calendar displays bookings even when `vehicle_id` is null
-3. Ensure location filtering handles null vehicle_id gracefully
-
----
-
-### Issue 5: EnhancedBookingDialog Shows "Unknown Vehicle" for Imported Bookings
-**Location**: `src/components/dialogs/EnhancedBookingDialog.tsx` (line 216)
-
-**Current State**:
-```typescript
-{vehicle?.name || "Unknown Vehicle"}
-```
-
-**Fix**: Fall back to `booking.vehicle_name`:
-```typescript
-{vehicle?.name || booking?.vehicle_name || "Unknown Vehicle"}
-```
-
----
-
-## Implementation Plan
-
-### Phase 1: Add View Details Button to Pending Approval
-
-**File**: `src/components/dashboard/BookEnhanced.tsx`
-
-Add a "View" button before Decline/Approve that opens the `EnhancedBookingDialog`:
+### Onboarding Flow Architecture
 
 ```text
-Current UI:
-  [Customer Name]
-  [Vehicle - Date]
-  [Decline] [Approve]
-
-New UI:
-  [Customer Name]  
-  [Vehicle - Date]
-  [View] [Decline] [Approve]
-```
-
-The View button will:
-1. Set the `selectedBookingId` state
-2. Open the `EnhancedBookingDialog` component (already imported on line 8)
-3. Allow user to review all details before deciding
-
----
-
-### Phase 2: Fix Vehicle Name Display Throughout
-
-**Files to update**:
-1. `src/components/dashboard/BookEnhanced.tsx` - Update `getVehicleDisplay()`
-2. `src/components/dashboard/BookingCalendar.tsx` - Update vehicle name display
-3. `src/components/dialogs/EnhancedBookingDialog.tsx` - Fall back to `vehicle_name`
-4. `src/components/common/EnhancedGlobalSearch.tsx` - Fix navigation URL
-
-**Pattern**: Everywhere we show vehicle info, check:
-```typescript
-vehicle?.name || booking?.vehicle_name || "Unknown Vehicle"
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        ONBOARDING ENTRY POINTS                               │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  1. Post-Signup (/welcome)                                                  │
+│     └── Form → Calendly → Login credentials                                │
+│                                                                             │
+│  2. First Login (/onboarding)                                               │
+│     └── Step 1: Business Profile                                            │
+│     └── Step 2: Fleet & Locations                                           │
+│     └── Step 3: Add Fleet (Bulk Import | Manual | Photo AI)                │
+│     └── Step 4: Completion → Dashboard                                      │
+│                                                                             │
+│  3. Dashboard (InteractiveModuleTour)                                       │
+│     └── 6-step guided tour (database-backed)                                │
+│     └── Spotlight highlighting + glass morphism cards                       │
+│                                                                             │
+│  4. Empty State UX (when 0 vehicles)                                        │
+│     └── Welcome screen with CTA to add first vehicle                        │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-### Phase 3: Fix Search Navigation
+## Critical Issues Identified
 
-**File**: `src/components/common/EnhancedGlobalSearch.tsx`
+### Issue 1: Booking Import Flow - Data Gaps ⚠️ (URGENT)
 
-Update booking search results to navigate with bookingId:
-```typescript
-// Before:
-action: () => navigate("/dashboard?module=book")
+**Problem**: Bookings imported without emails/customers fail silently. Users don't know what's missing.
 
-// After:
-action: () => navigate(`/dashboard?module=book&bookingId=${b.id}`)
+**Root Cause**: The ImportWizard shows a toast saying "X bookings need customer details" but doesn't guide users to fix them.
+
+**Impact**: Customers onboarding tomorrow will import bookings and not know how to complete the customer linkage.
+
+**Fix Required**:
+- Add a "Post-Import Review" step that shows bookings needing attention
+- Create a "Link Customer" quick action in the booking row
+- Add an "Import Incomplete" filter in the booking list view
+
+---
+
+### Issue 2: Customer Import Without Email Falls Back to Skip ⚠️
+
+**Problem**: Customer records imported without email are currently skipped entirely.
+
+**Root Cause**: The `customerImportValidation` schema requires email. Customers who only have phone numbers are rejected.
+
+**Impact**: Rental businesses often have phone-only customers from legacy systems.
+
+**Fix Required**:
+- Make email optional in customer import (require either email OR phone)
+- Add validation refinement: `.refine(data => data.email || data.phone, { message: "Email or phone required" })`
+
+---
+
+### Issue 3: No Guided Post-Import Experience ⚠️
+
+**Problem**: After bulk import, users land back on the onboarding flow with no clear next steps for verifying their data.
+
+**Root Cause**: The import wizard's `onComplete` callback navigates to Fleet module but doesn't provide a verification checklist.
+
+**Impact**: Users don't verify data accuracy, leading to data quality issues discovered later.
+
+**Fix Required**:
+- Add post-import success screen with:
+  - Summary statistics (vehicles, customers, bookings imported)
+  - "Review your data" checklist
+  - Quick links to Fleet, CRM, Bookings modules
+  - Warning callout for any items needing attention
+
+---
+
+### Issue 4: Location Matching Not Connected to Import
+
+**Problem**: Imported vehicles/bookings have text location fields but aren't linked to the location records created in Step 2.
+
+**Root Cause**: The import doesn't fuzzy-match `pickup_location` text to existing `locations` table.
+
+**Impact**: Bookings show location text but filtering by location doesn't work.
+
+**Fix Required**:
+- Add location matching logic similar to customer/vehicle matching
+- Store both `pickup_location` (text) and `pickup_location_id` (UUID FK when matched)
+
+---
+
+### Issue 5: Photo Hub Wizard Exit Flow Breaks ⚠️
+
+**Problem**: When users use "Add from Photos" in onboarding Step 3, the wizard closes but doesn't advance the onboarding flow.
+
+**Root Cause**: The `AddVehicleFromPhotoWizard` component's `onComplete` callback doesn't coordinate with the parent onboarding step state.
+
+**Impact**: Users get stuck or confused about where they are in onboarding.
+
+**Fix Required**:
+- Update `onComplete` handler in Onboarding.tsx to:
+  - Refresh vehicle count
+  - Auto-advance to Step 4 if vehicle was created
+  - Show success toast with vehicle info
+
+---
+
+## UX/UI Improvements
+
+### Improvement 1: Onboarding Progress Persistence Across Sessions
+
+**Current State**: Step progress saved in localStorage, which is device-specific.
+
+**Improvement**: 
+- Move step progress to `profiles.onboarding_step` column
+- Resume from last step on any device
+- Show "Continue where you left off" prompt
+
+**Database Change**:
+```sql
+ALTER TABLE profiles ADD COLUMN onboarding_step integer DEFAULT 1;
 ```
 
 ---
 
-### Phase 4: Add Date Validation to Import
+### Improvement 2: Smart Import Templates
 
-**File**: `src/components/import/ImportWizard.tsx`
+**Current State**: Users must download a template, figure out column names, and match format.
 
-Add validation to ensure imported bookings have valid date ranges:
-```typescript
-// Validate dates
-if (row.start_date && row.end_date) {
-  const start = new Date(row.start_date);
-  const end = new Date(row.end_date);
-  if (end < start) {
-    // Swap dates or warn user
-    [row.start_date, row.end_date] = [row.end_date, row.start_date];
-  }
-}
+**Improvement**:
+- Provide pre-configured CSV/Excel templates on the import screen
+- Include sample rows with realistic data
+- Add inline help tooltips explaining each field
+- Auto-detect common export formats (HQ Rental, Rent Centric, etc.)
+
+---
+
+### Improvement 3: Import Validation Preview Enhancement
+
+**Current State**: ValidationPreview shows errors but not suggestions.
+
+**Improvement**:
+- Show field-by-field validation with inline fix suggestions
+- Allow inline editing of invalid values before import
+- Group errors by type (missing required, format errors, etc.)
+- Add "Quick Fix" buttons for common issues (e.g., date format conversion)
+
+---
+
+### Improvement 4: Booking-Customer-Vehicle Relationship Visualization
+
+**Current State**: After import, users can't easily see which bookings are complete vs. need attention.
+
+**Improvement**:
+- Add visual indicators in booking list:
+  - ✅ Green check: Complete (customer + vehicle linked)
+  - ⚠️ Yellow warning: Partial (missing customer or vehicle)
+  - ❌ Red X: Critical (missing both)
+- Create "Data Health" dashboard widget showing import completeness
+
+---
+
+### Improvement 5: Interactive Onboarding Wizard Redesign
+
+**Current State**: Text-heavy steps with form fields.
+
+**Improvement**:
+- Add progress animations between steps
+- Include illustrative graphics for each step
+- Show real-time preview of how data will appear
+- Add "Why we need this" expandable explanations
+- Mobile-first responsive design improvements
+
+---
+
+### Improvement 6: First Booking Quick-Start
+
+**Current State**: After adding vehicles, no guidance on creating first booking.
+
+**Improvement**:
+- Add "Create Your First Booking" guided flow after Step 4
+- Pre-fill with demo data, let user modify
+- Show how the booking appears on calendar
+- Link to Rari for "Ask me anything" support
+
+---
+
+### Improvement 7: Team Member Onboarding Path
+
+**Current State**: Only owner goes through onboarding. Team members land on empty dashboard.
+
+**Improvement**:
+- Create "Team Member Welcome" flow
+- Show organization overview, their role/permissions
+- Guided tour tailored to their access level
+- Quick reference card for common tasks
+
+---
+
+## Backend Improvements
+
+### Improvement 8: Import Batch History & Recovery
+
+**Current State**: `import_batches` table tracks imports but no recovery path for partial failures.
+
+**Improvement**:
+- Store raw import data in `import_batches.raw_data` JSONB column
+- Add "Retry Failed Rows" action in import history
+- Create import history view in Settings
+- Enable download of error report
+
+**Database Change**:
+```sql
+ALTER TABLE import_batches 
+ADD COLUMN raw_data jsonb,
+ADD COLUMN error_rows jsonb;
 ```
 
 ---
 
-### Phase 5: Fix Location Filtering for Null Vehicle Bookings
+### Improvement 9: Validation Schema Alignment
 
-**File**: `src/hooks/useLocationFilteredFleet.ts`
+**Current State**: `importSchemas.ts` and database constraints don't always match (e.g., `active` status issue fixed earlier).
 
-Update the booking filter logic to handle null vehicle_id:
-```typescript
-// Lines 29-37: Current logic fails for null vehicle_id
-return fleet.bookings.filter(b => {
-  if (b.pickup_location_id) {
-    return b.pickup_location_id === selectedLocationId;
-  }
-  // If no pickup_location_id and no vehicle_id, include in "all" 
-  // or when selectedLocationId matches a specific condition
-  const vehicle = fleet.vehicles.find(v => v.id === b.vehicle_id);
-  if (!vehicle && !b.pickup_location_id) {
-    // Include bookings that have no location info (unassigned imports)
-    return true; // Or use a default behavior
-  }
-  return vehicle?.location_id === selectedLocationId;
-});
-```
+**Improvement**:
+- Create automated schema alignment checks
+- Add migration tests that validate import schemas against DB
+- Document all enum values and constraints
+
+---
+
+### Improvement 10: Customer Deduplication on Import
+
+**Current State**: Duplicate detection only checks email match.
+
+**Improvement**:
+- Add phone number deduplication
+- Add fuzzy name matching for potential duplicates
+- Show "Possible Matches" with confidence scores
+- Allow merge of duplicate customer records
+
+---
+
+## Implementation Phases
+
+### Phase 1: Critical Fixes (Before Tomorrow's Onboarding)
+1. ✅ Fix booking import status constraint (already done)
+2. ✅ Fix vehicle_name storage (already done)
+3. ✅ Fix date range validation (already done)
+4. Make customer email optional (require email OR phone)
+5. Add post-import summary with action items
+6. Fix Photo Wizard exit flow in onboarding
+
+### Phase 2: UX Improvements (This Week)
+1. Add location matching to booking imports
+2. Create "Data Health" indicators in booking list
+3. Improve import validation preview with inline fixes
+4. Add "Link Customer" quick action for imported bookings
+
+### Phase 3: Enhanced Onboarding (Next Sprint)
+1. Move onboarding progress to database
+2. Add smart import templates with format detection
+3. Create team member onboarding path
+4. Add first booking quick-start flow
+5. Import batch history and recovery
 
 ---
 
 ## Files to Modify
 
-| File | Changes |
-|------|---------|
-| `src/components/dashboard/BookEnhanced.tsx` | Add View button, update `getVehicleDisplay()` to use `vehicle_name` fallback |
-| `src/components/common/EnhancedGlobalSearch.tsx` | Fix booking navigation to include `bookingId` |
-| `src/components/dialogs/EnhancedBookingDialog.tsx` | Use `vehicle_name` fallback for display |
-| `src/components/dashboard/BookingCalendar.tsx` | Update vehicle name display for null vehicle_id |
-| `src/components/import/ImportWizard.tsx` | Add date validation |
-| `src/hooks/useLocationFilteredFleet.ts` | Handle null vehicle_id in location filter |
+| File | Priority | Changes |
+|------|----------|---------|
+| `src/lib/importSchemas.ts` | P1 | Make customer email optional |
+| `src/pages/Onboarding.tsx` | P1 | Fix photo wizard exit flow |
+| `src/components/import/ImportWizard.tsx` | P1 | Add post-import summary step |
+| `src/lib/importDuplicateCheck.ts` | P2 | Add location matching |
+| `src/components/dashboard/BookEnhanced.tsx` | P2 | Add data health indicators |
+| `src/components/import/ValidationPreview.tsx` | P2 | Add inline editing |
+| Database migration | P3 | Add onboarding_step, import raw_data columns |
 
 ---
 
 ## Testing Checklist
 
-After implementation:
+### Import Flow Testing
+- [ ] Import vehicles CSV with all fields → All imported
+- [ ] Import customers with phone only (no email) → Imported successfully
+- [ ] Import bookings referencing non-existent vehicles → vehicle_name stored
+- [ ] Import bookings referencing non-existent customers → Option to create
+- [ ] Import with date range swapped → Auto-corrected
 
-- [ ] Click "View" on pending booking → Opens full booking details dialog
-- [ ] View details shows vehicle name from `vehicle_name` field when `vehicle_id` is null
-- [ ] Approve booking → Status changes to "confirmed"
-- [ ] Approved booking appears on calendar (for Feb 2026)
-- [ ] Search for "Gregory" → Click booking result → Opens booking details
-- [ ] Import new booking CSV with swapped dates → Dates are auto-corrected
-- [ ] Location filter "All Locations" shows bookings with null vehicle_id
+### Onboarding Flow Testing
+- [ ] Complete Step 1-2, close browser, reopen → Resumes at Step 3
+- [ ] Use Photo Wizard in Step 3 → Vehicle created, advances to Step 4
+- [ ] Skip vehicle in Step 3 → Lands on dashboard with empty state
+- [ ] Complete onboarding → Tour auto-starts on first dashboard visit
+
+### Post-Import Experience
+- [ ] Import 10 bookings (5 complete, 5 missing customers) → Clear summary shown
+- [ ] Click "Review Data" → Filters to incomplete bookings
+- [ ] Use "Link Customer" action → Customer linked, status updated
+
+---
+
+## Success Metrics
+
+1. **Onboarding Completion Rate**: Track % of users completing all 4 steps
+2. **Import Success Rate**: Track % of rows imported vs. failed
+3. **Time to First Booking**: Measure days from signup to first confirmed booking
+4. **Data Completeness Score**: % of bookings with linked customer + vehicle
+5. **Support Tickets**: Reduce "import doesn't work" tickets by 80%
