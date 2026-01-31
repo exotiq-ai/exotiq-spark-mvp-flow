@@ -213,7 +213,7 @@ export const EnhancedBookingDialog = ({
                 )}
                 <div className="flex-1 min-w-0">
                   <h3 className="text-lg font-bold truncate group-hover:text-primary transition-colors">
-                    {vehicle?.name || "Unknown Vehicle"}
+                    {vehicle?.name || booking?.vehicle_name || "Unknown Vehicle"}
                   </h3>
                   <div className="flex items-center gap-3 text-sm text-muted-foreground">
                     <span className="flex items-center gap-1">

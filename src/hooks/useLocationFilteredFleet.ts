@@ -33,6 +33,10 @@ export const useLocationFilteredFleet = () => {
       }
       // Fall back to checking the vehicle's location
       const vehicle = fleet.vehicles.find(v => v.id === b.vehicle_id);
+      // If booking has no vehicle_id and no pickup_location_id, include it (unassigned imports)
+      if (!vehicle && !b.vehicle_id) {
+        return true; // Include unassigned bookings in all location views
+      }
       return vehicle?.location_id === selectedLocationId;
     });
   }, [fleet.bookings, fleet.vehicles, selectedLocationId]);
