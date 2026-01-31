@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -66,7 +66,13 @@ export function useOnboardingProgress() {
   const queryClient = useQueryClient();
   const [isSaving, setIsSaving] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const [isOffline, setIsOffline] = useState(false);
+  const [hasPendingSync, setHasPendingSync] = useState(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // localStorage keys for fallback
+  const FALLBACK_KEY = useMemo(() => `onboarding-fallback-${user?.id}`, [user?.id]);
+  const PENDING_SYNC_KEY = useMemo(() => `onboarding-pending-sync-${user?.id}`, [user?.id]);
 
   // Fetch progress from database
   const { data: progress, isLoading, error, refetch } = useQuery({
@@ -141,6 +147,42 @@ export function useOnboardingProgress() {
     },
   });
 
+  // Sync pending localStorage changes to database
+  const syncPendingChanges = useCallback(async () => {
+    if (!user?.id) return false;
+
+    const pendingData = localStorage.getItem(FALLBACK_KEY);
+    const hasPending = localStorage.getItem(PENDING_SYNC_KEY);
+
+    if (!pendingData || !hasPending) return true;
+
+    try {
+      const parsed = JSON.parse(pendingData);
+      const { error } = await supabase
+        .from('onboarding_progress')
+        .update({
+          current_step: parsed.currentStep,
+          form_data: parsed.formData,
+          steps_completed: parsed.stepsCompleted,
+        })
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      localStorage.removeItem(PENDING_SYNC_KEY);
+      setHasPendingSync(false);
+      setIsOffline(false);
+      devLog('[OnboardingProgress] Synced pending changes to database');
+      
+      // Refresh the query data
+      queryClient.invalidateQueries({ queryKey: ['onboarding-progress', user.id] });
+      return true;
+    } catch (err) {
+      devError('[OnboardingProgress] Failed to sync pending changes:', err);
+      return false;
+    }
+  }, [user?.id, FALLBACK_KEY, PENDING_SYNC_KEY, queryClient]);
+
   // Update progress (debounced)
   const updateProgress = useCallback(
     async (updates: Partial<{
@@ -190,6 +232,15 @@ export function useOnboardingProgress() {
         setLastSavedAt(new Date());
         devLog('[OnboardingProgress] Saved:', dbUpdates);
 
+        // Success - also update localStorage cache
+        localStorage.setItem(FALLBACK_KEY, JSON.stringify({
+          currentStep: updates.currentStep ?? progress?.currentStep,
+          formData: dbUpdates.form_data ?? progress?.formData,
+          stepsCompleted: updates.stepsCompleted ?? progress?.stepsCompleted,
+        }));
+        localStorage.removeItem(PENDING_SYNC_KEY);
+        setIsOffline(false);
+
         // Optimistically update cache
         queryClient.setQueryData(['onboarding-progress', user.id], (old: OnboardingProgress | null) => {
           if (!old) return old;
@@ -200,13 +251,35 @@ export function useOnboardingProgress() {
             lastActivityAt: new Date().toISOString(),
           };
         });
-      } catch (error) {
-        devError('[OnboardingProgress] Save error:', error);
+      } catch (err) {
+        // Network failure - fall back to localStorage
+        devError('[OnboardingProgress] DB save failed, using localStorage fallback:', err);
+
+        localStorage.setItem(FALLBACK_KEY, JSON.stringify({
+          currentStep: updates.currentStep ?? progress?.currentStep,
+          formData: updates.formData ? { ...progress?.formData, ...updates.formData } : progress?.formData,
+          stepsCompleted: updates.stepsCompleted ?? progress?.stepsCompleted,
+        }));
+        localStorage.setItem(PENDING_SYNC_KEY, 'true');
+
+        setIsOffline(true);
+        setHasPendingSync(true);
+
+        // Still update local cache for UI consistency
+        queryClient.setQueryData(['onboarding-progress', user.id], (old: OnboardingProgress | null) => {
+          if (!old) return old;
+          return {
+            ...old,
+            ...updates,
+            formData: updates.formData ? { ...old.formData, ...updates.formData } : old.formData,
+            lastActivityAt: new Date().toISOString(),
+          };
+        });
       } finally {
         setIsSaving(false);
       }
     },
-    [user?.id, currentTeam?.id, progress?.formData, progress?.teamId, queryClient]
+    [user?.id, currentTeam?.id, progress?.formData, progress?.teamId, progress?.currentStep, progress?.stepsCompleted, queryClient, FALLBACK_KEY, PENDING_SYNC_KEY]
   );
 
   // Debounced form data update (auto-save every 2 seconds of inactivity)
@@ -265,6 +338,24 @@ export function useOnboardingProgress() {
     }
   }, [isLoading, progress, user?.id]);
 
+  // Auto-sync on mount and when coming back online
+  useEffect(() => {
+    const handleOnline = () => {
+      devLog('[OnboardingProgress] Network online, attempting sync...');
+      syncPendingChanges();
+    };
+    
+    window.addEventListener('online', handleOnline);
+
+    // Check for pending sync on mount
+    if (user?.id && localStorage.getItem(PENDING_SYNC_KEY)) {
+      setHasPendingSync(true);
+      syncPendingChanges();
+    }
+
+    return () => window.removeEventListener('online', handleOnline);
+  }, [syncPendingChanges, user?.id, PENDING_SYNC_KEY]);
+
   return {
     // State
     progress,
@@ -272,6 +363,8 @@ export function useOnboardingProgress() {
     error,
     isSaving,
     lastSavedAt,
+    isOffline,
+    hasPendingSync,
     
     // Current values (convenience)
     currentStep: progress?.currentStep || 1,
@@ -286,6 +379,7 @@ export function useOnboardingProgress() {
     completeStep,
     goToStep,
     markComplete,
+    syncPendingChanges,
     refetch,
   };
 }
