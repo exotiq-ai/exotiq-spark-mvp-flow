@@ -13,10 +13,14 @@ import {
   ExternalLink,
   Sparkles,
   Shield,
-  BarChart3
+  BarChart3,
+  Inbox
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { useFleet } from "@/contexts/FleetContext";
+import { EmptyState } from "@/components/common/EmptyState";
 
 interface PlanFeature {
   name: string;
@@ -29,31 +33,40 @@ interface Plan {
   period: string;
   features: PlanFeature[];
   highlighted?: boolean;
+  tier: string;
 }
+
+// Vehicle limits by subscription tier
+const TIER_LIMITS: Record<string, number> = {
+  starter: 10,
+  growth: 25,
+  professional: 50,
+  enterprise: Infinity
+};
+
+const TIER_PRICES: Record<string, number> = {
+  starter: 99,
+  growth: 179,
+  professional: 249,
+  enterprise: 499
+};
 
 export const SubscriptionSection = () => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const { subscription } = useAuth();
+  const { vehicles } = useFleet();
   
-  // Mock subscription data - would come from Stripe in production
-  const currentPlan = {
-    name: "Professional",
-    status: "active",
-    renewalDate: "2025-01-24",
-    vehicleLimit: 25,
-    vehiclesUsed: 12,
-    features: [
-      "Up to 25 vehicles",
-      "AI Dynamic Pricing",
-      "Advanced Analytics",
-      "Priority Support",
-      "Custom Branding"
-    ]
-  };
+  // Real data from contexts
+  const vehiclesUsed = vehicles?.length || 0;
+  const currentTier = subscription?.tier || null;
+  const vehicleLimit = currentTier ? (TIER_LIMITS[currentTier] || 0) : 0;
+  const isSubscribed = subscription?.subscribed || false;
 
   const plans: Plan[] = [
     {
       name: "Starter",
+      tier: "starter",
       price: 99,
       period: "month",
       features: [
@@ -66,11 +79,11 @@ export const SubscriptionSection = () => {
     },
     {
       name: "Professional",
+      tier: "professional",
       price: 249,
       period: "month",
-      highlighted: true,
       features: [
-        { name: "Up to 25 vehicles", included: true },
+        { name: "Up to 50 vehicles", included: true },
         { name: "Advanced Analytics", included: true },
         { name: "Priority Support", included: true },
         { name: "AI Dynamic Pricing", included: true },
@@ -79,6 +92,7 @@ export const SubscriptionSection = () => {
     },
     {
       name: "Enterprise",
+      tier: "enterprise",
       price: 499,
       period: "month",
       features: [
@@ -119,7 +133,85 @@ export const SubscriptionSection = () => {
     });
   };
 
-  const usagePercentage = (currentPlan.vehiclesUsed / currentPlan.vehicleLimit) * 100;
+  const usagePercentage = vehicleLimit > 0 && vehicleLimit !== Infinity 
+    ? (vehiclesUsed / vehicleLimit) * 100 
+    : 0;
+
+  // Get display name for current tier
+  const getPlanDisplayName = (tier: string | null) => {
+    if (!tier) return "None";
+    return tier.charAt(0).toUpperCase() + tier.slice(1);
+  };
+
+  // Get features for current tier
+  const getCurrentPlanFeatures = () => {
+    const plan = plans.find(p => p.tier === currentTier);
+    return plan?.features.filter(f => f.included).map(f => f.name) || [];
+  };
+
+  // No subscription state
+  if (!isSubscribed) {
+    return (
+      <div className="space-y-6">
+        <EmptyState
+          icon={Crown}
+          title="No Active Subscription"
+          description="Choose a plan to unlock fleet management features and start managing your vehicles."
+          action={{
+            label: "View Plans",
+            onClick: () => {
+              const plansSection = document.getElementById('available-plans');
+              plansSection?.scrollIntoView({ behavior: 'smooth' });
+            }
+          }}
+        />
+
+        {/* Available Plans */}
+        <div id="available-plans">
+          <h3 className="text-lg font-semibold mb-4">Available Plans</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {plans.map((plan) => (
+              <Card 
+                key={plan.name}
+                className="p-6 relative card-premium"
+              >
+                <div className="text-center mb-6">
+                  <h4 className="text-lg font-semibold">{plan.name}</h4>
+                  <div className="mt-2">
+                    <span className="text-3xl font-bold">${plan.price}</span>
+                    <span className="text-muted-foreground">/{plan.period}</span>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {plan.features.map((feature, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      {feature.included ? (
+                        <Check className="w-4 h-4 text-success" />
+                      ) : (
+                        <div className="w-4 h-4 rounded-full border-2 border-muted-foreground/30" />
+                      )}
+                      <span className={feature.included ? "" : "text-muted-foreground"}>
+                        {feature.name}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <Button 
+                  className="w-full mt-6"
+                  variant="outline"
+                  onClick={() => handleUpgrade(plan.name)}
+                >
+                  Get Started
+                </Button>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -137,14 +229,14 @@ export const SubscriptionSection = () => {
           </div>
           <Badge className="bg-success text-success-foreground">
             <Sparkles className="w-3 h-3 mr-1" />
-            {currentPlan.status.charAt(0).toUpperCase() + currentPlan.status.slice(1)}
+            Active
           </Badge>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">Plan</p>
-            <p className="text-2xl font-bold">{currentPlan.name}</p>
+            <p className="text-2xl font-bold">{getPlanDisplayName(currentTier)}</p>
           </div>
           
           <div className="space-y-2">
@@ -152,11 +244,14 @@ export const SubscriptionSection = () => {
             <div className="flex items-center gap-2">
               <Calendar className="w-4 h-4 text-muted-foreground" />
               <p className="font-medium">
-                {new Date(currentPlan.renewalDate).toLocaleDateString('en-US', {
-                  month: 'long',
-                  day: 'numeric',
-                  year: 'numeric'
-                })}
+                {subscription?.subscriptionEnd 
+                  ? new Date(subscription.subscriptionEnd).toLocaleDateString('en-US', {
+                      month: 'long',
+                      day: 'numeric',
+                      year: 'numeric'
+                    })
+                  : 'N/A'
+                }
               </p>
             </div>
           </div>
@@ -165,16 +260,20 @@ export const SubscriptionSection = () => {
             <p className="text-sm text-muted-foreground">Vehicle Usage</p>
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
-                <span>{currentPlan.vehiclesUsed} of {currentPlan.vehicleLimit}</span>
-                <span className="text-muted-foreground">{Math.round(usagePercentage)}%</span>
+                <span>{vehiclesUsed} of {vehicleLimit === Infinity ? '∞' : vehicleLimit}</span>
+                {vehicleLimit !== Infinity && (
+                  <span className="text-muted-foreground">{Math.round(usagePercentage)}%</span>
+                )}
               </div>
-              <Progress value={usagePercentage} className="h-2" />
+              {vehicleLimit !== Infinity && (
+                <Progress value={usagePercentage} className="h-2" />
+              )}
             </div>
           </div>
         </div>
 
         <div className="mt-6 pt-6 border-t flex flex-wrap gap-3">
-          {currentPlan.features.map((feature, i) => (
+          {getCurrentPlanFeatures().map((feature, i) => (
             <Badge key={i} variant="secondary" className="gap-1">
               <Check className="w-3 h-3" />
               {feature}
@@ -187,7 +286,7 @@ export const SubscriptionSection = () => {
             <CreditCard className="w-4 h-4 mr-2" />
             Manage Billing
           </Button>
-          <Button variant="outline" className="w-full sm:w-auto">
+          <Button variant="outline" className="w-full sm:w-auto" onClick={handleManageBilling}>
             <Download className="w-4 h-4 mr-2" />
             Download Invoices
           </Button>
@@ -198,83 +297,77 @@ export const SubscriptionSection = () => {
       <div>
         <h3 className="text-lg font-semibold mb-4">Available Plans</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {plans.map((plan) => (
-            <Card 
-              key={plan.name}
-              className={`p-6 relative ${
-                plan.highlighted 
-                  ? 'border-primary shadow-lg ring-2 ring-primary/20' 
-                  : 'card-premium'
-              }`}
-            >
-              {plan.highlighted && (
-                <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary">
-                  Current Plan
-                </Badge>
-              )}
-
-              <div className="text-center mb-6">
-                <h4 className="text-lg font-semibold">{plan.name}</h4>
-                <div className="mt-2">
-                  <span className="text-3xl font-bold">${plan.price}</span>
-                  <span className="text-muted-foreground">/{plan.period}</span>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                {plan.features.map((feature, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    {feature.included ? (
-                      <Check className="w-4 h-4 text-success" />
-                    ) : (
-                      <div className="w-4 h-4 rounded-full border-2 border-muted-foreground/30" />
-                    )}
-                    <span className={feature.included ? "" : "text-muted-foreground"}>
-                      {feature.name}
-                    </span>
-                  </div>
-                ))}
-              </div>
-
-              <Button 
-                className="w-full mt-6"
-                variant={plan.highlighted ? "default" : "outline"}
-                disabled={plan.highlighted}
-                onClick={() => handleUpgrade(plan.name)}
+          {plans.map((plan) => {
+            const isCurrentPlan = plan.tier === currentTier;
+            
+            return (
+              <Card 
+                key={plan.name}
+                className={`p-6 relative ${
+                  isCurrentPlan 
+                    ? 'border-primary shadow-lg ring-2 ring-primary/20' 
+                    : 'card-premium'
+                }`}
               >
-                {plan.highlighted ? "Current Plan" : "Upgrade"}
-              </Button>
-            </Card>
-          ))}
+                {isCurrentPlan && (
+                  <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary">
+                    Current Plan
+                  </Badge>
+                )}
+
+                <div className="text-center mb-6">
+                  <h4 className="text-lg font-semibold">{plan.name}</h4>
+                  <div className="mt-2">
+                    <span className="text-3xl font-bold">${plan.price}</span>
+                    <span className="text-muted-foreground">/{plan.period}</span>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {plan.features.map((feature, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      {feature.included ? (
+                        <Check className="w-4 h-4 text-success" />
+                      ) : (
+                        <div className="w-4 h-4 rounded-full border-2 border-muted-foreground/30" />
+                      )}
+                      <span className={feature.included ? "" : "text-muted-foreground"}>
+                        {feature.name}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <Button 
+                  className="w-full mt-6"
+                  variant={isCurrentPlan ? "default" : "outline"}
+                  disabled={isCurrentPlan}
+                  onClick={() => handleUpgrade(plan.name)}
+                >
+                  {isCurrentPlan ? "Current Plan" : "Upgrade"}
+                </Button>
+              </Card>
+            );
+          })}
         </div>
       </div>
 
-      {/* Payment History */}
+      {/* Payment History - Empty State */}
       <Card className="card-premium p-6">
         <div className="flex items-center space-x-3 mb-6">
           <BarChart3 className="w-5 h-5 text-primary" />
           <h3 className="text-xl font-semibold">Recent Payments</h3>
         </div>
 
-        <div className="space-y-3">
-          {[
-            { date: "Dec 24, 2024", amount: 249, status: "Paid" },
-            { date: "Nov 24, 2024", amount: 249, status: "Paid" },
-            { date: "Oct 24, 2024", amount: 249, status: "Paid" }
-          ].map((payment, i) => (
-            <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
-              <div className="flex items-center gap-3">
-                <CreditCard className="w-4 h-4 text-muted-foreground" />
-                <span>{payment.date}</span>
-              </div>
-              <div className="flex items-center gap-4">
-                <span className="font-medium">${payment.amount}</span>
-                <Badge variant="secondary" className="text-success">
-                  {payment.status}
-                </Badge>
-              </div>
-            </div>
-          ))}
+        <div className="flex flex-col items-center justify-center py-8 text-center">
+          <div className="p-3 rounded-full bg-muted/50 mb-4">
+            <Inbox className="w-8 h-8 text-muted-foreground" />
+          </div>
+          <p className="text-muted-foreground mb-4">Payment history is managed through the billing portal.</p>
+          <Button variant="outline" size="sm" onClick={handleManageBilling} disabled={isLoading}>
+            <ExternalLink className="w-4 h-4 mr-2" />
+            View in Billing Portal
+          </Button>
         </div>
       </Card>
     </div>
