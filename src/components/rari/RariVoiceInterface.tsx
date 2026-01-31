@@ -277,6 +277,18 @@ export const RariVoiceInterface = ({
       }
       dynamicVariables['user_name'] = user.user_metadata?.full_name || user.email || 'User';
       
+      // Pass current date/time so Rari knows what "today" means
+      dynamicVariables['current_date'] = new Date().toISOString().split('T')[0];
+      dynamicVariables['current_datetime'] = new Date().toLocaleString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        timeZoneName: 'short'
+      });
+      
       console.log('Dynamic variables for session:', Object.keys(dynamicVariables));
       
       const id = await conversation.startSession({ 

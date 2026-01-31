@@ -724,7 +724,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         
         let query = supabase
           .from('bookings')
-          .select('*, vehicles(vehicle_name, make, model, year, location), customers(first_name, last_name, email)');
+          .select('*, vehicles(name, make, model, year, location), customers(full_name, email)');
         
         // Filter by team_id
         if (teamId) {
@@ -774,7 +774,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
           const startDate = new Date(b.start_date).toLocaleDateString();
           const endDate = new Date(b.end_date).toLocaleDateString();
           const vehicleName = b.vehicles ? `${b.vehicles.year} ${b.vehicles.make} ${b.vehicles.model}` : 'Unknown vehicle';
-          const customerName = b.customers ? `${b.customers.first_name} ${b.customers.last_name}` : b.customer_name || 'Unknown';
+          const customerName = b.customers?.full_name || b.customer_name || 'Unknown';
           
           return {
             customer: customerName,
@@ -802,7 +802,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         
         let query = supabase
           .from('bookings')
-          .select('*, vehicles(vehicle_name, make, model, year, location), customers(first_name, last_name)');
+          .select('*, vehicles(name, make, model, year, location), customers(full_name)');
         
         // Filter by team_id
         if (teamId) {
@@ -816,7 +816,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         const activities = recentBookings?.map((b: any) => {
           const timeAgo = getTimeAgo(new Date(b.created_at));
           const vehicleName = b.vehicles ? `${b.vehicles.year} ${b.vehicles.make} ${b.vehicles.model}` : 'a vehicle';
-          const customerName = b.customers ? `${b.customers.first_name} ${b.customers.last_name}` : b.customer_name || 'A customer';
+          const customerName = b.customers?.full_name || b.customer_name || 'A customer';
           
           return {
             description: `${customerName} booked ${vehicleName} for $${Number(b.total_value || b.total_amount || 0).toFixed(0)}`,
