@@ -129,6 +129,7 @@ export type Database = {
           updated_at: string | null
           user_id: string
           vehicle_id: string | null
+          vehicle_name: string | null
         }
         Insert: {
           balance_due?: number | null
@@ -168,6 +169,7 @@ export type Database = {
           updated_at?: string | null
           user_id: string
           vehicle_id?: string | null
+          vehicle_name?: string | null
         }
         Update: {
           balance_due?: number | null
@@ -207,6 +209,7 @@ export type Database = {
           updated_at?: string | null
           user_id?: string
           vehicle_id?: string | null
+          vehicle_name?: string | null
         }
         Relationships: [
           {
@@ -2873,6 +2876,7 @@ export type Database = {
       }
       vehicles: {
         Row: {
+          color: string | null
           created_at: string | null
           current_rate: number
           id: string
@@ -2882,6 +2886,7 @@ export type Database = {
           location: string | null
           location_id: string | null
           make: string
+          mileage: number | null
           model: string
           name: string
           ops_status: string | null
@@ -2896,6 +2901,7 @@ export type Database = {
           year: number
         }
         Insert: {
+          color?: string | null
           created_at?: string | null
           current_rate?: number
           id?: string
@@ -2905,6 +2911,7 @@ export type Database = {
           location?: string | null
           location_id?: string | null
           make: string
+          mileage?: number | null
           model: string
           name: string
           ops_status?: string | null
@@ -2919,6 +2926,7 @@ export type Database = {
           year: number
         }
         Update: {
+          color?: string | null
           created_at?: string | null
           current_rate?: number
           id?: string
@@ -2928,6 +2936,7 @@ export type Database = {
           location?: string | null
           location_id?: string | null
           make?: string
+          mileage?: number | null
           model?: string
           name?: string
           ops_status?: string | null
