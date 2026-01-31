@@ -961,10 +961,10 @@ export default function Onboarding() {
                 setShowImportDialog(false);
                 toast({
                   title: "Import Complete! 🎉",
-                  description: `Successfully imported ${count} ${entityType}. Taking you to your fleet.`,
+                  description: `Successfully imported ${count} ${entityType}.`,
                 });
-                // Navigate to fleet module per user preference
-                navigate('/dashboard?tab=fleet');
+                // Advance to completion step instead of navigating away
+                setStep(4);
               }}
             />
           </div>
@@ -979,10 +979,10 @@ export default function Onboarding() {
           setShowPhotoWizard(false);
           toast({
             title: "Vehicle Added! 🎉",
-            description: "Your vehicle has been created with photos. Taking you to your fleet.",
+            description: "Your vehicle has been created with photos.",
           });
-          // Navigate to fleet module per user preference
-          navigate('/dashboard?tab=fleet');
+          // Advance to completion step instead of navigating away
+          setStep(4);
         }}
       />
     </div>

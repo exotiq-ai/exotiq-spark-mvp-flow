@@ -37,7 +37,8 @@ const UNIQUE_FIELDS: Record<ImportEntityType, { field: string; label: string }[]
     { field: 'license_plate', label: 'License Plate' }
   ],
   customers: [
-    { field: 'email', label: 'Email' }
+    { field: 'email', label: 'Email' },
+    { field: 'phone', label: 'Phone' }
   ],
   bookings: [], // Bookings typically don't have unique constraints
   locations: [

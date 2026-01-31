@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { ImportEntityType } from '@/lib/importSchemas';
 import { parseFile, detectEntityType, transformRows, validateRows, ColumnMapping, ParsedFileData, ValidationResult, EntityDetectionResult } from '@/lib/importUtils';
 import { checkForDuplicates, applyDuplicateResolutions, linkBookingsToExistingRecords, DuplicateCheckResult, DuplicateMatch } from '@/lib/importDuplicateCheck';
+import { useNavigate } from 'react-router-dom';
 import { FileUploadZone } from './FileUploadZone';
 import { EntityTypeSelector } from './EntityTypeSelector';
 import { ColumnMapper } from './ColumnMapper';
@@ -17,13 +18,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTeam } from '@/contexts/TeamContext';
 import { useQueryClient } from '@tanstack/react-query';
+import { ImportSummary } from './ImportSummary';
 
 interface ImportWizardProps {
   onClose?: () => void;
   onComplete?: (entityType: ImportEntityType | string, count: number) => void;
 }
 
-type WizardStep = 'upload' | 'entity' | 'mapping' | 'preview' | 'duplicates' | 'import';
+type WizardStep = 'upload' | 'entity' | 'mapping' | 'preview' | 'duplicates' | 'import' | 'summary';
 
 const steps: { key: WizardStep; label: string }[] = [
   { key: 'upload', label: 'Upload File' },
@@ -31,7 +33,8 @@ const steps: { key: WizardStep; label: string }[] = [
   { key: 'mapping', label: 'Map Columns' },
   { key: 'preview', label: 'Preview' },
   { key: 'duplicates', label: 'Review' },
-  { key: 'import', label: 'Import' }
+  { key: 'import', label: 'Import' },
+  { key: 'summary', label: 'Summary' }
 ];
 
 export function ImportWizard({ onClose, onComplete }: ImportWizardProps) {
@@ -39,6 +42,7 @@ export function ImportWizard({ onClose, onComplete }: ImportWizardProps) {
   const { user } = useAuth();
   const { currentTeam } = useTeam();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   
   const [currentStep, setCurrentStep] = useState<WizardStep>('upload');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -55,6 +59,7 @@ export function ImportWizard({ onClose, onComplete }: ImportWizardProps) {
     status: 'idle', totalRows: 0, processedRows: 0, importedCount: 0,
     skippedCount: 0, failedCount: 0, currentBatch: 0, totalBatches: 0
   });
+  const [bookingsNeedingAttention, setBookingsNeedingAttention] = useState(0);
 
   const currentStepIndex = steps.findIndex(s => s.key === currentStep);
 
@@ -70,6 +75,7 @@ export function ImportWizard({ onClose, onComplete }: ImportWizardProps) {
     setDuplicateResult(null);
     setDuplicateResolutions(new Map());
     setImportProgress({ status: 'idle', totalRows: 0, processedRows: 0, importedCount: 0, skippedCount: 0, failedCount: 0, currentBatch: 0, totalBatches: 0 });
+    setBookingsNeedingAttention(0);
   }, []);
 
   const handleFileSelect = async (file: File) => {
@@ -271,23 +277,17 @@ export function ImportWizard({ onClose, onComplete }: ImportWizardProps) {
       // Invalidate queries to refresh data
       await invalidateRelatedQueries(selectedEntity);
       
-      onComplete?.(selectedEntity, imported);
-      
-      // Show appropriate toast based on entity type and results
+      // Track bookings needing attention (missing customer or vehicle)
       if (selectedEntity === 'bookings') {
-        // Check if any bookings are missing customer linkage
-        const bookingsWithoutCustomer = recordsToProcess.filter(r => !r.customer_id).length;
-        if (bookingsWithoutCustomer > 0) {
-          toast({ 
-            title: 'Import Complete', 
-            description: `Imported ${imported} bookings. ${bookingsWithoutCustomer} booking(s) need customer details - you can link them in the Bookings view.`
-          });
-        } else {
-          toast({ title: 'Import Complete', description: `Successfully imported ${imported} bookings with customer links.` });
-        }
-      } else {
-        toast({ title: 'Import Complete', description: `Successfully imported ${imported} ${selectedEntity}.` });
+        const needsAttention = recordsToProcess.filter(r => !r.customer_id || !r.vehicle_id).length;
+        setBookingsNeedingAttention(needsAttention);
       }
+      
+      // Transition to summary step
+      setTimeout(() => {
+        setCurrentStep('summary');
+      }, 1500);
+      
     } catch (error) {
       setImportProgress(prev => ({ ...prev, status: 'error', errorMessage: error instanceof Error ? error.message : 'Import failed' }));
     }
@@ -479,33 +479,54 @@ export function ImportWizard({ onClose, onComplete }: ImportWizardProps) {
           />
         )}
         {currentStep === 'import' && <ImportProgress progress={importProgress} />}
-      </div>
-
-      {/* Footer */}
-      <div className="flex items-center justify-between pt-4 border-t">
-        <Button 
-          variant="outline" 
-          onClick={handleBack} 
-          disabled={currentStepIndex === 0 || importProgress.status === 'importing'}
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />Back
-        </Button>
-        {currentStep !== 'import' && currentStep !== 'duplicates' ? (
-          <Button onClick={handleNext} disabled={!canProceed()}>
-            {currentStep === 'preview' ? 'Check Duplicates' : 'Next'}
-            <ArrowRight className="h-4 w-4 ml-2" />
-          </Button>
-        ) : currentStep === 'duplicates' ? (
-          <Button onClick={handleNext}>
-            Continue with Import
-            <ArrowRight className="h-4 w-4 ml-2" />
-          </Button>
-        ) : (
-          <Button onClick={() => { resetWizard(); onClose?.(); }} disabled={importProgress.status === 'importing'}>
-            {importProgress.status === 'completed' ? 'Done' : 'Close'}
-          </Button>
+        {currentStep === 'summary' && selectedEntity && (
+          <ImportSummary
+            entityType={selectedEntity}
+            stats={{
+              imported: importProgress.importedCount,
+              skipped: importProgress.skippedCount,
+              failed: importProgress.failedCount,
+              needsAttention: bookingsNeedingAttention
+            }}
+            onClose={() => {
+              resetWizard();
+            }}
+            onViewData={(module) => {
+              onComplete?.(selectedEntity, importProgress.importedCount);
+              onClose?.();
+              navigate(`/dashboard?tab=${module}`);
+            }}
+          />
         )}
       </div>
+
+      {/* Footer - hidden on summary step */}
+      {currentStep !== 'summary' && (
+        <div className="flex items-center justify-between pt-4 border-t">
+          <Button 
+            variant="outline" 
+            onClick={handleBack} 
+            disabled={currentStepIndex === 0 || importProgress.status === 'importing'}
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />Back
+          </Button>
+          {currentStep !== 'import' && currentStep !== 'duplicates' ? (
+            <Button onClick={handleNext} disabled={!canProceed()}>
+              {currentStep === 'preview' ? 'Check Duplicates' : 'Next'}
+              <ArrowRight className="h-4 w-4 ml-2" />
+            </Button>
+          ) : currentStep === 'duplicates' ? (
+            <Button onClick={handleNext}>
+              Continue with Import
+              <ArrowRight className="h-4 w-4 ml-2" />
+            </Button>
+          ) : (
+            <Button onClick={() => { resetWizard(); onClose?.(); }} disabled={importProgress.status === 'importing'}>
+              {importProgress.status === 'completed' ? 'Done' : 'Close'}
+            </Button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
