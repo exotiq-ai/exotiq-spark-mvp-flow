@@ -1,87 +1,160 @@
 
-# Vehicle Delete Functionality - Implementation Plan
+# Add Photo Upload Button to Vehicle Details and Post-Add Vehicle Flow
 
-## Current Situation
+## Problem Summary
 
-You've discovered that:
-1. **Duplicate vehicles exist** - Many vehicles appear 2-3 times in the database (created during testing imports)
-2. **No delete UI exists** - There's no way to delete vehicles from the Fleet Management interface
-3. **Backend supports delete** - RLS policies already allow users to delete their own vehicles
+When viewing a vehicle's details in the Fleet page (clicking on a vehicle card → Photos tab), users see "No photos for this vehicle" with **no way to upload photos directly**. The screenshot shows this empty state without an action button.
 
-### Duplicate Vehicles Found (sample)
-| Vehicle | Count |
-|---------|-------|
-| Ferrari Roma 2024 | 3 |
-| Lamborghini Huracán EVO 2024 | 3 |
-| Audi S8 Plus 2017 | 3 |
-| McLaren 720S 2020 | 2 |
-| Porsche 911 Turbo S | 2 |
-| ...and many more | |
+Additionally, after adding a new vehicle, there's no prompt to add photos for that vehicle.
 
 ---
 
-## Immediate Workaround: Delete Vehicles Manually
+## Solution Overview
 
-Until the UI is built, you can delete duplicate vehicles directly from the database. I can help you run a cleanup query.
+### Part 1: Enable Photo Upload in Vehicle Details Modal
 
-**Option A: Delete specific duplicates (keeps the oldest entry of each vehicle)**
-```sql
--- This keeps ONE copy of each vehicle (the first one created) and deletes the rest
-DELETE FROM vehicles 
-WHERE id NOT IN (
-  SELECT MIN(id) 
-  FROM vehicles 
-  GROUP BY team_id, name, make, model, year
-);
+The `VehiclePhotoManager` component already supports an `onUploadClick` callback that shows an "Upload Photos" button - but this callback is not currently passed from `VehicleImageDialog`.
+
+**Files to modify:**
+- `src/components/dialogs/VehicleImageDialog.tsx`
+
+**Changes:**
+1. Import `BulkUploadModal` 
+2. Add state for showing the upload modal
+3. Pass `onUploadClick` callback to `VehiclePhotoManager`
+4. Render `BulkUploadModal` with the current vehicle pre-selected
+
+```tsx
+// Add state
+const [showUploadModal, setShowUploadModal] = useState(false);
+
+// Pass callback to VehiclePhotoManager
+<VehiclePhotoManager
+  vehicleId={vehicleId}
+  vehicleName={vehicleName}
+  onUploadClick={() => setShowUploadModal(true)} // ← This enables the upload button
+/>
+
+// Render the upload modal
+<BulkUploadModal
+  open={showUploadModal}
+  onOpenChange={setShowUploadModal}
+  vehicles={[{ id: vehicleId, name: vehicleName }]}
+  preSelectedVehicleId={vehicleId}
+/>
 ```
 
-**Option B: Delete by specific IDs (if you know which to remove)**
-I can provide specific IDs for duplicates you want to delete.
+### Part 2: Post-Add Vehicle Photo Prompt
+
+After successfully adding a vehicle via `AddVehicleDialog`, show a success dialog that offers to:
+1. Add photos now
+2. Skip for later
+
+**Files to modify:**
+- `src/components/dialogs/AddVehicleDialog.tsx`
+- `src/components/fleet/FleetPageEnhanced.tsx`
+
+**Changes to AddVehicleDialog:**
+1. Return the created vehicle ID from `onSubmit`
+2. Add new optional prop `onAddPhotos?: (vehicleId: string, vehicleName: string) => void`
+3. After successful creation, show a success step with "Add Photos" button
+
+**Changes to FleetPageEnhanced:**
+1. Track newly created vehicle
+2. When `AddVehicleDialog` completes with photo intent, open `BulkUploadModal` with the new vehicle
 
 ---
 
-## Implementation Plan: Add Delete Functionality to UI
+## Implementation Details
 
-### Part 1: Add Delete Method to FleetContext
-**File:** `src/contexts/FleetContext.tsx`
+### VehicleImageDialog Enhancement
 
-Add a `deleteVehicle` function that:
-- Calls `supabase.from('vehicles').delete().eq('id', vehicleId)`
-- Shows confirmation toast on success
-- Triggers `refreshData()` to update the UI
-- Handles errors gracefully
+```tsx
+// src/components/dialogs/VehicleImageDialog.tsx
 
-### Part 2: Single Vehicle Delete
-**File:** `src/components/fleet/FleetVehicleCard.tsx`
+import { useState } from "react";
+import { BulkUploadModal } from "@/components/photos/BulkUploadModal";
 
-Add a "Delete Vehicle" option to the existing dropdown menu (the "..." menu):
-- Positioned at the bottom of the menu with a separator
-- Uses destructive red styling
-- Opens confirmation dialog before deleting
+// Inside the component:
+const [showUploadModal, setShowUploadModal] = useState(false);
 
-### Part 3: Confirmation Dialog Integration  
-**Existing component:** `src/components/ui/confirmation-dialog.tsx`
+// In Photos tab content:
+<VehiclePhotoManager
+  vehicleId={vehicleId}
+  vehicleName={vehicleName}
+  onUploadClick={() => setShowUploadModal(true)}
+/>
 
-Use the existing `ConfirmationDialog` with:
-- `variant="destructive"` 
-- Clear warning message: "This will permanently delete {vehicle name}. This action cannot be undone."
-- Confirmation text: "Delete Vehicle"
+// After the tabs, add the modal:
+{vehicleId && (
+  <BulkUploadModal
+    open={showUploadModal}
+    onOpenChange={setShowUploadModal}
+    vehicles={[{ id: vehicleId, name: vehicleName }]}
+    preSelectedVehicleId={vehicleId}
+  />
+)}
+```
 
-### Part 4: Batch Delete (Optional Enhancement)
-**File:** `src/components/fleet/FleetPageEnhanced.tsx`
+### AddVehicleDialog Enhancement
 
-Add batch selection and delete capability:
-- Checkbox on each vehicle card for multi-select
-- "Delete Selected" button appears when items are selected
-- Bulk confirmation before delete
+Add a "success" state that shows after vehicle creation:
 
-### Part 5: Duplicate Prevention
-**File:** `src/components/dialogs/AddVehicleDialog.tsx`
+```tsx
+const [createdVehicle, setCreatedVehicle] = useState<{id: string, name: string} | null>(null);
 
-Add optional duplicate detection:
-- Before inserting, check if vehicle with same name/make/model/year exists
-- Show warning: "A similar vehicle already exists. Add anyway?"
-- This prevents future duplicates
+// After successful submit, instead of immediately closing:
+const result = await onSubmit({ ...vehicleData });
+setCreatedVehicle({ id: result.id, name: name });
+
+// Render success state:
+{createdVehicle ? (
+  <div className="text-center space-y-4 py-6">
+    <CheckCircle2 className="h-12 w-12 text-success mx-auto" />
+    <h3>Vehicle Added Successfully!</h3>
+    <p className="text-muted-foreground">
+      Would you like to add photos for {createdVehicle.name}?
+    </p>
+    <div className="flex gap-3 justify-center">
+      <Button variant="outline" onClick={handleClose}>
+        Skip for Now
+      </Button>
+      <Button onClick={() => onAddPhotos?.(createdVehicle.id, createdVehicle.name)}>
+        <Camera className="h-4 w-4 mr-2" />
+        Add Photos
+      </Button>
+    </div>
+  </div>
+) : (
+  // ... existing form
+)}
+```
+
+### FleetPageEnhanced Integration
+
+```tsx
+// Add state
+const [photoUploadVehicle, setPhotoUploadVehicle] = useState<{id: string, name: string} | null>(null);
+
+// Update AddVehicleDialog to handle photo intent:
+<AddVehicleDialog
+  open={showAddVehicle}
+  onOpenChange={setShowAddVehicle}
+  onSubmit={createVehicle}
+  onAddPhotos={(vehicleId, vehicleName) => {
+    setShowAddVehicle(false);
+    setPhotoUploadVehicle({ id: vehicleId, name: vehicleName });
+  }}
+/>
+
+// Add BulkUploadModal for new vehicle photos:
+<BulkUploadModal
+  open={!!photoUploadVehicle}
+  onOpenChange={(open) => !open && setPhotoUploadVehicle(null)}
+  vehicles={photoUploadVehicle ? [{ id: photoUploadVehicle.id, name: photoUploadVehicle.name }] : []}
+  preSelectedVehicleId={photoUploadVehicle?.id}
+/>
+```
 
 ---
 
@@ -89,48 +162,46 @@ Add optional duplicate detection:
 
 | File | Changes |
 |------|---------|
-| `src/contexts/FleetContext.tsx` | Add `deleteVehicle` and `deleteVehicles` (batch) methods |
-| `src/components/fleet/FleetVehicleCard.tsx` | Add delete option to dropdown menu |
-| `src/components/fleet/FleetPageEnhanced.tsx` | Add selection state and batch delete UI |
-| `src/hooks/useLocationFilteredFleet.ts` | Expose delete methods from FleetContext |
-| `src/components/dialogs/AddVehicleDialog.tsx` | Optional: Add duplicate warning |
-
----
-
-## Technical Details
-
-### Delete Vehicle Flow
-```text
-User clicks "Delete" in dropdown
-        ↓
-Confirmation dialog opens (destructive variant)
-        ↓
-User confirms → deleteVehicle(vehicleId) called
-        ↓
-Supabase DELETE query with RLS check (user owns vehicle)
-        ↓
-Success toast + refreshData() to update UI
-```
-
-### Batch Delete Flow  
-```text
-User selects multiple vehicles (checkboxes)
-        ↓
-"Delete X Selected" button appears
-        ↓
-Confirmation dialog with vehicle count
-        ↓
-Loop: deleteVehicle for each selected ID
-        ↓
-Summary toast + refreshData()
-```
+| `src/components/dialogs/VehicleImageDialog.tsx` | Add upload modal state, pass `onUploadClick` to `VehiclePhotoManager`, render `BulkUploadModal` |
+| `src/components/dialogs/AddVehicleDialog.tsx` | Add success state with "Add Photos" option, new `onAddPhotos` callback prop |
+| `src/components/fleet/FleetPageEnhanced.tsx` | Handle new vehicle photo flow, track `photoUploadVehicle` state |
+| `src/hooks/useLocationFilteredFleet.ts` | Modify `createVehicle` to return the created vehicle with its ID |
 
 ---
 
 ## Expected Outcome
 
-After implementation:
-- Single delete: Click vehicle "..." menu → "Delete Vehicle" → Confirm → Vehicle removed
-- Batch delete: Select vehicles → Click "Delete Selected" → Confirm → All selected removed
-- Duplicate prevention: Warning when adding vehicle that already exists
-- Clean fleet: No more duplicates cluttering the dashboard
+### After Implementation:
+
+1. **Vehicle Details Modal (Photos Tab)**
+   - Shows "Upload Photos" button in empty state
+   - Shows "Add More" button in photo grid when photos exist
+   - Opens `BulkUploadModal` with vehicle pre-selected
+
+2. **After Adding Vehicle**
+   - Success screen with vehicle name confirmation
+   - "Add Photos" button opens upload modal for that vehicle
+   - "Skip for Now" closes dialog without uploading
+
+### User Flow:
+```text
+Fleet Page → Click Vehicle Card → Photos Tab
+        ↓
+"No photos for this vehicle" + [Upload Photos] button
+        ↓
+Click → BulkUploadModal opens with vehicle pre-selected
+        ↓
+Upload photos → Photos appear in grid
+```
+
+```text
+Fleet Page → [Add Vehicle] button
+        ↓
+Fill form → Submit
+        ↓
+Success: "Vehicle Added! Add photos?"
+        ↓
+[Add Photos] → Opens BulkUploadModal
+        ↓
+Upload photos → Done
+```
