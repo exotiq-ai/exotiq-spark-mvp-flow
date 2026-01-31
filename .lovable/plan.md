@@ -1,143 +1,175 @@
 
-## What’s happening (rephrased clearly)
 
-Two separate blockers are preventing the Denver tenant from onboarding:
+# Fix Photo Upload - Broken Previews and AI Analysis Failures
 
-1) **Batch upload crashes immediately on “Map Columns”** with:
-   `Error: A <Select.Item /> must have a value prop that is not an empty string`
-   This is a hard crash (ErrorBoundary → “Something went wrong”), so the import never gets to validation or saving.
+## Problem Summary
 
-2) **Manual vehicle entry “doesn’t save”** because the client-side validation rejects the payload before insert:
-   - `AddVehicleDialog` sends `vin: null` and `license_plate: null`, but `vehicleSchema` does not accept `null`
-   - `AddVehicleDialog` uses status `"booked"`, but `vehicleSchema` currently only allows `available | rented | maintenance | retired`
+Photos upload successfully to storage but:
+1. **Preview images are broken** (showing placeholder/broken image icon)
+2. **AI analysis returns empty results** (0% confidence, "Unknown" angle)
+3. Photos can be saved to vehicles but still don't display
 
-These two issues explain why the tenant still has **0 vehicles** despite trying both paths.
+## Root Causes Identified
 
-## Do I know what the issue is?
-Yes.
-- The import crash is caused by **blank/unnamed CSV header columns** (likely trailing commas / empty columns). Those produce an empty-string header `""`, and the Column Mapper renders `<SelectItem value={header}>` → value becomes `""` → Radix throws and the whole wizard crashes.
-- Manual add fails due to **schema mismatch** between UI values and `vehicleSchema`.
+### Issue 1: HEIC Format Not Browser-Compatible
+The uploaded file `IMG_8832.HEIC` is stored with `.HEIC` extension. Browsers cannot natively display HEIC images - they require conversion to JPEG/PNG/WebP.
 
-## What you can do right now (workaround until code fix ships)
+**Evidence from database:**
+```
+storage_path: fd9bb57e.../unmatched/1769892483530-i1r0k.HEIC
+```
 
-### A) Get batch upload unblocked immediately
-1. Open the CSV in Google Sheets / Excel
-2. **Delete any completely blank columns** (especially at the far right)
-3. Ensure the header row has no empty header cells, and no trailing commas
-4. Re-export as CSV and retry import
+### Issue 2: Google Vision API Cannot Access Signed URLs
+The signed URLs generated for private bucket access contain authentication tokens. When passed to Google Vision API:
+- Vision API makes external request to fetch the image
+- The signed URL may have CORS or access restrictions
+- Result: Vision API returns empty labels/objects
 
-This should avoid the crash on “Map Columns” because it removes the empty header.
+**Evidence from edge function logs:**
+```
+Labels detected: []
+Objects detected: []
+Analysis result: { isVehicle: false, confidence: 0, angle: "unknown" }
+```
 
-### B) Session troubleshooting (helpful but not the root cause)
-- Logging out / back in can help if the app got into a broken UI state, but it will **not** fix a deterministic Radix crash caused by a blank header.
-- If you want to try anyway: Sign out → Hard reload → Sign in → retry.
-
-## Backend / tenant verification (Denver account)
-
-I checked the backend state for `denverexoticrentalcars@gmail.com`:
-- Account exists, onboarding not completed yet
-- Team exists and user is owner
-- 1 location exists (so location context is present)
-- Vehicles count for that team: **0**
-- RLS policies for `vehicles` allow insert when `user_id = auth.uid()` (so permissions are not the blocker)
-
-This strongly indicates the failure is occurring **client-side** (crash + validation rejection), not due to DB/RLS.
+### Issue 3: HEIC Not Supported by Vision API
+Google Cloud Vision API does not support HEIC format directly. Even if the URL was accessible, the format would fail.
 
 ---
 
-## Implementation plan (fix now, prevent future regressions)
+## Solution Plan
 
-### 1) Stop the import crash on “Map Columns” (blank header handling)
-**Goal:** No matter what headers are in a CSV/XLSX, the wizard must never crash.
+### Fix 1: Convert HEIC to JPEG on Upload (Client-Side)
+**File:** `src/components/photos/usePhotoAnalysis.ts`
 
-**Primary fix (recommended): sanitize parsed headers**
-- Update `src/lib/importUtils.ts`:
-  - In `parseCSV` and `parseExcel`, sanitize `headers`:
-    - Trim
-    - Drop empty headers (`""`)
-    - Optionally dedupe (keep as-is if Papa already deduped)
-  - Rebuild `rows` objects to only include the sanitized headers (so the UI never sees `""` as a selectable option)
+Before uploading, detect HEIC files and convert them to JPEG using HTML Canvas or a library:
 
-**Defensive fix (in case any empty header slips through):**
-- Update `src/components/import/ColumnMapper.tsx`:
-  - Filter `sourceHeaders` when rendering `<SelectItem>`:
-    - `sourceHeaders.filter(h => h.trim() !== '')`
-  - If any empty/unnamed headers were found, show a small warning banner:
-    - “We detected unnamed columns in your file and ignored them. Please delete blank columns and retry if something is missing.”
+```typescript
+const convertHeicToJpeg = async (file: File): Promise<File> => {
+  // Use heic2any or similar library
+  // Or: Skip HEIC for now and show user-friendly error
+};
+```
 
-**Why both:** The parser-level fix prevents the issue everywhere; the UI-level filter guarantees we never render an invalid SelectItem even if upstream changes later reintroduce blanks.
+**Simpler approach (recommended for quick fix):**
+- Detect HEIC files and skip them with a user-friendly message
+- Prompt user to convert to JPEG before uploading
 
-### 2) Fix manual Add Vehicle not saving (schema alignment + better error surfacing)
-**Goal:** Any optional field (VIN, Plate) can be blank/null, and UI statuses match validation.
+### Fix 2: Send Base64 to Vision API Instead of URL
+**File:** `supabase/functions/analyze-vehicle-photo/index.ts`
 
-**Update validation schema to match actual UI values**
-- Update `src/lib/validationSchemas.ts`:
-  - Change `license_plate` to accept `null`:
-    - `z.string().max(20)... .optional().nullable().or(z.literal(''))`
-  - Change `vin` to accept `null` and max(17):
-    - `z.string().max(17)... .optional().nullable().or(z.literal(''))`
-  - Update `status` enum to include `"booked"` (since the UI and other dashboard components already treat `"booked"` as a valid vehicle status)
+The current flow passes signed URL to Vision API. Instead:
+1. Edge function fetches the image using the signed URL (server-side, no CORS)
+2. Convert to base64
+3. Send base64 to Vision API (which accepts `content` field)
 
-**Update the Add Vehicle dialog to avoid mismatches**
-- Update `src/components/dialogs/AddVehicleDialog.tsx`:
-  - Keep `"booked"` if that’s the product language you want, but ensure it’s consistent everywhere.
-  - Improve the “Failed to add vehicle” error display:
-    - Show the real error message from the thrown error / Zod error instead of a generic string
-    - This prevents “it didn’t save” mystery failures.
+```typescript
+// Fetch image from storage using signed URL
+const imageResponse = await fetch(imageUrl);
+const arrayBuffer = await imageResponse.arrayBuffer();
+const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
 
-**Make FleetContext creation path tenant-safe**
-- Update `src/contexts/FleetContext.tsx` `createVehicle`:
-  - If `currentTeam?.id` is missing, toast: “Team not loaded yet, please refresh” and return
-  - After successful insert, call `refreshData()` (not only `refreshVehicles()`) to ensure other modules update immediately (documents/widgets/overview)
+// Send to Vision API as base64
+imageContent = { content: base64 };
+```
 
-### 3) Ensure batch import “stores immediately” and reflects instantly in UI
-**Goal:** After import completes, fleet shows new vehicles without the user having to refresh.
+### Fix 3: Skip AI Analysis for Swift Onboarding (Quick Win)
+**Files:** `src/components/photos/usePhotoAnalysis.ts`
 
-- Update `src/components/import/ImportWizard.tsx`:
-  - After import completion + invalidate queries, also call FleetContext `refreshData()` (via `useFleet()` or passed callback) so stateful Fleet pages update immediately.
-  - Improve import error visibility:
-    - If a batch insert fails, capture `error.message` and store to `import_batches.error_details`
-    - Optionally show a toast: “Some rows failed to import. See Import History for details.”
+Add option to skip AI analysis entirely and just upload:
 
-### 4) Add “MotorIQ-style” Add Vehicle + Import entry points to Fleet Management
-**Goal:** Every tenant has obvious, working CTAs to add vehicles from Fleet Management (not just onboarding).
+```typescript
+const processBatch = async (
+  files: File[],
+  vehicleId?: string,
+  options?: { skipAnalysis?: boolean }
+)
+```
 
-- Update `src/components/fleet/FleetPageEnhanced.tsx`:
-  - Add header actions:
-    - Primary: “Add Vehicle” (opens `AddVehicleDialog`, uses `createVehicle`)
-    - Secondary: “Import” (opens `ImportWizard` in a dialog)
-  - Update EmptyState CTA (“No vehicles found”) to include “Add Vehicle” and “Import Fleet”
+When `skipAnalysis: true`:
+- Upload file to storage
+- Save to database with default values (unknown angle, 100% quality)
+- Skip Vision API call entirely
 
-### 5) Testing checklist (must pass before we call it “fixed”)
-**On Denver tenant account:**
-1. Open Fleet Management → click **Add Vehicle**:
-   - Leave VIN + Plate blank → should save successfully
-   - Choose status Available/Booked/Maintenance → should save
-   - Vehicle appears immediately without refresh
-2. Open Import Wizard with the same CSV that currently crashes:
-   - “Map Columns” step should render without crashing
-   - Import vehicles with missing VIN/Plate should succeed
-   - Vehicles appear in Fleet immediately (no refresh)
-3. Verify Import History:
-   - Import batch record exists and is marked completed
-   - Failed rows (if any) are visible and downloadable
+This unblocks customer onboarding immediately.
+
+### Fix 4: Add Image Error Handling in UI
+**File:** `src/components/photos/PhotoReviewQueue.tsx`
+
+Add `onError` handler for broken images to show placeholder gracefully:
+
+```tsx
+<img
+  src={currentPhoto.url}
+  alt={currentPhoto.original_filename || 'Photo'}
+  onError={(e) => {
+    e.currentTarget.src = '/placeholder-image.png';
+    // Or show ImageOff icon
+  }}
+/>
+```
+
+### Fix 5: Validate File Format Before Upload
+**File:** `src/components/photos/BulkUploadModal.tsx`
+
+Filter out HEIC files with warning:
+
+```typescript
+const handleDrop = useCallback((e: React.DragEvent) => {
+  const droppedFiles = Array.from(e.dataTransfer.files).filter(f => {
+    if (f.name.toLowerCase().endsWith('.heic')) {
+      toast.warning(`${f.name}: HEIC format not supported. Please convert to JPEG.`);
+      return false;
+    }
+    // ... rest of validation
+  });
+});
+```
 
 ---
 
-## Files expected to change
-- `src/lib/importUtils.ts` (sanitize empty headers; rebuild rows)
-- `src/components/import/ColumnMapper.tsx` (defensive filtering + warning banner)
-- `src/lib/validationSchemas.ts` (allow null VIN/Plate; include “booked” status)
-- `src/components/dialogs/AddVehicleDialog.tsx` (better error surfacing; keep status aligned)
-- `src/contexts/FleetContext.tsx` (team guard; refreshData after create)
-- `src/components/import/ImportWizard.tsx` (refreshData after import; improve error recording)
-- `src/components/fleet/FleetPageEnhanced.tsx` (Add Vehicle + Import buttons/dialogs)
+## Implementation Priority
+
+### Phase 1: Quick Fixes for Immediate Onboarding (Do First)
+
+| Fix | File | Impact |
+|-----|------|--------|
+| Skip AI analysis option | `usePhotoAnalysis.ts` | Unblocks uploads immediately |
+| Filter HEIC with warning | `BulkUploadModal.tsx` | Prevents broken uploads |
+| Add image error handler | `PhotoReviewQueue.tsx` | Shows fallback for broken images |
+| Add image error handler | `VehiclePhotoManager.tsx` | Shows fallback for broken images |
+
+### Phase 2: Proper Fix (After Onboarding)
+
+| Fix | File | Impact |
+|-----|------|--------|
+| Base64 to Vision API | Edge function | Enables AI analysis to work |
+| HEIC to JPEG conversion | Client-side | Supports iPhone photos |
 
 ---
 
-## Why logging out / new browser is not the real fix
-Logging out or using a new browser can temporarily clear a bad UI state, but:
-- The **Radix SelectItem empty value crash** will still happen any time the CSV contains a blank header.
-- The **manual add validation mismatch** will still block inserts regardless of browser/session.
+## Files to Modify
 
-So we’ll implement the code fixes above to make onboarding reliable for all tenants, including Denver.
+| File | Changes |
+|------|---------|
+| `src/components/photos/usePhotoAnalysis.ts` | Add `skipAnalysis` option to bypass Vision API |
+| `src/components/photos/BulkUploadModal.tsx` | Filter HEIC files with user warning |
+| `src/components/photos/PhotoReviewQueue.tsx` | Add `onError` handler for broken images |
+| `src/components/photos/VehiclePhotoManager.tsx` | Add `onError` handler for broken images |
+| `supabase/functions/analyze-vehicle-photo/index.ts` | Fetch image server-side and send base64 to Vision API |
+
+---
+
+## Expected Outcome
+
+After Phase 1:
+- HEIC files are blocked with helpful message ("Please convert to JPEG")
+- Other images upload and save successfully (even without AI analysis)
+- Broken images show fallback placeholder instead of broken icon
+- Customer onboarding can proceed immediately
+
+After Phase 2:
+- AI analysis works for all supported formats
+- Vision API receives base64 data (no URL access issues)
+- HEIC files can be converted and uploaded
+
