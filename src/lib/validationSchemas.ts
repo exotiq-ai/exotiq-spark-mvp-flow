@@ -77,10 +77,10 @@ export const vehicleSchema = z.object({
   make: z.string().min(1, "Make required").max(50, "Make too long"),
   model: z.string().min(1, "Model required").max(50, "Model too long"),
   year: z.number().int("Year must be a whole number").min(1900, "Year too old").max(new Date().getFullYear() + 1, "Year too far in future"),
-  license_plate: z.string().max(20, "License plate too long").optional().or(z.literal('')),
-  vin: z.string().max(17, "VIN too long").optional().or(z.literal('')),
+  license_plate: z.string().max(20, "License plate too long").optional().nullable().or(z.literal('')),
+  vin: z.string().max(17, "VIN too long").optional().nullable().or(z.literal('')),
   current_rate: z.number().min(0, "Rate cannot be negative").max(100000, "Rate too high"),
-  status: z.enum(['available', 'rented', 'maintenance', 'retired']).optional(),
+  status: z.enum(['available', 'rented', 'maintenance', 'retired', 'booked']).optional(),
 });
 
 // Edge function chat messages validation

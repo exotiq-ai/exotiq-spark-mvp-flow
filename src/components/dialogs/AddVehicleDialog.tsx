@@ -93,8 +93,10 @@ export const AddVehicleDialog = ({ open, onOpenChange, onSubmit }: AddVehicleDia
         title: "Success",
         description: "Vehicle added successfully",
       });
-    } catch (err) {
-      setError("Failed to add vehicle. Please try again.");
+    } catch (err: any) {
+      // Surface the real error message (e.g., Zod validation or DB error)
+      const message = err?.message || "Failed to add vehicle. Please try again.";
+      setError(message);
       console.error("Error adding vehicle:", err);
     } finally {
       setLoading(false);

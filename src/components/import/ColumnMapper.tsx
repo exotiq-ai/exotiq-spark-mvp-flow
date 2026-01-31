@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
-import { ChevronDown, Check, X, AlertCircle, Sparkles, Info } from 'lucide-react';
+import React, { useEffect, useState, useMemo } from 'react';
+import { ChevronDown, Check, X, AlertCircle, Sparkles, Info, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Select,
   SelectContent,
@@ -40,14 +41,22 @@ export function ColumnMapper({
   const [localMappings, setLocalMappings] = useState<ColumnMapping[]>(mappings);
   const requiredCheck = checkRequiredFields(localMappings, entityType);
 
+  // Defensive filter: remove any empty/blank headers (should already be sanitized, but belt+suspenders)
+  const safeSourceHeaders = useMemo(() => {
+    return sourceHeaders.filter(h => h && h.trim() !== '');
+  }, [sourceHeaders]);
+
+  // Track if any headers were dropped for warning
+  const droppedHeaderCount = sourceHeaders.length - safeSourceHeaders.length;
+
   useEffect(() => {
     // Auto-suggest mappings when component mounts
     if (mappings.length === 0) {
-      const suggested = suggestColumnMappings(sourceHeaders, entityType, sourceRows);
+      const suggested = suggestColumnMappings(safeSourceHeaders, entityType, sourceRows);
       setLocalMappings(suggested);
       onMappingsChange(suggested);
     }
-  }, [entityType, sourceHeaders, sourceRows]);
+  }, [entityType, safeSourceHeaders, sourceRows]);
 
   const handleMappingChange = (targetField: string, sourceColumn: string) => {
     const updated = localMappings.map(m => {
@@ -96,6 +105,17 @@ export function ColumnMapper({
 
   return (
     <div className="space-y-4">
+      {/* Warning for dropped blank headers */}
+      {droppedHeaderCount > 0 && (
+        <Alert variant="default" className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20">
+          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <AlertDescription className="text-amber-800 dark:text-amber-200">
+            We detected {droppedHeaderCount} unnamed column{droppedHeaderCount > 1 ? 's' : ''} in your file and ignored them. 
+            If something is missing, please delete blank columns from your file and retry.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Validation Status */}
       {!requiredCheck.valid && (
         <div className="flex items-start gap-3 p-4 rounded-lg bg-destructive/10 border border-destructive/20">
@@ -189,7 +209,7 @@ export function ColumnMapper({
                         <SelectItem value="__none__">
                           <span className="text-muted-foreground">-- Skip this field --</span>
                         </SelectItem>
-                        {sourceHeaders.map((header) => {
+                        {safeSourceHeaders.map((header) => {
                           const isUsed = usedColumns.has(header) && mapping.sourceColumn !== header;
                           return (
                             <SelectItem 
@@ -257,7 +277,7 @@ export function ColumnMapper({
           {localMappings.filter(m => m.sourceColumn).length} of {localMappings.length} fields mapped
         </span>
         <span>
-          {sourceHeaders.length - usedColumns.size} unmapped source columns
+          {safeSourceHeaders.length - usedColumns.size} unmapped source columns
         </span>
       </div>
     </div>

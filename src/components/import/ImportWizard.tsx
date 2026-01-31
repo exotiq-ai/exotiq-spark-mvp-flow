@@ -17,6 +17,7 @@ import { DuplicateResolver, DuplicateResolution } from './DuplicateResolver';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTeam } from '@/contexts/TeamContext';
+import { useFleet } from '@/contexts/FleetContext';
 import { useQueryClient } from '@tanstack/react-query';
 import { ImportSummary } from './ImportSummary';
 
@@ -41,6 +42,7 @@ export function ImportWizard({ onClose, onComplete }: ImportWizardProps) {
   const { toast } = useToast();
   const { user } = useAuth();
   const { currentTeam } = useTeam();
+  const { refreshData: refreshFleetData } = useFleet();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   
@@ -276,6 +278,13 @@ export function ImportWizard({ onClose, onComplete }: ImportWizardProps) {
       
       // Invalidate queries to refresh data
       await invalidateRelatedQueries(selectedEntity);
+      
+      // Force FleetContext refresh to immediately sync UI
+      try {
+        await refreshFleetData(true);
+      } catch (e) {
+        console.warn('[ImportWizard] FleetContext refresh failed, UI may need manual refresh:', e);
+      }
       
       // Track bookings needing attention (missing customer or vehicle)
       if (selectedEntity === 'bookings') {

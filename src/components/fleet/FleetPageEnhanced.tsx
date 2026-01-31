@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useLocationFilteredFleet } from '@/hooks/useLocationFilteredFleet';
 import { useFleetTasks } from '@/hooks/useFleetTasks';
@@ -18,6 +19,8 @@ import { TaskQueue } from './TaskQueue';
 import { CreateVehicleTaskDialog } from '@/components/dialogs/CreateVehicleTaskDialog';
 import { QuickPriceEditorDialog } from '@/components/dialogs/QuickPriceEditorDialog';
 import { VehicleImageDialog } from '@/components/dialogs/VehicleImageDialog';
+import { AddVehicleDialog } from '@/components/dialogs/AddVehicleDialog';
+import { ImportWizard } from '@/components/import/ImportWizard';
 import { EmptyState } from '@/components/common/EmptyState';
 import { SkeletonVehicleCard } from '@/components/ui/skeleton-specialized';
 import { ModuleTabs, TabsContent } from '@/components/common/ModuleTabs';
@@ -28,6 +31,8 @@ import {
   Monitor,
   RefreshCw,
   Camera,
+  Plus,
+  Upload,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -44,7 +49,7 @@ interface TeamMember {
 
 export const FleetPageEnhanced = () => {
   const isMobile = useIsMobile();
-  const { vehicles, bookings, loading, applyPriceOptimization, refreshData } = useLocationFilteredFleet();
+  const { vehicles, bookings, loading, applyPriceOptimization, refreshData, createVehicle } = useLocationFilteredFleet();
   const { tasks, myTasks, unassignedTasks, createTask, updateTaskStatus, claimTask } = useFleetTasks();
   const { updateOpsStatus } = useVehicleOpsStatus();
   const { photoCountByVehicle } = useVehiclePhotos({ realtime: false });
@@ -102,6 +107,8 @@ export const FleetPageEnhanced = () => {
   const [priceEditVehicle, setPriceEditVehicle] = useState<any>(null);
   const [taskVehicle, setTaskVehicle] = useState<any>(null);
   const [detailsVehicle, setDetailsVehicle] = useState<any>(null);
+  const [showAddVehicle, setShowAddVehicle] = useState(false);
+  const [showImportWizard, setShowImportWizard] = useState(false);
 
   // Filter and sort vehicles
   const filteredVehicles = useMemo(() => {
@@ -243,6 +250,16 @@ export const FleetPageEnhanced = () => {
             </div>
           )}
 
+          {/* Add Vehicle + Import buttons */}
+          <Button onClick={() => setShowAddVehicle(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Vehicle
+          </Button>
+          <Button variant="outline" onClick={() => setShowImportWizard(true)}>
+            <Upload className="h-4 w-4 mr-2" />
+            Import
+          </Button>
+
           <Button variant="outline" size="icon" onClick={() => refreshData()}>
             <RefreshCw className="h-4 w-4" />
           </Button>
@@ -291,6 +308,10 @@ export const FleetPageEnhanced = () => {
               icon={Car}
               title="No vehicles found"
               description={filters.search ? "Try adjusting your search or filters" : "Add your first vehicle to get started"}
+              action={!filters.search ? {
+                label: "Add Vehicle",
+                onClick: () => setShowAddVehicle(true)
+              } : undefined}
             />
           ) : (
             <div className={cn(
@@ -360,6 +381,31 @@ export const FleetPageEnhanced = () => {
         teamMembers={teamMembers as any}
         onCreateTask={createTask}
       />
+
+      {/* Add Vehicle Dialog */}
+      <AddVehicleDialog
+        open={showAddVehicle}
+        onOpenChange={setShowAddVehicle}
+        onSubmit={createVehicle}
+      />
+
+      {/* Import Wizard Dialog */}
+      <Dialog open={showImportWizard} onOpenChange={setShowImportWizard}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Import Fleet Data</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto">
+            <ImportWizard 
+              onClose={() => setShowImportWizard(false)}
+              onComplete={() => {
+                setShowImportWizard(false);
+                refreshData();
+              }}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <VehicleImageDialog
         open={!!detailsVehicle}
