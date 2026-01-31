@@ -46,6 +46,9 @@ export const RariVoiceInterface = ({
   // Use ref to track DB ID for callbacks (avoids stale closure in onMessage)
   const conversationDbIdRef = useRef<string | null>(null);
   
+  // Message queue for race condition fix - stores messages that arrive before DB ID is ready
+  const pendingMessagesRef = useRef<Message[]>([]);
+  
   const { startConversation: startConversationDb, saveMessage, endConversation: endConversationDb } = useRariConversationPersistence();
   
   // Sync ref with state
@@ -53,17 +56,66 @@ export const RariVoiceInterface = ({
     conversationDbIdRef.current = conversationDbId;
   }, [conversationDbId]);
   
+  // Flush pending messages when DB ID becomes available
+  useEffect(() => {
+    if (conversationDbId && pendingMessagesRef.current.length > 0) {
+      console.log('[Rari Message Queue] 🔄 Flushing queued messages:', pendingMessagesRef.current.length);
+      
+      const pending = [...pendingMessagesRef.current];
+      pendingMessagesRef.current = [];
+      
+      pending.forEach((msg, index) => {
+        console.log(`[Rari Message Queue] Flushing message ${index + 1}/${pending.length}:`, {
+          role: msg.role,
+          contentPreview: msg.content.substring(0, 30),
+        });
+        saveMessage(conversationDbId, msg).catch(err => {
+          console.error('[Rari Message Queue] ❌ Failed to flush message:', err);
+        });
+      });
+    }
+  }, [conversationDbId, saveMessage]);
+  
   // Helper to save message using ref (always has latest value)
   const saveMessageToDb = useCallback((message: Message) => {
     const dbId = conversationDbIdRef.current;
-    if (dbId) {
-      saveMessage(dbId, message).catch(err => {
-        console.warn('[Rari] Failed to save message to database:', err);
+    const userId = user?.id;
+    
+    console.log('[Rari Message Save] Attempting save:', {
+      hasDbId: !!dbId,
+      dbId,
+      hasUser: !!userId,
+      userId,
+      messageRole: message.role,
+      messagePreview: message.content.substring(0, 50),
+      timestamp: new Date().toISOString(),
+      queueLength: pendingMessagesRef.current.length,
+    });
+    
+    if (!dbId) {
+      // Queue the message for later when DB ID becomes available
+      console.warn('[Rari Message Save] ⏳ Queuing message (no DB ID yet)', {
+        conversationDbIdState: conversationDbId,
+        conversationDbIdRef: conversationDbIdRef.current,
+        conversationIdState: conversationId,
+        queueLengthBefore: pendingMessagesRef.current.length,
       });
-    } else {
-      console.warn('[Rari] No conversation DB ID - message will not be persisted');
+      pendingMessagesRef.current.push(message);
+      console.log('[Rari Message Save] Queue length now:', pendingMessagesRef.current.length);
+      return;
     }
-  }, [saveMessage]);
+    
+    saveMessage(dbId, message)
+      .then(() => {
+        console.log('[Rari Message Save] ✅ Success:', {
+          dbId,
+          role: message.role,
+        });
+      })
+      .catch(err => {
+        console.error('[Rari Message Save] ❌ Failed:', err);
+      });
+  }, [saveMessage, user?.id, conversationDbId, conversationId]);
   
   // Create client tools with user's auth context and team_id
   const clientTools = useMemo(() => {
@@ -245,12 +297,23 @@ export const RariVoiceInterface = ({
       // Start conversation in database - update both state AND ref immediately
       startConversationDb(id).then((dbId) => {
         if (dbId) {
+          console.log('[Rari] ✅ Database conversation created:', {
+            dbId,
+            sessionId: id,
+            userId: user?.id,
+            pendingMessages: pendingMessagesRef.current.length,
+          });
           conversationDbIdRef.current = dbId; // Update ref FIRST (sync)
-          setConversationDbId(dbId); // Then update state (async)
-          console.log('[Rari] Database conversation started:', dbId);
+          setConversationDbId(dbId); // Then update state (async) - triggers flush effect
+        } else {
+          console.error('[Rari] ❌ startConversationDb returned null - messages will not be persisted');
         }
       }).catch((err) => {
-        console.warn('Database persistence disabled due to error:', err);
+        console.error('[Rari] ❌ Database conversation failed:', {
+          error: err,
+          sessionId: id,
+          userId: user?.id,
+        });
         // Continue without database - transcript will still work in memory
       });
     } catch (error: any) {

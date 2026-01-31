@@ -52,40 +52,59 @@ export function useRariConversationPersistence() {
     conversationId: string,
     message: Message
   ): Promise<void> => {
+    console.log('[Rari Persistence] saveMessage called:', {
+      conversationId,
+      hasUser: !!user,
+      userId: user?.id,
+      role: message.role,
+      contentLength: message.content.length,
+      contentPreview: message.content.substring(0, 50),
+    });
+
     if (!user || !conversationId) {
-      console.warn('[Rari Persistence] Skipping message save - no user or conversation ID');
+      console.error('[Rari Persistence] ❌ Validation failed:', {
+        hasUser: !!user,
+        userId: user?.id,
+        conversationId,
+      });
       return;
     }
 
     setIsSaving(true);
     try {
-      const { error } = await supabase
+      console.log('[Rari Persistence] Inserting message into rari_messages...');
+      
+      const { data, error } = await supabase
         .from('rari_messages')
         .insert({
           conversation_id: conversationId,
           role: message.role,
           content: message.content,
           created_at: message.timestamp.toISOString(),
-        });
+        })
+        .select('id');
 
       if (error) {
-        console.error('[Rari Persistence] Failed to save message:', error);
+        console.error('[Rari Persistence] ❌ Supabase error:', {
+          error,
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          conversationId,
+          role: message.role,
+        });
         return;
       }
 
-      // Update message count in conversation
-      await supabase
-        .from('rari_conversations')
-        .update({ message_count: supabase.rpc ? undefined : undefined }) // Will use increment
-        .eq('id', conversationId);
-
-      console.log('[Rari Persistence] ✅ Message saved:', {
+      console.log('[Rari Persistence] ✅ Message saved successfully:', {
+        insertedId: data?.[0]?.id,
         conversationId,
         role: message.role,
         contentPreview: message.content.substring(0, 50) + '...',
       });
     } catch (error) {
-      console.error('[Rari Persistence] Error saving message:', error);
+      console.error('[Rari Persistence] ❌ Unexpected error:', error);
     } finally {
       setIsSaving(false);
     }
