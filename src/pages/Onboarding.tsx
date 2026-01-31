@@ -322,29 +322,45 @@ export default function Onboarding() {
 
   const handleAddVehicle = async () => {
     if (!user) return;
+    
+    // Validate team exists before insert
+    if (!currentTeam?.id) {
+      toast({
+        title: "Error",
+        description: "Team not found. Please refresh and try again.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     setLoading(true);
 
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('vehicles')
         .insert({
           user_id: user.id,
-          team_id: currentTeam?.id,
+          team_id: currentTeam.id,
           name: vehicleName,
           make: make,
           model: model,
           year: parseInt(year),
           current_rate: parseFloat(dailyRate),
           status: 'available'
-        });
+        })
+        .select()
+        .single();
 
       if (error) throw error;
+      
+      console.log('[Onboarding] Vehicle created:', data?.id);
 
       // Refresh fleet data to sync state before advancing
       await refreshData();
 
       await handleStepChange(4);
     } catch (error: any) {
+      console.error('[Onboarding] Vehicle creation failed:', error);
       toast({
         title: "Error",
         description: error.message,

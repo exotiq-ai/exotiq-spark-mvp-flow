@@ -408,8 +408,11 @@ function getSuggestion(field: string, value: unknown, message: string): string |
   }
   if (field === 'vin' && value) {
     const strValue = String(value);
-    if (strValue.length !== 17) {
-      return `VIN must be exactly 17 characters (current: ${strValue.length})`;
+    if (strValue.length > 17) {
+      return `VIN cannot exceed 17 characters (current: ${strValue.length})`;
+    }
+    if (strValue.length > 0 && strValue.length < 17) {
+      return `VIN looks incomplete (${strValue.length}/17 characters) - you can complete it later`;
     }
   }
   if (message.includes('required')) {

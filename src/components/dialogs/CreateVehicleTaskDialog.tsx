@@ -77,7 +77,7 @@ export const CreateVehicleTaskDialog = ({
   const [taskType, setTaskType] = useState<TaskType>('other');
   const [title, setTitle] = useState('');
   const [priority, setPriority] = useState<TaskPriority>('normal');
-  const [assignedTo, setAssignedTo] = useState<string>('');
+  const [assignedTo, setAssignedTo] = useState<string>('__unassigned__');
   const [notes, setNotes] = useState('');
   const [dueDate, setDueDate] = useState<Date | undefined>();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -88,7 +88,7 @@ export const CreateVehicleTaskDialog = ({
       setTaskType('other');
       setTitle('');
       setPriority('normal');
-      setAssignedTo('');
+      setAssignedTo('__unassigned__');
       setNotes('');
       setDueDate(undefined);
     }
@@ -112,7 +112,7 @@ export const CreateVehicleTaskDialog = ({
         task_type: taskType,
         title: title.trim(),
         priority,
-        assigned_to: assignedTo || undefined,
+        assigned_to: assignedTo === '__unassigned__' ? undefined : assignedTo,
         notes: notes.trim() || undefined,
         due_at: dueDate?.toISOString(),
       });
@@ -226,7 +226,7 @@ export const CreateVehicleTaskDialog = ({
                 <SelectValue placeholder="Leave unassigned" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Unassigned</SelectItem>
+                <SelectItem value="__unassigned__">Unassigned</SelectItem>
                 {teamMembers.map((member) => (
                   <SelectItem key={member.user_id} value={member.user_id}>
                     {member.profile?.full_name || member.profile?.email || 'Team Member'}
