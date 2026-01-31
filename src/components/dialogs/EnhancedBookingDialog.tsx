@@ -133,11 +133,59 @@ export const EnhancedBookingDialog = ({
     return booking ? differenceInDays(new Date(booking.end_date), new Date(booking.start_date)) || 1 : 0;
   }, [booking, isEditMode, editValues.startDate, editValues.endDate]);
 
+  // Get the daily rate
+  const dailyRate = useMemo(() => {
+    return Number(vehicle?.current_rate || booking?.daily_rate || 0);
+  }, [vehicle?.current_rate, booking?.daily_rate]);
+
   // Calculate new total when editing
   const newTotal = useMemo(() => {
-    const rate = Number(vehicle?.current_rate || booking?.daily_rate || 0);
-    return bookingDays * rate;
-  }, [bookingDays, vehicle?.current_rate, booking?.daily_rate]);
+    return bookingDays * dailyRate;
+  }, [bookingDays, dailyRate]);
+
+  // Calculate price difference from original
+  const priceDifference = useMemo(() => {
+    if (!booking) return 0;
+    return newTotal - Number(booking.total_value);
+  }, [newTotal, booking]);
+
+  // Form validation
+  const isFormValid = useMemo(() => {
+    if (!editValues.startDate || !editValues.endDate) return false;
+    if (editValues.endDate < editValues.startDate) return false;
+    if (!editValues.pickupLocation.trim()) return false;
+    if (!editValues.startTime || !editValues.endTime) return false;
+    return true;
+  }, [editValues]);
+
+  // Validation error messages
+  const validationErrors = useMemo(() => {
+    const errors: string[] = [];
+    if (!editValues.startDate) errors.push("Pickup date is required");
+    if (!editValues.endDate) errors.push("Return date is required");
+    if (editValues.startDate && editValues.endDate && editValues.endDate < editValues.startDate) {
+      errors.push("Return date must be after pickup date");
+    }
+    if (!editValues.pickupLocation.trim()) errors.push("Pickup location is required");
+    if (bookingDays < 1) errors.push("Minimum rental is 1 day");
+    return errors;
+  }, [editValues, bookingDays]);
+
+  // Unsaved changes detection
+  const hasUnsavedChanges = useMemo(() => {
+    if (!isEditMode || !booking) return false;
+    const originalStartDate = new Date(booking.start_date);
+    const originalEndDate = new Date(booking.end_date);
+    return (
+      editValues.startDate?.toDateString() !== originalStartDate.toDateString() ||
+      editValues.endDate?.toDateString() !== originalEndDate.toDateString() ||
+      editValues.startTime !== format(originalStartDate, "HH:mm") ||
+      editValues.endTime !== format(originalEndDate, "HH:mm") ||
+      editValues.pickupLocation !== booking.pickup_location ||
+      editValues.dropoffLocation !== (booking.dropoff_location || "") ||
+      editValues.notes !== (booking.notes || "")
+    );
+  }, [isEditMode, booking, editValues]);
 
   // Initialize edit values when entering edit mode
   useEffect(() => {
@@ -274,7 +322,20 @@ export const EnhancedBookingDialog = ({
   };
 
   const handleCancelEdit = () => {
+    if (hasUnsavedChanges) {
+      const confirmed = window.confirm("You have unsaved changes. Discard them?");
+      if (!confirmed) return;
+    }
     setIsEditMode(false);
+  };
+
+  // Handle dialog close with unsaved changes check
+  const handleDialogClose = (open: boolean) => {
+    if (!open && isEditMode && hasUnsavedChanges) {
+      const confirmed = window.confirm("You have unsaved changes. Discard them?");
+      if (!confirmed) return;
+    }
+    onOpenChange(open);
   };
 
   const getStatusColor = (status: string) => {
@@ -336,7 +397,7 @@ export const EnhancedBookingDialog = ({
         />
       )}
 
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog open={open} onOpenChange={handleDialogClose}>
         <DialogContent className="sm:max-w-[700px] max-h-[90vh] p-0">
           <DialogHeader className="px-6 pt-6 pb-0">
             <div className="flex items-center justify-between">
@@ -349,11 +410,14 @@ export const EnhancedBookingDialog = ({
                     variant="outline" 
                     size="sm" 
                     onClick={() => setIsEditMode(true)}
-                    className="h-7"
+                    className="h-7 relative"
                   >
                     <Edit className="h-3 w-3 mr-1" />
                     Edit
                   </Button>
+                )}
+                {isEditMode && hasUnsavedChanges && (
+                  <span className="h-2 w-2 rounded-full bg-warning animate-pulse" title="Unsaved changes" />
                 )}
                 <Badge className={getStatusColor(booking.status || "pending")}>
                   {(booking.status || "pending").toUpperCase()}
@@ -444,11 +508,29 @@ export const EnhancedBookingDialog = ({
               {/* Edit Mode Content */}
               {isEditMode ? (
                 <div className="space-y-4">
-                  {/* Date & Time Grid */}
-                  <div className="grid grid-cols-2 gap-4">
+                  {/* Validation Errors */}
+                  {validationErrors.length > 0 && (
+                    <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                      <div className="flex items-center gap-2 text-destructive text-sm font-medium mb-1">
+                        <AlertTriangle className="h-4 w-4" />
+                        Please fix the following:
+                      </div>
+                      <ul className="text-sm text-destructive/80 list-disc list-inside">
+                        {validationErrors.map((error, i) => (
+                          <li key={i}>{error}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Date & Time Grid - responsive */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     {/* Pickup Date */}
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium">Pickup Date</Label>
+                      <Label className="text-sm font-medium flex items-center gap-2">
+                        <CalendarIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                        Pickup Date
+                      </Label>
                       <Popover>
                         <PopoverTrigger asChild>
                           <Button
@@ -476,12 +558,15 @@ export const EnhancedBookingDialog = ({
 
                     {/* Pickup Time */}
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium">Pickup Time</Label>
+                      <Label className="text-sm font-medium flex items-center gap-2">
+                        <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                        Pickup Time
+                      </Label>
                       <Select
                         value={editValues.startTime}
                         onValueChange={(val) => setEditValues(prev => ({ ...prev, startTime: val }))}
                       >
-                        <SelectTrigger>
+                        <SelectTrigger className="w-full">
                           <SelectValue placeholder="Select time" />
                         </SelectTrigger>
                         <SelectContent>
@@ -496,7 +581,10 @@ export const EnhancedBookingDialog = ({
 
                     {/* Return Date */}
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium">Return Date</Label>
+                      <Label className="text-sm font-medium flex items-center gap-2">
+                        <CalendarIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                        Return Date
+                      </Label>
                       <Popover>
                         <PopoverTrigger asChild>
                           <Button
@@ -525,12 +613,15 @@ export const EnhancedBookingDialog = ({
 
                     {/* Return Time */}
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium">Return Time</Label>
+                      <Label className="text-sm font-medium flex items-center gap-2">
+                        <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                        Return Time
+                      </Label>
                       <Select
                         value={editValues.endTime}
                         onValueChange={(val) => setEditValues(prev => ({ ...prev, endTime: val }))}
                       >
-                        <SelectTrigger>
+                        <SelectTrigger className="w-full">
                           <SelectValue placeholder="Select time" />
                         </SelectTrigger>
                         <SelectContent>
@@ -544,14 +635,37 @@ export const EnhancedBookingDialog = ({
                     </div>
                   </div>
 
-                  {/* Duration & New Total */}
-                  <div className="flex items-center justify-between p-3 bg-primary/5 rounded-lg">
-                    <span className="text-sm text-muted-foreground">
-                      Duration: <span className="font-medium text-foreground">{bookingDays} day{bookingDays !== 1 ? "s" : ""}</span>
-                    </span>
-                    <span className="text-sm text-muted-foreground">
-                      New Total: <span className="font-bold text-primary text-lg">${newTotal.toLocaleString()}</span>
-                    </span>
+                  {/* Price Breakdown - Enhanced */}
+                  <div className="p-4 bg-primary/5 rounded-lg space-y-2 border border-primary/10">
+                    <div className="flex items-center justify-between text-sm text-muted-foreground">
+                      <span className="flex items-center gap-2">
+                        <Clock className="h-4 w-4" />
+                        Duration
+                      </span>
+                      <span className="font-medium text-foreground">{bookingDays} day{bookingDays !== 1 ? "s" : ""}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm text-muted-foreground">
+                      <span className="flex items-center gap-2">
+                        <DollarSign className="h-4 w-4" />
+                        Daily Rate
+                      </span>
+                      <span className="font-medium text-foreground">${dailyRate.toLocaleString()}/day</span>
+                    </div>
+                    <Separator className="my-2" />
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">
+                        ${dailyRate.toLocaleString()} × {bookingDays} day{bookingDays !== 1 ? "s" : ""}
+                      </span>
+                      <span className="font-bold text-primary text-lg">${newTotal.toLocaleString()}</span>
+                    </div>
+                    {priceDifference !== 0 && (
+                      <div className={cn(
+                        "text-xs text-right",
+                        priceDifference > 0 ? "text-success" : "text-warning"
+                      )}>
+                        {priceDifference > 0 ? "+" : ""}${priceDifference.toLocaleString()} from original
+                      </div>
+                    )}
                   </div>
 
                   {/* Location Fields */}
@@ -626,7 +740,7 @@ export const EnhancedBookingDialog = ({
                   <Separator />
 
                   {/* Edit Mode Actions */}
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <Button
                       variant="outline"
                       onClick={handleCancelEdit}
@@ -634,12 +748,13 @@ export const EnhancedBookingDialog = ({
                       disabled={saving}
                     >
                       <X className="h-4 w-4 mr-2" />
-                      Discard Changes
+                      Discard
                     </Button>
                     <Button
                       variant="outline"
                       onClick={() => handleSaveChanges(false)}
-                      disabled={saving}
+                      disabled={saving || !isFormValid}
+                      title={!isFormValid ? "Please fix validation errors" : undefined}
                     >
                       <Save className="h-4 w-4 mr-2" />
                       {saving ? "Saving..." : "Save Draft"}
@@ -647,8 +762,9 @@ export const EnhancedBookingDialog = ({
                     {booking.status === "pending" && (
                       <Button
                         onClick={() => handleSaveChanges(true)}
-                        disabled={saving}
+                        disabled={saving || !isFormValid}
                         className="flex-1"
+                        title={!isFormValid ? "Please fix validation errors" : undefined}
                       >
                         <CheckCircle className="h-4 w-4 mr-2" />
                         {saving ? "Saving..." : "Save & Approve"}
