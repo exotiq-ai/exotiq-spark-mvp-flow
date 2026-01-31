@@ -701,18 +701,26 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const createVehicle = async (vehicle: Omit<Database['public']['Tables']['vehicles']['Insert'], 'user_id'>) => {
-    if (!user) return;
+    if (!user) {
+      toast({ title: "Error", description: "You must be logged in to add a vehicle.", variant: "destructive" });
+      return;
+    }
+
+    const teamId = currentTeam?.id;
+    if (!teamId) {
+      toast({ title: "Team Not Ready", description: "Team not loaded yet, please refresh the page.", variant: "destructive" });
+      return;
+    }
 
     try {
       const validated = vehicleSchema.parse(vehicle);
-      const teamId = currentTeam?.id;
 
       const { error } = await supabase
         .from('vehicles')
         .insert({
           ...(validated as any),
           user_id: user.id,
-          team_id: teamId || null
+          team_id: teamId
         });
 
       if (error) {
@@ -720,8 +728,8 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      // Refresh vehicles list to sync state
-      refreshVehicles();
+      // Force full data refresh to sync all modules immediately
+      await refreshData(true);
 
       const isFirstVehicle = vehicles.length === 0;
       if (isFirstVehicle) {

@@ -58,6 +58,60 @@ export async function parseFile(file: File): Promise<ParsedFileData> {
   }
 }
 
+// Sanitize headers: trim, remove empty/blank headers, dedupe
+function sanitizeHeaders(rawHeaders: string[]): { headers: string[]; droppedCount: number } {
+  const seen = new Set<string>();
+  const sanitized: string[] = [];
+  let droppedCount = 0;
+  
+  for (const h of rawHeaders) {
+    const trimmed = (h ?? '').toString().trim();
+    // Drop empty/blank headers
+    if (!trimmed) {
+      droppedCount++;
+      continue;
+    }
+    // Dedupe: if already seen, make unique
+    let finalName = trimmed;
+    let counter = 2;
+    while (seen.has(finalName.toLowerCase())) {
+      finalName = `${trimmed}_${counter}`;
+      counter++;
+    }
+    seen.add(finalName.toLowerCase());
+    sanitized.push(finalName);
+  }
+  
+  return { headers: sanitized, droppedCount };
+}
+
+// Rebuild row objects to only include sanitized headers
+function rebuildRowsWithSanitizedHeaders(
+  rows: Record<string, unknown>[],
+  originalHeaders: string[],
+  sanitizedHeaders: string[]
+): Record<string, unknown>[] {
+  // Create mapping from sanitized header back to original
+  const headerMap: Record<string, string> = {};
+  let sanitizedIdx = 0;
+  
+  for (const h of originalHeaders) {
+    const trimmed = (h ?? '').toString().trim();
+    if (!trimmed) continue; // Skip empty headers
+    headerMap[sanitizedHeaders[sanitizedIdx]] = h;
+    sanitizedIdx++;
+  }
+  
+  return rows.map(row => {
+    const newRow: Record<string, unknown> = {};
+    for (const sanitizedHeader of sanitizedHeaders) {
+      const originalHeader = headerMap[sanitizedHeader];
+      newRow[sanitizedHeader] = row[originalHeader];
+    }
+    return newRow;
+  });
+}
+
 // Parse CSV file
 async function parseCSV(file: File): Promise<ParsedFileData> {
   return new Promise((resolve, reject) => {
@@ -66,8 +120,16 @@ async function parseCSV(file: File): Promise<ParsedFileData> {
       skipEmptyLines: true,
       transformHeader: (header) => header.trim(),
       complete: (results) => {
-        const headers = results.meta.fields || [];
-        const rows = results.data as Record<string, unknown>[];
+        const rawHeaders = results.meta.fields || [];
+        const rawRows = results.data as Record<string, unknown>[];
+        
+        // Sanitize headers
+        const { headers, droppedCount } = sanitizeHeaders(rawHeaders);
+        
+        // Rebuild rows with sanitized headers
+        const rows = droppedCount > 0 
+          ? rebuildRowsWithSanitizedHeaders(rawRows, rawHeaders, headers)
+          : rawRows;
         
         resolve({
           headers,
@@ -104,12 +166,21 @@ async function parseExcel(file: File): Promise<ParsedFileData> {
           throw new Error('Excel file must have at least a header row and one data row');
         }
         
-        const headers = (jsonData[0] as string[]).map(h => String(h).trim());
+        const rawHeaders = (jsonData[0] as string[]).map(h => String(h ?? '').trim());
+        
+        // Sanitize headers
+        const { headers } = sanitizeHeaders(rawHeaders);
+        
+        // Build rows using sanitized headers
         const rows = jsonData.slice(1).map(row => {
           const rowData: Record<string, unknown> = {};
-          headers.forEach((header, index) => {
-            rowData[header] = (row as unknown[])[index];
-          });
+          let sanitizedIdx = 0;
+          for (let i = 0; i < rawHeaders.length; i++) {
+            const rawHeader = rawHeaders[i];
+            if (!rawHeader) continue; // Skip empty header columns
+            rowData[headers[sanitizedIdx]] = (row as unknown[])[i];
+            sanitizedIdx++;
+          }
           return rowData;
         });
         
