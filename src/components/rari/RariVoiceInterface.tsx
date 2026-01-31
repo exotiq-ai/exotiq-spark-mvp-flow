@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Phone, PhoneOff, Mic } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -43,7 +43,27 @@ export const RariVoiceInterface = ({
   const [conversationStartTime, setConversationStartTime] = useState<Date | undefined>();
   const [partialTranscript, setPartialTranscript] = useState<string>('');
   
-  const { startConversation, saveMessage, endConversation } = useRariConversationPersistence();
+  // Use ref to track DB ID for callbacks (avoids stale closure in onMessage)
+  const conversationDbIdRef = useRef<string | null>(null);
+  
+  const { startConversation: startConversationDb, saveMessage, endConversation: endConversationDb } = useRariConversationPersistence();
+  
+  // Sync ref with state
+  useEffect(() => {
+    conversationDbIdRef.current = conversationDbId;
+  }, [conversationDbId]);
+  
+  // Helper to save message using ref (always has latest value)
+  const saveMessageToDb = useCallback((message: Message) => {
+    const dbId = conversationDbIdRef.current;
+    if (dbId) {
+      saveMessage(dbId, message).catch(err => {
+        console.warn('[Rari] Failed to save message to database:', err);
+      });
+    } else {
+      console.warn('[Rari] No conversation DB ID - message will not be persisted');
+    }
+  }, [saveMessage]);
   
   // Create client tools with user's auth context and team_id
   const clientTools = useMemo(() => {
@@ -64,9 +84,10 @@ export const RariVoiceInterface = ({
     onDisconnect: () => {
       console.log('Disconnected from Rari');
       
-      // End conversation in database
-      if (conversationDbId) {
-        endConversation(conversationDbId);
+      // End conversation in database using ref (always has latest value)
+      const dbId = conversationDbIdRef.current;
+      if (dbId) {
+        endConversationDb(dbId);
       }
       
       setConversationId(null);
@@ -103,13 +124,8 @@ export const RariVoiceInterface = ({
           
           setMessages(prev => [...prev, newMessage]);
           
-          if (conversationDbId) {
-            setTimeout(() => {
-              saveMessage(conversationDbId, newMessage).catch(err => {
-                console.warn('Failed to save message to database:', err);
-              });
-            }, 0);
-          }
+          // Use helper that reads from ref (always has latest DB ID)
+          saveMessageToDb(newMessage);
         }
       }
       
@@ -125,13 +141,8 @@ export const RariVoiceInterface = ({
         
         setMessages(prev => [...prev, newMessage]);
         
-        if (conversationDbId) {
-          setTimeout(() => {
-            saveMessage(conversationDbId, newMessage).catch(err => {
-              console.warn('Failed to save message to database:', err);
-            });
-          }, 0);
-        }
+        // Use helper that reads from ref (always has latest DB ID)
+        saveMessageToDb(newMessage);
       }
       
       // Fallback for legacy format (in case SDK structure is different)
@@ -144,13 +155,8 @@ export const RariVoiceInterface = ({
         
         setMessages(prev => [...prev, newMessage]);
         
-        if (conversationDbId) {
-          setTimeout(() => {
-            saveMessage(conversationDbId, newMessage).catch(err => {
-              console.warn('Failed to save message to database:', err);
-            });
-          }, 0);
-        }
+        // Use helper that reads from ref (always has latest DB ID)
+        saveMessageToDb(newMessage);
       }
     },
     onError: (error) => {
@@ -236,10 +242,12 @@ export const RariVoiceInterface = ({
       console.log('Session started successfully:', id);
       setConversationId(id);
       
-      // Start conversation in database (non-blocking - don't wait for it)
-      startConversation(id).then((dbId) => {
+      // Start conversation in database - update both state AND ref immediately
+      startConversationDb(id).then((dbId) => {
         if (dbId) {
-          setConversationDbId(dbId);
+          conversationDbIdRef.current = dbId; // Update ref FIRST (sync)
+          setConversationDbId(dbId); // Then update state (async)
+          console.log('[Rari] Database conversation started:', dbId);
         }
       }).catch((err) => {
         console.warn('Database persistence disabled due to error:', err);
@@ -258,10 +266,11 @@ export const RariVoiceInterface = ({
   const handleEndConversation = async () => {
     // End conversation in database
     if (conversationDbId) {
-      await endConversation(conversationDbId);
+      await endConversationDb(conversationDbId);
     }
     
     await conversation.endSession();
+    conversationDbIdRef.current = null; // Clear ref
     setConversationId(null);
     setConversationDbId(null);
     setConversationStartTime(undefined);

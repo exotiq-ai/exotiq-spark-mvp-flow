@@ -89,6 +89,8 @@ export const RariWidgetInterface = ({ contextSummary, recentEntities }: RariWidg
   
   // Conversation tracking
   const [conversationId, setConversationId] = useState<string | null>(null);
+  // Use ref to track conversation ID for callbacks (avoids stale closure in event handlers)
+  const conversationIdRef = useRef<string | null>(null);
   const [sessionId, setSessionId] = useState<string>(`rari-${Date.now()}`);
   const [messageCount, setMessageCount] = useState(0);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -149,7 +151,8 @@ export const RariWidgetInterface = ({ contextSummary, recentEntities }: RariWidg
     console.log('[Rari Widget] Conversation starting...');
     const dbId = await startConversation(sessionId);
     if (dbId) {
-      setConversationId(dbId);
+      conversationIdRef.current = dbId; // Update ref FIRST (sync)
+      setConversationId(dbId); // Then update state (async)
       console.log('[Rari Widget] ✅ Conversation started, DB ID:', dbId);
     }
     setStatus(prev => ({ ...prev, isActive: true }));
@@ -158,16 +161,18 @@ export const RariWidgetInterface = ({ contextSummary, recentEntities }: RariWidg
   const handleConversationEnd = useCallback(async () => {
     console.log('[Rari Widget] Conversation ending...');
     
-    if (conversationId && user) {
+    const currentConversationId = conversationIdRef.current;
+    
+    if (currentConversationId && user) {
       // End conversation in database
-      await endConversation(conversationId);
+      await endConversation(currentConversationId);
       console.log('[Rari Widget] ✅ Conversation ended, saved to DB');
       
       // Send summary to user's messages (non-blocking)
       try {
         const { data, error } = await supabase.functions.invoke('rari-message-summary', {
           body: {
-            conversationId,
+            conversationId: currentConversationId,
             userId: user.id,
           },
         });
@@ -189,8 +194,9 @@ export const RariWidgetInterface = ({ contextSummary, recentEntities }: RariWidg
     
     // Generate new session ID for next conversation
     setSessionId(`rari-${Date.now()}`);
+    conversationIdRef.current = null; // Clear ref
     setConversationId(null);
-  }, [conversationId, user, endConversation]);
+  }, [user, endConversation]);
   
   // Setup widget event listeners
   useEffect(() => {
@@ -239,7 +245,9 @@ export const RariWidgetInterface = ({ contextSummary, recentEntities }: RariWidg
         return;
       }
       
-      if (!conversationId) {
+      // Check ref for conversation ID (always has latest value)
+      const currentConversationId = conversationIdRef.current;
+      if (!currentConversationId) {
         console.warn('[Rari Widget] ⚠️ No conversation ID - message will not be saved');
       }
       
@@ -247,7 +255,7 @@ export const RariWidgetInterface = ({ contextSummary, recentEntities }: RariWidg
         role,
         textLength: text.length,
         textPreview: text.substring(0, 50) + '...',
-        hasConversationId: !!conversationId,
+        hasConversationId: !!currentConversationId,
       });
       
       // Create message object
@@ -262,9 +270,9 @@ export const RariWidgetInterface = ({ contextSummary, recentEntities }: RariWidg
       
       // Note: Entity detection happens in RariTranscript component
       
-      // Save to database
-      if (conversationId) {
-        await saveMessage(conversationId, newMessage);
+      // Save to database using ref value
+      if (currentConversationId) {
+        await saveMessage(currentConversationId, newMessage);
       }
       
       setMessageCount(prev => prev + 1);
@@ -317,7 +325,6 @@ export const RariWidgetInterface = ({ contextSummary, recentEntities }: RariWidg
     };
   }, [
     status.isLoaded, 
-    conversationId, 
     saveMessage, 
     handleConversationStart, 
     handleConversationEnd
@@ -367,14 +374,15 @@ export const RariWidgetInterface = ({ contextSummary, recentEntities }: RariWidg
     setMessages(prev => [...prev, newMessage]);
     setMessageCount(prev => prev + 1);
     
-    // Save to database
-    if (conversationId) {
-      saveMessage(conversationId, newMessage);
+    // Save to database using ref
+    const currentConversationId = conversationIdRef.current;
+    if (currentConversationId) {
+      saveMessage(currentConversationId, newMessage);
     }
     
     // Clear active state after a delay
     setTimeout(() => setActiveCommandId(null), 2000);
-  }, [status.isActive, conversationId, saveMessage]);
+  }, [status.isActive, saveMessage]);
   
   return (
     <div className="flex flex-col lg:flex-row gap-4 h-full">
