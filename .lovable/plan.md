@@ -1,278 +1,274 @@
 
+# Add Inline Edit Capability to Pending Booking Details
 
-# Phase 2: UX Improvements for Enterprise Onboarding
+## Problem Identified
 
-## Overview
+Looking at the screenshot and code, the "View" button in the Pending Approval section opens `BookingDetailsDialog` - a simplified read-only dialog. This dialog only shows information and action buttons (Message, Cancel, Confirm) but provides no way to edit booking details before approving.
 
-This phase focuses on enhancing the user experience after data import by adding location matching, data health indicators, inline validation fixes, and quick actions for linking customers/vehicles to bookings.
+Meanwhile, there's a more feature-rich `EnhancedBookingDialog` that includes:
+- "Edit Booking" button (opens `EditBookingDialog` for dates/location/notes)
+- "Change Vehicle" button
+- "Link Customer" / "Link Vehicle" buttons for imported bookings
+- Full payment history and customer context
 
----
+## Solution: Best-in-Class UX Approach
 
-## Implementation Details
+Replace the simple `BookingDetailsDialog` with `EnhancedBookingDialog` for pending bookings AND add inline edit mode directly in the dialog for the most common fields.
 
-### 1. Location Matching for Booking Imports
+### Design Philosophy
+Following Apple/Porsche design principles:
+- **Progressive disclosure**: Show view mode by default, reveal edit mode on demand
+- **Reduce friction**: Edit in place rather than opening another dialog
+- **Clear affordances**: Obvious edit buttons next to each editable section
+- **Quick save**: Auto-save or single "Save Changes" action
 
-**Objective**: Automatically link imported `pickup_location` text to existing location records in the `locations` table.
-
-**Current State**: 
-- Bookings have `pickup_location` (text) and `pickup_location_id` (UUID) columns
-- Import captures text but doesn't attempt to match to existing locations
-- Database shows locations like "Miami", "Scottsdale" with IDs
-
-**Changes Required**:
-
-**File: `src/lib/importDuplicateCheck.ts`**
-- Add new function `linkBookingsToLocations()` that:
-  - Fetches all locations for the team
-  - Creates fuzzy matching maps (by name, city, address keywords)
-  - Matches `pickup_location` text to location IDs
-  - Sets `pickup_location_id` when a match is found
+### UX Flow
 
 ```text
-Matching Logic:
-1. Exact match: pickup_location === location.name (case-insensitive)
-2. Contains match: pickup_location contains location.name or location.city
-3. Keyword match: "Miami Airport" matches "Miami" location
+User clicks "View" on pending booking
+          ↓
+Opens EnhancedBookingDialog (not simplified BookingDetailsDialog)
+          ↓
+Sees booking with visible edit affordances:
+  ┌─────────────────────────────────────────┐
+  │ [Pencil icon] Dates: Feb 8, 2026        │  ← Click to inline edit
+  │ [Pencil icon] Location: Miami Airport   │  ← Click to inline edit  
+  │ [Pencil icon] Vehicle: Link Vehicle     │  ← Click to link/change
+  │ [Pencil icon] Customer: Sarah Silver    │  ← Click to view/link
+  └─────────────────────────────────────────┘
+          ↓
+User makes changes, clicks "Save & Approve" or "Save as Draft"
+          ↓
+Returns to dashboard with updated booking
 ```
-
-**File: `src/components/import/ImportWizard.tsx`**
-- Call `linkBookingsToLocations()` inside `autoCreateCustomersAndLink()` 
-- Apply location matching after customer/vehicle linking
-- Log matches for debugging
 
 ---
 
-### 2. Data Health Indicators in Booking List
+## Technical Implementation
 
-**Objective**: Show visual indicators for bookings that have incomplete data (missing customer_id, vehicle_id, or pickup_location_id).
-
-**Current State**: 
-- BookEnhanced.tsx shows bookings but no indication of data completeness
-- Imported bookings with null vehicle_id show "Unknown Vehicle" or the stored vehicle_name
-
-**Changes Required**:
+### Change 1: Switch from BookingDetailsDialog to EnhancedBookingDialog
 
 **File: `src/components/dashboard/BookEnhanced.tsx`**
 
-Add a `DataHealthBadge` component that displays:
-- Green check icon: Complete (has customer_id AND vehicle_id)
-- Yellow warning icon: Partial (missing one of customer_id or vehicle_id)  
-- Red alert icon: Critical (missing both customer_id and vehicle_id)
+Replace the current `BookingDetailsDialog` usage with `EnhancedBookingDialog`:
 
-Add to each booking row in "Today's Schedule" and "Pending Approval" sections:
 ```text
-[DataHealthBadge] [Customer Name]
-                  [Vehicle - Date]
+Current (lines 240-256):
+  <BookingDetailsDialog
+    open={showBookingDetails}
+    booking={{...transformed data...}}
+    onUpdateStatus={updateBookingStatus}
+  />
+
+New:
+  <EnhancedBookingDialog
+    open={showBookingDetails}
+    onOpenChange={setShowBookingDetails}
+    bookingId={selectedBooking?.id || null}
+    onNavigateToModule={...}
+  />
 ```
 
-Add a new filter option: "Needs Attention" to show only incomplete bookings.
+This immediately gives users access to:
+- Edit Booking button
+- Change Vehicle button
+- Link Customer/Vehicle buttons
+- Payment recording
+- Customer notes
+- Full booking context
 
-**New Component: `src/components/common/DataHealthBadge.tsx`**
-```text
-Props:
-- hasCustomer: boolean
-- hasVehicle: boolean
-- size?: 'sm' | 'md'
-
-Renders:
-- CheckCircle2 (green) when both true
-- AlertCircle (yellow) when one missing
-- XCircle (red) when both missing
-- Tooltip explaining what's missing
-```
-
----
-
-### 3. Improved Import Validation Preview with Inline Fixes
-
-**Objective**: Allow users to fix common errors directly in the validation preview instead of re-importing.
-
-**Current State**:
-- ValidationPreview shows errors but users must fix in spreadsheet and re-import
-- No inline editing capability
-
-**Changes Required**:
-
-**File: `src/components/import/ValidationPreview.tsx`**
-
-Add "Quick Fix" functionality:
-1. For date format errors: Show "Convert to YYYY-MM-DD" button
-2. For enum value errors: Show dropdown with valid options
-3. For required field errors: Show inline input to add value
-
-**New Features**:
-- Add `onFixRow` callback prop to ValidationPreview
-- Each error row gets an "Edit" button that opens inline editing mode
-- When user fixes a value, re-validate that row
-- Move row from invalid to valid if all errors resolved
-
-**UI Changes**:
-```text
-Invalid Rows Tab:
-┌──────────────────────────────────────────────────────────┐
-│ Row 3                                    [Edit] [Remove] │
-│ ├─ status: Invalid value "active"                        │
-│ │   💡 Did you mean: pending, confirmed, completed?      │
-│ │   [pending ▼]  ← Quick fix dropdown                    │
-│ ├─ email: Invalid email format                           │
-│ │   [________] ← Inline input to correct                 │
-└──────────────────────────────────────────────────────────┘
-```
-
----
-
-### 4. "Link Customer" and "Link Vehicle" Quick Actions
-
-**Objective**: Allow users to quickly link a customer or vehicle to a booking that was imported without proper linkage.
-
-**Current State**:
-- EnhancedBookingDialog shows booking details but no way to link missing customer/vehicle
-- Bookings with null customer_id or vehicle_id remain orphaned
-
-**Changes Required**:
-
-**New Component: `src/components/dialogs/LinkCustomerDialog.tsx`**
-- Modal dialog with customer search/select
-- Shows list of customers from CRM with search
-- On select, updates booking.customer_id via `updateBookingDetails`
-- Option to create new customer if not found
-
-**New Component: `src/components/dialogs/LinkVehicleDialog.tsx`**
-- Modal dialog with vehicle search/select
-- Shows list of vehicles from fleet with search
-- Filters to available vehicles for booking date range
-- On select, updates booking.vehicle_id via `updateBookingDetails`
+### Change 2: Add Inline Edit Mode to EnhancedBookingDialog
 
 **File: `src/components/dialogs/EnhancedBookingDialog.tsx`**
 
-Add conditional "Link Customer" and "Link Vehicle" buttons:
-```text
-Quick Actions section:
-[Change Vehicle] [Edit Booking] [Add to Google]
+Add an "Edit Mode" toggle that transforms read-only fields into editable inputs:
 
-↓ When customer_id is null:
-[⚠️ Link Customer]  ← New action button (warning styled)
-
-↓ When vehicle_id is null:
-[⚠️ Link Vehicle]   ← New action button (warning styled)
+**State additions:**
+```typescript
+const [isEditMode, setIsEditMode] = useState(false);
+const [editedValues, setEditedValues] = useState({
+  startDate: null,
+  endDate: null,
+  pickupLocation: '',
+  dropoffLocation: '',
+  notes: ''
+});
 ```
 
-**File: `src/components/dashboard/BookEnhanced.tsx`**
+**UI Changes:**
 
-Add to pending bookings and today's schedule:
+1. **Edit toggle button in header:**
 ```text
-[DataHealthBadge] [Customer] - [Vehicle]
-                  [View] [Link Customer?] [Link Vehicle?] [Approve]
+┌──────────────────────────────────────────────────┐
+│ Booking Details              [Edit] [PENDING]    │
+│ Complete booking information...                  │
+└──────────────────────────────────────────────────┘
 ```
+
+2. **Inline editable date fields (when in edit mode):**
+```text
+View Mode:                        Edit Mode:
+┌─────────────┐ ┌─────────────┐   ┌─────────────┐ ┌─────────────┐
+│ 📅 Pickup   │ │ 📅 Return   │   │ [📅 Feb 8 ▼]│ │ [📅 Feb 10▼]│
+│ Feb 8, 2026 │ │ Feb 10, 2026│   │   9:00 AM   │ │   5:00 PM   │
+│ 9:00 AM     │ │ 5:00 PM     │   └─────────────┘ └─────────────┘
+└─────────────┘ └─────────────┘
+```
+
+3. **Inline editable location:**
+```text
+View Mode:                        Edit Mode:
+┌────────────────────────────┐   ┌────────────────────────────┐
+│ 📍 Location                │   │ Pickup Location            │
+│ Miami Airport              │   │ [Miami Airport          ▼] │ ← Dropdown of locations
+│ Return: Same as pickup     │   │ Return Location            │
+└────────────────────────────┘   │ [Same as pickup        ▼] │
+                                 └────────────────────────────┘
+```
+
+4. **Save/Cancel actions when editing:**
+```text
+┌────────────────────────────────────────────────┐
+│ [Cancel Edit]     [Save Changes]  [Save & Approve] │
+└────────────────────────────────────────────────┘
+```
+
+### Change 3: Simplify Edit Flow with Combined Actions
+
+For pending bookings, add a "Save & Approve" button that:
+1. Saves any edited values
+2. Updates booking status to "confirmed"
+3. Closes dialog with success toast
+
+This reduces the multi-step process to a single action.
 
 ---
-
-## Files to Create
-
-| File | Purpose |
-|------|---------|
-| `src/components/common/DataHealthBadge.tsx` | Visual indicator for data completeness |
-| `src/components/dialogs/LinkCustomerDialog.tsx` | Dialog to link customer to booking |
-| `src/components/dialogs/LinkVehicleDialog.tsx` | Dialog to link vehicle to booking |
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/lib/importDuplicateCheck.ts` | Add `linkBookingsToLocations()` function |
-| `src/components/import/ImportWizard.tsx` | Call location linking, track location matches |
-| `src/components/import/ValidationPreview.tsx` | Add inline editing and quick fix capabilities |
-| `src/components/dashboard/BookEnhanced.tsx` | Add DataHealthBadge, filter for incomplete bookings |
-| `src/components/dialogs/EnhancedBookingDialog.tsx` | Add Link Customer/Vehicle action buttons |
+| `src/components/dashboard/BookEnhanced.tsx` | Replace `BookingDetailsDialog` with `EnhancedBookingDialog`, pass navigation handler |
+| `src/components/dialogs/EnhancedBookingDialog.tsx` | Add inline edit mode, edit toggle button, editable fields with save/cancel |
+| `src/components/dialogs/BookingDetailsDialog.tsx` | May deprecate or keep for backward compatibility in other uses |
 
 ---
 
-## Technical Implementation Notes
-
-### Location Matching Algorithm
+## UI Mockup: Edit Mode
 
 ```text
-function linkBookingsToLocations(rows, teamId):
-  1. Fetch locations: SELECT id, name, city, address FROM locations WHERE team_id = ?
-  
-  2. Build lookup maps:
-     - byName: Map<lowercase_name, location_id>
-     - byCity: Map<lowercase_city, location_id>
-     - byKeyword: Map<keyword, location_id> (extract keywords from name/city/address)
-  
-  3. For each row with pickup_location:
-     a. Try exact name match: byName.get(pickup_location.toLowerCase())
-     b. Try city match: byCity.get(pickup_location.toLowerCase())
-     c. Try keyword match: find location where pickup_location contains any keyword
-     d. If match found: row.pickup_location_id = matched_location_id
-  
-  4. Return updated rows with location IDs
+┌─────────────────────────────────────────────────────────────┐
+│ Booking Details                        [✏️ Edit] [PENDING]  │
+│ Complete booking information and management options         │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌───────────────────────────────────────────────────────┐ │
+│  │ [🚗 image] 2024 Lamborghini Urus                      │ │
+│  │            $2,500/day • 3 days                        │ │
+│  │            [Change Vehicle]                           │ │
+│  └───────────────────────────────────────────────────────┘ │
+│                                                             │
+│  Quick Actions:                                             │
+│  [Change Vehicle] [Edit Booking] [Add to Google]            │
+│  [⚠️ Link Vehicle] (if missing)                             │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────────┐
+│  │ Tabs: [Details] [Payments] [Customer] [Notes]          │ │
+│  ├─────────────────────────────────────────────────────────┤
+│  │                                                         │ │
+│  │  ┌─────────────────┐  ┌─────────────────┐              │ │
+│  │  │ 📅 Pickup       │  │ 📅 Return       │              │ │
+│  │  │ Feb 8, 2026     │  │ Feb 10, 2026    │  [✏️]        │ │
+│  │  │ 9:00 AM         │  │ 5:00 PM         │              │ │
+│  │  └─────────────────┘  └─────────────────┘              │ │
+│  │                                                         │ │
+│  │  ┌─────────────────────────────────────────────────────┐│ │
+│  │  │ 📍 Location                                         ││ │
+│  │  │ Miami Airport                            [✏️]       ││ │
+│  │  └─────────────────────────────────────────────────────┘│ │
+│  │                                                         │ │
+│  │  Financial Summary                                      │ │
+│  │  ┌──────────┐ ┌──────────┐ ┌──────────┐                │ │
+│  │  │ Total    │ │ Paid     │ │ Balance  │                │ │
+│  │  │ $7,500   │ │ $2,500   │ │ $5,000   │                │ │
+│  │  └──────────┘ └──────────┘ └──────────┘                │ │
+│  │                                                         │ │
+│  └─────────────────────────────────────────────────────────┘
+│                                                             │
+│  ─────────────────────────────────────────────────────────  │
+│                                                             │
+│  [Take Payment]  [Message]                                  │
+│                                                             │
+│  [❌ Cancel Booking]                    [✅ Confirm Booking] │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### Data Health Badge Logic
+**When user clicks [✏️ Edit]:**
 
 ```text
-function getDataHealth(booking):
-  hasCustomer = booking.customer_id !== null
-  hasVehicle = booking.vehicle_id !== null
-  
-  if (hasCustomer && hasVehicle):
-    return { status: 'complete', icon: 'check', color: 'green' }
-  else if (hasCustomer || hasVehicle):
-    return { status: 'partial', icon: 'warning', color: 'yellow' }
-  else:
-    return { status: 'incomplete', icon: 'alert', color: 'red' }
+┌─────────────────────────────────────────────────────────────┐
+│ Edit Booking                           [Cancel] [PENDING]   │
+│ Modify dates, location, and notes before confirming         │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  Pickup Date                    Return Date                 │
+│  ┌─────────────────────┐       ┌─────────────────────┐     │
+│  │ 📅 Feb 8, 2026   ▼ │       │ 📅 Feb 10, 2026  ▼ │     │
+│  └─────────────────────┘       └─────────────────────┘     │
+│                                                             │
+│  Pickup Time                    Return Time                 │
+│  ┌─────────────────────┐       ┌─────────────────────┐     │
+│  │ 🕐 9:00 AM       ▼ │       │ 🕐 5:00 PM       ▼ │     │
+│  └─────────────────────┘       └─────────────────────┘     │
+│                                                             │
+│  Duration: 3 days              New Total: $7,500            │
+│                                                             │
+│  Pickup Location                                            │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ Miami Airport                                    ▼ │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  Return Location                                            │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ Same as pickup                                   ▼ │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  Notes                                                      │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ VIP client - ensure vehicle is detailed before      │   │
+│  │ pickup. Contact driver for arrival time.            │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  ─────────────────────────────────────────────────────────  │
+│                                                             │
+│  [Discard Changes]           [Save Draft] [Save & Approve]  │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### Inline Validation Fix Flow
+---
 
-```text
-1. User sees error in ValidationPreview
-2. User clicks "Edit" on error row
-3. Row expands to show editable fields for errored values
-4. User modifies value
-5. System re-validates row on blur/submit
-6. If valid: Row moves to "Valid" tab, success toast
-7. If still invalid: Show remaining errors inline
-```
+## Implementation Approach
+
+### Option A: Inline Edit Mode in EnhancedBookingDialog (Recommended)
+Add edit state and transform the Details tab into an editable form when triggered. This keeps everything in one dialog and follows best-in-class patterns like Apple Notes or Google Calendar event editing.
+
+### Option B: Keep Existing EditBookingDialog but Make it Primary
+Move the "Edit Booking" button to be more prominent in the header, and ensure it's always visible (not just for linked vehicles).
+
+**Recommendation**: Option A provides the smoothest UX with minimal friction. The inline edit mode means users never leave the context of the booking they're reviewing.
 
 ---
 
 ## Testing Checklist
 
-### Location Matching
-- [ ] Import booking with "Miami Airport" → matches to Miami location
-- [ ] Import booking with "Scottsdale" → matches to Scottsdale location  
-- [ ] Import booking with unknown location → pickup_location_id stays null
-- [ ] After import, bookings appear in correct location filter view
-
-### Data Health Indicators
-- [ ] Booking with customer_id AND vehicle_id → Green check
-- [ ] Booking with customer_id but no vehicle_id → Yellow warning
-- [ ] Booking with vehicle_id but no customer_id → Yellow warning
-- [ ] Booking with neither → Red alert
-- [ ] "Needs Attention" filter shows only incomplete bookings
-
-### Inline Validation Fixes
-- [ ] Click Edit on invalid row → Shows editable fields
-- [ ] Fix status enum error with dropdown → Row becomes valid
-- [ ] Fix email format error → Re-validates correctly
-- [ ] Cancel edit → Reverts to original state
-
-### Link Customer/Vehicle Actions
-- [ ] Open booking with null customer_id → "Link Customer" button visible
-- [ ] Click "Link Customer" → Dialog opens with searchable customer list
-- [ ] Select customer → booking.customer_id updated, toast confirms
-- [ ] Open booking with null vehicle_id → "Link Vehicle" button visible
-- [ ] Click "Link Vehicle" → Dialog shows available vehicles
-- [ ] Select vehicle → booking.vehicle_id updated, vehicle_name cleared
-
----
-
-## Success Metrics
-
-1. **Location Match Rate**: % of imported bookings with matched location_id
-2. **Data Completion Rate**: % of bookings with full customer + vehicle linkage
-3. **Fix Adoption**: % of users who use inline fix vs. re-importing
-4. **Time to Complete**: Reduction in time from import to fully linked data
-
+- [ ] Click "View" on pending booking - Opens EnhancedBookingDialog (not old dialog)
+- [ ] Dialog shows all booking info including vehicle/customer links
+- [ ] Click "Edit" toggle - Fields become editable (dates, location, notes)
+- [ ] Change pickup date - Duration and total recalculate
+- [ ] Click "Save Changes" - Updates saved, edit mode exits
+- [ ] Click "Save & Approve" - Saves changes AND confirms booking
+- [ ] Click "Cancel Edit" - Reverts unsaved changes
+- [ ] For bookings without vehicle_id - "Link Vehicle" button appears prominently
+- [ ] Mobile responsive - Edit mode works well on small screens
