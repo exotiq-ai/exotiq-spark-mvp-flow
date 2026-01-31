@@ -23,6 +23,7 @@ import { QuickPriceEditorDialog } from '@/components/dialogs/QuickPriceEditorDia
 import { VehicleImageDialog } from '@/components/dialogs/VehicleImageDialog';
 import { AddVehicleDialog } from '@/components/dialogs/AddVehicleDialog';
 import { ImportWizard } from '@/components/import/ImportWizard';
+import { BulkUploadModal } from '@/components/photos/BulkUploadModal';
 import { EmptyState } from '@/components/common/EmptyState';
 import { SkeletonVehicleCard } from '@/components/ui/skeleton-specialized';
 import { ModuleTabs, TabsContent } from '@/components/common/ModuleTabs';
@@ -124,6 +125,7 @@ export const FleetPageEnhanced = () => {
   const [detailsVehicle, setDetailsVehicle] = useState<any>(null);
   const [showAddVehicle, setShowAddVehicle] = useState(false);
   const [showImportWizard, setShowImportWizard] = useState(false);
+  const [photoUploadVehicle, setPhotoUploadVehicle] = useState<{ id: string; name: string } | null>(null);
 
   // Filter and sort vehicles
   const filteredVehicles = useMemo(() => {
@@ -484,6 +486,18 @@ export const FleetPageEnhanced = () => {
         open={showAddVehicle}
         onOpenChange={setShowAddVehicle}
         onSubmit={createVehicle}
+        onAddPhotos={(vehicleId, vehicleName) => {
+          setShowAddVehicle(false);
+          setPhotoUploadVehicle({ id: vehicleId, name: vehicleName });
+        }}
+      />
+
+      {/* Bulk Upload Modal for newly added vehicle */}
+      <BulkUploadModal
+        open={!!photoUploadVehicle}
+        onOpenChange={(open) => !open && setPhotoUploadVehicle(null)}
+        vehicles={photoUploadVehicle ? [{ id: photoUploadVehicle.id, name: photoUploadVehicle.name }] : []}
+        preSelectedVehicleId={photoUploadVehicle?.id}
       />
 
       {/* Import Wizard Dialog */}

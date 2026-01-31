@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getVehicleImage } from "@/lib/vehicleImageMapping";
 import { VehiclePhotoManager } from "@/components/photos/VehiclePhotoManager";
+import { BulkUploadModal } from "@/components/photos/BulkUploadModal";
 import { Calendar, TrendingUp, DollarSign, CheckCircle2, AlertTriangle, Camera, Image } from "lucide-react";
 
 interface VehicleImageDialogProps {
@@ -44,6 +45,7 @@ export function VehicleImageDialog({
 }: VehicleImageDialogProps) {
   const imageUrl = getVehicleImage(vehicleName);
   const [activeTab, setActiveTab] = useState<string>("overview");
+  const [showUploadModal, setShowUploadModal] = useState(false);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -58,42 +60,53 @@ export function VehicleImageDialog({
         </DialogHeader>
         
         {vehicleId ? (
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="overview" className="gap-2">
-                <Image className="h-4 w-4" />
-                Overview
-              </TabsTrigger>
-              <TabsTrigger value="photos" className="gap-2">
-                <Camera className="h-4 w-4" />
-                Photos
-              </TabsTrigger>
-            </TabsList>
+          <>
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="overview" className="gap-2">
+                  <Image className="h-4 w-4" />
+                  Overview
+                </TabsTrigger>
+                <TabsTrigger value="photos" className="gap-2">
+                  <Camera className="h-4 w-4" />
+                  Photos
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="overview" className="space-y-6 mt-4">
+                {imageUrl ? (
+                  <div className="relative aspect-video w-full overflow-hidden rounded-xl border shadow-lg">
+                    <img
+                      src={imageUrl}
+                      alt={vehicleName}
+                      className="object-cover w-full h-full"
+                    />
+                  </div>
+                ) : (
+                  <div className="aspect-video w-full bg-muted rounded-xl flex items-center justify-center">
+                    <p className="text-muted-foreground">No image available</p>
+                  </div>
+                )}
+                <VehicleDetailsSection vehicleDetails={vehicleDetails} formatDate={formatDate} />
+              </TabsContent>
+              
+              <TabsContent value="photos" className="mt-4">
+                <VehiclePhotoManager
+                  vehicleId={vehicleId}
+                  vehicleName={vehicleName}
+                  onUploadClick={() => setShowUploadModal(true)}
+                />
+              </TabsContent>
+            </Tabs>
             
-            <TabsContent value="overview" className="space-y-6 mt-4">
-              {imageUrl ? (
-                <div className="relative aspect-video w-full overflow-hidden rounded-xl border shadow-lg">
-                  <img
-                    src={imageUrl}
-                    alt={vehicleName}
-                    className="object-cover w-full h-full"
-                  />
-                </div>
-              ) : (
-                <div className="aspect-video w-full bg-muted rounded-xl flex items-center justify-center">
-                  <p className="text-muted-foreground">No image available</p>
-                </div>
-              )}
-              <VehicleDetailsSection vehicleDetails={vehicleDetails} formatDate={formatDate} />
-            </TabsContent>
-            
-            <TabsContent value="photos" className="mt-4">
-              <VehiclePhotoManager
-                vehicleId={vehicleId}
-                vehicleName={vehicleName}
-              />
-            </TabsContent>
-          </Tabs>
+            {/* Bulk Upload Modal for this vehicle */}
+            <BulkUploadModal
+              open={showUploadModal}
+              onOpenChange={setShowUploadModal}
+              vehicles={[{ id: vehicleId, name: vehicleName }]}
+              preSelectedVehicleId={vehicleId}
+            />
+          </>
         ) : (
           <div className="space-y-6">
             {imageUrl ? (

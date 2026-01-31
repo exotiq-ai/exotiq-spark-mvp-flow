@@ -44,7 +44,7 @@ interface FleetContextType {
   isRefreshing: boolean; // New: show subtle "updating" state without blocking UI
   error: string | null;
   applyPriceOptimization: (vehicleId: string, newRate: number) => Promise<void>;
-  createVehicle: (vehicle: Omit<Database['public']['Tables']['vehicles']['Insert'], 'user_id'>) => Promise<void>;
+  createVehicle: (vehicle: Omit<Database['public']['Tables']['vehicles']['Insert'], 'user_id'>) => Promise<{ id: string; name: string } | undefined>;
   deleteVehicle: (vehicleId: string) => Promise<boolean>;
   deleteVehicles: (vehicleIds: string[]) => Promise<{ success: number; failed: number }>;
   createBooking: (booking: Omit<Database['public']['Tables']['bookings']['Insert'], 'user_id'>) => Promise<void>;
@@ -702,32 +702,34 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
-  const createVehicle = async (vehicle: Omit<Database['public']['Tables']['vehicles']['Insert'], 'user_id'>) => {
+  const createVehicle = async (vehicle: Omit<Database['public']['Tables']['vehicles']['Insert'], 'user_id'>): Promise<{ id: string; name: string } | undefined> => {
     if (!user) {
       toast({ title: "Error", description: "You must be logged in to add a vehicle.", variant: "destructive" });
-      return;
+      return undefined;
     }
 
     const teamId = currentTeam?.id;
     if (!teamId) {
       toast({ title: "Team Not Ready", description: "Team not loaded yet, please refresh the page.", variant: "destructive" });
-      return;
+      return undefined;
     }
 
     try {
       const validated = vehicleSchema.parse(vehicle);
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('vehicles')
         .insert({
           ...(validated as any),
           user_id: user.id,
           team_id: teamId
-        });
+        })
+        .select('id, name')
+        .single();
 
       if (error) {
         toast({ title: "Error", description: error.message, variant: "destructive" });
-        return;
+        return undefined;
       }
 
       // Force full data refresh to sync all modules immediately
@@ -743,19 +745,16 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
           if (Date.now() < end) requestAnimationFrame(frame);
         };
         frame();
-        toast({
-          title: "🎉 Congratulations!",
-          description: "You've added your first vehicle to your fleet!",
-        });
-      } else {
-        toast({ title: "Vehicle Added", description: "Vehicle has been successfully added to your fleet." });
       }
+
+      return { id: data.id, name: data.name };
     } catch (error) {
       if (error instanceof z.ZodError) {
         toast({ title: "Validation Error", description: error.errors[0].message, variant: "destructive" });
       } else {
         throw error;
       }
+      return undefined;
     }
   };
 
