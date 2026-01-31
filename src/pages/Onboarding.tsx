@@ -15,7 +15,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
-import { useLocalStorage } from '@/hooks/useLocalStorage';
+import { useOnboardingProgress, OnboardingFormData } from '@/hooks/useOnboardingProgress';
 import { AddressAutocomplete, AddressData } from '@/components/ui/address-autocomplete';
 import { LocationInput, LocationData } from '@/components/onboarding/LocationInput';
 import { 
@@ -30,7 +30,6 @@ import {
   Phone,
   Mail,
   MapPin,
-  Upload,
   Camera,
   FileSpreadsheet
 } from 'lucide-react';
@@ -40,17 +39,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { ImportWizard } from '@/components/import/ImportWizard';
 import { Badge } from '@/components/ui/badge';
 import { AddVehicleFromPhotoWizard } from '@/components/photos/AddVehicleFromPhotoWizard';
-
-interface OnboardingFormData {
-  companyName: string;
-  businessAddress: AddressData | null;
-  website: string;
-  phone: string;
-  email: string;
-  fleetSize: string;
-  businessType: string;
-  locations: LocationData[];
-}
 
 const initialFormData: OnboardingFormData = {
   companyName: '',
@@ -71,15 +59,25 @@ export default function Onboarding() {
   const { toast } = useToast();
   const isEditMode = searchParams.get('edit') === 'true';
   
-  // Progress persistence using localStorage
-  const storageKey = user?.id ? `onboarding-v2-${user.id}` : 'onboarding-v2-temp';
-  const [savedStep, setSavedStep] = useLocalStorage<number>(`${storageKey}-step`, 1);
-  const [savedFormData, setSavedFormData] = useLocalStorage<OnboardingFormData>(`${storageKey}-data`, initialFormData);
+  // Database-backed progress with localStorage fallback
+  const {
+    currentStep: dbCurrentStep,
+    formData: dbFormData,
+    isLoading: progressLoading,
+    isSaving,
+    isOffline,
+    hasPendingSync,
+    updateFormDataDebounced,
+    goToStep,
+    completeStep,
+    markComplete,
+  } = useOnboardingProgress();
   
-  const [step, setStep] = useState(isEditMode ? 1 : savedStep);
+  // Local state for immediate UI response
+  const [step, setStep] = useState<number>(1);
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(isEditMode);
-  const [formData, setFormData] = useState<OnboardingFormData>(isEditMode ? initialFormData : savedFormData);
+  const [formData, setFormData] = useState<OnboardingFormData>(initialFormData);
 
   // Vehicle data (not persisted - optional step)
   const [vehicleName, setVehicleName] = useState('');
@@ -93,12 +91,27 @@ export default function Onboarding() {
   const [showPhotoWizard, setShowPhotoWizard] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
 
-  // Set email from auth
+  // Sync from database on load (non-edit mode only)
+  useEffect(() => {
+    if (!progressLoading && !isEditMode) {
+      setStep(dbCurrentStep);
+      if (dbFormData && Object.keys(dbFormData).length > 0) {
+        setFormData(prev => ({
+          ...prev,
+          ...dbFormData,
+          // Ensure email is set from user if not in dbFormData
+          email: dbFormData.email || user?.email || prev.email,
+        }));
+      }
+    }
+  }, [progressLoading, dbCurrentStep, dbFormData, isEditMode, user?.email]);
+
+  // Set email from auth for new users
   useEffect(() => {
     if (user?.email && !formData.email) {
       setFormData(prev => ({ ...prev, email: user.email || '' }));
     }
-  }, [user?.email]);
+  }, [user?.email, formData.email]);
 
   // Load existing data in edit mode
   useEffect(() => {
@@ -157,23 +170,28 @@ export default function Onboarding() {
     };
 
     loadExistingData();
-  }, [isEditMode, user?.id, currentTeam?.id]);
+  }, [isEditMode, user?.id, currentTeam?.id, user?.email]);
 
-  // Sync step and form data to localStorage (only in non-edit mode)
-  useEffect(() => {
-    if (!isEditMode) {
-      setSavedStep(step);
-    }
-  }, [step, setSavedStep, isEditMode]);
+  // Step change handler that persists to database
+  const handleStepChange = async (newStep: number, markPreviousComplete = true) => {
+    setStep(newStep); // Immediate UI update
 
-  useEffect(() => {
     if (!isEditMode) {
-      setSavedFormData(formData);
+      await goToStep(newStep);
+      if (markPreviousComplete && newStep > 1) {
+        await completeStep(newStep - 1);
+      }
     }
-  }, [formData, setSavedFormData, isEditMode]);
+  };
 
   const updateFormData = <K extends keyof OnboardingFormData>(field: K, value: OnboardingFormData[K]) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    const updated = { ...formData, [field]: value };
+    setFormData(updated);
+
+    // Auto-save to database (debounced) - fallback handled in hook
+    if (!isEditMode) {
+      updateFormDataDebounced({ [field]: value });
+    }
   };
 
   const handleSaveStep1 = async () => {
@@ -198,7 +216,7 @@ export default function Onboarding() {
 
       if (error) throw error;
 
-      setStep(2);
+      await handleStepChange(2);
     } catch (error: any) {
       toast({
         title: "Error",
@@ -287,7 +305,7 @@ export default function Onboarding() {
         });
         navigate('/dashboard?tab=settings');
       } else {
-        setStep(3);
+        await handleStepChange(3);
       }
     } catch (error: any) {
       toast({
@@ -320,7 +338,7 @@ export default function Onboarding() {
 
       if (error) throw error;
 
-      setStep(4);
+      await handleStepChange(4);
     } catch (error: any) {
       toast({
         title: "Error",
@@ -332,8 +350,8 @@ export default function Onboarding() {
     }
   };
 
-  const handleSkipVehicle = () => {
-    setStep(4);
+  const handleSkipVehicle = async () => {
+    await handleStepChange(4, false);
   };
 
   const handleBack = () => {
@@ -358,9 +376,9 @@ export default function Onboarding() {
 
       if (error) throw error;
 
-      // Clear localStorage after completion
-      localStorage.removeItem(`${storageKey}-step`);
-      localStorage.removeItem(`${storageKey}-data`);
+      // Mark onboarding progress as complete in database
+      await markComplete();
+      await completeStep(4);
 
       // Fire confetti
       const colors = ['#0B3D91', '#FF6B35', '#FFD700'];
@@ -404,7 +422,8 @@ export default function Onboarding() {
 
   const totalSteps = isEditMode ? 2 : 4;
 
-  if (initialLoading) {
+  // Combined loading state
+  if (initialLoading || (progressLoading && !isEditMode)) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 flex items-center justify-center p-4">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -437,6 +456,23 @@ export default function Onboarding() {
               {isEditMode && ' — Edit Mode'}
             </p>
           </div>
+
+          {/* Sync Status Indicator */}
+          {(isSaving || hasPendingSync) && !isEditMode && (
+            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground mb-4">
+              {isOffline ? (
+                <>
+                  <div className="w-2 h-2 rounded-full bg-amber-500" />
+                  Saved locally — will sync when online
+                </>
+              ) : isSaving ? (
+                <>
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  Saving...
+                </>
+              ) : null}
+            </div>
+          )}
 
           <AnimatePresence mode="wait">
             {/* Step 1: Business Profile */}
@@ -957,14 +993,14 @@ export default function Onboarding() {
           <div className="flex-1 overflow-y-auto">
             <ImportWizard 
               onClose={() => setShowImportDialog(false)}
-              onComplete={(entityType, count) => {
+              onComplete={async (entityType, count) => {
                 setShowImportDialog(false);
                 toast({
                   title: "Import Complete! 🎉",
                   description: `Successfully imported ${count} ${entityType}.`,
                 });
-                // Advance to completion step instead of navigating away
-                setStep(4);
+                // Advance to completion step
+                await handleStepChange(4);
               }}
             />
           </div>
@@ -975,14 +1011,14 @@ export default function Onboarding() {
       <AddVehicleFromPhotoWizard
         open={showPhotoWizard}
         onOpenChange={setShowPhotoWizard}
-        onComplete={(vehicleId) => {
+        onComplete={async (vehicleId) => {
           setShowPhotoWizard(false);
           toast({
             title: "Vehicle Added! 🎉",
             description: "Your vehicle has been created with photos.",
           });
-          // Advance to completion step instead of navigating away
-          setStep(4);
+          // Advance to completion step
+          await handleStepChange(4);
         }}
       />
     </div>
