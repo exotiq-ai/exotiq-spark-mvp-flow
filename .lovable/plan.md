@@ -1,83 +1,90 @@
 
+# Fix Rari Real-Time Data Access
 
-# Fix ElevenLabs Tool Inference from URL Query Parameters
+## Problem Summary
 
-## Problem Identified
+Rari is experiencing **two critical failures**:
 
-Looking at the edge function logs, I found the exact issue:
+1. **Database Query Broken**: All booking queries fail with error `column vehicles_1.vehicle_name does not exist`
+2. **Wrong Date Context**: Rari shows "June 2025" dates because the AI agent doesn't receive the current date
 
-| Request Type | What ElevenLabs Sends | Current Behavior | Result |
-|-------------|----------------------|------------------|--------|
-| POST with body | `{"timeframe": "today"}` | ✅ Infers `getFleetMetrics` | **Works** |
-| GET with query | `?limit=5` (body is `{}`) | ❌ No tool inference | **400 Error** |
-| GET with query | `?status=confirmed` (body is `{}`) | ❌ No tool inference | **400 Error** |
+---
 
-The `extractToolCall` function already maps body params like `{"timeframe": "today"}` to tools, but it **doesn't apply the same logic to URL query parameters** when the body is empty.
+## Root Causes
+
+### Issue 1: Schema Mismatch in `get_bookings`
+
+The edge function queries:
+```sql
+vehicles(vehicle_name, make, model, year, location)
+```
+
+But the `vehicles` table has column `name`, NOT `vehicle_name`:
+
+| Table | Column | Actual Value |
+|-------|--------|--------------|
+| `vehicles` | `name` | ✅ Exists |
+| `vehicles` | `vehicle_name` | ❌ Does NOT exist |
+
+This causes PostgreSQL error `42703` and **ALL booking-related tools return errors**.
+
+### Issue 2: No Current Date Passed to ElevenLabs
+
+The `dynamicVariables` sent to ElevenLabs (line 264-280 in `RariVoiceInterface.tsx`) include:
+- `user_id` ✅
+- `team_id` ✅  
+- `user_name` ✅
+- `current_date` ❌ **MISSING**
+
+Without the current date, the ElevenLabs AI has no way to know what "today" means and hallucinates dates.
 
 ---
 
 ## Solution
 
-Add a new step in `extractToolCall()` that applies the same parameter-to-tool mapping logic to URL query parameters when the body is empty.
-
-### Code Change
+### Fix 1: Update Database Queries
 
 **File: `supabase/functions/elevenlabs-tools/index.ts`**
 
-Insert this logic after the existing query param name check (around line 225), before the body-based extraction:
+Change all occurrences of `vehicle_name` in the select query to `name`:
 
 ```typescript
-// NEW STEP: If body is empty but URL has query params, infer tool from query params
-if ((!body || Object.keys(body).length === 0) && url.searchParams.size > 0) {
-  const queryParams: Record<string, string> = {};
-  url.searchParams.forEach((value, key) => {
-    // Skip tool name keys since they're handled above
-    if (!['tool_name', 'tool', 'name', 'function_name'].includes(key)) {
-      queryParams[key] = value;
-    }
-  });
-  
-  const paramKeys = Object.keys(queryParams);
-  
-  if (paramKeys.length > 0) {
-    // Single param: use PARAMETER_TO_TOOL_MAP
-    if (paramKeys.length === 1) {
-      const k = paramKeys[0];
-      if (PARAMETER_TO_TOOL_MAP[k]) {
-        console.log(`[extractToolCall] Mapping URL param { "${k}": "${queryParams[k]}" } to tool: ${PARAMETER_TO_TOOL_MAP[k]}`);
-        return { toolName: PARAMETER_TO_TOOL_MAP[k], parameters: queryParams };
-      }
-      // Special case: limit → get_recent_activity
-      if (k === 'limit') {
-        console.log(`[extractToolCall] Mapping URL param "limit" to tool: get_recent_activity`);
-        return { toolName: 'get_recent_activity', parameters: queryParams };
-      }
-    }
-    
-    // Multi-param: use same inference as body
-    let inferredTool = 'get_fleet_vehicles'; // default
-    if (paramKeys.includes('customerName')) inferredTool = 'getCustomerProfile';
-    else if (paramKeys.includes('vehicleName')) inferredTool = 'getVehicleDetails';
-    else if (paramKeys.includes('timeframe')) inferredTool = 'getFleetMetrics';
-    else if (paramKeys.includes('status')) inferredTool = 'get_bookings';
-    else if (paramKeys.includes('limit')) inferredTool = 'get_recent_activity';
-    
-    console.log(`[extractToolCall] Inferred tool from URL params ${JSON.stringify(paramKeys)}: ${inferredTool}`);
-    return { toolName: inferredTool, parameters: queryParams };
-  }
-}
+// Line 727 - get_bookings
+// BEFORE:
+.select('*, vehicles(vehicle_name, make, model, year, location), customers(...)');
+// AFTER:
+.select('*, vehicles(name, make, model, year, location), customers(...)');
+
+// Line 805 - get_recent_activity  
+// BEFORE:
+.select('*, vehicles(vehicle_name, make, model, year, location), customers(...)');
+// AFTER:
+.select('*, vehicles(name, make, model, year, location), customers(...)');
 ```
 
----
+Also update any references to `b.vehicles?.vehicle_name` to use `b.vehicles?.name`.
 
-## Expected Behavior After Fix
+### Fix 2: Pass Current Date as Dynamic Variable
 
-| Request | Inferred Tool | Parameters |
-|---------|--------------|------------|
-| `GET ?limit=5` | `get_recent_activity` | `{"limit": "5"}` |
-| `GET ?status=confirmed` | `get_bookings` | `{"status": "confirmed"}` |
-| `GET ?timeframe=today` | `getFleetMetrics` | `{"timeframe": "today"}` |
-| `GET ?vehicleName=Ferrari` | `getVehicleDetails` | `{"vehicleName": "Ferrari"}` |
+**File: `src/components/rari/RariVoiceInterface.tsx`**
+
+Add current date to dynamic variables:
+
+```typescript
+// Around line 278
+dynamicVariables['current_date'] = new Date().toISOString().split('T')[0]; // "2026-01-31"
+dynamicVariables['current_datetime'] = new Date().toLocaleString('en-US', {
+  weekday: 'long',
+  year: 'numeric',
+  month: 'long', 
+  day: 'numeric',
+  hour: 'numeric',
+  minute: '2-digit',
+  timeZoneName: 'short'
+}); // "Friday, January 31, 2026, 12:15 AM EST"
+```
+
+**Note**: The ElevenLabs agent configuration must also reference `{{current_date}}` or `{{current_datetime}}` in its system prompt for this to take effect. If the agent prompt doesn't reference these variables, they won't be used.
 
 ---
 
@@ -85,13 +92,23 @@ if ((!body || Object.keys(body).length === 0) && url.searchParams.size > 0) {
 
 | File | Changes |
 |------|---------|
-| `supabase/functions/elevenlabs-tools/index.ts` | Add URL query param inference in `extractToolCall()` |
+| `supabase/functions/elevenlabs-tools/index.ts` | Fix `vehicle_name` → `name` in SELECT queries (lines 727, 805+) |
+| `src/components/rari/RariVoiceInterface.tsx` | Add `current_date` and `current_datetime` to dynamic variables |
 
 ---
 
-## Why This Will Work
+## Expected Results After Fix
 
-1. **Existing mapping already works for POST** - `{"timeframe": "today"}` correctly maps to `getFleetMetrics`
-2. **Same logic applied to GET query params** - `?timeframe=today` will now also map correctly
-3. **No ElevenLabs dashboard changes needed** - The edge function handles all formats
+1. **Booking queries work**: `get_bookings` returns real March 2026 bookings
+2. **Correct dates**: Rari says "Today (January 31st, 2026)" instead of "June 20th, 2025"
+3. **Real data access**: All fleet metrics, vehicle info, and booking data flow correctly
 
+---
+
+## Testing Plan
+
+1. Deploy the edge function fix
+2. Start a Rari conversation
+3. Ask "What are my upcoming bookings?"
+4. Verify console shows successful query (no `42703` error)
+5. Verify Rari speaks the correct current date and real booking data
