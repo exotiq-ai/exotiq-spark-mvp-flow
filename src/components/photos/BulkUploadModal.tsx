@@ -28,9 +28,12 @@ import {
   Car,
   FolderOpen,
   Sparkles,
+  Zap,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Switch } from '@/components/ui/switch';
 import { usePhotoAnalysis } from './usePhotoAnalysis';
+import { toast } from 'sonner';
 import type { PhotoUploadProgress } from './types';
 
 interface Vehicle {
@@ -76,6 +79,7 @@ export const BulkUploadModal = ({
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>(preSelectedVehicleId || 'auto-detect');
   const [uploadProgress, setUploadProgress] = useState<PhotoUploadProgress[]>([]);
   const [isComplete, setIsComplete] = useState(false);
+  const [skipAnalysis, setSkipAnalysis] = useState(true); // Default to skip for faster uploads
 
   // Sync preSelectedVehicleId when it changes
   useEffect(() => {
@@ -95,6 +99,11 @@ export const BulkUploadModal = ({
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     const droppedFiles = Array.from(e.dataTransfer.files).filter(f => {
+      // Block HEIC files - browsers can't display them
+      if (f.name.toLowerCase().endsWith('.heic') || f.name.toLowerCase().endsWith('.heif')) {
+        toast.warning(`${f.name}: HEIC format not supported. Please convert to JPEG first.`);
+        return false;
+      }
       if (!f.type.startsWith('image/')) return false;
       if (f.size > MAX_FILE_SIZE) {
         console.warn(`${f.name} exceeds 50MB limit and was not added`);
@@ -107,6 +116,11 @@ export const BulkUploadModal = ({
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(e.target.files || []).filter(f => {
+      // Block HEIC files - browsers can't display them
+      if (f.name.toLowerCase().endsWith('.heic') || f.name.toLowerCase().endsWith('.heif')) {
+        toast.warning(`${f.name}: HEIC format not supported. Please convert to JPEG first.`);
+        return false;
+      }
       if (!f.type.startsWith('image/')) return false;
       if (f.size > MAX_FILE_SIZE) {
         console.warn(`${f.name} exceeds 50MB limit and was not added`);
@@ -126,7 +140,7 @@ export const BulkUploadModal = ({
     
     // Convert 'auto-detect' placeholder back to undefined
     const vehicleId = selectedVehicleId === 'auto-detect' ? undefined : selectedVehicleId;
-    await processBatch(files, vehicleId);
+    await processBatch(files, vehicleId, { skipAnalysis });
   };
 
   const handleClose = () => {
@@ -227,6 +241,9 @@ export const BulkUploadModal = ({
                     <p className="font-medium">Drop photos here or click to browse</p>
                     <p className="text-sm text-muted-foreground mt-1">
                       Supports JPG, PNG, WEBP • Max 50MB per file
+                    </p>
+                    <p className="text-xs text-amber-600 mt-1">
+                      ⚠️ HEIC files (iPhone) not supported - please convert to JPEG
                     </p>
                   </div>
                 </label>
