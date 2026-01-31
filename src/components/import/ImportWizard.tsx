@@ -6,7 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { ImportEntityType } from '@/lib/importSchemas';
 import { parseFile, detectEntityType, transformRows, validateRows, ColumnMapping, ParsedFileData, ValidationResult, EntityDetectionResult } from '@/lib/importUtils';
-import { checkForDuplicates, applyDuplicateResolutions, linkBookingsToExistingRecords, DuplicateCheckResult, DuplicateMatch } from '@/lib/importDuplicateCheck';
+import { checkForDuplicates, applyDuplicateResolutions, linkBookingsToExistingRecords, linkBookingsToLocations, DuplicateCheckResult, DuplicateMatch } from '@/lib/importDuplicateCheck';
 import { useNavigate } from 'react-router-dom';
 import { FileUploadZone } from './FileUploadZone';
 import { EntityTypeSelector } from './EntityTypeSelector';
@@ -298,8 +298,11 @@ export function ImportWizard({ onClose, onComplete }: ImportWizardProps) {
     teamId: string,
     userId: string
   ): Promise<Record<string, unknown>[]> => {
-    // First link to existing records
-    const linkedRows = await linkBookingsToExistingRecords(rows, teamId);
+    // First link to existing records (customers and vehicles)
+    let linkedRows = await linkBookingsToExistingRecords(rows, teamId);
+    
+    // Then link to existing locations
+    linkedRows = await linkBookingsToLocations(linkedRows, teamId);
     
     // Validate and fix date ranges - ensure end_date >= start_date
     const dateValidatedRows = linkedRows.map(row => {

@@ -16,6 +16,8 @@ import { RecordPaymentDialog } from "./RecordPaymentDialog";
 import { SendMessageDialog } from "./SendMessageDialog";
 import { ChangeVehicleDialog } from "./ChangeVehicleDialog";
 import { EditBookingDialog } from "./EditBookingDialog";
+import { LinkCustomerDialog } from "./LinkCustomerDialog";
+import { LinkVehicleDialog } from "./LinkVehicleDialog";
 import { useFleet } from "@/contexts/FleetContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -45,6 +47,8 @@ import {
   Shield,
   Star,
   History,
+  AlertTriangle,
+  Link,
 } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -71,6 +75,8 @@ export const EnhancedBookingDialog = ({
   const [showMessageDialog, setShowMessageDialog] = useState(false);
   const [showChangeVehicle, setShowChangeVehicle] = useState(false);
   const [showEditBooking, setShowEditBooking] = useState(false);
+  const [showLinkCustomer, setShowLinkCustomer] = useState(false);
+  const [showLinkVehicle, setShowLinkVehicle] = useState(false);
   const [customerNotes, setCustomerNotes] = useState<CustomerNote[]>([]);
   const [newNote, setNewNote] = useState("");
   const [addingNote, setAddingNote] = useState(false);
@@ -161,6 +167,22 @@ export const EnhancedBookingDialog = ({
       />
       {booking && <RecordPaymentDialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog} booking={booking} onSubmit={createPayment} />}
       <SendMessageDialog open={showMessageDialog} onOpenChange={setShowMessageDialog} bookings={booking ? [booking] : []} onSubmit={sendMessage} />
+      <LinkCustomerDialog
+        open={showLinkCustomer}
+        onOpenChange={setShowLinkCustomer}
+        bookingId={booking.id}
+        currentCustomerName={booking.customer_name}
+        onCustomerLinked={refreshData}
+      />
+      <LinkVehicleDialog
+        open={showLinkVehicle}
+        onOpenChange={setShowLinkVehicle}
+        bookingId={booking.id}
+        currentVehicleName={booking.vehicle_name || undefined}
+        startDate={booking.start_date}
+        endDate={booking.end_date}
+        onVehicleLinked={refreshData}
+      />
       {vehicle && (
         <ChangeVehicleDialog
           open={showChangeVehicle}
@@ -244,6 +266,32 @@ export const EnhancedBookingDialog = ({
                 <Button variant="outline" size="sm" onClick={handleAddToGoogleCalendar}>
                   <CalendarPlus className="h-3 w-3 mr-1" />Add to Google
                 </Button>
+                
+                {/* Link Customer Button - shown when customer_id is null */}
+                {!booking.customer_id && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setShowLinkCustomer(true)}
+                    className="border-warning text-warning hover:bg-warning/10"
+                  >
+                    <AlertTriangle className="h-3 w-3 mr-1" />
+                    Link Customer
+                  </Button>
+                )}
+                
+                {/* Link Vehicle Button - shown when vehicle_id is null */}
+                {!booking.vehicle_id && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setShowLinkVehicle(true)}
+                    className="border-warning text-warning hover:bg-warning/10"
+                  >
+                    <AlertTriangle className="h-3 w-3 mr-1" />
+                    Link Vehicle
+                  </Button>
+                )}
               </div>
 
               <Tabs value={activeTab} onValueChange={setActiveTab}>

@@ -337,3 +337,118 @@ export function getDuplicateSummaryText(result: DuplicateCheckResult): string {
   
   return `Found ${result.summary.duplicates} potential duplicate${result.summary.duplicates > 1 ? 's' : ''} out of ${result.summary.total} records. ${result.summary.new} new record${result.summary.new !== 1 ? 's' : ''} ready to import.`;
 }
+
+/**
+ * Links booking imports to existing location records using fuzzy matching
+ */
+export async function linkBookingsToLocations(
+  rows: Record<string, unknown>[],
+  teamId: string
+): Promise<Record<string, unknown>[]> {
+  // Fetch all locations for this team
+  const { data: locations } = await supabase
+    .from('locations')
+    .select('id, name, city, address')
+    .eq('team_id', teamId);
+
+  if (!locations || locations.length === 0) {
+    return rows; // No locations to match against
+  }
+
+  // Build lookup maps for faster matching
+  const locationByName = new Map<string, string>();
+  const locationByCity = new Map<string, string>();
+  const locationKeywords = new Map<string, string>();
+  
+  locations.forEach(loc => {
+    // Exact name match
+    if (loc.name) {
+      locationByName.set(loc.name.toLowerCase().trim(), loc.id);
+      
+      // Also extract keywords from name
+      const nameWords = loc.name.toLowerCase().split(/\s+/);
+      nameWords.forEach(word => {
+        if (word.length >= 3) {
+          locationKeywords.set(word, loc.id);
+        }
+      });
+    }
+    
+    // City match
+    if (loc.city) {
+      locationByCity.set(loc.city.toLowerCase().trim(), loc.id);
+      locationKeywords.set(loc.city.toLowerCase().trim(), loc.id);
+    }
+    
+    // Address keywords
+    if (loc.address) {
+      const addressWords = loc.address.toLowerCase().split(/\s+/);
+      addressWords.forEach(word => {
+        if (word.length >= 4) {
+          locationKeywords.set(word, loc.id);
+        }
+      });
+    }
+  });
+
+  // Match each row's pickup_location to a location ID
+  return rows.map(row => {
+    const pickupLocation = row.pickup_location;
+    const dropoffLocation = row.dropoff_location;
+    
+    const linkedRow = { ...row };
+    
+    // Match pickup location
+    if (pickupLocation && !row.pickup_location_id) {
+      const pickupText = String(pickupLocation).toLowerCase().trim();
+      
+      // Try exact name match first
+      let matchedId = locationByName.get(pickupText);
+      
+      // Try city match
+      if (!matchedId) {
+        matchedId = locationByCity.get(pickupText);
+      }
+      
+      // Try keyword match (contains)
+      if (!matchedId) {
+        for (const [keyword, locId] of locationKeywords) {
+          if (pickupText.includes(keyword) || keyword.includes(pickupText)) {
+            matchedId = locId;
+            break;
+          }
+        }
+      }
+      
+      if (matchedId) {
+        linkedRow.pickup_location_id = matchedId;
+      }
+    }
+    
+    // Match dropoff location
+    if (dropoffLocation && !row.dropoff_location_id) {
+      const dropoffText = String(dropoffLocation).toLowerCase().trim();
+      
+      let matchedId = locationByName.get(dropoffText);
+      
+      if (!matchedId) {
+        matchedId = locationByCity.get(dropoffText);
+      }
+      
+      if (!matchedId) {
+        for (const [keyword, locId] of locationKeywords) {
+          if (dropoffText.includes(keyword) || keyword.includes(dropoffText)) {
+            matchedId = locId;
+            break;
+          }
+        }
+      }
+      
+      if (matchedId) {
+        linkedRow.dropoff_location_id = matchedId;
+      }
+    }
+    
+    return linkedRow;
+  });
+}
