@@ -1,294 +1,197 @@
 
-# Migrate Onboarding Progress to Database with localStorage Fallback
 
-## Overview
+# Fix Rari Message Persistence with Enhanced Debugging
 
-This migration replaces localStorage-only persistence with a database-first approach that falls back to localStorage when network requests fail. This gives users the best of both worlds: cross-device sync when online, and uninterrupted progress when offline.
+## Problem Summary
 
----
+The database shows **41 conversations created but 0 messages saved**. This confirms a persistence failure in the message saving flow.
 
-## Implementation Strategy
+### Root Cause Analysis
 
-### Architecture: Database-First with localStorage Fallback
+After reviewing the code, I've identified **three likely failure points**:
 
-```text
-User makes a change
-        |
-        v
-+------------------+
-|  Save to Database |-----> Success? ---> Update localStorage cache
-+------------------+           |
-        |                      |
-        v                      |
-   Network Error?              |
-        |                      |
-        v                      |
-+-------------------+          |
-| Save to localStorage |        |
-| (fallback mode)    |          |
-+-------------------+          |
-        |                      |
-        +----------------------+
-                   |
-                   v
-           On next load:
-           Check for unsynced localStorage data
-           and attempt to sync to database
-```
+1. **Race Condition (Primary Suspect)**: The `startConversationDb()` call is asynchronous (line 246-255), but `onMessage` events can fire before the `.then()` callback completes. Even though we update the ref synchronously in the callback, there's still a window where `conversationDbIdRef.current` is null.
+
+2. **Silent RLS Failures**: The RLS policy on `rari_messages` requires `EXISTS (SELECT 1 FROM rari_conversations WHERE id = conversation_id AND user_id = auth.uid())`. If the conversation hasn't fully propagated or there's a timing issue, inserts fail silently.
+
+3. **Missing Error Details**: Current error handling uses `.catch()` but doesn't log enough context to diagnose why saves fail.
 
 ---
 
-## Step-by-Step Implementation
+## Implementation Plan
 
-### Step 1: Enhance useOnboardingProgress Hook
+### Step 1: Add Comprehensive Logging to `saveMessageToDb`
 
-Add localStorage fallback and sync detection:
-
-**File: `src/hooks/useOnboardingProgress.ts`**
-
-New capabilities:
-- `isOffline` state to track network status
-- `hasPendingSync` to indicate unsynced localStorage data
-- `syncPendingChanges()` to push localStorage data to database when back online
-- Fallback write to localStorage when database save fails
-- On load: check localStorage for pending changes and attempt sync
+Trace every call with full state context:
 
 ```typescript
-// New state
-const [isOffline, setIsOffline] = useState(false);
-const [hasPendingSync, setHasPendingSync] = useState(false);
-
-// localStorage keys for fallback
-const FALLBACK_KEY = `onboarding-fallback-${user?.id}`;
-const PENDING_SYNC_KEY = `onboarding-pending-sync-${user?.id}`;
+const saveMessageToDb = useCallback((message: Message) => {
+  const dbId = conversationDbIdRef.current;
+  const userId = user?.id;
+  
+  console.log('[Rari Message Save] Attempting save:', {
+    hasDbId: !!dbId,
+    dbId,
+    hasUser: !!userId,
+    userId,
+    messageRole: message.role,
+    messagePreview: message.content.substring(0, 50),
+    timestamp: new Date().toISOString(),
+  });
+  
+  if (!dbId) {
+    console.error('[Rari Message Save] ❌ BLOCKED - No conversation DB ID', {
+      conversationDbIdState: conversationDbId,
+      conversationDbIdRef: conversationDbIdRef.current,
+      conversationIdState: conversationId,
+    });
+    return;
+  }
+  
+  saveMessage(dbId, message)
+    .then(() => {
+      console.log('[Rari Message Save] ✅ Success');
+    })
+    .catch(err => {
+      console.error('[Rari Message Save] ❌ Failed:', err);
+    });
+}, [saveMessage, user?.id, conversationDbId, conversationId]);
 ```
 
-**Modified updateProgress function:**
+### Step 2: Add Logging to `useRariConversationPersistence.saveMessage`
+
+Log every step in the persistence hook:
+
 ```typescript
-try {
-  const { error } = await supabase
-    .from('onboarding_progress')
-    .update(dbUpdates)
-    .eq('user_id', user.id);
+const saveMessage = useCallback(async (
+  conversationId: string,
+  message: Message
+): Promise<void> => {
+  console.log('[Rari Persistence] saveMessage called:', {
+    conversationId,
+    hasUser: !!user,
+    userId: user?.id,
+    role: message.role,
+    contentLength: message.content.length,
+  });
 
-  if (error) throw error;
+  if (!user || !conversationId) {
+    console.error('[Rari Persistence] ❌ Validation failed:', {
+      hasUser: !!user,
+      conversationId,
+    });
+    return;
+  }
 
-  // Success - also update localStorage cache
-  localStorage.setItem(FALLBACK_KEY, JSON.stringify({
-    currentStep: updates.currentStep ?? progress?.currentStep,
-    formData: dbUpdates.form_data ?? progress?.formData,
-    stepsCompleted: updates.stepsCompleted ?? progress?.stepsCompleted,
-  }));
-  localStorage.removeItem(PENDING_SYNC_KEY);
-  setIsOffline(false);
-
-} catch (error) {
-  // Network failure - fall back to localStorage
-  devError('[OnboardingProgress] DB save failed, using localStorage fallback:', error);
-  
-  localStorage.setItem(FALLBACK_KEY, JSON.stringify({
-    currentStep: updates.currentStep ?? progress?.currentStep,
-    formData: updates.formData ? { ...progress?.formData, ...updates.formData } : progress?.formData,
-    stepsCompleted: updates.stepsCompleted ?? progress?.stepsCompleted,
-  }));
-  localStorage.setItem(PENDING_SYNC_KEY, 'true');
-  
-  setIsOffline(true);
-  setHasPendingSync(true);
-}
-```
-
-**New sync function:**
-```typescript
-const syncPendingChanges = useCallback(async () => {
-  if (!user?.id) return false;
-  
-  const pendingData = localStorage.getItem(FALLBACK_KEY);
-  const hasPending = localStorage.getItem(PENDING_SYNC_KEY);
-  
-  if (!pendingData || !hasPending) return true;
-  
+  setIsSaving(true);
   try {
-    const parsed = JSON.parse(pendingData);
-    const { error } = await supabase
-      .from('onboarding_progress')
-      .update({
-        current_step: parsed.currentStep,
-        form_data: parsed.formData,
-        steps_completed: parsed.stepsCompleted,
+    console.log('[Rari Persistence] Inserting message...');
+    
+    const { data, error } = await supabase
+      .from('rari_messages')
+      .insert({
+        conversation_id: conversationId,
+        role: message.role,
+        content: message.content,
+        created_at: message.timestamp.toISOString(),
       })
-      .eq('user_id', user.id);
-    
-    if (error) throw error;
-    
-    localStorage.removeItem(PENDING_SYNC_KEY);
-    setHasPendingSync(false);
-    setIsOffline(false);
-    return true;
-  } catch {
-    return false;
-  }
-}, [user?.id]);
-```
+      .select('id'); // Get the inserted ID back
 
-**Auto-sync on mount and online event:**
-```typescript
-useEffect(() => {
-  const handleOnline = () => syncPendingChanges();
-  window.addEventListener('online', handleOnline);
-  
-  // Check for pending sync on mount
-  if (localStorage.getItem(PENDING_SYNC_KEY)) {
-    setHasPendingSync(true);
-    syncPendingChanges();
-  }
-  
-  return () => window.removeEventListener('online', handleOnline);
-}, [syncPendingChanges]);
-```
-
----
-
-### Step 2: Update Onboarding.tsx
-
-**Remove:**
-- `useLocalStorage` import (line 18)
-- localStorage hooks (lines 74-77)
-- localStorage sync effects (lines 162-173)
-- localStorage cleanup in handleComplete (lines 361-363)
-
-**Add:**
-- `useOnboardingProgress` import and hook usage
-- Local UI state that syncs with database values
-- Sync from database on load
-- Step change handler that persists to database
-- Offline indicator in UI
-
-**Key changes:**
-
-```typescript
-// Replace imports
-import { useOnboardingProgress } from '@/hooks/useOnboardingProgress';
-// Remove: import { useLocalStorage } from '@/hooks/useLocalStorage';
-
-// Replace state management (lines 74-82)
-const {
-  currentStep: dbCurrentStep,
-  formData: dbFormData,
-  isLoading: progressLoading,
-  isSaving,
-  isOffline,
-  hasPendingSync,
-  updateProgress,
-  updateFormDataDebounced,
-  goToStep,
-  completeStep,
-  markComplete,
-  syncPendingChanges,
-} = useOnboardingProgress();
-
-// Local state for immediate UI response
-const [step, setStep] = useState<number>(1);
-const [formData, setFormData] = useState<OnboardingFormData>(initialFormData);
-
-// Sync from database on load
-useEffect(() => {
-  if (!progressLoading && !isEditMode) {
-    setStep(dbCurrentStep);
-    if (dbFormData && Object.keys(dbFormData).length > 0) {
-      setFormData(prev => ({ ...prev, ...dbFormData }));
+    if (error) {
+      console.error('[Rari Persistence] ❌ Supabase error:', {
+        error,
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+      });
+      return;
     }
+
+    console.log('[Rari Persistence] ✅ Message saved:', {
+      insertedId: data?.[0]?.id,
+      conversationId,
+      role: message.role,
+    });
+  } catch (err) {
+    console.error('[Rari Persistence] ❌ Unexpected error:', err);
+  } finally {
+    setIsSaving(false);
   }
-}, [progressLoading, dbCurrentStep, dbFormData, isEditMode]);
+}, [user]);
 ```
 
-**Wrap step transitions:**
+### Step 3: Add Message Queue for Race Condition Fix
+
+Queue messages that arrive before DB ID is available:
+
 ```typescript
-// New handler for step changes
-const handleStepChange = async (newStep: number, markPreviousComplete = true) => {
-  setStep(newStep); // Immediate UI update
+// New state for message queue
+const pendingMessagesRef = useRef<Message[]>([]);
+
+// Modified saveMessageToDb with queue
+const saveMessageToDb = useCallback((message: Message) => {
+  const dbId = conversationDbIdRef.current;
   
-  if (!isEditMode) {
-    await goToStep(newStep);
-    if (markPreviousComplete && newStep > 1) {
-      await completeStep(newStep - 1);
+  console.log('[Rari Message Save] Attempting save:', {
+    hasDbId: !!dbId,
+    dbId,
+    queueLength: pendingMessagesRef.current.length,
+  });
+  
+  if (!dbId) {
+    // Queue the message for later
+    console.warn('[Rari Message Save] ⏳ Queuing message (no DB ID yet)');
+    pendingMessagesRef.current.push(message);
+    return;
+  }
+  
+  saveMessage(dbId, message).catch(console.error);
+}, [saveMessage]);
+
+// Flush queue when DB ID becomes available
+useEffect(() => {
+  if (conversationDbId && pendingMessagesRef.current.length > 0) {
+    console.log('[Rari Message Queue] Flushing queued messages:', 
+      pendingMessagesRef.current.length);
+    
+    const pending = [...pendingMessagesRef.current];
+    pendingMessagesRef.current = [];
+    
+    pending.forEach(msg => {
+      saveMessage(conversationDbId, msg).catch(console.error);
+    });
+  }
+}, [conversationDbId, saveMessage]);
+```
+
+### Step 4: Enhance `startConversationDb` Error Handling
+
+Add better logging for conversation creation:
+
+```typescript
+// In RariVoiceInterface.tsx, lines 246-255
+startConversationDb(id)
+  .then((dbId) => {
+    if (dbId) {
+      console.log('[Rari] ✅ Database conversation created:', {
+        dbId,
+        sessionId: id,
+        userId: user?.id,
+        pendingMessages: pendingMessagesRef.current.length,
+      });
+      conversationDbIdRef.current = dbId;
+      setConversationDbId(dbId);
+    } else {
+      console.error('[Rari] ❌ startConversationDb returned null');
     }
-  }
-};
-
-// Update all setStep(X) calls to use handleStepChange:
-// Line 201: handleStepChange(2)
-// Line 290: handleStepChange(3)
-// Line 323: handleStepChange(4)
-// Line 337: handleStepChange(4, false) // skip case
-// Line 967: handleStepChange(4) // import complete
-// Line 985: handleStepChange(4) // photo wizard complete
-```
-
-**Update form data handler:**
-```typescript
-const updateFormData = <K extends keyof OnboardingFormData>(field: K, value: OnboardingFormData[K]) => {
-  const updated = { ...formData, [field]: value };
-  setFormData(updated);
-  
-  // Auto-save to database (debounced) - fallback handled in hook
-  if (!isEditMode) {
-    updateFormDataDebounced({ [field]: value });
-  }
-};
-```
-
-**Update handleComplete:**
-```typescript
-const handleComplete = async () => {
-  if (!user) return;
-  setLoading(true);
-
-  try {
-    // Mark profile as completed
-    const { error } = await supabase
-      .from('profiles')
-      .update({ onboarding_completed: true })
-      .eq('id', user.id);
-
-    if (error) throw error;
-
-    // Mark onboarding progress as complete
-    await markComplete();
-    await completeStep(4);
-
-    // Fire confetti... (unchanged)
-  }
-};
-```
-
-**Add loading state and offline indicator:**
-```typescript
-// Update loading check
-if (initialLoading || (progressLoading && !isEditMode)) {
-  return (
-    <div className="min-h-screen bg-gradient-to-br...">
-      <Loader2 className="w-8 h-8 animate-spin text-primary" />
-    </div>
-  );
-}
-
-// Add sync indicator after the progress bar (around line 439)
-{(isSaving || hasPendingSync) && (
-  <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground mb-4">
-    {isOffline ? (
-      <>
-        <div className="w-2 h-2 rounded-full bg-amber-500" />
-        Saved locally — will sync when online
-      </>
-    ) : isSaving ? (
-      <>
-        <Loader2 className="w-3 h-3 animate-spin" />
-        Saving...
-      </>
-    ) : null}
-  </div>
-)}
+  })
+  .catch((err) => {
+    console.error('[Rari] ❌ Database conversation failed:', {
+      error: err,
+      sessionId: id,
+    });
+  });
 ```
 
 ---
@@ -297,70 +200,44 @@ if (initialLoading || (progressLoading && !isEditMode)) {
 
 | File | Changes |
 |------|---------|
-| `src/hooks/useOnboardingProgress.ts` | Add localStorage fallback, sync detection, online/offline handling |
-| `src/pages/Onboarding.tsx` | Replace localStorage with database hook, add offline indicator |
+| `src/components/rari/RariVoiceInterface.tsx` | Add detailed logging, message queue, flush logic |
+| `src/hooks/useRariConversationPersistence.ts` | Add comprehensive logging to all operations |
 
 ---
 
-## New Hook Return Values
+## Expected Console Output After Fix
 
-```typescript
-return {
-  // Existing
-  progress,
-  isLoading,
-  error,
-  isSaving,
-  lastSavedAt,
-  currentStep,
-  stepsCompleted,
-  formData,
-  onboardingType,
-  initializeProgress,
-  updateProgress,
-  updateFormDataDebounced,
-  completeStep,
-  goToStep,
-  markComplete,
-  refetch,
-  
-  // New for fallback
-  isOffline,          // true if last save failed
-  hasPendingSync,     // true if localStorage has unsynced data
-  syncPendingChanges, // manual sync trigger
-};
+**Successful flow:**
+```
+[Rari] ✅ Database conversation created: {dbId: "abc-123", sessionId: "conv_xxx", pendingMessages: 0}
+[Rari Message Save] Attempting save: {hasDbId: true, dbId: "abc-123", ...}
+[Rari Persistence] saveMessage called: {conversationId: "abc-123", hasUser: true, ...}
+[Rari Persistence] Inserting message...
+[Rari Persistence] ✅ Message saved: {insertedId: "msg-456", ...}
 ```
 
----
+**Race condition detected (queue working):**
+```
+[Rari Message Save] ⏳ Queuing message (no DB ID yet)
+[Rari] ✅ Database conversation created: {dbId: "abc-123", pendingMessages: 1}
+[Rari Message Queue] Flushing queued messages: 1
+[Rari Persistence] ✅ Message saved: {insertedId: "msg-456", ...}
+```
 
-## User Experience
-
-| Scenario | Behavior |
-|----------|----------|
-| **Normal flow** | Saves to database, updates localStorage cache |
-| **Network fails** | Shows amber indicator, saves to localStorage |
-| **Comes back online** | Auto-syncs localStorage data to database |
-| **Switch devices (was offline)** | Loads from database (localStorage data is device-specific) |
-| **Close tab while saving** | Data preserved in localStorage, syncs on return |
-
----
-
-## Edge Cases Handled
-
-1. **Tab closed during debounce** - localStorage fallback ensures data survives
-2. **Network timeout** - Caught as error, falls back to localStorage
-3. **Database unreachable on load** - Uses localStorage cache if available
-4. **Concurrent edits on multiple devices** - Last write wins (database is source of truth when online)
+**RLS policy failure:**
+```
+[Rari Persistence] ❌ Supabase error: {code: "42501", message: "new row violates RLS policy", ...}
+```
 
 ---
 
 ## Testing Checklist
 
-- [ ] New user: progress saved to database
-- [ ] Existing user: resumes from database step
-- [ ] Network offline: saves to localStorage, shows indicator
-- [ ] Network restored: auto-syncs pending changes
-- [ ] Form changes auto-save after 2s debounce
-- [ ] Step transitions immediately persist
-- [ ] Edit mode still works (skips database persistence)
-- [ ] Cross-device: progress synced via database
+After deployment:
+
+- [ ] Start a Rari conversation and speak a message
+- [ ] Check console for message flow logs
+- [ ] Verify message appears in `rari_messages` table
+- [ ] Test rapid messages (queue should flush properly)
+- [ ] Test disconnecting mid-conversation (messages should persist)
+
