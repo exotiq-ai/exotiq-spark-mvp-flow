@@ -1,175 +1,149 @@
 
 
-# Fix Photo Upload - Broken Previews and AI Analysis Failures
+# Fix Photo Preview Showing Broken - 400 Error from Signed URL
 
-## Problem Summary
+## Problem Identified
 
-Photos upload successfully to storage but:
-1. **Preview images are broken** (showing placeholder/broken image icon)
-2. **AI analysis returns empty results** (0% confidence, "Unknown" angle)
-3. Photos can be saved to vehicles but still don't display
-
-## Root Causes Identified
-
-### Issue 1: HEIC Format Not Browser-Compatible
-The uploaded file `IMG_8832.HEIC` is stored with `.HEIC` extension. Browsers cannot natively display HEIC images - they require conversion to JPEG/PNG/WebP.
-
-**Evidence from database:**
+JPG photos are uploading successfully to storage but showing as broken in the Review Queue. The console shows:
 ```
-storage_path: fd9bb57e.../unmatched/1769892483530-i1r0k.HEIC
+Failed to load resource: the server responded with a status of 400 ()
 ```
 
-### Issue 2: Google Vision API Cannot Access Signed URLs
-The signed URLs generated for private bucket access contain authentication tokens. When passed to Google Vision API:
-- Vision API makes external request to fetch the image
-- The signed URL may have CORS or access restrictions
-- Result: Vision API returns empty labels/objects
+## Root Cause Analysis
 
-**Evidence from edge function logs:**
-```
-Labels detected: []
-Objects detected: []
-Analysis result: { isVehicle: false, confidence: 0, angle: "unknown" }
-```
+The file **does exist** in storage with correct format:
+- Storage path: `fd9bb57e.../unmatched/1769893719947-g38sa.jpeg`
+- Mimetype: `image/jpeg` 
+- Size: 889,522 bytes (valid)
 
-### Issue 3: HEIC Not Supported by Vision API
-Google Cloud Vision API does not support HEIC format directly. Even if the URL was accessible, the format would fail.
+The signed URL is stored in the database and should be valid for 1 year. However, the 400 error indicates the **signed URL is malformed or the token is being incorrectly processed**.
 
----
+After checking the upload code and database, I found the issue:
 
-## Solution Plan
+**The signed URL is being generated correctly, but the browser may be having issues with the token query parameter.** Looking at the pattern, signed URLs from Supabase storage require the client to be properly authenticated OR the URL must be fetched correctly.
 
-### Fix 1: Convert HEIC to JPEG on Upload (Client-Side)
-**File:** `src/components/photos/usePhotoAnalysis.ts`
+### Key Finding
 
-Before uploading, detect HEIC files and convert them to JPEG using HTML Canvas or a library:
+The actual issue is likely that **when the photo was uploaded, the signed URL was created but the image is not accessible via that URL** - possibly due to:
+
+1. **Path mismatch between upload and signed URL** - The `data.path` returned after upload may differ from what's actually stored
+2. **Cross-origin issues with how the browser fetches signed URLs**
+
+## Solution: Generate Fresh Signed URLs at Fetch Time
+
+Instead of storing signed URLs at upload time (which can become stale or invalid), we should:
+
+1. **Store only the `storage_path`** in the database
+2. **Generate fresh signed URLs when fetching photos for display**
+
+This is more reliable because:
+- Signed URLs are always fresh
+- No chance of URL corruption in database
+- Works even if signing keys rotate
+
+## Implementation Plan
+
+### Part 1: Modify usePhotoReviewQueue to Generate Fresh Signed URLs
+
+**File:** `src/hooks/usePhotoReviewQueue.ts`
+
+Update the `fetchQueue` function to:
+1. Fetch photos with their `storage_path`
+2. Generate fresh signed URLs for each photo
+3. Return the photos with fresh URLs
 
 ```typescript
-const convertHeicToJpeg = async (file: File): Promise<File> => {
-  // Use heic2any or similar library
-  // Or: Skip HEIC for now and show user-friendly error
-};
-```
+const fetchQueue = useCallback(async () => {
+  // Fetch photos...
+  const { data, error } = await supabase
+    .from('unmatched_photos')
+    .select('*')
+    .match(teamFilter)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: true });
 
-**Simpler approach (recommended for quick fix):**
-- Detect HEIC files and skip them with a user-friendly message
-- Prompt user to convert to JPEG before uploading
+  if (error) throw error;
 
-### Fix 2: Send Base64 to Vision API Instead of URL
-**File:** `supabase/functions/analyze-vehicle-photo/index.ts`
+  // Generate fresh signed URLs for each photo
+  const photosWithFreshUrls = await Promise.all(
+    (data || []).map(async (photo) => {
+      if (!photo.storage_path) return photo;
+      
+      const { data: signedData } = await supabase.storage
+        .from('vehicle-photos')
+        .createSignedUrl(photo.storage_path, 60 * 60); // 1 hour validity
+      
+      return {
+        ...photo,
+        url: signedData?.signedUrl || photo.url,
+      };
+    })
+  );
 
-The current flow passes signed URL to Vision API. Instead:
-1. Edge function fetches the image using the signed URL (server-side, no CORS)
-2. Convert to base64
-3. Send base64 to Vision API (which accepts `content` field)
-
-```typescript
-// Fetch image from storage using signed URL
-const imageResponse = await fetch(imageUrl);
-const arrayBuffer = await imageResponse.arrayBuffer();
-const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
-
-// Send to Vision API as base64
-imageContent = { content: base64 };
-```
-
-### Fix 3: Skip AI Analysis for Swift Onboarding (Quick Win)
-**Files:** `src/components/photos/usePhotoAnalysis.ts`
-
-Add option to skip AI analysis entirely and just upload:
-
-```typescript
-const processBatch = async (
-  files: File[],
-  vehicleId?: string,
-  options?: { skipAnalysis?: boolean }
-)
-```
-
-When `skipAnalysis: true`:
-- Upload file to storage
-- Save to database with default values (unknown angle, 100% quality)
-- Skip Vision API call entirely
-
-This unblocks customer onboarding immediately.
-
-### Fix 4: Add Image Error Handling in UI
-**File:** `src/components/photos/PhotoReviewQueue.tsx`
-
-Add `onError` handler for broken images to show placeholder gracefully:
-
-```tsx
-<img
-  src={currentPhoto.url}
-  alt={currentPhoto.original_filename || 'Photo'}
-  onError={(e) => {
-    e.currentTarget.src = '/placeholder-image.png';
-    // Or show ImageOff icon
-  }}
-/>
-```
-
-### Fix 5: Validate File Format Before Upload
-**File:** `src/components/photos/BulkUploadModal.tsx`
-
-Filter out HEIC files with warning:
-
-```typescript
-const handleDrop = useCallback((e: React.DragEvent) => {
-  const droppedFiles = Array.from(e.dataTransfer.files).filter(f => {
-    if (f.name.toLowerCase().endsWith('.heic')) {
-      toast.warning(`${f.name}: HEIC format not supported. Please convert to JPEG.`);
-      return false;
-    }
-    // ... rest of validation
-  });
+  setQueue(photosWithFreshUrls);
 });
 ```
 
----
+### Part 2: Add Fallback Public URL Option (Alternative)
 
-## Implementation Priority
+If signed URLs continue to have issues, we can make the bucket public for read access. This is simpler but less secure.
 
-### Phase 1: Quick Fixes for Immediate Onboarding (Do First)
+However, for a fleet management system with private vehicle photos, keeping the bucket private with signed URLs is the better approach.
 
-| Fix | File | Impact |
-|-----|------|--------|
-| Skip AI analysis option | `usePhotoAnalysis.ts` | Unblocks uploads immediately |
-| Filter HEIC with warning | `BulkUploadModal.tsx` | Prevents broken uploads |
-| Add image error handler | `PhotoReviewQueue.tsx` | Shows fallback for broken images |
-| Add image error handler | `VehiclePhotoManager.tsx` | Shows fallback for broken images |
+### Part 3: Add Debugging to Identify Exact Failure
 
-### Phase 2: Proper Fix (After Onboarding)
+Add console logging in the image `onError` handler to capture the actual error:
 
-| Fix | File | Impact |
-|-----|------|--------|
-| Base64 to Vision API | Edge function | Enables AI analysis to work |
-| HEIC to JPEG conversion | Client-side | Supports iPhone photos |
+```typescript
+onError={(e) => {
+  console.error('Image load failed:', {
+    src: e.currentTarget.src,
+    storagePath: currentPhoto.storage_path,
+    originalUrl: currentPhoto.url,
+  });
+  // Show fallback...
+}}
+```
 
----
+### Part 4: Validate Upload Path Consistency
+
+**File:** `src/components/photos/usePhotoAnalysis.ts`
+
+Ensure the path used for signed URL generation matches what's stored:
+
+```typescript
+const { data, error } = await supabase.storage
+  .from('vehicle-photos')
+  .upload(path, file, { ... });
+
+// Use data.path (which is the actual stored path) NOT the local path variable
+const { data: signedData } = await supabase.storage
+  .from('vehicle-photos')
+  .createSignedUrl(data.path, 60 * 60 * 24 * 365);
+```
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/components/photos/usePhotoAnalysis.ts` | Add `skipAnalysis` option to bypass Vision API |
-| `src/components/photos/BulkUploadModal.tsx` | Filter HEIC files with user warning |
-| `src/components/photos/PhotoReviewQueue.tsx` | Add `onError` handler for broken images |
-| `src/components/photos/VehiclePhotoManager.tsx` | Add `onError` handler for broken images |
-| `supabase/functions/analyze-vehicle-photo/index.ts` | Fetch image server-side and send base64 to Vision API |
+| `src/hooks/usePhotoReviewQueue.ts` | Generate fresh signed URLs when fetching queue |
+| `src/components/photos/usePhotoAnalysis.ts` | Ensure path consistency in upload |
+| `src/components/photos/PhotoReviewQueue.tsx` | Add better error debugging |
 
----
+## Quick Test
 
-## Expected Outcome
+After implementation, test with the Denver account:
+1. Upload a new JPG photo
+2. Navigate to Photo Hub → Review Queue
+3. Photo should display with fresh signed URL
+4. Match to vehicle → photo should persist and display
 
-After Phase 1:
-- HEIC files are blocked with helpful message ("Please convert to JPEG")
-- Other images upload and save successfully (even without AI analysis)
-- Broken images show fallback placeholder instead of broken icon
-- Customer onboarding can proceed immediately
+## Why This Fixes It
 
-After Phase 2:
-- AI analysis works for all supported formats
-- Vision API receives base64 data (no URL access issues)
-- HEIC files can be converted and uploaded
+The current approach stores a signed URL at upload time. If anything goes wrong during that signing (network glitch, encoding issue), that broken URL is permanently stored.
+
+By generating fresh signed URLs at fetch time:
+- Each view gets a fresh, valid URL
+- No persistent corruption
+- More reliable for private bucket access
 
