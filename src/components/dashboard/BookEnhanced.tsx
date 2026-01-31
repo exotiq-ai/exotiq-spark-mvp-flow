@@ -8,7 +8,7 @@ import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { useModuleNavigation } from "@/hooks/useModuleNavigation";
 import { useSearchParams } from "react-router-dom";
 import { NewBookingDialog } from "@/components/dialogs/NewBookingDialog";
-import { BookingDetailsDialog } from "@/components/dialogs/BookingDetailsDialog";
+import { EnhancedBookingDialog } from "@/components/dialogs/EnhancedBookingDialog";
 import { BookingCalendar } from "@/components/dashboard/BookingCalendar";
 import { PaymentTracker } from "@/components/dashboard/PaymentTracker";
 import { InspectionsTab } from "@/components/dashboard/InspectionsTab";
@@ -237,23 +237,17 @@ export const BookEnhanced = () => {
         onSubmit={createBooking}
       />
       
-      {selectedBooking && (
-        <BookingDetailsDialog
-          open={showBookingDetails}
-          onOpenChange={setShowBookingDetails}
-          booking={{
-            id: selectedBooking.id,
-            vehicle: `Vehicle #${selectedBooking.vehicle_id}`,
-            customer: selectedBooking.customer_name,
-            time: `${formatTime(selectedBooking.start_date)} - ${formatTime(selectedBooking.end_date)}`,
-            location: selectedBooking.pickup_location,
-            status: selectedBooking.status as 'confirmed' | 'pending' | 'completed' | 'cancelled',
-            value: `$${Number(selectedBooking.total_value).toLocaleString()}`,
-            date: formatDate(selectedBooking.start_date)
-          }}
-          onUpdateStatus={updateBookingStatus}
-        />
-      )}
+      <EnhancedBookingDialog
+        open={showBookingDetails}
+        onOpenChange={(open) => {
+          setShowBookingDetails(open);
+          if (!open) setSelectedBooking(null);
+        }}
+        bookingId={selectedBooking?.id || null}
+        onNavigateToModule={(moduleId, context) => {
+          console.log('Navigate to:', moduleId, context);
+        }}
+      />
 
       <ModuleTabs
         tabs={[

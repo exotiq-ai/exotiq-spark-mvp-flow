@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -9,8 +9,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { VehicleImageDialog } from "./VehicleImageDialog";
 import { RecordPaymentDialog } from "./RecordPaymentDialog";
 import { SendMessageDialog } from "./SendMessageDialog";
@@ -24,8 +29,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { format, differenceInDays } from "date-fns";
 import { getVehicleImage } from "@/lib/vehicleImageMapping";
 import { openGoogleCalendar } from "@/lib/googleCalendar";
+import { cn } from "@/lib/utils";
 import {
-  Calendar,
+  Calendar as CalendarIcon,
   MapPin,
   User,
   Car,
@@ -48,7 +54,8 @@ import {
   Star,
   History,
   AlertTriangle,
-  Link,
+  X,
+  Save,
 } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -61,13 +68,22 @@ interface EnhancedBookingDialogProps {
   onNavigateToModule?: (moduleId: string, context?: Record<string, any>) => void;
 }
 
+// Time options for the time picker
+const TIME_OPTIONS = [
+  "06:00", "06:30", "07:00", "07:30", "08:00", "08:30", "09:00", "09:30",
+  "10:00", "10:30", "11:00", "11:30", "12:00", "12:30", "13:00", "13:30",
+  "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00", "17:30",
+  "18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00", "21:30",
+  "22:00"
+];
+
 export const EnhancedBookingDialog = ({
   open,
   onOpenChange,
   bookingId,
   onNavigateToModule,
 }: EnhancedBookingDialogProps) => {
-  const { bookings, vehicles, payments, customers, updateBookingStatus, createPayment, sendMessage, refreshData } = useFleet();
+  const { bookings, vehicles, payments, customers, updateBookingStatus, updateBookingDetails, createPayment, sendMessage, refreshData } = useFleet();
   const { toast } = useToast();
   
   const [showVehicleImage, setShowVehicleImage] = useState(false);
@@ -82,6 +98,20 @@ export const EnhancedBookingDialog = ({
   const [addingNote, setAddingNote] = useState(false);
   const [loadingNotes, setLoadingNotes] = useState(false);
   const [activeTab, setActiveTab] = useState("details");
+  const [locations, setLocations] = useState<Array<{ id: string; name: string }>>([]);
+  
+  // Inline edit mode state
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [editValues, setEditValues] = useState({
+    startDate: null as Date | null,
+    startTime: "",
+    endDate: null as Date | null,
+    endTime: "",
+    pickupLocation: "",
+    dropoffLocation: "",
+    notes: ""
+  });
 
   const booking = bookings.find((b) => b.id === bookingId);
   const vehicle = vehicles.find((v) => v.id === booking?.vehicle_id);
@@ -94,7 +124,62 @@ export const EnhancedBookingDialog = ({
   const balanceDue = Number(booking?.total_value || 0) - totalPaid;
 
   const vehicleImage = vehicle ? getVehicleImage(vehicle.name) : null;
-  const bookingDays = booking ? differenceInDays(new Date(booking.end_date), new Date(booking.start_date)) || 1 : 0;
+  
+  // Calculate booking days based on edit mode or original values
+  const bookingDays = useMemo(() => {
+    if (isEditMode && editValues.startDate && editValues.endDate) {
+      return differenceInDays(editValues.endDate, editValues.startDate) || 1;
+    }
+    return booking ? differenceInDays(new Date(booking.end_date), new Date(booking.start_date)) || 1 : 0;
+  }, [booking, isEditMode, editValues.startDate, editValues.endDate]);
+
+  // Calculate new total when editing
+  const newTotal = useMemo(() => {
+    const rate = Number(vehicle?.current_rate || booking?.daily_rate || 0);
+    return bookingDays * rate;
+  }, [bookingDays, vehicle?.current_rate, booking?.daily_rate]);
+
+  // Initialize edit values when entering edit mode
+  useEffect(() => {
+    if (isEditMode && booking) {
+      const startDate = new Date(booking.start_date);
+      const endDate = new Date(booking.end_date);
+      setEditValues({
+        startDate,
+        startTime: format(startDate, "HH:mm"),
+        endDate,
+        endTime: format(endDate, "HH:mm"),
+        pickupLocation: booking.pickup_location,
+        dropoffLocation: booking.dropoff_location || "",
+        notes: booking.notes || ""
+      });
+    }
+  }, [isEditMode, booking]);
+
+  // Reset edit mode when dialog closes
+  useEffect(() => {
+    if (!open) {
+      setIsEditMode(false);
+      setActiveTab("details");
+    }
+  }, [open]);
+
+  // Fetch locations for the dropdown
+  useEffect(() => {
+    const fetchLocations = async () => {
+      try {
+        const { data } = await supabase
+          .from("locations")
+          .select("id, name")
+          .eq("is_active", true)
+          .order("name");
+        setLocations(data || []);
+      } catch (error) {
+        console.error("Error fetching locations:", error);
+      }
+    };
+    if (open) fetchLocations();
+  }, [open]);
 
   useEffect(() => {
     const fetchCustomerNotes = async () => {
@@ -143,6 +228,53 @@ export const EnhancedBookingDialog = ({
     if (!booking) return;
     openGoogleCalendar(booking, vehicle?.name);
     toast({ title: "Opening Google Calendar" });
+  };
+
+  const handleSaveChanges = async (andApprove = false) => {
+    if (!booking) return;
+    setSaving(true);
+    
+    try {
+      // Combine date and time
+      const startDateTime = new Date(editValues.startDate!);
+      const [startHours, startMinutes] = editValues.startTime.split(':').map(Number);
+      startDateTime.setHours(startHours, startMinutes, 0, 0);
+
+      const endDateTime = new Date(editValues.endDate!);
+      const [endHours, endMinutes] = editValues.endTime.split(':').map(Number);
+      endDateTime.setHours(endHours, endMinutes, 0, 0);
+
+      // Update booking details
+      await updateBookingDetails(booking.id, {
+        start_date: startDateTime.toISOString(),
+        end_date: endDateTime.toISOString(),
+        pickup_location: editValues.pickupLocation,
+        dropoff_location: editValues.dropoffLocation || null,
+        notes: editValues.notes || null,
+        total_value: newTotal
+      });
+
+      // If Save & Approve, also update status
+      if (andApprove) {
+        await updateBookingStatus(booking.id, 'confirmed');
+        toast({ title: "Booking saved and approved" });
+        onOpenChange(false);
+      } else {
+        toast({ title: "Booking updated successfully" });
+        setIsEditMode(false);
+      }
+      
+      refreshData();
+    } catch (error) {
+      console.error('Error saving booking:', error);
+      toast({ title: "Failed to save changes", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditMode(false);
   };
 
   const getStatusColor = (status: string) => {
@@ -208,8 +340,21 @@ export const EnhancedBookingDialog = ({
         <DialogContent className="sm:max-w-[700px] max-h-[90vh] p-0">
           <DialogHeader className="px-6 pt-6 pb-0">
             <div className="flex items-center justify-between">
-              <DialogTitle className="text-xl">Booking Details</DialogTitle>
+              <DialogTitle className="text-xl">
+                {isEditMode ? "Edit Booking" : "Booking Details"}
+              </DialogTitle>
               <div className="flex items-center gap-2">
+                {!isEditMode && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setIsEditMode(true)}
+                    className="h-7"
+                  >
+                    <Edit className="h-3 w-3 mr-1" />
+                    Edit
+                  </Button>
+                )}
                 <Badge className={getStatusColor(booking.status || "pending")}>
                   {(booking.status || "pending").toUpperCase()}
                 </Badge>
@@ -255,322 +400,544 @@ export const EnhancedBookingDialog = ({
 
           <ScrollArea className="max-h-[calc(90vh-220px)]">
             <div className="px-6 pb-6 space-y-4">
-              {/* Quick Actions */}
-              <div className="flex flex-wrap gap-2">
-                <Button variant="outline" size="sm" onClick={() => setShowChangeVehicle(true)}>
-                  <Repeat className="h-3 w-3 mr-1" />Change Vehicle
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => setShowEditBooking(true)}>
-                  <Edit className="h-3 w-3 mr-1" />Edit Booking
-                </Button>
-                <Button variant="outline" size="sm" onClick={handleAddToGoogleCalendar}>
-                  <CalendarPlus className="h-3 w-3 mr-1" />Add to Google
-                </Button>
-                
-                {/* Link Customer Button - shown when customer_id is null */}
-                {!booking.customer_id && (
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => setShowLinkCustomer(true)}
-                    className="border-warning text-warning hover:bg-warning/10"
-                  >
-                    <AlertTriangle className="h-3 w-3 mr-1" />
-                    Link Customer
+              {/* Quick Actions - hidden in edit mode */}
+              {!isEditMode && (
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setShowChangeVehicle(true)}>
+                    <Repeat className="h-3 w-3 mr-1" />Change Vehicle
                   </Button>
-                )}
-                
-                {/* Link Vehicle Button - shown when vehicle_id is null */}
-                {!booking.vehicle_id && (
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => setShowLinkVehicle(true)}
-                    className="border-warning text-warning hover:bg-warning/10"
-                  >
-                    <AlertTriangle className="h-3 w-3 mr-1" />
-                    Link Vehicle
+                  <Button variant="outline" size="sm" onClick={() => setShowEditBooking(true)}>
+                    <Edit className="h-3 w-3 mr-1" />Edit Booking
                   </Button>
-                )}
-              </div>
-
-              <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <TabsList className="grid grid-cols-4 w-full">
-                  <TabsTrigger value="details" className="text-xs sm:text-sm">Details</TabsTrigger>
-                  <TabsTrigger value="payments" className="text-xs sm:text-sm">Payments</TabsTrigger>
-                  <TabsTrigger value="customer" className="text-xs sm:text-sm">Customer</TabsTrigger>
-                  <TabsTrigger value="notes" className="text-xs sm:text-sm">Notes</TabsTrigger>
-                </TabsList>
-
-                {/* Details Tab */}
-                <TabsContent value="details" className="space-y-4 mt-4">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-muted/30 rounded-lg p-4">
-                      <div className="flex items-center space-x-2 mb-2">
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm text-muted-foreground">Pickup</span>
-                      </div>
-                      <div className="font-medium">{format(new Date(booking.start_date), "MMM d, yyyy")}</div>
-                      <div className="text-sm text-muted-foreground">{format(new Date(booking.start_date), "h:mm a")}</div>
-                    </div>
-                    <div className="bg-muted/30 rounded-lg p-4">
-                      <div className="flex items-center space-x-2 mb-2">
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm text-muted-foreground">Return</span>
-                      </div>
-                      <div className="font-medium">{format(new Date(booking.end_date), "MMM d, yyyy")}</div>
-                      <div className="text-sm text-muted-foreground">{format(new Date(booking.end_date), "h:mm a")}</div>
-                    </div>
-                  </div>
-
-                  <div className="bg-muted/30 rounded-lg p-4">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <MapPin className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">Location</span>
-                    </div>
-                    <div className="font-medium">{booking.pickup_location}</div>
-                    {booking.dropoff_location && booking.dropoff_location !== booking.pickup_location && (
-                      <div className="text-sm text-muted-foreground mt-1">
-                        Return: {booking.dropoff_location}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Financial Summary */}
-                  <div className="space-y-3">
-                    <h4 className="font-semibold flex items-center gap-2">
-                      <DollarSign className="h-4 w-4" />
-                      Financial Summary
-                    </h4>
-                    <div className="grid grid-cols-3 gap-3">
-                      <div className="p-3 bg-muted/30 rounded-lg text-center">
-                        <div className="text-sm text-muted-foreground">Total</div>
-                        <div className="text-lg font-bold">${Number(booking.total_value).toLocaleString()}</div>
-                      </div>
-                      <div className="p-3 bg-success/10 rounded-lg text-center">
-                        <div className="text-sm text-muted-foreground">Paid</div>
-                        <div className="text-lg font-bold text-success">${totalPaid.toLocaleString()}</div>
-                      </div>
-                      <div className={`p-3 rounded-lg text-center ${balanceDue > 0 ? "bg-warning/10" : "bg-success/10"}`}>
-                        <div className="text-sm text-muted-foreground">Balance</div>
-                        <div className={`text-lg font-bold ${balanceDue > 0 ? "text-warning" : "text-success"}`}>
-                          ${balanceDue.toLocaleString()}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Quick Links */}
-                  <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" size="sm" onClick={() => { onOpenChange(false); onNavigateToModule?.("motoriq", { vehicleId: booking.vehicle_id }); }}>
-                      <Car className="h-3 w-3 mr-1" />Vehicle<ExternalLink className="h-3 w-3 ml-1" />
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => { onOpenChange(false); onNavigateToModule?.("core", { customerId: booking.customer_id }); }}>
-                      <User className="h-3 w-3 mr-1" />CRM<ExternalLink className="h-3 w-3 ml-1" />
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => { onOpenChange(false); onNavigateToModule?.("pulse", { bookingId: booking.id }); }}>
-                      <CreditCard className="h-3 w-3 mr-1" />Payments<ExternalLink className="h-3 w-3 ml-1" />
-                    </Button>
-                  </div>
-                </TabsContent>
-
-                {/* Payments Tab */}
-                <TabsContent value="payments" className="space-y-4 mt-4">
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="p-3 bg-muted/30 rounded-lg text-center">
-                      <div className="text-sm text-muted-foreground">Total</div>
-                      <div className="text-lg font-bold">${Number(booking.total_value).toLocaleString()}</div>
-                    </div>
-                    <div className="p-3 bg-success/10 rounded-lg text-center">
-                      <div className="text-sm text-muted-foreground">Paid</div>
-                      <div className="text-lg font-bold text-success">${totalPaid.toLocaleString()}</div>
-                    </div>
-                    <div className={`p-3 rounded-lg text-center ${balanceDue > 0 ? "bg-warning/10" : "bg-success/10"}`}>
-                      <div className="text-sm text-muted-foreground">Balance</div>
-                      <div className={`text-lg font-bold ${balanceDue > 0 ? "text-warning" : "text-success"}`}>
-                        ${balanceDue.toLocaleString()}
-                      </div>
-                    </div>
-                  </div>
-
-                  <h4 className="font-semibold flex items-center gap-2">
-                    <History className="h-4 w-4" />
-                    Payment History
-                  </h4>
+                  <Button variant="outline" size="sm" onClick={handleAddToGoogleCalendar}>
+                    <CalendarPlus className="h-3 w-3 mr-1" />Add to Google
+                  </Button>
                   
-                  {bookingPayments.length === 0 ? (
-                    <div className="text-center py-6 text-muted-foreground">
-                      <CreditCard className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                      <p>No payments recorded yet</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {bookingPayments.map((payment) => (
-                        <div key={payment.id} className="p-3 bg-muted/20 rounded-lg flex items-center justify-between">
-                          <div>
-                            <div className="font-medium capitalize">{payment.payment_type}</div>
-                            <div className="text-xs text-muted-foreground">
-                              {payment.transaction_date ? format(new Date(payment.transaction_date), "MMM d, yyyy") : "N/A"}
-                              {payment.payment_method && ` • ${payment.payment_method}`}
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="font-semibold">${Number(payment.amount).toLocaleString()}</div>
-                            <Badge variant="outline" className={`text-xs ${payment.payment_status === "completed" ? "bg-success/10 text-success" : "bg-warning/10 text-warning"}`}>
-                              {payment.payment_status}
-                            </Badge>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  <Button onClick={() => setShowPaymentDialog(true)} className="w-full">
-                    <CreditCard className="h-4 w-4 mr-2" />
-                    Record Payment
-                  </Button>
-                </TabsContent>
-
-                {/* Customer Tab */}
-                <TabsContent value="customer" className="space-y-4 mt-4">
-                  <div className="bg-muted/30 rounded-lg p-4">
-                    <div className="flex items-start space-x-3">
-                      <div className="p-3 bg-primary/10 rounded-lg">
-                        <User className="h-5 w-5 text-primary" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <div className="font-medium text-lg">{booking.customer_name}</div>
-                          {customer?.customer_status === "vip" && (
-                            <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30">
-                              <Star className="h-3 w-3 mr-1" />VIP
-                            </Badge>
-                          )}
-                        </div>
-                        
-                        {/* Customer Stats */}
-                        {customer && (
-                          <div className="grid grid-cols-2 gap-2 my-3">
-                            <div className="p-2 bg-background/50 rounded text-center">
-                              <div className="text-lg font-bold">{customer.total_bookings || 0}</div>
-                              <div className="text-xs text-muted-foreground">Total Rentals</div>
-                            </div>
-                            <div className="p-2 bg-background/50 rounded text-center">
-                              <div className="text-lg font-bold">${(Number(customer.lifetime_value) || 0).toLocaleString()}</div>
-                              <div className="text-xs text-muted-foreground">Lifetime Value</div>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Verification Status */}
-                        <div className="flex gap-2 mb-3">
-                          <Badge variant="outline" className={customer?.id_verified ? "bg-success/10 text-success border-success/30" : "bg-muted"}>
-                            <Shield className="h-3 w-3 mr-1" />
-                            ID {customer?.id_verified ? "Verified" : "Pending"}
-                          </Badge>
-                          <Badge variant="outline" className={customer?.insurance_verified ? "bg-success/10 text-success border-success/30" : "bg-muted"}>
-                            <Shield className="h-3 w-3 mr-1" />
-                            Insurance {customer?.insurance_verified ? "Verified" : "Pending"}
-                          </Badge>
-                        </div>
-
-                        <div className="space-y-2">
-                          {booking.customer_phone && (
-                            <a href={`tel:${booking.customer_phone}`} className="flex items-center space-x-2 text-sm hover:text-primary transition-colors">
-                              <Phone className="h-4 w-4 text-muted-foreground" />
-                              <span>{booking.customer_phone}</span>
-                            </a>
-                          )}
-                          {booking.customer_email && (
-                            <a href={`mailto:${booking.customer_email}`} className="flex items-center space-x-2 text-sm hover:text-primary transition-colors">
-                              <Mail className="h-4 w-4 text-muted-foreground" />
-                              <span>{booking.customer_email}</span>
-                            </a>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <Button variant="outline" className="w-full" onClick={() => { onOpenChange(false); onNavigateToModule?.("core", { customerId: booking.customer_id }); }}>
-                    <User className="h-4 w-4 mr-2" />
-                    View Full Profile
-                    <ExternalLink className="h-3 w-3 ml-2" />
-                  </Button>
-                </TabsContent>
-
-                {/* Notes Tab */}
-                <TabsContent value="notes" className="space-y-4 mt-4">
-                  <div className="flex gap-2">
-                    <Textarea
-                      placeholder="Add a note about this booking..."
-                      value={newNote}
-                      onChange={(e) => setNewNote(e.target.value)}
-                      className="min-h-[60px]"
-                    />
-                    <Button onClick={handleAddNote} disabled={addingNote || !newNote.trim()} size="sm" className="self-end">
-                      {addingNote ? <RefreshCw className="h-4 w-4 animate-spin" /> : "Add"}
+                  {/* Link Customer Button - shown when customer_id is null */}
+                  {!booking.customer_id && (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => setShowLinkCustomer(true)}
+                      className="border-warning text-warning hover:bg-warning/10"
+                    >
+                      <AlertTriangle className="h-3 w-3 mr-1" />
+                      Link Customer
                     </Button>
-                  </div>
-
-                  {loadingNotes ? (
-                    <div className="text-sm text-muted-foreground text-center py-4">Loading...</div>
-                  ) : customerNotes.length === 0 ? (
-                    <div className="text-center py-6 text-muted-foreground">
-                      <StickyNote className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                      <p>No notes yet</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {customerNotes.map((note) => (
-                        <div key={note.id} className="p-3 bg-muted/20 rounded-lg">
-                          <div className="text-muted-foreground text-xs mb-1">
-                            {note.created_by} • {format(new Date(note.created_at || ""), "MMM d, yyyy 'at' h:mm a")}
-                          </div>
-                          <div className="text-sm">{note.note}</div>
-                        </div>
-                      ))}
-                    </div>
                   )}
-                </TabsContent>
-              </Tabs>
-
-              <Separator />
-
-              {/* Action Buttons */}
-              <div className="grid grid-cols-2 gap-2">
-                <Button variant="outline" onClick={() => setShowPaymentDialog(true)} className="w-full">
-                  <CreditCard className="h-4 w-4 mr-2" />Take Payment
-                </Button>
-                <Button variant="outline" onClick={() => setShowMessageDialog(true)} className="w-full">
-                  <MessageSquare className="h-4 w-4 mr-2" />Message
-                </Button>
-              </div>
-
-              {booking.status === "pending" && (
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => { updateBookingStatus(booking.id, "cancelled"); onOpenChange(false); }}
-                    className="flex-1 text-destructive border-destructive/30 hover:bg-destructive/10"
-                  >
-                    <XCircle className="h-4 w-4 mr-2" />Cancel
-                  </Button>
-                  <Button
-                    onClick={() => { updateBookingStatus(booking.id, "confirmed"); onOpenChange(false); }}
-                    className="flex-1"
-                  >
-                    <CheckCircle className="h-4 w-4 mr-2" />Confirm
-                  </Button>
+                  
+                  {/* Link Vehicle Button - shown when vehicle_id is null */}
+                  {!booking.vehicle_id && (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => setShowLinkVehicle(true)}
+                      className="border-warning text-warning hover:bg-warning/10"
+                    >
+                      <AlertTriangle className="h-3 w-3 mr-1" />
+                      Link Vehicle
+                    </Button>
+                  )}
                 </div>
               )}
-              {booking.status === "confirmed" && (
-                <Button
-                  onClick={() => { updateBookingStatus(booking.id, "completed"); onOpenChange(false); }}
-                  className="w-full"
-                >
-                  <CheckCircle className="h-4 w-4 mr-2" />Complete Booking
-                </Button>
+
+              {/* Edit Mode Content */}
+              {isEditMode ? (
+                <div className="space-y-4">
+                  {/* Date & Time Grid */}
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Pickup Date */}
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Pickup Date</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !editValues.startDate && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {editValues.startDate ? format(editValues.startDate, "MMM d, yyyy") : "Pick date"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={editValues.startDate || undefined}
+                            onSelect={(date) => setEditValues(prev => ({ ...prev, startDate: date || null }))}
+                            initialFocus
+                            className="p-3 pointer-events-auto"
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+
+                    {/* Pickup Time */}
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Pickup Time</Label>
+                      <Select
+                        value={editValues.startTime}
+                        onValueChange={(val) => setEditValues(prev => ({ ...prev, startTime: val }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select time" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {TIME_OPTIONS.map(time => (
+                            <SelectItem key={time} value={time}>
+                              {format(new Date(`2000-01-01T${time}`), "h:mm a")}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Return Date */}
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Return Date</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !editValues.endDate && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {editValues.endDate ? format(editValues.endDate, "MMM d, yyyy") : "Pick date"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={editValues.endDate || undefined}
+                            onSelect={(date) => setEditValues(prev => ({ ...prev, endDate: date || null }))}
+                            initialFocus
+                            className="p-3 pointer-events-auto"
+                            disabled={(date) => editValues.startDate ? date < editValues.startDate : false}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+
+                    {/* Return Time */}
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Return Time</Label>
+                      <Select
+                        value={editValues.endTime}
+                        onValueChange={(val) => setEditValues(prev => ({ ...prev, endTime: val }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select time" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {TIME_OPTIONS.map(time => (
+                            <SelectItem key={time} value={time}>
+                              {format(new Date(`2000-01-01T${time}`), "h:mm a")}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* Duration & New Total */}
+                  <div className="flex items-center justify-between p-3 bg-primary/5 rounded-lg">
+                    <span className="text-sm text-muted-foreground">
+                      Duration: <span className="font-medium text-foreground">{bookingDays} day{bookingDays !== 1 ? "s" : ""}</span>
+                    </span>
+                    <span className="text-sm text-muted-foreground">
+                      New Total: <span className="font-bold text-primary text-lg">${newTotal.toLocaleString()}</span>
+                    </span>
+                  </div>
+
+                  {/* Location Fields */}
+                  <div className="space-y-3">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Pickup Location</Label>
+                      {locations && locations.length > 0 ? (
+                        <Select
+                          value={editValues.pickupLocation}
+                          onValueChange={(val) => setEditValues(prev => ({ ...prev, pickupLocation: val }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select location" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {locations.map(loc => (
+                              <SelectItem key={loc.id} value={loc.name}>
+                                {loc.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Input
+                          value={editValues.pickupLocation}
+                          onChange={(e) => setEditValues(prev => ({ ...prev, pickupLocation: e.target.value }))}
+                          placeholder="Enter pickup location"
+                        />
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Return Location</Label>
+                      {locations && locations.length > 0 ? (
+                        <Select
+                          value={editValues.dropoffLocation || "same"}
+                          onValueChange={(val) => setEditValues(prev => ({ ...prev, dropoffLocation: val === "same" ? "" : val }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Same as pickup" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="same">Same as pickup</SelectItem>
+                            {locations.map(loc => (
+                              <SelectItem key={loc.id} value={loc.name}>
+                                {loc.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Input
+                          value={editValues.dropoffLocation}
+                          onChange={(e) => setEditValues(prev => ({ ...prev, dropoffLocation: e.target.value }))}
+                          placeholder="Same as pickup (leave empty)"
+                        />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Notes */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Notes</Label>
+                    <Textarea
+                      value={editValues.notes}
+                      onChange={(e) => setEditValues(prev => ({ ...prev, notes: e.target.value }))}
+                      placeholder="Add any notes about this booking..."
+                      className="min-h-[80px]"
+                    />
+                  </div>
+
+                  <Separator />
+
+                  {/* Edit Mode Actions */}
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={handleCancelEdit}
+                      className="flex-1"
+                      disabled={saving}
+                    >
+                      <X className="h-4 w-4 mr-2" />
+                      Discard Changes
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => handleSaveChanges(false)}
+                      disabled={saving}
+                    >
+                      <Save className="h-4 w-4 mr-2" />
+                      {saving ? "Saving..." : "Save Draft"}
+                    </Button>
+                    {booking.status === "pending" && (
+                      <Button
+                        onClick={() => handleSaveChanges(true)}
+                        disabled={saving}
+                        className="flex-1"
+                      >
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        {saving ? "Saving..." : "Save & Approve"}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                /* View Mode Content */
+                <>
+                  <Tabs value={activeTab} onValueChange={setActiveTab}>
+                    <TabsList className="grid grid-cols-4 w-full">
+                      <TabsTrigger value="details" className="text-xs sm:text-sm">Details</TabsTrigger>
+                      <TabsTrigger value="payments" className="text-xs sm:text-sm">Payments</TabsTrigger>
+                      <TabsTrigger value="customer" className="text-xs sm:text-sm">Customer</TabsTrigger>
+                      <TabsTrigger value="notes" className="text-xs sm:text-sm">Notes</TabsTrigger>
+                    </TabsList>
+
+                    {/* Details Tab */}
+                    <TabsContent value="details" className="space-y-4 mt-4">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-muted/30 rounded-lg p-4">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm text-muted-foreground">Pickup</span>
+                          </div>
+                          <div className="font-medium">{format(new Date(booking.start_date), "MMM d, yyyy")}</div>
+                          <div className="text-sm text-muted-foreground">{format(new Date(booking.start_date), "h:mm a")}</div>
+                        </div>
+                        <div className="bg-muted/30 rounded-lg p-4">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm text-muted-foreground">Return</span>
+                          </div>
+                          <div className="font-medium">{format(new Date(booking.end_date), "MMM d, yyyy")}</div>
+                          <div className="text-sm text-muted-foreground">{format(new Date(booking.end_date), "h:mm a")}</div>
+                        </div>
+                      </div>
+
+                      <div className="bg-muted/30 rounded-lg p-4">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <MapPin className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm text-muted-foreground">Location</span>
+                        </div>
+                        <div className="font-medium">{booking.pickup_location}</div>
+                        {booking.dropoff_location && booking.dropoff_location !== booking.pickup_location && (
+                          <div className="text-sm text-muted-foreground mt-1">
+                            Return: {booking.dropoff_location}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Financial Summary */}
+                      <div className="space-y-3">
+                        <h4 className="font-semibold flex items-center gap-2">
+                          <DollarSign className="h-4 w-4" />
+                          Financial Summary
+                        </h4>
+                        <div className="grid grid-cols-3 gap-3">
+                          <div className="p-3 bg-muted/30 rounded-lg text-center">
+                            <div className="text-sm text-muted-foreground">Total</div>
+                            <div className="text-lg font-bold">${Number(booking.total_value).toLocaleString()}</div>
+                          </div>
+                          <div className="p-3 bg-success/10 rounded-lg text-center">
+                            <div className="text-sm text-muted-foreground">Paid</div>
+                            <div className="text-lg font-bold text-success">${totalPaid.toLocaleString()}</div>
+                          </div>
+                          <div className={`p-3 rounded-lg text-center ${balanceDue > 0 ? "bg-warning/10" : "bg-success/10"}`}>
+                            <div className="text-sm text-muted-foreground">Balance</div>
+                            <div className={`text-lg font-bold ${balanceDue > 0 ? "text-warning" : "text-success"}`}>
+                              ${balanceDue.toLocaleString()}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Quick Links */}
+                      <div className="flex flex-wrap gap-2">
+                        <Button variant="outline" size="sm" onClick={() => { onOpenChange(false); onNavigateToModule?.("motoriq", { vehicleId: booking.vehicle_id }); }}>
+                          <Car className="h-3 w-3 mr-1" />Vehicle<ExternalLink className="h-3 w-3 ml-1" />
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => { onOpenChange(false); onNavigateToModule?.("core", { customerId: booking.customer_id }); }}>
+                          <User className="h-3 w-3 mr-1" />CRM<ExternalLink className="h-3 w-3 ml-1" />
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => { onOpenChange(false); onNavigateToModule?.("pulse", { bookingId: booking.id }); }}>
+                          <CreditCard className="h-3 w-3 mr-1" />Payments<ExternalLink className="h-3 w-3 ml-1" />
+                        </Button>
+                      </div>
+                    </TabsContent>
+
+                    {/* Payments Tab */}
+                    <TabsContent value="payments" className="space-y-4 mt-4">
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="p-3 bg-muted/30 rounded-lg text-center">
+                          <div className="text-sm text-muted-foreground">Total</div>
+                          <div className="text-lg font-bold">${Number(booking.total_value).toLocaleString()}</div>
+                        </div>
+                        <div className="p-3 bg-success/10 rounded-lg text-center">
+                          <div className="text-sm text-muted-foreground">Paid</div>
+                          <div className="text-lg font-bold text-success">${totalPaid.toLocaleString()}</div>
+                        </div>
+                        <div className={`p-3 rounded-lg text-center ${balanceDue > 0 ? "bg-warning/10" : "bg-success/10"}`}>
+                          <div className="text-sm text-muted-foreground">Balance</div>
+                          <div className={`text-lg font-bold ${balanceDue > 0 ? "text-warning" : "text-success"}`}>
+                            ${balanceDue.toLocaleString()}
+                          </div>
+                        </div>
+                      </div>
+
+                      <h4 className="font-semibold flex items-center gap-2">
+                        <History className="h-4 w-4" />
+                        Payment History
+                      </h4>
+                      
+                      {bookingPayments.length === 0 ? (
+                        <div className="text-center py-6 text-muted-foreground">
+                          <CreditCard className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                          <p>No payments recorded yet</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {bookingPayments.map((payment) => (
+                            <div key={payment.id} className="p-3 bg-muted/20 rounded-lg flex items-center justify-between">
+                              <div>
+                                <div className="font-medium capitalize">{payment.payment_type}</div>
+                                <div className="text-xs text-muted-foreground">
+                                  {payment.transaction_date ? format(new Date(payment.transaction_date), "MMM d, yyyy") : "N/A"}
+                                  {payment.payment_method && ` • ${payment.payment_method}`}
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="font-semibold">${Number(payment.amount).toLocaleString()}</div>
+                                <Badge variant="outline" className={`text-xs ${payment.payment_status === "completed" ? "bg-success/10 text-success" : "bg-warning/10 text-warning"}`}>
+                                  {payment.payment_status}
+                                </Badge>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <Button onClick={() => setShowPaymentDialog(true)} className="w-full">
+                        <CreditCard className="h-4 w-4 mr-2" />
+                        Record Payment
+                      </Button>
+                    </TabsContent>
+
+                    {/* Customer Tab */}
+                    <TabsContent value="customer" className="space-y-4 mt-4">
+                      <div className="bg-muted/30 rounded-lg p-4">
+                        <div className="flex items-start space-x-3">
+                          <div className="p-3 bg-primary/10 rounded-lg">
+                            <User className="h-5 w-5 text-primary" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <div className="font-medium text-lg">{booking.customer_name}</div>
+                              {customer?.customer_status === "vip" && (
+                                <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30">
+                                  <Star className="h-3 w-3 mr-1" />VIP
+                                </Badge>
+                              )}
+                            </div>
+                            
+                            {/* Customer Stats */}
+                            {customer && (
+                              <div className="grid grid-cols-2 gap-2 my-3">
+                                <div className="p-2 bg-background/50 rounded text-center">
+                                  <div className="text-lg font-bold">{customer.total_bookings || 0}</div>
+                                  <div className="text-xs text-muted-foreground">Total Rentals</div>
+                                </div>
+                                <div className="p-2 bg-background/50 rounded text-center">
+                                  <div className="text-lg font-bold">${(Number(customer.lifetime_value) || 0).toLocaleString()}</div>
+                                  <div className="text-xs text-muted-foreground">Lifetime Value</div>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Verification Status */}
+                            <div className="flex gap-2 mb-3">
+                              <Badge variant="outline" className={customer?.id_verified ? "bg-success/10 text-success border-success/30" : "bg-muted"}>
+                                <Shield className="h-3 w-3 mr-1" />
+                                ID {customer?.id_verified ? "Verified" : "Pending"}
+                              </Badge>
+                              <Badge variant="outline" className={customer?.insurance_verified ? "bg-success/10 text-success border-success/30" : "bg-muted"}>
+                                <Shield className="h-3 w-3 mr-1" />
+                                Insurance {customer?.insurance_verified ? "Verified" : "Pending"}
+                              </Badge>
+                            </div>
+
+                            <div className="space-y-2">
+                              {booking.customer_phone && (
+                                <a href={`tel:${booking.customer_phone}`} className="flex items-center space-x-2 text-sm hover:text-primary transition-colors">
+                                  <Phone className="h-4 w-4 text-muted-foreground" />
+                                  <span>{booking.customer_phone}</span>
+                                </a>
+                              )}
+                              {booking.customer_email && (
+                                <a href={`mailto:${booking.customer_email}`} className="flex items-center space-x-2 text-sm hover:text-primary transition-colors">
+                                  <Mail className="h-4 w-4 text-muted-foreground" />
+                                  <span>{booking.customer_email}</span>
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <Button variant="outline" className="w-full" onClick={() => { onOpenChange(false); onNavigateToModule?.("core", { customerId: booking.customer_id }); }}>
+                        <User className="h-4 w-4 mr-2" />
+                        View Full Profile
+                        <ExternalLink className="h-3 w-3 ml-2" />
+                      </Button>
+                    </TabsContent>
+
+                    {/* Notes Tab */}
+                    <TabsContent value="notes" className="space-y-4 mt-4">
+                      <div className="flex gap-2">
+                        <Textarea
+                          placeholder="Add a note about this booking..."
+                          value={newNote}
+                          onChange={(e) => setNewNote(e.target.value)}
+                          className="min-h-[60px]"
+                        />
+                        <Button onClick={handleAddNote} disabled={addingNote || !newNote.trim()} size="sm" className="self-end">
+                          {addingNote ? <RefreshCw className="h-4 w-4 animate-spin" /> : "Add"}
+                        </Button>
+                      </div>
+
+                      {loadingNotes ? (
+                        <div className="text-sm text-muted-foreground text-center py-4">Loading...</div>
+                      ) : customerNotes.length === 0 ? (
+                        <div className="text-center py-6 text-muted-foreground">
+                          <StickyNote className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                          <p>No notes yet</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {customerNotes.map((note) => (
+                            <div key={note.id} className="p-3 bg-muted/20 rounded-lg">
+                              <div className="text-muted-foreground text-xs mb-1">
+                                {note.created_by} • {format(new Date(note.created_at || ""), "MMM d, yyyy 'at' h:mm a")}
+                              </div>
+                              <div className="text-sm">{note.note}</div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </TabsContent>
+                  </Tabs>
+
+                  <Separator />
+
+                  {/* Action Buttons */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button variant="outline" onClick={() => setShowPaymentDialog(true)} className="w-full">
+                      <CreditCard className="h-4 w-4 mr-2" />Take Payment
+                    </Button>
+                    <Button variant="outline" onClick={() => setShowMessageDialog(true)} className="w-full">
+                      <MessageSquare className="h-4 w-4 mr-2" />Message
+                    </Button>
+                  </div>
+
+                  {booking.status === "pending" && (
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => { updateBookingStatus(booking.id, "cancelled"); onOpenChange(false); }}
+                        className="flex-1 text-destructive border-destructive/30 hover:bg-destructive/10"
+                      >
+                        <XCircle className="h-4 w-4 mr-2" />Cancel
+                      </Button>
+                      <Button
+                        onClick={() => { updateBookingStatus(booking.id, "confirmed"); onOpenChange(false); }}
+                        className="flex-1"
+                      >
+                        <CheckCircle className="h-4 w-4 mr-2" />Confirm
+                      </Button>
+                    </div>
+                  )}
+                  {booking.status === "confirmed" && (
+                    <Button
+                      onClick={() => { updateBookingStatus(booking.id, "completed"); onOpenChange(false); }}
+                      className="w-full"
+                    >
+                      <CheckCircle className="h-4 w-4 mr-2" />Complete Booking
+                    </Button>
+                  )}
+                </>
               )}
             </div>
           </ScrollArea>
