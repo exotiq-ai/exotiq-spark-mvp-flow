@@ -301,8 +301,27 @@ export function ImportWizard({ onClose, onComplete }: ImportWizardProps) {
     // First link to existing records
     const linkedRows = await linkBookingsToExistingRecords(rows, teamId);
     
+    // Validate and fix date ranges - ensure end_date >= start_date
+    const dateValidatedRows = linkedRows.map(row => {
+      if (row.start_date && row.end_date) {
+        const startDate = new Date(String(row.start_date));
+        const endDate = new Date(String(row.end_date));
+        
+        // If end date is before start date, swap them
+        if (endDate < startDate) {
+          console.warn(`Booking date range invalid: swapping ${row.start_date} and ${row.end_date}`);
+          return {
+            ...row,
+            start_date: row.end_date,
+            end_date: row.start_date
+          };
+        }
+      }
+      return row;
+    });
+    
     // Find rows that need customer creation (only if they have email)
-    const rowsNeedingCustomers = linkedRows.filter(
+    const rowsNeedingCustomers = dateValidatedRows.filter(
       row => !row.customer_id && row.customer_email
     );
     
@@ -342,7 +361,7 @@ export function ImportWizard({ onClose, onComplete }: ImportWizardProps) {
     }
     
     // Update rows with new customer IDs and preserve vehicle_name
-    return linkedRows.map(row => {
+    return dateValidatedRows.map(row => {
       const processedRow = { ...row };
       
       // Link customer if we created one
