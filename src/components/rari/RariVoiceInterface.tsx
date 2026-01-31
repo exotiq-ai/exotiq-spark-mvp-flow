@@ -358,6 +358,51 @@ export const RariVoiceInterface = ({
   const { status, isSpeaking } = conversation;
   const isConnected = status === 'connected';
 
+  // Track if we've sent context this session (prevents duplicate sends)
+  const hasSentContextRef = useRef(false);
+  
+  // Inject date/time and formatting rules via contextual update once per session
+  useEffect(() => {
+    if (isConnected && !hasSentContextRef.current && conversation.sendContextualUpdate) {
+      hasSentContextRef.current = true;
+      
+      const now = new Date();
+      const dateStr = now.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+      const timeStr = now.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        timeZoneName: 'short'
+      });
+      
+      const contextMessage = `
+IMPORTANT CONTEXT FOR THIS SESSION:
+- Today is ${dateStr}, and the current time is ${timeStr}.
+- When you mention money amounts or large numbers, ALWAYS use words like "thousand", "million", "billion" instead of reading out all digits or zeros. For example say "two million dollars" not "two zero zero zero zero zero zero dollars".
+- When mentioning dates, use natural speech like "February 10th" not "2/10/2026".
+- You have access to real-time fleet data for this user's team.
+      `.trim();
+      
+      console.log('[Rari Context] Sending session context:', {
+        date: dateStr,
+        time: timeStr,
+      });
+      
+      conversation.sendContextualUpdate(contextMessage);
+    }
+  }, [isConnected, conversation]);
+  
+  // Reset context flag when disconnected
+  useEffect(() => {
+    if (!isConnected) {
+      hasSentContextRef.current = false;
+    }
+  }, [isConnected]);
+
   // Notify parent of active call changes
   useEffect(() => {
     onActiveCallChange?.(isConnected);
