@@ -223,6 +223,62 @@ function extractToolCall(body: any, url: URL): { toolName?: string; parameters: 
     return { toolName: qpName, parameters: body?.parameters ?? body ?? {} };
   }
 
+  // NEW STEP: If body is empty but URL has query params, infer tool from query params
+  // This handles ElevenLabs sending GET requests like ?limit=5 or ?status=confirmed with empty body
+  if ((!body || Object.keys(body).length === 0) && url.searchParams.size > 0) {
+    const queryParams: Record<string, string> = {};
+    url.searchParams.forEach((value, key) => {
+      // Skip tool name keys since they're handled above
+      if (!['tool_name', 'tool', 'name', 'function_name'].includes(key)) {
+        queryParams[key] = value;
+      }
+    });
+    
+    const paramKeys = Object.keys(queryParams);
+    
+    if (paramKeys.length > 0) {
+      // Single param: use PARAMETER_TO_TOOL_MAP with smart detection
+      if (paramKeys.length === 1) {
+        const k = paramKeys[0];
+        const v = queryParams[k];
+        
+        // Special case: status param with booking-related values → get_bookings
+        // Booking statuses: confirmed, pending, active, completed, cancelled, in_progress
+        const bookingStatuses = ['confirmed', 'pending', 'active', 'completed', 'cancelled', 'in_progress', 'all'];
+        if (k === 'status' && bookingStatuses.includes(v.toLowerCase())) {
+          console.log(`[extractToolCall] Mapping URL param { "status": "${v}" } to tool: get_bookings (booking status detected)`);
+          return { toolName: 'get_bookings', parameters: queryParams };
+        }
+        
+        if (PARAMETER_TO_TOOL_MAP[k]) {
+          console.log(`[extractToolCall] Mapping URL param { "${k}": "${v}" } to tool: ${PARAMETER_TO_TOOL_MAP[k]}`);
+          return { toolName: PARAMETER_TO_TOOL_MAP[k], parameters: queryParams };
+        }
+        // Special case: limit → get_recent_activity
+        if (k === 'limit') {
+          console.log(`[extractToolCall] Mapping URL param "limit" to tool: get_recent_activity`);
+          return { toolName: 'get_recent_activity', parameters: queryParams };
+        }
+      }
+      
+      // Multi-param: use same inference as body
+      let inferredTool = 'get_fleet_vehicles'; // default
+      if (paramKeys.includes('customerName')) inferredTool = 'getCustomerProfile';
+      else if (paramKeys.includes('vehicleName') && (paramKeys.includes('startDate') || paramKeys.includes('endDate'))) inferredTool = 'checkAvailability';
+      else if (paramKeys.includes('vehicleName')) inferredTool = 'getVehicleDetails';
+      else if (paramKeys.includes('timeframe') && paramKeys.includes('location')) inferredTool = 'getRevenueAnalysis';
+      else if (paramKeys.includes('timeframe')) inferredTool = 'getFleetMetrics';
+      else if (paramKeys.includes('daysRange')) inferredTool = 'searchBookings';
+      else if (paramKeys.includes('daysAhead')) inferredTool = 'getUpcomingMaintenance';
+      else if (paramKeys.includes('status')) inferredTool = 'get_bookings';
+      else if (paramKeys.includes('limit')) inferredTool = 'get_recent_activity';
+      else if (paramKeys.includes('metric')) inferredTool = 'getTopPerformers';
+      
+      console.log(`[extractToolCall] Inferred tool from URL params ${JSON.stringify(paramKeys)}: ${inferredTool}`);
+      return { toolName: inferredTool, parameters: queryParams };
+    }
+  }
+
   // 2) Common wrappers
   const directName = body?.tool_name || body?.name || body?.function_name;
   if (directName) return { toolName: directName, parameters: body?.parameters || body?.args || {} };
