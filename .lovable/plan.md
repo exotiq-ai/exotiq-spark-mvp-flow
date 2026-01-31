@@ -1,149 +1,136 @@
 
+# Vehicle Delete Functionality - Implementation Plan
 
-# Fix Photo Preview Showing Broken - 400 Error from Signed URL
+## Current Situation
 
-## Problem Identified
+You've discovered that:
+1. **Duplicate vehicles exist** - Many vehicles appear 2-3 times in the database (created during testing imports)
+2. **No delete UI exists** - There's no way to delete vehicles from the Fleet Management interface
+3. **Backend supports delete** - RLS policies already allow users to delete their own vehicles
 
-JPG photos are uploading successfully to storage but showing as broken in the Review Queue. The console shows:
-```
-Failed to load resource: the server responded with a status of 400 ()
-```
+### Duplicate Vehicles Found (sample)
+| Vehicle | Count |
+|---------|-------|
+| Ferrari Roma 2024 | 3 |
+| Lamborghini Huracán EVO 2024 | 3 |
+| Audi S8 Plus 2017 | 3 |
+| McLaren 720S 2020 | 2 |
+| Porsche 911 Turbo S | 2 |
+| ...and many more | |
 
-## Root Cause Analysis
+---
 
-The file **does exist** in storage with correct format:
-- Storage path: `fd9bb57e.../unmatched/1769893719947-g38sa.jpeg`
-- Mimetype: `image/jpeg` 
-- Size: 889,522 bytes (valid)
+## Immediate Workaround: Delete Vehicles Manually
 
-The signed URL is stored in the database and should be valid for 1 year. However, the 400 error indicates the **signed URL is malformed or the token is being incorrectly processed**.
+Until the UI is built, you can delete duplicate vehicles directly from the database. I can help you run a cleanup query.
 
-After checking the upload code and database, I found the issue:
-
-**The signed URL is being generated correctly, but the browser may be having issues with the token query parameter.** Looking at the pattern, signed URLs from Supabase storage require the client to be properly authenticated OR the URL must be fetched correctly.
-
-### Key Finding
-
-The actual issue is likely that **when the photo was uploaded, the signed URL was created but the image is not accessible via that URL** - possibly due to:
-
-1. **Path mismatch between upload and signed URL** - The `data.path` returned after upload may differ from what's actually stored
-2. **Cross-origin issues with how the browser fetches signed URLs**
-
-## Solution: Generate Fresh Signed URLs at Fetch Time
-
-Instead of storing signed URLs at upload time (which can become stale or invalid), we should:
-
-1. **Store only the `storage_path`** in the database
-2. **Generate fresh signed URLs when fetching photos for display**
-
-This is more reliable because:
-- Signed URLs are always fresh
-- No chance of URL corruption in database
-- Works even if signing keys rotate
-
-## Implementation Plan
-
-### Part 1: Modify usePhotoReviewQueue to Generate Fresh Signed URLs
-
-**File:** `src/hooks/usePhotoReviewQueue.ts`
-
-Update the `fetchQueue` function to:
-1. Fetch photos with their `storage_path`
-2. Generate fresh signed URLs for each photo
-3. Return the photos with fresh URLs
-
-```typescript
-const fetchQueue = useCallback(async () => {
-  // Fetch photos...
-  const { data, error } = await supabase
-    .from('unmatched_photos')
-    .select('*')
-    .match(teamFilter)
-    .eq('status', 'pending')
-    .order('created_at', { ascending: true });
-
-  if (error) throw error;
-
-  // Generate fresh signed URLs for each photo
-  const photosWithFreshUrls = await Promise.all(
-    (data || []).map(async (photo) => {
-      if (!photo.storage_path) return photo;
-      
-      const { data: signedData } = await supabase.storage
-        .from('vehicle-photos')
-        .createSignedUrl(photo.storage_path, 60 * 60); // 1 hour validity
-      
-      return {
-        ...photo,
-        url: signedData?.signedUrl || photo.url,
-      };
-    })
-  );
-
-  setQueue(photosWithFreshUrls);
-});
+**Option A: Delete specific duplicates (keeps the oldest entry of each vehicle)**
+```sql
+-- This keeps ONE copy of each vehicle (the first one created) and deletes the rest
+DELETE FROM vehicles 
+WHERE id NOT IN (
+  SELECT MIN(id) 
+  FROM vehicles 
+  GROUP BY team_id, name, make, model, year
+);
 ```
 
-### Part 2: Add Fallback Public URL Option (Alternative)
+**Option B: Delete by specific IDs (if you know which to remove)**
+I can provide specific IDs for duplicates you want to delete.
 
-If signed URLs continue to have issues, we can make the bucket public for read access. This is simpler but less secure.
+---
 
-However, for a fleet management system with private vehicle photos, keeping the bucket private with signed URLs is the better approach.
+## Implementation Plan: Add Delete Functionality to UI
 
-### Part 3: Add Debugging to Identify Exact Failure
+### Part 1: Add Delete Method to FleetContext
+**File:** `src/contexts/FleetContext.tsx`
 
-Add console logging in the image `onError` handler to capture the actual error:
+Add a `deleteVehicle` function that:
+- Calls `supabase.from('vehicles').delete().eq('id', vehicleId)`
+- Shows confirmation toast on success
+- Triggers `refreshData()` to update the UI
+- Handles errors gracefully
 
-```typescript
-onError={(e) => {
-  console.error('Image load failed:', {
-    src: e.currentTarget.src,
-    storagePath: currentPhoto.storage_path,
-    originalUrl: currentPhoto.url,
-  });
-  // Show fallback...
-}}
-```
+### Part 2: Single Vehicle Delete
+**File:** `src/components/fleet/FleetVehicleCard.tsx`
 
-### Part 4: Validate Upload Path Consistency
+Add a "Delete Vehicle" option to the existing dropdown menu (the "..." menu):
+- Positioned at the bottom of the menu with a separator
+- Uses destructive red styling
+- Opens confirmation dialog before deleting
 
-**File:** `src/components/photos/usePhotoAnalysis.ts`
+### Part 3: Confirmation Dialog Integration  
+**Existing component:** `src/components/ui/confirmation-dialog.tsx`
 
-Ensure the path used for signed URL generation matches what's stored:
+Use the existing `ConfirmationDialog` with:
+- `variant="destructive"` 
+- Clear warning message: "This will permanently delete {vehicle name}. This action cannot be undone."
+- Confirmation text: "Delete Vehicle"
 
-```typescript
-const { data, error } = await supabase.storage
-  .from('vehicle-photos')
-  .upload(path, file, { ... });
+### Part 4: Batch Delete (Optional Enhancement)
+**File:** `src/components/fleet/FleetPageEnhanced.tsx`
 
-// Use data.path (which is the actual stored path) NOT the local path variable
-const { data: signedData } = await supabase.storage
-  .from('vehicle-photos')
-  .createSignedUrl(data.path, 60 * 60 * 24 * 365);
-```
+Add batch selection and delete capability:
+- Checkbox on each vehicle card for multi-select
+- "Delete Selected" button appears when items are selected
+- Bulk confirmation before delete
+
+### Part 5: Duplicate Prevention
+**File:** `src/components/dialogs/AddVehicleDialog.tsx`
+
+Add optional duplicate detection:
+- Before inserting, check if vehicle with same name/make/model/year exists
+- Show warning: "A similar vehicle already exists. Add anyway?"
+- This prevents future duplicates
+
+---
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/hooks/usePhotoReviewQueue.ts` | Generate fresh signed URLs when fetching queue |
-| `src/components/photos/usePhotoAnalysis.ts` | Ensure path consistency in upload |
-| `src/components/photos/PhotoReviewQueue.tsx` | Add better error debugging |
+| `src/contexts/FleetContext.tsx` | Add `deleteVehicle` and `deleteVehicles` (batch) methods |
+| `src/components/fleet/FleetVehicleCard.tsx` | Add delete option to dropdown menu |
+| `src/components/fleet/FleetPageEnhanced.tsx` | Add selection state and batch delete UI |
+| `src/hooks/useLocationFilteredFleet.ts` | Expose delete methods from FleetContext |
+| `src/components/dialogs/AddVehicleDialog.tsx` | Optional: Add duplicate warning |
 
-## Quick Test
+---
 
-After implementation, test with the Denver account:
-1. Upload a new JPG photo
-2. Navigate to Photo Hub → Review Queue
-3. Photo should display with fresh signed URL
-4. Match to vehicle → photo should persist and display
+## Technical Details
 
-## Why This Fixes It
+### Delete Vehicle Flow
+```text
+User clicks "Delete" in dropdown
+        ↓
+Confirmation dialog opens (destructive variant)
+        ↓
+User confirms → deleteVehicle(vehicleId) called
+        ↓
+Supabase DELETE query with RLS check (user owns vehicle)
+        ↓
+Success toast + refreshData() to update UI
+```
 
-The current approach stores a signed URL at upload time. If anything goes wrong during that signing (network glitch, encoding issue), that broken URL is permanently stored.
+### Batch Delete Flow  
+```text
+User selects multiple vehicles (checkboxes)
+        ↓
+"Delete X Selected" button appears
+        ↓
+Confirmation dialog with vehicle count
+        ↓
+Loop: deleteVehicle for each selected ID
+        ↓
+Summary toast + refreshData()
+```
 
-By generating fresh signed URLs at fetch time:
-- Each view gets a fresh, valid URL
-- No persistent corruption
-- More reliable for private bucket access
+---
 
+## Expected Outcome
+
+After implementation:
+- Single delete: Click vehicle "..." menu → "Delete Vehicle" → Confirm → Vehicle removed
+- Batch delete: Select vehicles → Click "Delete Selected" → Confirm → All selected removed
+- Duplicate prevention: Warning when adding vehicle that already exists
+- Clean fleet: No more duplicates cluttering the dashboard
