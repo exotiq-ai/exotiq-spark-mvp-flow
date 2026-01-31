@@ -18,6 +18,8 @@ import {
   Sparkles,
   RefreshCw,
   Wand2,
+  RotateCcw,
+  Eye,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -40,8 +42,10 @@ import { cn } from '@/lib/utils';
 import { useVehiclePhotos } from '@/hooks/useVehiclePhotos';
 import { usePhotoAnalysis } from './usePhotoAnalysis';
 import { HeroEnhancementPreview } from './HeroEnhancementPreview';
+import { OriginalPhotoDialog } from './OriginalPhotoDialog';
 import { RECOMMENDED_ANGLES, ANGLE_LABELS, PHOTO_TYPE_LABELS, VehiclePhoto, DetectedAngle } from './types';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 interface VehiclePhotoManagerProps {
   vehicleId: string;
@@ -66,6 +70,13 @@ export const VehiclePhotoManager = ({
   const [selectedHeroPhoto, setSelectedHeroPhoto] = useState<{ id: string; url: string } | null>(null);
   const [replacePhotoId, setReplacePhotoId] = useState<string | null>(null);
   const replaceInputRef = useRef<HTMLInputElement>(null);
+  const [originalPhotoDialog, setOriginalPhotoDialog] = useState<{
+    open: boolean;
+    originalUrl: string;
+    enhancedUrl: string;
+    photoId: string;
+  } | null>(null);
+  const [isRestoring, setIsRestoring] = useState(false);
 
   // Find hero photo
   const heroPhoto = useMemo(() => 
@@ -177,6 +188,43 @@ export const VehiclePhotoManager = ({
     }
   };
 
+  const handleViewOriginal = (photo: { id: string; url: string; enhanced_url?: string | null }) => {
+    if (photo.enhanced_url) {
+      setOriginalPhotoDialog({
+        open: true,
+        originalUrl: photo.url,
+        enhancedUrl: photo.enhanced_url,
+        photoId: photo.id,
+      });
+    }
+  };
+
+  const handleRestoreOriginal = async (photoId: string) => {
+    try {
+      setIsRestoring(true);
+      const { error } = await supabase
+        .from('vehicle_photos')
+        .update({
+          is_enhanced: false,
+          enhanced_url: null,
+          enhanced_at: null,
+          enhancement_settings: null,
+        })
+        .eq('id', photoId);
+
+      if (error) throw error;
+
+      await refetch();
+      toast.success('Original photo restored');
+      setOriginalPhotoDialog(null);
+    } catch (error) {
+      console.error('Failed to restore original:', error);
+      toast.error('Failed to restore original photo');
+    } finally {
+      setIsRestoring(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -254,6 +302,16 @@ export const VehiclePhotoManager = ({
                 >
                   <ZoomIn className="h-4 w-4 mr-1" />
                   View
+                </Button>
+              )}
+              {heroPhoto.is_enhanced && heroPhoto.enhanced_url && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => handleViewOriginal(heroPhoto)}
+                >
+                  <Eye className="h-4 w-4 mr-1" />
+                  Original
                 </Button>
               )}
               <Button
@@ -414,6 +472,19 @@ export const VehiclePhotoManager = ({
           photoUrl={selectedHeroPhoto.url}
           vehicleName={vehicleName}
           onEnhanced={() => refetch()}
+        />
+      )}
+
+      {/* Original Photo Comparison Dialog */}
+      {originalPhotoDialog && (
+        <OriginalPhotoDialog
+          open={originalPhotoDialog.open}
+          onOpenChange={(open) => !open && setOriginalPhotoDialog(null)}
+          originalUrl={originalPhotoDialog.originalUrl}
+          enhancedUrl={originalPhotoDialog.enhancedUrl}
+          vehicleName={vehicleName}
+          onRestoreOriginal={() => handleRestoreOriginal(originalPhotoDialog.photoId)}
+          isRestoring={isRestoring}
         />
       )}
     </div>

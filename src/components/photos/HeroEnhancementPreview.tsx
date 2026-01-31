@@ -274,7 +274,9 @@ export const HeroEnhancementPreview = ({
 
         <DialogFooter className="flex items-center justify-between pt-4 border-t">
           <p className="text-xs text-muted-foreground">
-            Powered by PhotoRoom AI • Background removal
+            {enhancedUrl 
+              ? '✓ Original photo will be preserved • You can restore it anytime'
+              : 'Powered by PhotoRoom AI • Original photo will be preserved'}
           </p>
           <div className="flex items-center gap-3">
             <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isEnhancing}>

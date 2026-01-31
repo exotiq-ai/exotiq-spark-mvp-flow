@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -12,7 +12,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getVehicleImage } from "@/lib/vehicleImageMapping";
 import { VehiclePhotoManager } from "@/components/photos/VehiclePhotoManager";
 import { BulkUploadModal } from "@/components/photos/BulkUploadModal";
-import { Calendar, TrendingUp, DollarSign, CheckCircle2, AlertTriangle, Camera, Image } from "lucide-react";
+import { PhotoGalleryStrip } from "@/components/photos/PhotoGalleryStrip";
+import { useVehiclePhotos } from "@/hooks/useVehiclePhotos";
+import { Calendar, TrendingUp, DollarSign, CheckCircle2, AlertTriangle, Camera, Image, ChevronLeft, ChevronRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface VehicleImageDialogProps {
   open: boolean;
@@ -43,9 +47,69 @@ export function VehicleImageDialog({
   vehicleId,
   vehicleDetails,
 }: VehicleImageDialogProps) {
-  const imageUrl = getVehicleImage(vehicleName);
+  const staticImageUrl = getVehicleImage(vehicleName);
   const [activeTab, setActiveTab] = useState<string>("overview");
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
+
+  // Fetch actual vehicle photos
+  const { photos, loading: photosLoading, refetch } = useVehiclePhotos({ 
+    vehicleId: vehicleId || '', 
+    realtime: true 
+  });
+
+  // Find hero photo and determine main image with cascading resolution
+  const heroPhoto = useMemo(() => 
+    photos.find(p => p.photo_type === 'hero'),
+    [photos]
+  );
+
+  // Cascading image resolution: Enhanced Hero → Original Hero → Static → null
+  const mainImageUrl = useMemo(() => {
+    if (heroPhoto?.enhanced_url) return heroPhoto.enhanced_url;
+    if (heroPhoto?.url) return heroPhoto.url;
+    return staticImageUrl;
+  }, [heroPhoto, staticImageUrl]);
+
+  // Get current displayed photo based on gallery selection
+  const currentDisplayUrl = useMemo(() => {
+    if (photos.length === 0) return mainImageUrl;
+    if (selectedPhotoIndex === 0 && heroPhoto) {
+      return heroPhoto.enhanced_url || heroPhoto.url;
+    }
+    const photo = photos[selectedPhotoIndex];
+    return photo?.enhanced_url || photo?.url || mainImageUrl;
+  }, [photos, selectedPhotoIndex, heroPhoto, mainImageUrl]);
+
+  // Reset photo index when dialog opens
+  useEffect(() => {
+    if (open) {
+      setSelectedPhotoIndex(0);
+    }
+  }, [open]);
+
+  // Keyboard navigation for gallery
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (!open || photos.length <= 1) return;
+    if (e.key === 'ArrowLeft') {
+      setSelectedPhotoIndex(prev => (prev > 0 ? prev - 1 : photos.length - 1));
+    } else if (e.key === 'ArrowRight') {
+      setSelectedPhotoIndex(prev => (prev < photos.length - 1 ? prev + 1 : 0));
+    }
+  }, [open, photos.length]);
+
+  useEffect(() => {
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
+
+  const goToPrevious = () => {
+    setSelectedPhotoIndex(prev => (prev > 0 ? prev - 1 : photos.length - 1));
+  };
+
+  const goToNext = () => {
+    setSelectedPhotoIndex(prev => (prev < photos.length - 1 ? prev + 1 : 0));
+  };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -73,20 +137,71 @@ export function VehicleImageDialog({
                 </TabsTrigger>
               </TabsList>
               
-              <TabsContent value="overview" className="space-y-6 mt-4">
-                {imageUrl ? (
-                  <div className="relative aspect-video w-full overflow-hidden rounded-xl border shadow-lg">
-                    <img
-                      src={imageUrl}
-                      alt={vehicleName}
-                      className="object-cover w-full h-full"
-                    />
-                  </div>
-                ) : (
-                  <div className="aspect-video w-full bg-muted rounded-xl flex items-center justify-center">
-                    <p className="text-muted-foreground">No image available</p>
-                  </div>
+              <TabsContent value="overview" className="space-y-4 mt-4">
+                {/* Main Image with Navigation */}
+                <div className="relative group">
+                  {currentDisplayUrl ? (
+                    <div className="relative aspect-video w-full overflow-hidden rounded-xl border shadow-lg bg-muted">
+                      <img
+                        src={currentDisplayUrl}
+                        alt={vehicleName}
+                        className="object-contain w-full h-full"
+                        onError={(e) => {
+                          // Fallback to static if photo fails to load
+                          if (staticImageUrl && e.currentTarget.src !== staticImageUrl) {
+                            e.currentTarget.src = staticImageUrl;
+                          }
+                        }}
+                      />
+                      
+                      {/* Navigation arrows (only if multiple photos) */}
+                      {photos.length > 1 && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="absolute left-2 top-1/2 -translate-y-1/2 h-10 w-10 bg-background/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={goToPrevious}
+                          >
+                            <ChevronLeft className="h-6 w-6" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 bg-background/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={goToNext}
+                          >
+                            <ChevronRight className="h-6 w-6" />
+                          </Button>
+                        </>
+                      )}
+
+                      {/* Photo type badge */}
+                      {photos.length > 0 && photos[selectedPhotoIndex] && (
+                        <div className="absolute top-2 left-2">
+                          <Badge variant="secondary" className="bg-background/80 backdrop-blur-sm">
+                            {selectedPhotoIndex === 0 && heroPhoto ? 'Hero Photo' : `Photo ${selectedPhotoIndex + 1}/${photos.length}`}
+                          </Badge>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="aspect-video w-full bg-muted rounded-xl flex items-center justify-center">
+                      <p className="text-muted-foreground">No image available</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Photo Gallery Strip */}
+                {photos.length > 1 && (
+                  <PhotoGalleryStrip
+                    photos={photos}
+                    currentIndex={selectedPhotoIndex}
+                    onSelect={setSelectedPhotoIndex}
+                    size="sm"
+                  />
                 )}
+
                 <VehicleDetailsSection vehicleDetails={vehicleDetails} formatDate={formatDate} />
               </TabsContent>
               
@@ -109,10 +224,10 @@ export function VehicleImageDialog({
           </>
         ) : (
           <div className="space-y-6">
-            {imageUrl ? (
+            {staticImageUrl ? (
               <div className="relative aspect-video w-full overflow-hidden rounded-xl border shadow-lg">
                 <img
-                  src={imageUrl}
+                  src={staticImageUrl}
                   alt={vehicleName}
                   className="object-cover w-full h-full"
                 />
