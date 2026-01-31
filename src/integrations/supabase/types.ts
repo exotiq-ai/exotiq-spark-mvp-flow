@@ -128,7 +128,7 @@ export type Database = {
           total_value: number
           updated_at: string | null
           user_id: string
-          vehicle_id: string
+          vehicle_id: string | null
         }
         Insert: {
           balance_due?: number | null
@@ -167,7 +167,7 @@ export type Database = {
           total_value: number
           updated_at?: string | null
           user_id: string
-          vehicle_id: string
+          vehicle_id?: string | null
         }
         Update: {
           balance_due?: number | null
@@ -206,7 +206,7 @@ export type Database = {
           total_value?: number
           updated_at?: string | null
           user_id?: string
-          vehicle_id?: string
+          vehicle_id?: string | null
         }
         Relationships: [
           {

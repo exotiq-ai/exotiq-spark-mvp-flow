@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { TabsContent } from "@/components/ui/tabs";
 import { ModuleTabs } from "@/components/common/ModuleTabs";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
+import { useRevenueGrowth } from "@/hooks/useGrowthCalculation";
 import { PriceOptimizationDialog } from "@/components/dialogs/PriceOptimizationDialog";
 import { QuickPriceEditorDialog } from "@/components/dialogs/QuickPriceEditorDialog";
 import { PriceUtilizationScatterPlot } from "@/components/charts/PriceUtilizationScatterPlot";
@@ -21,7 +22,8 @@ import { SkeletonAIInsight, SkeletonVehicleCard, SkeletonStatsRow } from "@/comp
 import { EmptyState, NoVehiclesState } from "@/components/common/EmptyState";
 import { AddVehicleDialog } from "@/components/dialogs/AddVehicleDialog";
 import { 
-  TrendingUp, 
+  TrendingUp,
+  TrendingDown,
   Zap,
   CheckCircle,
   ArrowRight,
@@ -39,7 +41,7 @@ import { createExportActions } from "@/lib/exportUtils";
 import { useToast } from "@/hooks/use-toast";
 
 export const MotorIQEnhanced = () => {
-  const { vehicles, applyPriceOptimization, loading, createVehicle } = useLocationFilteredFleet();
+  const { vehicles, bookings, applyPriceOptimization, loading, createVehicle } = useLocationFilteredFleet();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("overview");
   const [showOptimizationDialog, setShowOptimizationDialog] = useState(false);
@@ -47,6 +49,22 @@ export const MotorIQEnhanced = () => {
   const [showAddVehicle, setShowAddVehicle] = useState(false);
   const [dismissedRecommendationId, setDismissedRecommendationId] = useState<string | null>(null);
   const [selectedVehicleForPricing, setSelectedVehicleForPricing] = useState<typeof vehicles[0] | null>(null);
+
+  // Calculate real revenue from bookings
+  const bookingsWithDates = useMemo(() => 
+    bookings
+      .filter(b => b.status === 'completed' || b.status === 'active')
+      .map(b => ({ created_at: b.created_at, total_value: Number(b.total_value) || 0 })),
+    [bookings]
+  );
+  const { current: weeklyRevenue, growth: revenueGrowth } = useRevenueGrowth(bookingsWithDates, 7);
+  
+  // Calculate real utilization
+  const avgUtilization = useMemo(() => {
+    if (vehicles.length === 0) return 0;
+    const totalUtilization = vehicles.reduce((sum, v) => sum + (v.utilization || 0), 0);
+    return Math.round(totalUtilization / vehicles.length);
+  }, [vehicles]);
 
   // Check localStorage for dismissed recommendation on mount
   useEffect(() => {
@@ -337,11 +355,21 @@ export const MotorIQEnhanced = () => {
           <Card className="card-module p-4 sm:p-6">
             <div className="flex items-center justify-between mb-2">
               <div className="p-3 bg-primary/10 rounded-lg">
-                <TrendingUp className="h-5 w-5 text-primary" />
+                {revenueGrowth !== null && revenueGrowth >= 0 ? (
+                  <TrendingUp className="h-5 w-5 text-primary" />
+                ) : revenueGrowth !== null ? (
+                  <TrendingDown className="h-5 w-5 text-destructive" />
+                ) : (
+                  <TrendingUp className="h-5 w-5 text-primary" />
+                )}
               </div>
-              <Badge className="bg-success/20 text-success">+8.2%</Badge>
+              {revenueGrowth !== null && (
+                <Badge className={`${revenueGrowth >= 0 ? 'bg-success/20 text-success' : 'bg-destructive/20 text-destructive'}`}>
+                  {revenueGrowth >= 0 ? '+' : ''}{revenueGrowth}%
+                </Badge>
+              )}
             </div>
-            <div className="text-2xl font-bold mb-1">$47,230</div>
+            <div className="text-2xl font-bold mb-1">${weeklyRevenue.toLocaleString()}</div>
             <div className="text-sm text-muted-foreground">Total Fleet Revenue</div>
             <div className="text-xs text-muted-foreground mt-1">This week</div>
           </Card>
@@ -363,7 +391,7 @@ export const MotorIQEnhanced = () => {
               <div className="p-3 bg-primary/10 rounded-lg">
                 <Brain className="h-5 w-5 text-primary" />
               </div>
-              <Badge className="bg-primary/20 text-primary">78%</Badge>
+              <Badge className="bg-primary/20 text-primary">{avgUtilization}%</Badge>
             </div>
             <div className="text-2xl font-bold mb-1">Average</div>
             <div className="text-sm text-muted-foreground">Fleet Utilization</div>
