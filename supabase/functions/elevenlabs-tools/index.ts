@@ -369,6 +369,115 @@ function generateRequestId(): string {
   return `req_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
+// ============================================================
+// VOICE-FRIENDLY FORMATTING HELPERS
+// ============================================================
+
+/**
+ * Formats a number using words (thousand, million, billion) for natural speech
+ * Examples: 1500 -> "1.5 thousand", 2000000 -> "2 million"
+ */
+function formatNumberWords(n: number): string {
+  const absN = Math.abs(n);
+  const sign = n < 0 ? '-' : '';
+  
+  if (absN >= 1_000_000_000) {
+    const val = absN / 1_000_000_000;
+    const formatted = val % 1 === 0 ? val.toString() : val.toFixed(1).replace(/\.0$/, '');
+    return `${sign}${formatted} billion`;
+  }
+  if (absN >= 1_000_000) {
+    const val = absN / 1_000_000;
+    const formatted = val % 1 === 0 ? val.toString() : val.toFixed(1).replace(/\.0$/, '');
+    return `${sign}${formatted} million`;
+  }
+  if (absN >= 1_000) {
+    const val = absN / 1_000;
+    // For values under 10k, use one decimal; above, round to whole
+    const formatted = absN < 10_000 
+      ? (val % 1 === 0 ? val.toString() : val.toFixed(1).replace(/\.0$/, ''))
+      : Math.round(val).toString();
+    return `${sign}${formatted} thousand`;
+  }
+  return `${sign}${Math.round(absN)}`;
+}
+
+/**
+ * Formats a USD amount using words for natural speech
+ * Examples: 1500 -> "$1.5 thousand", 2000000 -> "$2 million", 950 -> "$950"
+ */
+function formatUsdWords(amount: number): string {
+  const absAmount = Math.abs(amount);
+  const sign = amount < 0 ? '-' : '';
+  
+  if (absAmount >= 1_000_000_000) {
+    const val = absAmount / 1_000_000_000;
+    const formatted = val % 1 === 0 ? val.toString() : val.toFixed(1).replace(/\.0$/, '');
+    return `${sign}$${formatted} billion`;
+  }
+  if (absAmount >= 1_000_000) {
+    const val = absAmount / 1_000_000;
+    const formatted = val % 1 === 0 ? val.toString() : val.toFixed(1).replace(/\.0$/, '');
+    return `${sign}$${formatted} million`;
+  }
+  if (absAmount >= 1_000) {
+    const val = absAmount / 1_000;
+    const formatted = absAmount < 10_000 
+      ? (val % 1 === 0 ? val.toString() : val.toFixed(1).replace(/\.0$/, ''))
+      : Math.round(val).toString();
+    return `${sign}$${formatted} thousand`;
+  }
+  return `${sign}$${Math.round(absAmount)}`;
+}
+
+/**
+ * Formats an ISO date string to natural speech format
+ * Example: "2026-02-10" -> "February 10, 2026"
+ */
+function formatDateLong(isoDate: string): string {
+  try {
+    const d = new Date(isoDate);
+    return d.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+  } catch {
+    return isoDate;
+  }
+}
+
+/**
+ * Formats a date range for natural speech
+ * Example: ("2026-02-10", "2026-02-14") -> "February 10 to 14, 2026" or "February 10 to March 2, 2026"
+ */
+function formatDateRange(startIso: string, endIso: string): string {
+  try {
+    const start = new Date(startIso);
+    const end = new Date(endIso);
+    
+    const startMonth = start.toLocaleDateString('en-US', { month: 'long' });
+    const endMonth = end.toLocaleDateString('en-US', { month: 'long' });
+    const startDay = start.getDate();
+    const endDay = end.getDate();
+    const startYear = start.getFullYear();
+    const endYear = end.getFullYear();
+    
+    // Same month and year
+    if (startMonth === endMonth && startYear === endYear) {
+      return `${startMonth} ${startDay} to ${endDay}, ${startYear}`;
+    }
+    // Same year, different months
+    if (startYear === endYear) {
+      return `${startMonth} ${startDay} to ${endMonth} ${endDay}, ${startYear}`;
+    }
+    // Different years
+    return `${startMonth} ${startDay}, ${startYear} to ${endMonth} ${endDay}, ${endYear}`;
+  } catch {
+    return `${startIso} to ${endIso}`;
+  }
+}
+
 // Default user ID for demo/unauthenticated access - can be overridden via DEMO_USER_ID secret
 const HARDCODED_DEMO_USER_ID = '99d902d4-5878-4b59-a108-142bafb1c862';
 
@@ -771,18 +880,18 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         }
         
         const bookingList = filteredBookings.map(b => {
-          const startDate = new Date(b.start_date).toLocaleDateString();
-          const endDate = new Date(b.end_date).toLocaleDateString();
           const vehicleName = b.vehicles ? `${b.vehicles.year} ${b.vehicles.make} ${b.vehicles.model}` : 'Unknown vehicle';
           const customerName = b.customers?.full_name || b.customer_name || 'Unknown';
+          const totalAmount = Number(b.total_value || b.total_amount || 0);
           
           return {
             customer: customerName,
             vehicle: vehicleName,
             location: b.vehicles?.location || 'Miami',
-            dates: `${startDate} to ${endDate}`,
+            dates: formatDateRange(b.start_date, b.end_date),
             status: b.status,
-            total: `$${Number(b.total_value || b.total_amount || 0).toFixed(0)}`,
+            total: formatUsdWords(totalAmount),
+            totalRaw: totalAmount,
             payment: b.payment_status
           };
         });
@@ -792,8 +901,9 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         return {
           count: filteredBookings.length,
           bookings: bookingList,
-          totalRevenue: `$${totalRevenue.toFixed(0)}`,
-          summary: `You have ${filteredBookings.length} bookings${status && status !== 'all' ? ` that are ${status}` : ''}${location ? ` in ${location}` : ''}. Total value: $${totalRevenue.toFixed(0)}.`
+          totalRevenue: formatUsdWords(totalRevenue),
+          totalRevenueRaw: totalRevenue,
+          summary: `You have ${filteredBookings.length} bookings${status && status !== 'all' ? ` that are ${status}` : ''}${location ? ` in ${location}` : ''}. Total value: ${formatUsdWords(totalRevenue)}.`
         };
       }
 
@@ -817,13 +927,15 @@ async function executeFunction(functionName: string, args: Record<string, unknow
           const timeAgo = getTimeAgo(new Date(b.created_at));
           const vehicleName = b.vehicles ? `${b.vehicles.year} ${b.vehicles.make} ${b.vehicles.model}` : 'a vehicle';
           const customerName = b.customers?.full_name || b.customer_name || 'A customer';
+          const amountVal = Number(b.total_value || b.total_amount || 0);
           
           return {
-            description: `${customerName} booked ${vehicleName} for $${Number(b.total_value || b.total_amount || 0).toFixed(0)}`,
+            description: `${customerName} booked ${vehicleName} for ${formatUsdWords(amountVal)}`,
             location: b.vehicles?.location || 'Miami',
             timeAgo,
             status: b.status,
-            amount: `$${Number(b.total_value || b.total_amount || 0).toFixed(0)}`
+            amount: formatUsdWords(amountVal),
+            amountRaw: amountVal
           };
         }) || [];
 
@@ -899,13 +1011,14 @@ async function executeFunction(functionName: string, args: Record<string, unknow
           totalVehicles: vehicles.length,
           activeBookings,
           totalBookings: bookings.length,
-          revenue: totalRevenue,
+          revenue: formatUsdWords(totalRevenue),
+          revenueRaw: totalRevenue,
           averageUtilization: `${avgUtilization.toFixed(0)}%`,
           location: location || 'all',
           timeframe,
           peakSeason: peakSeason?.name || null,
           surgePricing: peakSeason?.surge || 1.0,
-          summary: `${location ? `${location} fleet` : 'Your fleet'} has ${vehicles.length} vehicles with ${activeBookings} active bookings and $${totalRevenue.toFixed(0)} in revenue for the ${timeframe || 'period'}.${peakSeason ? ` Currently in ${peakSeason.name} with ${((peakSeason.surge - 1) * 100).toFixed(0)}% surge pricing recommended.` : ''}`
+          summary: `${location ? `${location} fleet` : 'Your fleet'} has ${vehicles.length} vehicles with ${activeBookings} active bookings and ${formatUsdWords(totalRevenue)} in revenue for the ${timeframe || 'period'}.${peakSeason ? ` Currently in ${peakSeason.name} with ${((peakSeason.surge - 1) * 100).toFixed(0)}% surge pricing recommended.` : ''}`
         };
       }
 
@@ -997,14 +1110,15 @@ async function executeFunction(functionName: string, args: Record<string, unknow
             return {
               location: stats.location,
               vehicleCount: stats.vehicleCount,
-              totalRevenue: `$${stats.totalRevenue.toFixed(0)}`,
+              totalRevenue: formatUsdWords(stats.totalRevenue),
+              totalRevenueRaw: stats.totalRevenue,
               avgUtilization: `${stats.avgUtilization.toFixed(0)}%`,
               avgRate: `$${stats.avgRate.toFixed(0)}`,
               activeBookings: stats.activeBookings || 0,
               peakSeason: stats.peakSeason,
               surgePricing: stats.surgePricing,
               topVehicles: stats.vehicles.slice(0, 5),
-              summary: `${stats.location} has ${stats.vehicleCount} vehicles with $${stats.totalRevenue.toFixed(0)} total revenue, ${stats.avgUtilization.toFixed(0)}% average utilization, and ${stats.activeBookings || 0} active bookings.${stats.peakSeason ? ` Currently in ${stats.peakSeason} peak season.` : ''}`
+              summary: `${stats.location} has ${stats.vehicleCount} vehicles with ${formatUsdWords(stats.totalRevenue)} total revenue, ${stats.avgUtilization.toFixed(0)}% average utilization, and ${stats.activeBookings || 0} active bookings.${stats.peakSeason ? ` Currently in ${stats.peakSeason} peak season.` : ''}`
             };
           }
         }
@@ -1016,13 +1130,14 @@ async function executeFunction(functionName: string, args: Record<string, unknow
           locations: locations.map((l: any) => ({
             location: l.location,
             vehicleCount: l.vehicleCount,
-            totalRevenue: `$${l.totalRevenue.toFixed(0)}`,
+            totalRevenue: formatUsdWords(l.totalRevenue),
+            totalRevenueRaw: l.totalRevenue,
             avgUtilization: `${l.avgUtilization.toFixed(0)}%`,
             avgRate: `$${l.avgRate.toFixed(0)}`,
             activeBookings: l.activeBookings || 0,
             peakSeason: l.peakSeason
           })),
-          summary: `Your fleet spans ${locations.length} location${locations.length > 1 ? 's' : ''}: ${locations.map((l: any) => `${l.location} (${l.vehicleCount} vehicles, $${l.totalRevenue.toFixed(0)} revenue)`).join('; ')}.`
+          summary: `Your fleet spans ${locations.length} location${locations.length > 1 ? 's' : ''}: ${locations.map((l: any) => `${l.location} (${l.vehicleCount} vehicles, ${formatUsdWords(l.totalRevenue)} revenue)`).join('; ')}.`
         };
       }
 
@@ -1323,12 +1438,13 @@ async function executeFunction(functionName: string, args: Record<string, unknow
           : 0;
 
         return { 
-          totalRevenue: `$${totalRevenue.toFixed(0)}`,
+          totalRevenue: formatUsdWords(totalRevenue),
+          totalRevenueRaw: totalRevenue,
           bookingCount: filteredBookings.length,
           avgDailyRate: `$${avgDailyRate.toFixed(0)}`,
           timeframe,
           location: location || 'all',
-          summary: `${timeframe ? `This ${timeframe}` : 'Total'} revenue${location ? ` from ${location}` : ''}: $${totalRevenue.toFixed(0)} across ${filteredBookings.length} completed bookings with an average daily rate of $${avgDailyRate.toFixed(0)}.`
+          summary: `${timeframe ? `This ${timeframe}` : 'Total'} revenue${location ? ` from ${location}` : ''}: ${formatUsdWords(totalRevenue)} across ${filteredBookings.length} completed bookings with an average daily rate of $${avgDailyRate.toFixed(0)}.`
         };
       }
 
@@ -1352,12 +1468,16 @@ async function executeFunction(functionName: string, args: Record<string, unknow
             .order(metric === 'utilization' ? 'utilization' : 'revenue', { ascending: false })
             .limit(limit);
           
-          const performers = vehicles?.map(v => ({
-            name: `${v.year} ${v.make} ${v.model}`,
-            location: v.location,
-            revenue: `$${Number(v.revenue || 0).toFixed(0)}`,
-            utilization: `${v.utilization || 70}%`
-          })) || [];
+          const performers = vehicles?.map(v => {
+            const rev = Number(v.revenue || 0);
+            return {
+              name: `${v.year} ${v.make} ${v.model}`,
+              location: v.location,
+              revenue: formatUsdWords(rev),
+              revenueRaw: rev,
+              utilization: `${v.utilization || 70}%`
+            };
+          }) || [];
           
           return { 
             metric, 
@@ -1378,11 +1498,15 @@ async function executeFunction(functionName: string, args: Record<string, unknow
             .order('lifetime_value', { ascending: false })
             .limit(limit);
           
-          const performers = customers?.map(c => ({
-            name: c.full_name,
-            bookings: c.total_bookings || 0,
-            lifetimeValue: `$${Number(c.lifetime_value || 0).toFixed(0)}`
-          })) || [];
+          const performers = customers?.map(c => {
+            const ltv = Number(c.lifetime_value || 0);
+            return {
+              name: c.full_name,
+              bookings: c.total_bookings || 0,
+              lifetimeValue: formatUsdWords(ltv),
+              lifetimeValueRaw: ltv
+            };
+          }) || [];
           
           return { 
             metric: 'customers', 
@@ -1421,13 +1545,15 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         
         const bookingList = filteredBookings.map(b => {
           const vehicleName = b.vehicles ? `${b.vehicles.year} ${b.vehicles.make} ${b.vehicles.model}` : 'vehicle';
+          const amt = Number(b.total_value || b.total_amount || 0);
           return {
             customer: b.customers ? `${b.customers.first_name} ${b.customers.last_name}` : b.customer_name || 'Unknown',
             vehicle: vehicleName,
             location: b.vehicles?.location || 'Miami',
-            dates: `${new Date(b.start_date).toLocaleDateString()} to ${new Date(b.end_date).toLocaleDateString()}`,
+            dates: formatDateRange(b.start_date, b.end_date),
             status: b.status,
-            total: `$${Number(b.total_value || b.total_amount || 0).toFixed(0)}`
+            total: formatUsdWords(amt),
+            totalRaw: amt
           };
         });
 
@@ -1436,8 +1562,9 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         return { 
           count: filteredBookings.length,
           bookings: bookingList,
-          totalValue: `$${totalValue.toFixed(0)}`,
-          summary: `Found ${filteredBookings.length} bookings${status ? ` with ${status} status` : ''}${location ? ` in ${location}` : ''}${daysRange ? ` in the last ${daysRange} days` : ''}. Total value: $${totalValue.toFixed(0)}.`
+          totalValue: formatUsdWords(totalValue),
+          totalValueRaw: totalValue,
+          summary: `Found ${filteredBookings.length} bookings${status ? ` with ${status} status` : ''}${location ? ` in ${location}` : ''}${daysRange ? ` in the last ${daysRange} days` : ''}. Total value: ${formatUsdWords(totalValue)}.`
         };
       }
 
@@ -1539,14 +1666,16 @@ async function executeFunction(functionName: string, args: Record<string, unknow
           summary: `I couldn't find a customer matching "${customerName}".`
         };
 
+        const ltv = Number(customer.lifetime_value || 0);
         return { 
           customer: {
             name: customer.full_name,
             status: customer.customer_status,
             totalBookings: customer.total_bookings || 0,
-            lifetimeValue: `$${Number(customer.lifetime_value || 0).toFixed(0)}`
+            lifetimeValue: formatUsdWords(ltv),
+            lifetimeValueRaw: ltv
           },
-          summary: `${customer.full_name} is a ${customer.customer_status || 'regular'} customer with ${customer.total_bookings || 0} bookings and $${Number(customer.lifetime_value || 0).toFixed(0)} lifetime value.`
+          summary: `${customer.full_name} is a ${customer.customer_status || 'regular'} customer with ${customer.total_bookings || 0} bookings and ${formatUsdWords(ltv)} lifetime value.`
         };
       }
 
@@ -1606,10 +1735,11 @@ async function executeFunction(functionName: string, args: Record<string, unknow
           demandMultiplier,
           peakSeason: peakSeason?.name || null,
           upcomingBookings,
-          upcomingRevenue: `$${upcomingRevenue.toFixed(0)}`,
+          upcomingRevenue: formatUsdWords(upcomingRevenue),
+          upcomingRevenueRaw: upcomingRevenue,
           summary: peakSeason 
-            ? `${effectiveLocation} is currently in ${peakSeason.name} peak season with a ${((peakSeason.surge - 1) * 100).toFixed(0)}% surge multiplier. You have ${upcomingBookings} bookings worth $${upcomingRevenue.toFixed(0)} coming up.`
-            : `Standard demand period for ${effectiveLocation}. You have ${upcomingBookings} bookings worth $${upcomingRevenue.toFixed(0)} coming up.`
+            ? `${effectiveLocation} is currently in ${peakSeason.name} peak season with a ${((peakSeason.surge - 1) * 100).toFixed(0)}% surge multiplier. You have ${upcomingBookings} bookings worth ${formatUsdWords(upcomingRevenue)} coming up.`
+            : `Standard demand period for ${effectiveLocation}. You have ${upcomingBookings} bookings worth ${formatUsdWords(upcomingRevenue)} coming up.`
         };
       }
 
@@ -1751,7 +1881,8 @@ async function executeFunction(functionName: string, args: Record<string, unknow
           totalVehicles,
           averageRate: `$${avgRate.toFixed(0)}`,
           averageUtilization: `${avgUtilization.toFixed(0)}%`,
-          totalFleetRevenue: `$${totalRevenue.toFixed(0)}`,
+          totalFleetRevenue: formatUsdWords(totalRevenue),
+          totalFleetRevenueRaw: totalRevenue,
           underUtilizedCount: underUtilized.length,
           highPerformerCount: highPerformers.length,
           location: location || 'all',
@@ -1760,7 +1891,8 @@ async function executeFunction(functionName: string, args: Record<string, unknow
           byLocation: Object.entries(byLocation).map(([loc, stats]) => ({
             location: loc,
             vehicleCount: stats.count,
-            revenue: `$${stats.revenue.toFixed(0)}`,
+            revenue: formatUsdWords(stats.revenue),
+            revenueRaw: stats.revenue,
             avgRate: `$${stats.avgRate.toFixed(0)}`
           })),
           topPerformers: highPerformers.slice(0, 3).map(v => ({
@@ -1772,7 +1904,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
           recommendations: underUtilized.length > 0 
             ? `${underUtilized.length} vehicles are under-utilized and may benefit from price adjustments.`
             : 'Fleet pricing looks healthy!',
-          summary: `Your fleet${location ? ` in ${location}` : ''} has ${totalVehicles} vehicles with an average daily rate of $${avgRate.toFixed(0)} and ${avgUtilization.toFixed(0)}% average utilization. Total fleet revenue is $${totalRevenue.toFixed(0)}. ${highPerformers.length} vehicles are performing above 75% utilization, while ${underUtilized.length} are below 50%.${peakSeason ? ` Currently in ${peakSeason.name} peak season.` : ''}`
+          summary: `Your fleet${location ? ` in ${location}` : ''} has ${totalVehicles} vehicles with an average daily rate of $${avgRate.toFixed(0)} and ${avgUtilization.toFixed(0)}% average utilization. Total fleet revenue is ${formatUsdWords(totalRevenue)}. ${highPerformers.length} vehicles are performing above 75% utilization, while ${underUtilized.length} are below 50%.${peakSeason ? ` Currently in ${peakSeason.name} peak season.` : ''}`
         };
       }
 
