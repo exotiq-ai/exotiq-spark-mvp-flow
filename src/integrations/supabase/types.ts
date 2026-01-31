@@ -797,14 +797,18 @@ export type Database = {
       }
       import_batches: {
         Row: {
+          can_retry: boolean | null
+          column_mappings: Json | null
           completed_at: string | null
           created_at: string | null
           entity_type: string
           error_details: Json | null
           failed_count: number | null
+          failed_rows: Json | null
           file_name: string | null
           id: string
           imported_count: number | null
+          original_file_url: string | null
           skipped_count: number | null
           status: string | null
           team_id: string | null
@@ -812,14 +816,18 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          can_retry?: boolean | null
+          column_mappings?: Json | null
           completed_at?: string | null
           created_at?: string | null
           entity_type: string
           error_details?: Json | null
           failed_count?: number | null
+          failed_rows?: Json | null
           file_name?: string | null
           id?: string
           imported_count?: number | null
+          original_file_url?: string | null
           skipped_count?: number | null
           status?: string | null
           team_id?: string | null
@@ -827,14 +835,18 @@ export type Database = {
           user_id: string
         }
         Update: {
+          can_retry?: boolean | null
+          column_mappings?: Json | null
           completed_at?: string | null
           created_at?: string | null
           entity_type?: string
           error_details?: Json | null
           failed_count?: number | null
+          failed_rows?: Json | null
           file_name?: string | null
           id?: string
           imported_count?: number | null
+          original_file_url?: string | null
           skipped_count?: number | null
           status?: string | null
           team_id?: string | null
@@ -1317,6 +1329,59 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      onboarding_progress: {
+        Row: {
+          completed_at: string | null
+          current_step: number
+          form_data: Json | null
+          id: string
+          last_activity_at: string | null
+          onboarding_type: string | null
+          referral_code: string | null
+          source: string | null
+          started_at: string | null
+          steps_completed: number[] | null
+          team_id: string | null
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          current_step?: number
+          form_data?: Json | null
+          id?: string
+          last_activity_at?: string | null
+          onboarding_type?: string | null
+          referral_code?: string | null
+          source?: string | null
+          started_at?: string | null
+          steps_completed?: number[] | null
+          team_id?: string | null
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          current_step?: number
+          form_data?: Json | null
+          id?: string
+          last_activity_at?: string | null
+          onboarding_type?: string | null
+          referral_code?: string | null
+          source?: string | null
+          started_at?: string | null
+          steps_completed?: number[] | null
+          team_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "onboarding_progress_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       onboarding_responses: {
         Row: {
