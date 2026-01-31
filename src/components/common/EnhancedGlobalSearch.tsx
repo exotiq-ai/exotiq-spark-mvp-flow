@@ -217,7 +217,8 @@ export const EnhancedGlobalSearch = () => {
     bookings
       .filter(b =>
         b.customer_name?.toLowerCase().includes(query) ||
-        b.status?.toLowerCase().includes(query)
+        b.status?.toLowerCase().includes(query) ||
+        b.vehicle_name?.toLowerCase().includes(query)
       )
       .slice(0, 5)
       .forEach(b => {
@@ -227,7 +228,7 @@ export const EnhancedGlobalSearch = () => {
           title: b.customer_name || "Unknown Customer",
           subtitle: `${new Date(b.start_date).toLocaleDateString()} - ${b.status}`,
           icon: Calendar,
-          action: () => navigate("/dashboard?module=book"),
+          action: () => navigate(`/dashboard?module=book&bookingId=${b.id}`),
           badge: b.status
         });
       });

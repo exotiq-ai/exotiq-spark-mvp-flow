@@ -407,10 +407,10 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
                               <HoverCardTrigger asChild>
                                 <div 
                                   className="text-[9px] sm:text-[10px] px-1 py-0.5 rounded truncate cursor-pointer hover:brightness-110 transition-all"
-                                  style={{ backgroundColor: `${vehicleColor}20`, color: vehicleColor, borderLeft: `2px solid ${vehicleColor}` }}
+                                  style={{ backgroundColor: `${vehicleColor || '#888'}20`, color: vehicleColor || '#888', borderLeft: `2px solid ${vehicleColor || '#888'}` }}
                                   onClick={(e) => { e.stopPropagation(); handleBookingClick(booking.id); }}
                                 >
-                                  {vehicle?.name?.split(' ').slice(-1)[0] || 'Booking'}
+                                  {vehicle?.name?.split(' ').slice(-1)[0] || booking.vehicle_name?.split(' ').slice(-1)[0] || 'Booking'}
                                 </div>
                               </HoverCardTrigger>
                               <HoverCardContent 

@@ -117,13 +117,18 @@ export const BookEnhanced = () => {
     }
   };
 
-  const getVehicleDisplay = (vehicleId: string) => {
-    const vehicle = vehicles.find(v => v.id === vehicleId);
-    if (!vehicle) {
-      // Fallback for mock data
-      return vehicleId === 'f067336b-a039-429b-9d64-a17b6cce06c7' ? 'Audi S8 Plus' : 'Unknown Vehicle';
+  // Updated to accept booking object and fall back to vehicle_name for imported bookings
+  const getVehicleDisplay = (booking: Booking) => {
+    const vehicle = vehicles.find(v => v.id === booking.vehicle_id);
+    if (vehicle) {
+      return `${vehicle.year} ${vehicle.make} ${vehicle.model}`;
     }
-    return `${vehicle.year} ${vehicle.make} ${vehicle.model}`;
+    // Fall back to stored vehicle_name from import
+    if (booking.vehicle_name) {
+      return booking.vehicle_name;
+    }
+    // Fallback for mock data
+    return booking.vehicle_id === 'f067336b-a039-429b-9d64-a17b6cce06c7' ? 'Audi S8 Plus' : 'Unknown Vehicle';
   };
 
   // Find next confirmed booking starting from now (sorted by start_date)
@@ -275,10 +280,20 @@ export const BookEnhanced = () => {
                   <div className="min-w-0 flex-1">
                     <p className="font-medium truncate">{booking.customer_name}</p>
                     <p className="text-sm text-muted-foreground truncate">
-                      {getVehicleDisplay(booking.vehicle_id)} - {formatDate(booking.start_date)}
+                      {getVehicleDisplay(booking)} - {formatDate(booking.start_date)}
                     </p>
                   </div>
                   <div className="flex gap-2 flex-shrink-0 ml-3">
+                    <Button 
+                      size="sm" 
+                      variant="ghost"
+                      onClick={() => {
+                        setSelectedBooking(booking);
+                        setShowBookingDetails(true);
+                      }}
+                    >
+                      View
+                    </Button>
                     <Button 
                       size="sm" 
                       variant="outline" 
@@ -319,17 +334,17 @@ export const BookEnhanced = () => {
                 <VehicleThumbnail
                   vehicleName={(() => {
                     const vehicle = vehicles.find(v => v.id === nextBooking.vehicle_id);
-                    return vehicle ? vehicle.name : 'Unknown Vehicle';
+                    return vehicle ? vehicle.name : nextBooking.vehicle_name || 'Unknown Vehicle';
                   })()}
                   size="lg"
-                  onClick={() => handleVehicleClick(nextBooking.vehicle_id, nextBooking.end_date)}
+                  onClick={() => nextBooking.vehicle_id && handleVehicleClick(nextBooking.vehicle_id, nextBooking.end_date)}
                 />
                 <div className="min-w-0 flex-1">
                   <div 
                     className="font-semibold text-base truncate cursor-pointer hover:text-primary transition-colors"
-                    onClick={() => handleVehicleClick(nextBooking.vehicle_id, nextBooking.end_date)}
+                    onClick={() => nextBooking.vehicle_id && handleVehicleClick(nextBooking.vehicle_id, nextBooking.end_date)}
                   >
-                    {getVehicleDisplay(nextBooking.vehicle_id)}
+                    {getVehicleDisplay(nextBooking)}
                   </div>
                   <div className="text-sm text-muted-foreground truncate">{nextBooking.customer_name}</div>
                 </div>
@@ -420,9 +435,9 @@ export const BookEnhanced = () => {
               >
                 {/* Vehicle Avatar */}
                 <VehicleThumbnail
-                  vehicleName={getVehicleDisplay(booking.vehicle_id)}
+                  vehicleName={getVehicleDisplay(booking)}
                   size="avatar"
-                  onClick={() => handleVehicleClick(booking.vehicle_id)}
+                  onClick={() => booking.vehicle_id && handleVehicleClick(booking.vehicle_id)}
                   className="flex-shrink-0 mt-0.5"
                 />
 
@@ -432,9 +447,9 @@ export const BookEnhanced = () => {
                   <div className="flex items-start justify-between gap-2">
                     <span 
                       className="font-semibold cursor-pointer hover:text-primary transition-colors leading-tight"
-                      onClick={() => handleVehicleClick(booking.vehicle_id)}
+                      onClick={() => booking.vehicle_id && handleVehicleClick(booking.vehicle_id)}
                     >
-                      {getVehicleDisplay(booking.vehicle_id)}
+                      {getVehicleDisplay(booking)}
                     </span>
                     {/* Compact status icon on mobile */}
                     <div className="sm:hidden flex-shrink-0">
@@ -449,7 +464,7 @@ export const BookEnhanced = () => {
                     <AskRariQuickAction
                       variant="icon"
                       className="hidden sm:inline-flex"
-                      prompt={`Tell me about this booking: ${getVehicleDisplay(booking.vehicle_id)} for ${booking.customer_name}. Start: ${formatDate(booking.start_date)}, Status: ${booking.status}, Value: $${Number(booking.total_value).toLocaleString()}`}
+                      prompt={`Tell me about this booking: ${getVehicleDisplay(booking)} for ${booking.customer_name}. Start: ${formatDate(booking.start_date)}, Status: ${booking.status}, Value: $${Number(booking.total_value).toLocaleString()}`}
                     />
                   </div>
                   
