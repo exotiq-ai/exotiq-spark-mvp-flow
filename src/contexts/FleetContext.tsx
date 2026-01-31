@@ -720,6 +720,9 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
+      // Refresh vehicles list to sync state
+      refreshVehicles();
+
       const isFirstVehicle = vehicles.length === 0;
       if (isFirstVehicle) {
         const duration = 2000;
