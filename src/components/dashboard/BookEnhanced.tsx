@@ -41,7 +41,7 @@ type Booking = Tables<"bookings">;
 
 export const BookEnhanced = () => {
   const { bookings, vehicles, customers, createBooking, updateBookingStatus, loading } = useLocationFilteredFleet();
-  const { goToBookingDetails } = useModuleNavigation();
+  const { goToBookingDetails, goToVehicleDetails, goToCustomerProfile, goToPayments } = useModuleNavigation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [showNewBooking, setShowNewBooking] = useState(false);
   const [showBookingDetails, setShowBookingDetails] = useState(false);
@@ -245,7 +245,16 @@ export const BookEnhanced = () => {
         }}
         bookingId={selectedBooking?.id || null}
         onNavigateToModule={(moduleId, context) => {
-          console.log('Navigate to:', moduleId, context);
+          setShowBookingDetails(false);
+          setSelectedBooking(null);
+          
+          if (moduleId === 'motoriq' && context?.vehicleId) {
+            goToVehicleDetails(context.vehicleId);
+          } else if (moduleId === 'core' && context?.customerId) {
+            goToCustomerProfile(context.customerId);
+          } else if (moduleId === 'pulse' && context?.bookingId) {
+            goToPayments(context.bookingId);
+          }
         }}
       />
 
