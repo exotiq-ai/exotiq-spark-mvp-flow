@@ -21,6 +21,7 @@ import Dashboard from "./pages/Dashboard";
 import { SuperAdminDashboard } from "./pages/SuperAdminDashboard";
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
+import TeamMemberOnboarding from "./pages/TeamMemberOnboarding";
 import Welcome from "./pages/Welcome";
 import SignOut from "./pages/SignOut";
 import Reset from "./pages/Reset";
@@ -67,6 +68,11 @@ const AppWithRouter = () => {
           <Route path="/onboarding" element={
             <ProtectedRoute>
               <Onboarding />
+            </ProtectedRoute>
+          } />
+          <Route path="/team-onboarding" element={
+            <ProtectedRoute>
+              <TeamMemberOnboarding />
             </ProtectedRoute>
           } />
           <Route path="/dashboard" element={

@@ -410,6 +410,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
     
     try {
+      // First check if user is an invited team member (not team owner)
+      const { data: teamMembership } = await supabase
+        .from('team_members')
+        .select('team_id, role')
+        .eq('user_id', userId)
+        .limit(1)
+        .maybeSingle();
+
+      // Check if they're a team owner
+      const { data: ownedTeam } = await supabase
+        .from('teams')
+        .select('id')
+        .eq('owner_id', userId)
+        .limit(1)
+        .maybeSingle();
+
+      const isTeamOwner = !!ownedTeam;
+      const isTeamMember = !!teamMembership && !isTeamOwner;
+
       const { data: profile, error } = await supabase
         .from('profiles')
         .select('onboarding_completed')
@@ -418,15 +437,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (error) {
         devError('[Auth] Error checking onboarding status:', error);
-        // On error, default to dashboard rather than getting stuck
         navigate('/dashboard');
         return;
       }
 
       if (profile && profile.onboarding_completed === false) {
-        navigate('/onboarding');
+        // Route to appropriate onboarding based on user type
+        if (isTeamMember) {
+          devLog('[Auth] Invited team member detected, routing to team onboarding');
+          navigate('/team-onboarding');
+        } else {
+          navigate('/onboarding');
+        }
       } else {
-        // If profile doesn't exist or onboarding_completed is true/null, go to dashboard
         navigate('/dashboard');
       }
     } catch (err) {
