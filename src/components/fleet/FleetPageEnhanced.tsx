@@ -5,7 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useLocationFilteredFleet } from '@/hooks/useLocationFilteredFleet';
 import { useFleetTasks } from '@/hooks/useFleetTasks';
@@ -33,6 +35,7 @@ import {
   Camera,
   Plus,
   Upload,
+  Trash2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -47,14 +50,26 @@ interface TeamMember {
   };
 }
 
+interface DeleteConfirmState {
+  open: boolean;
+  vehicleId?: string;
+  vehicleName?: string;
+  isBatch?: boolean;
+}
+
 export const FleetPageEnhanced = () => {
   const isMobile = useIsMobile();
-  const { vehicles, bookings, loading, applyPriceOptimization, refreshData, createVehicle } = useLocationFilteredFleet();
+  const { vehicles, bookings, loading, applyPriceOptimization, refreshData, createVehicle, deleteVehicle, deleteVehicles } = useLocationFilteredFleet();
   const { tasks, myTasks, unassignedTasks, createTask, updateTaskStatus, claimTask } = useFleetTasks();
   const { updateOpsStatus } = useVehicleOpsStatus();
   const { photoCountByVehicle } = useVehiclePhotos({ realtime: false });
   const { currentTeam } = useTeam();
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+
+  // Selection state for batch operations
+  const [selectedVehicleIds, setSelectedVehicleIds] = useState<Set<string>>(new Set());
+  const [deleteConfirm, setDeleteConfirm] = useState<DeleteConfirmState>({ open: false });
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Fetch team members
   useEffect(() => {
@@ -190,6 +205,60 @@ export const FleetPageEnhanced = () => {
     await updateTaskStatus(taskId, 'completed');
   };
 
+  // Selection handlers
+  const handleSelectVehicle = (vehicleId: string, selected: boolean) => {
+    setSelectedVehicleIds(prev => {
+      const next = new Set(prev);
+      if (selected) {
+        next.add(vehicleId);
+      } else {
+        next.delete(vehicleId);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedVehicleIds(new Set(filteredVehicles.map(v => v.id)));
+    } else {
+      setSelectedVehicleIds(new Set());
+    }
+  };
+
+  // Delete handlers
+  const handleDeleteVehicle = (vehicle: any) => {
+    setDeleteConfirm({
+      open: true,
+      vehicleId: vehicle.id,
+      vehicleName: vehicle.name,
+      isBatch: false,
+    });
+  };
+
+  const handleBatchDelete = () => {
+    if (selectedVehicleIds.size === 0) return;
+    setDeleteConfirm({
+      open: true,
+      isBatch: true,
+    });
+  };
+
+  const confirmDelete = async () => {
+    setIsDeleting(true);
+    try {
+      if (deleteConfirm.isBatch) {
+        await deleteVehicles(Array.from(selectedVehicleIds));
+        setSelectedVehicleIds(new Set());
+      } else if (deleteConfirm.vehicleId) {
+        await deleteVehicle(deleteConfirm.vehicleId);
+      }
+    } finally {
+      setIsDeleting(false);
+      setDeleteConfirm({ open: false });
+    }
+  };
+
   // Prepare vehicles for PhotoHubTab
   const vehiclesForPhotos = useMemo(() => {
     return vehicles.map(v => ({
@@ -291,16 +360,41 @@ export const FleetPageEnhanced = () => {
             </Card>
           )}
 
-          {/* Filters */}
-          <FleetFilters
-            filters={filters}
-            onFiltersChange={setFilters}
-            viewMode={viewMode}
-            onViewModeChange={setViewMode}
-            vehicleCount={vehicles.length}
-            filteredCount={filteredVehicles.length}
-            isOpsMode={isOpsMode}
-          />
+          {/* Filters + Batch Actions */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <FleetFilters
+              filters={filters}
+              onFiltersChange={setFilters}
+              viewMode={viewMode}
+              onViewModeChange={setViewMode}
+              vehicleCount={vehicles.length}
+              filteredCount={filteredVehicles.length}
+              isOpsMode={isOpsMode}
+            />
+            
+            {/* Batch Actions - show when vehicles are selected */}
+            {!isOpsMode && selectedVehicleIds.size > 0 && (
+              <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 border">
+                <Checkbox
+                  checked={selectedVehicleIds.size === filteredVehicles.length}
+                  onCheckedChange={handleSelectAll}
+                  aria-label="Select all vehicles"
+                />
+                <span className="text-sm text-muted-foreground">
+                  {selectedVehicleIds.size} selected
+                </span>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleBatchDelete}
+                  disabled={isDeleting}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Selected
+                </Button>
+              </div>
+            )}
+          </div>
 
           {/* Vehicle Grid/List */}
           {filteredVehicles.length === 0 ? (
@@ -335,7 +429,10 @@ export const FleetPageEnhanced = () => {
                     onCreateTask={(v) => setTaskVehicle(v)}
                     onViewDetails={(v) => setDetailsVehicle(v)}
                     onStatusChange={handleStatusChange}
+                    onDelete={handleDeleteVehicle}
                     isOpsMode={isOpsMode}
+                    isSelected={selectedVehicleIds.has(vehicle.id)}
+                    onSelectChange={!isOpsMode ? handleSelectVehicle : undefined}
                   />
                 ))}
               </AnimatePresence>
@@ -419,6 +516,23 @@ export const FleetPageEnhanced = () => {
           status: detailsVehicle?.status,
           dailyRate: detailsVehicle?.current_rate,
         }}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmationDialog
+        open={deleteConfirm.open}
+        onOpenChange={(open) => !open && setDeleteConfirm({ open: false })}
+        title={deleteConfirm.isBatch 
+          ? `Delete ${selectedVehicleIds.size} Vehicle${selectedVehicleIds.size !== 1 ? 's' : ''}?`
+          : `Delete ${deleteConfirm.vehicleName}?`
+        }
+        description={deleteConfirm.isBatch
+          ? `This will permanently delete ${selectedVehicleIds.size} vehicle${selectedVehicleIds.size !== 1 ? 's' : ''} from your fleet. This action cannot be undone.`
+          : `This will permanently delete ${deleteConfirm.vehicleName} from your fleet. This action cannot be undone.`
+        }
+        confirmText={isDeleting ? "Deleting..." : "Delete"}
+        onConfirm={confirmDelete}
+        variant="destructive"
       />
     </div>
   );

@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { VehicleThumbnail } from '@/components/common/VehicleThumbnail';
 import { 
   MoreHorizontal, 
@@ -19,6 +20,7 @@ import {
   Loader2,
   ChevronRight,
   Camera,
+  Trash2,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -65,7 +67,10 @@ interface FleetVehicleCardProps {
   onCreateTask: (vehicle: Vehicle) => void;
   onViewDetails: (vehicle: Vehicle) => void;
   onStatusChange: (vehicle: Vehicle, newStatus: OpsStatus) => void;
+  onDelete?: (vehicle: Vehicle) => void;
   isOpsMode?: boolean;
+  isSelected?: boolean;
+  onSelectChange?: (vehicleId: string, selected: boolean) => void;
   className?: string;
 }
 
@@ -90,7 +95,10 @@ export const FleetVehicleCard = ({
   onCreateTask,
   onViewDetails,
   onStatusChange,
+  onDelete,
   isOpsMode = false,
+  isSelected = false,
+  onSelectChange,
   className,
 }: FleetVehicleCardProps) => {
   const [isHovered, setIsHovered] = useState(false);
@@ -138,6 +146,16 @@ export const FleetVehicleCard = ({
           'flex gap-4',
           isOpsMode && 'gap-3'
         )}>
+          {/* Selection Checkbox - only show when onSelectChange is provided */}
+          {onSelectChange && !isOpsMode && (
+            <div className="flex-shrink-0 flex items-start pt-1">
+              <Checkbox
+                checked={isSelected}
+                onCheckedChange={(checked) => onSelectChange(vehicle.id, !!checked)}
+                aria-label={`Select ${vehicle.name}`}
+              />
+            </div>
+          )}
           {/* Thumbnail */}
           <div className="relative flex-shrink-0">
             <VehicleThumbnail 
@@ -213,6 +231,18 @@ export const FleetVehicleCard = ({
                       <DropdownMenuItem onClick={() => onViewDetails(vehicle)}>
                         View Details
                       </DropdownMenuItem>
+                      {onDelete && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem 
+                            onClick={() => onDelete(vehicle)}
+                            className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete Vehicle
+                          </DropdownMenuItem>
+                        </>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>

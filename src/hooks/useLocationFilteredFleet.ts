@@ -172,6 +172,8 @@ export const useLocationFilteredFleet = () => {
     // Pass through all actions
     applyPriceOptimization: fleet.applyPriceOptimization,
     createVehicle: fleet.createVehicle,
+    deleteVehicle: fleet.deleteVehicle,
+    deleteVehicles: fleet.deleteVehicles,
     createBooking: fleet.createBooking,
     updateBookingStatus: fleet.updateBookingStatus,
     updateBookingVehicle: fleet.updateBookingVehicle,
