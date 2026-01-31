@@ -16,6 +16,7 @@ import { CRMSection } from "@/components/dashboard/CRMSection";
 import { VehicleImageDialog } from "@/components/dialogs/VehicleImageDialog";
 import { AskRariQuickAction } from "@/components/common/AskRariQuickAction";
 import { LocationBadge } from "@/components/common/LocationBadge";
+import { DataHealthBadge } from "@/components/common/DataHealthBadge";
 import { SkeletonCard, SkeletonMetric } from "@/components/ui/skeleton-card";
 import { EmptyState, NoBookingsState } from "@/components/common/EmptyState";
 import { VehicleThumbnail } from "@/components/common/VehicleThumbnail";
@@ -277,11 +278,18 @@ export const BookEnhanced = () => {
             <div className="space-y-3">
               {pendingBookings.slice(0, 3).map((booking) => (
                 <div key={booking.id} className="flex items-center justify-between p-3 bg-card rounded-lg">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium truncate">{booking.customer_name}</p>
-                    <p className="text-sm text-muted-foreground truncate">
-                      {getVehicleDisplay(booking)} - {formatDate(booking.start_date)}
-                    </p>
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <DataHealthBadge 
+                      hasCustomer={!!booking.customer_id}
+                      hasVehicle={!!booking.vehicle_id}
+                      size="sm"
+                    />
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{booking.customer_name}</p>
+                      <p className="text-sm text-muted-foreground truncate">
+                        {getVehicleDisplay(booking)} - {formatDate(booking.start_date)}
+                      </p>
+                    </div>
                   </div>
                   <div className="flex gap-2 flex-shrink-0 ml-3">
                     <Button 
@@ -445,12 +453,19 @@ export const BookEnhanced = () => {
                 <div className="flex-1 min-w-0">
                   {/* Line 1: Vehicle Name + Status Icon (mobile) */}
                   <div className="flex items-start justify-between gap-2">
-                    <span 
-                      className="font-semibold cursor-pointer hover:text-primary transition-colors leading-tight"
-                      onClick={() => booking.vehicle_id && handleVehicleClick(booking.vehicle_id)}
-                    >
-                      {getVehicleDisplay(booking)}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <DataHealthBadge 
+                        hasCustomer={!!booking.customer_id}
+                        hasVehicle={!!booking.vehicle_id}
+                        size="sm"
+                      />
+                      <span 
+                        className="font-semibold cursor-pointer hover:text-primary transition-colors leading-tight"
+                        onClick={() => booking.vehicle_id && handleVehicleClick(booking.vehicle_id)}
+                      >
+                        {getVehicleDisplay(booking)}
+                      </span>
+                    </div>
                     {/* Compact status icon on mobile */}
                     <div className="sm:hidden flex-shrink-0">
                       {booking.status === 'confirmed' ? (
