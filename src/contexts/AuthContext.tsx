@@ -296,6 +296,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           return;
         }
 
+        // Handle TOKEN_REFRESHED explicitly - no navigation needed
+        if (event === 'TOKEN_REFRESHED') {
+          devLog('[Auth] Token refreshed, no navigation needed');
+          return;
+        }
+
         // DEFERRED: All Supabase calls go into setTimeout to prevent deadlocks
         if (event === 'SIGNED_IN' && session?.user) {
           const userId = session.user.id;
@@ -341,8 +347,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 if (seq !== authEventSeqRef.current) return;
                 navigate('/dashboard');
               } else {
-                // Check onboarding status
-                checkOnboardingStatus(userId);
+                // GUARD: Only check onboarding if user is NOT already on a protected route
+                // If they're on dashboard/fleet/etc, they're clearly past onboarding - don't disrupt
+                const protectedRoutes = ['/dashboard', '/fleet', '/bookings', '/customers', '/vault', '/pulse', '/settings', '/team'];
+                const isOnProtectedRoute = protectedRoutes.some(route => 
+                  currentPath.startsWith(route)
+                );
+                
+                if (!isOnProtectedRoute) {
+                  // Only run onboarding check when coming from login/auth flow
+                  checkOnboardingStatus(userId);
+                } else {
+                  devLog('[Auth] User already on protected route, skipping onboarding check');
+                }
               }
             } catch (err) {
               devError('[Auth] Error in deferred SIGNED_IN handler:', err);
