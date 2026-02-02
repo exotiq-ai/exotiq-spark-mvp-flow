@@ -347,6 +347,7 @@ export const BookEnhanced = () => {
                     const vehicle = vehicles.find(v => v.id === nextBooking.vehicle_id);
                     return vehicle ? vehicle.name : nextBooking.vehicle_name || 'Unknown Vehicle';
                   })()}
+                  imageUrl={vehicles.find(v => v.id === nextBooking.vehicle_id)?.image_url}
                   size="lg"
                   onClick={() => nextBooking.vehicle_id && handleVehicleClick(nextBooking.vehicle_id, nextBooking.end_date)}
                 />
@@ -447,6 +448,7 @@ export const BookEnhanced = () => {
                 {/* Vehicle Avatar */}
                 <VehicleThumbnail
                   vehicleName={getVehicleDisplay(booking)}
+                  imageUrl={vehicles.find(v => v.id === booking.vehicle_id)?.image_url}
                   size="avatar"
                   onClick={() => booking.vehicle_id && handleVehicleClick(booking.vehicle_id)}
                   className="flex-shrink-0 mt-0.5"

@@ -54,7 +54,7 @@ export const InspectionsTab = ({ vehicles }: InspectionsTabProps) => {
         .from('vehicle_inspections')
         .select(`
           *,
-          vehicles(id, name, make, model, year, status)
+          vehicles(id, name, make, model, year, status, image_url)
         `)
         .eq('team_id', currentTeam.id)
         .order('created_at', { ascending: false })
@@ -195,7 +195,7 @@ export const InspectionsTab = ({ vehicles }: InspectionsTabProps) => {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <VehicleThumbnail vehicleName={selectedInspectionVehicle.name} size="lg" />
+            <VehicleThumbnail vehicleName={selectedInspectionVehicle.name} imageUrl={selectedInspectionVehicle.image_url} size="lg" />
             <div>
               <h3 className="font-semibold">{selectedInspectionVehicle.name}</h3>
               <p className="text-sm text-muted-foreground">
@@ -331,6 +331,7 @@ export const InspectionsTab = ({ vehicles }: InspectionsTabProps) => {
                 <div className="flex items-center gap-3">
                   <VehicleThumbnail
                     vehicleName={getVehicleDisplayName(inspection.vehicles)}
+                    imageUrl={inspection.vehicles?.image_url}
                     size="avatar"
                     className="flex-shrink-0"
                   />
@@ -414,7 +415,7 @@ export const InspectionsTab = ({ vehicles }: InspectionsTabProps) => {
                     onClick={() => handleVehicleSelect(vehicle)}
                     className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
                   >
-                    <VehicleThumbnail vehicleName={vehicle.name} size="avatar" />
+                    <VehicleThumbnail vehicleName={vehicle.name} imageUrl={vehicle.image_url} size="avatar" />
                     <div className="flex-1 min-w-0">
                       <div className="font-medium truncate">{vehicle.name}</div>
                       <div className="text-sm text-muted-foreground">

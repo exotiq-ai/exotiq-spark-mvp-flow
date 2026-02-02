@@ -218,6 +218,7 @@ export const DamageClaimsSection = () => {
                     <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-3">
                       <VehicleThumbnail 
                         vehicleName={vehicle?.name || ''} 
+                        imageUrl={vehicle?.image_url}
                         size="avatar"
                         onClick={() => handleVehicleClick(claim.vehicle_id)}
                         className="flex-shrink-0"
