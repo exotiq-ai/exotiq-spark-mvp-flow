@@ -429,7 +429,7 @@ export const MotorIQEnhanced = () => {
                 onClick={() => handleEditPricing(vehicle)}
               >
                 <div className="flex items-center gap-4 mb-3">
-                  <VehicleThumbnail vehicleName={vehicle.name} size="sm" />
+                  <VehicleThumbnail vehicleName={vehicle.name} imageUrl={vehicle.image_url} size="sm" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <h4 className="font-semibold group-hover:text-primary transition-colors truncate">
