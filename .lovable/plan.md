@@ -1,170 +1,211 @@
 
-# Fix Vehicle Thumbnails Not Showing Hero Images
 
-## Problem
+# Production-Ready Vehicle Image System
 
-Vehicle thumbnails across multiple dashboard views (MotorIQ Fleet Performance, Bookings, Inspections, Damage Claims) are displaying the generic car icon placeholder instead of the actual hero images stored in the database.
+## Current State Analysis
 
-The screenshot shows the Fleet Performance section where vehicles like "McLaren Artura Spider", "Cadillac Escalade Black", etc. show the placeholder icon, while "Aston Martin Vantage" shows correctly (because it happens to match the static image mapping).
+### What We Have
+| Component | Status | Notes |
+|-----------|--------|-------|
+| **Static Assets** | 50 vehicles | High-quality AI-generated images bundled with app |
+| **Photo Hub** | Working | Bulk upload + AI analysis via Google Vision |
+| **Background Enhancement** | Working | PhotoRoom API for hero photos |
+| **Database Storage** | Partial | Some teams have uploaded photos, some have broken paths |
+| **VehicleThumbnail** | Needs Fix | Not falling back correctly when DB URL fails |
 
-## Root Cause
-
-The `VehicleThumbnail` component has a **cascading resolution system**:
-1. `imageUrl` prop (direct URL) → takes precedence
-2. Static `vehicleImageMap` lookup by name → fallback
-3. Generic car icon → final fallback
-
-The issue is that **multiple components are not passing the `imageUrl` prop** to `VehicleThumbnail`, so it only tries the static mapping. Vehicles not in the static mapping (like "McLaren Artura Spider" or "Cadillac Escalade Black") fall back to the placeholder.
-
-The database confirms that vehicles have `image_url` populated with signed storage URLs from their hero photos.
-
-## Affected Components
-
-| File | Line | Current Code | Missing |
-|------|------|--------------|---------|
-| `MotorIQEnhanced.tsx` | 432 | `<VehicleThumbnail vehicleName={vehicle.name} size="sm" />` | `imageUrl` |
-| `BookEnhanced.tsx` | 345-350 | Complex lookup, no imageUrl | `imageUrl` |
-| `BookEnhanced.tsx` | 448-450 | Only `vehicleName` | `imageUrl` |
-| `InspectionsTab.tsx` | 198 | `vehicleName` only | `imageUrl` |
-| `InspectionsTab.tsx` | 332-334 | Uses joined inspection data | `imageUrl` |
-| `InspectionsTab.tsx` | 417 | `vehicleName` only | `imageUrl` |
-| `DamageClaimsSection.tsx` | 219-221 | Uses found vehicle, no imageUrl | `imageUrl` |
-
-## Solution
-
-Add the `imageUrl` prop to all `VehicleThumbnail` usages, passing `vehicle.image_url` from the vehicle objects which are already available in each context.
+### Database Image URL State
+| Team | Vehicles | Valid URLs | Broken Paths |
+|------|----------|------------|--------------|
+| Exotiq (demo) | 56 | 1 | 55 (mix of /src/ and /lovable-uploads/) |
+| G's Cars | 50 | 0 | 49 (broken paths) |
+| J Davidson's Fleet | 9 | 9 | 0 (all valid signed URLs) |
+| New tenants | 0-1 | 0 | 0 (start fresh) |
 
 ---
 
-## Technical Implementation
+## Strategic Decision: Two-Tier Image System
 
-### File 1: `src/components/dashboard/MotorIQEnhanced.tsx`
+For a production fleet management app, we need a system that works for:
+1. **Demo accounts** - Pre-populated with professional vehicle imagery
+2. **New tenants** - Clean slate, guided to upload their own photos
+3. **All tenants** - Graceful fallbacks when images are missing
 
-**Line 432** - Fleet Performance vehicle cards:
-```tsx
-// Before:
-<VehicleThumbnail vehicleName={vehicle.name} size="sm" />
+### Recommended Architecture
 
-// After:
-<VehicleThumbnail 
-  vehicleName={vehicle.name} 
-  imageUrl={vehicle.image_url} 
-  size="sm" 
-/>
+```text
+┌─────────────────────────────────────────────────────────────┐
+│                    IMAGE RESOLUTION FLOW                     │
+└─────────────────────────────────────────────────────────────┘
+
+Request for Vehicle Image
+         │
+         ▼
+┌────────────────────┐
+│ 1. Database URL    │ ← vehicle.image_url or vehicle_photos.hero
+│    (User Uploads)  │
+└────────┬───────────┘
+         │ If valid https:// URL
+         ▼
+    [Display Image]
+         │
+         │ If null, broken, or error
+         ▼
+┌────────────────────┐
+│ 2. AI-Generated    │ ← Optional: Generate on-demand for make/model
+│    Placeholder     │   (Phase 2 - not essential for launch)
+└────────┬───────────┘
+         │
+         │ If not implemented or fails
+         ▼
+┌────────────────────┐
+│ 3. Static Mapping  │ ← vehicleImageMap[name] (50 vehicles)
+│    (Bundled Assets)│
+└────────┬───────────┘
+         │
+         │ If no match
+         ▼
+┌────────────────────┐
+│ 4. Generic Icon    │ ← Car icon placeholder
+│    (Final Fallback)│
+└────────────────────┘
 ```
 
-### File 2: `src/components/dashboard/BookEnhanced.tsx`
+---
 
-**Lines 345-352** - Next booking feature card:
+## Implementation Plan
+
+### Phase 1: Fix Immediate Issues (Required for Launch)
+
+#### 1.1 Update VehicleThumbnail with Smart Fallback
+
+**File:** `src/components/common/VehicleThumbnail.tsx`
+
+Current behavior only tries once and shows placeholder. New behavior:
+
 ```tsx
-// Before:
-<VehicleThumbnail
-  vehicleName={(() => {
-    const vehicle = vehicles.find(v => v.id === nextBooking.vehicle_id);
-    return vehicle ? vehicle.name : nextBooking.vehicle_name || 'Unknown Vehicle';
-  })()}
-  size="lg"
-  onClick={...}
-/>
+// State to track fallback chain
+const [usingFallback, setUsingFallback] = useState(false);
+const [imageError, setImageError] = useState(false);
 
-// After - also pass imageUrl:
-<VehicleThumbnail
-  vehicleName={(() => {
-    const vehicle = vehicles.find(v => v.id === nextBooking.vehicle_id);
-    return vehicle ? vehicle.name : nextBooking.vehicle_name || 'Unknown Vehicle';
-  })()}
-  imageUrl={vehicles.find(v => v.id === nextBooking.vehicle_id)?.image_url}
-  size="lg"
-  onClick={...}
-/>
+// URL validation helper
+const isValidUrl = (url: string | null | undefined): boolean => {
+  if (!url) return false;
+  // Filter out filesystem paths accidentally saved to DB
+  if (url.startsWith('/src/')) return false;
+  if (url.startsWith('/lovable-uploads/') && !url.startsWith('https://')) return false;
+  return true;
+};
+
+// Resolution cascade
+const staticUrl = getVehicleImage(vehicleName);
+const primaryUrl = isValidUrl(providedImageUrl) ? providedImageUrl : null;
+
+const currentImageUrl = usingFallback 
+  ? staticUrl 
+  : (primaryUrl || staticUrl);
+
+// Error handler with fallback
+const handleError = () => {
+  if (!usingFallback && staticUrl && primaryUrl) {
+    // Primary failed, try static mapping
+    setUsingFallback(true);
+    setImageLoaded(false);
+  } else {
+    // Both failed, show placeholder
+    setImageError(true);
+  }
+};
 ```
 
-**Lines 448-453** - Today's bookings list:
-```tsx
-// Before:
-<VehicleThumbnail
-  vehicleName={getVehicleDisplay(booking)}
-  size="avatar"
-  onClick={...}
-  className="flex-shrink-0 mt-0.5"
-/>
+#### 1.2 Clean Up Corrupted Database URLs
 
-// After:
-<VehicleThumbnail
-  vehicleName={getVehicleDisplay(booking)}
-  imageUrl={vehicles.find(v => v.id === booking.vehicle_id)?.image_url}
-  size="avatar"
-  onClick={...}
-  className="flex-shrink-0 mt-0.5"
-/>
+**SQL Migration:**
+
+```sql
+-- Clear filesystem paths that were accidentally saved
+-- These should fall back to static mapping
+UPDATE vehicles 
+SET image_url = NULL, updated_at = NOW()
+WHERE image_url LIKE '/src/assets/%';
+
+-- Log the cleanup for audit
+-- Affects approximately 44 vehicles across teams
 ```
 
-### File 3: `src/components/dashboard/InspectionsTab.tsx`
+This is safe because:
+- Vehicles with matching names will use static assets
+- Vehicles without matches will show placeholder (prompting photo upload)
+- No actual photos are deleted (they were never real URLs)
 
-**Line 198** - Selected vehicle for inspection:
-```tsx
-// Before:
-<VehicleThumbnail vehicleName={selectedInspectionVehicle.name} size="lg" />
+---
 
-// After:
-<VehicleThumbnail 
-  vehicleName={selectedInspectionVehicle.name} 
-  imageUrl={selectedInspectionVehicle.image_url} 
-  size="lg" 
-/>
+### Phase 2: AI-Generated Placeholder Images (Optional Enhancement)
+
+For vehicles that don't have uploaded photos AND don't match static assets, we could generate placeholder images on-demand using Lovable AI.
+
+#### 2.1 Create Edge Function: `generate-vehicle-placeholder`
+
+**New File:** `supabase/functions/generate-vehicle-placeholder/index.ts`
+
+```typescript
+// Uses Lovable AI (google/gemini-2.5-flash-image) to generate
+// a professional vehicle image based on make/model/year
+
+// Prompt template:
+// "Professional showroom photo of a {year} {make} {model}, 
+//  front 3/4 angle view, white studio background, 
+//  high-end automotive photography style"
+
+// Store result in vehicle-photos bucket and update vehicle.image_url
 ```
 
-**Lines 332-336** - Recent inspections list (uses joined data with vehicles):
+#### 2.2 Trigger Generation
+
+Options:
+- **On-demand:** Generate when viewing a vehicle without an image (with loading state)
+- **Background job:** Generate for all vehicles without images periodically
+- **On vehicle creation:** Auto-generate if user skips photo upload
+
+#### 2.3 Cost Considerations
+
+- Lovable AI image generation uses credits
+- Should be opt-in or admin-controlled
+- Consider caching and rate limiting
+
+---
+
+### Phase 3: Production Photo Workflow (Recommended UX)
+
+#### 3.1 For New Tenants
+
+When a new tenant creates their first vehicle:
+
+1. **Add Vehicle Dialog** → Success state offers "Add Photos" action
+2. **Bulk Upload Modal** opens pre-selected to that vehicle
+3. **AI Analysis** classifies and organizes photos
+4. **Hero Selection** → User picks best front 3/4 shot
+5. **Optional Enhancement** → PhotoRoom removes/replaces background
+
+This is already implemented in the Photo Hub system.
+
+#### 3.2 For Demo Account
+
+- Keep static assets bundled (50 vehicles)
+- Clean corrupted DB URLs so static mapping works
+- Demo shows professional imagery immediately
+
+#### 3.3 Empty State Guidance
+
+When a vehicle has no image, show helpful prompt:
+
 ```tsx
-// Before:
-<VehicleThumbnail
-  vehicleName={getVehicleDisplayName(inspection.vehicles)}
-  size="avatar"
-  className="flex-shrink-0"
-/>
-
-// After - extract image_url from joined vehicle data:
-<VehicleThumbnail
-  vehicleName={getVehicleDisplayName(inspection.vehicles)}
-  imageUrl={inspection.vehicles?.image_url}
-  size="avatar"
-  className="flex-shrink-0"
-/>
-```
-
-**Line 417** - Vehicle selector modal:
-```tsx
-// Before:
-<VehicleThumbnail vehicleName={vehicle.name} size="avatar" />
-
-// After:
-<VehicleThumbnail 
-  vehicleName={vehicle.name} 
-  imageUrl={vehicle.image_url} 
-  size="avatar" 
-/>
-```
-
-### File 4: `src/components/dashboard/DamageClaimsSection.tsx`
-
-**Lines 219-224** - Damage claims list:
-```tsx
-// Before:
-<VehicleThumbnail 
-  vehicleName={vehicle?.name || ''} 
-  size="avatar"
-  onClick={...}
-  className="flex-shrink-0"
-/>
-
-// After:
-<VehicleThumbnail 
-  vehicleName={vehicle?.name || ''} 
-  imageUrl={vehicle?.image_url}
-  size="avatar"
-  onClick={...}
-  className="flex-shrink-0"
-/>
+// In VehicleThumbnail fallback state
+<div className="flex flex-col items-center justify-center text-center p-4">
+  <Camera className="h-8 w-8 text-muted-foreground mb-2" />
+  <span className="text-xs text-muted-foreground">
+    Add photos
+  </span>
+</div>
 ```
 
 ---
@@ -173,18 +214,49 @@ Add the `imageUrl` prop to all `VehicleThumbnail` usages, passing `vehicle.image
 
 | File | Changes |
 |------|---------|
-| `src/components/dashboard/MotorIQEnhanced.tsx` | Add `imageUrl={vehicle.image_url}` to Fleet Performance thumbnails |
-| `src/components/dashboard/BookEnhanced.tsx` | Add `imageUrl` lookups to 2 thumbnail instances |
-| `src/components/dashboard/InspectionsTab.tsx` | Add `imageUrl` to 3 thumbnail instances |
-| `src/components/dashboard/DamageClaimsSection.tsx` | Add `imageUrl={vehicle?.image_url}` to damage claim thumbnails |
+| `src/components/common/VehicleThumbnail.tsx` | Add multi-stage fallback logic |
+| Database migration | Clean corrupted `/src/assets/` URLs |
+
+## Optional Files to Create (Phase 2)
+
+| File | Purpose |
+|------|---------|
+| `supabase/functions/generate-vehicle-placeholder/index.ts` | AI image generation |
 
 ---
 
-## Expected Result
+## Technical Notes
 
-After the fix:
-- All vehicle thumbnails will display the actual hero photo from the database
-- Vehicles with uploaded photos will show their custom images
-- The cascading resolution will work correctly: database URL → static mapping → placeholder
-- Consistent image display across all dashboard views
+### Why Not Just Generate All Images with AI?
+
+1. **Quality:** Real photos uploaded by operators will always be better for their specific vehicles
+2. **Cost:** AI generation has credit costs per image
+3. **Accuracy:** AI-generated images are generic representations, not actual fleet vehicles
+4. **Trust:** Customers want to see the actual car they're renting
+
+### Recommended Approach
+
+- **Primary:** Encourage photo uploads via Photo Hub (real images of real vehicles)
+- **Fallback:** Static assets for common luxury vehicles (demo/onboarding)
+- **Optional:** AI-generated placeholders for vehicles with no other option
+
+---
+
+## Summary
+
+**Immediate Fix (Phase 1):**
+1. Update `VehicleThumbnail` to try static mapping when DB URL fails
+2. Clean corrupted filesystem paths from database
+3. Result: All existing vehicles display correctly using cascading fallback
+
+**Future Enhancement (Phase 2):**
+1. AI-generated placeholders for vehicles without any image source
+2. Opt-in feature to generate showroom-style images on demand
+3. Cost-controlled with admin settings
+
+This creates a robust, production-ready image system that:
+- Works for demo accounts with pre-bundled assets
+- Guides new tenants to upload their own photos
+- Gracefully handles missing images at every level
+- Scales to support unlimited tenants and vehicles
 
