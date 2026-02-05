@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,10 +7,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Database } from "@/integrations/supabase/types";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, Loader2, MapPin, CheckCircle2, Camera } from "lucide-react";
+import { AlertCircle, Loader2, MapPin, CheckCircle2, Camera, Sparkles } from "lucide-react";
 import { validators, validateForm } from "@/lib/validation";
 import { toast } from "@/hooks/use-toast";
 import { useTeam } from "@/contexts/TeamContext";
+import { useGenerateHeroImage } from "@/hooks/useGenerateHeroImage";
 
 type VehicleInsert = Omit<Database['public']['Tables']['vehicles']['Insert'], 'user_id'>;
 
@@ -36,6 +37,9 @@ export const AddVehicleDialog = ({ open, onOpenChange, onSubmit, onAddPhotos }: 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [createdVehicle, setCreatedVehicle] = useState<{ id: string; name: string } | null>(null);
+  const [generatingHero, setGeneratingHero] = useState(false);
+  const [heroGenerated, setHeroGenerated] = useState(false);
+  const { generateHero, isGenerating } = useGenerateHeroImage();
   
   // Auto-set location when dialog opens or selectedLocationId changes
   const effectiveLocationId = locationId || (selectedLocationId !== 'all' ? selectedLocationId : locations[0]?.id || '');
@@ -52,6 +56,8 @@ export const AddVehicleDialog = ({ open, onOpenChange, onSubmit, onAddPhotos }: 
     setLocationId("");
     setError(null);
     setCreatedVehicle(null);
+    setGeneratingHero(false);
+    setHeroGenerated(false);
   };
 
   const handleClose = () => {
@@ -111,6 +117,23 @@ export const AddVehicleDialog = ({ open, onOpenChange, onSubmit, onAddPhotos }: 
           title: "Success",
           description: "Vehicle added successfully",
         });
+        
+        // Auto-generate hero image in background
+        setGeneratingHero(true);
+        generateHero({
+          vehicleId: result.id,
+          make,
+          model,
+          year: parseInt(year),
+          color: undefined // We don't have color in this form currently
+        }).then((heroResult) => {
+          setGeneratingHero(false);
+          if (heroResult.success) {
+            setHeroGenerated(true);
+          }
+        }).catch(() => {
+          setGeneratingHero(false);
+        });
       }
     } catch (err: any) {
       // Surface the real error message (e.g., Zod validation or DB error)
@@ -134,6 +157,20 @@ export const AddVehicleDialog = ({ open, onOpenChange, onSubmit, onAddPhotos }: 
           <div className="flex-1 flex flex-col items-center justify-center px-6 py-8 text-center">
             <CheckCircle2 className="h-16 w-16 text-success mb-4" />
             <h3 className="text-xl font-semibold mb-2">Vehicle Added Successfully!</h3>
+            
+            {/* Hero generation status */}
+            {generatingHero ? (
+              <div className="flex items-center gap-2 text-muted-foreground mb-4">
+                <Sparkles className="h-4 w-4 animate-pulse text-primary" />
+                <span className="text-sm">Generating AI preview image...</span>
+              </div>
+            ) : heroGenerated ? (
+              <div className="flex items-center gap-2 text-success mb-4">
+                <Sparkles className="h-4 w-4" />
+                <span className="text-sm">AI preview image created!</span>
+              </div>
+            ) : null}
+            
             <p className="text-muted-foreground mb-6">
               Would you like to add photos for <span className="font-medium text-foreground">{createdVehicle.name}</span>?
             </p>

@@ -41,6 +41,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useVehiclePhotos } from '@/hooks/useVehiclePhotos';
 import { usePhotoAnalysis } from './usePhotoAnalysis';
+import { useGenerateHeroImage } from '@/hooks/useGenerateHeroImage';
 import { HeroEnhancementPreview } from './HeroEnhancementPreview';
 import { OriginalPhotoDialog } from './OriginalPhotoDialog';
 import { RECOMMENDED_ANGLES, ANGLE_LABELS, PHOTO_TYPE_LABELS, VehiclePhoto, DetectedAngle } from './types';
@@ -50,6 +51,11 @@ import { supabase } from '@/integrations/supabase/client';
 interface VehiclePhotoManagerProps {
   vehicleId: string;
   vehicleName: string;
+  /** Vehicle details for AI hero generation */
+  vehicleMake?: string;
+  vehicleModel?: string;
+  vehicleYear?: number;
+  vehicleColor?: string;
   onPhotoClick?: (photo: VehiclePhoto) => void;
   onUploadClick?: () => void;
   compact?: boolean;
@@ -58,12 +64,17 @@ interface VehiclePhotoManagerProps {
 export const VehiclePhotoManager = ({
   vehicleId,
   vehicleName,
+  vehicleMake,
+  vehicleModel,
+  vehicleYear,
+  vehicleColor,
   onPhotoClick,
   onUploadClick,
   compact = false,
 }: VehiclePhotoManagerProps) => {
   const { photos, loading, refetch } = useVehiclePhotos({ vehicleId, realtime: true });
   const { setAsHero, deletePhoto, uploadAndAnalyze } = usePhotoAnalysis();
+  const { generateHeroWithToast, isGenerating } = useGenerateHeroImage();
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [enhanceDialogOpen, setEnhanceDialogOpen] = useState(false);
@@ -238,18 +249,60 @@ export const VehiclePhotoManager = ({
     );
   }
 
+  // Check if we can generate an AI hero (need make and model)
+  const canGenerateHero = vehicleMake && vehicleModel;
+
+  const handleGenerateHero = async () => {
+    if (!canGenerateHero) return;
+    
+    const result = await generateHeroWithToast({
+      vehicleId,
+      make: vehicleMake!,
+      model: vehicleModel!,
+      year: vehicleYear,
+      color: vehicleColor
+    });
+
+    if (result.success) {
+      await refetch();
+    }
+  };
+
   if (photos.length === 0) {
     return (
       <Card className="border-dashed">
         <CardContent className="py-8 text-center">
           <ImageOff className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
           <p className="text-muted-foreground mb-4">No photos for this vehicle</p>
-          {onUploadClick && (
-            <Button onClick={onUploadClick} size="sm">
-              <Upload className="h-4 w-4 mr-2" />
-              Upload Photos
-            </Button>
-          )}
+          <div className="flex flex-col sm:flex-row gap-2 justify-center">
+            {canGenerateHero && (
+              <Button 
+                onClick={handleGenerateHero} 
+                size="sm" 
+                variant="outline"
+                disabled={isGenerating}
+                className="gap-2"
+              >
+                {isGenerating ? (
+                  <>
+                    <Sparkles className="h-4 w-4 animate-pulse" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4" />
+                    Generate AI Preview
+                  </>
+                )}
+              </Button>
+            )}
+            {onUploadClick && (
+              <Button onClick={onUploadClick} size="sm">
+                <Upload className="h-4 w-4 mr-2" />
+                Upload Photos
+              </Button>
+            )}
+          </div>
         </CardContent>
       </Card>
     );

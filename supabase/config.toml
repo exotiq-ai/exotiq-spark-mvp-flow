@@ -86,3 +86,9 @@ verify_jwt = false
 
 [functions.enhance-hero-photo]
 verify_jwt = false
+
+[functions.identify-vehicle]
+verify_jwt = false
+
+[functions.generate-hero-image]
+verify_jwt = false
