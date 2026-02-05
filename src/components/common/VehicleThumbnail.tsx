@@ -24,6 +24,18 @@ interface VehicleThumbnailProps {
   loading?: 'lazy' | 'eager';
 }
 
+/**
+ * Validates if a URL is usable (not a filesystem path accidentally saved to DB)
+ */
+const isValidImageUrl = (url: string | null | undefined): boolean => {
+  if (!url) return false;
+  // Filter out filesystem paths that were accidentally saved to DB
+  if (url.startsWith('/src/')) return false;
+  if (url.startsWith('/lovable-uploads/') && !url.startsWith('https://')) return false;
+  // Accept valid URLs (https, data URIs, or relative paths that aren't filesystem)
+  return true;
+};
+
 const sizeConfig: Record<ThumbnailSize, SizeConfig> = {
   icon: { 
     width: 'w-8', 
@@ -79,11 +91,34 @@ export const VehicleThumbnail = ({
   badge,
   loading = 'lazy',
 }: VehicleThumbnailProps) => {
-  // Cascading image resolution: provided URL → static mapping → fallback
-  const resolvedImageUrl = providedImageUrl || getVehicleImage(vehicleName);
   const config = sizeConfig[size];
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [usingFallback, setUsingFallback] = useState(false);
+
+  // Multi-stage image resolution:
+  // 1. Validate provided URL (filter out filesystem paths)
+  // 2. Try static mapping as fallback
+  // 3. Show placeholder if both fail
+  const staticUrl = getVehicleImage(vehicleName);
+  const primaryUrl = isValidImageUrl(providedImageUrl) ? providedImageUrl : null;
+  
+  // Determine which URL to use based on fallback state
+  const resolvedImageUrl = usingFallback 
+    ? staticUrl 
+    : (primaryUrl || staticUrl);
+
+  // Handle image load error with fallback chain
+  const handleImageError = () => {
+    if (!usingFallback && staticUrl && primaryUrl) {
+      // Primary URL failed, try static mapping
+      setUsingFallback(true);
+      setImageLoaded(false);
+    } else {
+      // Both failed, show placeholder
+      setImageError(true);
+    }
+  };
 
   const containerClasses = cn(
     'relative overflow-hidden bg-muted flex-shrink-0',
@@ -135,7 +170,7 @@ export const VehicleThumbnail = ({
         alt={vehicleName}
         loading={loading}
         onLoad={() => setImageLoaded(true)}
-        onError={() => setImageError(true)}
+        onError={handleImageError}
         className={cn(
           'w-full h-full object-cover transition-all duration-300',
           !imageLoaded && 'opacity-0',
