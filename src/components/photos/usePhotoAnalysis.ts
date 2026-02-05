@@ -57,13 +57,14 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
   }, [user]);
 
   /**
-   * Call the AI analysis Edge Function
+   * Call the AI analysis Edge Function (Gemini-based vehicle identification)
    */
   const analyzePhoto = useCallback(async (
     imageUrl: string,
     filename?: string
   ): Promise<AIAnalysisResult> => {
-    const { data, error } = await supabase.functions.invoke('analyze-vehicle-photo', {
+    // Use the new Gemini-based identify-vehicle function
+    const { data, error } = await supabase.functions.invoke('identify-vehicle', {
       body: { imageUrl, filename }
     });
 

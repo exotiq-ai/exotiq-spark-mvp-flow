@@ -2687,6 +2687,7 @@ export type Database = {
           enhanced_url: string | null
           enhancement_settings: Json | null
           file_size_bytes: number | null
+          generation_prompt: string | null
           height: number | null
           id: string
           is_enhanced: boolean | null
@@ -2697,6 +2698,7 @@ export type Database = {
           photo_type: string | null
           quality_issues: string[] | null
           quality_score: number | null
+          source: string | null
           storage_path: string
           team_id: string | null
           thumbnail_url: string | null
@@ -2716,6 +2718,7 @@ export type Database = {
           enhanced_url?: string | null
           enhancement_settings?: Json | null
           file_size_bytes?: number | null
+          generation_prompt?: string | null
           height?: number | null
           id?: string
           is_enhanced?: boolean | null
@@ -2726,6 +2729,7 @@ export type Database = {
           photo_type?: string | null
           quality_issues?: string[] | null
           quality_score?: number | null
+          source?: string | null
           storage_path: string
           team_id?: string | null
           thumbnail_url?: string | null
@@ -2745,6 +2749,7 @@ export type Database = {
           enhanced_url?: string | null
           enhancement_settings?: Json | null
           file_size_bytes?: number | null
+          generation_prompt?: string | null
           height?: number | null
           id?: string
           is_enhanced?: boolean | null
@@ -2755,6 +2760,7 @@ export type Database = {
           photo_type?: string | null
           quality_issues?: string[] | null
           quality_score?: number | null
+          source?: string | null
           storage_path?: string
           team_id?: string | null
           thumbnail_url?: string | null
