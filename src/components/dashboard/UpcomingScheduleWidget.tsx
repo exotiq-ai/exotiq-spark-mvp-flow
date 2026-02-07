@@ -1,4 +1,3 @@
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar, ArrowRight, Clock } from "lucide-react";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
@@ -15,7 +14,6 @@ export const UpcomingScheduleWidget = ({ onViewCalendar }: UpcomingScheduleWidge
   const todayStart = new Date(now);
   todayStart.setHours(0, 0, 0, 0);
   
-  // Include today's confirmed AND pending bookings and future bookings
   const upcomingBookings = bookings
     .filter(b => {
       const startDate = new Date(b.start_date);
@@ -42,11 +40,10 @@ export const UpcomingScheduleWidget = ({ onViewCalendar }: UpcomingScheduleWidge
   };
   
   return (
-    <Card className="p-6 border border-border shadow-sm">
+    <div>
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Calendar className="h-5 w-5 text-primary" />
-          <h3 className="text-lg font-semibold text-foreground">Upcoming Schedule</h3>
         </div>
         <Button variant="ghost" size="sm" onClick={onViewCalendar}>
           View Calendar
@@ -85,6 +82,6 @@ export const UpcomingScheduleWidget = ({ onViewCalendar }: UpcomingScheduleWidge
           No upcoming bookings
         </div>
       )}
-    </Card>
+    </div>
   );
 };

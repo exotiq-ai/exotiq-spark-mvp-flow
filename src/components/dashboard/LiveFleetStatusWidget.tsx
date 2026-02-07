@@ -1,4 +1,3 @@
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Car, ArrowRight } from "lucide-react";
 import { FleetStatusDonut } from "@/components/charts/FleetStatusDonut";
@@ -10,7 +9,7 @@ interface LiveFleetStatusWidgetProps {
 
 export const LiveFleetStatusWidget = ({ onViewAll }: LiveFleetStatusWidgetProps) => {
   return (
-    <Card className="p-6 border-2 border-border shadow-sm h-full">
+    <div>
       <motion.div 
         className="flex items-center justify-between mb-6"
         initial={{ opacity: 0, y: -10 }}
@@ -21,7 +20,6 @@ export const LiveFleetStatusWidget = ({ onViewAll }: LiveFleetStatusWidgetProps)
           <div className="p-2 bg-primary/10 rounded-xl">
             <Car className="h-5 w-5 text-primary" />
           </div>
-          <h3 className="text-lg font-semibold text-foreground">Live Fleet Status</h3>
         </div>
         <Button variant="ghost" size="sm" onClick={onViewAll} className="group">
           View All
@@ -37,6 +35,6 @@ export const LiveFleetStatusWidget = ({ onViewAll }: LiveFleetStatusWidgetProps)
       >
         <FleetStatusDonut />
       </motion.div>
-    </Card>
+    </div>
   );
 };
