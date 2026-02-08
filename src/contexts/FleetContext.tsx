@@ -240,7 +240,7 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       ] = await fetchWithTimeout(
         Promise.all([
           supabase.from('vehicles').select('*').eq(filterCol, filterVal).order('created_at', { ascending: false }),
-          supabase.from('bookings').select('*').eq(filterCol, filterVal).order('created_at', { ascending: false }),
+          supabase.from('bookings').select('*').eq(filterCol, filterVal).gte('end_date', new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()).order('start_date', { ascending: false }).limit(5000),
           supabase.from('documents').select('*').eq(filterCol, filterVal).order('created_at', { ascending: false }),
           supabase.from('maintenance_schedules').select('*').eq(filterCol, filterVal).order('scheduled_date', { ascending: true }),
           supabase.from('messages').select('*').eq('user_id', userId!).order('created_at', { ascending: false }),
@@ -416,7 +416,9 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     } else {
       query = query.eq('user_id', currentUser.id);
     }
-    query.order('start_date', { ascending: false })
+    query.gte('end_date', new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString())
+      .order('start_date', { ascending: false })
+      .limit(5000)
       .then(({ data }) => setBookings(data || []));
   }, []);
 

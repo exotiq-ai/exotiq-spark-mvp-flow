@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +20,9 @@ import { DataHealthBadge } from "@/components/common/DataHealthBadge";
 import { SkeletonCard, SkeletonMetric } from "@/components/ui/skeleton-card";
 import { EmptyState, NoBookingsState } from "@/components/common/EmptyState";
 import { VehicleThumbnail } from "@/components/common/VehicleThumbnail";
+import { UpcomingBookingsCard } from "@/components/dashboard/UpcomingBookingsCard";
+import { PreviousBookingsCard } from "@/components/dashboard/PreviousBookingsCard";
+import { motion, AnimatePresence } from "framer-motion";
 import { 
   Calendar as CalendarIcon, 
   Clock, 
@@ -295,8 +298,17 @@ export const BookEnhanced = () => {
               <Badge className="bg-warning/20 text-warning border-warning/30">{pendingBookings.length}</Badge>
             </div>
             <div className="space-y-3">
+            <AnimatePresence mode="popLayout">
               {pendingBookings.slice(0, 3).map((booking) => (
-                <div key={booking.id} className="flex items-center justify-between p-3 bg-card rounded-lg">
+                <motion.div
+                  key={booking.id}
+                  layout
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 100, height: 0, marginBottom: 0, paddingTop: 0, paddingBottom: 0 }}
+                  transition={{ type: "spring", damping: 20, stiffness: 300 }}
+                  className="flex items-center justify-between p-3 bg-card rounded-lg"
+                >
                   <div className="flex items-center gap-2 min-w-0 flex-1">
                     <DataHealthBadge 
                       hasCustomer={!!booking.customer_id}
@@ -337,8 +349,9 @@ export const BookEnhanced = () => {
                       Approve
                     </Button>
                   </div>
-                </div>
+                </motion.div>
               ))}
+            </AnimatePresence>
               {pendingBookings.length > 3 && (
                 <p className="text-xs text-muted-foreground text-center pt-2">
                   +{pendingBookings.length - 3} more pending bookings
@@ -553,6 +566,26 @@ export const BookEnhanced = () => {
             )}
           </div>
         </Card>
+
+        {/* Upcoming Bookings - Next 15 Days */}
+        <UpcomingBookingsCard
+          bookings={bookings}
+          vehicles={vehicles}
+          onBookingClick={(booking) => {
+            setSelectedBooking(booking);
+            setShowBookingDetails(true);
+          }}
+        />
+
+        {/* Previous Bookings - Last 30 Days */}
+        <PreviousBookingsCard
+          bookings={bookings}
+          vehicles={vehicles}
+          onBookingClick={(booking) => {
+            setSelectedBooking(booking);
+            setShowBookingDetails(true);
+          }}
+        />
         </TabsContent>
 
         <TabsContent value="calendar">

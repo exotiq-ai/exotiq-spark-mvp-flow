@@ -14,7 +14,8 @@ import {
   Bell, 
   CreditCard, 
   Puzzle, 
-  Database 
+  Database,
+  Banknote
 } from "lucide-react";
 
 // Settings sections
@@ -25,6 +26,7 @@ import { NotificationSettingsSection } from "./NotificationSettingsSection";
 import { SubscriptionSection } from "./SubscriptionSection";
 import { IntegrationsSection } from "./IntegrationsSection";
 import { DataManagementSection } from "./DataManagementSection";
+import { PaymentMethodsSection } from "@/components/settings/PaymentMethodsSection";
 
 interface SettingsTab {
   id: string;
@@ -41,6 +43,7 @@ const allSettingsTabs: SettingsTab[] = [
   { id: "subscription", label: "Billing", icon: CreditCard },
   { id: "integrations", label: "Integrations", icon: Puzzle },
   { id: "data", label: "Data", icon: Database },
+  { id: "payments", label: "Payments", icon: Banknote },
 ];
 
 export const SettingsLayout = () => {
@@ -100,6 +103,8 @@ export const SettingsLayout = () => {
         return <IntegrationsSection />;
       case "data":
         return <DataManagementSection />;
+      case "payments":
+        return <PaymentMethodsSection />;
       default:
         return <MyAccountSection />;
     }
