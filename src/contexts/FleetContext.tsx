@@ -60,6 +60,7 @@ interface FleetContextType {
   updateCustomer: (customerId: string, updates: Partial<Customer>) => Promise<void>;
   addCustomerNote: (customerId: string, note: string, createdBy: string) => Promise<void>;
   blacklistCustomer: (customerId: string, reason: string) => Promise<void>;
+  deleteCustomer: (customerId: string) => Promise<boolean>;
   createInspection: (inspection: Omit<Database['public']['Tables']['vehicle_inspections']['Insert'], 'user_id'>) => Promise<void>;
   createInspectionWithPhotos: (inspection: Omit<Database['public']['Tables']['vehicle_inspections']['Insert'], 'user_id'>, photos: Array<{ photo_url: string; photo_type: string; storage_path: string }>) => Promise<void>;
   createDamageClaim: (claim: Omit<Database['public']['Tables']['damage_claims']['Insert'], 'user_id'>) => Promise<void>;
@@ -796,8 +797,11 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
           description: "Congratulations on your first booking! Your fleet business is off to a great start.",
         });
       } else {
-        toast({ title: "Booking Created", description: "Booking has been successfully created." });
+      toast({ title: "Booking Created", description: "Booking has been successfully created." });
       }
+
+      // Force refresh to show new booking immediately in calendar & pending approval
+      await refreshData(true);
     } catch (error) {
       if (error instanceof z.ZodError) {
         toast({ title: "Validation Error", description: error.errors[0].message, variant: "destructive" });
@@ -1129,6 +1133,43 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Delete a customer from CRM
+  const deleteCustomer = async (customerId: string): Promise<boolean> => {
+    if (!user) return false;
+
+    // Check for active/confirmed bookings
+    const activeBookings = bookings.filter(
+      b => b.customer_id === customerId && (b.status === 'confirmed' || b.status === 'pending')
+    );
+
+    if (activeBookings.length > 0) {
+      toast({
+        title: "Cannot Delete",
+        description: `This customer has ${activeBookings.length} active booking(s). Cancel or complete them first.`,
+        variant: "destructive"
+      });
+      return false;
+    }
+
+    const { error } = await supabase
+      .from('customers')
+      .delete()
+      .eq('id', customerId);
+
+    if (error) {
+      devError('[FleetContext] Error deleting customer:', error);
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      return false;
+    }
+
+    // Optimistically remove from local state
+    setCustomers(prev => prev.filter(c => c.id !== customerId));
+    setCustomerNotes(prev => prev.filter(n => n.customer_id !== customerId));
+
+    toast({ title: "Customer Deleted", description: "Customer has been removed from CRM." });
+    return true;
+  };
+
   // Delete a single vehicle
   const deleteVehicle = async (vehicleId: string): Promise<boolean> => {
     if (!user) return false;
@@ -1235,6 +1276,7 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       updateCustomer,
       addCustomerNote,
       blacklistCustomer,
+      deleteCustomer,
       createInspection,
       createInspectionWithPhotos,
       createDamageClaim,
