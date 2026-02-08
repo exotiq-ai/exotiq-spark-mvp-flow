@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Database } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -37,6 +38,7 @@ export const RecordPaymentDialog = ({
   open,
   onOpenChange,
   booking,
+  onSubmit,
 }: RecordPaymentDialogProps) => {
   const { toast } = useToast();
   const { currentTeam } = useTeam();
@@ -101,6 +103,34 @@ export const RecordPaymentDialog = ({
     }
   };
 
+  const handleManualPayment = async () => {
+    if (formData.amount <= 0) return;
+    setLoading(true);
+
+    try {
+      await onSubmit({
+        booking_id: booking.id,
+        customer_id: booking.customer_id || null,
+        amount: formData.amount,
+        payment_type: formData.payment_type,
+        payment_method: formData.payment_method,
+        payment_status: "completed",
+        notes: formData.notes || null,
+        transaction_date: new Date().toISOString(),
+      });
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Manual payment error:", error);
+      toast({
+        title: "Payment Error",
+        description: error instanceof Error ? error.message : "Failed to record payment",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const isStripePayment = formData.payment_method === "stripe";
 
   const PAYMENT_METHOD_LABELS: Record<string, string> = {
@@ -127,8 +157,8 @@ export const RecordPaymentDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[500px] max-h-[85vh] flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>Collect Payment</DialogTitle>
           <DialogDescription>
             {isStripePayment 
@@ -138,121 +168,123 @@ export const RecordPaymentDialog = ({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
-          {/* Booking Summary */}
-          <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div>
-                <div className="text-muted-foreground">Customer</div>
-                <div className="font-medium">{booking.customer_name}</div>
-              </div>
-              <div>
-                <div className="text-muted-foreground">Total Value</div>
-                <div className="font-medium">${Number(booking.total_value).toLocaleString()}</div>
-              </div>
-              {booking.customer_email && (
-                <div className="col-span-2">
-                  <div className="text-muted-foreground">Email</div>
-                  <div className="font-medium">{booking.customer_email}</div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Payment Method - First so user chooses flow */}
-          <div className="space-y-2">
-            <Label htmlFor="payment_method">Payment Method *</Label>
-            <Select
-              value={formData.payment_method}
-              onValueChange={(value) => setFormData({ ...formData, payment_method: value })}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {acceptedMethods.map(method => (
-                  <SelectItem key={method} value={method}>
-                    {method === "stripe" ? (
-                      <div className="flex items-center gap-2">
-                        <CreditCard className="w-4 h-4 text-primary" />
-                        Stripe Checkout
-                      </div>
-                    ) : (
-                      PAYMENT_METHOD_LABELS[method] || method
-                    )}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Stripe Info Banner */}
-          {isStripePayment && (
-            <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 text-sm">
-              <div className="flex items-start gap-2">
-                <CreditCard className="w-4 h-4 text-primary mt-0.5" />
+        <ScrollArea className="flex-1 min-h-0 max-h-[60vh]">
+          <div className="space-y-4 py-4 pr-4">
+            {/* Booking Summary */}
+            <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
+              <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <p className="font-medium text-primary">Stripe Checkout</p>
-                  <p className="text-muted-foreground text-xs mt-1">
-                    Customer will be redirected to Stripe's secure checkout page to complete payment.
-                  </p>
+                  <div className="text-muted-foreground">Customer</div>
+                  <div className="font-medium">{booking.customer_name}</div>
                 </div>
+                <div>
+                  <div className="text-muted-foreground">Total Value</div>
+                  <div className="font-medium">${Number(booking.total_value).toLocaleString()}</div>
+                </div>
+                {booking.customer_email && (
+                  <div className="col-span-2">
+                    <div className="text-muted-foreground">Email</div>
+                    <div className="font-medium">{booking.customer_email}</div>
+                  </div>
+                )}
               </div>
             </div>
-          )}
 
-          {/* Payment Type */}
-          <div className="space-y-2">
-            <Label htmlFor="payment_type">Payment Type *</Label>
-            <Select
-              value={formData.payment_type}
-              onValueChange={handlePaymentTypeChange}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="deposit">Deposit</SelectItem>
-                <SelectItem value="balance">Balance</SelectItem>
-                <SelectItem value="security_deposit">Security Deposit</SelectItem>
-                <SelectItem value="overage_fee">Overage Fee</SelectItem>
-                <SelectItem value="damage_fee">Damage Fee</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+            {/* Payment Method */}
+            <div className="space-y-2">
+              <Label htmlFor="payment_method">Payment Method *</Label>
+              <Select
+                value={formData.payment_method}
+                onValueChange={(value) => setFormData({ ...formData, payment_method: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {acceptedMethods.map(method => (
+                    <SelectItem key={method} value={method}>
+                      {method === "stripe" ? (
+                        <div className="flex items-center gap-2">
+                          <CreditCard className="w-4 h-4 text-primary" />
+                          Stripe Checkout
+                        </div>
+                      ) : (
+                        PAYMENT_METHOD_LABELS[method] || method
+                      )}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-          {/* Amount */}
-          <div className="space-y-2">
-            <Label htmlFor="amount">Amount *</Label>
-            <div className="relative">
-              <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                id="amount"
-                type="number"
-                min="0"
-                step="0.01"
-                required
-                value={formData.amount}
-                onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })}
-                className="pl-10"
+            {/* Stripe Info Banner */}
+            {isStripePayment && (
+              <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 text-sm">
+                <div className="flex items-start gap-2">
+                  <CreditCard className="w-4 h-4 text-primary mt-0.5" />
+                  <div>
+                    <p className="font-medium text-primary">Stripe Checkout</p>
+                    <p className="text-muted-foreground text-xs mt-1">
+                      Customer will be redirected to Stripe's secure checkout page to complete payment.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Payment Type */}
+            <div className="space-y-2">
+              <Label htmlFor="payment_type">Payment Type *</Label>
+              <Select
+                value={formData.payment_type}
+                onValueChange={handlePaymentTypeChange}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="deposit">Deposit</SelectItem>
+                  <SelectItem value="balance">Balance</SelectItem>
+                  <SelectItem value="security_deposit">Security Deposit</SelectItem>
+                  <SelectItem value="overage_fee">Overage Fee</SelectItem>
+                  <SelectItem value="damage_fee">Damage Fee</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Amount */}
+            <div className="space-y-2">
+              <Label htmlFor="amount">Amount *</Label>
+              <div className="relative">
+                <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="amount"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  required
+                  value={formData.amount}
+                  onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+
+            {/* Notes */}
+            <div className="space-y-2">
+              <Label htmlFor="notes">Notes / Description</Label>
+              <Textarea
+                id="notes"
+                value={formData.notes}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                placeholder="Add any additional notes about this payment..."
+                className="h-20"
               />
             </div>
           </div>
+        </ScrollArea>
 
-          {/* Notes */}
-          <div className="space-y-2">
-            <Label htmlFor="notes">Notes / Description</Label>
-            <Textarea
-              id="notes"
-              value={formData.notes}
-              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              placeholder="Add any additional notes about this payment..."
-              className="h-20"
-            />
-          </div>
-        </div>
-
-        <DialogFooter>
+        <DialogFooter className="flex-shrink-0">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
@@ -279,15 +311,16 @@ export const RecordPaymentDialog = ({
               type="button" 
               disabled={loading || formData.amount <= 0} 
               className="btn-premium"
-              onClick={() => {
-                toast({
-                  title: "Use Stripe for Payments",
-                  description: "Process payments securely through Stripe integration.",
-                  variant: "default",
-                });
-              }}
+              onClick={handleManualPayment}
             >
-              Record Payment
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                `Record $${formData.amount.toFixed(2)} Payment`
+              )}
             </Button>
           )}
         </DialogFooter>
