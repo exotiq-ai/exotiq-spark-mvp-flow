@@ -167,6 +167,7 @@ export const NewBookingDialog = ({
         customer_name: customerName,
         customer_email: customerEmail || null,
         customer_phone: customerPhone || null,
+        customer_id: selectedCustomerId !== 'new' ? selectedCustomerId : null,
         start_date: new Date(startDate).toISOString(),
         end_date: new Date(endDate).toISOString(),
         pickup_location: pickupLocationName,

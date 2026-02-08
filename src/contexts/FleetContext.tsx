@@ -767,7 +767,7 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       const teamId = currentTeam?.id;
       const locationId = selectedLocationId !== 'all' ? selectedLocationId : null;
 
-      const { error } = await supabase
+      const { data: insertedBooking, error } = await supabase
         .from('bookings')
         .insert({
           ...(validated as any),
@@ -775,11 +775,41 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
           team_id: teamId || null,
           pickup_location_id: (validated as any).pickup_location_id || locationId,
           dropoff_location_id: (validated as any).dropoff_location_id || locationId
-        });
+        })
+        .select('id')
+        .single();
 
       if (error) {
         toast({ title: "Error", description: error.message, variant: "destructive" });
         return;
+      }
+
+      // Auto-create CRM customer if this is a new customer (no customer_id provided)
+      if (!booking.customer_id && insertedBooking) {
+        try {
+          const { data: newCustomer } = await supabase
+            .from('customers')
+            .insert({
+              full_name: booking.customer_name,
+              email: booking.customer_email || `${booking.customer_name.toLowerCase().replace(/\s+/g, '.')}@placeholder.com`,
+              phone: booking.customer_phone || null,
+              user_id: user.id,
+              team_id: teamId || null,
+            })
+            .select('id')
+            .single();
+
+          if (newCustomer) {
+            // Link the new customer to the booking
+            await supabase
+              .from('bookings')
+              .update({ customer_id: newCustomer.id })
+              .eq('id', insertedBooking.id);
+          }
+        } catch (customerError) {
+          console.error('Failed to auto-create customer:', customerError);
+          // Non-fatal: booking was still created successfully
+        }
       }
 
       const isFirstBooking = bookings.length === 0;

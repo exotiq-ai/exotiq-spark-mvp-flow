@@ -123,7 +123,7 @@ export const EnhancedBookingDialog = ({
     .reduce((sum, p) => sum + Number(p.amount), 0);
   const balanceDue = Number(booking?.total_value || 0) - totalPaid;
 
-  const vehicleImage = vehicle ? getVehicleImage(vehicle.name) : null;
+  const vehicleImage = vehicle?.image_url || (vehicle ? getVehicleImage(vehicle.name) : null) || null;
   
   // Calculate booking days based on edit mode or original values
   const bookingDays = useMemo(() => {
