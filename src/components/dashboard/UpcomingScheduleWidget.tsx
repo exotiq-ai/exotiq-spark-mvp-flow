@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Calendar, ArrowRight, Clock } from "lucide-react";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
+import { useModuleNavigation } from "@/hooks/useModuleNavigation";
 
 interface UpcomingScheduleWidgetProps {
   onViewCalendar: () => void;
@@ -8,6 +9,7 @@ interface UpcomingScheduleWidgetProps {
 
 export const UpcomingScheduleWidget = ({ onViewCalendar }: UpcomingScheduleWidgetProps) => {
   const { bookings, vehicles } = useLocationFilteredFleet();
+  const { goToBookingDetails } = useModuleNavigation();
   
   // Get next 3 upcoming bookings (pickups and returns for today and future)
   const now = new Date();
@@ -67,7 +69,9 @@ export const UpcomingScheduleWidget = ({ onViewCalendar }: UpcomingScheduleWidge
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground">{booking.customer_name}</p>
+                  <p className="text-xs text-muted-foreground cursor-pointer hover:text-primary transition-colors"
+                    onClick={() => goToBookingDetails(booking.id)}
+                  >{booking.customer_name}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">

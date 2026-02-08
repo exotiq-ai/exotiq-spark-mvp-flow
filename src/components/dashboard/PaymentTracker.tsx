@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useModuleNavigation } from "@/hooks/useModuleNavigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +21,7 @@ type Booking = Database['public']['Tables']['bookings']['Row'];
 
 export const PaymentTracker = () => {
   const { bookings, payments, vehicles, createPayment } = useLocationFilteredFleet();
+  const { goToCustomerProfile } = useModuleNavigation();
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [showRecordPayment, setShowRecordPayment] = useState(false);
   const [showVehicleImage, setShowVehicleImage] = useState(false);
@@ -176,7 +178,9 @@ export const PaymentTracker = () => {
                     >
                       {booking.vehicle?.name}
                     </h4>
-                    <p className="text-sm text-muted-foreground">{booking.customer_name}</p>
+                    <p className={`text-sm text-muted-foreground ${booking.customer_id ? 'cursor-pointer hover:text-primary transition-colors' : ''}`}
+                      onClick={() => booking.customer_id && goToCustomerProfile(booking.customer_id)}
+                    >{booking.customer_name}</p>
                   </div>
                   {getPaymentStatusBadge(booking)}
                 </div>
