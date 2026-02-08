@@ -2956,6 +2956,7 @@ export type Database = {
           color: string | null
           created_at: string | null
           current_rate: number
+          default_mileage_limit: number | null
           id: string
           image_url: string | null
           last_ops_update: string | null
@@ -2964,6 +2965,7 @@ export type Database = {
           location_id: string | null
           make: string
           mileage: number | null
+          mileage_overage_rate: number | null
           model: string
           name: string
           ops_status: string | null
@@ -2981,6 +2983,7 @@ export type Database = {
           color?: string | null
           created_at?: string | null
           current_rate?: number
+          default_mileage_limit?: number | null
           id?: string
           image_url?: string | null
           last_ops_update?: string | null
@@ -2989,6 +2992,7 @@ export type Database = {
           location_id?: string | null
           make: string
           mileage?: number | null
+          mileage_overage_rate?: number | null
           model: string
           name: string
           ops_status?: string | null
@@ -3006,6 +3010,7 @@ export type Database = {
           color?: string | null
           created_at?: string | null
           current_rate?: number
+          default_mileage_limit?: number | null
           id?: string
           image_url?: string | null
           last_ops_update?: string | null
@@ -3014,6 +3019,7 @@ export type Database = {
           location_id?: string | null
           make?: string
           mileage?: number | null
+          mileage_overage_rate?: number | null
           model?: string
           name?: string
           ops_status?: string | null

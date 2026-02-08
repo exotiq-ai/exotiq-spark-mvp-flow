@@ -18,6 +18,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { VehicleImageDialog } from "./VehicleImageDialog";
 import { RecordPaymentDialog } from "./RecordPaymentDialog";
+import { CheckInOutDialog } from "./CheckInOutDialog";
 import { SendMessageDialog } from "./SendMessageDialog";
 import { ChangeVehicleDialog } from "./ChangeVehicleDialog";
 import { EditBookingDialog } from "./EditBookingDialog";
@@ -52,6 +53,8 @@ import {
   CalendarPlus,
   Shield,
   Star,
+  LogIn,
+  LogOut,
   History,
   AlertTriangle,
   X,
@@ -93,6 +96,7 @@ export const EnhancedBookingDialog = ({
   const [showEditBooking, setShowEditBooking] = useState(false);
   const [showLinkCustomer, setShowLinkCustomer] = useState(false);
   const [showLinkVehicle, setShowLinkVehicle] = useState(false);
+  const [showCheckInOut, setShowCheckInOut] = useState<"check-out" | "check-in" | null>(null);
   const [customerNotes, setCustomerNotes] = useState<CustomerNote[]>([]);
   const [newNote, setNewNote] = useState("");
   const [addingNote, setAddingNote] = useState(false);
@@ -359,6 +363,16 @@ export const EnhancedBookingDialog = ({
         vehicleDetails={vehicle ? { make: vehicle.make, model: vehicle.model, year: vehicle.year, status: vehicle.status || "available", dailyRate: Number(vehicle.current_rate) } : undefined}
       />
       {booking && <RecordPaymentDialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog} booking={booking} onSubmit={createPayment} />}
+      {booking && showCheckInOut && (
+        <CheckInOutDialog
+          open={!!showCheckInOut}
+          onOpenChange={(v) => { if (!v) setShowCheckInOut(null); }}
+          booking={booking}
+          mode={showCheckInOut}
+          onComplete={() => refreshData(true)}
+          onCollectPayment={() => { setShowCheckInOut(null); setShowPaymentDialog(true); }}
+        />
+      )}
       <SendMessageDialog open={showMessageDialog} onOpenChange={setShowMessageDialog} bookings={booking ? [booking] : []} onSubmit={sendMessage} />
       <LinkCustomerDialog
         open={showLinkCustomer}
@@ -500,6 +514,30 @@ export const EnhancedBookingDialog = ({
                     >
                       <AlertTriangle className="h-3 w-3 mr-1" />
                       Link Vehicle
+                    </Button>
+                  )}
+                  
+                  {/* Check-Out Button - for confirmed bookings */}
+                  {booking.vehicle_id && (booking.status === "confirmed" || booking.status === "pending") && (
+                    <Button
+                      size="sm"
+                      onClick={() => setShowCheckInOut("check-out")}
+                      className="bg-primary hover:bg-primary/90"
+                    >
+                      <LogOut className="h-3 w-3 mr-1" />
+                      Check Out
+                    </Button>
+                  )}
+
+                  {/* Check-In Button - for active bookings */}
+                  {booking.vehicle_id && booking.status === "active" && (
+                    <Button
+                      size="sm"
+                      onClick={() => setShowCheckInOut("check-in")}
+                      className="bg-success hover:bg-success/90 text-success-foreground"
+                    >
+                      <LogIn className="h-3 w-3 mr-1" />
+                      Check In
                     </Button>
                   )}
                 </div>
