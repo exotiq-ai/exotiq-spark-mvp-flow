@@ -15,6 +15,8 @@ export interface Notification {
   timestamp: string; // Formatted for display
 }
 
+const ALERTS_SESSION_KEY = "fleet-alerts-checked";
+
 export const useNotifications = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -127,6 +129,36 @@ export const useNotifications = () => {
   useEffect(() => {
     fetchNotifications();
   }, [fetchNotifications]);
+
+  // Trigger proactive alerts once per session
+  useEffect(() => {
+    if (!user) return;
+    if (sessionStorage.getItem(ALERTS_SESSION_KEY)) return;
+
+    const triggerAlerts = async () => {
+      try {
+        sessionStorage.setItem(ALERTS_SESSION_KEY, "1");
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData?.session?.access_token;
+        if (!token) return;
+
+        const { error } = await supabase.functions.invoke("check-fleet-alerts", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (error) {
+          console.error("Fleet alerts check failed:", error);
+        } else {
+          // Refresh notifications to pick up any new ones
+          setTimeout(() => fetchNotifications(), 1000);
+        }
+      } catch (err) {
+        console.error("Fleet alerts error:", err);
+      }
+    };
+
+    triggerAlerts();
+  }, [user, fetchNotifications]);
 
   // Real-time subscription
   useEffect(() => {
