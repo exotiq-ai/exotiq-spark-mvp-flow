@@ -591,6 +591,29 @@ export const PhotoReviewQueue = ({ vehicles }: PhotoReviewQueueProps) => {
                       <X className="h-4 w-4 sm:mr-2" />
                       <span className="hidden sm:inline">Reject</span>
                     </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={() => {
+                        const allIds = queue.map(p => p.id);
+                        if (allIds.length === 0) return;
+                        setIsProcessing(true);
+                        batchRejectPhotos(allIds)
+                          .then(result => {
+                            if (result.failed > 0) {
+                              toast.warning(`Rejected ${result.success}, ${result.failed} failed`);
+                            } else {
+                              toast.success(`Rejected all ${result.success} photos`);
+                            }
+                            setSelectedPhotoIds(new Set());
+                          })
+                          .catch(() => toast.error('Reject all failed'))
+                          .finally(() => setIsProcessing(false));
+                      }}
+                      disabled={queue.length === 0 || isProcessing}
+                    >
+                      <X className="h-4 w-4 sm:mr-2" />
+                      <span className="hidden sm:inline">Reject All</span>
+                    </Button>
                   </div>
                 </div>
               </div>

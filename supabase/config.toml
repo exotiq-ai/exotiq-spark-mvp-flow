@@ -92,3 +92,6 @@ verify_jwt = false
 
 [functions.generate-hero-image]
 verify_jwt = false
+
+[functions.cleanup-unmatched-photos]
+verify_jwt = false
