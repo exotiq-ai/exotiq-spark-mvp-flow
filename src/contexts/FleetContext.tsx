@@ -1030,6 +1030,7 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
+      await refreshData();
       toast({ title: "Customer Added", description: "Customer has been successfully added." });
     } catch (error) {
       if (error instanceof z.ZodError) {
