@@ -784,31 +784,61 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      // Auto-create CRM customer if this is a new customer (no customer_id provided)
+      // Auto-create or link CRM customer
       if (!booking.customer_id && insertedBooking) {
         try {
-          const { data: newCustomer } = await supabase
-            .from('customers')
-            .insert({
-              full_name: booking.customer_name,
-              email: booking.customer_email || `${booking.customer_name.toLowerCase().replace(/\s+/g, '.')}@placeholder.com`,
-              phone: booking.customer_phone || null,
-              user_id: user.id,
-              team_id: teamId || null,
-            })
-            .select('id')
-            .single();
+          // Check for existing customer by email or name to prevent duplicates
+          let existingCustomerId: string | null = null;
+          
+          if (booking.customer_email) {
+            const { data: existing } = await supabase
+              .from('customers')
+              .select('id')
+              .eq('email', booking.customer_email)
+              .eq('user_id', user.id)
+              .maybeSingle();
+            if (existing) existingCustomerId = existing.id;
+          }
+          
+          if (!existingCustomerId && booking.customer_name) {
+            const { data: existing } = await supabase
+              .from('customers')
+              .select('id')
+              .eq('full_name', booking.customer_name)
+              .eq('user_id', user.id)
+              .maybeSingle();
+            if (existing) existingCustomerId = existing.id;
+          }
 
-          if (newCustomer) {
-            // Link the new customer to the booking
+          if (existingCustomerId) {
+            // Link existing customer to booking
             await supabase
               .from('bookings')
-              .update({ customer_id: newCustomer.id })
+              .update({ customer_id: existingCustomerId })
               .eq('id', insertedBooking.id);
+          } else {
+            // Create new customer
+            const { data: newCustomer } = await supabase
+              .from('customers')
+              .insert({
+                full_name: booking.customer_name,
+                email: booking.customer_email || `${booking.customer_name.toLowerCase().replace(/\s+/g, '.')}@placeholder.com`,
+                phone: booking.customer_phone || null,
+                user_id: user.id,
+                team_id: teamId || null,
+              })
+              .select('id')
+              .single();
+
+            if (newCustomer) {
+              await supabase
+                .from('bookings')
+                .update({ customer_id: newCustomer.id })
+                .eq('id', insertedBooking.id);
+            }
           }
         } catch (customerError) {
-          console.error('Failed to auto-create customer:', customerError);
-          // Non-fatal: booking was still created successfully
+          console.error('Failed to auto-create/link customer:', customerError);
         }
       }
 

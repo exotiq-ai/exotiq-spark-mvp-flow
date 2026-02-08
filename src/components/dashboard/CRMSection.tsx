@@ -21,14 +21,20 @@ import {
 } from "lucide-react";
 import { CustomerProfileDialog } from "@/components/dialogs/CustomerProfileDialog";
 import { AddCustomerDialog } from "@/components/dialogs/AddCustomerDialog";
+import { NewBookingDialog } from "@/components/dialogs/NewBookingDialog";
+import { Database } from "@/integrations/supabase/types";
+
+type Customer = Database['public']['Tables']['customers']['Row'];
 
 export const CRMSection = () => {
-  const { customers, bookings, createCustomer, loading, isAllLocations, currentLocation } = useLocationFilteredFleet();
+  const { customers, bookings, vehicles, createCustomer, createBooking, loading, isAllLocations, currentLocation } = useLocationFilteredFleet();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [showCustomerProfile, setShowCustomerProfile] = useState(false);
   const [showAddCustomer, setShowAddCustomer] = useState(false);
+  const [showNewBooking, setShowNewBooking] = useState(false);
+  const [prefillCustomer, setPrefillCustomer] = useState<Customer | null>(null);
 
   const filteredCustomers = customers.filter(customer => {
     const matchesSearch = 
@@ -267,6 +273,11 @@ export const CRMSection = () => {
           onOpenChange={setShowCustomerProfile}
           customer={selectedCustomer}
           bookings={bookings.filter(b => b.customer_id === selectedCustomer.id)}
+          onAddBooking={(customer) => {
+            setShowCustomerProfile(false);
+            setPrefillCustomer(customer);
+            setShowNewBooking(true);
+          }}
         />
       )}
 
@@ -274,6 +285,22 @@ export const CRMSection = () => {
         open={showAddCustomer}
         onOpenChange={setShowAddCustomer}
         onSubmit={createCustomer}
+      />
+
+      <NewBookingDialog
+        open={showNewBooking}
+        onOpenChange={(open) => {
+          setShowNewBooking(open);
+          if (!open) setPrefillCustomer(null);
+        }}
+        vehicles={vehicles}
+        onSubmit={createBooking}
+        prefillCustomer={prefillCustomer ? {
+          id: prefillCustomer.id,
+          name: prefillCustomer.full_name,
+          email: prefillCustomer.email,
+          phone: prefillCustomer.phone || undefined,
+        } : undefined}
       />
     </div>
   );

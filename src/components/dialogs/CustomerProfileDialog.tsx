@@ -51,6 +51,7 @@ interface CustomerProfileDialogProps {
   onOpenChange: (open: boolean) => void;
   customer: Customer;
   bookings: Booking[];
+  onAddBooking?: (customer: Customer) => void;
 }
 
 export const CustomerProfileDialog = ({
@@ -58,6 +59,7 @@ export const CustomerProfileDialog = ({
   onOpenChange,
   customer,
   bookings,
+  onAddBooking,
 }: CustomerProfileDialogProps) => {
   const { user } = useAuth();
   const { addCustomerNote, updateCustomer, blacklistCustomer, deleteCustomer, customerNotes } = useFleet();
@@ -254,10 +256,22 @@ export const CustomerProfileDialog = ({
           </TabsContent>
 
           <TabsContent value="bookings" className="space-y-4">
+            {onAddBooking && (
+              <Button onClick={() => onAddBooking(customer)} className="w-full">
+                <Plus className="w-4 h-4 mr-2" />
+                New Booking
+              </Button>
+            )}
             {bookings.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <Car className="w-12 h-12 mx-auto mb-3 opacity-50" />
                 <p>No bookings found</p>
+                {onAddBooking && (
+                  <Button variant="outline" onClick={() => onAddBooking(customer)} className="mt-4">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create First Booking
+                  </Button>
+                )}
               </div>
             ) : (
               <div className="space-y-3">
