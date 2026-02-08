@@ -145,7 +145,23 @@ export const BookEnhanced = () => {
     return bookings.filter(b => b.status === 'pending');
   }, [bookings]);
 
-  const todayBookings = bookings.slice(0, 5);
+  const todayBookings = useMemo(() => {
+    const now = new Date();
+    const todayStart = new Date(now);
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date(now);
+    todayEnd.setHours(23, 59, 59, 999);
+    
+    return bookings.filter(b => {
+      const startDate = new Date(b.start_date);
+      const endDate = new Date(b.end_date);
+      // Starts today OR is actively spanning today
+      return (
+        (startDate >= todayStart && startDate <= todayEnd) ||
+        (startDate <= now && endDate >= now)
+      );
+    }).slice(0, 5);
+  }, [bookings]);
 
   // Calculate live stats
   const todayStats = useMemo(() => {

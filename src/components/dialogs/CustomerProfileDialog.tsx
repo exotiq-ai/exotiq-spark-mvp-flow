@@ -30,6 +30,18 @@ import {
   DollarSign
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Trash2 } from "lucide-react";
 
 type Customer = Database['public']['Tables']['customers']['Row'];
 type Booking = Database['public']['Tables']['bookings']['Row'];
@@ -48,7 +60,7 @@ export const CustomerProfileDialog = ({
   bookings,
 }: CustomerProfileDialogProps) => {
   const { user } = useAuth();
-  const { addCustomerNote, updateCustomer, blacklistCustomer, customerNotes } = useFleet();
+  const { addCustomerNote, updateCustomer, blacklistCustomer, deleteCustomer, customerNotes } = useFleet();
   const [newNote, setNewNote] = useState("");
   const [isAddingNote, setIsAddingNote] = useState(false);
 
@@ -209,6 +221,36 @@ export const CustomerProfileDialog = ({
                 </Button>
               )}
             </div>
+
+            {/* Delete Customer */}
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" className="w-full text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30">
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete Customer
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete Customer</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently remove <strong>{customer.full_name}</strong> from the CRM. Historical bookings will retain the customer name but lose the CRM link. This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={async () => {
+                      const success = await deleteCustomer(customer.id);
+                      if (success) onOpenChange(false);
+                    }}
+                  >
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </TabsContent>
 
           <TabsContent value="bookings" className="space-y-4">

@@ -105,6 +105,8 @@ export type Database = {
           delivery_address: string | null
           delivery_fee: number | null
           deposit_amount: number | null
+          discount_amount: number | null
+          discount_reason: string | null
           dropoff_location: string | null
           dropoff_location_id: string | null
           end_date: string
@@ -145,6 +147,8 @@ export type Database = {
           delivery_address?: string | null
           delivery_fee?: number | null
           deposit_amount?: number | null
+          discount_amount?: number | null
+          discount_reason?: string | null
           dropoff_location?: string | null
           dropoff_location_id?: string | null
           end_date: string
@@ -185,6 +189,8 @@ export type Database = {
           delivery_address?: string | null
           delivery_fee?: number | null
           deposit_amount?: number | null
+          discount_amount?: number | null
+          discount_reason?: string | null
           dropoff_location?: string | null
           dropoff_location_id?: string | null
           end_date?: string

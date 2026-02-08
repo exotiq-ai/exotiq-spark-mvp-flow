@@ -24,7 +24,8 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { Calendar, User, MapPin, Loader2, AlertCircle, Sparkles, UserPlus, ChevronDown, Check } from 'lucide-react';
+import { Calendar, User, MapPin, Loader2, AlertCircle, Sparkles, UserPlus, ChevronDown, Check, DollarSign } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { TablesInsert, Tables } from '@/integrations/supabase/types';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { validators, validateForm } from '@/lib/validation';
@@ -65,6 +66,9 @@ export const NewBookingDialog = ({
   const [customers, setCustomers] = useState<Tables<'customers'>[]>([]);
   const [loadingCustomers, setLoadingCustomers] = useState(false);
   const [aiExpanded, setAiExpanded] = useState(false);
+  const [discountExpanded, setDiscountExpanded] = useState(false);
+  const [discountAmount, setDiscountAmount] = useState('');
+  const [discountReason, setDiscountReason] = useState('');
 
   // Fetch existing customers when dialog opens
   useEffect(() => {
@@ -154,7 +158,9 @@ export const NewBookingDialog = ({
 
     try {
       const days = Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24));
-      const totalValue = Number(selectedVehicle.current_rate) * days;
+      const subtotal = Number(selectedVehicle.current_rate) * days;
+      const discount = Math.min(Number(discountAmount) || 0, subtotal);
+      const totalValue = subtotal - discount;
 
       await onSubmit({
         vehicle_id: vehicleId,
@@ -168,9 +174,11 @@ export const NewBookingDialog = ({
         dropoff_location: dropoffLocation || null,
         daily_rate: selectedVehicle.current_rate,
         total_value: totalValue,
+        discount_amount: discount > 0 ? discount : 0,
+        discount_reason: discount > 0 ? discountReason || null : null,
         notes: notes || null,
         status: 'pending'
-      });
+      } as any);
 
       // Reset form
       setVehicleId('');
@@ -186,6 +194,9 @@ export const NewBookingDialog = ({
       setNotes('');
       setError(null);
       setAiExpanded(false);
+      setDiscountExpanded(false);
+      setDiscountAmount('');
+      setDiscountReason('');
       onOpenChange(false);
       
       toast({
@@ -202,7 +213,11 @@ export const NewBookingDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] max-h-[85vh] flex flex-col p-0">
+      <DialogContent 
+        className="sm:max-w-[500px] max-h-[85vh] flex flex-col p-0"
+        onInteractOutside={(e) => e.preventDefault()}
+        onPointerDownOutside={(e) => e.preventDefault()}
+      >
         <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
           <DialogTitle className="flex items-center space-x-2">
             <Calendar className="h-5 w-5 text-primary" />
@@ -396,6 +411,74 @@ export const NewBookingDialog = ({
                 />
               </div>
             </div>
+
+            {/* Discount Section */}
+            <Collapsible open={discountExpanded} onOpenChange={setDiscountExpanded}>
+              <CollapsibleTrigger asChild>
+                <button className="w-full p-3 rounded-lg bg-muted/30 border border-border flex items-center justify-between hover:bg-muted/50 transition-colors">
+                  <div className="flex items-center gap-2">
+                    <DollarSign className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">Apply Discount</span>
+                    {Number(discountAmount) > 0 && (
+                      <Badge variant="secondary" className="text-xs">-${discountAmount}</Badge>
+                    )}
+                  </div>
+                  <ChevronDown className={cn(
+                    "h-4 w-4 text-muted-foreground transition-transform",
+                    discountExpanded && "rotate-180"
+                  )} />
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="pt-3 space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="discount">Discount ($)</Label>
+                      <div className="relative">
+                        <DollarSign className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="discount"
+                          type="number"
+                          min="0"
+                          step="1"
+                          placeholder="0"
+                          value={discountAmount}
+                          onChange={(e) => setDiscountAmount(e.target.value)}
+                          className="pl-10"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="discount-reason">Reason</Label>
+                      <Select value={discountReason} onValueChange={setDiscountReason}>
+                        <SelectTrigger id="discount-reason">
+                          <SelectValue placeholder="Select reason" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Promotional">Promotional</SelectItem>
+                          <SelectItem value="Military Discount">Military Discount</SelectItem>
+                          <SelectItem value="Employee">Employee</SelectItem>
+                          <SelectItem value="Friends and Family">Friends and Family</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  {selectedVehicle && startDate && endDate && (() => {
+                    const days = Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24));
+                    if (days <= 0) return null;
+                    const subtotal = Number(selectedVehicle.current_rate) * days;
+                    const disc = Math.min(Number(discountAmount) || 0, subtotal);
+                    return (
+                      <div className="flex items-center justify-between text-sm p-2 rounded-lg bg-muted/30">
+                        <span className="text-muted-foreground">Subtotal: ${subtotal.toLocaleString()}</span>
+                        {disc > 0 && <span className="text-destructive">-${disc.toLocaleString()}</span>}
+                        <span className="font-semibold">Total: ${(subtotal - disc).toLocaleString()}</span>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
 
             {/* Locations */}
             <div className="space-y-3">
