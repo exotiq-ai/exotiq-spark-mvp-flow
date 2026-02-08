@@ -1186,7 +1186,40 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
+      // Update booking payment status based on total payments
+      try {
+        const bookingId = payment.booking_id;
+        const { data: allPayments } = await supabase
+          .from('payments')
+          .select('amount, payment_type')
+          .eq('booking_id', bookingId)
+          .eq('payment_status', 'completed');
+
+        const booking = bookings.find(b => b.id === bookingId);
+        if (booking && allPayments) {
+          const totalPaid = allPayments.reduce((sum, p) => sum + Number(p.amount), 0);
+          const totalValue = Number(booking.total_value);
+
+          let newStatus: string;
+          if (totalPaid >= totalValue) {
+            newStatus = 'paid';
+          } else if (payment.payment_type === 'deposit') {
+            newStatus = 'deposit_paid';
+          } else {
+            newStatus = 'partial';
+          }
+
+          await supabase
+            .from('bookings')
+            .update({ payment_status: newStatus })
+            .eq('id', bookingId);
+        }
+      } catch (statusError) {
+        console.error('Failed to update booking payment status:', statusError);
+      }
+
       toast({ title: "Payment Recorded", description: "Payment has been successfully recorded." });
+      await refreshData(true);
     } catch (error) {
       if (error instanceof z.ZodError) {
         toast({ title: "Validation Error", description: error.errors[0].message, variant: "destructive" });

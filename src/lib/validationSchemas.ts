@@ -73,7 +73,7 @@ export const paymentSchema = z.object({
   customer_id: z.string().uuid("Invalid customer ID").optional().or(z.literal('')),
   amount: z.number().positive("Amount must be positive").max(1000000, "Amount too high"),
   payment_type: z.enum(['deposit', 'rental', 'damage', 'refund']),
-  payment_method: z.enum(['card', 'cash', 'bank_transfer', 'other']).optional(),
+  payment_method: z.enum(['card', 'cash', 'bank_transfer', 'credit_card', 'stripe', 'zelle', 'venmo', 'paypal', 'wire', 'other']).optional(),
   notes: z.string().max(1000, "Notes too long").optional().or(z.literal('')),
 });
 
