@@ -1,56 +1,43 @@
 
 
-# Enhance Booking Details in Customer Profile Dialog
+# Fix Payment Collection Dialog: Scrollability, Storage, and Status Tracking
 
-## Problem
+## Summary
 
-In the Customer Profile dialog's Bookings tab, each booking row only shows 4 fields: pickup location, status, start date, and total value. Key information like the vehicle, return date, duration, daily rate, payment status, and notes are missing.
+All payment data is stored in your database's `payments` table, scoped to your tenant account via `team_id`. The fix ensures manual payments actually get saved (currently the button only shows a toast) and that booking statuses update automatically.
 
-## Solution
+## Changes
 
-Expand each booking row in `src/components/dialogs/CustomerProfileDialog.tsx` (lines 278-298) into a detailed card showing all relevant booking information from the database.
+### 1. Make Dialog Scrollable (`RecordPaymentDialog.tsx`)
 
-### Updated Booking Card Layout
+Apply the responsive dialog standard: wrap the form content in a `ScrollArea` with `max-h-[60vh]` so it scrolls on mobile and desktop while keeping the header and footer buttons always visible.
 
-Each booking card will display:
+### 2. Wire Up Manual Payment Save (`RecordPaymentDialog.tsx`)
 
-| Row | Left | Right |
-|-----|------|-------|
-| **Header** | Vehicle name (or "No Vehicle Assigned") | Status badge |
-| **Dates** | Start date - End date (duration in days) | |
-| **Location** | Pickup location -> Dropoff location | |
-| **Pricing** | Daily rate x days | Total value |
-| **Payment** | Payment status badge | |
-| **Notes** | Booking notes (if any) | |
+Replace the placeholder toast on the "Record Payment" button with the actual `onSubmit()` call that saves to the database:
+- Passes: `booking_id`, `customer_id`, `amount`, `payment_type`, `payment_method`, `payment_status: "completed"`, `notes`, `transaction_date`
+- Shows success toast and closes the dialog
 
-### Click Behavior
+### 3. Update Booking Payment Status (`FleetContext.tsx`)
 
-Clicking a booking card will open the `EnhancedBookingDialog` for full management (change vehicle, adjust dates, take payment, etc.), consistent with the app's existing navigation patterns.
+After a payment is inserted into the `payments` table:
+- Query all completed payments for that booking
+- Calculate total paid vs booking's `total_value`
+- Update `booking.payment_status` to:
+  - `"deposit_paid"` if payment type was "deposit"
+  - `"paid"` if total paid >= total value
+  - `"partial"` otherwise
+- Call `refreshData()` so all views update immediately
 
-### File: `src/components/dialogs/CustomerProfileDialog.tsx`
+### 4. Validation Update (`validationSchemas.ts`)
 
-1. Import `EnhancedBookingDialog` and add state for `selectedBooking`
-2. Replace the minimal booking rows (lines 278-298) with expanded cards showing:
-   - **Vehicle**: `booking.vehicle_name` with fallback text
-   - **Dates**: `start_date` to `end_date` with calculated duration
-   - **Locations**: `pickup_location` and `dropoff_location` (if different)
-   - **Pricing**: `daily_rate` per day, `total_value`
-   - **Payment status**: `payment_status` badge (paid/partial/unpaid)
-   - **Delivery**: delivery address and fee if `requires_delivery` is true
-   - **Notes**: `booking.notes` (truncated, expandable)
-3. Add click handler to open `EnhancedBookingDialog` for the clicked booking
-4. Import `useLocationFilteredFleet` to access `vehicles` for resolving vehicle details
-
-### Visual Design
-
-- Cards use the existing `bg-muted/30 border border-primary/10 rounded-lg` style
-- Vehicle name is prominent at top left
-- Dates shown with calendar icon, duration calculated as badge
-- Financial details in a subtle row at bottom
-- Hover state indicates clickability (`cursor-pointer hover:border-primary/30`)
+Expand the `paymentSchema` to accept the additional payment method values (zelle, venmo, paypal, etc.) that tenants can now configure, so validation doesn't reject them.
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| `src/components/dialogs/CustomerProfileDialog.tsx` | Expand booking rows with full details + click-to-open behavior |
+| `src/components/dialogs/RecordPaymentDialog.tsx` | ScrollArea for overflow, wire up manual payment save, loading state |
+| `src/contexts/FleetContext.tsx` | After payment insert: update booking payment_status, call refreshData() |
+| `src/lib/validationSchemas.ts` | Expand payment_method enum to include all accepted methods |
+
