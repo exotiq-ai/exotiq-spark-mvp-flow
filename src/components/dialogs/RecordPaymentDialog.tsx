@@ -30,7 +30,7 @@ import { Database } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useTeam } from "@/contexts/TeamContext";
-import { DollarSign, CreditCard, Loader2, ExternalLink, ChevronDown, Plus, Trash2, Gauge, Receipt } from "lucide-react";
+import { DollarSign, CreditCard, Loader2, ExternalLink, ChevronDown, Plus, Trash2, Gauge, Receipt, Tag } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { differenceInDays } from "date-fns";
 
@@ -60,6 +60,16 @@ const ADJUSTMENT_TYPES = [
   { value: "custom", label: "Custom / Other" },
 ];
 
+const DISCOUNT_REASONS = [
+  { value: "promotional", label: "Promotional" },
+  { value: "military", label: "Military Discount" },
+  { value: "employee", label: "Employee" },
+  { value: "friends_family", label: "Friends and Family" },
+  { value: "loyalty", label: "Loyalty / Repeat Customer" },
+  { value: "manager_override", label: "Manager Override" },
+  { value: "custom", label: "Custom" },
+];
+
 export const RecordPaymentDialog = ({
   open,
   onOpenChange,
@@ -72,6 +82,8 @@ export const RecordPaymentDialog = ({
   const [existingPayments, setExistingPayments] = useState<Payment[]>([]);
   const [adjustmentsOpen, setAdjustmentsOpen] = useState(false);
   const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
+  const [discountAmount, setDiscountAmount] = useState(0);
+  const [discountReason, setDiscountReason] = useState("");
   const [formData, setFormData] = useState({
     payment_type: "deposit",
     amount: booking.deposit_amount || 0,
@@ -220,19 +232,27 @@ export const RecordPaymentDialog = ({
     }
   };
 
+  const finalPaymentAmount = Math.max(0, formData.amount - discountAmount);
+
   const handleManualPayment = async () => {
-    if (formData.amount <= 0) return;
+    if (finalPaymentAmount <= 0) return;
     setLoading(true);
     try {
-      // Build structured notes with adjustments
-      const notesData = adjustments.length > 0
-        ? JSON.stringify({ note: formData.notes, adjustments: adjustments.map(a => ({ type: a.type, description: a.description, amount: a.amount })) })
-        : formData.notes || null;
+      // Build structured notes with adjustments and discount
+      const notesObj: Record<string, any> = {};
+      if (formData.notes) notesObj.note = formData.notes;
+      if (adjustments.length > 0) {
+        notesObj.adjustments = adjustments.map(a => ({ type: a.type, description: a.description, amount: a.amount }));
+      }
+      if (discountAmount > 0) {
+        notesObj.discount = { amount: discountAmount, reason: discountReason || "No reason provided" };
+      }
+      const notesData = Object.keys(notesObj).length > 0 ? JSON.stringify(notesObj) : formData.notes || null;
 
       await onSubmit({
         booking_id: booking.id,
         customer_id: booking.customer_id || null,
-        amount: formData.amount,
+        amount: finalPaymentAmount,
         payment_type: formData.payment_type,
         payment_method: formData.payment_method,
         payment_status: "completed",
@@ -444,6 +464,49 @@ export const RecordPaymentDialog = ({
               </CollapsibleContent>
             </Collapsible>
 
+            {/* Payment Discount */}
+            <div className="rounded-lg border border-border bg-muted/10 p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Tag className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium">Payment Discount</span>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Discount Amount ($)</Label>
+                  <div className="relative">
+                    <DollarSign className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={discountAmount || ""}
+                      onChange={(e) => setDiscountAmount(parseFloat(e.target.value) || 0)}
+                      className="h-8 pl-7 text-xs"
+                      placeholder="0.00"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Reason</Label>
+                  <Select value={discountReason} onValueChange={setDiscountReason}>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="Select reason..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DISCOUNT_REASONS.map(r => (
+                        <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              {discountAmount > 0 && (
+                <p className="text-xs text-success">
+                  -${discountAmount.toFixed(2)} discount applied → Collecting ${finalPaymentAmount.toFixed(2)}
+                </p>
+              )}
+            </div>
+
             <Separator />
 
             {/* Payment Method */}
@@ -545,11 +608,11 @@ export const RecordPaymentDialog = ({
               )}
             </Button>
           ) : (
-            <Button type="button" disabled={loading || formData.amount <= 0} className="btn-premium" onClick={handleManualPayment}>
+            <Button type="button" disabled={loading || finalPaymentAmount <= 0} className="btn-premium" onClick={handleManualPayment}>
               {loading ? (
                 <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving...</>
               ) : (
-                `Record $${formData.amount.toFixed(2)} Payment`
+                `Record $${finalPaymentAmount.toFixed(2)} Payment`
               )}
             </Button>
           )}
