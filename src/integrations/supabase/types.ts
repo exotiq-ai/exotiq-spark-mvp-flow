@@ -3209,6 +3209,7 @@ export type Database = {
           users_migrated: number
         }[]
       }
+      purge_old_notifications: { Args: never; Returns: undefined }
       reactivate_team_member:
         | {
             Args: {

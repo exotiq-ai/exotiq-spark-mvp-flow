@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { compressImage } from './imageCompression';
 
 export interface PhotoUploadResult {
   url: string;
@@ -38,17 +39,20 @@ export const uploadVehiclePhoto = async (
       };
     }
 
+    // Compress image before upload
+    const compressedFile = await compressImage(file);
+
     // Generate unique filename with userId prefix for security
     const timestamp = Date.now();
     const randomString = Math.random().toString(36).substring(7);
-    const extension = file.name.split('.').pop();
+    const extension = compressedFile.name.split('.').pop();
     // IMPORTANT: Always include userId as first folder segment for RLS
     const fileName = `${userId}/${folder}/${timestamp}-${randomString}.${extension}`;
 
     // Upload to Supabase Storage
     const { data, error } = await supabase.storage
       .from('vehicle-photos')
-      .upload(fileName, file, {
+      .upload(fileName, compressedFile, {
         cacheControl: '3600',
         upsert: false
       });

@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTeam } from '@/contexts/TeamContext';
 import { AIAnalysisResult, PhotoUploadProgress } from './types';
 import type { Json } from '@/integrations/supabase/types';
+import { compressImage } from '@/lib/imageCompression';
 
 interface UsePhotoAnalysisOptions {
   onProgress?: (progress: PhotoUploadProgress[]) => void;
@@ -26,14 +27,17 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
   ): Promise<{ path: string; url: string }> => {
     if (!user) throw new Error('User not authenticated');
 
+    // Compress before upload
+    const compressedFile = await compressImage(file);
+
     const timestamp = Date.now();
     const randomString = Math.random().toString(36).substring(7);
-    const extension = file.name.split('.').pop();
+    const extension = compressedFile.name.split('.').pop();
     const path = `${user.id}/${folder}/${timestamp}-${randomString}.${extension}`;
 
     const { data, error } = await supabase.storage
       .from('vehicle-photos')
-      .upload(path, file, {
+      .upload(path, compressedFile, {
         cacheControl: '3600',
         upsert: false
       });
