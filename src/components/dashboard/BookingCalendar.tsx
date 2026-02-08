@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
+import { useModuleNavigation } from "@/hooks/useModuleNavigation";
 import { generateVehicleColors } from "@/lib/conflictDetection";
 import { VehicleImageDialog } from "@/components/dialogs/VehicleImageDialog";
 import { EnhancedBookingDialog } from "@/components/dialogs/EnhancedBookingDialog";
@@ -53,11 +54,13 @@ interface BookingCalendarProps {
 const BookingPreviewCard = ({ 
   booking, 
   vehicle, 
-  onViewDetails 
+  onViewDetails,
+  onCustomerClick
 }: { 
   booking: any; 
   vehicle: any; 
   onViewDetails: () => void;
+  onCustomerClick?: (customerId: string) => void;
 }) => {
   const vehicleImage = vehicle ? getVehicleImage(vehicle.name) : null;
   
@@ -83,7 +86,9 @@ const BookingPreviewCard = ({
       <div className="space-y-2">
         <div className="flex items-center gap-2">
           <User className="h-4 w-4 text-muted-foreground" />
-          <span className="font-medium text-sm">{booking.customer_name}</span>
+          <span className={`font-medium text-sm ${booking.customer_id && onCustomerClick ? 'cursor-pointer hover:text-primary transition-colors' : ''}`}
+            onClick={(e) => { if (booking.customer_id && onCustomerClick) { e.stopPropagation(); onCustomerClick(booking.customer_id); } }}
+          >{booking.customer_name}</span>
           <Badge 
             variant="outline" 
             className={`ml-auto text-[10px] ${
@@ -152,6 +157,7 @@ const BookingPreviewCard = ({
 
 export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) => {
   const { bookings, vehicles, refreshBookings } = useLocationFilteredFleet();
+  const { goToCustomerProfile } = useModuleNavigation();
   const { toast } = useToast();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedVehicle, setSelectedVehicle] = useState<string>("all");
@@ -423,6 +429,7 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
                                   booking={booking} 
                                   vehicle={vehicle}
                                   onViewDetails={() => handleBookingClick(booking.id)}
+                                  onCustomerClick={goToCustomerProfile}
                                 />
                               </HoverCardContent>
                             </HoverCard>
@@ -562,7 +569,9 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
                                   <h5 className="font-semibold text-sm group-hover:text-primary transition-colors">
                                     {vehicle?.name || 'Unknown'}
                                   </h5>
-                                  <p className="text-xs text-muted-foreground">{booking.customer_name}</p>
+                                  <p className={`text-xs text-muted-foreground ${booking.customer_id ? 'cursor-pointer hover:text-primary transition-colors' : ''}`}
+                                    onClick={(e) => { if (booking.customer_id) { e.stopPropagation(); goToCustomerProfile(booking.customer_id); } }}
+                                  >{booking.customer_name}</p>
                                 </div>
                               </div>
                               <Badge 

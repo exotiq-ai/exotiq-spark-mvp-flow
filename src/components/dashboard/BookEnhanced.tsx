@@ -304,7 +304,9 @@ export const BookEnhanced = () => {
                       size="sm"
                     />
                     <div className="min-w-0">
-                      <p className="font-medium truncate">{booking.customer_name}</p>
+                      <p className={`font-medium truncate ${booking.customer_id ? 'cursor-pointer hover:text-primary transition-colors' : ''}`}
+                        onClick={() => booking.customer_id && goToCustomerProfile(booking.customer_id)}
+                      >{booking.customer_name}</p>
                       <p className="text-sm text-muted-foreground truncate">
                         {getVehicleDisplay(booking)} - {formatDate(booking.start_date)}
                       </p>
@@ -374,7 +376,9 @@ export const BookEnhanced = () => {
                   >
                     {getVehicleDisplay(nextBooking)}
                   </div>
-                  <div className="text-sm text-muted-foreground truncate">{nextBooking.customer_name}</div>
+                  <div className="text-sm text-muted-foreground truncate cursor-pointer hover:text-primary transition-colors"
+                    onClick={() => { setSelectedBooking(nextBooking); setShowBookingDetails(true); }}
+                  >{nextBooking.customer_name}</div>
                 </div>
               </div>
 
@@ -505,7 +509,9 @@ export const BookEnhanced = () => {
                   </div>
                   
                   {/* Line 2: Customer Name */}
-                  <div className="text-sm text-muted-foreground mt-0.5">
+                  <div className="text-sm text-muted-foreground mt-0.5 cursor-pointer hover:text-primary transition-colors"
+                    onClick={() => { setSelectedBooking(booking); setShowBookingDetails(true); }}
+                  >
                     {booking.customer_name}
                   </div>
                   
