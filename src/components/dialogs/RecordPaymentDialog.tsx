@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 import { Database } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -168,8 +168,8 @@ export const RecordPaymentDialog = ({
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 min-h-0 max-h-[60vh]">
-          <div className="space-y-4 py-4 pr-4">
+        <div className="flex-1 min-h-0 overflow-y-auto max-h-[calc(85vh-12rem)]">
+          <div className="space-y-4 py-4 pr-1">
             {/* Booking Summary */}
             <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
               <div className="grid grid-cols-2 gap-3 text-sm">
@@ -282,7 +282,7 @@ export const RecordPaymentDialog = ({
               />
             </div>
           </div>
-        </ScrollArea>
+        </div>
 
         <DialogFooter className="flex-shrink-0">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
