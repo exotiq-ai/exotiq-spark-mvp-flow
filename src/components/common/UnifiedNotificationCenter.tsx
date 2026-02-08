@@ -39,6 +39,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useFleet } from "@/contexts/FleetContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { NotificationPreferences, useNotificationPreferences } from "./NotificationPreferences";
+import { useNotifications } from "@/hooks/useNotifications";
 
 interface SystemNotification {
   id: string;
@@ -72,45 +73,19 @@ export const UnifiedNotificationCenter = ({ onNavigate }: { onNavigate?: (module
   const isMobile = useIsMobile();
   const { vehicles, bookings, customers, damageClaims, inspections } = useFleet();
   const { prefs, isInQuietHours } = useNotificationPreferences();
+  const { notifications: dbNotifications, markAsRead: markDbRead, markAllAsRead: markAllDbRead, deleteNotification: deleteDbNotification, clearAll: clearAllDb } = useNotifications();
   
-  const [systemNotifications, setSystemNotifications] = useState<SystemNotification[]>([
-    {
-      id: "1",
-      type: "warning",
-      title: "Maintenance Due",
-      message: "Lamborghini Huracán requires scheduled maintenance in 3 days",
-      timestamp: "2 hours ago",
-      read: false,
-      category: "system"
-    },
-    {
-      id: "2",
-      type: "success",
-      title: "Payment Received",
-      message: "Payment of $2,100 has been received for booking #12345",
-      timestamp: "3 hours ago",
-      read: false,
-      category: "system"
-    },
-    {
-      id: "3",
-      type: "info",
-      title: "New Booking Request",
-      message: "New booking inquiry for Ferrari 488 - Weekend rental",
-      timestamp: "5 hours ago",
-      read: true,
-      category: "system"
-    },
-    {
-      id: "4",
-      type: "error",
-      title: "Insurance Expiring",
-      message: "Insurance for Porsche 911 GT3 expires in 5 days",
-      timestamp: "1 day ago",
-      read: true,
-      category: "system"
-    }
-  ]);
+  const systemNotifications = useMemo<SystemNotification[]>(() => {
+    return dbNotifications.map(n => ({
+      id: n.id,
+      type: (n.type === 'booking_update' || n.type === 'booking' ? 'info' : n.type === 'payment' ? 'success' : n.type === 'damage_claim' ? 'error' : 'info') as SystemNotification['type'],
+      title: n.title,
+      message: n.message,
+      timestamp: n.timestamp,
+      read: n.read,
+      category: 'system' as const,
+    }));
+  }, [dbNotifications]);
 
   const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<string>("all");
@@ -274,36 +249,23 @@ export const UnifiedNotificationCenter = ({ onNavigate }: { onNavigate?: (module
   };
 
   const markAsRead = (id: string) => {
-    if (systemNotifications.find(n => n.id === id)) {
-      setSystemNotifications(prev =>
-        prev.map(n => (n.id === id ? { ...n, read: true } : n))
-      );
-    }
+    markDbRead(id);
   };
 
   const markAllAsRead = () => {
     if (navigator.vibrate) navigator.vibrate(5);
-    setSystemNotifications(prev => prev.map(n => ({ ...n, read: true })));
-    toast({
-      title: "All notifications marked as read",
-    });
+    markAllDbRead();
   };
 
   const deleteNotification = (id: string) => {
-    setSystemNotifications(prev => prev.filter(n => n.id !== id));
+    deleteDbNotification(id);
     setDismissedAlerts(prev => new Set([...prev, id]));
-    toast({
-      title: "Notification deleted",
-    });
   };
 
   const clearAll = () => {
     if (navigator.vibrate) navigator.vibrate([10, 50, 10]);
-    setSystemNotifications([]);
+    clearAllDb();
     setDismissedAlerts(new Set(aiAlerts.map(a => a.id)));
-    toast({
-      title: "All notifications cleared",
-    });
   };
 
   const handleAlertAction = (alert: AIAlert) => {
