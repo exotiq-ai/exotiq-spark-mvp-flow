@@ -21,6 +21,7 @@ import {
 import { Database } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useTeam } from "@/contexts/TeamContext";
 import { DollarSign, CreditCard, Loader2, ExternalLink } from "lucide-react";
 
 type Booking = Database['public']['Tables']['bookings']['Row'];
@@ -38,6 +39,7 @@ export const RecordPaymentDialog = ({
   booking,
 }: RecordPaymentDialogProps) => {
   const { toast } = useToast();
+  const { currentTeam } = useTeam();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     payment_type: "deposit",
@@ -101,6 +103,28 @@ export const RecordPaymentDialog = ({
 
   const isStripePayment = formData.payment_method === "stripe";
 
+  const PAYMENT_METHOD_LABELS: Record<string, string> = {
+    stripe: "Stripe Checkout",
+    cash: "Cash",
+    bank_transfer: "Bank Transfer",
+    credit_card: "Credit/Debit Card (Manual)",
+    zelle: "Zelle",
+    venmo: "Venmo",
+    paypal: "PayPal",
+    wire: "Wire Transfer",
+    card: "Credit/Debit Card (Manual)",
+    other: "Other",
+  };
+
+  const acceptedMethods = (() => {
+    const settings = (currentTeam as any)?.settings as Record<string, any> | null;
+    const saved = settings?.accepted_payment_methods;
+    if (Array.isArray(saved) && saved.length > 0) {
+      return ["stripe", ...saved];
+    }
+    return ["stripe", "card", "cash", "wire"];
+  })();
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
@@ -146,15 +170,18 @@ export const RecordPaymentDialog = ({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="stripe">
-                  <div className="flex items-center gap-2">
-                    <CreditCard className="w-4 h-4 text-primary" />
-                    Stripe Checkout
-                  </div>
-                </SelectItem>
-                <SelectItem value="card">Credit/Debit Card (Manual)</SelectItem>
-                <SelectItem value="cash">Cash</SelectItem>
-                <SelectItem value="wire">Wire Transfer</SelectItem>
+                {acceptedMethods.map(method => (
+                  <SelectItem key={method} value={method}>
+                    {method === "stripe" ? (
+                      <div className="flex items-center gap-2">
+                        <CreditCard className="w-4 h-4 text-primary" />
+                        Stripe Checkout
+                      </div>
+                    ) : (
+                      PAYMENT_METHOD_LABELS[method] || method
+                    )}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
