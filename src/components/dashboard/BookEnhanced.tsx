@@ -556,7 +556,17 @@ export const BookEnhanced = () => {
         </TabsContent>
 
         <TabsContent value="calendar">
-          <BookingCalendar />
+          <BookingCalendar 
+            onNavigateToModule={(moduleId, context) => {
+              if (moduleId === 'core' && context?.customerId) {
+                goToCustomerProfile(context.customerId);
+              } else if (moduleId === 'motoriq' && context?.vehicleId) {
+                goToVehicleDetails(context.vehicleId);
+              } else if (moduleId === 'pulse' && context?.bookingId) {
+                goToPayments(context.bookingId);
+              }
+            }}
+          />
         </TabsContent>
 
         <TabsContent value="customers">
