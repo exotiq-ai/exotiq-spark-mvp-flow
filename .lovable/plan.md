@@ -1,84 +1,90 @@
 
 
-# Fix: New Customer Auto-Save to CRM + Booking Card Vehicle Image
+# Clickable Customer Names Throughout the App
 
-## Problem Summary
+## Overview
 
-Three critical issues found after code review:
-
-1. **New customers are NOT saved to CRM** -- When "New Customer" is selected in the booking dialog, the `createBooking` function in `FleetContext.tsx` only inserts into the `bookings` table. It never creates a record in the `customers` table. This means the customer count stays at 0 and no CRM entry exists.
-
-2. **Booking details card shows "No image available"** -- The `EnhancedBookingDialog` uses `getVehicleImage(vehicle.name)` which only checks a hardcoded static mapping. It completely ignores the `vehicle.image_url` field from the database (where Photo Hub stores uploaded/enhanced images). Most vehicles won't have a static mapping entry.
-
-3. **Booking validation schema rejects discount fields** -- The `bookingSchema` in `validationSchemas.ts` does not include `discount_amount`, `discount_reason`, `pickup_location_id`, `dropoff_location_id`, or `status` fields. Since `createBooking` runs `bookingSchema.parse(booking)`, these fields are silently stripped, meaning discounts are never actually saved to the database.
+Make customer names interactive across all modules. In schedule/calendar contexts, clicking opens the booking details dialog. In all other contexts (CRM, Payments, Pending Approval), clicking navigates to the customer's CRM profile.
 
 ---
 
-## Fix 1: Auto-Create Customer in CRM on New Booking
+## Locations to Update
 
-**File:** `src/contexts/FleetContext.tsx` -- `createBooking` function (line ~762)
+### 1. Today's Schedule (BookEnhanced.tsx, line 508-510)
 
-After the booking insert succeeds, check if the booking used a new customer (no `customer_id` provided). If so:
+**Context:** Schedule view -- clicking the customer name should open the booking details dialog (same as clicking "View" on a booking).
 
-1. Insert into the `customers` table with `full_name`, `email`, `phone` from the booking data
-2. Update the newly created booking's `customer_id` to link it to the CRM record
-3. This ensures every new booking with a new customer creates a CRM entry automatically
+**Current code:** Plain text `{booking.customer_name}`
 
-The `customerSchema` requires email as non-optional, but booking customers may not have email. The customer insert will use a direct Supabase insert (bypassing the strict schema) since the `customers` table allows nullable email.
+**Change:** Wrap in a clickable span that calls `setSelectedBooking(booking)` + `setShowBookingDetails(true)`, same as the existing "View" button logic. Style with `cursor-pointer hover:text-primary transition-colors text-primary/80 underline-offset-2 hover:underline`.
 
-**File:** `src/components/dialogs/NewBookingDialog.tsx`
+### 2. Next Pickup Card (BookEnhanced.tsx, line 377)
 
-Pass `customer_id` through to `onSubmit` when an existing customer is selected, so `createBooking` knows not to create a duplicate.
+**Context:** Schedule-adjacent -- clicking opens booking details.
 
----
+**Change:** Same pattern as Today's Schedule. Make the customer name a clickable span that opens the booking dialog for `nextBooking`.
 
-## Fix 2: Vehicle Image in Booking Details Card
+### 3. Pending Approval Section (BookEnhanced.tsx, line 307)
 
-**File:** `src/components/dialogs/EnhancedBookingDialog.tsx` (line ~126)
+**Context:** Administrative list -- clicking should navigate to customer CRM profile (if `customer_id` exists).
 
-Change from:
-```
-const vehicleImage = vehicle ? getVehicleImage(vehicle.name) : null;
-```
-To:
-```
-const vehicleImage = vehicle?.image_url || getVehicleImage(vehicle?.name || '') || null;
-```
+**Change:** Wrap `{booking.customer_name}` in a clickable span that calls `goToCustomerProfile(booking.customer_id)` when `customer_id` is present. Show a subtle link style only when clickable.
 
-This prioritizes the database `image_url` (from Photo Hub uploads) and falls back to the static mapping only if no uploaded image exists.
+### 4. Payment Tracker (PaymentTracker.tsx, line 179)
 
----
+**Context:** Financial view -- clicking should navigate to customer CRM profile.
 
-## Fix 3: Booking Schema Accepts Discount Fields
+**Change:** Wrap `{booking.customer_name}` in a clickable span. Import and use `useModuleNavigation` to call `goToCustomerProfile(booking.customer_id)`.
 
-**File:** `src/lib/validationSchemas.ts` -- `bookingSchema` (line ~17)
+### 5. Upcoming Schedule Widget (UpcomingScheduleWidget.tsx, line 70)
 
-Add these fields to the schema so they pass through validation:
-- `discount_amount` (number, optional, default 0)
-- `discount_reason` (string, optional, nullable)
-- `pickup_location_id` (string, optional, nullable)
-- `dropoff_location_id` (string, optional, nullable)
-- `status` (string, optional)
-- `customer_id` (string, optional, nullable)
+**Context:** Dashboard schedule widget -- clicking should navigate to the booking in the calendar (using `goToBookingDetails`).
 
-Without this fix, `bookingSchema.parse()` strips these fields and they never reach the database.
+**Change:** Make customer name clickable via `goToBookingDetails(booking.id)`. Import `useModuleNavigation`.
+
+### 6. Calendar Hover Card (BookingCalendar.tsx, line 86)
+
+**Context:** Calendar popup -- clicking should navigate to customer CRM profile.
+
+**Change:** Wrap `{booking.customer_name}` in a clickable span that navigates to the CRM via search params. Use `useSearchParams` (already imported in BookingCalendar).
+
+### 7. Calendar Day Panel (BookingCalendar.tsx, line 565)
+
+**Context:** Calendar detail panel -- same as above, navigate to CRM profile.
+
+**Change:** Make the customer name text clickable with CRM navigation.
 
 ---
+
+## Interaction Pattern
+
+| Area | Click Action | Rationale |
+|------|-------------|-----------|
+| Today's Schedule | Open booking details dialog | User is reviewing today's operations |
+| Next Pickup card | Open booking details dialog | User wants details on this specific booking |
+| Pending Approval | Navigate to CRM profile | User needs to verify customer before approving |
+| Payment Tracker | Navigate to CRM profile | User may need customer contact info for collections |
+| Dashboard Schedule Widget | Navigate to booking | Quick access from dashboard overview |
+| Calendar hover/panel | Navigate to CRM profile | User already sees booking context, needs customer info |
+
+## Styling
+
+All clickable customer names will use a consistent style:
+- `cursor-pointer` for the pointer cursor
+- `hover:text-primary` for color change on hover
+- `transition-colors` for smooth effect
+- Only styled as clickable when a valid `customer_id` exists (graceful degradation for unlinked bookings)
 
 ## Files Changed
 
-| File | Change |
-|------|--------|
-| `src/contexts/FleetContext.tsx` | Auto-create customer record in `createBooking` when new customer, link `customer_id` back to booking |
-| `src/components/dialogs/NewBookingDialog.tsx` | Pass `customer_id` when existing customer selected |
-| `src/components/dialogs/EnhancedBookingDialog.tsx` | Use `vehicle.image_url` as primary image source |
-| `src/lib/validationSchemas.ts` | Add discount and location ID fields to booking schema |
+| File | Changes |
+|------|---------|
+| `src/components/dashboard/BookEnhanced.tsx` | Make customer names clickable in Today's Schedule, Next Pickup, Pending Approval |
+| `src/components/dashboard/PaymentTracker.tsx` | Make customer names clickable to CRM |
+| `src/components/dashboard/UpcomingScheduleWidget.tsx` | Make customer names clickable to booking details |
+| `src/components/dashboard/BookingCalendar.tsx` | Make customer names clickable to CRM in hover card and day panel |
 
-## Risk Assessment
+## Risk
 
-| Change | Risk |
-|--------|------|
-| Auto-create customer | Low -- additive insert, no existing data affected |
-| Vehicle image fallback | None -- only changes image source priority |
-| Schema update | None -- adds optional fields, existing bookings unaffected |
+None. All changes are purely UI -- adding click handlers and hover styles to existing text elements. No data flow or database changes.
 
