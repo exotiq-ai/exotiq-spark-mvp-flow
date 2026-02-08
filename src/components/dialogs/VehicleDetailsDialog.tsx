@@ -22,7 +22,8 @@ import {
   ExternalLink,
   FileText,
   Clock,
-  User
+  User,
+  Gauge,
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -59,6 +60,8 @@ interface VehicleDetailsDialogProps {
     year: number;
     status: string;
     dailyRate: number;
+    default_mileage_limit?: number | null;
+    mileage_overage_rate?: number | null;
   };
   damageClaims?: DamageClaim[];
   maintenanceSchedules?: MaintenanceSchedule[];
@@ -150,11 +153,26 @@ export function VehicleDetailsDialog({
                         {vehicleDetails.status}
                       </Badge>
                     </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Daily Rate</p>
-                      <p className="font-medium">${vehicleDetails.dailyRate.toLocaleString()}</p>
-                    </div>
-                  </div>
+                     <div>
+                       <p className="text-sm text-muted-foreground">Daily Rate</p>
+                       <p className="font-medium">${vehicleDetails.dailyRate.toLocaleString()}</p>
+                     </div>
+                   </div>
+
+                   {/* Mileage Configuration */}
+                   <div className="grid grid-cols-2 gap-4 pb-4 border-b">
+                     <div className="flex items-center gap-2">
+                       <Gauge className="h-4 w-4 text-muted-foreground" />
+                       <div>
+                         <p className="text-sm text-muted-foreground">Included Miles/Day</p>
+                         <p className="font-medium">{vehicleDetails.default_mileage_limit ?? 250} mi</p>
+                       </div>
+                     </div>
+                     <div>
+                       <p className="text-sm text-muted-foreground">Overage Rate</p>
+                       <p className="font-medium">${Number(vehicleDetails.mileage_overage_rate ?? 1.50).toFixed(2)}/mi</p>
+                     </div>
+                   </div>
 
                   {/* Active Damage Claims */}
                   <div className="space-y-3">

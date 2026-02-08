@@ -292,6 +292,29 @@ export const AddVehicleDialog = ({ open, onOpenChange, onSubmit, onAddPhotos }: 
                       </SelectContent>
                     </Select>
                   </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="mileageLimit">Included Miles/Day</Label>
+                    <Input
+                      id="mileageLimit"
+                      type="number"
+                      placeholder="250"
+                      defaultValue="250"
+                      min="0"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="mileageRate">Overage Rate ($/mi)</Label>
+                    <Input
+                      id="mileageRate"
+                      type="number"
+                      placeholder="1.50"
+                      defaultValue="1.50"
+                      min="0"
+                      step="0.01"
+                    />
+                  </div>
                 </div>
 
                 {/* Location Selection */}
