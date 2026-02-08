@@ -1,122 +1,84 @@
 
-# Booking Flow Enhancements & CRM Delete
 
-## Overview
+# Fix: New Customer Auto-Save to CRM + Booking Card Vehicle Image
 
-Six targeted improvements to the booking creation dialog, calendar/dashboard refresh behavior, today's bookings filter, and CRM customer management.
+## Problem Summary
+
+Three critical issues found after code review:
+
+1. **New customers are NOT saved to CRM** -- When "New Customer" is selected in the booking dialog, the `createBooking` function in `FleetContext.tsx` only inserts into the `bookings` table. It never creates a record in the `customers` table. This means the customer count stays at 0 and no CRM entry exists.
+
+2. **Booking details card shows "No image available"** -- The `EnhancedBookingDialog` uses `getVehicleImage(vehicle.name)` which only checks a hardcoded static mapping. It completely ignores the `vehicle.image_url` field from the database (where Photo Hub stores uploaded/enhanced images). Most vehicles won't have a static mapping entry.
+
+3. **Booking validation schema rejects discount fields** -- The `bookingSchema` in `validationSchemas.ts` does not include `discount_amount`, `discount_reason`, `pickup_location_id`, `dropoff_location_id`, or `status` fields. Since `createBooking` runs `bookingSchema.parse(booking)`, these fields are silently stripped, meaning discounts are never actually saved to the database.
 
 ---
 
-## 1. Discount Pricing in New Booking Dialog
+## Fix 1: Auto-Create Customer in CRM on New Booking
 
-**Problem:** No way to apply a discount when creating a booking.
+**File:** `src/contexts/FleetContext.tsx` -- `createBooking` function (line ~762)
 
-**Solution:** Add a collapsible "Discount" section below the date fields in `NewBookingDialog.tsx`:
+After the booking insert succeeds, check if the booking used a new customer (no `customer_id` provided). If so:
 
-- A dollar-amount input field ($ off the total, not per-day) 
-- A dropdown for discount reason: Promotional, Military Discount, Employee, Friends and Family
-- Real-time price recalculation showing original total, discount, and final total
-- The discount and reason are stored in two new columns on the `bookings` table
+1. Insert into the `customers` table with `full_name`, `email`, `phone` from the booking data
+2. Update the newly created booking's `customer_id` to link it to the CRM record
+3. This ensures every new booking with a new customer creates a CRM entry automatically
 
-**Database migration:**
-```sql
-ALTER TABLE bookings ADD COLUMN discount_amount numeric DEFAULT 0;
-ALTER TABLE bookings ADD COLUMN discount_reason text;
+The `customerSchema` requires email as non-optional, but booking customers may not have email. The customer insert will use a direct Supabase insert (bypassing the strict schema) since the `customers` table allows nullable email.
+
+**File:** `src/components/dialogs/NewBookingDialog.tsx`
+
+Pass `customer_id` through to `onSubmit` when an existing customer is selected, so `createBooking` knows not to create a duplicate.
+
+---
+
+## Fix 2: Vehicle Image in Booking Details Card
+
+**File:** `src/components/dialogs/EnhancedBookingDialog.tsx` (line ~126)
+
+Change from:
+```
+const vehicleImage = vehicle ? getVehicleImage(vehicle.name) : null;
+```
+To:
+```
+const vehicleImage = vehicle?.image_url || getVehicleImage(vehicle?.name || '') || null;
 ```
 
-The `total_value` stored will be the **net** amount (original minus discount). The `discount_amount` and `discount_reason` columns preserve the audit trail.
-
-**UI placement:** Between the date pickers and the location fields, as a collapsible row (collapsed by default). When expanded, shows the discount input + reason dropdown side by side. A live summary line appears: "Subtotal: $X | Discount: -$Y | Total: $Z".
+This prioritizes the database `image_url` (from Photo Hub uploads) and falls back to the static mapping only if no uploaded image exists.
 
 ---
 
-## 2. Prevent Accidental Dialog Close
+## Fix 3: Booking Schema Accepts Discount Fields
 
-**Problem:** Clicking outside the New Booking dialog closes it and loses all entered data.
+**File:** `src/lib/validationSchemas.ts` -- `bookingSchema` (line ~17)
 
-**Solution:** Add `onInteractOutside` and `onPointerDownOutside` event handlers to `DialogContent` that call `e.preventDefault()`. This prevents the overlay click from closing the dialog. Users must explicitly click "Cancel" to close.
+Add these fields to the schema so they pass through validation:
+- `discount_amount` (number, optional, default 0)
+- `discount_reason` (string, optional, nullable)
+- `pickup_location_id` (string, optional, nullable)
+- `dropoff_location_id` (string, optional, nullable)
+- `status` (string, optional)
+- `customer_id` (string, optional, nullable)
 
-This is a one-line change on the `DialogContent` component -- Radix UI Dialog supports these props natively.
-
----
-
-## 3. Instant Refresh After Booking Creation
-
-**Problem:** New bookings don't appear immediately in the calendar or pending approval sections.
-
-**Solution:** After `createBooking` succeeds in `FleetContext.tsx`, it already calls `refreshData()` -- but the issue is the `NewBookingDialog` calls `onSubmit` (which is `createBooking`), and then immediately closes the dialog. The fix:
-
-- In `FleetContext.createBooking`: ensure `await refreshData(true)` is called (force refresh) after the insert succeeds -- this is already partially in place but needs the `true` flag
-- Invalidate React Query booking caches via `queryClient.invalidateQueries({ queryKey: ['bookings'] })` in the `BookEnhanced` component's `handleCreateBooking` wrapper
-
-No structural changes needed -- just ensuring the force-refresh path fires.
-
----
-
-## 4. Fix "Today's Bookings" Filter
-
-**Problem:** `BookEnhanced.tsx` line 148 has `todayBookings = bookings.slice(0, 5)` -- this takes the first 5 bookings with **zero date filtering**. Any booking shows up as "today's".
-
-**Solution:** Replace with a proper date filter matching the pattern already used in `Book.tsx`:
-
-```typescript
-const todayBookings = useMemo(() => {
-  return bookings.filter(b => {
-    const startDate = new Date(b.start_date);
-    const endDate = new Date(b.end_date);
-    return (
-      isToday(startDate) || 
-      (startDate <= new Date() && endDate >= new Date())
-    );
-  }).slice(0, 5);
-}, [bookings]);
-```
-
-This shows only bookings that either start today or are actively spanning today (started before, ending after). Future bookings won't appear here.
-
----
-
-## 5. Delete Customer from CRM
-
-**Problem:** No way for an admin to delete a customer. The `FleetContext` has `updateCustomer`, `blacklistCustomer`, and `addCustomerNote` but no `deleteCustomer`.
-
-**Solution:**
-
-- Add `deleteCustomer(customerId: string)` to `FleetContext` that:
-  1. Checks if the customer has any active/confirmed bookings (prevent deletion if so)
-  2. Deletes the customer row from the `customers` table
-  3. Calls `refreshData()`
-
-- Add a "Delete Customer" button (red, destructive variant) to the `CustomerProfileDialog` with a confirmation alert dialog: "This will permanently remove this customer. Bookings referencing this customer will retain the customer name but lose the CRM link."
-
-- The `bookings` table uses `customer_id` as a nullable FK, so deleting a customer sets it to NULL -- the `customer_name` text field preserves the name for historical bookings.
-
-**Database consideration:** The FK on `bookings.customer_id` likely has no ON DELETE action. We'll add a migration to set it to `SET NULL`:
-
-```sql
-ALTER TABLE bookings DROP CONSTRAINT IF EXISTS bookings_customer_id_fkey;
-ALTER TABLE bookings ADD CONSTRAINT bookings_customer_id_fkey 
-  FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL;
-```
+Without this fix, `bookingSchema.parse()` strips these fields and they never reach the database.
 
 ---
 
 ## Files Changed
 
-| Action | File | Change |
-|--------|------|--------|
-| Migrate | Database | Add `discount_amount`, `discount_reason` columns; update customer FK |
-| Modify | `src/components/dialogs/NewBookingDialog.tsx` | Add discount section, prevent outside-click close |
-| Modify | `src/components/dashboard/BookEnhanced.tsx` | Fix todayBookings filter |
-| Modify | `src/contexts/FleetContext.tsx` | Add `deleteCustomer`, ensure force refresh on createBooking |
-| Modify | `src/components/dialogs/CustomerProfileDialog.tsx` | Add delete button with confirmation |
+| File | Change |
+|------|--------|
+| `src/contexts/FleetContext.tsx` | Auto-create customer record in `createBooking` when new customer, link `customer_id` back to booking |
+| `src/components/dialogs/NewBookingDialog.tsx` | Pass `customer_id` when existing customer selected |
+| `src/components/dialogs/EnhancedBookingDialog.tsx` | Use `vehicle.image_url` as primary image source |
+| `src/lib/validationSchemas.ts` | Add discount and location ID fields to booking schema |
 
 ## Risk Assessment
 
-| Change | Risk | Reason |
-|--------|------|--------|
-| Discount fields | None | New nullable columns, additive UI |
-| Prevent outside click | None | UX-only, no data impact |
-| Refresh fix | None | Ensures existing refresh path fires properly |
-| Today filter fix | Low | Bug fix -- currently showing wrong data |
-| Delete customer | Low | Guarded by confirmation + active booking check + SET NULL FK |
+| Change | Risk |
+|--------|------|
+| Auto-create customer | Low -- additive insert, no existing data affected |
+| Vehicle image fallback | None -- only changes image source priority |
+| Schema update | None -- adds optional fields, existing bookings unaffected |
+
