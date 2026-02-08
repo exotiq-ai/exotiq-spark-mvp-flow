@@ -1,90 +1,129 @@
 
 
-# Clickable Customer Names Throughout the App
+# Fix CRM Data Display + Add Booking from Customer Card
 
-## Overview
+## Issues Found
 
-Make customer names interactive across all modules. In schedule/calendar contexts, clicking opens the booking details dialog. In all other contexts (CRM, Payments, Pending Approval), clicking navigates to the customer's CRM profile.
+### 1. Duplicate Customer Records
+The auto-create logic in `createBooking` doesn't check for existing customers with the same name/email before creating. Gregory Ringler now has **two CRM entries** -- one with 2 bookings linked, and a duplicate with 0. The CRM list may show the wrong one.
 
----
+**Fix:** Before inserting a new customer in `createBooking`, query for an existing customer with the same email or name+phone. If found, use that existing `customer_id` instead of creating a duplicate.
 
-## Locations to Update
+### 2. Benji Booking Not Linked
+The Benji S Handuana booking (`8fffa85a`) was created before the auto-create code shipped, so `customer_id` is `null`. This is a data issue, not a code bug. The "Link Customer" button on that booking already works -- you can link it manually. No code change needed for this specific record.
 
-### 1. Today's Schedule (BookEnhanced.tsx, line 508-510)
+### 3. "Add Booking" Button in Customer Profile
+Add a button in the `CustomerProfileDialog` (in the Bookings tab and optionally Overview) that opens the `NewBookingDialog` pre-filled with the customer's details.
 
-**Context:** Schedule view -- clicking the customer name should open the booking details dialog (same as clicking "View" on a booking).
+### 4. Customer Bookings Tab Shows Wrong Data
+The bookings passed to `CustomerProfileDialog` are filtered by `customer_id` in `CRMSection.tsx`. This is correct, but if the user clicks on the duplicate customer entry (the new auto-created one), it will show 0 bookings because the bookings are linked to the original entry.
 
-**Current code:** Plain text `{booking.customer_name}`
-
-**Change:** Wrap in a clickable span that calls `setSelectedBooking(booking)` + `setShowBookingDetails(true)`, same as the existing "View" button logic. Style with `cursor-pointer hover:text-primary transition-colors text-primary/80 underline-offset-2 hover:underline`.
-
-### 2. Next Pickup Card (BookEnhanced.tsx, line 377)
-
-**Context:** Schedule-adjacent -- clicking opens booking details.
-
-**Change:** Same pattern as Today's Schedule. Make the customer name a clickable span that opens the booking dialog for `nextBooking`.
-
-### 3. Pending Approval Section (BookEnhanced.tsx, line 307)
-
-**Context:** Administrative list -- clicking should navigate to customer CRM profile (if `customer_id` exists).
-
-**Change:** Wrap `{booking.customer_name}` in a clickable span that calls `goToCustomerProfile(booking.customer_id)` when `customer_id` is present. Show a subtle link style only when clickable.
-
-### 4. Payment Tracker (PaymentTracker.tsx, line 179)
-
-**Context:** Financial view -- clicking should navigate to customer CRM profile.
-
-**Change:** Wrap `{booking.customer_name}` in a clickable span. Import and use `useModuleNavigation` to call `goToCustomerProfile(booking.customer_id)`.
-
-### 5. Upcoming Schedule Widget (UpcomingScheduleWidget.tsx, line 70)
-
-**Context:** Dashboard schedule widget -- clicking should navigate to the booking in the calendar (using `goToBookingDetails`).
-
-**Change:** Make customer name clickable via `goToBookingDetails(booking.id)`. Import `useModuleNavigation`.
-
-### 6. Calendar Hover Card (BookingCalendar.tsx, line 86)
-
-**Context:** Calendar popup -- clicking should navigate to customer CRM profile.
-
-**Change:** Wrap `{booking.customer_name}` in a clickable span that navigates to the CRM via search params. Use `useSearchParams` (already imported in BookingCalendar).
-
-### 7. Calendar Day Panel (BookingCalendar.tsx, line 565)
-
-**Context:** Calendar detail panel -- same as above, navigate to CRM profile.
-
-**Change:** Make the customer name text clickable with CRM navigation.
+**Fix:** The duplicate prevention in Fix 1 prevents this going forward. For existing duplicates, we'll add a cleanup note.
 
 ---
 
-## Interaction Pattern
+## Changes
 
-| Area | Click Action | Rationale |
-|------|-------------|-----------|
-| Today's Schedule | Open booking details dialog | User is reviewing today's operations |
-| Next Pickup card | Open booking details dialog | User wants details on this specific booking |
-| Pending Approval | Navigate to CRM profile | User needs to verify customer before approving |
-| Payment Tracker | Navigate to CRM profile | User may need customer contact info for collections |
-| Dashboard Schedule Widget | Navigate to booking | Quick access from dashboard overview |
-| Calendar hover/panel | Navigate to CRM profile | User already sees booking context, needs customer info |
+### File: `src/contexts/FleetContext.tsx` -- `createBooking` function
 
-## Styling
+**Before creating a new customer**, add a duplicate check:
 
-All clickable customer names will use a consistent style:
-- `cursor-pointer` for the pointer cursor
-- `hover:text-primary` for color change on hover
-- `transition-colors` for smooth effect
-- Only styled as clickable when a valid `customer_id` exists (graceful degradation for unlinked bookings)
+```typescript
+// Check for existing customer by email or name before creating
+let existingCustomerId = null;
+if (booking.customer_email) {
+  const { data: existing } = await supabase
+    .from('customers')
+    .select('id')
+    .eq('email', booking.customer_email)
+    .eq('user_id', user.id)
+    .maybeSingle();
+  if (existing) existingCustomerId = existing.id;
+}
+if (!existingCustomerId && booking.customer_name) {
+  const { data: existing } = await supabase
+    .from('customers')
+    .select('id')
+    .eq('full_name', booking.customer_name)
+    .eq('user_id', user.id)
+    .maybeSingle();
+  if (existing) existingCustomerId = existing.id;
+}
+```
+
+If found, link that existing customer instead of inserting a new one.
+
+Also update the existing customer's `total_bookings` and `lifetime_value` after linking.
+
+### File: `src/components/dialogs/CustomerProfileDialog.tsx`
+
+Add an "Add Booking" button in the Bookings tab (next to the empty state, or at the top of the bookings list). This button:
+- Accepts a new `onAddBooking` callback prop
+- When clicked, closes the customer profile dialog and opens the new booking dialog pre-filled with the customer's name, email, and phone
+
+Add the prop to `CustomerProfileDialogProps`:
+```typescript
+interface CustomerProfileDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  customer: Customer;
+  bookings: Booking[];
+  onAddBooking?: (customer: Customer) => void;  // NEW
+}
+```
+
+Add button in the Bookings tab area:
+- A prominent "New Booking" button with a Plus icon at the top of the Bookings tab
+- Also show it in the empty state as a call-to-action
+
+### File: `src/components/dashboard/CRMSection.tsx`
+
+Pass the `onAddBooking` handler to `CustomerProfileDialog`. This handler:
+1. Closes the customer profile dialog
+2. Opens `NewBookingDialog` (add state for this)
+3. Pre-fills the customer info by setting a `prefillCustomer` state
+
+Add the `NewBookingDialog` import and rendering, with the prefill customer data passed through.
+
+### File: `src/components/dialogs/NewBookingDialog.tsx`
+
+Add an optional `prefillCustomer` prop so when opened from CRM, it auto-selects the existing customer:
+
+```typescript
+interface NewBookingDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  vehicles: Tables<'vehicles'>[];
+  onSubmit: (booking: ...) => Promise<void>;
+  prefillCustomer?: { id: string; name: string; email?: string; phone?: string };
+}
+```
+
+When `prefillCustomer` is provided, auto-set `selectedCustomerId`, `customerName`, `customerEmail`, `customerPhone` on mount.
+
+---
+
+## Tenant Flow Answer
+
+Currently the flow supports **both** paths:
+- **CRM first, then booking** -- create customer in CRM, then create booking and select existing customer
+- **Booking first** -- select "New Customer" in booking dialog, and it auto-creates the CRM entry
+
+Both paths will work correctly after these fixes. The new "Add Booking" button in the CRM card adds a convenient shortcut for the CRM-first workflow.
+
+---
+
+## Database Cleanup
+
+The duplicate Gregory Ringler entry (`a733fdcc`) with 0 bookings should be deleted. This will be done via the existing "Delete Customer" button in the CRM, or can be cleaned up manually. No migration needed.
+
+---
 
 ## Files Changed
 
-| File | Changes |
-|------|---------|
-| `src/components/dashboard/BookEnhanced.tsx` | Make customer names clickable in Today's Schedule, Next Pickup, Pending Approval |
-| `src/components/dashboard/PaymentTracker.tsx` | Make customer names clickable to CRM |
-| `src/components/dashboard/UpcomingScheduleWidget.tsx` | Make customer names clickable to booking details |
-| `src/components/dashboard/BookingCalendar.tsx` | Make customer names clickable to CRM in hover card and day panel |
-
-## Risk
-
-None. All changes are purely UI -- adding click handlers and hover styles to existing text elements. No data flow or database changes.
-
+| File | Change |
+|------|--------|
+| `src/contexts/FleetContext.tsx` | Duplicate check before auto-creating customer; update stats after linking |
+| `src/components/dialogs/CustomerProfileDialog.tsx` | Add "New Booking" button with `onAddBooking` callback |
+| `src/components/dashboard/CRMSection.tsx` | Wire up `onAddBooking`, add `NewBookingDialog` with prefill |
+| `src/components/dialogs/NewBookingDialog.tsx` | Accept `prefillCustomer` prop for auto-fill |
