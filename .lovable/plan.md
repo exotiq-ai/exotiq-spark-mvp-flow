@@ -1,53 +1,41 @@
 
+# Auto-Refresh CRM After Adding a Customer
 
-# Fix: "View Full Profile" and "Link Customer" Buttons in Calendar Booking Dialog
+## Problem
 
-## Root Cause
+When a customer is added via the CRM, the list doesn't update until the page is manually refreshed. This is because the `createCustomer` function is the **only** data mutation in the system that doesn't call `refreshData()` after a successful insert.
 
-The `BookingCalendar` component is rendered on line 559 of `BookEnhanced.tsx` **without** the `onNavigateToModule` prop:
-
-```
-<BookingCalendar />
-```
-
-This means when a booking is clicked in the calendar tab, the `EnhancedBookingDialog` opens with `onNavigateToModule` as `undefined`. All navigation buttons ("View Full Profile", "CRM", "Vehicle", "Payments" quick links) silently do nothing because they call `onNavigateToModule?.()` which is a no-op when undefined.
-
-The "Link Customer" button itself works (it opens the `LinkCustomerDialog` via internal state), so it is NOT broken. However, if the user means the button doesn't seem to do anything visible after linking, it may be because the dialog closes but the calendar doesn't visually update until a refresh.
+Every other operation (update customer, add note, blacklist, create booking, create vehicle, etc.) already triggers a refresh -- this one was simply missed.
 
 ## Fix
 
-### File: `src/components/dashboard/BookEnhanced.tsx` (line 559)
+### File: `src/contexts/FleetContext.tsx`
 
-Pass the `onNavigateToModule` handler to `BookingCalendar`, matching the same pattern already used for the overview tab's `EnhancedBookingDialog`:
+Add `await refreshData()` after the successful customer insert, matching the exact pattern used by every other mutation function. No other changes needed -- no refresh button required.
 
-**Before:**
-```tsx
-<BookingCalendar />
+**Before (lines 1031-1033):**
+```
+      return;
+    }
+
+    toast({ title: "Customer Added", ... });
 ```
 
 **After:**
-```tsx
-<BookingCalendar 
-  onNavigateToModule={(moduleId, context) => {
-    if (moduleId === 'core' && context?.customerId) {
-      goToCustomerProfile(context.customerId);
-    } else if (moduleId === 'motoriq' && context?.vehicleId) {
-      goToVehicleDetails(context.vehicleId);
-    } else if (moduleId === 'pulse' && context?.bookingId) {
-      goToPayments(context.bookingId);
+```
+      return;
     }
-  }}
-/>
+
+    await refreshData();
+    toast({ title: "Customer Added", ... });
 ```
 
-This is a single-line change. The `BookingCalendar` component already accepts `onNavigateToModule` as a prop and passes it through to `EnhancedBookingDialog` -- it just was never provided from the parent.
+## Result
+
+After this one-line addition, the CRM customer list will instantly reflect newly added customers without any page reload. No refresh button is needed -- the system already has the infrastructure for this; it was just missing from this one function.
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| `src/components/dashboard/BookEnhanced.tsx` | Pass `onNavigateToModule` to `BookingCalendar` on line 559 |
-
-## Risk
-
-None. This is wiring an existing prop that was simply missing.
+| `src/contexts/FleetContext.tsx` | Add `await refreshData()` after successful customer insert |
