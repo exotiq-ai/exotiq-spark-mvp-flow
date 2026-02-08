@@ -1,78 +1,137 @@
 
 
-# Cleanup & Consistency: Delete Orphaned Code, Standardize Widgets, Deploy Edge Functions
+# Storage & Database Optimization Plan
 
 ## Overview
 
-Three focused tasks to tidy the codebase and verify new features are live -- all additive or deletion-only changes with zero risk to existing functionality.
+Three targeted optimizations to reduce database bloat and storage costs with zero risk to live functionality.
 
 ---
 
-## Task 1: Delete QuickOnboarding.tsx
+## Task 1: Purge Stale Notifications
 
-**What:** Remove `src/components/onboarding/QuickOnboarding.tsx` -- confirmed never imported anywhere in the app.
+**Problem:** 8,770 notification rows in the database, 8,723 of which are older than 30 days. The 30-day purge policy documented in the project was never activated.
 
-**Risk:** None. The file has zero imports. The `RacingStripe` component it uses is still imported by `RevenueWidget`, so that file stays.
+**Solution:** Two-part approach -- immediate cleanup via a one-time SQL delete, then a scheduled database function to auto-purge going forward.
 
-**Action:** Delete the single file.
+### Step 1a: One-Time Purge (SQL Migration)
 
----
+Run a DELETE statement to remove all notifications older than 30 days:
 
-## Task 2: Apply Progressive Disclosure to FleetStatusWidget and ScheduleWidget
+```sql
+DELETE FROM notifications WHERE created_at < NOW() - INTERVAL '30 days';
+```
 
-Currently, `RevenueWidget` wraps its content in the `ProgressiveDisclosure` component (shows a preview with a "Show More" button for detailed metrics). The other two dashboard widgets (`FleetStatusWidget` and `ScheduleWidget`) render their content directly without this pattern, creating inconsistency.
+This clears ~8,700 rows and reclaims ~2.5 MB immediately.
 
-### FleetStatusWidget Changes
+### Step 1b: Scheduled Auto-Purge (Database Function + pg_cron)
 
-- **Preview (always visible):** The donut chart with legend (current content from `LiveFleetStatusWidget`)
-- **Expanded content:** A breakdown list showing each status count, utilization percentage, and quick-action links
-- Wrap in `ProgressiveDisclosure` with title "Live Fleet Status" and a "Live" badge
-- Remove the inner `Card` from `LiveFleetStatusWidget` to avoid double-card nesting (ProgressiveDisclosure already provides one)
+Create a database function that deletes old notifications, triggered by Supabase's built-in `pg_cron` extension:
 
-### ScheduleWidget Changes
+- Function `purge_old_notifications()` deletes rows older than 30 days
+- Scheduled to run daily at 3:00 AM UTC
+- Keeps the table lean permanently with no manual intervention
 
-- **Preview (always visible):** The first 3 upcoming bookings (current content from `UpcomingScheduleWidget`)
-- **Expanded content:** Additional booking details like total value, duration, and a mini calendar summary
-- Wrap in `ProgressiveDisclosure` with title "Upcoming Schedule"
-- Same Card-removal treatment to avoid double nesting
-
-### Safety
-
-- These are purely presentational changes to two widget wrapper components
-- The inner components (`FleetStatusDonut`, `UpcomingScheduleWidget`) stay untouched
-- The `ProgressiveDisclosure` component is already battle-tested in `RevenueWidget`
+**Risk:** None. Old, read notifications have no functional purpose. The realtime subscription only listens for INSERTs on the current user's notifications.
 
 ---
 
-## Task 3: Deploy Edge Functions
+## Task 2: Clean Up Unmatched Photos
 
-Both `identify-vehicle` and `generate-hero-image` return 404 (not yet deployed). The code exists and is registered in `config.toml`.
+**Problem:** 12 photos still in `pending` status in the `unmatched_photos` table, plus 26 already matched and 3 rejected. The matched/rejected rows still reference storage files that may no longer be needed.
 
-**Action:** Trigger deployment of both functions, then verify with a test call:
-- `identify-vehicle`: POST with a test image URL, confirm it returns a JSON response (not 404)
-- `generate-hero-image`: POST with test metadata, confirm it boots and responds
+**Solution:** Add a "Bulk Reject All" action to the existing Photo Review Queue UI, and clean up orphaned storage files for resolved entries.
 
-No code changes needed -- just deployment.
+### Step 2a: Add "Reject All Pending" Button
+
+Add a bulk action button to `PhotoReviewQueue.tsx` that calls the existing `batchRejectPhotos` function (already implemented in `usePhotoReviewQueue`) for all pending items at once.
+
+### Step 2b: Storage Cleanup for Resolved Photos
+
+Create a database function `cleanup_resolved_unmatched_photos()` that:
+
+1. Finds `unmatched_photos` rows with status `rejected` (currently 3)
+2. Deletes the associated files from `vehicle-photos` storage
+3. Hard-deletes the database rows
+
+For `matched` rows (26), the storage files are still in use by `vehicle_photos` records, so only the `unmatched_photos` row is deleted (the photo itself stays).
+
+This will be implemented as a backend function callable from an admin action, not automated, to give control over what gets purged.
+
+**Risk:** Low. Rejected photos are explicitly unwanted. Matched photo rows are cleaned from the queue table only -- the actual files remain linked to their vehicles.
 
 ---
 
-## Files Changed
+## Task 3: Client-Side Image Compression
 
-| Action | File |
+**Problem:** Uploaded photos average 900 KB to 2.3 MB. Most are displayed as thumbnails or medium-size previews, making full-resolution uploads wasteful.
+
+**Solution:** Add a `compressImage()` utility that runs in the browser before upload, using the native Canvas API (no new dependencies).
+
+### Compression Strategy
+
+| Parameter | Value | Rationale |
+|-----------|-------|-----------|
+| Max width | 2048px | Sufficient for hero images and detail views |
+| Max height | 2048px | Maintains aspect ratio |
+| Output format | JPEG | Smaller than PNG for photos |
+| Quality | 0.82 | Good balance of quality vs. size |
+| Expected reduction | 50-70% | 2 MB photo becomes ~600-800 KB |
+
+### Implementation
+
+**New file:** `src/lib/imageCompression.ts`
+
+- `compressImage(file: File, options?): Promise<File>` -- resizes and compresses using `<canvas>` and `canvas.toBlob()`
+- Preserves aspect ratio, skips files already under 500 KB
+- Returns a new `File` object (same name, JPEG type)
+
+**Modified file:** `src/lib/photoUpload.ts`
+
+- Call `compressImage()` before the storage upload in `uploadVehiclePhoto()`
+- The 5 MB validation check stays as a safety net, but most files will now be well under 1 MB
+
+**Modified file:** `src/components/photos/usePhotoAnalysis.ts`
+
+- Call `compressImage()` in `uploadToStorage()` before the `supabase.storage.upload()` call
+- Both upload paths (direct upload and bulk upload) benefit automatically
+
+### No New Dependencies
+
+This uses only the browser-native `HTMLCanvasElement` and `canvas.toBlob()` APIs, which are supported in all modern browsers. No library install needed.
+
+**Risk:** Very low. Compression is purely additive -- if it fails for any reason, the original file is uploaded unchanged. Image quality at 0.82 JPEG is visually indistinguishable from the original for automotive photography.
+
+---
+
+## Files to Create
+
+| File | Purpose |
+|------|---------|
+| `src/lib/imageCompression.ts` | Client-side image resize and compress utility |
+
+## Files to Modify
+
+| File | Changes |
+|------|---------|
+| `src/lib/photoUpload.ts` | Add compression before upload |
+| `src/components/photos/usePhotoAnalysis.ts` | Add compression in uploadToStorage |
+| `src/components/photos/PhotoReviewQueue.tsx` | Add "Reject All" bulk action button |
+
+## Database Changes
+
+| Change | Type |
 |--------|------|
-| Delete | `src/components/onboarding/QuickOnboarding.tsx` |
-| Modify | `src/components/dashboard/widgets/FleetStatusWidget.tsx` |
-| Modify | `src/components/dashboard/widgets/ScheduleWidget.tsx` |
-| Modify | `src/components/dashboard/LiveFleetStatusWidget.tsx` (remove outer Card to prevent double-wrap) |
-| Modify | `src/components/dashboard/UpcomingScheduleWidget.tsx` (remove outer Card to prevent double-wrap) |
-| Deploy | `supabase/functions/identify-vehicle` |
-| Deploy | `supabase/functions/generate-hero-image` |
+| Delete notifications older than 30 days | One-time SQL migration |
+| Create `purge_old_notifications()` function | SQL migration |
+| Schedule daily cron job for purge | SQL migration (pg_cron) |
+| Create `cleanup_resolved_unmatched_photos()` function | SQL migration |
 
-## Risk Assessment
+## Impact Summary
 
-| Change | Risk | Reason |
-|--------|------|--------|
-| Delete QuickOnboarding | None | Zero imports confirmed |
-| Progressive Disclosure | Low | Presentational only, uses proven component |
-| Edge function deploy | None | Additive -- no existing code calls them yet |
+| Optimization | Savings | Ongoing |
+|-------------|---------|---------|
+| Notification purge | ~2.5 MB immediately | Auto-purge daily |
+| Unmatched photo cleanup | ~10-30 MB (rejected files) | Manual as needed |
+| Image compression | 50-70% per future upload | Automatic |
 
