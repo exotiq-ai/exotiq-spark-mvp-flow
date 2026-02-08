@@ -70,11 +70,13 @@ export const damageClaimSchema = z.object({
 // Payment validation schema
 export const paymentSchema = z.object({
   booking_id: z.string().uuid("Invalid booking ID"),
-  customer_id: z.string().uuid("Invalid customer ID").optional().or(z.literal('')),
+  customer_id: z.string().uuid("Invalid customer ID").optional().nullable().or(z.literal('')),
   amount: z.number().positive("Amount must be positive").max(1000000, "Amount too high"),
-  payment_type: z.enum(['deposit', 'rental', 'damage', 'refund']),
+  payment_type: z.enum(['deposit', 'balance', 'rental', 'security_deposit', 'overage_fee', 'damage_fee', 'damage', 'refund']),
   payment_method: z.enum(['card', 'cash', 'bank_transfer', 'credit_card', 'stripe', 'zelle', 'venmo', 'paypal', 'wire', 'other']).optional(),
-  notes: z.string().max(1000, "Notes too long").optional().or(z.literal('')),
+  payment_status: z.string().optional(),
+  transaction_date: z.string().optional(),
+  notes: z.string().max(5000, "Notes too long").optional().nullable().or(z.literal('')),
 });
 
 // Vehicle validation schema
