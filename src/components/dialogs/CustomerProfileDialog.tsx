@@ -27,7 +27,10 @@ import {
   Plus,
   TrendingUp,
   Clock,
-  DollarSign
+  DollarSign,
+  ArrowRight,
+  FileText,
+  Truck
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -42,6 +45,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Trash2 } from "lucide-react";
+import { EnhancedBookingDialog } from "@/components/dialogs/EnhancedBookingDialog";
+import { formatCurrency } from "@/lib/utils";
 
 type Customer = Database['public']['Tables']['customers']['Row'];
 type Booking = Database['public']['Tables']['bookings']['Row'];
@@ -64,6 +69,7 @@ export const CustomerProfileDialog = ({
   const { user } = useAuth();
   const { addCustomerNote, updateCustomer, blacklistCustomer, deleteCustomer, customerNotes } = useFleet();
   const [newNote, setNewNote] = useState("");
+  const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [isAddingNote, setIsAddingNote] = useState(false);
 
   const customerNotesList = customerNotes.filter(note => note.customer_id === customer.id);
@@ -275,27 +281,90 @@ export const CustomerProfileDialog = ({
               </div>
             ) : (
               <div className="space-y-3">
-                {bookings.map((booking) => (
-                  <div key={booking.id} className="p-4 rounded-lg bg-muted/30 border border-primary/10">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="font-medium">{booking.pickup_location}</div>
-                      <Badge className={
-                        booking.status === 'completed' ? 'bg-success/10 text-success' :
-                        booking.status === 'confirmed' ? 'bg-primary/10 text-primary' :
-                        'bg-warning/10 text-warning'
-                      }>
-                        {booking.status}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center justify-between text-sm text-muted-foreground">
-                      <div className="flex items-center space-x-2">
-                        <Calendar className="w-3 h-3" />
-                        <span>{new Date(booking.start_date).toLocaleDateString()}</span>
+                {bookings.map((booking) => {
+                  const startDate = new Date(booking.start_date);
+                  const endDate = new Date(booking.end_date);
+                  const duration = Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
+                  
+                  const getPaymentBadge = () => {
+                    switch (booking.payment_status) {
+                      case 'paid': return <Badge className="bg-success/10 text-success border-success/30">Paid</Badge>;
+                      case 'partial': return <Badge className="bg-warning/10 text-warning border-warning/30">Partial</Badge>;
+                      default: return <Badge className="bg-destructive/10 text-destructive border-destructive/30">Unpaid</Badge>;
+                    }
+                  };
+
+                  return (
+                    <div
+                      key={booking.id}
+                      onClick={() => setSelectedBookingId(booking.id)}
+                      className="p-4 rounded-lg bg-muted/30 border border-primary/10 cursor-pointer hover:border-primary/30 transition-colors space-y-3"
+                    >
+                      {/* Header: Vehicle + Status */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Car className="w-4 h-4 text-primary" />
+                          <span className="font-semibold text-sm">{booking.vehicle_name || 'No Vehicle Assigned'}</span>
+                        </div>
+                        <Badge className={
+                          booking.status === 'completed' ? 'bg-success/10 text-success' :
+                          booking.status === 'confirmed' ? 'bg-primary/10 text-primary' :
+                          booking.status === 'cancelled' ? 'bg-destructive/10 text-destructive' :
+                          'bg-warning/10 text-warning'
+                        }>
+                          {booking.status}
+                        </Badge>
                       </div>
-                      <div className="font-medium text-foreground">${booking.total_value}</div>
+
+                      {/* Dates */}
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Calendar className="w-3.5 h-3.5" />
+                        <span>{startDate.toLocaleDateString()}</span>
+                        <ArrowRight className="w-3 h-3" />
+                        <span>{endDate.toLocaleDateString()}</span>
+                        <Badge variant="secondary" className="ml-1 text-xs">{duration}d</Badge>
+                      </div>
+
+                      {/* Locations */}
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <MapPin className="w-3.5 h-3.5" />
+                        <span>{booking.pickup_location}</span>
+                        {booking.dropoff_location && booking.dropoff_location !== booking.pickup_location && (
+                          <>
+                            <ArrowRight className="w-3 h-3" />
+                            <span>{booking.dropoff_location}</span>
+                          </>
+                        )}
+                      </div>
+
+                      {/* Delivery */}
+                      {booking.requires_delivery && booking.delivery_address && (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Truck className="w-3.5 h-3.5" />
+                          <span>{booking.delivery_address}</span>
+                          {booking.delivery_fee ? <span className="text-foreground font-medium">+{formatCurrency(booking.delivery_fee)}</span> : null}
+                        </div>
+                      )}
+
+                      {/* Pricing + Payment */}
+                      <div className="flex items-center justify-between pt-1 border-t border-border/50">
+                        <div className="flex items-center gap-3 text-sm">
+                          <span className="text-muted-foreground">{formatCurrency(booking.daily_rate)}/day × {duration}d</span>
+                          {getPaymentBadge()}
+                        </div>
+                        <span className="font-semibold text-sm">{formatCurrency(booking.total_value)}</span>
+                      </div>
+
+                      {/* Notes */}
+                      {booking.notes && (
+                        <div className="flex items-start gap-2 text-xs text-muted-foreground">
+                          <FileText className="w-3 h-3 mt-0.5 shrink-0" />
+                          <span className="line-clamp-2">{booking.notes}</span>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </TabsContent>
@@ -342,6 +411,11 @@ export const CustomerProfileDialog = ({
           </TabsContent>
         </Tabs>
       </DialogContent>
+      <EnhancedBookingDialog
+        open={!!selectedBookingId}
+        onOpenChange={(open) => !open && setSelectedBookingId(null)}
+        bookingId={selectedBookingId || ''}
+      />
     </Dialog>
   );
 };
