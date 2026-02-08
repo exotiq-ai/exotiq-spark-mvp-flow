@@ -40,13 +40,15 @@ interface NewBookingDialogProps {
   onOpenChange: (open: boolean) => void;
   vehicles: Tables<'vehicles'>[];
   onSubmit: (booking: Omit<TablesInsert<"bookings">, 'user_id'>) => Promise<void>;
+  prefillCustomer?: { id: string; name: string; email?: string; phone?: string };
 }
 
 export const NewBookingDialog = ({
   open,
   onOpenChange,
   vehicles,
-  onSubmit
+  onSubmit,
+  prefillCustomer,
 }: NewBookingDialogProps) => {
   const { selectedLocationId, currentLocation, locations, currentTeam } = useTeam();
   
@@ -76,6 +78,16 @@ export const NewBookingDialog = ({
       fetchCustomers();
     }
   }, [open, currentTeam?.id]);
+
+  // Prefill customer data when provided (e.g. from CRM)
+  useEffect(() => {
+    if (open && prefillCustomer) {
+      setSelectedCustomerId(prefillCustomer.id);
+      setCustomerName(prefillCustomer.name);
+      setCustomerEmail(prefillCustomer.email || '');
+      setCustomerPhone(prefillCustomer.phone || '');
+    }
+  }, [open, prefillCustomer]);
 
   const fetchCustomers = async () => {
     setLoadingCustomers(true);
