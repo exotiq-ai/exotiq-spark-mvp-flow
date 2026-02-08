@@ -1,137 +1,122 @@
 
-
-# Storage & Database Optimization Plan
+# Booking Flow Enhancements & CRM Delete
 
 ## Overview
 
-Three targeted optimizations to reduce database bloat and storage costs with zero risk to live functionality.
+Six targeted improvements to the booking creation dialog, calendar/dashboard refresh behavior, today's bookings filter, and CRM customer management.
 
 ---
 
-## Task 1: Purge Stale Notifications
+## 1. Discount Pricing in New Booking Dialog
 
-**Problem:** 8,770 notification rows in the database, 8,723 of which are older than 30 days. The 30-day purge policy documented in the project was never activated.
+**Problem:** No way to apply a discount when creating a booking.
 
-**Solution:** Two-part approach -- immediate cleanup via a one-time SQL delete, then a scheduled database function to auto-purge going forward.
+**Solution:** Add a collapsible "Discount" section below the date fields in `NewBookingDialog.tsx`:
 
-### Step 1a: One-Time Purge (SQL Migration)
+- A dollar-amount input field ($ off the total, not per-day) 
+- A dropdown for discount reason: Promotional, Military Discount, Employee, Friends and Family
+- Real-time price recalculation showing original total, discount, and final total
+- The discount and reason are stored in two new columns on the `bookings` table
 
-Run a DELETE statement to remove all notifications older than 30 days:
-
+**Database migration:**
 ```sql
-DELETE FROM notifications WHERE created_at < NOW() - INTERVAL '30 days';
+ALTER TABLE bookings ADD COLUMN discount_amount numeric DEFAULT 0;
+ALTER TABLE bookings ADD COLUMN discount_reason text;
 ```
 
-This clears ~8,700 rows and reclaims ~2.5 MB immediately.
+The `total_value` stored will be the **net** amount (original minus discount). The `discount_amount` and `discount_reason` columns preserve the audit trail.
 
-### Step 1b: Scheduled Auto-Purge (Database Function + pg_cron)
-
-Create a database function that deletes old notifications, triggered by Supabase's built-in `pg_cron` extension:
-
-- Function `purge_old_notifications()` deletes rows older than 30 days
-- Scheduled to run daily at 3:00 AM UTC
-- Keeps the table lean permanently with no manual intervention
-
-**Risk:** None. Old, read notifications have no functional purpose. The realtime subscription only listens for INSERTs on the current user's notifications.
+**UI placement:** Between the date pickers and the location fields, as a collapsible row (collapsed by default). When expanded, shows the discount input + reason dropdown side by side. A live summary line appears: "Subtotal: $X | Discount: -$Y | Total: $Z".
 
 ---
 
-## Task 2: Clean Up Unmatched Photos
+## 2. Prevent Accidental Dialog Close
 
-**Problem:** 12 photos still in `pending` status in the `unmatched_photos` table, plus 26 already matched and 3 rejected. The matched/rejected rows still reference storage files that may no longer be needed.
+**Problem:** Clicking outside the New Booking dialog closes it and loses all entered data.
 
-**Solution:** Add a "Bulk Reject All" action to the existing Photo Review Queue UI, and clean up orphaned storage files for resolved entries.
+**Solution:** Add `onInteractOutside` and `onPointerDownOutside` event handlers to `DialogContent` that call `e.preventDefault()`. This prevents the overlay click from closing the dialog. Users must explicitly click "Cancel" to close.
 
-### Step 2a: Add "Reject All Pending" Button
-
-Add a bulk action button to `PhotoReviewQueue.tsx` that calls the existing `batchRejectPhotos` function (already implemented in `usePhotoReviewQueue`) for all pending items at once.
-
-### Step 2b: Storage Cleanup for Resolved Photos
-
-Create a database function `cleanup_resolved_unmatched_photos()` that:
-
-1. Finds `unmatched_photos` rows with status `rejected` (currently 3)
-2. Deletes the associated files from `vehicle-photos` storage
-3. Hard-deletes the database rows
-
-For `matched` rows (26), the storage files are still in use by `vehicle_photos` records, so only the `unmatched_photos` row is deleted (the photo itself stays).
-
-This will be implemented as a backend function callable from an admin action, not automated, to give control over what gets purged.
-
-**Risk:** Low. Rejected photos are explicitly unwanted. Matched photo rows are cleaned from the queue table only -- the actual files remain linked to their vehicles.
+This is a one-line change on the `DialogContent` component -- Radix UI Dialog supports these props natively.
 
 ---
 
-## Task 3: Client-Side Image Compression
+## 3. Instant Refresh After Booking Creation
 
-**Problem:** Uploaded photos average 900 KB to 2.3 MB. Most are displayed as thumbnails or medium-size previews, making full-resolution uploads wasteful.
+**Problem:** New bookings don't appear immediately in the calendar or pending approval sections.
 
-**Solution:** Add a `compressImage()` utility that runs in the browser before upload, using the native Canvas API (no new dependencies).
+**Solution:** After `createBooking` succeeds in `FleetContext.tsx`, it already calls `refreshData()` -- but the issue is the `NewBookingDialog` calls `onSubmit` (which is `createBooking`), and then immediately closes the dialog. The fix:
 
-### Compression Strategy
+- In `FleetContext.createBooking`: ensure `await refreshData(true)` is called (force refresh) after the insert succeeds -- this is already partially in place but needs the `true` flag
+- Invalidate React Query booking caches via `queryClient.invalidateQueries({ queryKey: ['bookings'] })` in the `BookEnhanced` component's `handleCreateBooking` wrapper
 
-| Parameter | Value | Rationale |
-|-----------|-------|-----------|
-| Max width | 2048px | Sufficient for hero images and detail views |
-| Max height | 2048px | Maintains aspect ratio |
-| Output format | JPEG | Smaller than PNG for photos |
-| Quality | 0.82 | Good balance of quality vs. size |
-| Expected reduction | 50-70% | 2 MB photo becomes ~600-800 KB |
-
-### Implementation
-
-**New file:** `src/lib/imageCompression.ts`
-
-- `compressImage(file: File, options?): Promise<File>` -- resizes and compresses using `<canvas>` and `canvas.toBlob()`
-- Preserves aspect ratio, skips files already under 500 KB
-- Returns a new `File` object (same name, JPEG type)
-
-**Modified file:** `src/lib/photoUpload.ts`
-
-- Call `compressImage()` before the storage upload in `uploadVehiclePhoto()`
-- The 5 MB validation check stays as a safety net, but most files will now be well under 1 MB
-
-**Modified file:** `src/components/photos/usePhotoAnalysis.ts`
-
-- Call `compressImage()` in `uploadToStorage()` before the `supabase.storage.upload()` call
-- Both upload paths (direct upload and bulk upload) benefit automatically
-
-### No New Dependencies
-
-This uses only the browser-native `HTMLCanvasElement` and `canvas.toBlob()` APIs, which are supported in all modern browsers. No library install needed.
-
-**Risk:** Very low. Compression is purely additive -- if it fails for any reason, the original file is uploaded unchanged. Image quality at 0.82 JPEG is visually indistinguishable from the original for automotive photography.
+No structural changes needed -- just ensuring the force-refresh path fires.
 
 ---
 
-## Files to Create
+## 4. Fix "Today's Bookings" Filter
 
-| File | Purpose |
-|------|---------|
-| `src/lib/imageCompression.ts` | Client-side image resize and compress utility |
+**Problem:** `BookEnhanced.tsx` line 148 has `todayBookings = bookings.slice(0, 5)` -- this takes the first 5 bookings with **zero date filtering**. Any booking shows up as "today's".
 
-## Files to Modify
+**Solution:** Replace with a proper date filter matching the pattern already used in `Book.tsx`:
 
-| File | Changes |
-|------|---------|
-| `src/lib/photoUpload.ts` | Add compression before upload |
-| `src/components/photos/usePhotoAnalysis.ts` | Add compression in uploadToStorage |
-| `src/components/photos/PhotoReviewQueue.tsx` | Add "Reject All" bulk action button |
+```typescript
+const todayBookings = useMemo(() => {
+  return bookings.filter(b => {
+    const startDate = new Date(b.start_date);
+    const endDate = new Date(b.end_date);
+    return (
+      isToday(startDate) || 
+      (startDate <= new Date() && endDate >= new Date())
+    );
+  }).slice(0, 5);
+}, [bookings]);
+```
 
-## Database Changes
+This shows only bookings that either start today or are actively spanning today (started before, ending after). Future bookings won't appear here.
 
-| Change | Type |
-|--------|------|
-| Delete notifications older than 30 days | One-time SQL migration |
-| Create `purge_old_notifications()` function | SQL migration |
-| Schedule daily cron job for purge | SQL migration (pg_cron) |
-| Create `cleanup_resolved_unmatched_photos()` function | SQL migration |
+---
 
-## Impact Summary
+## 5. Delete Customer from CRM
 
-| Optimization | Savings | Ongoing |
-|-------------|---------|---------|
-| Notification purge | ~2.5 MB immediately | Auto-purge daily |
-| Unmatched photo cleanup | ~10-30 MB (rejected files) | Manual as needed |
-| Image compression | 50-70% per future upload | Automatic |
+**Problem:** No way for an admin to delete a customer. The `FleetContext` has `updateCustomer`, `blacklistCustomer`, and `addCustomerNote` but no `deleteCustomer`.
 
+**Solution:**
+
+- Add `deleteCustomer(customerId: string)` to `FleetContext` that:
+  1. Checks if the customer has any active/confirmed bookings (prevent deletion if so)
+  2. Deletes the customer row from the `customers` table
+  3. Calls `refreshData()`
+
+- Add a "Delete Customer" button (red, destructive variant) to the `CustomerProfileDialog` with a confirmation alert dialog: "This will permanently remove this customer. Bookings referencing this customer will retain the customer name but lose the CRM link."
+
+- The `bookings` table uses `customer_id` as a nullable FK, so deleting a customer sets it to NULL -- the `customer_name` text field preserves the name for historical bookings.
+
+**Database consideration:** The FK on `bookings.customer_id` likely has no ON DELETE action. We'll add a migration to set it to `SET NULL`:
+
+```sql
+ALTER TABLE bookings DROP CONSTRAINT IF EXISTS bookings_customer_id_fkey;
+ALTER TABLE bookings ADD CONSTRAINT bookings_customer_id_fkey 
+  FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL;
+```
+
+---
+
+## Files Changed
+
+| Action | File | Change |
+|--------|------|--------|
+| Migrate | Database | Add `discount_amount`, `discount_reason` columns; update customer FK |
+| Modify | `src/components/dialogs/NewBookingDialog.tsx` | Add discount section, prevent outside-click close |
+| Modify | `src/components/dashboard/BookEnhanced.tsx` | Fix todayBookings filter |
+| Modify | `src/contexts/FleetContext.tsx` | Add `deleteCustomer`, ensure force refresh on createBooking |
+| Modify | `src/components/dialogs/CustomerProfileDialog.tsx` | Add delete button with confirmation |
+
+## Risk Assessment
+
+| Change | Risk | Reason |
+|--------|------|--------|
+| Discount fields | None | New nullable columns, additive UI |
+| Prevent outside click | None | UX-only, no data impact |
+| Refresh fix | None | Ensures existing refresh path fires properly |
+| Today filter fix | Low | Bug fix -- currently showing wrong data |
+| Delete customer | Low | Guarded by confirmation + active booking check + SET NULL FK |
