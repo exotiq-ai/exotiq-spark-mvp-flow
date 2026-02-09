@@ -384,6 +384,8 @@ export const EnhancedBookingDialog = ({
         onOpenChange={setShowLinkCustomer}
         bookingId={booking.id}
         currentCustomerName={booking.customer_name}
+        currentCustomerEmail={booking.customer_email || undefined}
+        currentCustomerPhone={booking.customer_phone || undefined}
         onCustomerLinked={refreshData}
       />
       <LinkVehicleDialog
