@@ -27,10 +27,11 @@ import { LinkVehicleDialog } from "./LinkVehicleDialog";
 import { useFleet } from "@/contexts/FleetContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { format, differenceInDays } from "date-fns";
+import { format } from "date-fns";
 import { getVehicleImage } from "@/lib/vehicleImageMapping";
 import { openGoogleCalendar } from "@/lib/googleCalendar";
 import { cn } from "@/lib/utils";
+import { calculateBookingTotal, DEFAULT_GAS_FEE } from "@/lib/pricingUtils";
 import {
   Calendar as CalendarIcon,
   MapPin,
@@ -129,23 +130,27 @@ export const EnhancedBookingDialog = ({
 
   const vehicleImage = vehicle?.image_url || (vehicle ? getVehicleImage(vehicle.name) : null) || null;
   
-  // Calculate booking days based on edit mode or original values
-  const bookingDays = useMemo(() => {
-    if (isEditMode && editValues.startDate && editValues.endDate) {
-      return differenceInDays(editValues.endDate, editValues.startDate) || 1;
-    }
-    return booking ? differenceInDays(new Date(booking.end_date), new Date(booking.start_date)) || 1 : 0;
-  }, [booking, isEditMode, editValues.startDate, editValues.endDate]);
+  // Calculate pricing using centralized utility
+  const currentPricing = useMemo(() => {
+    if (!booking) return null;
+    const startDate = isEditMode && editValues.startDate ? editValues.startDate : new Date(booking.start_date);
+    const endDate = isEditMode && editValues.endDate ? editValues.endDate : new Date(booking.end_date);
+    const rate = Number(vehicle?.current_rate || booking?.daily_rate || 0);
+    
+    return calculateBookingTotal({
+      startDate,
+      endDate,
+      dailyRate: rate,
+      discountAmount: Number(booking.discount_amount) || 0,
+      gasFee: Number((booking as any).gas_fee) || DEFAULT_GAS_FEE,
+      gasFeeWaived: (booking as any).gas_fee_waived ?? false,
+      deliveryFee: Number(booking.delivery_fee) || 0,
+    });
+  }, [booking, isEditMode, editValues.startDate, editValues.endDate, vehicle?.current_rate]);
 
-  // Get the daily rate
-  const dailyRate = useMemo(() => {
-    return Number(vehicle?.current_rate || booking?.daily_rate || 0);
-  }, [vehicle?.current_rate, booking?.daily_rate]);
-
-  // Calculate new total when editing
-  const newTotal = useMemo(() => {
-    return bookingDays * dailyRate;
-  }, [bookingDays, dailyRate]);
+  const bookingDays = currentPricing?.rentalDays || 0;
+  const dailyRate = Number(vehicle?.current_rate || booking?.daily_rate || 0);
+  const newTotal = currentPricing?.grandTotal || 0;
 
   // Calculate price difference from original
   const priceDifference = useMemo(() => {
@@ -674,27 +679,37 @@ export const EnhancedBookingDialog = ({
                   </div>
 
                   {/* Price Breakdown - Enhanced */}
-                  <div className="p-4 bg-primary/5 rounded-lg space-y-2 border border-primary/10">
-                    <div className="flex items-center justify-between text-sm text-muted-foreground">
+                  {currentPricing && (
+                  <div className="p-4 bg-primary/5 rounded-lg space-y-2 border border-primary/10 text-sm">
+                    <div className="flex items-center justify-between text-muted-foreground">
                       <span className="flex items-center gap-2">
                         <Clock className="h-4 w-4" />
-                        Duration
+                        Rental ({currentPricing.rentalDays} day{currentPricing.rentalDays !== 1 ? "s" : ""} × ${dailyRate.toLocaleString()})
                       </span>
-                      <span className="font-medium text-foreground">{bookingDays} day{bookingDays !== 1 ? "s" : ""}</span>
+                      <span className="font-medium text-foreground">${currentPricing.rentalSubtotal.toLocaleString()}</span>
                     </div>
-                    <div className="flex items-center justify-between text-sm text-muted-foreground">
-                      <span className="flex items-center gap-2">
-                        <DollarSign className="h-4 w-4" />
-                        Daily Rate
-                      </span>
-                      <span className="font-medium text-foreground">${dailyRate.toLocaleString()}/day</span>
-                    </div>
+                    {currentPricing.discountAmount > 0 && (
+                      <div className="flex items-center justify-between text-success">
+                        <span>Discount {booking.discount_reason && `(${booking.discount_reason})`}</span>
+                        <span>-${currentPricing.discountAmount.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {currentPricing.gasFee > 0 && (
+                      <div className="flex items-center justify-between text-muted-foreground">
+                        <span>Gas/Re-fueling Fee</span>
+                        <span className="font-medium text-foreground">${currentPricing.gasFee.toFixed(2)}</span>
+                      </div>
+                    )}
+                    {currentPricing.deliveryFee > 0 && (
+                      <div className="flex items-center justify-between text-muted-foreground">
+                        <span>Delivery Fee</span>
+                        <span className="font-medium text-foreground">${currentPricing.deliveryFee.toLocaleString()}</span>
+                      </div>
+                    )}
                     <Separator className="my-2" />
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">
-                        ${dailyRate.toLocaleString()} × {bookingDays} day{bookingDays !== 1 ? "s" : ""}
-                      </span>
-                      <span className="font-bold text-primary text-lg">${newTotal.toLocaleString()}</span>
+                      <span className="font-medium">Total</span>
+                      <span className="font-bold text-primary text-lg">${currentPricing.grandTotal.toLocaleString()}</span>
                     </div>
                     {priceDifference !== 0 && (
                       <div className={cn(
@@ -705,6 +720,7 @@ export const EnhancedBookingDialog = ({
                       </div>
                     )}
                   </div>
+                  )}
 
                   {/* Location Fields */}
                   <div className="space-y-3">

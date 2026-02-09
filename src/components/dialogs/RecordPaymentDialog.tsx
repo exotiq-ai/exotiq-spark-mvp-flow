@@ -32,7 +32,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useTeam } from "@/contexts/TeamContext";
 import { DollarSign, CreditCard, Loader2, ExternalLink, ChevronDown, Plus, Trash2, Gauge, Receipt, Tag } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { differenceInDays } from "date-fns";
+import { calculateBookingTotal, DEFAULT_GAS_FEE } from "@/lib/pricingUtils";
 
 type Booking = Database['public']['Tables']['bookings']['Row'];
 type Payment = Database['public']['Tables']['payments']['Row'];
@@ -105,13 +105,17 @@ export const RecordPaymentDialog = ({
     fetchPayments();
   }, [open, booking.id]);
 
-  // Financial calculations
+  // Financial calculations using centralized pricing
   const financials = useMemo(() => {
-    const rentalDays = differenceInDays(new Date(booking.end_date), new Date(booking.start_date)) || 1;
-    const rentalTotal = Number(booking.daily_rate) * rentalDays;
-    const discountAmount = Number(booking.discount_amount) || 0;
-    const deliveryFee = Number(booking.delivery_fee) || 0;
-    const subtotal = rentalTotal - discountAmount + deliveryFee;
+    const pricing = calculateBookingTotal({
+      startDate: booking.start_date,
+      endDate: booking.end_date,
+      dailyRate: Number(booking.daily_rate),
+      discountAmount: Number(booking.discount_amount) || 0,
+      gasFee: Number((booking as any).gas_fee) || DEFAULT_GAS_FEE,
+      gasFeeWaived: (booking as any).gas_fee_waived ?? false,
+      deliveryFee: Number(booking.delivery_fee) || 0,
+    });
     
     const depositsPaid = existingPayments
       .filter(p => p.payment_type === "deposit")
@@ -133,14 +137,10 @@ export const RecordPaymentDialog = ({
     const mileageOverage = Math.max(0, milesDriven - mileageLimit);
     const mileageCharge = mileageOverage * mileageRate;
     
-    const balanceRemaining = subtotal - totalPaid;
+    const balanceRemaining = pricing.grandTotal - totalPaid;
 
     return {
-      rentalDays,
-      rentalTotal,
-      discountAmount,
-      deliveryFee,
-      subtotal,
+      ...pricing,
       depositsPaid,
       balancePayments,
       totalPaid,
@@ -320,12 +320,18 @@ export const RecordPaymentDialog = ({
               <div className="px-4 py-3 space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Rental ({financials.rentalDays} days × ${Number(booking.daily_rate).toLocaleString()})</span>
-                  <span className="font-medium">${financials.rentalTotal.toLocaleString()}</span>
+                  <span className="font-medium">${financials.rentalSubtotal.toLocaleString()}</span>
                 </div>
                 {financials.discountAmount > 0 && (
                   <div className="flex justify-between text-success">
                     <span>Discount {booking.discount_reason && `(${booking.discount_reason})`}</span>
                     <span>-${financials.discountAmount.toLocaleString()}</span>
+                  </div>
+                )}
+                {financials.gasFee > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Gas/Re-fueling Fee</span>
+                    <span className="font-medium">${financials.gasFee.toFixed(2)}</span>
                   </div>
                 )}
                 {financials.deliveryFee > 0 && (
@@ -337,7 +343,7 @@ export const RecordPaymentDialog = ({
                 <Separator />
                 <div className="flex justify-between font-semibold">
                   <span>Booking Total</span>
-                  <span>${financials.subtotal.toLocaleString()}</span>
+                  <span>${financials.grandTotal.toLocaleString()}</span>
                 </div>
 
                 {/* Payments received */}

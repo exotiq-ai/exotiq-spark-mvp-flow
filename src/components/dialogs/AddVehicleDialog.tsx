@@ -12,6 +12,7 @@ import { validators, validateForm } from "@/lib/validation";
 import { toast } from "@/hooks/use-toast";
 import { useTeam } from "@/contexts/TeamContext";
 import { useGenerateHeroImage } from "@/hooks/useGenerateHeroImage";
+import { MILEAGE_RATE_TIERS } from "@/lib/pricingUtils";
 
 type VehicleInsert = Omit<Database['public']['Tables']['vehicles']['Insert'], 'user_id'>;
 
@@ -306,14 +307,16 @@ export const AddVehicleDialog = ({ open, onOpenChange, onSubmit, onAddPhotos }: 
 
                   <div className="space-y-2">
                     <Label htmlFor="mileageRate">Overage Rate ($/mi)</Label>
-                    <Input
-                      id="mileageRate"
-                      type="number"
-                      placeholder="1.50"
-                      defaultValue="1.50"
-                      min="0"
-                      step="0.01"
-                    />
+                    <Select defaultValue="1.99">
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select rate" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {MILEAGE_RATE_TIERS.map(tier => (
+                          <SelectItem key={tier.value} value={tier.value}>{tier.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
