@@ -34,6 +34,8 @@ import { useAIPricing } from '@/hooks/useAIPricing';
 import { useTeam } from '@/contexts/TeamContext';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
+import { calculateBookingTotal, DEFAULT_GAS_FEE } from '@/lib/pricingUtils';
+import { Switch } from '@/components/ui/switch';
 
 interface NewBookingDialogProps {
   open: boolean;
@@ -71,6 +73,7 @@ export const NewBookingDialog = ({
   const [discountExpanded, setDiscountExpanded] = useState(false);
   const [discountAmount, setDiscountAmount] = useState('');
   const [discountReason, setDiscountReason] = useState('');
+  const [gasFeeWaived, setGasFeeWaived] = useState(false);
 
   // Fetch existing customers when dialog opens
   useEffect(() => {
@@ -169,10 +172,14 @@ export const NewBookingDialog = ({
     setLoading(true);
 
     try {
-      const days = Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24));
-      const subtotal = Number(selectedVehicle.current_rate) * days;
-      const discount = Math.min(Number(discountAmount) || 0, subtotal);
-      const totalValue = subtotal - discount;
+      const pricing = calculateBookingTotal({
+        startDate: new Date(startDate),
+        endDate: new Date(endDate),
+        dailyRate: Number(selectedVehicle.current_rate),
+        discountAmount: Number(discountAmount) || 0,
+        gasFee: DEFAULT_GAS_FEE,
+        gasFeeWaived,
+      });
 
       await onSubmit({
         vehicle_id: vehicleId,
@@ -186,11 +193,15 @@ export const NewBookingDialog = ({
         pickup_location_id: effectivePickupLocationId || null,
         dropoff_location: dropoffLocation || null,
         daily_rate: selectedVehicle.current_rate,
-        total_value: totalValue,
-        discount_amount: discount > 0 ? discount : 0,
-        discount_reason: discount > 0 ? discountReason || null : null,
+        total_value: pricing.grandTotal,
+        discount_amount: pricing.discountAmount > 0 ? pricing.discountAmount : 0,
+        discount_reason: pricing.discountAmount > 0 ? discountReason || null : null,
+        gas_fee: DEFAULT_GAS_FEE,
+        gas_fee_waived: gasFeeWaived,
         notes: notes || null,
-        status: 'pending'
+        status: 'pending',
+        mileage_limit: selectedVehicle.default_mileage_limit ?? 250,
+        mileage_overage_fee: selectedVehicle.mileage_overage_rate ?? 1.50,
       } as any);
 
       // Reset form
@@ -477,21 +488,58 @@ export const NewBookingDialog = ({
                     </div>
                   </div>
                   {selectedVehicle && startDate && endDate && (() => {
-                    const days = Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24));
-                    if (days <= 0) return null;
-                    const subtotal = Number(selectedVehicle.current_rate) * days;
-                    const disc = Math.min(Number(discountAmount) || 0, subtotal);
+                    const pricing = calculateBookingTotal({
+                      startDate: new Date(startDate),
+                      endDate: new Date(endDate),
+                      dailyRate: Number(selectedVehicle.current_rate),
+                      discountAmount: Number(discountAmount) || 0,
+                      gasFee: DEFAULT_GAS_FEE,
+                      gasFeeWaived,
+                    });
+                    if (pricing.rentalDays <= 0) return null;
                     return (
-                      <div className="flex items-center justify-between text-sm p-2 rounded-lg bg-muted/30">
-                        <span className="text-muted-foreground">Subtotal: ${subtotal.toLocaleString()}</span>
-                        {disc > 0 && <span className="text-destructive">-${disc.toLocaleString()}</span>}
-                        <span className="font-semibold">Total: ${(subtotal - disc).toLocaleString()}</span>
+                      <div className="space-y-1 text-sm p-2 rounded-lg bg-muted/30">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">{pricing.rentalDays} day{pricing.rentalDays !== 1 ? 's' : ''} × ${Number(selectedVehicle.current_rate).toLocaleString()}</span>
+                          <span>${pricing.rentalSubtotal.toLocaleString()}</span>
+                        </div>
+                        {pricing.discountAmount > 0 && (
+                          <div className="flex justify-between text-success">
+                            <span>Discount</span>
+                            <span>-${pricing.discountAmount.toLocaleString()}</span>
+                          </div>
+                        )}
+                        {pricing.gasFee > 0 && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Gas/Re-fueling Fee</span>
+                            <span>${pricing.gasFee.toFixed(2)}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between font-semibold border-t border-border pt-1 mt-1">
+                          <span>Total</span>
+                          <span>${pricing.grandTotal.toLocaleString()}</span>
+                        </div>
                       </div>
                     );
                   })()}
                 </div>
               </CollapsibleContent>
             </Collapsible>
+
+            {/* Gas Fee Toggle */}
+            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border">
+              <div className="flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+                <div>
+                  <span className="text-sm font-medium">Gas/Re-fueling Fee</span>
+                  <p className="text-xs text-muted-foreground">${DEFAULT_GAS_FEE.toFixed(2)} standard fee</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {gasFeeWaived && <span className="text-xs text-warning">Waived</span>}
+                <Switch checked={!gasFeeWaived} onCheckedChange={(checked) => setGasFeeWaived(!checked)} />
+              </div>
+            </div>
 
             {/* Locations */}
             <div className="space-y-3">

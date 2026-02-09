@@ -110,6 +110,8 @@ export type Database = {
           dropoff_location: string | null
           dropoff_location_id: string | null
           end_date: string
+          gas_fee: number | null
+          gas_fee_waived: boolean | null
           id: string
           mileage_limit: number | null
           mileage_overage_fee: number | null
@@ -152,6 +154,8 @@ export type Database = {
           dropoff_location?: string | null
           dropoff_location_id?: string | null
           end_date: string
+          gas_fee?: number | null
+          gas_fee_waived?: boolean | null
           id?: string
           mileage_limit?: number | null
           mileage_overage_fee?: number | null
@@ -194,6 +198,8 @@ export type Database = {
           dropoff_location?: string | null
           dropoff_location_id?: string | null
           end_date?: string
+          gas_fee?: number | null
+          gas_fee_waived?: boolean | null
           id?: string
           mileage_limit?: number | null
           mileage_overage_fee?: number | null
