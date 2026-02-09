@@ -1,113 +1,48 @@
 
 
-# Fix Pricing Consistency Across All Booking Surfaces
+# Fix: Link Customer Dialog -- Add "Create and Link" for Unmatched Bookings
 
-## The Problem
+## What's Happening
 
-There are **four separate places** that calculate booking totals, and they all use different formulas. This means changing a booking in one place produces a different number than viewing it in another.
+The booking for "Benji S Handuana" was created before the automated CRM sync was added. As a result:
+- The booking has the customer's name, email, and phone stored as text fields
+- No matching record exists in the CRM (customers table)
+- The "Link Customer" dialog only searches existing CRM records -- it cannot create one
 
-| Location | Day Calculation | Total Formula |
-|----------|----------------|---------------|
-| New Booking | `Math.ceil((end - start) / msPerDay)` | `rate x days - discount` |
-| Edit Booking | `differenceInDays(end, start)` (truncates) | `rate x days` (loses discount) |
-| Enhanced Booking (inline edit) | `differenceInDays(end, start)` | `rate x days` (loses discount, delivery fee) |
-| Payment Dialog | `differenceInDays(end, start)` | `rate x days - discount + delivery_fee` |
+This is not a bug in the current booking flow. New bookings already auto-create CRM records. This is a gap for **legacy bookings** created before that feature shipped.
 
-The result: the math doesn't match. Editing a booking overwrites the total without preserving discounts. The day calculation itself can differ by 1 day depending on which dialog you use.
+## SOP Answer
+
+**No, the tenant should not need to add customers to CRM first.** The system already auto-creates CRM records for new bookings. The missing piece is a way to handle older bookings that slipped through before that automation existed.
 
 ## The Fix
 
-### 1. Create a Single Pricing Utility (`src/lib/pricingUtils.ts`)
+### Update `LinkCustomerDialog.tsx`
 
-One function that all dialogs import:
+Replace the passive "Can't find the customer? Create them in CRM first." message with an actionable **"Create & Link"** button:
 
-```text
-calculateBookingTotal(startDate, endDate, dailyRate, options)
-  -> { rentalDays, rentalSubtotal, discount, gasFee, deliveryFee, grandTotal }
-```
+- Pre-fill the new customer form with the booking's existing `customer_name`, `customer_email`, and `customer_phone`
+- On click: create the customer in the `customers` table, then update the booking's `customer_id` to point to it
+- This is a single-click operation -- no need to leave the dialog
 
-- **Day calculation**: Use date-only comparison (strip time, count calendar days). This matches the tenant's billing model -- they bill by day, not by hour.
-- **Formula**: `(dailyRate x days) - discount + gasFee + deliveryFee`
-- Every dialog that shows or saves a total will call this same function.
-
-### 2. Add Gas Fee to Database
-
-Add two columns to the `bookings` table:
-- `gas_fee` (numeric, default 20.00) -- the flat re-fueling service fee
-- `gas_fee_waived` (boolean, default false) -- tenant can waive per booking
-
-### 3. Update New Booking Dialog
-
-- Use `pricingUtils.calculateBookingTotal()` for the pricing summary
-- Add gas fee toggle (on by default, $20)
-- Auto-populate mileage fields from the selected vehicle
-- Save `gas_fee` and `gas_fee_waived` to the booking record
-- The `total_value` saved includes: `(rate x days) - discount + gas_fee + delivery_fee`
-
-### 4. Update Edit Booking Dialog
-
-- Use `pricingUtils.calculateBookingTotal()` for price recalculation
-- **Preserve existing discount, gas fee, and delivery fee** when recalculating after date changes
-- Show full price breakdown (not just `days x rate`)
-- Save the correct `total_value` that accounts for all line items
-
-### 5. Update Enhanced Booking Dialog (Inline Edit)
-
-- Same pricing utility for the inline edit price breakdown
-- Preserve discount/gas/delivery when saving edits
-- The financial summary in view mode will also use the utility for consistency
-
-### 6. Update Record Payment Dialog
-
-- Use `pricingUtils.calculateBookingTotal()` for the financial summary
-- Include `gas_fee` as a line item (if not waived)
-- The "Balance Remaining" calculation: `grandTotal - totalPaid`
-
-### 7. Update Vehicle Mileage Rate Dropdown
-
-- Change the free-text overage rate input to a dropdown with contract-standard tiers: $1.99, $2.99, $3.49, $3.99, $4.49, $4.99
-- Apply to both `AddVehicleDialog` and `VehicleDetailsDialog`
-
-## Technical Details
-
-### New File: `src/lib/pricingUtils.ts`
-
-```text
-calculateRentalDays(startDate: string | Date, endDate: string | Date): number
-  - Strips time component
-  - Counts calendar days between start and end
-  - Minimum 1 day
-
-calculateBookingTotal(params): BookingPricing
-  params: { startDate, endDate, dailyRate, discountAmount?, gasFee?, gasFeeWaived?, deliveryFee? }
-  returns: { rentalDays, rentalSubtotal, discountAmount, gasFee, deliveryFee, grandTotal }
-```
-
-### SQL Migration
-
-```text
-ALTER TABLE bookings
-  ADD COLUMN IF NOT EXISTS gas_fee numeric DEFAULT 20.00,
-  ADD COLUMN IF NOT EXISTS gas_fee_waived boolean DEFAULT false;
-```
-
-### Files Changed
+### What Changes
 
 | File | Change |
 |------|--------|
-| `src/lib/pricingUtils.ts` | New -- single source of truth for pricing math |
-| SQL Migration | Add `gas_fee`, `gas_fee_waived` to bookings |
-| `src/components/dialogs/NewBookingDialog.tsx` | Use pricingUtils, add gas fee toggle, populate mileage from vehicle |
-| `src/components/dialogs/EditBookingDialog.tsx` | Use pricingUtils, preserve discount/gas/delivery in total |
-| `src/components/dialogs/EnhancedBookingDialog.tsx` | Use pricingUtils for inline edit and view-mode financial summary |
-| `src/components/dialogs/RecordPaymentDialog.tsx` | Use pricingUtils, add gas fee line item |
-| `src/components/dialogs/AddVehicleDialog.tsx` | Change mileage rate to dropdown ($1.99-$4.99) |
-| `src/components/dialogs/VehicleDetailsDialog.tsx` | Change mileage rate to dropdown ($1.99-$4.99) |
+| `src/components/dialogs/LinkCustomerDialog.tsx` | Add a "Create & Link" button at the bottom that creates a new CRM record from the booking's existing name/email/phone and links it in one step. Also accept `currentCustomerEmail` and `currentCustomerPhone` props so the data flows from the booking into the new customer record. |
+| `src/components/dialogs/EnhancedBookingDialog.tsx` | Pass `customer_email` and `customer_phone` from the booking to the `LinkCustomerDialog` so the create flow has complete data. |
 
-### What This Ensures
+### Technical Details
 
-- Change a date anywhere -> same total everywhere
-- Discounts, gas fees, delivery fees are never lost during edits
-- Payment dialog always shows the same numbers as the booking overview
-- CRM booking history reflects accurate totals
-- Day count is always based on calendar dates, not timestamps
+The "Create & Link" button in `LinkCustomerDialog` will:
+
+1. Insert into `customers` table: `{ full_name: currentCustomerName, email: currentCustomerEmail, phone: currentCustomerPhone, user_id, team_id }`
+2. Update the booking: `{ customer_id: newCustomer.id }`
+3. Call `refreshData()` and close the dialog
+
+This matches the exact same logic already in `createBooking` (FleetContext lines 821-840) but makes it available retroactively for legacy bookings.
+
+### Duplicate Prevention
+
+Before creating, the button will check if a customer with the same email already exists (same logic as the auto-sync). If found, it links the existing record instead of creating a duplicate.
+
