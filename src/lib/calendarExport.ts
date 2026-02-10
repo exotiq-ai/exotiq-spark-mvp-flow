@@ -80,15 +80,23 @@ export const bookingsToCalendarEvents = (
     start_date: string;
     end_date: string;
     notes?: string | null;
+    vehicle_id?: string | null;
   }>,
   vehicleMap: Record<string, string>
 ): CalendarEvent[] => {
-  return bookings.map((booking) => ({
-    uid: booking.id,
-    title: `Rental: ${booking.customer_name}`,
-    description: booking.notes || `Booking for ${booking.customer_name}`,
-    location: booking.pickup_location,
-    startDate: new Date(booking.start_date),
-    endDate: new Date(booking.end_date),
-  }));
+  return bookings.map((booking) => {
+    const vehicleName = booking.vehicle_id ? vehicleMap[booking.vehicle_id] || '' : '';
+    return {
+      uid: booking.id,
+      title: vehicleName ? `${vehicleName} - ${booking.customer_name}` : `Rental: ${booking.customer_name}`,
+      description: [
+        `Customer: ${booking.customer_name}`,
+        `Location: ${booking.pickup_location}`,
+        booking.notes || '',
+      ].filter(Boolean).join('\n'),
+      location: booking.pickup_location,
+      startDate: new Date(booking.start_date),
+      endDate: new Date(booking.end_date),
+    };
+  });
 };

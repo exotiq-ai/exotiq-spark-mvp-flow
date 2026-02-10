@@ -9,7 +9,7 @@ import { VehicleImageDialog } from "@/components/dialogs/VehicleImageDialog";
 import { EnhancedBookingDialog } from "@/components/dialogs/EnhancedBookingDialog";
 import { RealtimeIndicator } from "@/components/common/RealtimeIndicator";
 import { downloadICS, bookingsToCalendarEvents } from "@/lib/calendarExport";
-import { openGoogleCalendar } from "@/lib/googleCalendar";
+// Google Calendar single-event import removed — using ICS bulk export instead
 import { getVehicleImage } from "@/lib/vehicleImageMapping";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
@@ -44,7 +44,7 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isWithinInterval } from "date-fns";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from "date-fns";
 
 interface BookingCalendarProps {
   onNavigateToModule?: (moduleId: string, context?: Record<string, any>) => void;
@@ -222,16 +222,15 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
     if (selectedVehicle !== "all" && booking.vehicle_id !== selectedVehicle) return false;
     const bookingStart = new Date(booking.start_date);
     const bookingEnd = new Date(booking.end_date);
-    return isWithinInterval(monthStart, { start: bookingStart, end: bookingEnd }) ||
-           isWithinInterval(monthEnd, { start: bookingStart, end: bookingEnd }) ||
-           (bookingStart <= monthStart && bookingEnd >= monthEnd);
+    // Simple overlap: booking overlaps month if it starts before month ends AND ends after month starts
+    return bookingStart <= monthEnd && bookingEnd >= monthStart;
   });
 
   const getBookingsForDay = (day: Date) => {
     return filteredBookings.filter(booking => {
       const bookingStart = new Date(booking.start_date);
       const bookingEnd = new Date(booking.end_date);
-      return isSameDay(day, bookingStart) || isSameDay(day, bookingEnd) || isWithinInterval(day, { start: bookingStart, end: bookingEnd });
+      return day >= bookingStart && day <= bookingEnd;
     });
   };
 
@@ -326,11 +325,11 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
                   <span className="hidden sm:inline">Export</span>
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => {
-                  const vehicleMap = vehicles.reduce((acc, v) => ({ ...acc, [v.id]: v.name }), {} as Record<string, string>);
-                  if (filteredBookings.length > 0) {
-                    openGoogleCalendar(filteredBookings[0], vehicleMap[filteredBookings[0].vehicle_id]);
-                  }
-                  toast({ title: "Opening Google Calendar" });
+                  handleExportCalendar();
+                  toast({ 
+                    title: "Import to Google Calendar", 
+                    description: "Open calendar.google.com → Settings → Import & Export → Import the downloaded .ics file" 
+                  });
                 }} className="flex items-center gap-2">
                   <CalendarIcon className="h-4 w-4" />
                   <span className="hidden sm:inline">Google</span>
