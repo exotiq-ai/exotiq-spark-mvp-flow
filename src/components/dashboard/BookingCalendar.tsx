@@ -492,7 +492,7 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
             {/* Calendar Grid */}
             <motion.div 
               layout
-              className="grid grid-cols-7 gap-0.5 sm:gap-1" 
+              className="grid grid-cols-7 border-t border-l border-border/40 rounded-lg overflow-hidden" 
               role="grid" 
               aria-label="Calendar grid"
               drag={isMobile ? "x" : false}
@@ -505,13 +505,13 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
             >
               {/* Day headers */}
               {dayHeaders.map((day, i) => (
-                <div key={i} className="text-center font-medium text-[10px] sm:text-xs text-muted-foreground py-1.5 sm:py-2">
+                <div key={i} className="text-center font-medium text-[10px] sm:text-xs text-muted-foreground py-1.5 sm:py-2 border-r border-b border-border/40 bg-muted/20">
                   {day}
                 </div>
               ))}
 
               {/* Empty padding cells */}
-              {Array.from({ length: monthStart.getDay() }).map((_, i) => <div key={`empty-${i}`} />)}
+              {Array.from({ length: monthStart.getDay() }).map((_, i) => <div key={`empty-${i}`} className="border-r border-b border-border/40" />)}
               
               {/* Day cells */}
               {daysInMonth.map((day, dayIndex) => {
@@ -522,29 +522,28 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
                 const isToday = isSameDay(day, new Date());
                 
                 const getDensityClass = () => {
-                  if (bookingsCount === 0) return 'border-transparent hover:border-border';
-                  if (bookingsCount >= 5) return 'bg-success/15 border-success/25 hover:border-success/50';
-                  if (bookingsCount >= 3) return 'bg-warning/10 border-warning/20 hover:border-warning/40';
-                  return 'bg-primary/5 border-primary/15 hover:border-primary/40';
+                  if (bookingsCount === 0) return 'hover:bg-muted/30';
+                  if (bookingsCount >= 5) return 'bg-success/10 hover:bg-success/15';
+                  if (bookingsCount >= 3) return 'bg-warning/8 hover:bg-warning/12';
+                  return 'bg-primary/5 hover:bg-primary/8';
                 };
 
                 return (
-                  <motion.div 
+                  <div 
                     key={day.toISOString()} 
                     data-calendar-day 
                     role="gridcell" 
                     tabIndex={dayIndex === focusedDateIndex ? 0 : -1}
                     onClick={() => handleDayClick(day)} 
                     onKeyDown={(e) => handleKeyDown(e, dayIndex, day)}
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{ scale: 0.97 }}
                     aria-selected={isSelected}
-                    className={`relative p-1 sm:p-1.5 min-h-[56px] sm:min-h-[72px] lg:min-h-[84px] rounded-xl border cursor-pointer transition-all
+                    className={`relative p-1 sm:p-1.5 min-h-[56px] sm:min-h-[72px] lg:min-h-[84px] border-r border-b border-border/40 cursor-pointer transition-colors
                       ${isSelected 
-                        ? 'bg-primary text-primary-foreground border-primary shadow-md' 
+                        ? 'bg-primary text-primary-foreground ring-2 ring-inset ring-primary' 
                         : `${getDensityClass()}`}
-                      ${hasConflict && !isSelected ? 'border-destructive/50 bg-destructive/5' : ''}
-                      focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1`}
+                      ${hasConflict && !isSelected ? 'bg-destructive/5' : ''}
+                      ${isToday && !isSelected ? 'border-b-2 border-b-primary' : ''}
+                      focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset`}
                   >
                     {/* Date number */}
                     <div className="flex items-center justify-between mb-0.5">
@@ -553,7 +552,7 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
                           {format(day, 'd')}
                         </span>
                       ) : (
-                        <span className={`text-xs sm:text-sm font-semibold ${isSelected ? 'text-primary-foreground' : ''}`}>
+                        <span className={`text-xs sm:text-sm ${isToday ? 'font-bold' : 'font-semibold'} ${isSelected ? 'text-primary-foreground' : ''}`}>
                           {format(day, 'd')}
                         </span>
                       )}
@@ -616,7 +615,7 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
                                   {pillText}
                                 </div>
                               </HoverCardTrigger>
-                              <HoverCardContent side="right" align="start" className="p-4 z-50"
+                              <HoverCardContent side="right" align="start" className="p-4 z-50 bg-popover border border-border shadow-lg"
                                 onClick={(e) => e.stopPropagation()}>
                                 <BookingPreviewCard 
                                   booking={booking} vehicle={vehicle}
@@ -634,7 +633,7 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
                         )}
                       </div>
                     )}
-                  </motion.div>
+                  </div>
                 );
               })}
             </motion.div>
