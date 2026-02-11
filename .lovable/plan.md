@@ -1,139 +1,125 @@
 
 
-# Calendar Design Upgrade -- Premium, Responsive, Polished
+# Calendar Visual Polish -- From 7/10 to 9+/10
 
-## Problems Visible in Screenshots
+## Current Issues (From Screenshots)
 
-1. **Calendar cells are tiny and sparse** -- hard to read booking pills at 9px text, especially on smaller desktops
-2. **Duplicate export buttons** -- "Export" and "Google" now do the same thing (both download ICS)
-3. **Toolbar is cramped** -- month nav, refresh, export, google, filter all on one row; wraps awkwardly on tablets
-4. **No "Today" button** -- if you navigate to a different month, no quick way back
-5. **Day panel gets clipped** -- the right panel at 45% width can push off-screen on narrower desktops (screenshot shows it overlapping)
-6. **Mobile unusable** -- on phones, the 7-column grid with 50px min-height cells leaves no room for booking pills; the day panel stacks below but the calendar itself is already too tall
-7. **No month summary** -- you see the grid but no quick stats (total bookings this month, revenue, utilization)
-8. **Booking pills truncate aggressively** -- only showing the last word of the vehicle name is not enough context
-9. **Day detail panel empty state is generic** -- "This day is wide open!" doesn't add value
+1. **No grid lines between days** -- numbers float in blank space; you can't visually parse the calendar grid until you hover a cell. Traditional calendars have subtle borders separating each day box.
+2. **Hover scale (1.03x) causes overlap** -- when a cell scales up, it bleeds into adjacent cells, breaking alignment.
+3. **Hover card (BookingPreviewCard) creates visual conflict** -- the large popover obscures neighboring cells. In dark mode, the contrast is especially poor because the card background blends with the dark cell backgrounds.
+4. **Transparent/invisible cell borders** -- `border-transparent` on empty days means the grid structure is invisible. Only hovering reveals the cell boundary.
+5. **`rounded-xl` on cells** -- overly rounded corners eat into the grid's visual cohesion. Traditional calendars use sharp or subtly rounded corners.
 
 ## Design Changes
 
-### 1. Redesigned Header and Toolbar
+### 1. Add Persistent Grid Lines (The Big Fix)
 
-**Current**: Everything on one row, wrapping chaotically.
-**New**: Two-tier header layout.
+Replace the current `gap-0.5 sm:gap-1` grid spacing + `border-transparent` with a proper bordered grid:
 
-- **Row 1**: Month/Year title (left), "Today" pill button + nav arrows (right)
-- **Row 2**: Month summary stats bar (bookings count, revenue, vehicles in use) -- compact chips
-- **Toolbar**: Export and Filter move into a clean icon group on the right of Row 1
+- Set `gap-0` on the grid (no spacing between cells)
+- Add `border border-border/40` to every cell so lines are always visible
+- Use `border-collapse`-style effect by making shared borders (right/bottom border on each cell)
+- Result: a clean, traditional calendar grid that's always readable
 
-Remove the separate "Google" button entirely -- it duplicates Export. The toast instruction for Google import stays on the single Export action.
+### 2. Remove Hover Scale Effect
 
-### 2. Improved Calendar Grid Cells
+Delete the `whileHover={{ scale: 1.03 }}` and `whileTap={{ scale: 0.97 }}` from day cells. These cause overlap and visual jitter. Replace with a subtle background highlight on hover:
 
-- Increase `min-h` from `50px/70px` to `60px/80px` for better readability
-- Show booking pills with **customer first name + vehicle model** instead of just vehicle last word (e.g., "Benji - Spider" not just "Spider")
-- Increase pill text from `9px/10px` to `10px/11px`
-- Add a subtle booking count badge in the corner of busy days
-- Today's date gets a filled circle indicator (like Apple Calendar) instead of just a ring
+- Empty days: `hover:bg-muted/30` (light) / `hover:bg-muted/20` (dark)
+- Days with bookings: `hover:bg-primary/8`
+- This provides clear hover feedback without breaking the grid layout
 
-### 3. Mobile-First Day Detail Panel
+### 3. Fix Hover Card Contrast
 
-**Current**: Side panel on desktop, stacks below on mobile (forcing scroll past the full calendar).
-**New**: 
-- **Mobile/Tablet (below `lg`)**: Day detail opens as a **bottom sheet** (using Vaul drawer) that slides up, covering 60% of the screen. Calendar stays visible behind the sheet.
-- **Desktop**: Keep the side panel split-view but change proportions to 60%/40% for better balance.
+The `HoverCardContent` for booking previews needs:
+- Explicit `bg-popover` background (not transparent)
+- A stronger `shadow-lg` for separation from the grid
+- `border border-border` to define edges in both themes
+- Increase `z-50` to ensure it layers above all cells
 
-### 4. Mobile Calendar Optimizations
+### 4. Reduce Border Radius on Cells
 
-- On mobile (`< 640px`), show **single-letter day headers** (S, M, T, W, T, F, S) instead of three-letter
-- Compress cell padding for tighter mobile grid
-- Booking pills show only a colored dot + count on mobile (no text) -- tap to open the bottom sheet with full details
-- Add **swipe gesture** for month navigation (left/right) using framer-motion drag
+Change from `rounded-xl` (12px) to `rounded-none` or `rounded-sm` (2px) for the grid cells. This creates the traditional calendar box look. Only the outer card container keeps its rounded corners.
 
-### 5. Month Summary Bar
+### 5. Improve Selected State
 
-A slim stats bar below the header showing:
-- Total bookings this month
-- Total revenue this month  
-- Active vehicles this month
-- Conflicts count (if any)
+Keep the filled primary background for selected day, but add a subtle inset shadow to make it feel "pressed" rather than "floating":
+- `ring-2 ring-primary ring-inset` instead of `shadow-md`
 
-Styled as compact pill/chip badges -- not cards. Matches the `CompactMetricsBar` pattern used on the dashboard.
+### 6. Soften the Today Indicator
 
-### 6. Better Empty State
-
-When a day has no bookings, the detail panel shows a more useful message with a "Create Booking" shortcut button that pre-fills the selected date.
-
-### 7. Visual Polish
-
-- Calendar card: remove the heavy `card-premium` shadow on mobile, use a flatter look
-- Day cells: softer border-radius (`rounded-xl` instead of `rounded-lg`) for a more modern feel
-- Selected day: use a filled primary background with white text (Apple Calendar style) instead of the current border-only treatment
-- Booking pills: add a subtle left-border accent (already exists) but increase width to 3px for better visibility
-- Day panel booking cards: tighten spacing, improve the vehicle image thumbnail size
+The current filled circle for today is good, but make the non-selected today cell have a subtle bottom border accent instead of competing with the selected state:
+- Today (not selected): thin 2px bottom border in primary color + slightly bold number
+- Today (selected): full primary background (as is)
 
 ## Technical Details
 
-### Files Changed
+### File Changed
 
 | File | Change |
 |------|--------|
-| `src/components/dashboard/BookingCalendar.tsx` | Complete UI restructure: two-tier header, responsive grid, mobile bottom sheet, swipe navigation, month summary bar, improved pills, "Today" button, remove Google button duplicate |
+| `src/components/dashboard/BookingCalendar.tsx` | Grid lines, remove scale hover, fix border-radius, improve selected/today states, fix hover card styling |
 
-### Responsive Breakpoints
+### Grid Structure Change (lines 493-510)
 
-| Breakpoint | Grid Cell Height | Day Headers | Booking Pills | Day Detail |
-|------------|-----------------|-------------|---------------|------------|
-| Mobile (<640px) | 56px | S/M/T/W/T/F/S | Colored dot + count | Bottom sheet (Vaul Drawer) |
-| Tablet (640-1023px) | 72px | Sun/Mon/Tue... | Abbreviated name | Bottom sheet (Vaul Drawer) |
-| Desktop (>=1024px) | 84px | Sun/Mon/Tue... | Full name + customer | Side panel 40% width |
-
-### Month Summary Bar Data
-
-```text
-const monthStats = useMemo(() => ({
-  totalBookings: filteredBookings.length,
-  totalRevenue: filteredBookings.reduce((sum, b) => sum + (b.total_value || 0), 0),
-  activeVehicles: new Set(filteredBookings.map(b => b.vehicle_id)).size,
-  conflicts: daysInMonth.filter(d => hasConflicts(d)).length,
-}), [filteredBookings, daysInMonth]);
+Replace:
+```
+className="grid grid-cols-7 gap-0.5 sm:gap-1"
+```
+With:
+```
+className="grid grid-cols-7 border-t border-l border-border/40"
 ```
 
-### Mobile Swipe Navigation
-
-```text
-<motion.div
-  drag="x"
-  dragConstraints={{ left: 0, right: 0 }}
-  onDragEnd={(_, info) => {
-    if (info.offset.x > 100) previousMonth();
-    if (info.offset.x < -100) nextMonth();
-  }}
->
-  {/* calendar grid */}
-</motion.div>
+Each cell gets:
+```
+className="border-r border-b border-border/40"
 ```
 
-### Bottom Sheet for Mobile Day Detail
+This creates the classic calendar grid with shared borders.
 
-Uses the existing `vaul` (Drawer) dependency -- already installed. On mobile, clicking a day opens the Drawer instead of expanding the side panel:
+### Cell Styling Change (lines 531-547)
 
-```text
-import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
-
-// On mobile: open drawer
-// On desktop: show side panel (existing behavior)
-const isMobile = window.innerWidth < 1024;
+Remove:
+```
+whileHover={{ scale: 1.03 }}
+whileTap={{ scale: 0.97 }}
+rounded-xl border cursor-pointer
 ```
 
-### Removed
+Replace with:
+```
+rounded-none sm:rounded-sm border-r border-b border-border/40 cursor-pointer
+hover:bg-muted/40 transition-colors
+```
 
-- Google Calendar button (duplicate of Export)
-- `openGoogleCalendar` import (already removed in last diff)
+For selected cells, add `ring-2 ring-inset ring-primary` instead of `shadow-md`.
 
-### Unchanged
+### Density Classes Update (lines 524-529)
 
-- All existing functionality: click-for-details, hover preview cards, keyboard navigation, conflict detection, realtime updates, vehicle color coding, ICS export
-- EnhancedBookingDialog integration
-- Vehicle image dialog
-- Filter by vehicle
+Remove border-based density indicators (they conflict with grid borders). Instead use only background colors:
+```
+if (bookingsCount === 0) return 'hover:bg-muted/30';
+if (bookingsCount >= 5) return 'bg-success/10 hover:bg-success/15';
+if (bookingsCount >= 3) return 'bg-warning/8 hover:bg-warning/12';
+return 'bg-primary/5 hover:bg-primary/8';
+```
 
+### Hover Card Fix (lines 619-626)
+
+Add explicit styling to HoverCardContent:
+```
+className="p-4 z-50 bg-popover border border-border shadow-lg"
+```
+
+### What This Achieves
+
+- Grid lines always visible -- instantly readable calendar structure
+- No cell overlap on hover -- clean, stable interactions
+- Hover cards stand out clearly in both light and dark themes
+- Traditional calendar aesthetic that users recognize
+- Keeps all existing functionality: click for details, booking pills, conflict indicators, mobile bottom sheet, swipe navigation, keyboard nav, ICS export
+
+### Target Rating: 9+/10
+
+The calendar will look and feel like Apple Calendar / Google Calendar with always-visible grid structure, clean hover states, and rich interactive detail panels.
