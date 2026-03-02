@@ -53,6 +53,8 @@ export default function Auth() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [magicLinkCooldown, setMagicLinkCooldown] = useState(0);
+  const [resetCooldown, setResetCooldown] = useState(0);
   
   // Track recovery email for display
   const [recoveryEmail, setRecoveryEmail] = useState<string | null>(null);
@@ -76,6 +78,29 @@ export default function Auth() {
     clearPasswordRecovery
   } = useAuth();
   const navigate = useNavigate();
+
+  // Cooldown timers for rate-limited actions
+  useEffect(() => {
+    if (magicLinkCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setMagicLinkCooldown(prev => {
+        if (prev <= 1) { clearInterval(timer); return 0; }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [magicLinkCooldown]);
+
+  useEffect(() => {
+    if (resetCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setResetCooldown(prev => {
+        if (prev <= 1) { clearInterval(timer); return 0; }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [resetCooldown]);
 
   // Update mode when URL param changes
   useEffect(() => {
@@ -254,6 +279,7 @@ export default function Auth() {
       if (!magicLinkError) {
         setSuccess("Check your email! We've sent you a magic link to sign in.");
         setEmail('');
+        setMagicLinkCooldown(60);
       }
     } catch (err) {
       setError("Failed to send magic link. Please try again.");
@@ -281,6 +307,7 @@ export default function Auth() {
       if (!resetError) {
         setSuccess("Password reset email sent! Check your inbox.");
         setEmail('');
+        setResetCooldown(60);
       }
     } catch (err) {
       setError("Failed to send reset email. Please try again.");
@@ -690,13 +717,15 @@ export default function Auth() {
                   <Button 
                     type="submit" 
                     className="w-full btn-premium"
-                    disabled={loading}
+                    disabled={loading || magicLinkCooldown > 0}
                   >
                     {loading ? (
                       <>
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                         Sending...
                       </>
+                    ) : magicLinkCooldown > 0 ? (
+                      `Resend in ${magicLinkCooldown}s`
                     ) : (
                       <>
                         <Mail className="w-4 h-4 mr-2" />
@@ -812,7 +841,7 @@ export default function Auth() {
                   <Button 
                     type="submit" 
                     className="flex-1"
-                    disabled={loading}
+                    disabled={loading || resetCooldown > 0}
                     size="sm"
                   >
                     {loading ? (
@@ -820,6 +849,8 @@ export default function Auth() {
                         <Loader2 className="w-3 h-3 mr-2 animate-spin" />
                         Sending...
                       </>
+                    ) : resetCooldown > 0 ? (
+                      `Resend in ${resetCooldown}s`
                     ) : (
                       'Send Reset Link'
                     )}

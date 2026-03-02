@@ -563,9 +563,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
 
     if (error) {
+      const isRateLimit = error.message?.includes('security purposes') || (error as any).status === 429;
       toast({
         title: "Error Sending Magic Link",
-        description: error.message,
+        description: isRateLimit
+          ? "Please wait a moment before requesting another magic link."
+          : error.message,
         variant: "destructive"
       });
     } else {
@@ -586,9 +589,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
 
     if (error) {
+      const isRateLimit = error.message?.includes('security purposes') || (error as any).status === 429;
       toast({
         title: "Error Sending Reset Email",
-        description: error.message,
+        description: isRateLimit
+          ? "Please wait a moment before requesting another reset link."
+          : error.message,
         variant: "destructive"
       });
     } else {
