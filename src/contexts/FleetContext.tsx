@@ -1369,7 +1369,9 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       refreshBookings,
       refreshPayments,
       refreshDamageClaims,
-      refreshCustomers
+      refreshCustomers,
+      refreshInspections,
+      refreshMaintenance
     }}>
       {children}
     </FleetContext.Provider>
