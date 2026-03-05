@@ -56,7 +56,7 @@ export const Navigation = ({ onRequestAccess, onTryDemo, scrollToSection, onSche
               Schedule Demo
             </Button>
             <Link to="/auth">
-              <Button variant="ghost" className="text-muted-foreground hover:text-foreground">Log in</Button>
+              <Button variant="outline" className="border-border hover:border-primary/50">Log in</Button>
             </Link>
             <Link to="/auth?trial=true">
               <Button className="btn-premium">Start Free Trial</Button>
