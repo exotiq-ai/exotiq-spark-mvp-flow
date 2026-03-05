@@ -110,44 +110,31 @@ export const DashboardSidebar = ({ activeModule, onModuleChange }: DashboardSide
 
       {/* Navigation Items */}
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-        {modules.map((module) => {
+        {/* Intelligence Group */}
+        {!collapsed && (
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground px-3 pt-2 pb-1">
+            Intelligence
+          </p>
+        )}
+        {intelligenceModules.map((module) => {
           const isActive = activeModule === module.id || 
             (module.id === "motoriq" && activeModule === "optimize");
-          
           return (
-            <button
-              key={module.id}
-              onClick={() => onModuleChange(module.id)}
-              data-tour={`nav-${module.id}`}
-              className={cn(
-                "w-full flex items-center rounded-lg transition-all duration-200 group relative",
-                "min-h-[44px]", // Touch-friendly 44px minimum
-                collapsed ? "justify-center p-3" : "justify-start p-3 space-x-3",
-                isActive 
-                  ? "bg-sidebar-accent border-l-4 border-primary" 
-                  : "hover:bg-sidebar-accent/50 border-l-4 border-transparent hover:border-border"
-              )}
-              title={collapsed ? module.name : undefined}
-            >
-              <div className={cn(
-                "p-2 rounded-lg transition-all",
-                isActive && "bg-primary/10"
-              )}>
-                <module.icon className={cn(
-                  "h-5 w-5 transition-colors",
-                  isActive ? "text-primary" : module.color
-                )} />
-              </div>
-              
-              {!collapsed && (
-                <span className={cn(
-                  "flex-1 text-left font-medium text-sm",
-                  isActive && "text-primary"
-                )}>
-                  {module.name}
-                </span>
-              )}
-            </button>
+            <NavButton key={module.id} module={module} isActive={isActive} collapsed={collapsed} onModuleChange={onModuleChange} />
+          );
+        })}
+
+        {/* Operations Group */}
+        {!collapsed && (
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground px-3 pt-4 pb-1">
+            Operations
+          </p>
+        )}
+        {collapsed && <div className="h-3" />}
+        {operationsModules.map((module) => {
+          const isActive = activeModule === module.id;
+          return (
+            <NavButton key={module.id} module={module} isActive={isActive} collapsed={collapsed} onModuleChange={onModuleChange} />
           );
         })}
       </nav>
