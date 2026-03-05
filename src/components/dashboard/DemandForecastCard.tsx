@@ -245,7 +245,10 @@ export const DemandForecastCard = () => {
       const date = addDays(startDate, i);
       const dateStr = format(date, 'yyyy-MM-dd');
       const dayEvents = filteredEvents.filter(e => e.date.startsWith(dateStr));
-      const baseDemand = 65 + Math.random() * 10;
+      const dayOfWeek = date.getDay();
+      // Base demand from day-of-week patterns (weekends higher for luxury rentals)
+      const dayWeights: Record<number, number> = { 0: 72, 1: 60, 2: 58, 3: 62, 4: 68, 5: 78, 6: 80 };
+      const baseDemand = dayWeights[dayOfWeek] || 65;
       const eventBoost = dayEvents.reduce((sum, e) => sum + (e.impactScore / 10), 0);
       const demand = Math.min(98, Math.round(baseDemand + eventBoost));
       return {
