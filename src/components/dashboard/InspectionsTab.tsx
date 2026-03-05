@@ -48,7 +48,6 @@ export const InspectionsTab = ({ vehicles }: InspectionsTabProps) => {
   });
 
   const [showVehicleSelector, setShowVehicleSelector] = useState(false);
-  const [showVehicleSelector, setShowVehicleSelector] = useState(false);
   const [inspectionDirection, setInspectionDirection] = useState<'check_in' | 'check_out'>('check_in');
   const [selectedInspectionVehicle, setSelectedInspectionVehicle] = useState<Vehicle | null>(null);
   const [vehicleSearchTerm, setVehicleSearchTerm] = useState('');

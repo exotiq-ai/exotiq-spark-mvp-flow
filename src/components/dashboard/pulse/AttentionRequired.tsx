@@ -50,7 +50,6 @@ export const AttentionRequired = () => {
   });
 
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
-  const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
 
   // Late returns with booking details
   const lateReturns = bookings.filter(b => 

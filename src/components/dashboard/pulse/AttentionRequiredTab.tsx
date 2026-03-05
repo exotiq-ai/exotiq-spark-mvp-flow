@@ -52,7 +52,6 @@ export const AttentionRequiredTab = () => {
   });
 
   const navigate = useNavigate();
-  const navigate = useNavigate();
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
 
   // Late returns with booking details
