@@ -262,20 +262,22 @@ export const DynamicPricingCard = ({ onApplyOptimization }: DynamicPricingCardPr
             <div className="text-xs text-muted-foreground">{format(now, 'MMMM')} rates</div>
           </div>
 
-          <div className={`p-4 rounded-lg ${events.length > 0 ? 'bg-accent/10 border border-accent/20' : 'bg-muted/30 border border-dashed'}`}>
+          <div className={`p-4 rounded-lg ${pricingFactors.eventPremium > 0 ? 'bg-accent/10 border border-accent/20' : 'bg-muted/30 border border-dashed'}`}>
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm text-muted-foreground">Events</span>
-              {events.length > 0 ? (
+              {pricingFactors.eventPremium > 0 ? (
                 <Sparkles className="h-3 w-3 text-accent" />
               ) : (
-                <Badge variant="outline" className="text-xs">Live</Badge>
+                <Badge variant="outline" className="text-xs">None</Badge>
               )}
             </div>
-            <div className={`text-2xl font-bold ${events.length > 0 ? 'text-accent' : 'text-muted-foreground'}`}>
-              {events.length > 0 ? `+${pricingFactors.eventPremium}%` : '--'}
+            <div className={`text-2xl font-bold ${pricingFactors.eventPremium > 0 ? 'text-accent' : 'text-muted-foreground'}`}>
+              {pricingFactors.eventPremium > 0 ? `+${pricingFactors.eventPremium}%` : '--'}
             </div>
             <div className="text-xs text-muted-foreground">
-              {events.length > 0 ? `${events.length} events` : 'No events'}
+              {pricingFactors.activeSeason 
+                ? pricingFactors.activeSeason 
+                : (events.length > 0 ? `${events.length} events` : 'No active events')}
             </div>
           </div>
         </div>
