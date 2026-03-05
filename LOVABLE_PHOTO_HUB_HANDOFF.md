@@ -44,14 +44,9 @@ This function:
 - Calls Google Cloud Vision API
 - Returns: isVehicle, angle classification, quality score, suggested make/color
 
-### 3b. `enhance-hero-photo` (Phase 2 - Optional for now)
-Location: `supabase/functions/enhance-hero-photo/`
-
-This function:
-- Accepts an image URL
-- Calls Photoroom API to remove background
-- Returns: enhanced image with white/gradient background
-- Used for creating showroom-quality hero photos
+### 3b. `enhance-hero-photo` — **SUNSET / REMOVED**
+~~This function used PhotoRoom API for background removal. It has been removed as of March 2026.~~
+Database columns (`enhanced_url`, `is_enhanced`, `enhanced_at`, `enhancement_settings`) remain in the schema but are no longer written to.
 
 ## Step 4: Build Photo Hub UI
 
@@ -344,6 +339,6 @@ After building, verify:
 
 ## Notes
 
-- The Google Cloud Vision API key needs to be added as a Supabase secret
-- Photoroom integration (hero photo enhancement) is Phase 2 - skip for now
+- The Google Cloud Vision API key needs to be added as a backend secret
+- ~~Photoroom integration (hero photo enhancement) has been sunset and removed~~
 - The `vehicle-photos` storage bucket already exists

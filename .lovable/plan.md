@@ -1,52 +1,83 @@
 
 
-# Sunset PhotoRoom Enhancement — Cleanup Plan
+# Fix Magic Link -- Rate Limiting and UX
 
-## Summary
-Remove the PhotoRoom background-removal feature entirely. This touches one edge function, two UI components, and several references to `enhanced_url` / `is_enhanced` across the photo module. The database columns stay (harmless, avoids migration risk), but nothing will write to them going forward.
+## Root Cause
 
-## Changes
+The magic link uses `supabase.auth.signInWithOtp()` which hits the `/otp` endpoint. Supabase enforces a rate limit of ~1 request per 60 seconds on this endpoint. The current UI has no cooldown -- users can spam the button and immediately hit 429 errors with a raw Supabase message like "For security purposes, you can only request this after 11 seconds."
 
-### 1. Delete edge function
-- **Delete** `supabase/functions/enhance-hero-photo/index.ts` — the entire PhotoRoom integration
+Password reset works because it uses `/recover`, a different endpoint with separate rate limits.
 
-### 2. Delete UI components
-- **Delete** `src/components/photos/HeroEnhancementPreview.tsx` — the enhance dialog
-- **Delete** `src/components/photos/OriginalPhotoDialog.tsx` — the original-vs-enhanced comparison dialog
+## Fixes
 
-### 3. Edit `src/components/photos/VehiclePhotoManager.tsx`
-- Remove imports: `HeroEnhancementPreview`, `OriginalPhotoDialog`, `Wand2`, `Eye`, `RotateCcw`, `Sparkles` (keep if used elsewhere)
-- Remove state: `enhanceDialogOpen`, `selectedHeroPhoto`, `originalPhotoDialog`, `isRestoring`
-- Remove handlers: `handleEnhanceHero`, `handleViewOriginal`, `handleRestoreOriginal`
-- In `handleSetAsHero`: remove the post-set "offer enhancement" block (lines 149-153)
-- Hero photo display: change `heroPhoto.enhanced_url || heroPhoto.url` → `heroPhoto.url`
-- Remove "Enhanced" badge on hero photo
-- Remove hover actions: "Enhance" / "Re-enhance" button, "Original" button
-- Remove the two dialog renders at bottom (`HeroEnhancementPreview`, `OriginalPhotoDialog`)
+### 1. Add Cooldown Timer to Magic Link Button
 
-### 4. Edit `src/components/dialogs/VehicleImageDialog.tsx`
-- Change `heroPhoto?.enhanced_url` fallback to just use `heroPhoto?.url`
-- Change `photo?.enhanced_url || photo?.url` to `photo?.url`
+After a successful send, disable the button for 60 seconds with a visible countdown ("Resend in 42s"). This prevents users from hitting the rate limit.
 
-### 5. Edit `src/components/photos/usePhotoAnalysis.ts`
-- In `setAsHero`, remove the `enhanced_url` from the select query and the `photo.enhanced_url || photo.url` logic — just use `photo.url`
+**File:** `src/pages/Auth.tsx`
+- Add `cooldownSeconds` state (starts at 0)
+- After successful send, set to 60 and decrement via `setInterval`
+- Disable button and show countdown text while `cooldownSeconds > 0`
 
-### 6. Edit `src/components/photos/PhotoGalleryStrip.tsx`
-- Remove `enhanced_url` from the photo interface (optional cleanup)
+### 2. Improve Error Message for 429
 
-### 7. Edit `src/components/photos/types.ts`
-- Remove `is_enhanced`, `enhanced_url`, `enhancement_settings` from the `VehiclePhoto` interface (or mark as deprecated)
+Catch the specific rate-limit error and show a user-friendly message instead of the raw Supabase text.
 
-### 8. Edit `LOVABLE_PHOTO_HUB_HANDOFF.md`
-- Remove references to PhotoRoom / enhance-hero-photo as active features
+**File:** `src/contexts/AuthContext.tsx` (in `signInWithMagicLink`)
+- Check if `error.message` contains "security purposes" or `error.status === 429`
+- Replace with: "Please wait a moment before requesting another magic link."
 
-## What stays unchanged
-- **Database columns** (`enhanced_url`, `is_enhanced`, `enhanced_at`, `enhancement_settings`) — left in place to avoid migration risk; they'll just be null going forward
-- **`PHOTOROOM_API_KEY` secret** — harmless to leave, no code references it after cleanup
-- **`generate-hero-image` edge function** — this is the AI showroom generator (Gemini), unrelated to PhotoRoom
-- **`useGenerateHeroImage` hook** — stays, it's the AI-generated preview feature, not PhotoRoom
+### 3. Add Cooldown to Password Reset Too
 
-## Risk Assessment
-- Low risk: PhotoRoom was an optional enhancement layer. All photo display logic falls back to `url` when `enhanced_url` is null, which is already the default state for 99%+ of photos
-- The `sync_hero_to_vehicle` DB trigger references `COALESCE(enhanced_url, url)` — this is fine, it'll just always use `url` now
+Apply the same cooldown pattern to the "Send Reset Link" button to prevent the same issue there (auth logs show 429s on `/recover` too from `hello@exotiq.ai`).
+
+**File:** `src/pages/Auth.tsx`
+- Same cooldown pattern for `handlePasswordReset`
+
+## Technical Details
+
+### Cooldown Logic (Auth.tsx)
+
+```text
+const [magicLinkCooldown, setMagicLinkCooldown] = useState(0);
+
+useEffect(() => {
+  if (magicLinkCooldown <= 0) return;
+  const timer = setInterval(() => {
+    setMagicLinkCooldown(prev => prev - 1);
+  }, 1000);
+  return () => clearInterval(timer);
+}, [magicLinkCooldown]);
+
+// In handleMagicLink, after successful send:
+setMagicLinkCooldown(60);
+
+// Button:
+<Button disabled={loading || magicLinkCooldown > 0}>
+  {magicLinkCooldown > 0 ? `Resend in ${magicLinkCooldown}s` : 'Send Magic Link'}
+</Button>
+```
+
+### Friendlier 429 Error (AuthContext.tsx)
+
+```text
+if (error) {
+  const isRateLimit = error.message?.includes('security purposes') 
+    || error.status === 429;
+  toast({
+    title: "Error Sending Magic Link",
+    description: isRateLimit 
+      ? "Please wait a moment before requesting another link."
+      : error.message,
+    variant: "destructive"
+  });
+}
+```
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `src/pages/Auth.tsx` | Add 60s cooldown timer to magic link and password reset buttons |
+| `src/contexts/AuthContext.tsx` | Friendlier error messages for 429 rate limits on `signInWithMagicLink` and `resetPassword` |
 

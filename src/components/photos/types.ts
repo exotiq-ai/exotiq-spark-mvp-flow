@@ -39,10 +39,13 @@ export interface VehiclePhoto {
   quality_score: number;
   quality_issues: string[] | null;
   
-  // Hero enhancement (Phase 2)
-  is_enhanced: boolean;
-  enhanced_url: string | null;
-  enhancement_settings: Record<string, any> | null;
+  // Hero enhancement (deprecated — PhotoRoom sunset)
+  /** @deprecated No longer used after PhotoRoom sunset */
+  is_enhanced?: boolean;
+  /** @deprecated No longer used after PhotoRoom sunset */
+  enhanced_url?: string | null;
+  /** @deprecated No longer used after PhotoRoom sunset */
+  enhancement_settings?: Record<string, any> | null;
   
   // Metadata
   original_filename: string | null;

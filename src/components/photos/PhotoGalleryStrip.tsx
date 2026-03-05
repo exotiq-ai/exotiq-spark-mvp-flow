@@ -7,7 +7,6 @@ import { cn } from '@/lib/utils';
 interface Photo {
   id: string;
   url: string;
-  enhanced_url?: string | null;
   thumbnail_url?: string | null;
   photo_type?: string;
 }
