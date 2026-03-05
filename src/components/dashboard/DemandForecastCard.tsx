@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { Tables } from "@/integrations/supabase/types";
 import {
   TrendingUp,
   TrendingDown,
@@ -54,9 +55,11 @@ import {
 } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { format, addDays, differenceInDays, startOfDay } from "date-fns";
+import { format, addDays, differenceInDays, startOfDay, subMonths, subYears } from "date-fns";
 import { DateRange } from "react-day-picker";
 import { useAIDemandForecast, type DemandForecast, type PricingAdjustment, type Opportunity } from "@/hooks/useAIDemandForecast";
+
+type Booking = Tables<'bookings'>;
 
 interface EventData {
   id: string;
@@ -67,6 +70,10 @@ interface EventData {
   attendance: number;
   impactScore: number;
   labels?: string[];
+}
+
+interface DemandForecastCardProps {
+  bookings?: Booking[];
 }
 
 // Luxury car rental hub cities - Miami as default for demo
@@ -120,7 +127,7 @@ const getCategoryData = (category: string) => {
   ) || { color: 'text-muted-foreground', bgColor: 'bg-muted' };
 };
 
-export const DemandForecastCard = () => {
+export const DemandForecastCard = ({ bookings = [] }: DemandForecastCardProps) => {
   const [events, setEvents] = useState<EventData[]>([]);
   const [demandMultiplier, setDemandMultiplier] = useState(1.0);
   const [loading, setLoading] = useState(false);
@@ -144,6 +151,59 @@ export const DemandForecastCard = () => {
     generateForecast,
     error: aiError 
   } = useAIDemandForecast();
+
+  // Compute real booking metrics
+  const bookingMetrics = useMemo(() => {
+    const now = new Date();
+    const lastMonth = subMonths(now, 1);
+    const lastYear = subYears(now, 1);
+
+    const currentMonthBookings = bookings.filter(b => {
+      const date = new Date(b.created_at || b.start_date);
+      return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+    });
+    const lastMonthBookings = bookings.filter(b => {
+      const date = new Date(b.created_at || b.start_date);
+      return date.getMonth() === lastMonth.getMonth() && date.getFullYear() === lastMonth.getFullYear();
+    });
+    const lastYearSameMonthBookings = bookings.filter(b => {
+      const date = new Date(b.created_at || b.start_date);
+      return date.getMonth() === now.getMonth() && date.getFullYear() === lastYear.getFullYear();
+    });
+
+    const currentMonthRevenue = currentMonthBookings.reduce((sum, b) => sum + Number(b.total_value || 0), 0);
+    const lastMonthRevenue = lastMonthBookings.reduce((sum, b) => sum + Number(b.total_value || 0), 0);
+    const lastYearRevenue = lastYearSameMonthBookings.reduce((sum, b) => sum + Number(b.total_value || 0), 0);
+
+    const momChange = lastMonthRevenue > 0 
+      ? Math.round(((currentMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100)
+      : currentMonthRevenue > 0 ? 100 : null;
+    const yoyChange = lastYearRevenue > 0 
+      ? Math.round(((currentMonthRevenue - lastYearRevenue) / lastYearRevenue) * 100)
+      : currentMonthRevenue > 0 ? 100 : null;
+
+    // Compute avg booking duration from completed/confirmed bookings
+    const completedBookings = bookings.filter(b => 
+      b.status === 'completed' || b.status === 'confirmed' || b.status === 'active'
+    );
+    let avgDuration = 0;
+    if (completedBookings.length > 0) {
+      const totalDays = completedBookings.reduce((sum, b) => {
+        const start = new Date(b.start_date);
+        const end = new Date(b.end_date);
+        return sum + Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+      }, 0);
+      avgDuration = totalDays / completedBookings.length;
+    }
+
+    return {
+      currentMonthRevenue,
+      momChange,
+      yoyChange,
+      avgBookingDuration: avgDuration > 0 ? `${avgDuration.toFixed(1)} days` : 'No data',
+      totalBookings: bookings.length,
+    };
+  }, [bookings]);
 
   const fetchEvents = async () => {
     setLoading(true);
@@ -188,7 +248,6 @@ export const DemandForecastCard = () => {
     
     const cityLabel = CITIES.find(c => c.value === selectedCity)?.label || selectedCity;
     
-    // Prepare event data for AI
     const eventData = events.map(e => ({
       name: e.name,
       date: e.date,
@@ -200,8 +259,8 @@ export const DemandForecastCard = () => {
     generateForecast(
       cityLabel,
       { from: dateRange.from, to: dateRange.to },
-      undefined, // fleetData - could be passed from parent
-      undefined, // historicalBookings - could be passed from parent
+      undefined,
+      undefined,
       eventData
     );
   }, [dateRange, selectedCity, events, generateForecast]);
@@ -238,16 +297,47 @@ export const DemandForecastCard = () => {
     ? differenceInDays(dateRange.to, dateRange.from) + 1 
     : 14;
 
-  // Generate forecast data based on events
+  // Generate forecast data based on events + real booking density
   const forecastData = useMemo(() => {
     const startDate = dateRange?.from || new Date();
+    
+    // Build day-of-week weights from real booking data
+    const dayBookingCounts: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
+    const dayTotals: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
+    
+    bookings.forEach(b => {
+      const start = new Date(b.start_date);
+      const end = new Date(b.end_date);
+      // Count each day the booking spans
+      const current = new Date(start);
+      while (current <= end) {
+        const dow = current.getDay();
+        dayBookingCounts[dow]++;
+        dayTotals[dow]++;
+        current.setDate(current.getDate() + 1);
+      }
+    });
+
+    // Calculate weights — if we have booking data, use it; otherwise use sensible defaults
+    const totalBookingDays = Object.values(dayBookingCounts).reduce((a, b) => a + b, 0);
+    const defaultWeights: Record<number, number> = { 0: 72, 1: 60, 2: 58, 3: 62, 4: 68, 5: 78, 6: 80 };
+    
+    const dayWeights: Record<number, number> = totalBookingDays > 7
+      ? (() => {
+          const maxCount = Math.max(...Object.values(dayBookingCounts), 1);
+          const weights: Record<number, number> = {};
+          for (let i = 0; i < 7; i++) {
+            weights[i] = Math.round(45 + (dayBookingCounts[i] / maxCount) * 50);
+          }
+          return weights;
+        })()
+      : defaultWeights;
+
     return Array.from({ length: Math.min(rangeDays, 14) }, (_, i) => {
       const date = addDays(startDate, i);
       const dateStr = format(date, 'yyyy-MM-dd');
       const dayEvents = filteredEvents.filter(e => e.date.startsWith(dateStr));
       const dayOfWeek = date.getDay();
-      // Base demand from day-of-week patterns (weekends higher for luxury rentals)
-      const dayWeights: Record<number, number> = { 0: 72, 1: 60, 2: 58, 3: 62, 4: 68, 5: 78, 6: 80 };
       const baseDemand = dayWeights[dayOfWeek] || 65;
       const eventBoost = dayEvents.reduce((sum, e) => sum + (e.impactScore / 10), 0);
       const demand = Math.min(98, Math.round(baseDemand + eventBoost));
@@ -262,9 +352,9 @@ export const DemandForecastCard = () => {
         events: dayEvents,
       };
     });
-  }, [dateRange, filteredEvents, rangeDays]);
+  }, [dateRange, filteredEvents, rangeDays, bookings]);
 
-  // Event Impact Analysis
+  // Event Impact Analysis (merged from old Impact tab)
   const impactAnalysis = useMemo(() => {
     const categoryBreakdown = EVENT_CATEGORIES.map(cat => {
       const catEvents = filteredEvents.filter(e => 
@@ -275,7 +365,7 @@ export const DemandForecastCard = () => {
       const avgImpact = catEvents.length > 0 
         ? Math.round(catEvents.reduce((sum, e) => sum + e.impactScore, 0) / catEvents.length)
         : 0;
-      const revenueImpact = Math.round((avgImpact / 100) * totalAttendance * 0.05); // Estimated revenue impact
+      const revenueImpact = Math.round((avgImpact / 100) * totalAttendance * 0.05);
       
       return {
         ...cat,
@@ -287,15 +377,8 @@ export const DemandForecastCard = () => {
       };
     }).filter(c => c.eventCount > 0).sort((a, b) => b.revenueImpact - a.revenueImpact);
 
-    // YoY and MoM derived from demand multiplier trends (not random)
-    const yoyChange = Math.round((demandMultiplier - 1) * 100 * 1.2); // Estimated YoY from current demand
-    const momChange = Math.round((demandMultiplier - 1) * 100 * 0.8); // Estimated MoM from current demand
-
     return {
       categoryBreakdown,
-      yoyChange,
-      momChange,
-      avgBookingDuration: '3.2 days', // Computed metric replacing fake peakHours
       recommendedPriceIncrease: Math.round((demandMultiplier - 1) * 100),
     };
   }, [filteredEvents, demandMultiplier]);
@@ -335,7 +418,6 @@ export const DemandForecastCard = () => {
 
       {/* Controls */}
       <div className="flex flex-wrap gap-3 mb-4">
-        {/* City Selector */}
         <Select value={selectedCity} onValueChange={setSelectedCity}>
           <SelectTrigger className="w-[180px]">
             <MapPin className="h-4 w-4 mr-2 text-muted-foreground" />
@@ -355,7 +437,6 @@ export const DemandForecastCard = () => {
           </SelectContent>
         </Select>
         
-        {/* Quick Range or Custom Date */}
         <Select value={quickRange} onValueChange={handleQuickRangeChange}>
           <SelectTrigger className="w-[130px]">
             <CalendarDays className="h-4 w-4 mr-2 text-muted-foreground" />
@@ -370,7 +451,6 @@ export const DemandForecastCard = () => {
           </SelectContent>
         </Select>
 
-        {/* Date Range Picker */}
         <Popover>
           <PopoverTrigger asChild>
             <Button 
@@ -409,7 +489,6 @@ export const DemandForecastCard = () => {
           </PopoverContent>
         </Popover>
 
-        {/* Category Filter */}
         <Popover>
           <PopoverTrigger asChild>
             <Button variant="outline" className="gap-2">
@@ -512,9 +591,9 @@ export const DemandForecastCard = () => {
         </div>
       )}
 
-      {/* Tabs for Forecast vs Impact Analysis */}
+      {/* Tabs: Forecast + AI Pricing (Impact Analysis merged into Forecast) */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-4">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="forecast" className="gap-2">
             <BarChart3 className="h-4 w-4" />
             <span className="hidden sm:inline">Demand</span> Forecast
@@ -522,10 +601,6 @@ export const DemandForecastCard = () => {
           <TabsTrigger value="ai-pricing" className="gap-2">
             <Brain className="h-4 w-4" />
             AI <span className="hidden sm:inline">Pricing</span>
-          </TabsTrigger>
-          <TabsTrigger value="impact" className="gap-2">
-            <Zap className="h-4 w-4" />
-            <span className="hidden sm:inline">Impact</span> Analysis
           </TabsTrigger>
         </TabsList>
 
@@ -595,10 +670,10 @@ export const DemandForecastCard = () => {
             })}
           </div>
 
-          {/* Week 2 (if applicable) */}
+          {/* Week 2 */}
           {forecastData.length > 7 && (
             <div className="grid grid-cols-7 gap-2">
-              {forecastData.slice(7, 14).map((day, index) => {
+              {forecastData.slice(7, 14).map((day) => {
                 const height = (day.demand / 100) * 100;
                 const isPeak = day.demand === peakDay.demand;
                 
@@ -662,156 +737,155 @@ export const DemandForecastCard = () => {
               <div className="text-xl font-bold text-primary">{demandMultiplier.toFixed(2)}x</div>
             </div>
           </div>
-        </TabsContent>
 
-        <TabsContent value="impact" className="mt-4 space-y-4">
-          {/* Historical Comparison */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div className="p-4 rounded-lg border bg-gradient-to-br from-primary/5 to-primary/10">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-muted-foreground">YoY Change</span>
-                {impactAnalysis.yoyChange >= 0 ? (
-                  <ArrowUpRight className="h-4 w-4 text-success" />
-                ) : (
-                  <ArrowDownRight className="h-4 w-4 text-destructive" />
-                )}
+          {/* Merged Impact Analysis Section */}
+          <div className="space-y-4 pt-2 border-t">
+            {/* Revenue Comparison (real data) */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="p-4 rounded-lg border bg-gradient-to-br from-primary/5 to-primary/10">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-muted-foreground">YoY Revenue</span>
+                  {bookingMetrics.yoyChange !== null && bookingMetrics.yoyChange >= 0 ? (
+                    <ArrowUpRight className="h-4 w-4 text-success" />
+                  ) : (
+                    <ArrowDownRight className="h-4 w-4 text-destructive" />
+                  )}
+                </div>
+                <div className={`text-2xl font-bold ${
+                  bookingMetrics.yoyChange !== null && bookingMetrics.yoyChange >= 0 ? 'text-success' : 'text-destructive'
+                }`}>
+                  {bookingMetrics.yoyChange !== null ? `${bookingMetrics.yoyChange > 0 ? '+' : ''}${bookingMetrics.yoyChange}%` : '--'}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">vs same month last year</p>
               </div>
-              <div className={`text-2xl font-bold ${impactAnalysis.yoyChange >= 0 ? 'text-success' : 'text-destructive'}`}>
-                {impactAnalysis.yoyChange > 0 ? '+' : ''}{impactAnalysis.yoyChange}%
+              <div className="p-4 rounded-lg border bg-gradient-to-br from-accent/5 to-accent/10">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-muted-foreground">MoM Revenue</span>
+                  {bookingMetrics.momChange !== null && bookingMetrics.momChange >= 0 ? (
+                    <ArrowUpRight className="h-4 w-4 text-success" />
+                  ) : (
+                    <ArrowDownRight className="h-4 w-4 text-destructive" />
+                  )}
+                </div>
+                <div className={`text-2xl font-bold ${
+                  bookingMetrics.momChange !== null && bookingMetrics.momChange >= 0 ? 'text-success' : 'text-destructive'
+                }`}>
+                  {bookingMetrics.momChange !== null ? `${bookingMetrics.momChange > 0 ? '+' : ''}${bookingMetrics.momChange}%` : '--'}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">vs last month</p>
               </div>
-              <p className="text-xs text-muted-foreground mt-1">vs same period last year</p>
+              <div className="p-4 rounded-lg border bg-gradient-to-br from-success/5 to-success/10">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-muted-foreground">Price Suggestion</span>
+                  <Zap className="h-4 w-4 text-success" />
+                </div>
+                <div className="text-2xl font-bold text-success">
+                  +{impactAnalysis.recommendedPriceIncrease}%
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">recommended increase</p>
+              </div>
+              <div className="p-4 rounded-lg border bg-gradient-to-br from-warning/5 to-warning/10">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-muted-foreground">Avg Duration</span>
+                  <Clock className="h-4 w-4 text-warning" />
+                </div>
+                <div className="text-lg font-bold text-warning">
+                  {bookingMetrics.avgBookingDuration}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">avg booking length</p>
+              </div>
             </div>
-            <div className="p-4 rounded-lg border bg-gradient-to-br from-accent/5 to-accent/10">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-muted-foreground">MoM Change</span>
-                {impactAnalysis.momChange >= 0 ? (
-                  <ArrowUpRight className="h-4 w-4 text-success" />
-                ) : (
-                  <ArrowDownRight className="h-4 w-4 text-destructive" />
-                )}
-              </div>
-              <div className={`text-2xl font-bold ${impactAnalysis.momChange >= 0 ? 'text-success' : 'text-destructive'}`}>
-                {impactAnalysis.momChange > 0 ? '+' : ''}{impactAnalysis.momChange}%
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">vs last month</p>
-            </div>
-            <div className="p-4 rounded-lg border bg-gradient-to-br from-success/5 to-success/10">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-muted-foreground">Price Suggestion</span>
-                <Zap className="h-4 w-4 text-success" />
-              </div>
-              <div className="text-2xl font-bold text-success">
-                +{impactAnalysis.recommendedPriceIncrease}%
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">recommended increase</p>
-            </div>
-            <div className="p-4 rounded-lg border bg-gradient-to-br from-warning/5 to-warning/10">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-muted-foreground">Avg Duration</span>
-                <Clock className="h-4 w-4 text-warning" />
-              </div>
-              <div className="text-lg font-bold text-warning">
-                {impactAnalysis.avgBookingDuration}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">avg booking length</p>
-            </div>
-          </div>
 
-          {/* Category Impact Breakdown */}
-          <div className="p-4 rounded-lg border bg-muted/20">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <BarChart3 className="h-5 w-5 text-primary" />
-                <span className="font-medium">Category Impact Breakdown</span>
-              </div>
-              <Badge variant="outline" className="text-xs">
-                <Users className="h-3 w-3 mr-1" />
-                {totalAttendance.toLocaleString()} total attendance
-              </Badge>
-            </div>
-            
-            {impactAnalysis.categoryBreakdown.length > 0 ? (
-              <div className="space-y-3">
-                {impactAnalysis.categoryBreakdown.map((cat) => {
-                  const Icon = cat.icon;
-                  const maxRevenue = Math.max(...impactAnalysis.categoryBreakdown.map(c => c.revenueImpact));
-                  const barWidth = (cat.revenueImpact / maxRevenue) * 100;
-                  
-                  return (
-                    <div key={cat.id} className="space-y-1">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className={`p-1.5 rounded ${cat.bgColor}`}>
-                            <Icon className={`h-4 w-4 ${cat.color}`} />
+            {/* Category Impact Breakdown */}
+            {impactAnalysis.categoryBreakdown.length > 0 && (
+              <div className="p-4 rounded-lg border bg-muted/20">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5 text-primary" />
+                    <span className="font-medium">Category Impact Breakdown</span>
+                  </div>
+                  <Badge variant="outline" className="text-xs">
+                    <Users className="h-3 w-3 mr-1" />
+                    {totalAttendance.toLocaleString()} total attendance
+                  </Badge>
+                </div>
+                <div className="space-y-3">
+                  {impactAnalysis.categoryBreakdown.map((cat) => {
+                    const Icon = cat.icon;
+                    const maxRevenue = Math.max(...impactAnalysis.categoryBreakdown.map(c => c.revenueImpact));
+                    const barWidth = (cat.revenueImpact / maxRevenue) * 100;
+                    
+                    return (
+                      <div key={cat.id} className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className={`p-1.5 rounded ${cat.bgColor}`}>
+                              <Icon className={`h-4 w-4 ${cat.color}`} />
+                            </div>
+                            <span className="font-medium text-sm">{cat.label}</span>
+                            <Badge variant="outline" className="text-xs">
+                              {cat.eventCount} events
+                            </Badge>
                           </div>
-                          <span className="font-medium text-sm">{cat.label}</span>
-                          <Badge variant="outline" className="text-xs">
-                            {cat.eventCount} events
-                          </Badge>
+                          <div className="flex items-center gap-3 text-sm">
+                            <span className="text-muted-foreground">
+                              {cat.totalAttendance.toLocaleString()} attendees
+                            </span>
+                            <Badge className={`${cat.avgImpact >= 70 ? 'bg-success/20 text-success' : 'bg-muted'}`}>
+                              {cat.avgImpact} avg impact
+                            </Badge>
+                            <span className="font-semibold text-success">
+                              +${cat.revenueImpact.toLocaleString()}
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-3 text-sm">
-                          <span className="text-muted-foreground">
-                            {cat.totalAttendance.toLocaleString()} attendees
-                          </span>
-                          <Badge className={`${cat.avgImpact >= 70 ? 'bg-success/20 text-success' : 'bg-muted'}`}>
-                            {cat.avgImpact} avg impact
-                          </Badge>
-                          <span className="font-semibold text-success">
-                            +${cat.revenueImpact.toLocaleString()}
-                          </span>
+                        <div className="h-2 bg-muted/30 rounded-full overflow-hidden">
+                          <div 
+                            className={`h-full rounded-full transition-all ${cat.bgColor.replace('/10', '/50')}`}
+                            style={{ width: `${barWidth}%` }}
+                          />
                         </div>
+                        {cat.topEvent && (
+                          <p className="text-xs text-muted-foreground pl-8">
+                            Top: {cat.topEvent.name} ({cat.topEvent.attendance.toLocaleString()} attendees)
+                          </p>
+                        )}
                       </div>
-                      <div className="h-2 bg-muted/30 rounded-full overflow-hidden">
-                        <div 
-                          className={`h-full rounded-full transition-all ${cat.bgColor.replace('/10', '/50')}`}
-                          style={{ width: `${barWidth}%` }}
-                        />
-                      </div>
-                      {cat.topEvent && (
-                        <p className="text-xs text-muted-foreground pl-8">
-                          Top: {cat.topEvent.name} ({cat.topEvent.attendance.toLocaleString()} attendees)
-                        </p>
-                      )}
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <BarChart3 className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p>No events in selected categories</p>
+            )}
+
+            {/* High Impact Events Alert */}
+            {highImpactEvents.length > 0 && (
+              <div className="p-4 rounded-lg border border-warning/30 bg-warning/5">
+                <div className="flex items-center gap-2 mb-3">
+                  <Zap className="h-5 w-5 text-warning" />
+                  <span className="font-medium">High Impact Events ({highImpactEvents.length})</span>
+                </div>
+                <div className="grid gap-2 md:grid-cols-2">
+                  {highImpactEvents.slice(0, 4).map(event => {
+                    const catData = getCategoryData(event.category);
+                    return (
+                      <div key={event.id} className="flex items-center gap-3 p-2 rounded bg-background/50">
+                        <div className={`p-1.5 rounded ${catData.bgColor}`}>
+                          {getCategoryIcon(event.category)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm truncate">{event.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {format(new Date(event.date), 'MMM d')} • {event.attendance.toLocaleString()} attendees
+                          </p>
+                        </div>
+                        <Badge className="bg-warning/20 text-warning">{event.impactScore}</Badge>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>
-
-          {/* High Impact Events Alert */}
-          {highImpactEvents.length > 0 && (
-            <div className="p-4 rounded-lg border border-warning/30 bg-warning/5">
-              <div className="flex items-center gap-2 mb-3">
-                <Zap className="h-5 w-5 text-warning" />
-                <span className="font-medium">High Impact Events ({highImpactEvents.length})</span>
-              </div>
-              <div className="grid gap-2 md:grid-cols-2">
-                {highImpactEvents.slice(0, 4).map(event => {
-                  const catData = getCategoryData(event.category);
-                  return (
-                    <div key={event.id} className="flex items-center gap-3 p-2 rounded bg-background/50">
-                      <div className={`p-1.5 rounded ${catData.bgColor}`}>
-                        {getCategoryIcon(event.category)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{event.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {format(new Date(event.date), 'MMM d')} • {event.attendance.toLocaleString()} attendees
-                        </p>
-                      </div>
-                      <Badge className="bg-warning/20 text-warning">{event.impactScore}</Badge>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
         </TabsContent>
 
         {/* AI Pricing & Predictions Tab */}
@@ -919,7 +993,7 @@ export const DemandForecastCard = () => {
                 </div>
               </div>
 
-              {/* Pricing Adjustments */}
+              {/* Pricing Adjustments with inline events */}
               <div className="p-4 rounded-lg border bg-muted/20">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
@@ -932,37 +1006,69 @@ export const DemandForecastCard = () => {
                   </Badge>
                 </div>
                 <div className="space-y-3">
-                  {aiForecast.pricingAdjustments.map((adj, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-3 rounded-lg bg-background/50 border">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">{adj.category}</span>
-                          {adj.changePercent > 0 ? (
-                            <Badge className="bg-success/20 text-success text-xs">
-                              +{adj.changePercent}%
-                            </Badge>
-                          ) : adj.changePercent < 0 ? (
-                            <Badge className="bg-destructive/20 text-destructive text-xs">
-                              {adj.changePercent}%
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="text-xs">
-                              Optimal
-                            </Badge>
-                          )}
+                  {aiForecast.pricingAdjustments.map((adj, idx) => {
+                    // Find events that are relevant to this pricing adjustment
+                    const relevantEvents = filteredEvents.filter(e => 
+                      e.impactScore >= 50 && (
+                        adj.reason.toLowerCase().includes(e.category.toLowerCase()) ||
+                        adj.reason.toLowerCase().includes('event') ||
+                        e.impactScore >= 70
+                      )
+                    ).slice(0, 2);
+
+                    return (
+                      <div key={idx} className="p-3 rounded-lg bg-background/50 border space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">{adj.category}</span>
+                              {adj.changePercent > 0 ? (
+                                <Badge className="bg-success/20 text-success text-xs">
+                                  +{adj.changePercent}%
+                                </Badge>
+                              ) : adj.changePercent < 0 ? (
+                                <Badge className="bg-destructive/20 text-destructive text-xs">
+                                  {adj.changePercent}%
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-xs">
+                                  Optimal
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-sm text-muted-foreground mt-1">{adj.reason}</p>
+                          </div>
+                          <div className="text-right ml-4">
+                            <div className="text-sm text-muted-foreground line-through">
+                              ${adj.currentRate.toLocaleString()}/day
+                            </div>
+                            <div className="text-lg font-bold text-success">
+                              ${adj.suggestedRate.toLocaleString()}/day
+                            </div>
+                          </div>
                         </div>
-                        <p className="text-sm text-muted-foreground mt-1">{adj.reason}</p>
+                        {/* Inline relevant events */}
+                        {relevantEvents.length > 0 && (
+                          <div className="flex flex-wrap gap-2 pt-2 border-t border-dashed">
+                            {relevantEvents.map(event => {
+                              const catData = getCategoryData(event.category);
+                              return (
+                                <div key={event.id} className="flex items-center gap-1.5 text-xs bg-muted/50 rounded-full px-2 py-1">
+                                  {getCategoryIcon(event.category)}
+                                  <span className="font-medium truncate max-w-[120px]">{event.name}</span>
+                                  <Badge className={`text-[10px] px-1 py-0 ${
+                                    event.impactScore >= 70 ? 'bg-warning/20 text-warning' : 'bg-muted'
+                                  }`}>
+                                    {event.impactScore}
+                                  </Badge>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
-                      <div className="text-right ml-4">
-                        <div className="text-sm text-muted-foreground line-through">
-                          ${adj.currentRate.toLocaleString()}/day
-                        </div>
-                        <div className="text-lg font-bold text-success">
-                          ${adj.suggestedRate.toLocaleString()}/day
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
@@ -1064,7 +1170,7 @@ export const DemandForecastCard = () => {
         </TabsContent>
       </Tabs>
 
-      {/* Upcoming Events (shown below tabs) */}
+      {/* Upcoming Events (shown below tabs on forecast tab) */}
       {activeTab === 'forecast' && filteredEvents.length > 0 && (
         <div className="p-4 rounded-lg border bg-muted/20">
           <div className="flex items-center justify-between mb-3">

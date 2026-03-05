@@ -1,85 +1,83 @@
 
 
-# Demand Forecast & Dynamic Pricing — Full UI Overhaul
+# Fix Magic Link -- Rate Limiting and UX
 
-## Summary
-Fix all fake/static data, merge Impact Analysis into Forecast tab, add post-apply UX to Dynamic Pricing, compute real utilization from bookings, and surface events inline in AI Pricing suggestions.
+## Root Cause
 
----
+The magic link uses `supabase.auth.signInWithOtp()` which hits the `/otp` endpoint. Supabase enforces a rate limit of ~1 request per 60 seconds on this endpoint. The current UI has no cooldown -- users can spam the button and immediately hit 429 errors with a raw Supabase message like "For security purposes, you can only request this after 11 seconds."
 
-## 1. DemandForecastCard.tsx — Major Restructure
+Password reset works because it uses `/recover`, a different endpoint with separate rate limits.
 
-### A. Merge Impact Analysis into Forecast tab, remove 3rd tab
-- Reduce tabs from 3 → 2: **Demand Forecast** | **AI Pricing**
-- Move the category breakdown and high-impact events alert from the Impact tab into the bottom of the Forecast tab (below the event list)
-- Move YoY/MoM cards into Forecast tab but wire them to **real booking revenue** (same pattern DynamicPricingCard already uses — compare `currentMonthRevenue` vs `lastMonthRevenue` / `lastYearSameMonthRevenue`)
-- Delete the `impact` TabsContent entirely
+## Fixes
 
-### B. Accept `bookings` prop for real data
-- Add `bookings` prop from parent (passed via `useLocationFilteredFleet`)
-- Compute `avgBookingDuration` from real booking data: `avg(end_date - start_date)` across completed bookings, replacing the hardcoded `'3.2 days'`
-- Compute real YoY/MoM revenue comparisons from the bookings array
+### 1. Add Cooldown Timer to Magic Link Button
 
-### C. Show events below calendar on Forecast tab (already works)
-- Keep the existing events list — it already displays Gemini-sourced events below the forecast bars
-- Add a "Seasonal Context" chip when dates overlap with PEAK_SEASONS (e.g., "Miami Open Tennis • 1.25x surge")
+After a successful send, disable the button for 60 seconds with a visible countdown ("Resend in 42s"). This prevents users from hitting the rate limit.
 
-### D. Inline events in AI Pricing tab
-- When AI forecast generates pricing adjustments, show the relevant event(s) that drove each pricing suggestion inline (event name, date, impact score)
-- Link each pricing adjustment reason to the event that triggers it
+**File:** `src/pages/Auth.tsx`
+- Add `cooldownSeconds` state (starts at 0)
+- After successful send, set to 60 and decrement via `setInterval`
+- Disable button and show countdown text while `cooldownSeconds > 0`
 
----
+### 2. Improve Error Message for 429
 
-## 2. DynamicPricingCard.tsx — Post-Apply UX + Real Utilization
+Catch the specific rate-limit error and show a user-friendly message instead of the raw Supabase text.
 
-### A. Post-apply green checkmark
-- Track `appliedVehicles: Record<string, { oldRate: number, newRate: number, appliedAt: Date }>` state
-- After `handleApplyRate` succeeds, add vehicleId to `appliedVehicles`
-- In the vehicle list, show a green checkmark + "Updated" badge with old → new rate for applied vehicles
-- Replace the "Apply $X" button with a subtle `✓ Updated to $X` indicator
-- Clear on next analysis or page refresh
+**File:** `src/contexts/AuthContext.tsx` (in `signInWithMagicLink`)
+- Check if `error.message` contains "security purposes" or `error.status === 429`
+- Replace with: "Please wait a moment before requesting another magic link."
 
-### B. Fix utilization to use real booking data
-- Currently `vehicle.utilization || 0` — the `utilization` field in the vehicles table may not be updated
-- Compute utilization from bookings: count days with active bookings in last 30 days / 30 for each vehicle
-- Pass computed utilization into the `analyzePricing` call so AI gets real data
-- Display computed utilization in the pricing factors breakdown
+### 3. Add Cooldown to Password Reset Too
 
-### C. Fix `|| 70` fallbacks in elevenlabs-tools
-- 71 instances of `vehicle.utilization || 70` in `elevenlabs-tools/index.ts` — this means Rari tells users vehicles have 70% utilization when they actually have 0%
-- Change all `|| 70` to `|| 0` so Rari reports truthful data
-- This is critical: a fleet operator asking "how's my Bugatti doing?" should not hear "70% utilized" when it has zero bookings
+Apply the same cooldown pattern to the "Send Reset Link" button to prevent the same issue there (auth logs show 429s on `/recover` too from `hello@exotiq.ai`).
 
----
+**File:** `src/pages/Auth.tsx`
+- Same cooldown pattern for `handlePasswordReset`
 
-## 3. useAIPricingEnhanced.ts — Location-aware events
+## Technical Details
 
-- Currently hardcodes `city: 'miami'` — should detect from the selected vehicle's location
-- Pass vehicle location to `ai-event-intelligence` so event data matches the vehicle's market
+### Cooldown Logic (Auth.tsx)
 
----
+```text
+const [magicLinkCooldown, setMagicLinkCooldown] = useState(0);
 
-## 4. Hardcoded Data Audit — Items to Fix
+useEffect(() => {
+  if (magicLinkCooldown <= 0) return;
+  const timer = setInterval(() => {
+    setMagicLinkCooldown(prev => prev - 1);
+  }, 1000);
+  return () => clearInterval(timer);
+}, [magicLinkCooldown]);
 
-| Location | Issue | Fix |
-|----------|-------|-----|
-| `DemandForecastCard.tsx:298` | `avgBookingDuration: '3.2 days'` hardcoded | Compute from bookings |
-| `DemandForecastCard.tsx:291-292` | YoY/MoM derived from `demandMultiplier` not real data | Use booking revenue comparison |
-| `elevenlabs-tools/index.ts` (71 places) | `utilization \|\| 70` | Change to `\|\| 0` |
-| `useAIPricingEnhanced.ts:83` | Hardcoded `city: 'miami'` | Use vehicle location |
-| `DynamicPricingCard.tsx:113` | `vehicle.utilization \|\| 0` shows 0% when DB field is null | Compute from bookings |
+// In handleMagicLink, after successful send:
+setMagicLinkCooldown(60);
 
----
+// Button:
+<Button disabled={loading || magicLinkCooldown > 0}>
+  {magicLinkCooldown > 0 ? `Resend in ${magicLinkCooldown}s` : 'Send Magic Link'}
+</Button>
+```
 
-## Files Changed
+### Friendlier 429 Error (AuthContext.tsx)
 
-| File | Changes |
-|------|---------|
-| `src/components/dashboard/DemandForecastCard.tsx` | Remove Impact tab, merge into Forecast, accept bookings prop, compute real YoY/MoM/duration, inline events in AI Pricing |
-| `src/components/dashboard/DynamicPricingCard.tsx` | Add `appliedVehicles` state, green checkmark UX, compute real utilization from bookings |
-| `src/hooks/useAIPricingEnhanced.ts` | Accept vehicle location, pass to event intelligence |
-| `supabase/functions/elevenlabs-tools/index.ts` | Replace all `\|\| 70` with `\|\| 0` for truthful utilization reporting |
-| Parent component that renders DemandForecastCard | Pass `bookings` prop |
+```text
+if (error) {
+  const isRateLimit = error.message?.includes('security purposes') 
+    || error.status === 429;
+  toast({
+    title: "Error Sending Magic Link",
+    description: isRateLimit 
+      ? "Please wait a moment before requesting another link."
+      : error.message,
+    variant: "destructive"
+  });
+}
+```
 
-No database changes needed. No new edge functions.
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `src/pages/Auth.tsx` | Add 60s cooldown timer to magic link and password reset buttons |
+| `src/contexts/AuthContext.tsx` | Friendlier error messages for 429 rate limits on `signInWithMagicLink` and `resetPassword` |
 

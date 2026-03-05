@@ -820,7 +820,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
           status: v.status,
           location: v.location || 'Miami',
           rate: `$${v.daily_rate || v.current_rate} per day`,
-          utilization: `${(v.utilization || 70)}% utilized`,
+          utilization: `${(v.utilization || 0)}% utilized`,
           revenue: `$${Number(v.revenue || 0).toFixed(0)} total revenue`
         }));
 
@@ -1015,7 +1015,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         const totalRevenue = revenue.reduce((sum: number, b: any) => sum + Number(b.total_value || 0), 0);
         const activeBookings = bookings.filter((b: any) => b.status === 'active' || b.status === 'confirmed').length;
         const avgUtilization = vehicles.length > 0 
-          ? vehicles.reduce((sum, v) => sum + ((v.utilization || 70) || 0), 0) / vehicles.length 
+          ? vehicles.reduce((sum, v) => sum + ((v.utilization || 0) || 0), 0) / vehicles.length 
           : 0;
 
         // Check for peak season
@@ -1076,12 +1076,12 @@ async function executeFunction(functionName: string, args: Record<string, unknow
           }
           locationStats[loc].vehicleCount++;
           locationStats[loc].totalRevenue += Number(vehicle.revenue || 0);
-          locationStats[loc].totalUtilization += vehicle.utilization || 70;
+          locationStats[loc].totalUtilization += vehicle.utilization || 0;
           locationStats[loc].avgRate += Number(vehicle.current_rate || vehicle.daily_rate || 0);
           locationStats[loc].vehicles.push({
             name: `${vehicle.year} ${vehicle.make} ${vehicle.model}`,
             status: vehicle.status,
-            utilization: vehicle.utilization || 70,
+            utilization: vehicle.utilization || 0,
             rate: vehicle.current_rate || vehicle.daily_rate
           });
         }
@@ -1276,13 +1276,13 @@ async function executeFunction(functionName: string, args: Record<string, unknow
             location: vehicle.location || 'Miami',
             rate: `$${vehicle.current_rate || vehicle.daily_rate} per day`,
             suggestedRate: vehicle.suggested_rate ? `$${vehicle.suggested_rate}` : null,
-            utilization: `${vehicle.utilization || 70}% utilization`,
+            utilization: `${vehicle.utilization || 0}% utilization`,
             revenue: `$${Number(vehicle.revenue || 0).toFixed(0)} total revenue`,
             licensePlate: vehicle.license_plate,
             vin: vehicle.vin
           },
           bookings: bookingsData,
-          summary: `${fullName} in ${vehicle.location || 'Miami'} is currently ${vehicle.status}, priced at $${vehicle.current_rate || vehicle.daily_rate} per day with ${vehicle.utilization || 70}% utilization.`
+          summary: `${fullName} in ${vehicle.location || 'Miami'} is currently ${vehicle.status}, priced at $${vehicle.current_rate || vehicle.daily_rate} per day with ${vehicle.utilization || 0}% utilization.`
         };
       }
 
@@ -1491,7 +1491,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
               location: v.location,
               revenue: formatUsdWords(rev),
               revenueRaw: rev,
-              utilization: `${v.utilization || 70}%`
+              utilization: `${v.utilization || 0}%`
             };
           }) || [];
           
@@ -1789,7 +1789,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         }
 
         const currentRate = Number(vehicle.current_rate || vehicle.daily_rate);
-        const utilization = vehicle.utilization || 70;
+        const utilization = vehicle.utilization || 0;
         const vehicleLocation = vehicle.location || 'Miami';
         
         // Check for peak season
@@ -1867,12 +1867,12 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         
         const totalVehicles = vehicles.length;
         const avgRate = vehicles.reduce((sum, v) => sum + Number(v.current_rate || v.daily_rate || 0), 0) / totalVehicles;
-        const avgUtilization = vehicles.reduce((sum, v) => sum + (v.utilization || 70), 0) / totalVehicles;
+        const avgUtilization = vehicles.reduce((sum, v) => sum + (v.utilization || 0), 0) / totalVehicles;
         const totalRevenue = vehicles.reduce((sum, v) => sum + Number(v.revenue || 0), 0);
         
         // Find under and over-utilized vehicles
-        const underUtilized = vehicles.filter(v => (v.utilization || 70) < 50);
-        const highPerformers = vehicles.filter(v => (v.utilization || 70) > 75);
+        const underUtilized = vehicles.filter(v => (v.utilization || 0) < 50);
+        const highPerformers = vehicles.filter(v => (v.utilization || 0) > 75);
         
         // Check for peak season
         const peakSeason = getCurrentPeakSeason(location);
@@ -1914,7 +1914,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
           topPerformers: highPerformers.slice(0, 3).map(v => ({
             name: `${v.year} ${v.make} ${v.model}`,
             location: v.location,
-            utilization: `${v.utilization || 70}%`,
+            utilization: `${v.utilization || 0}%`,
             rate: `$${v.current_rate || v.daily_rate}`
           })),
           recommendations: underUtilized.length > 0 
@@ -2157,7 +2157,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
             expenses: `$${expenses.toFixed(0)}`,
             profit: `$${profit.toFixed(0)}`,
             profitMargin: revenue > 0 ? `${((profit / revenue) * 100).toFixed(1)}%` : '0%',
-            utilization: `${vehicle.utilization || 70}%`
+            utilization: `${vehicle.utilization || 0}%`
           };
         });
         
@@ -2215,7 +2215,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
           }
           
           locationData[loc].vehicleCount++;
-          locationData[loc].totalUtilization += (vehicle.utilization || 70);
+          locationData[loc].totalUtilization += (vehicle.utilization || 0);
           locationData[loc].totalRevenue += Number(vehicle.revenue || 0);
           locationData[loc].avgRate += Number(vehicle.current_rate || 0);
           
@@ -2343,8 +2343,8 @@ async function executeFunction(functionName: string, args: Record<string, unknow
             vehicle: `${v.year} ${v.make} ${v.model}`,
             location: v.location || 'Miami',
             currentRate: `$${v.current_rate}`,
-            utilization: `${v.utilization || 70}%`,
-            recommendation: (v.utilization || 70) < 20 ? 'Consider 10-15% price reduction' : 'Run promotion'
+            utilization: `${v.utilization || 0}%`,
+            recommendation: (v.utilization || 0) < 20 ? 'Consider 10-15% price reduction' : 'Run promotion'
           }));
         
         const potentialLoss = idleVehicles.reduce((sum: number, v: any) => 

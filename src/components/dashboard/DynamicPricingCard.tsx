@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -6,6 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { useAIPricingEnhanced } from "@/hooks/useAIPricingEnhanced";
+import { SuccessCheckmark } from "@/components/ui/success-checkmark";
 import {
   DollarSign,
   TrendingUp,
@@ -19,6 +20,7 @@ import {
   BarChart3,
   ArrowUpRight,
   ArrowDownRight,
+  CheckCircle2,
 } from "lucide-react";
 import {
   Tooltip,
@@ -33,7 +35,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { format, subMonths, subYears } from "date-fns";
+import { format, subMonths, subYears, differenceInDays } from "date-fns";
+
+interface AppliedVehicle {
+  oldRate: number;
+  newRate: number;
+  appliedAt: Date;
+}
 
 interface DynamicPricingCardProps {
   onApplyOptimization: () => void;
@@ -44,6 +52,34 @@ export const DynamicPricingCard = ({ onApplyOptimization }: DynamicPricingCardPr
   const { loading, pricingResult, events, analyzePricing } = useAIPricingEnhanced();
   const [autoPricingEnabled, setAutoPricingEnabled] = useState<Record<string, boolean>>({});
   const [selectedVehicle, setSelectedVehicle] = useState<string | null>(null);
+  const [appliedVehicles, setAppliedVehicles] = useState<Record<string, AppliedVehicle>>({});
+
+  // Compute real utilization from bookings for each vehicle
+  const vehicleUtilizations = useMemo(() => {
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now);
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const utils: Record<string, number> = {};
+    vehicles.forEach(v => {
+      const vehicleBookings = bookings.filter(b => 
+        b.vehicle_id === v.id && 
+        (b.status === 'active' || b.status === 'confirmed' || b.status === 'completed')
+      );
+      
+      let bookedDays = 0;
+      vehicleBookings.forEach(b => {
+        const start = new Date(Math.max(new Date(b.start_date).getTime(), thirtyDaysAgo.getTime()));
+        const end = new Date(Math.min(new Date(b.end_date).getTime(), now.getTime()));
+        if (end > start) {
+          bookedDays += Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+        }
+      });
+      
+      utils[v.id] = Math.min(100, Math.round((bookedDays / 30) * 100));
+    });
+    return utils;
+  }, [vehicles, bookings]);
 
   // Calculate historical comparison data
   const now = new Date();
@@ -87,12 +123,23 @@ export const DynamicPricingCard = ({ onApplyOptimization }: DynamicPricingCardPr
     const vehicle = vehicles.find(v => v.id === vehicleId);
     if (vehicle) {
       setSelectedVehicle(vehicleId);
-      await analyzePricing(vehicle, bookings);
+      // Pass computed utilization to the analysis
+      const vehicleWithRealUtil = {
+        ...vehicle,
+        utilization: vehicleUtilizations[vehicleId] ?? 0,
+      };
+      await analyzePricing(vehicleWithRealUtil, bookings);
     }
   };
 
   const handleApplyRate = async (vehicleId: string, newRate: number) => {
+    const vehicle = vehicles.find(v => v.id === vehicleId);
+    const oldRate = vehicle ? Number(vehicle.current_rate) : 0;
     await applyPriceOptimization(vehicleId, newRate);
+    setAppliedVehicles(prev => ({
+      ...prev,
+      [vehicleId]: { oldRate, newRate, appliedAt: new Date() },
+    }));
   };
 
   // Calculate overall pricing factors from real data + PEAK_SEASONS
@@ -117,15 +164,17 @@ export const DynamicPricingCard = ({ onApplyOptimization }: DynamicPricingCardPr
   const monthDay = `${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   const activeSeason = PEAK_SEASONS_CLIENT.find(s => {
     const inRange = monthDay >= s.start && monthDay <= s.end;
-    return inRange; // Match all cities for now
+    return inRange;
   });
 
-  // Calculate real utilization from vehicle data
-  const realUtilization = vehicles.length > 0
-    ? vehicles.reduce((sum, v) => sum + (v.utilization || 0), 0) / vehicles.length
-    : 0;
+  // Calculate real fleet utilization from bookings
+  const realUtilization = useMemo(() => {
+    if (vehicles.length === 0) return 0;
+    const totalUtil = vehicles.reduce((sum, v) => sum + (vehicleUtilizations[v.id] ?? 0), 0);
+    return Math.round(totalUtil / vehicles.length);
+  }, [vehicles, vehicleUtilizations]);
 
-  // Derive seasonal factor from booking density (current month vs 3-month avg)
+  // Derive seasonal factor from booking density
   const threeMonthsAgo = subMonths(now, 3);
   const recentBookings = bookings.filter(b => new Date(b.created_at || b.start_date) >= threeMonthsAgo);
   const monthlyAvg = recentBookings.length / 3;
@@ -248,7 +297,7 @@ export const DynamicPricingCard = ({ onApplyOptimization }: DynamicPricingCardPr
             <div className="text-2xl font-bold text-success">
               +{((pricingFactors.demandMultiplier - 1) * 100).toFixed(0)}%
             </div>
-            <div className="text-xs text-muted-foreground">{Math.round(pricingFactors.utilization)}% utilized</div>
+            <div className="text-xs text-muted-foreground">{pricingFactors.utilization}% utilized</div>
           </div>
 
           <div className="p-4 rounded-lg bg-warning/10 border border-warning/20">
@@ -298,6 +347,19 @@ export const DynamicPricingCard = ({ onApplyOptimization }: DynamicPricingCardPr
                     {pricingResult.expectedRevenue.improvement > 0 ? '+' : ''}{pricingResult.expectedRevenue.improvement}% potential
                   </Badge>
                 </div>
+                {/* Inline events driving this analysis */}
+                {pricingResult.events && pricingResult.events.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-3 pt-2 border-t border-primary/10">
+                    <span className="text-xs text-muted-foreground">Events factored:</span>
+                    {pricingResult.events.slice(0, 3).map((event) => (
+                      <Badge key={event.id} variant="outline" className="text-xs gap-1">
+                        <Calendar className="h-3 w-3" />
+                        {event.name}
+                        <span className="text-muted-foreground">({event.impactScore})</span>
+                      </Badge>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -338,7 +400,12 @@ export const DynamicPricingCard = ({ onApplyOptimization }: DynamicPricingCardPr
             <SelectContent>
               {vehicles.map((vehicle) => (
                 <SelectItem key={vehicle.id} value={vehicle.id}>
-                  {vehicle.name}
+                  <span className="flex items-center gap-2">
+                    {vehicle.name}
+                    {appliedVehicles[vehicle.id] && (
+                      <CheckCircle2 className="h-3 w-3 text-success" />
+                    )}
+                  </span>
                 </SelectItem>
               ))}
             </SelectContent>
@@ -349,45 +416,73 @@ export const DynamicPricingCard = ({ onApplyOptimization }: DynamicPricingCardPr
           {vehicles.map((vehicle) => {
             const isAnalyzing = loading && selectedVehicle === vehicle.id;
             const hasResult = pricingResult && selectedVehicle === vehicle.id;
+            const isApplied = appliedVehicles[vehicle.id];
+            const computedUtil = vehicleUtilizations[vehicle.id] ?? 0;
             
             return (
               <div
                 key={vehicle.id}
                 className={`group flex items-center justify-between p-3 rounded-lg border transition-all cursor-pointer ${
-                  hasResult ? 'bg-primary/5 border-primary/20' : 'hover:bg-muted/30 hover:border-primary/30'
+                  isApplied 
+                    ? 'bg-success/5 border-success/30' 
+                    : hasResult 
+                      ? 'bg-primary/5 border-primary/20' 
+                      : 'hover:bg-muted/30 hover:border-primary/30'
                 }`}
                 onClick={() => {
-                  // Dispatch a custom event to open the quick price editor
                   const event = new CustomEvent('openQuickPriceEditor', { detail: vehicle });
                   window.dispatchEvent(event);
                 }}
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="font-medium truncate group-hover:text-primary transition-colors">
+                    {isApplied && (
+                      <SuccessCheckmark size="sm" />
+                    )}
+                    <span className={`font-medium truncate ${isApplied ? 'text-success' : 'group-hover:text-primary'} transition-colors`}>
                       {vehicle.name}
                     </span>
-                    <Badge 
-                      variant="outline" 
-                      className="opacity-0 group-hover:opacity-100 transition-opacity text-xs"
-                    >
-                      Edit
-                    </Badge>
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    ${Number(vehicle.current_rate).toLocaleString()}/day
-                    {hasResult && pricingResult.suggestedRate > Number(vehicle.current_rate) && (
-                      <span className="text-success ml-2">
-                        → ${pricingResult.suggestedRate.toLocaleString()}
-                        <span className="text-xs ml-1">
-                          (+${(pricingResult.suggestedRate - Number(vehicle.current_rate)).toLocaleString()})
-                        </span>
-                      </span>
+                    {isApplied ? (
+                      <Badge className="bg-success/20 text-success border-success/30 text-xs">
+                        Updated
+                      </Badge>
+                    ) : (
+                      <Badge 
+                        variant="outline" 
+                        className="opacity-0 group-hover:opacity-100 transition-opacity text-xs"
+                      >
+                        Edit
+                      </Badge>
                     )}
+                  </div>
+                  <div className="text-sm text-muted-foreground flex items-center gap-2">
+                    {isApplied ? (
+                      <>
+                        <span className="line-through">${isApplied.oldRate.toLocaleString()}/day</span>
+                        <span className="text-success font-medium">→ ${isApplied.newRate.toLocaleString()}/day</span>
+                      </>
+                    ) : (
+                      <>
+                        ${Number(vehicle.current_rate).toLocaleString()}/day
+                        {hasResult && pricingResult.suggestedRate > Number(vehicle.current_rate) && (
+                          <span className="text-success">
+                            → ${pricingResult.suggestedRate.toLocaleString()}
+                            <span className="text-xs ml-1">
+                              (+${(pricingResult.suggestedRate - Number(vehicle.current_rate)).toLocaleString()})
+                            </span>
+                          </span>
+                        )}
+                      </>
+                    )}
+                    <span className="text-xs">• {computedUtil}% util</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
-                  {isAnalyzing ? (
+                  {isApplied ? (
+                    <Badge variant="outline" className="text-xs text-success border-success/30">
+                      ✓ ${isApplied.newRate.toLocaleString()}
+                    </Badge>
+                  ) : isAnalyzing ? (
                     <RefreshCw className="h-4 w-4 animate-spin text-primary" />
                   ) : hasResult ? (
                     <Button

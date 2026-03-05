@@ -78,9 +78,17 @@ export const useAIPricingEnhanced = (): UseAIPricingEnhancedReturn => {
     setError(null);
 
     try {
+      // Detect city from vehicle location (fallback to miami)
+      const vehicleLocation = (vehicle as any).location?.toLowerCase() || '';
+      const city = vehicleLocation.includes('scottsdale') || vehicleLocation.includes('phoenix') || vehicleLocation.includes('arizona')
+        ? 'scottsdale'
+        : vehicleLocation.includes('denver') || vehicleLocation.includes('colorado')
+          ? 'denver'
+          : 'miami';
+
       // First, fetch event data
       const eventsResponse = await supabase.functions.invoke('ai-event-intelligence', {
-        body: { city: 'miami' },
+        body: { city },
       });
 
       let eventData = null;
