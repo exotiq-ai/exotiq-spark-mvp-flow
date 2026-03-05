@@ -119,7 +119,7 @@ export const PriceUtilizationScatterPlot = () => {
              dataPoint.zone === 'overpriced' ? 'Overpriced' :
              dataPoint.zone === 'underpriced' ? 'Underpriced' : 'Balanced'}
           </Badge>
-          <p className="text-xs text-muted-foreground mt-2">Click to optimize</p>
+          
         </div>
       );
     }
