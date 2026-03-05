@@ -24,36 +24,16 @@ interface MobileMoreMenuProps {
 export const MobileMoreMenu = ({ onAddLocation, activeModule, onModuleChange }: MobileMoreMenuProps) => {
   const [open, setOpen] = useState(false);
 
-  // Operations group items (MotorIQ & Pulse)
-  const operationsItems = [
-    { 
-      id: "fleet", 
-      label: "Fleet", 
-      description: "Vehicle ops & task management",
-      icon: Car 
-    },
-    { 
-      id: "motoriq", 
-      label: "MotorIQ", 
-      description: "Fleet profitability & pricing",
-      icon: TrendingUp 
-    },
-    { 
-      id: "pulse", 
-      label: "Pulse", 
-      description: "Analytics & performance insights",
-      icon: BarChart3 
-    },
+  // Intelligence group items
+  const intelligenceItems = [
+    { id: "motoriq", label: "MotorIQ", description: "AI-powered pricing & demand intelligence", icon: TrendingUp },
+    { id: "vault", label: "Vault", description: "Documents & Knowledge Base", icon: Shield },
   ];
 
-  // Intelligence group items (Vault pairs with FleetCopilot)
-  const intelligenceItems = [
-    { 
-      id: "vault", 
-      label: "Vault", 
-      description: "Documents & Knowledge Base",
-      icon: Shield 
-    },
+  // Operations group items
+  const operationsItems = [
+    { id: "fleet", label: "Fleet", description: "Vehicle ops & task management", icon: Car },
+    { id: "pulse", label: "Pulse", description: "Analytics & performance insights", icon: BarChart3 },
   ];
 
   // Management items
