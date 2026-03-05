@@ -78,43 +78,16 @@ const UserProfileSection = ({ collapsed }: { collapsed: boolean }) => {
 export const DashboardSidebar = ({ activeModule, onModuleChange }: DashboardSidebarProps) => {
   const [collapsed, setCollapsed] = useLocalStorage("sidebarCollapsed", false);
 
-  const modules = [
-    { 
-      id: "dashboard", 
-      name: "Dashboard", 
-      icon: Home, 
-      color: "text-primary"
-    },
-    { 
-      id: "core", 
-      name: "FleetCopilot™", 
-      icon: Brain, 
-      color: "text-primary"
-    },
-    { 
-      id: "pulse", 
-      name: "Pulse", 
-      icon: BarChart3, 
-      color: "text-primary"
-    },
-    { 
-      id: "motoriq", 
-      name: "MotorIQ", 
-      icon: TrendingUp, 
-      color: "text-primary"
-    },
-    { 
-      id: "book", 
-      name: "Book", 
-      icon: Calendar, 
-      color: "text-primary"
-    },
-    { 
-      id: "vault", 
-      name: "Vault", 
-      icon: Shield, 
-      color: "text-primary"
-    }
+  const intelligenceModules = [
+    { id: "dashboard", name: "Dashboard", icon: Home, color: "text-primary" },
+    { id: "core", name: "FleetCopilot™", icon: Brain, color: "text-primary" },
+    { id: "motoriq", name: "MotorIQ", icon: TrendingUp, color: "text-primary" },
+  ];
+
+  const operationsModules = [
+    { id: "pulse", name: "Pulse", icon: BarChart3, color: "text-primary" },
+    { id: "book", name: "Book", icon: Calendar, color: "text-primary" },
+    { id: "vault", name: "Vault", icon: Shield, color: "text-primary" },
   ];
 
   return (
