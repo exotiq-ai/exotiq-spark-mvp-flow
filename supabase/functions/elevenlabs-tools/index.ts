@@ -1282,7 +1282,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
             vin: vehicle.vin
           },
           bookings: bookingsData,
-          summary: `${fullName} in ${vehicle.location || 'Miami'} is currently ${vehicle.status}, priced at $${vehicle.current_rate || vehicle.daily_rate} per day with ${vehicle.utilization || 70}% utilization.`
+          summary: `${fullName} in ${vehicle.location || 'Miami'} is currently ${vehicle.status}, priced at $${vehicle.current_rate || vehicle.daily_rate} per day with ${vehicle.utilization || 0}% utilization.`
         };
       }
 
