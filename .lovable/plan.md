@@ -1,138 +1,83 @@
 
 
-# Dynamic Pricing Tab — UI Overhaul + AI-Powered Price Editor
+# Fix Magic Link -- Rate Limiting and UX
 
-## Problems Identified
+## Root Cause
 
-1. **Revenue Comparison shows "--" for MoM/YoY** — the calculation works but there's likely no last-year data, so it shows "--". Should gracefully handle this with context.
+The magic link uses `supabase.auth.signInWithOtp()` which hits the `/otp` endpoint. Supabase enforces a rate limit of ~1 request per 60 seconds on this endpoint. The current UI has no cooldown -- users can spam the button and immediately hit 429 errors with a raw Supabase message like "For security purposes, you can only request this after 11 seconds."
 
-2. **Pricing factor cards are too large** — 4 big cards with oversized numbers take up prime real estate. Should be compact chips/pills with hover for detail.
+Password reset works because it uses `/recover`, a different endpoint with separate rate limits.
 
-3. **"AI Active" badge** — should match the product branding. "FleetCopilot™" is already established across the app (sidebar, chat, alerts). Recommend keeping "FleetCopilot™ Active" for consistency.
+## Fixes
 
-4. **QuickPriceEditorDialog is disconnected from AI** — the friend's feedback nails it: clicking "Apply" on an AI recommendation opens a generic slider dialog with no AI reasoning, no event context, no before/after comparison. This is the biggest UX gap.
+### 1. Add Cooldown Timer to Magic Link Button
 
-5. **Vehicle list is dense but lacks progressive disclosure** — all vehicles shown equally, no priority ordering by opportunity size.
+After a successful send, disable the button for 60 seconds with a visible countdown ("Resend in 42s"). This prevents users from hitting the rate limit.
 
-6. **Effective Rate Multiplier** is abstract — operators don't think in multipliers, they think in dollars.
+**File:** `src/pages/Auth.tsx`
+- Add `cooldownSeconds` state (starts at 0)
+- After successful send, set to 60 and decrement via `setInterval`
+- Disable button and show countdown text while `cooldownSeconds > 0`
 
----
+### 2. Improve Error Message for 429
 
-## Plan
+Catch the specific rate-limit error and show a user-friendly message instead of the raw Supabase text.
 
-### 1. Redesign Pricing Factors — Compact Chip Layout
+**File:** `src/contexts/AuthContext.tsx` (in `signInWithMagicLink`)
+- Check if `error.message` contains "security purposes" or `error.status === 429`
+- Replace with: "Please wait a moment before requesting another magic link."
 
-Replace the 4 large factor cards with a single horizontal row of compact pills:
+### 3. Add Cooldown to Password Reset Too
 
-```text
-┌──────────────────────────────────────────────────┐
-│ Base $1,200  │ Demand +25%  │ Season +8%  │ 🎪 Ultra +35%  │
-│   (hover → tooltip with full explanation)         │
-└──────────────────────────────────────────────────┘
-```
+Apply the same cooldown pattern to the "Send Reset Link" button to prevent the same issue there (auth logs show 429s on `/recover` too from `hello@exotiq.ai`).
 
-- Each pill is a Badge-style chip with the factor name + value
-- Hover reveals a tooltip with the data source explanation
-- Click opens a popover with detailed breakdown (booking data, event details)
-- Active events get a sparkle icon and accent color
-- Saves ~200px of vertical space
+**File:** `src/pages/Auth.tsx`
+- Same cooldown pattern for `handlePasswordReset`
 
-### 2. Revenue Comparison — Smarter Display
+## Technical Details
 
-- Show "No prior data" instead of "--" when MoM/YoY can't be calculated
-- Add the actual dollar amounts on hover (e.g., "$12,400 last month")
-- Make this section a single compact row instead of a 3-column grid
-
-### 3. Rename Badge: "FleetCopilot™ Active"
-
-FleetCopilot is already the established AI brand across sidebar, chat, alerts. Keep it consistent. Replace:
-```
-AI Active → FleetCopilot™ Active
-```
-
-### 4. Transform QuickPriceEditorDialog into AI-Powered Confirmation Flow
-
-This is the biggest change — closing the gap between AI recommendation and pricing action.
-
-**New flow when clicking "Apply" from AI recommendation:**
-
-The dialog gets a new `pricingContext` prop containing:
-- `reasoning` (AI's explanation)
-- `factors` (what drove the recommendation — events, demand, season)  
-- `confidence` score
-- `expectedRevenue` impact
-- `events` that influenced the suggestion
-
-**New dialog layout:**
+### Cooldown Logic (Auth.tsx)
 
 ```text
-┌─────────────────────────────────────────┐
-│ 🚗 2024 BMW M4 Competition             │
-│ ─────────────────────────────────────── │
-│                                         │
-│ ⚡ AI Recommendation                    │
-│ "Ultra Music Festival drives 35% surge  │
-│  in luxury demand Mar 28-30. Combined   │
-│  with 67% utilization, increasing rate  │
-│  captures peak-season revenue."         │
-│                                         │
-│ 📊 What's driving this:                │
-│  • Ultra Music Festival (Mar 28-30)     │
-│  • Current utilization: 67%             │
-│  • Seasonal demand: +8%                 │
-│                                         │
-│ ┌─────────────┐  →  ┌─────────────┐   │
-│ │ $1,200/day  │     │ $1,620/day  │   │
-│ │  Current    │     │  Suggested  │   │
-│ └─────────────┘     └─────────────┘   │
-│                                         │
-│ 📈 Impact: +$12,600/month              │
-│ 🎯 Confidence: 87%                     │
-│                                         │
-│  [───────────●─────] $1,620/day        │
-│  (slider still available for manual)    │
-│                                         │
-│  [ Cancel ]  [ Confirm $1,620/day ✓ ]  │
-└─────────────────────────────────────────┘
+const [magicLinkCooldown, setMagicLinkCooldown] = useState(0);
+
+useEffect(() => {
+  if (magicLinkCooldown <= 0) return;
+  const timer = setInterval(() => {
+    setMagicLinkCooldown(prev => prev - 1);
+  }, 1000);
+  return () => clearInterval(timer);
+}, [magicLinkCooldown]);
+
+// In handleMagicLink, after successful send:
+setMagicLinkCooldown(60);
+
+// Button:
+<Button disabled={loading || magicLinkCooldown > 0}>
+  {magicLinkCooldown > 0 ? `Resend in ${magicLinkCooldown}s` : 'Send Magic Link'}
+</Button>
 ```
 
-- AI reasoning block appears at the top with event badges
-- Before/after comparison is visually prominent (two cards side by side)
-- Slider is still there for manual override, but starts at AI-suggested rate
-- Monthly impact shown prominently
-- Confidence badge gives trust signal
-- Remove the date-range toggle (noted as "future update" anyway — dead UI)
-
-### 5. Vehicle List — Priority Ordering + Compact Layout
-
-- Sort vehicles by opportunity size (highest potential gain first)
-- Already-applied vehicles move to bottom with green state
-- Show inline AI reasoning snippet when a vehicle has been analyzed (one line: "Ultra Festival surge • 67% util • +$420/mo")
-- Remove individual auto-pricing Switch per vehicle (confusing since it doesn't actually do anything yet)
-
-### 6. Effective Rate Multiplier — Replace with Fleet Summary
-
-Replace the abstract "1.28x multiplier" card with:
+### Friendlier 429 Error (AuthContext.tsx)
 
 ```text
-┌──────────────────────────────────────────┐
-│ Fleet Pricing Summary                    │
-│ Avg Rate: $1,450/day  │  Fleet Rev: $43K │
-│ Vehicles Optimized: 3/12  │  Util: 17%  │
-└──────────────────────────────────────────┘
+if (error) {
+  const isRateLimit = error.message?.includes('security purposes') 
+    || error.status === 429;
+  toast({
+    title: "Error Sending Magic Link",
+    description: isRateLimit 
+      ? "Please wait a moment before requesting another link."
+      : error.message,
+    variant: "destructive"
+  });
+}
 ```
 
-Operators understand dollars and counts, not multipliers.
+### Files Changed
 
----
-
-## Files Changed
-
-| File | Changes |
-|------|---------|
-| `src/components/dashboard/DynamicPricingCard.tsx` | Compact factor chips, priority-sorted vehicle list, fleet summary replacing multiplier, remove auto-pricing switches, rename badge |
-| `src/components/dialogs/QuickPriceEditorDialog.tsx` | Add `pricingContext` prop, AI reasoning block, before/after comparison, event badges, remove date-range section |
-| `src/components/dashboard/MotorIQEnhanced.tsx` | Pass pricing context when opening dialog from AI recommendation |
-
-No database changes. No new edge functions.
+| File | Change |
+|------|--------|
+| `src/pages/Auth.tsx` | Add 60s cooldown timer to magic link and password reset buttons |
+| `src/contexts/AuthContext.tsx` | Friendlier error messages for 429 rate limits on `signInWithMagicLink` and `resetPassword` |
 

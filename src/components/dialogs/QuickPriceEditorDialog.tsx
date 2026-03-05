@@ -9,29 +9,23 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
-import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { Calendar } from "@/components/ui/calendar";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import {
   DollarSign,
   Sparkles,
   TrendingUp,
-  Calendar as CalendarIcon,
+  Calendar,
   Check,
-  Pencil,
   Car,
+  Zap,
+  Target,
+  ArrowRight,
 } from "lucide-react";
-import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import type { PricingContext } from "@/components/dashboard/DynamicPricingCard";
 
 interface Vehicle {
   id: string;
@@ -51,6 +45,7 @@ interface QuickPriceEditorDialogProps {
   onOpenChange: (open: boolean) => void;
   vehicle: Vehicle | null;
   onApplyRate: (vehicleId: string, newRate: number) => Promise<void>;
+  pricingContext?: PricingContext | null;
 }
 
 export const QuickPriceEditorDialog = ({
@@ -58,27 +53,27 @@ export const QuickPriceEditorDialog = ({
   onOpenChange,
   vehicle,
   onApplyRate,
+  pricingContext,
 }: QuickPriceEditorDialogProps) => {
   const [newRate, setNewRate] = useState<number>(0);
-  const [useDateRange, setUseDateRange] = useState(false);
-  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
-  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [isSaving, setIsSaving] = useState(false);
 
   // Reset state when vehicle changes
   useEffect(() => {
     if (vehicle) {
-      setNewRate(vehicle.current_rate);
-      setUseDateRange(false);
-      setStartDate(undefined);
-      setEndDate(undefined);
+      // If AI context exists, start at suggested rate; otherwise current rate
+      const suggestedRate = pricingContext 
+        ? (vehicle.suggested_rate || vehicle.current_rate)
+        : vehicle.current_rate;
+      setNewRate(suggestedRate);
     }
-  }, [vehicle]);
+  }, [vehicle, pricingContext]);
 
   if (!vehicle) return null;
 
   const suggestedRate = vehicle.suggested_rate || vehicle.current_rate;
   const hasSuggestion = vehicle.suggested_rate && vehicle.suggested_rate > vehicle.current_rate;
+  const hasAIContext = !!pricingContext;
   const rateChange = newRate - vehicle.current_rate;
   const monthlyImpact = rateChange * 30;
 
@@ -107,11 +102,20 @@ export const QuickPriceEditorDialog = ({
       <DialogContent className="sm:max-w-[500px] max-h-[85vh] flex flex-col p-0">
         <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
           <DialogTitle className="flex items-center gap-3">
-            <div className="p-2 bg-primary/10 rounded-lg">
-              <Pencil className="h-5 w-5 text-primary" />
+            <div className={cn(
+              "p-2 rounded-lg",
+              hasAIContext ? "bg-gradient-to-br from-primary/20 to-accent/20" : "bg-primary/10"
+            )}>
+              {hasAIContext ? (
+                <Sparkles className="h-5 w-5 text-primary" />
+              ) : (
+                <DollarSign className="h-5 w-5 text-primary" />
+              )}
             </div>
             <div>
-              <span className="block">Edit Pricing</span>
+              <span className="block">
+                {hasAIContext ? "AI Price Recommendation" : "Edit Pricing"}
+              </span>
               <span className="text-sm font-normal text-muted-foreground">
                 {vehicle.name}
               </span>
@@ -120,10 +124,10 @@ export const QuickPriceEditorDialog = ({
         </DialogHeader>
 
         <ScrollArea className="flex-1 overflow-y-auto">
-          <div className="px-6 py-4 space-y-6">
-            {/* Vehicle Info */}
-            <div className="flex items-center gap-4 p-4 rounded-lg bg-muted/30 border">
-              <div className="h-14 w-20 bg-muted rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
+          <div className="px-6 py-4 space-y-5">
+            {/* Vehicle Info — Compact */}
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border">
+              <div className="h-12 w-16 bg-muted rounded-md flex items-center justify-center overflow-hidden flex-shrink-0">
                 {vehicle.image_url ? (
                   <img 
                     src={vehicle.image_url} 
@@ -131,24 +135,14 @@ export const QuickPriceEditorDialog = ({
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <Car className="h-6 w-6 text-muted-foreground" />
+                  <Car className="h-5 w-5 text-muted-foreground" />
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <h4 className="font-semibold truncate">{vehicle.name}</h4>
-                <p className="text-sm text-muted-foreground truncate">
+                <h4 className="font-semibold text-sm truncate">{vehicle.name}</h4>
+                <p className="text-xs text-muted-foreground truncate">
                   {vehicle.year} {vehicle.make} {vehicle.model}
                 </p>
-                <div className="flex items-center gap-2 mt-1">
-                  <Badge variant="outline" className="capitalize text-xs">
-                    {vehicle.status}
-                  </Badge>
-                  {vehicle.utilization && (
-                    <span className="text-xs text-muted-foreground">
-                      {vehicle.utilization}% utilized
-                    </span>
-                  )}
-                </div>
               </div>
               <div className="text-right flex-shrink-0">
                 <div className="text-xs text-muted-foreground">Current</div>
@@ -156,8 +150,91 @@ export const QuickPriceEditorDialog = ({
               </div>
             </div>
 
-            {/* AI Suggestion */}
-            {hasSuggestion && (
+            {/* AI Reasoning Block (when context is available) */}
+            {hasAIContext && pricingContext && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="space-y-4"
+              >
+                {/* Reasoning */}
+                <div className="p-4 rounded-lg bg-gradient-to-r from-primary/8 to-accent/8 border border-primary/15">
+                  <div className="flex items-start gap-3">
+                    <div className="p-1.5 bg-primary/15 rounded-md flex-shrink-0 mt-0.5">
+                      <Zap className="h-3.5 w-3.5 text-primary" />
+                    </div>
+                    <div>
+                      <div className="font-medium text-sm mb-1">Why this rate?</div>
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        {pricingContext.reasoning}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* What's driving this — compact chips */}
+                <div className="space-y-2">
+                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">What's driving this</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {pricingContext.events.slice(0, 3).map((event) => (
+                      <Badge key={event.id} variant="outline" className="text-xs gap-1 px-2 py-1">
+                        <Calendar className="h-3 w-3 text-accent" />
+                        {event.name}
+                      </Badge>
+                    ))}
+                    {vehicle.utilization !== undefined && vehicle.utilization > 0 && (
+                      <Badge variant="outline" className="text-xs gap-1 px-2 py-1">
+                        <TrendingUp className="h-3 w-3 text-success" />
+                        {vehicle.utilization}% utilization
+                      </Badge>
+                    )}
+                    {pricingContext.factors.map((f, i) => (
+                      <Badge key={i} variant="outline" className="text-xs gap-1 px-2 py-1">
+                        {f.name}: {f.impact > 0 ? '+' : ''}{f.impact}%
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Before/After Comparison */}
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 p-3 rounded-lg bg-muted/40 border text-center">
+                    <div className="text-xs text-muted-foreground mb-1">Current</div>
+                    <div className="text-2xl font-bold">${vehicle.current_rate}</div>
+                    <div className="text-xs text-muted-foreground">/day</div>
+                  </div>
+                  <ArrowRight className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                  <div className="flex-1 p-3 rounded-lg bg-success/10 border border-success/20 text-center">
+                    <div className="text-xs text-success mb-1">Suggested</div>
+                    <div className="text-2xl font-bold text-success">${suggestedRate}</div>
+                    <div className="text-xs text-muted-foreground">/day</div>
+                  </div>
+                </div>
+
+                {/* Confidence + Impact row */}
+                <div className="flex gap-3">
+                  <div className="flex-1 p-2.5 rounded-lg bg-muted/30 border flex items-center gap-2">
+                    <Target className="h-4 w-4 text-primary flex-shrink-0" />
+                    <div>
+                      <div className="text-xs text-muted-foreground">Confidence</div>
+                      <div className="text-sm font-semibold">{pricingContext.confidence}%</div>
+                    </div>
+                  </div>
+                  <div className="flex-1 p-2.5 rounded-lg bg-success/5 border border-success/15 flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-success flex-shrink-0" />
+                    <div>
+                      <div className="text-xs text-muted-foreground">Monthly Impact</div>
+                      <div className="text-sm font-bold text-success">
+                        +${((suggestedRate - vehicle.current_rate) * 30).toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* AI Suggestion (legacy banner — only shows if no AI context but has suggestion) */}
+            {!hasAIContext && hasSuggestion && (
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -202,7 +279,7 @@ export const QuickPriceEditorDialog = ({
             <div className="space-y-4">
               <h4 className="font-medium text-sm flex items-center gap-2">
                 <DollarSign className="h-4 w-4 text-primary" />
-                Set New Rate
+                {hasAIContext ? "Adjust Rate" : "Set New Rate"}
               </h4>
 
               {/* Rate Input */}
@@ -274,91 +351,6 @@ export const QuickPriceEditorDialog = ({
                 )}
               </div>
             </div>
-
-            <Separator />
-
-            {/* Date Range Option */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="date-range" className="text-sm font-medium flex items-center gap-2">
-                  <CalendarIcon className="h-4 w-4 text-primary" />
-                  Apply to specific dates
-                </Label>
-                <Switch
-                  id="date-range"
-                  checked={useDateRange}
-                  onCheckedChange={setUseDateRange}
-                />
-              </div>
-
-              {useDateRange && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  className="grid grid-cols-2 gap-3"
-                >
-                  <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">From</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "w-full justify-start text-left font-normal",
-                            !startDate && "text-muted-foreground"
-                          )}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {startDate ? format(startDate, "MMM d, yyyy") : "Select date"}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={startDate}
-                          onSelect={setStartDate}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">To</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "w-full justify-start text-left font-normal",
-                            !endDate && "text-muted-foreground"
-                          )}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {endDate ? format(endDate, "MMM d, yyyy") : "Select date"}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={endDate}
-                          onSelect={setEndDate}
-                          initialFocus
-                          disabled={(date) => startDate ? date < startDate : false}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                </motion.div>
-              )}
-
-              {useDateRange && (
-                <p className="text-xs text-muted-foreground">
-                  Note: Date-specific pricing will be added in a future update. 
-                  For now, this will update the base rate.
-                </p>
-              )}
-            </div>
           </div>
         </ScrollArea>
 
@@ -376,7 +368,10 @@ export const QuickPriceEditorDialog = ({
             disabled={isSaving || newRate === vehicle.current_rate}
             className="flex-1 btn-premium min-h-[44px]"
           >
-            {isSaving ? "Saving..." : "Save Changes"}
+            {isSaving ? "Saving..." : hasAIContext 
+              ? `Confirm $${newRate}/day ✓`
+              : "Save Changes"
+            }
           </Button>
         </DialogFooter>
       </DialogContent>
