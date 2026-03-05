@@ -156,7 +156,7 @@ export const DemandForecastCard = () => {
         ? format(dateRange.to, 'yyyy-MM-dd') 
         : format(addDays(new Date(), 14), 'yyyy-MM-dd');
 
-      const response = await supabase.functions.invoke('predicthq-events', {
+      const response = await supabase.functions.invoke('ai-event-intelligence', {
         body: { 
           city: selectedCity,
           location: city ? { lat: city.lat, lon: city.lon, radius: 50 } : undefined,
