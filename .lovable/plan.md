@@ -1,83 +1,124 @@
 
 
-# Fix Magic Link -- Rate Limiting and UX
+# Demo Bookings: Feb-June 2026 — Real-World Fleet Operation
 
-## Root Cause
+## Overview
+Insert ~120 new bookings across Feb-June 2026 for the demo account, using existing customers and vehicles with market-calibrated pricing, real seasonality, event-driven surges, and a 60-65% fleet utilization target. Include matching payment records for completed/past bookings.
 
-The magic link uses `supabase.auth.signInWithOtp()` which hits the `/otp` endpoint. Supabase enforces a rate limit of ~1 request per 60 seconds on this endpoint. The current UI has no cooldown -- users can spam the button and immediately hit 429 errors with a raw Supabase message like "For security purposes, you can only request this after 11 seconds."
+## Market-Calibrated Daily Rates (adjusted from current DB values)
 
-Password reset works because it uses `/recover`, a different endpoint with separate rate limits.
+Based on real 2025 Miami rental market data (Monarc VIP, Premier Auto Miami), the current DB rates for hypercars are already above market. I'll **adjust rates down to realistic levels** for the bookings while keeping the vehicle `current_rate` field untouched (Rari can then suggest rate optimizations):
 
-## Fixes
+| Vehicle | Current DB Rate | Realistic Market Rate | Notes |
+|---------|----------------|----------------------|-------|
+| Bugatti Chiron Sport | $5,000-5,200 | $3,500-4,500 | Hypercar tier, $3,495+ market |
+| Koenigsegg Jesko | $8,000 | $5,000-6,000 | Ultra-rare, premium but capped |
+| Mercedes-AMG One | $8,029 | $5,000-6,500 | Hypercar class |
+| Pagani Huayra | $6,000 | $4,000-5,000 | Hypercar tier |
+| Aston Martin Valkyrie | $6,500 | $4,500-5,500 | Track hypercar |
+| McLaren Speedtail | $4,700-4,800 | $3,000-3,500 | Limited production McLaren |
+| Lamborghini Sián | $5,000 | $3,500-4,000 | Limited hybrid |
+| McLaren 765LT | $1,800 | $2,500-2,800 | Track-focused, commands premium |
+| Ferrari Daytona SP3 | $4,000 | $3,500-4,000 | Correct range |
+| Lamborghini Revuelto | $3,000 | $2,500-3,000 | Correct range |
+| Ferrari SF90 | $2,500 | $2,000-2,500 | Correct |
+| Rolls-Royce Cullinan | $1,500 | $2,000-2,300 | Underpriced vs market |
+| Rolls-Royce Ghost | $1,400 | $1,700-2,000 | Underpriced |
+| Ferrari 812 Superfast | $1,500 | $1,800-2,200 | Underpriced |
+| Lambo Huracán EVO | $1,450 | $1,500-1,800 | Correct |
+| Porsche 911 Turbo S | $1,200 | $1,200-1,500 | Correct |
+| Bentley Mulliner Batur | $3,500 | $2,500-3,000 | Ultra-luxury GT |
 
-### 1. Add Cooldown Timer to Magic Link Button
+**Key insight for Rari**: Some vehicles are overpriced (hypercars), some underpriced (Rolls-Royce, Ferrari 812). This creates realistic optimization opportunities for Rari to suggest.
 
-After a successful send, disable the button for 60 seconds with a visible countdown ("Resend in 42s"). This prevents users from hitting the rate limit.
+## Seasonality & Event Calendar
 
-**File:** `src/pages/Auth.tsx`
-- Add `cooldownSeconds` state (starts at 0)
-- After successful send, set to 60 and decrement via `setInterval`
-- Disable button and show countdown text while `cooldownSeconds > 0`
+### Scottsdale (18 vehicles)
+- **Feb 2-8**: WM Phoenix Open — PEAK. 1.5x multiplier. Near-full fleet utilization
+- **Feb (rest)**: High season. 70-75% utilization
+- **Mar**: Spring training + good weather. 65-70% utilization  
+- **Apr**: Still strong, starts cooling. 55-60%
+- **May-Jun**: Off-season heat. 40-50% utilization (Rari opportunity: suggest rate drops)
 
-### 2. Improve Error Message for 429
+### Miami (14 vehicles)
+- **Feb-Mar**: Peak season, snowbirds. 70-75% utilization
+- **Mar 20-22**: Ultra Music Festival weekend — 1.4x multiplier
+- **Apr**: Spring break tail, moderate. 60-65%
+- **May**: F1 Miami GP (early May) — PEAK. 1.5x multiplier
+- **May-Jun**: Summer begins, steady. 55-60%
 
-Catch the specific rate-limit error and show a user-friendly message instead of the raw Supabase text.
+## Booking Distribution (~120 new bookings)
 
-**File:** `src/contexts/AuthContext.tsx` (in `signInWithMagicLink`)
-- Check if `error.message` contains "security purposes" or `error.status === 429`
-- Replace with: "Please wait a moment before requesting another magic link."
+| Month | Scottsdale | Miami | Status Mix |
+|-------|-----------|-------|------------|
+| Feb | ~18 | ~14 | 90% completed, 10% confirmed |
+| Mar | ~14 | ~12 | ~70% completed (past March 5), ~30% confirmed |
+| Apr | ~10 | ~10 | 75% confirmed, 20% pending, 5% needing attention |
+| May | ~8 | ~10 | 70% confirmed, 25% pending, 5% pending |
+| Jun | ~6 | ~8 | 60% confirmed, 30% pending, 10% pending |
 
-### 3. Add Cooldown to Password Reset Too
+### VIP Repeat Booking Patterns
+These customers get 2-4 bookings across the 5-month window:
+- **Marcus Wellington III** ($266k LTV, 19 bookings) — 3-4 new bookings, always hypercars
+- **Maxwell Sterling** ($220k LTV) — 3 bookings, varied high-end
+- **Alexander Rothschild** ($185k LTV) — 2-3 bookings
+- **Sophia Blackwood** ($165k LTV) — 2-3 bookings
+- **David Chen** ($132k LTV) — 2-3 bookings
+- **Jonathan Blake** ($117k LTV) — 2-3 bookings
+- **Victoria Hayes** ($86k LTV) — 2 bookings, hypercar specialist
+- **Samantha Pierce** ($125k LTV) — 2 bookings
+- **Prestige Concierge** (corporate, $285k) — 3-4 bookings for clients
+- **Apex Events LLC** (corporate, $175k) — 2-3 event bookings
 
-Apply the same cooldown pattern to the "Send Reset Link" button to prevent the same issue there (auth logs show 429s on `/recover` too from `hello@exotiq.ai`).
+Regular customers get 1-2 bookings each.
 
-**File:** `src/pages/Auth.tsx`
-- Same cooldown pattern for `handlePasswordReset`
+### Booking Duration Patterns (realistic luxury rental)
+- Weekend rentals (Fri-Sun): 40% of bookings (2-3 days)
+- Short-term (3-5 days): 30%
+- Weekly (5-7 days): 20%  
+- Extended (7-14 days): 10%
 
-## Technical Details
+## Event-Driven Bookings (premium pricing)
 
-### Cooldown Logic (Auth.tsx)
+### WM Phoenix Open (Feb 2-8, Scottsdale)
+- 8-10 bookings, mostly 3-5 day, 1.5x rates
+- VIPs + corporate accounts
+- Multiple hypercars booked simultaneously
 
-```text
-const [magicLinkCooldown, setMagicLinkCooldown] = useState(0);
+### Ultra Music Festival (Mar 20-22, Miami)  
+- 5-6 bookings, weekend-heavy, 1.3-1.4x rates
+- Younger clientele (Sebastian Cruz, Ryan Sterling types)
+- Lamborghinis and flashy vehicles
 
-useEffect(() => {
-  if (magicLinkCooldown <= 0) return;
-  const timer = setInterval(() => {
-    setMagicLinkCooldown(prev => prev - 1);
-  }, 1000);
-  return () => clearInterval(timer);
-}, [magicLinkCooldown]);
+### F1 Miami Grand Prix (May ~3-5, Miami)
+- 6-8 bookings, 4-5 day avg, 1.5x rates
+- VIP clients + corporate
+- Full fleet near capacity
 
-// In handleMagicLink, after successful send:
-setMagicLinkCooldown(60);
+## Payment Records
 
-// Button:
-<Button disabled={loading || magicLinkCooldown > 0}>
-  {magicLinkCooldown > 0 ? `Resend in ${magicLinkCooldown}s` : 'Send Magic Link'}
-</Button>
-```
+For all completed bookings (Feb through ~March 5):
+- ~40 payment records
+- Mix of payment types: wire transfer (VIPs), credit card (standard), Zelle (some)
+- Payment statuses: mostly "paid", some "deposit_paid" for current confirmed bookings
+- Amounts match booking `total_value`
 
-### Friendlier 429 Error (AuthContext.tsx)
+## What This Enables for Rari
 
-```text
-if (error) {
-  const isRateLimit = error.message?.includes('security purposes') 
-    || error.status === 429;
-  toast({
-    title: "Error Sending Magic Link",
-    description: isRateLimit 
-      ? "Please wait a moment before requesting another link."
-      : error.message,
-    variant: "destructive"
-  });
-}
-```
+1. **Rate optimization**: Scottsdale hypercars overpriced vs market → Rari suggests lowering to improve utilization
+2. **Underpriced vehicles**: Rolls-Royce fleet below market → Rari suggests raising rates
+3. **Seasonal strategy**: May-June Scottsdale drop-off → Rari suggests promotional rates or relocation
+4. **VIP recognition**: Repeat VIP patterns → Rari can highlight loyalty program opportunities
+5. **Utilization gaps**: Specific vehicles with low booking density → Rari identifies underperformers
+6. **Event planning**: Upcoming F1 Miami → Rari suggests pre-booking outreach to past customers
 
-### Files Changed
+## Implementation
 
-| File | Change |
-|------|--------|
-| `src/pages/Auth.tsx` | Add 60s cooldown timer to magic link and password reset buttons |
-| `src/contexts/AuthContext.tsx` | Friendlier error messages for 429 rate limits on `signInWithMagicLink` and `resetPassword` |
+This will be executed as database INSERT statements via the data insertion tool:
+1. Insert ~120 bookings with realistic dates, rates, durations, customer links, and vehicle assignments
+2. Insert ~40 payment records for completed bookings
+3. Update customer stats (lifetime_value, total_bookings) to reflect new bookings
+4. Update vehicle revenue totals
+
+No code changes needed — this is purely data population.
 
