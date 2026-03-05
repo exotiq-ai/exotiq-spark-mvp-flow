@@ -605,12 +605,8 @@ export const DemandForecastCard = ({ bookings = [] }: DemandForecastCardProps) =
         </TabsList>
 
         <TabsContent value="forecast" className="mt-4 space-y-4">
-          {/* Forecast Visualization — scrollable for 30/60 day ranges */}
-          <div className={cn(
-            "overflow-x-auto pb-2",
-            rangeDays > 14 && "scrollbar-thin"
-          )}>
-          <div className="grid grid-cols-7 gap-2" style={{ minWidth: rangeDays > 14 ? `${Math.ceil(rangeDays / 7) * 140}px` : undefined }}>
+          {/* Forecast Visualization */}
+          <div className="grid grid-cols-7 gap-2">
             {forecastData.slice(0, 7).map((day, index) => {
               const height = (day.demand / 100) * 100;
               const isToday = index === 0 && format(dateRange?.from || new Date(), 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
