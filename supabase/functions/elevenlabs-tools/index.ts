@@ -1914,7 +1914,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
           topPerformers: highPerformers.slice(0, 3).map(v => ({
             name: `${v.year} ${v.make} ${v.model}`,
             location: v.location,
-            utilization: `${v.utilization || 70}%`,
+            utilization: `${v.utilization || 0}%`,
             rate: `$${v.current_rate || v.daily_rate}`
           })),
           recommendations: underUtilized.length > 0 
