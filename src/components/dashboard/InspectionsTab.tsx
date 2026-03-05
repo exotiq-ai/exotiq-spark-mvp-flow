@@ -40,6 +40,14 @@ interface InspectionsTabProps {
 
 export const InspectionsTab = ({ vehicles }: InspectionsTabProps) => {
   const { currentTeam } = useTeam();
+
+  // Page-level realtime subscription for vehicle_inspections table
+  useRealtimeTable('vehicle_inspections', {
+    teamId: currentTeam?.id,
+    onUpdate: () => refetchInspections(),
+  });
+
+  const [showVehicleSelector, setShowVehicleSelector] = useState(false);
   const [showVehicleSelector, setShowVehicleSelector] = useState(false);
   const [inspectionDirection, setInspectionDirection] = useState<'check_in' | 'check_out'>('check_in');
   const [selectedInspectionVehicle, setSelectedInspectionVehicle] = useState<Vehicle | null>(null);

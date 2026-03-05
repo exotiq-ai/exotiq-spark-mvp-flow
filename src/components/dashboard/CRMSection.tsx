@@ -7,6 +7,7 @@ import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { useRealtimeTable } from "@/hooks/useRealtimeTable";
 import { useFleet } from "@/contexts/FleetContext";
 import { useTeam } from "@/contexts/TeamContext";
+import { useGrowthCalculation, useRevenueGrowth } from "@/hooks/useGrowthCalculation";
 import { SkeletonMetric, SkeletonTable } from "@/components/ui/skeleton-card";
 import { EmptyState } from "@/components/common/EmptyState";
 import { 

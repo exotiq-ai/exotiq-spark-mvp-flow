@@ -42,7 +42,16 @@ interface AlertCategory {
 
 export const AttentionRequiredTab = () => {
   const { bookings, vehicles, payments, maintenance, customers } = useLocationFilteredFleet();
+  const { refreshMaintenance } = useFleet();
+  const { currentTeam } = useTeam();
   const { tasks } = useFleetTasks();
+
+  useRealtimeTable('maintenance_schedules', {
+    teamId: currentTeam?.id,
+    onUpdate: refreshMaintenance,
+  });
+
+  const navigate = useNavigate();
   const navigate = useNavigate();
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
 

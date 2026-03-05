@@ -40,7 +40,17 @@ const CATEGORY_TYPES = ['Insurance', 'Registration', 'Inspection', 'License'];
 
 export const VaultEnhanced = () => {
   const { documents, vehicles, uploadDocument, deleteDocument, loading } = useLocationFilteredFleet();
+  const { refreshMaintenance } = useFleet();
+  const { currentTeam } = useTeam();
   const { toast } = useToast();
+
+  // Page-level realtime subscription for maintenance_schedules table
+  useRealtimeTable('maintenance_schedules', {
+    teamId: currentTeam?.id,
+    onUpdate: refreshMaintenance,
+    enabled: !loading,
+  });
+
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [alertDismissed, setAlertDismissed] = useState(false);
   const [alertExpanded, setAlertExpanded] = useState(false);

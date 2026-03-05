@@ -35,7 +35,6 @@ export const DamageClaimsSection = () => {
   });
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [showVehicleDetails, setShowVehicleDetails] = useState(false);
