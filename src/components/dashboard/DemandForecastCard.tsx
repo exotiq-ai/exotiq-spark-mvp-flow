@@ -323,11 +323,11 @@ export const DemandForecastCard = () => {
             <TooltipTrigger>
               <Badge variant="outline" className="text-xs">
                 <Sparkles className="h-3 w-3 mr-1" />
-                PredictHQ
+                MotorIQ Intelligence
               </Badge>
             </TooltipTrigger>
             <TooltipContent>
-              <p>Real-time event data from PredictHQ API</p>
+              <p>AI-powered event data from MotorIQ Intelligence engine</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
