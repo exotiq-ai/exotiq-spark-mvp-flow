@@ -95,23 +95,61 @@ export const DynamicPricingCard = ({ onApplyOptimization }: DynamicPricingCardPr
     await applyPriceOptimization(vehicleId, newRate);
   };
 
-  // Calculate overall pricing factors based on AI result or defaults
+  // Calculate overall pricing factors from real data + PEAK_SEASONS
+  const PEAK_SEASONS_CLIENT = [
+    { name: 'Art Basel Miami', start: '12-01', end: '12-08', city: 'miami', surge: 1.35 },
+    { name: 'Miami Boat Show', start: '02-12', end: '02-16', city: 'miami', surge: 1.30 },
+    { name: 'Ultra Music Festival', start: '03-28', end: '03-30', city: 'miami', surge: 1.35 },
+    { name: 'Miami Grand Prix', start: '05-02', end: '05-04', city: 'miami', surge: 1.40 },
+    { name: 'Miami Open Tennis', start: '03-17', end: '03-30', city: 'miami', surge: 1.25 },
+    { name: 'Spring Break', start: '03-10', end: '03-25', city: 'miami', surge: 1.25 },
+    { name: 'Barrett-Jackson Auction', start: '01-18', end: '01-26', city: 'scottsdale', surge: 1.35 },
+    { name: 'WM Phoenix Open', start: '02-03', end: '02-09', city: 'scottsdale', surge: 1.40 },
+    { name: 'Christmas & New Years', start: '12-20', end: '01-03', city: 'all', surge: 1.45 },
+    { name: 'Super Bowl Weekend', start: '02-05', end: '02-12', city: 'all', surge: 1.50 },
+    { name: 'Memorial Day Weekend', start: '05-23', end: '05-26', city: 'all', surge: 1.25 },
+    { name: 'Independence Day', start: '07-01', end: '07-06', city: 'all', surge: 1.30 },
+    { name: 'Summer Peak', start: '06-15', end: '08-15', city: 'all', surge: 1.15 },
+    { name: 'Thanksgiving Week', start: '11-24', end: '11-30', city: 'all', surge: 1.30 },
+  ];
+
+  // Find active peak season
+  const monthDay = `${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const activeSeason = PEAK_SEASONS_CLIENT.find(s => {
+    const inRange = monthDay >= s.start && monthDay <= s.end;
+    return inRange; // Match all cities for now
+  });
+
+  // Calculate real utilization from vehicle data
+  const realUtilization = vehicles.length > 0
+    ? vehicles.reduce((sum, v) => sum + (v.utilization || 0), 0) / vehicles.length
+    : 0;
+
+  // Derive seasonal factor from booking density (current month vs 3-month avg)
+  const threeMonthsAgo = subMonths(now, 3);
+  const recentBookings = bookings.filter(b => new Date(b.created_at || b.start_date) >= threeMonthsAgo);
+  const monthlyAvg = recentBookings.length / 3;
+  const currentMonthCount = currentMonthBookings.length;
+  const seasonalFactor = monthlyAvg > 0 ? Math.max(0.8, Math.min(1.5, currentMonthCount / monthlyAvg)) : 1.0;
+
   const pricingFactors = pricingResult ? {
     baseRate: vehicles[0]?.current_rate || 100,
-    demandMultiplier: pricingResult.demandMultiplier || 1.15,
+    demandMultiplier: pricingResult.demandMultiplier || (activeSeason?.surge || 1.0),
     seasonalFactor: pricingResult.factors.find(f => f.name.toLowerCase().includes('season'))?.impact 
       ? 1 + (pricingResult.factors.find(f => f.name.toLowerCase().includes('season'))?.impact || 0) / 100
-      : 1.08,
+      : seasonalFactor,
     eventPremium: events.length > 0 
       ? Math.round((events.reduce((sum, e) => sum + e.impactScore, 0) / events.length) / 10)
-      : 0,
-    utilization: vehicles.reduce((sum, v) => sum + (v.utilization || 0), 0) / Math.max(vehicles.length, 1),
+      : (activeSeason ? Math.round((activeSeason.surge - 1) * 100) : 0),
+    activeSeason: activeSeason?.name || null,
+    utilization: realUtilization,
   } : {
     baseRate: vehicles[0]?.current_rate || 100,
-    demandMultiplier: 1.15,
-    seasonalFactor: 1.08,
-    eventPremium: events.length > 0 ? 12 : 0,
-    utilization: 78,
+    demandMultiplier: activeSeason?.surge || 1.0,
+    seasonalFactor,
+    eventPremium: activeSeason ? Math.round((activeSeason.surge - 1) * 100) : 0,
+    activeSeason: activeSeason?.name || null,
+    utilization: realUtilization,
   };
 
   const effectiveMultiplier = pricingFactors.demandMultiplier * pricingFactors.seasonalFactor * 

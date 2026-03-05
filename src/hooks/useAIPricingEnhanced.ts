@@ -79,8 +79,8 @@ export const useAIPricingEnhanced = (): UseAIPricingEnhancedReturn => {
 
     try {
       // First, fetch event data
-      const eventsResponse = await supabase.functions.invoke('predicthq-events', {
-        body: { city: 'miami' }, // Could be dynamic based on user location
+      const eventsResponse = await supabase.functions.invoke('ai-event-intelligence', {
+        body: { city: 'miami' },
       });
 
       let eventData = null;
