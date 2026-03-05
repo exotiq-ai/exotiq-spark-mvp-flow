@@ -339,6 +339,6 @@ After building, verify:
 
 ## Notes
 
-- The Google Cloud Vision API key needs to be added as a Supabase secret
-- Photoroom integration (hero photo enhancement) is Phase 2 - skip for now
+- The Google Cloud Vision API key needs to be added as a backend secret
+- ~~Photoroom integration (hero photo enhancement) has been sunset and removed~~
 - The `vehicle-photos` storage bucket already exists
