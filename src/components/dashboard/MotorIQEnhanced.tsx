@@ -259,6 +259,9 @@ export const MotorIQEnhanced = () => {
           onValueChange={setActiveTab}
         >
           <TabsContent value="overview" className="space-y-6">
+        {/* Weekly Intelligence Digest */}
+        <WeeklyDigestCard bookings={bookings} vehicles={vehicles} />
+
         <AnimatePresence mode="wait">
           {showRecommendationCard ? (
             <motion.div
