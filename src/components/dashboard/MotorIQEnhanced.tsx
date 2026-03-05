@@ -14,6 +14,7 @@ import { DynamicPricingCard } from "@/components/dashboard/DynamicPricingCard";
 import type { PricingContext } from "@/components/dashboard/DynamicPricingCard";
 import { DemandForecastCard } from "@/components/dashboard/DemandForecastCard";
 import { PricingCalendar } from "@/components/dashboard/PricingCalendar";
+import { WeeklyDigestCard } from "@/components/dashboard/WeeklyDigestCard";
 import { LocationBadge } from "@/components/common/LocationBadge";
 import { VehicleThumbnail } from "@/components/common/VehicleThumbnail";
 import { useSwipeGesture } from "@/hooks/useSwipeGesture";
