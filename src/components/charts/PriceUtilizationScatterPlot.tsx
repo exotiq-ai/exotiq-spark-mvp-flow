@@ -142,7 +142,7 @@ export const PriceUtilizationScatterPlot = () => {
           <div>
             <h3 className="text-lg sm:text-xl font-semibold mb-1">Price vs. Utilization</h3>
             <p className="text-xs sm:text-sm text-muted-foreground">
-              {isMobile ? 'Tap to optimize' : 'Click any point to optimize • Filter by zone'}
+              Fleet pricing distribution by zone
             </p>
           </div>
           {!isMobile && (

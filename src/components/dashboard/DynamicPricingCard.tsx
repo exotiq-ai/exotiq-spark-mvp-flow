@@ -573,7 +573,7 @@ export const DynamicPricingCard = ({ onApplyOptimization, onOpenPriceEditor }: D
                         <>
                           ${Number(vehicle.current_rate).toLocaleString()}/day
                           <span className="text-muted-foreground/60">•</span>
-                          <span>{computedUtil}% util</span>
+                          <span>{computedUtil}% utilization</span>
                           {hasResult && gain > 0 && (
                             <>
                               <span className="text-muted-foreground/60">•</span>

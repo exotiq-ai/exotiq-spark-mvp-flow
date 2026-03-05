@@ -75,6 +75,35 @@ const UserProfileSection = ({ collapsed }: { collapsed: boolean }) => {
   );
 };
 
+// Nav button component
+const NavButton = ({ module, isActive, collapsed, onModuleChange }: { 
+  module: { id: string; name: string; icon: any; color: string }; 
+  isActive: boolean; collapsed: boolean; onModuleChange: (id: string) => void 
+}) => (
+  <button
+    onClick={() => onModuleChange(module.id)}
+    data-tour={`nav-${module.id}`}
+    className={cn(
+      "w-full flex items-center rounded-lg transition-all duration-200 group relative",
+      "min-h-[44px]",
+      collapsed ? "justify-center p-3" : "justify-start p-3 space-x-3",
+      isActive 
+        ? "bg-sidebar-accent border-l-4 border-primary" 
+        : "hover:bg-sidebar-accent/50 border-l-4 border-transparent hover:border-border"
+    )}
+    title={collapsed ? module.name : undefined}
+  >
+    <div className={cn("p-2 rounded-lg transition-all", isActive && "bg-primary/10")}>
+      <module.icon className={cn("h-5 w-5 transition-colors", isActive ? "text-primary" : module.color)} />
+    </div>
+    {!collapsed && (
+      <span className={cn("flex-1 text-left font-medium text-sm", isActive && "text-primary")}>
+        {module.name}
+      </span>
+    )}
+  </button>
+);
+
 export const DashboardSidebar = ({ activeModule, onModuleChange }: DashboardSidebarProps) => {
   const [collapsed, setCollapsed] = useLocalStorage("sidebarCollapsed", false);
 
