@@ -1789,7 +1789,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         }
 
         const currentRate = Number(vehicle.current_rate || vehicle.daily_rate);
-        const utilization = vehicle.utilization || 70;
+        const utilization = vehicle.utilization || 0;
         const vehicleLocation = vehicle.location || 'Miami';
         
         // Check for peak season
