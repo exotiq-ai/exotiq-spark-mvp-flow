@@ -73,12 +73,9 @@ export function VehicleImageDialog({
   // Get current displayed photo based on gallery selection
   const currentDisplayUrl = useMemo(() => {
     if (photos.length === 0) return mainImageUrl;
-    if (selectedPhotoIndex === 0 && heroPhoto) {
-      return heroPhoto.enhanced_url || heroPhoto.url;
-    }
     const photo = photos[selectedPhotoIndex];
-    return photo?.enhanced_url || photo?.url || mainImageUrl;
-  }, [photos, selectedPhotoIndex, heroPhoto, mainImageUrl]);
+    return photo?.url || mainImageUrl;
+  }, [photos, selectedPhotoIndex, mainImageUrl]);
 
   // Reset photo index when dialog opens
   useEffect(() => {

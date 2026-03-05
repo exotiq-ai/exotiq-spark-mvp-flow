@@ -386,7 +386,7 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
     // First get the photo details to update the vehicle
     const { data: photo, error: fetchError } = await supabase
       .from('vehicle_photos')
-      .select('vehicle_id, url, enhanced_url')
+      .select('vehicle_id, url')
       .eq('id', photoId)
       .single();
 
@@ -401,12 +401,10 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
     if (error) throw error;
 
     // Also explicitly update the vehicle's image_url for immediate UI update
-    // (The trigger handles this too, but this ensures immediate consistency)
-    const heroUrl = photo.enhanced_url || photo.url;
-    if (heroUrl) {
+    if (photo.url) {
       await supabase
         .from('vehicles')
-        .update({ image_url: heroUrl })
+        .update({ image_url: photo.url })
         .eq('id', photo.vehicle_id);
     }
   }, []);
