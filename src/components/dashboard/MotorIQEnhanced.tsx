@@ -493,7 +493,7 @@ export const MotorIQEnhanced = () => {
           </TabsContent>
 
           <TabsContent value="forecast" className="space-y-6">
-            <DemandForecastCard />
+            <DemandForecastCard bookings={bookings} />
           </TabsContent>
         </ModuleTabs>
       </div>
