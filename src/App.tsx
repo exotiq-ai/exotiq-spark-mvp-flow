@@ -27,7 +27,14 @@ import SignOut from "./pages/SignOut";
 import Reset from "./pages/Reset";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes — prevents redundant refetches on navigation
+      refetchOnWindowFocus: false, // realtime subscriptions handle live updates
+    },
+  },
+});
 
 // Layout wrapper that provides all contexts - used with Outlet for proper React Router v6 pattern
 const ProvidersWrapper = () => {
