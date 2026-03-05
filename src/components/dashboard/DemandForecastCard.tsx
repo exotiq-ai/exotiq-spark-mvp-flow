@@ -333,7 +333,7 @@ export const DemandForecastCard = ({ bookings = [] }: DemandForecastCardProps) =
         })()
       : defaultWeights;
 
-    return Array.from({ length: Math.min(rangeDays, 14) }, (_, i) => {
+    return Array.from({ length: rangeDays }, (_, i) => {
       const date = addDays(startDate, i);
       const dateStr = format(date, 'yyyy-MM-dd');
       const dayEvents = filteredEvents.filter(e => e.date.startsWith(dateStr));
@@ -718,7 +718,7 @@ export const DemandForecastCard = ({ bookings = [] }: DemandForecastCardProps) =
             </div>
           )}
 
-          {/* Summary Stats */}
+
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div className="p-3 rounded-lg bg-muted/30 border">
               <div className="text-sm text-muted-foreground mb-1">Avg Demand</div>
