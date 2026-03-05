@@ -551,14 +551,6 @@ export const DynamicPricingCard = ({ onApplyOptimization, onOpenPriceEditor }: D
                 onClick={() => handleVehicleClick(vehicle)}
               >
                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                  {/* Vehicle thumbnail */}
-                  <div className="h-10 w-14 bg-muted rounded-md flex items-center justify-center overflow-hidden flex-shrink-0">
-                    {vehicle.image_url ? (
-                      <img src={vehicle.image_url} alt={vehicle.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <Car className="h-4 w-4 text-muted-foreground" />
-                    )}
-                  </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       {isApplied && <SuccessCheckmark size="sm" />}
