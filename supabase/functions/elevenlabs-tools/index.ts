@@ -1867,7 +1867,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         
         const totalVehicles = vehicles.length;
         const avgRate = vehicles.reduce((sum, v) => sum + Number(v.current_rate || v.daily_rate || 0), 0) / totalVehicles;
-        const avgUtilization = vehicles.reduce((sum, v) => sum + (v.utilization || 70), 0) / totalVehicles;
+        const avgUtilization = vehicles.reduce((sum, v) => sum + (v.utilization || 0), 0) / totalVehicles;
         const totalRevenue = vehicles.reduce((sum, v) => sum + Number(v.revenue || 0), 0);
         
         // Find under and over-utilized vehicles
