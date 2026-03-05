@@ -1491,7 +1491,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
               location: v.location,
               revenue: formatUsdWords(rev),
               revenueRaw: rev,
-              utilization: `${v.utilization || 70}%`
+              utilization: `${v.utilization || 0}%`
             };
           }) || [];
           
