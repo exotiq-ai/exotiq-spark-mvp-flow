@@ -1076,7 +1076,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
           }
           locationStats[loc].vehicleCount++;
           locationStats[loc].totalRevenue += Number(vehicle.revenue || 0);
-          locationStats[loc].totalUtilization += vehicle.utilization || 70;
+          locationStats[loc].totalUtilization += vehicle.utilization || 0;
           locationStats[loc].avgRate += Number(vehicle.current_rate || vehicle.daily_rate || 0);
           locationStats[loc].vehicles.push({
             name: `${vehicle.year} ${vehicle.make} ${vehicle.model}`,
