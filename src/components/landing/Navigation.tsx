@@ -56,6 +56,9 @@ export const Navigation = ({ onRequestAccess, onTryDemo, scrollToSection, onSche
               Schedule Demo
             </Button>
             <Link to="/auth">
+              <Button variant="ghost" className="text-muted-foreground hover:text-foreground">Log in</Button>
+            </Link>
+            <Link to="/auth?trial=true">
               <Button className="btn-premium">Start Free Trial</Button>
             </Link>
           </div>
@@ -110,6 +113,9 @@ export const Navigation = ({ onRequestAccess, onTryDemo, scrollToSection, onSche
                       Schedule Demo
                     </Button>
                     <Link to="/auth" onClick={() => setMobileMenuOpen(false)}>
+                      <Button variant="outline" className="w-full">Log in</Button>
+                    </Link>
+                    <Link to="/auth?trial=true" onClick={() => setMobileMenuOpen(false)}>
                       <Button className="btn-premium w-full">Start Free Trial</Button>
                     </Link>
                   </div>
