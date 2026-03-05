@@ -30,6 +30,16 @@ type Customer = Database['public']['Tables']['customers']['Row'];
 
 export const CRMSection = () => {
   const { customers, bookings, vehicles, createCustomer, createBooking, loading, isAllLocations, currentLocation } = useLocationFilteredFleet();
+  const { refreshCustomers } = useFleet();
+  const { currentTeam } = useTeam();
+
+  // Page-level realtime subscription for customers table
+  useRealtimeTable('customers', {
+    teamId: currentTeam?.id,
+    onUpdate: refreshCustomers,
+    enabled: !loading,
+  });
+
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
