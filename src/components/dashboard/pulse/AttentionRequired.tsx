@@ -3,6 +3,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CollapsibleSection } from "./CollapsibleSection";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
+import { useRealtimeTable } from "@/hooks/useRealtimeTable";
+import { useFleet } from "@/contexts/FleetContext";
+import { useTeam } from "@/contexts/TeamContext";
 import { useNavigate } from "react-router-dom";
 import { 
   AlertTriangle, 
@@ -37,7 +40,15 @@ interface AlertCategory {
 
 export const AttentionRequired = () => {
   const { bookings, vehicles, payments, maintenance, customers } = useLocationFilteredFleet();
+  const { refreshMaintenance } = useFleet();
+  const { currentTeam } = useTeam();
   const navigate = useNavigate();
+
+  useRealtimeTable('maintenance_schedules', {
+    teamId: currentTeam?.id,
+    onUpdate: refreshMaintenance,
+  });
+
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
 
   // Late returns with booking details

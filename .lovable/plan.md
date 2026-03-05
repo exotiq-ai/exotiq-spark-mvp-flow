@@ -1,62 +1,83 @@
 
 
-# Priority 3: Lazy Realtime Subscriptions
+# Fix Magic Link -- Rate Limiting and UX
 
-## Goal
-Remove `damage_claims`, `customers`, `vehicle_inspections`, and `maintenance_schedules` from the global FleetContext WebSocket channel. Create a reusable `useRealtimeTable` hook. Wire it into the specific page components that consume that data.
+## Root Cause
 
-## What Changes
+The magic link uses `supabase.auth.signInWithOtp()` which hits the `/otp` endpoint. Supabase enforces a rate limit of ~1 request per 60 seconds on this endpoint. The current UI has no cooldown -- users can spam the button and immediately hit 429 errors with a raw Supabase message like "For security purposes, you can only request this after 11 seconds."
 
-### 1. Create `src/hooks/useRealtimeTable.ts` (new file)
-A reusable hook that subscribes to a single table's `postgres_changes` and calls a refresh callback on change. Accepts `tableName`, `teamId`, `onUpdate` callback, and an `enabled` flag. Manages its own channel lifecycle (mount/unmount).
+Password reset works because it uses `/recover`, a different endpoint with separate rate limits.
+
+## Fixes
+
+### 1. Add Cooldown Timer to Magic Link Button
+
+After a successful send, disable the button for 60 seconds with a visible countdown ("Resend in 42s"). This prevents users from hitting the rate limit.
+
+**File:** `src/pages/Auth.tsx`
+- Add `cooldownSeconds` state (starts at 0)
+- After successful send, set to 60 and decrement via `setInterval`
+- Disable button and show countdown text while `cooldownSeconds > 0`
+
+### 2. Improve Error Message for 429
+
+Catch the specific rate-limit error and show a user-friendly message instead of the raw Supabase text.
+
+**File:** `src/contexts/AuthContext.tsx` (in `signInWithMagicLink`)
+- Check if `error.message` contains "security purposes" or `error.status === 429`
+- Replace with: "Please wait a moment before requesting another magic link."
+
+### 3. Add Cooldown to Password Reset Too
+
+Apply the same cooldown pattern to the "Send Reset Link" button to prevent the same issue there (auth logs show 429s on `/recover` too from `hello@exotiq.ai`).
+
+**File:** `src/pages/Auth.tsx`
+- Same cooldown pattern for `handlePasswordReset`
+
+## Technical Details
+
+### Cooldown Logic (Auth.tsx)
 
 ```text
-useRealtimeTable(tableName, { teamId, onUpdate, enabled })
-  → creates channel on mount (if enabled)
-  → filters by team_id on payload
-  → calls onUpdate() debounced
-  → removes channel on unmount
+const [magicLinkCooldown, setMagicLinkCooldown] = useState(0);
+
+useEffect(() => {
+  if (magicLinkCooldown <= 0) return;
+  const timer = setInterval(() => {
+    setMagicLinkCooldown(prev => prev - 1);
+  }, 1000);
+  return () => clearInterval(timer);
+}, [magicLinkCooldown]);
+
+// In handleMagicLink, after successful send:
+setMagicLinkCooldown(60);
+
+// Button:
+<Button disabled={loading || magicLinkCooldown > 0}>
+  {magicLinkCooldown > 0 ? `Resend in ${magicLinkCooldown}s` : 'Send Magic Link'}
+</Button>
 ```
 
-### 2. Edit `src/contexts/FleetContext.tsx`
-- Remove the 4 `.on('postgres_changes', ...)` listeners for `damage_claims`, `customers`, `vehicle_inspections`, `maintenance_schedules` from the multiplexed channel (lines 629-663)
-- Keep `bookings`, `payments`, `vehicles` in the global channel (these are the most operationally critical)
-- Keep `refreshFnsRef` entries for all tables (the refresh functions themselves stay — they're called by page-level hooks and by `refreshData`)
-- Expose `refreshInspections` and `refreshMaintenance` in the context type and provider value so page-level hooks can call them
+### Friendlier 429 Error (AuthContext.tsx)
 
-### 3. Add page-level subscriptions to consuming components
+```text
+if (error) {
+  const isRateLimit = error.message?.includes('security purposes') 
+    || error.status === 429;
+  toast({
+    title: "Error Sending Magic Link",
+    description: isRateLimit 
+      ? "Please wait a moment before requesting another link."
+      : error.message,
+    variant: "destructive"
+  });
+}
+```
 
-| Table | Component | File |
-|-------|-----------|------|
-| `damage_claims` | `DamageClaimsSection` | `src/components/dashboard/DamageClaimsSection.tsx` |
-| `customers` | `CRMSection` | `src/components/dashboard/CRMSection.tsx` |
-| `vehicle_inspections` | `InspectionsTab` | `src/components/dashboard/InspectionsTab.tsx` |
-| `maintenance_schedules` | `VaultEnhanced` | `src/components/dashboard/VaultEnhanced.tsx` |
-| `maintenance_schedules` | `DashboardOverviewEnhanced` | `src/components/dashboard/DashboardOverviewEnhanced.tsx` |
-| `maintenance_schedules` | `AttentionRequired` / `AttentionRequiredTab` | Pulse components |
+### Files Changed
 
-Each component adds a single `useRealtimeTable()` call that triggers the existing FleetContext refresh function when data changes. The hook subscribes on mount and unsubscribes on unmount — so the subscription only exists while the user is viewing that page/tab.
-
-### 4. Update `CLOUD_OPTIMIZATION_TODO.md`
-Mark Priority 3 tasks as completed.
-
-## What Does NOT Change
-- All data is still fetched on initial load via `refreshDataCore` (FleetContext still loads all 7 tables on login)
-- The `refreshData(force)` manual refresh still refreshes everything
-- Dashboard counters still work because data is loaded initially — it just won't live-update in the background for moved tables
-- No API or type changes — same FleetContext shape
-
-## Risk Mitigation
-- `bookings`, `vehicles`, `payments` remain globally live (highest operational priority)
-- Data for moved tables is still loaded on every full refresh and page navigation
-- The `notifications` table has its own subscription and DB triggers for damage claims and payments, so the notification bell still works globally
-
-## Files Modified
-1. **New**: `src/hooks/useRealtimeTable.ts`
-2. **Edit**: `src/contexts/FleetContext.tsx` — remove 4 table listeners from channel, expose 2 more refresh fns
-3. **Edit**: `src/components/dashboard/DamageClaimsSection.tsx` — add `useRealtimeTable`
-4. **Edit**: `src/components/dashboard/CRMSection.tsx` — add `useRealtimeTable`
-5. **Edit**: `src/components/dashboard/InspectionsTab.tsx` — add `useRealtimeTable`
-6. **Edit**: `src/components/dashboard/VaultEnhanced.tsx` — add `useRealtimeTable` for maintenance
-7. **Edit**: `CLOUD_OPTIMIZATION_TODO.md` — mark Priority 3 done
+| File | Change |
+|------|--------|
+| `src/pages/Auth.tsx` | Add 60s cooldown timer to magic link and password reset buttons |
+| `src/contexts/AuthContext.tsx` | Friendlier error messages for 429 rate limits on `signInWithMagicLink` and `resetPassword` |
 

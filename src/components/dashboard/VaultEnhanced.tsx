@@ -5,6 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { TabsContent } from "@/components/ui/tabs";
 import { ModuleTabs } from "@/components/common/ModuleTabs";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
+import { useRealtimeTable } from "@/hooks/useRealtimeTable";
+import { useFleet } from "@/contexts/FleetContext";
+import { useTeam } from "@/contexts/TeamContext";
 import { DocumentUploadDialog } from "@/components/dialogs/DocumentUploadDialog";
 import { DamageClaimsSection } from "@/components/dashboard/DamageClaimsSection";
 import { PaymentsSection } from "@/components/dashboard/PaymentsSection";
@@ -37,7 +40,17 @@ const CATEGORY_TYPES = ['Insurance', 'Registration', 'Inspection', 'License'];
 
 export const VaultEnhanced = () => {
   const { documents, vehicles, uploadDocument, deleteDocument, loading } = useLocationFilteredFleet();
+  const { refreshMaintenance } = useFleet();
+  const { currentTeam } = useTeam();
   const { toast } = useToast();
+
+  // Page-level realtime subscription for maintenance_schedules table
+  useRealtimeTable('maintenance_schedules', {
+    teamId: currentTeam?.id,
+    onUpdate: refreshMaintenance,
+    enabled: !loading,
+  });
+
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [alertDismissed, setAlertDismissed] = useState(false);
   const [alertExpanded, setAlertExpanded] = useState(false);

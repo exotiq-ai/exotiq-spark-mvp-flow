@@ -4,6 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
+import { useRealtimeTable } from "@/hooks/useRealtimeTable";
+import { useFleet } from "@/contexts/FleetContext";
+import { useTeam } from "@/contexts/TeamContext";
 import { useGrowthCalculation, useRevenueGrowth } from "@/hooks/useGrowthCalculation";
 import { SkeletonMetric, SkeletonTable } from "@/components/ui/skeleton-card";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -28,6 +31,16 @@ type Customer = Database['public']['Tables']['customers']['Row'];
 
 export const CRMSection = () => {
   const { customers, bookings, vehicles, createCustomer, createBooking, loading, isAllLocations, currentLocation } = useLocationFilteredFleet();
+  const { refreshCustomers } = useFleet();
+  const { currentTeam } = useTeam();
+
+  // Page-level realtime subscription for customers table
+  useRealtimeTable('customers', {
+    teamId: currentTeam?.id,
+    onUpdate: refreshCustomers,
+    enabled: !loading,
+  });
+
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);

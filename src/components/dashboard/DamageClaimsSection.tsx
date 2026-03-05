@@ -4,6 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
+import { useRealtimeTable } from "@/hooks/useRealtimeTable";
+import { useFleet } from "@/contexts/FleetContext";
+import { useTeam } from "@/contexts/TeamContext";
 import { DamageReportDialog } from "@/components/dialogs/DamageReportDialog";
 import { VehicleDetailsDialog } from "@/components/dialogs/VehicleDetailsDialog";
 import { VehicleThumbnail } from "@/components/common/VehicleThumbnail";
@@ -22,6 +25,15 @@ import { format } from "date-fns";
 
 export const DamageClaimsSection = () => {
   const { damageClaims, vehicles, maintenance } = useLocationFilteredFleet();
+  const { refreshDamageClaims } = useFleet();
+  const { currentTeam } = useTeam();
+
+  // Page-level realtime subscription for damage_claims table
+  useRealtimeTable('damage_claims', {
+    teamId: currentTeam?.id,
+    onUpdate: refreshDamageClaims,
+  });
+
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [showReportDialog, setShowReportDialog] = useState(false);

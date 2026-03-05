@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useTeam } from '@/contexts/TeamContext';
+import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -39,6 +40,13 @@ interface InspectionsTabProps {
 
 export const InspectionsTab = ({ vehicles }: InspectionsTabProps) => {
   const { currentTeam } = useTeam();
+
+  // Page-level realtime subscription for vehicle_inspections table
+  useRealtimeTable('vehicle_inspections', {
+    teamId: currentTeam?.id,
+    onUpdate: () => refetchInspections(),
+  });
+
   const [showVehicleSelector, setShowVehicleSelector] = useState(false);
   const [inspectionDirection, setInspectionDirection] = useState<'check_in' | 'check_out'>('check_in');
   const [selectedInspectionVehicle, setSelectedInspectionVehicle] = useState<Vehicle | null>(null);

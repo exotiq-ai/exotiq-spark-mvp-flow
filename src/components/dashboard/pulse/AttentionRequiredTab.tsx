@@ -3,6 +3,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
+import { useRealtimeTable } from "@/hooks/useRealtimeTable";
+import { useFleet } from "@/contexts/FleetContext";
+import { useTeam } from "@/contexts/TeamContext";
 import { useFleetTasks } from "@/hooks/useFleetTasks";
 import { useNavigate } from "react-router-dom";
 import { 
@@ -39,7 +42,15 @@ interface AlertCategory {
 
 export const AttentionRequiredTab = () => {
   const { bookings, vehicles, payments, maintenance, customers } = useLocationFilteredFleet();
+  const { refreshMaintenance } = useFleet();
+  const { currentTeam } = useTeam();
   const { tasks } = useFleetTasks();
+
+  useRealtimeTable('maintenance_schedules', {
+    teamId: currentTeam?.id,
+    onUpdate: refreshMaintenance,
+  });
+
   const navigate = useNavigate();
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
 

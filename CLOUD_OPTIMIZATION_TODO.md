@@ -55,17 +55,17 @@
 
 ---
 
-## Priority 3 — Lazy Realtime Subscriptions 🟡 MEDIUM RISK
+## Priority 3 — Lazy Realtime Subscriptions ✅ DONE
 
 **Impact:** Reduces global WebSocket traffic by ~60% (4 fewer tables broadcasting globally)
 
 ### Changes
-- [ ] Keep `bookings`, `vehicles`, `payments` in the global FleetContext channel
-- [ ] Move `damage_claims` subscription to Claims/Pulse page-level hook
-- [ ] Move `customers` subscription to Customers page-level hook
-- [ ] Move `vehicle_inspections` subscription to Inspections page-level hook
-- [ ] Move `maintenance_schedules` subscription to Maintenance page-level hook
-- [ ] Create `useRealtimeTable(tableName)` utility hook for consistent page-level subscriptions
+- [x] Keep `bookings`, `vehicles`, `payments` in the global FleetContext channel
+- [x] Move `damage_claims` subscription to Claims/Pulse page-level hook
+- [x] Move `customers` subscription to Customers page-level hook
+- [x] Move `vehicle_inspections` subscription to Inspections page-level hook
+- [x] Move `maintenance_schedules` subscription to Maintenance page-level hook
+- [x] Create `useRealtimeTable(tableName)` utility hook for consistent page-level subscriptions
 
 ### Risk Flags
 - ⚠️ **Dashboard counters:** The Dashboard/Pulse module displays counts from `damage_claims` and `customers`. After this change, these counts update only when the user navigates to those pages OR when FleetContext does a full refresh (initial load, manual refresh). The data is still accurate on navigation — it just won't live-update in the background while on a different page.

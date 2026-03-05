@@ -70,6 +70,8 @@ interface FleetContextType {
   refreshPayments: () => void;
   refreshDamageClaims: () => void;
   refreshCustomers: () => void;
+  refreshInspections: () => void;
+  refreshMaintenance: () => void;
 }
 
 const FleetContext = createContext<FleetContextType | undefined>(undefined);
@@ -626,40 +628,12 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
           if (teamId && record?.team_id && record.team_id !== teamId) return;
           debouncedRefresh('payments');
         })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'damage_claims' },
-        (payload) => {
-          recordRealtimeEvent();
-          const record = payload.new as any || payload.old as any;
-          if (teamId && record?.team_id && record.team_id !== teamId) return;
-          debouncedRefresh('damageClaims');
-        })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'customers' },
-        (payload) => {
-          recordRealtimeEvent();
-          const record = payload.new as any || payload.old as any;
-          if (teamId && record?.team_id && record.team_id !== teamId) return;
-          debouncedRefresh('customers');
-        })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'vehicles' },
         (payload) => {
           recordRealtimeEvent();
           const record = payload.new as any || payload.old as any;
           if (teamId && record?.team_id && record.team_id !== teamId) return;
           debouncedRefresh('vehicles');
-        })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'vehicle_inspections' },
-        (payload) => {
-          recordRealtimeEvent();
-          const record = payload.new as any || payload.old as any;
-          if (teamId && record?.team_id && record.team_id !== teamId) return;
-          debouncedRefresh('inspections');
-        })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'maintenance_schedules' },
-        (payload) => {
-          recordRealtimeEvent();
-          const record = payload.new as any || payload.old as any;
-          if (teamId && record?.team_id && record.team_id !== teamId) return;
-          debouncedRefresh('maintenance');
         })
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
@@ -1381,7 +1355,9 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       refreshBookings,
       refreshPayments,
       refreshDamageClaims,
-      refreshCustomers
+      refreshCustomers,
+      refreshInspections,
+      refreshMaintenance
     }}>
       {children}
     </FleetContext.Provider>
