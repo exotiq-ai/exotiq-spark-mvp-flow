@@ -4,7 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
-import { useGrowthCalculation, useRevenueGrowth } from "@/hooks/useGrowthCalculation";
+import { useRealtimeTable } from "@/hooks/useRealtimeTable";
+import { useFleet } from "@/contexts/FleetContext";
+import { useTeam } from "@/contexts/TeamContext";
 import { SkeletonMetric, SkeletonTable } from "@/components/ui/skeleton-card";
 import { EmptyState } from "@/components/common/EmptyState";
 import { 
