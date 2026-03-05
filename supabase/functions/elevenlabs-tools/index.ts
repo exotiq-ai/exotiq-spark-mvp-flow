@@ -2215,7 +2215,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
           }
           
           locationData[loc].vehicleCount++;
-          locationData[loc].totalUtilization += (vehicle.utilization || 70);
+          locationData[loc].totalUtilization += (vehicle.utilization || 0);
           locationData[loc].totalRevenue += Number(vehicle.revenue || 0);
           locationData[loc].avgRate += Number(vehicle.current_rate || 0);
           
