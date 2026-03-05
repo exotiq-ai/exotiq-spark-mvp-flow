@@ -75,14 +75,14 @@ export const usePresence = (conversationId?: string | null) => {
 
       const map = new Map<string, UserPresence>();
       (data || []).forEach(p => {
-        // Mark as offline if last seen > 2 minutes ago
+        // Mark as offline if last seen > 5 minutes ago (increased from 2 min to reduce false positives after heartbeat removal)
         const lastSeen = new Date(p.last_seen);
         const now = new Date();
         const diffMinutes = (now.getTime() - lastSeen.getTime()) / 60000;
         
         map.set(p.user_id, {
           ...p,
-          status: diffMinutes > 2 ? 'offline' : p.status,
+          status: diffMinutes > 5 ? 'offline' : p.status,
         } as UserPresence);
       });
 
