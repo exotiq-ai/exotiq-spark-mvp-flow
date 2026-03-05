@@ -707,13 +707,13 @@ export const DemandForecastCard = () => {
             </div>
             <div className="p-4 rounded-lg border bg-gradient-to-br from-warning/5 to-warning/10">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-muted-foreground">Peak Hours</span>
+                <span className="text-sm text-muted-foreground">Avg Duration</span>
                 <Clock className="h-4 w-4 text-warning" />
               </div>
               <div className="text-lg font-bold text-warning">
-                {impactAnalysis.peakHours[0]}
+                {impactAnalysis.avgBookingDuration}
               </div>
-              <p className="text-xs text-muted-foreground mt-1">highest booking demand</p>
+              <p className="text-xs text-muted-foreground mt-1">avg booking length</p>
             </div>
           </div>
 
