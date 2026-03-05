@@ -333,7 +333,7 @@ export const DemandForecastCard = ({ bookings = [] }: DemandForecastCardProps) =
         })()
       : defaultWeights;
 
-    return Array.from({ length: Math.min(rangeDays, 14) }, (_, i) => {
+    return Array.from({ length: rangeDays }, (_, i) => {
       const date = addDays(startDate, i);
       const dateStr = format(date, 'yyyy-MM-dd');
       const dayEvents = filteredEvents.filter(e => e.date.startsWith(dateStr));
