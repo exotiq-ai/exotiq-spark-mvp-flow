@@ -635,20 +635,6 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
           if (teamId && record?.team_id && record.team_id !== teamId) return;
           debouncedRefresh('vehicles');
         })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'vehicle_inspections' },
-        (payload) => {
-          recordRealtimeEvent();
-          const record = payload.new as any || payload.old as any;
-          if (teamId && record?.team_id && record.team_id !== teamId) return;
-          debouncedRefresh('inspections');
-        })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'maintenance_schedules' },
-        (payload) => {
-          recordRealtimeEvent();
-          const record = payload.new as any || payload.old as any;
-          if (teamId && record?.team_id && record.team_id !== teamId) return;
-          debouncedRefresh('maintenance');
-        })
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
           devLog('[FleetContext] ✅ Realtime subscriptions active');
