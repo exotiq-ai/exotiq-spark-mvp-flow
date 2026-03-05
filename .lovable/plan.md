@@ -1,124 +1,130 @@
 
 
-# Demo Bookings: Feb-June 2026 — Real-World Fleet Operation
+# Gemini-Powered Event Intelligence + UI Improvements
 
-## Overview
-Insert ~120 new bookings across Feb-June 2026 for the demo account, using existing customers and vehicles with market-calibrated pricing, real seasonality, event-driven surges, and a 60-65% fleet utilization target. Include matching payment records for completed/past bookings.
+## The Big Picture
 
-## Market-Calibrated Daily Rates (adjusted from current DB values)
+Replace the PredictHQ dependency with a Gemini-powered `ai-event-intelligence` edge function that returns real-world event data for any city/date range. Wire it into both the Demand Forecast and Dynamic Pricing tabs, and fix all `Math.random()` / hardcoded fallbacks with real booking data.
 
-Based on real 2025 Miami rental market data (Monarc VIP, Premier Auto Miami), the current DB rates for hypercars are already above market. I'll **adjust rates down to realistic levels** for the bookings while keeping the vehicle `current_rate` field untouched (Rari can then suggest rate optimizations):
+## What Gemini Can Deliver (and What It Can't)
 
-| Vehicle | Current DB Rate | Realistic Market Rate | Notes |
-|---------|----------------|----------------------|-------|
-| Bugatti Chiron Sport | $5,000-5,200 | $3,500-4,500 | Hypercar tier, $3,495+ market |
-| Koenigsegg Jesko | $8,000 | $5,000-6,000 | Ultra-rare, premium but capped |
-| Mercedes-AMG One | $8,029 | $5,000-6,500 | Hypercar class |
-| Pagani Huayra | $6,000 | $4,000-5,000 | Hypercar tier |
-| Aston Martin Valkyrie | $6,500 | $4,500-5,500 | Track hypercar |
-| McLaren Speedtail | $4,700-4,800 | $3,000-3,500 | Limited production McLaren |
-| Lamborghini Sián | $5,000 | $3,500-4,000 | Limited hybrid |
-| McLaren 765LT | $1,800 | $2,500-2,800 | Track-focused, commands premium |
-| Ferrari Daytona SP3 | $4,000 | $3,500-4,000 | Correct range |
-| Lamborghini Revuelto | $3,000 | $2,500-3,000 | Correct range |
-| Ferrari SF90 | $2,500 | $2,000-2,500 | Correct |
-| Rolls-Royce Cullinan | $1,500 | $2,000-2,300 | Underpriced vs market |
-| Rolls-Royce Ghost | $1,400 | $1,700-2,000 | Underpriced |
-| Ferrari 812 Superfast | $1,500 | $1,800-2,200 | Underpriced |
-| Lambo Huracán EVO | $1,450 | $1,500-1,800 | Correct |
-| Porsche 911 Turbo S | $1,200 | $1,200-1,500 | Correct |
-| Bentley Mulliner Batur | $3,500 | $2,500-3,000 | Ultra-luxury GT |
+**Strong coverage for your use case:**
+- All major recurring events (F1, Ultra, Art Basel, WM Phoenix Open, Barrett-Jackson, boat shows, tennis opens, etc.) — names, dates, estimated attendance, categories
+- Seasonal demand patterns by city and month
+- Event categorization (sports, music, conferences, etc.)
+- Estimated demand impact scoring based on attendance + event type + historical patterns
 
-**Key insight for Rari**: Some vehicles are overpriced (hypercars), some underpriced (Rolls-Royce, Ferrari 812). This creates realistic optimization opportunities for Rari to suggest.
+**Honest gaps:**
+- No newly announced one-off events (e.g., surprise concert added last week)
+- Attendance estimates are approximations, not verified ticketing data
+- No sub-daily granularity (PredictHQ can show hourly demand patterns)
 
-## Seasonality & Event Calendar
+**For luxury rentals in 2 cities, this covers ~90% of demand-driving events.** The 10% gap is micro-events that rarely move $2K+/day rental demand anyway.
 
-### Scottsdale (18 vehicles)
-- **Feb 2-8**: WM Phoenix Open — PEAK. 1.5x multiplier. Near-full fleet utilization
-- **Feb (rest)**: High season. 70-75% utilization
-- **Mar**: Spring training + good weather. 65-70% utilization  
-- **Apr**: Still strong, starts cooling. 55-60%
-- **May-Jun**: Off-season heat. 40-50% utilization (Rari opportunity: suggest rate drops)
+**Cost:** ~$0.005/query using `gemini-3-flash-preview`. Even at 50 queries/day = ~$7.50/month vs PredictHQ's $500+/month.
 
-### Miami (14 vehicles)
-- **Feb-Mar**: Peak season, snowbirds. 70-75% utilization
-- **Mar 20-22**: Ultra Music Festival weekend — 1.4x multiplier
-- **Apr**: Spring break tail, moderate. 60-65%
-- **May**: F1 Miami GP (early May) — PEAK. 1.5x multiplier
-- **May-Jun**: Summer begins, steady. 55-60%
+## Implementation Plan
 
-## Booking Distribution (~120 new bookings)
+### 1. New Edge Function: `ai-event-intelligence`
 
-| Month | Scottsdale | Miami | Status Mix |
-|-------|-----------|-------|------------|
-| Feb | ~18 | ~14 | 90% completed, 10% confirmed |
-| Mar | ~14 | ~12 | ~70% completed (past March 5), ~30% confirmed |
-| Apr | ~10 | ~10 | 75% confirmed, 20% pending, 5% needing attention |
-| May | ~8 | ~10 | 70% confirmed, 25% pending, 5% pending |
-| Jun | ~6 | ~8 | 60% confirmed, 30% pending, 10% pending |
+Creates a Gemini-powered endpoint that returns structured event data identical to the current `predicthq-events` response shape, so the UI needs minimal rewiring.
 
-### VIP Repeat Booking Patterns
-These customers get 2-4 bookings across the 5-month window:
-- **Marcus Wellington III** ($266k LTV, 19 bookings) — 3-4 new bookings, always hypercars
-- **Maxwell Sterling** ($220k LTV) — 3 bookings, varied high-end
-- **Alexander Rothschild** ($185k LTV) — 2-3 bookings
-- **Sophia Blackwood** ($165k LTV) — 2-3 bookings
-- **David Chen** ($132k LTV) — 2-3 bookings
-- **Jonathan Blake** ($117k LTV) — 2-3 bookings
-- **Victoria Hayes** ($86k LTV) — 2 bookings, hypercar specialist
-- **Samantha Pierce** ($125k LTV) — 2 bookings
-- **Prestige Concierge** (corporate, $285k) — 3-4 bookings for clients
-- **Apex Events LLC** (corporate, $175k) — 2-3 event bookings
+- **Input:** `{ city, startDate, endDate, categories? }`
+- **Output:** Same shape as predicthq-events: `{ events: [...], demandMultiplier, summary: { peakDate, totalEvents, avgImpact } }`
+- Uses Gemini tool calling to force structured JSON output (no parsing hacks)
+- Merges Gemini results with the expanded `PEAK_SEASONS` calendar for guaranteed coverage of known events
+- Caches responses in a `demand_intelligence_cache` table (TTL: 24 hours) to avoid redundant API calls for the same city/date range
 
-Regular customers get 1-2 bookings each.
+### 2. Expand `PEAK_SEASONS` Calendar (both edge functions)
 
-### Booking Duration Patterns (realistic luxury rental)
-- Weekend rentals (Fri-Sun): 40% of bookings (2-3 days)
-- Short-term (3-5 days): 30%
-- Weekly (5-7 days): 20%  
-- Extended (7-14 days): 10%
+Add ~13 new events to both `elevenlabs-tools` and `rari-mcp-server`:
 
-## Event-Driven Bookings (premium pricing)
+**Scottsdale/Phoenix:** Barrett-Jackson (Jan, 1.35x), WM Phoenix Open (Feb, 1.40x), Scottsdale Arabian Horse Show (Feb, 1.20x), Spring Training (Feb-Mar, 1.20x), Scottsdale Arts Festival (Mar, 1.15x)
 
-### WM Phoenix Open (Feb 2-8, Scottsdale)
-- 8-10 bookings, mostly 3-5 day, 1.5x rates
-- VIPs + corporate accounts
-- Multiple hypercars booked simultaneously
+**Miami:** Miami Boat Show (Feb, 1.30x), Ultra Music Festival (Mar, 1.35x), Miami Open Tennis (Mar, 1.25x), Miami Swim Week (Jun, 1.20x)
 
-### Ultra Music Festival (Mar 20-22, Miami)  
-- 5-6 bookings, weekend-heavy, 1.3-1.4x rates
-- Younger clientele (Sebastian Cruz, Ryan Sterling types)
-- Lamborghinis and flashy vehicles
+**National holidays:** Presidents Day Weekend (1.15x), Memorial Day (1.25x), Independence Day (1.30x), Labor Day (1.20x), Thanksgiving Week (1.30x)
 
-### F1 Miami Grand Prix (May ~3-5, Miami)
-- 6-8 bookings, 4-5 day avg, 1.5x rates
-- VIP clients + corporate
-- Full fleet near capacity
+### 3. Fix `DemandForecastCard.tsx` — Kill Fake Data
 
-## Payment Records
+| Current Problem | Fix |
+|---|---|
+| `baseDemand = 65 + Math.random() * 10` (line 248) | Calculate from actual booking density: count bookings for that day-of-week from the bookings table, derive a utilization-based demand score |
+| `lastYearMultiplier = 1.0 + Math.random()` (lines 288-289) | Calculate real YoY/MoM from booking revenue data (same approach as DynamicPricingCard, which already does this correctly) |
+| `peakHours: ['10:00 AM', '2:00 PM', '7:00 PM']` (line 297) | Remove this metric — luxury rentals don't have meaningful hourly patterns. Replace with "Avg Booking Duration" computed from real data |
+| "PredictHQ" badge (line 325) | Change to "Demand Intelligence" with updated tooltip |
 
-For all completed bookings (Feb through ~March 5):
-- ~40 payment records
-- Mix of payment types: wire transfer (VIPs), credit card (standard), Zelle (some)
-- Payment statuses: mostly "paid", some "deposit_paid" for current confirmed bookings
-- Amounts match booking `total_value`
+**Data source:** Pass `bookings` from `useLocationFilteredFleet` into the component as a prop. The DemandForecastCard currently doesn't receive booking data — that's why it uses random numbers.
 
-## What This Enables for Rari
+### 4. Fix `DynamicPricingCard.tsx` — Remove Hardcoded Fallbacks
 
-1. **Rate optimization**: Scottsdale hypercars overpriced vs market → Rari suggests lowering to improve utilization
-2. **Underpriced vehicles**: Rolls-Royce fleet below market → Rari suggests raising rates
-3. **Seasonal strategy**: May-June Scottsdale drop-off → Rari suggests promotional rates or relocation
-4. **VIP recognition**: Repeat VIP patterns → Rari can highlight loyalty program opportunities
-5. **Utilization gaps**: Specific vehicles with low booking density → Rari identifies underperformers
-6. **Event planning**: Upcoming F1 Miami → Rari suggests pre-booking outreach to past customers
+| Current Problem | Fix |
+|---|---|
+| Fallback `demandMultiplier: 1.15` (line 111) | Compute from PEAK_SEASONS calendar: check if current date falls in a peak season for the selected location, use that surge multiplier |
+| Fallback `seasonalFactor: 1.08` (line 112) | Derive from booking data: compare current month's booking count vs 3-month average |
+| Fallback `utilization: 78` (line 114) | Calculate from actual vehicle utilization: `vehicles.reduce(sum + v.utilization) / vehicles.length` (the data is already there) |
 
-## Implementation
+### 5. UI Improvements for Demand Forecast Tab
 
-This will be executed as database INSERT statements via the data insertion tool:
-1. Insert ~120 bookings with realistic dates, rates, durations, customer links, and vehicle assignments
-2. Insert ~40 payment records for completed bookings
-3. Update customer stats (lifetime_value, total_bookings) to reflect new bookings
-4. Update vehicle revenue totals
+**Current UI is already strong.** Proposed enhancements:
 
-No code changes needed — this is purely data population.
+- **Swap data source:** Point `fetchEvents` at `ai-event-intelligence` instead of `predicthq-events`. Same response shape = same UI, real data
+- **Add "Powered by" indicator:** Replace "PredictHQ" badge with "MotorIQ Intelligence" — your own brand
+- **Add booking overlay to forecast bars:** Show actual confirmed bookings overlaid on demand prediction bars (lighter inner bar = confirmed bookings, full bar = predicted demand). This lets operators see the gap between current bookings and predicted demand — actionable insight
+- **Add "Seasonal Context" chip:** Below the forecast bars, show a small contextual note like "Peak Season: WM Phoenix Open (1.4x surge)" when dates overlap with PEAK_SEASONS entries
+
+### 6. UI Improvements for Dynamic Pricing Tab
+
+- **Event context in pricing factors:** The "Events" card currently shows "--" when no events fetched. Instead, auto-check PEAK_SEASONS and show the active event name + surge multiplier without requiring a separate API call
+- **Before/After rate comparison:** When AI analysis runs, show a mini table of all vehicles with current rate vs suggested rate + delta, not just the selected vehicle
+
+## Database Changes
+
+One new table for caching Gemini event responses:
+
+```sql
+CREATE TABLE demand_intelligence_cache (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  city text NOT NULL,
+  start_date date NOT NULL,
+  end_date date NOT NULL,
+  response jsonb NOT NULL,
+  created_at timestamptz DEFAULT now(),
+  expires_at timestamptz DEFAULT now() + interval '24 hours',
+  UNIQUE(city, start_date, end_date)
+);
+```
+
+RLS: Allow authenticated reads/writes scoped to function-level access (or disable RLS since only edge functions write to it).
+
+## Files Changed
+
+| File | Change |
+|---|---|
+| `supabase/functions/ai-event-intelligence/index.ts` | **New** — Gemini-powered event data endpoint |
+| `supabase/functions/elevenlabs-tools/index.ts` | Expand PEAK_SEASONS from 7 → ~20 entries |
+| `supabase/functions/rari-mcp-server/index.ts` | Same PEAK_SEASONS expansion |
+| `src/components/dashboard/DemandForecastCard.tsx` | Swap data source, fix Math.random(), add booking overlay, accept bookings prop |
+| `src/components/dashboard/DynamicPricingCard.tsx` | Replace hardcoded fallbacks with real calculations from PEAK_SEASONS + vehicle data |
+| `src/hooks/useAIPricingEnhanced.ts` | Update to call `ai-event-intelligence` instead of `predicthq-events` |
+| `supabase/config.toml` | Add `ai-event-intelligence` function config |
+| Database migration | Create `demand_intelligence_cache` table |
+
+## Holes I'm Poking
+
+1. **Cache staleness:** 24-hour TTL means if a major event is announced today, it won't show until Gemini's next call. Acceptable for luxury rentals where events are planned months ahead.
+2. **Gemini hallucination risk:** Could invent events that don't exist. Mitigation: merge with PEAK_SEASONS as ground truth — if Gemini returns an event that matches a PEAK_SEASONS entry, we boost confidence. Unknown events get a lower confidence badge in the UI.
+3. **No real-time data:** Unlike PredictHQ, Gemini can't tell you "ticket sales are surging for this weekend's concert." For your price tier, this rarely matters — operators plan weeks ahead.
+4. **Rate limiting:** If many users hit the endpoint simultaneously, Lovable AI rate limits could trigger. The cache table mitigates this — identical city/date queries return cached data.
+
+## Cost Summary
+
+| Component | Monthly Cost |
+|---|---|
+| Gemini event queries (~50/day) | ~$7.50 |
+| Cache table storage | Negligible |
+| PEAK_SEASONS (static) | $0 |
+| **Total** | **~$7.50/mo** |
+
+vs PredictHQ: $500-2,000/month.
 
