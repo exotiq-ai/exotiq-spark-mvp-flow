@@ -671,6 +671,36 @@ export type Database = {
           },
         ]
       }
+      demand_intelligence_cache: {
+        Row: {
+          city: string
+          created_at: string | null
+          end_date: string
+          expires_at: string | null
+          id: string
+          response: Json
+          start_date: string
+        }
+        Insert: {
+          city: string
+          created_at?: string | null
+          end_date: string
+          expires_at?: string | null
+          id?: string
+          response: Json
+          start_date: string
+        }
+        Update: {
+          city?: string
+          created_at?: string | null
+          end_date?: string
+          expires_at?: string | null
+          id?: string
+          response?: Json
+          start_date?: string
+        }
+        Relationships: []
+      }
       documents: {
         Row: {
           created_at: string | null

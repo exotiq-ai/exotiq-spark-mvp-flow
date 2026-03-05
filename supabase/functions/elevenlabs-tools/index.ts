@@ -720,14 +720,30 @@ function getTimeAgo(date: Date): string {
   return `${Math.floor(seconds / 86400)} days ago`;
 }
 
-// Peak season calendar for pricing context
+// Peak season calendar for pricing context — expanded with real-world events
 const PEAK_SEASONS = [
+  // Miami
   { name: 'Art Basel Miami', start: '12-01', end: '12-08', location: 'Miami', surge: 1.35 },
-  { name: 'Christmas Week', start: '12-20', end: '12-26', location: 'all', surge: 1.40 },
-  { name: 'New Years Eve', start: '12-27', end: '01-03', location: 'all', surge: 1.50 },
-  { name: 'Super Bowl', start: '02-05', end: '02-12', location: 'all', surge: 1.50 },
+  { name: 'Miami Boat Show', start: '02-12', end: '02-16', location: 'Miami', surge: 1.30 },
+  { name: 'Ultra Music Festival', start: '03-28', end: '03-30', location: 'Miami', surge: 1.35 },
   { name: 'Miami Grand Prix', start: '05-02', end: '05-04', location: 'Miami', surge: 1.40 },
+  { name: 'Miami Open Tennis', start: '03-17', end: '03-30', location: 'Miami', surge: 1.25 },
+  { name: 'Miami Swim Week', start: '06-01', end: '06-08', location: 'Miami', surge: 1.20 },
   { name: 'Spring Break', start: '03-10', end: '03-25', location: 'Miami', surge: 1.25 },
+  // Scottsdale / Phoenix
+  { name: 'Barrett-Jackson Auction', start: '01-18', end: '01-26', location: 'Scottsdale', surge: 1.35 },
+  { name: 'WM Phoenix Open', start: '02-03', end: '02-09', location: 'Scottsdale', surge: 1.40 },
+  { name: 'Scottsdale Arabian Horse Show', start: '02-13', end: '02-23', location: 'Scottsdale', surge: 1.20 },
+  { name: 'Spring Training Baseball', start: '02-22', end: '03-25', location: 'Scottsdale', surge: 1.20 },
+  { name: 'Scottsdale Arts Festival', start: '03-07', end: '03-09', location: 'Scottsdale', surge: 1.15 },
+  // National holidays
+  { name: 'Christmas & New Years', start: '12-20', end: '01-03', location: 'all', surge: 1.45 },
+  { name: 'Super Bowl Weekend', start: '02-05', end: '02-12', location: 'all', surge: 1.50 },
+  { name: 'Presidents Day Weekend', start: '02-14', end: '02-17', location: 'all', surge: 1.15 },
+  { name: 'Memorial Day Weekend', start: '05-23', end: '05-26', location: 'all', surge: 1.25 },
+  { name: 'Independence Day', start: '07-01', end: '07-06', location: 'all', surge: 1.30 },
+  { name: 'Labor Day Weekend', start: '08-29', end: '09-01', location: 'all', surge: 1.20 },
+  { name: 'Thanksgiving Week', start: '11-24', end: '11-30', location: 'all', surge: 1.30 },
   { name: 'Summer Peak', start: '06-15', end: '08-15', location: 'all', surge: 1.15 },
 ];
 
