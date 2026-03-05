@@ -2343,8 +2343,8 @@ async function executeFunction(functionName: string, args: Record<string, unknow
             vehicle: `${v.year} ${v.make} ${v.model}`,
             location: v.location || 'Miami',
             currentRate: `$${v.current_rate}`,
-            utilization: `${v.utilization || 70}%`,
-            recommendation: (v.utilization || 70) < 20 ? 'Consider 10-15% price reduction' : 'Run promotion'
+            utilization: `${v.utilization || 0}%`,
+            recommendation: (v.utilization || 0) < 20 ? 'Consider 10-15% price reduction' : 'Run promotion'
           }));
         
         const potentialLoss = idleVehicles.reduce((sum: number, v: any) => 
