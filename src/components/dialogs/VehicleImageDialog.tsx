@@ -64,9 +64,8 @@ export function VehicleImageDialog({
     [photos]
   );
 
-  // Cascading image resolution: Enhanced Hero → Original Hero → Static → null
+  // Cascading image resolution: Hero → Static → null
   const mainImageUrl = useMemo(() => {
-    if (heroPhoto?.enhanced_url) return heroPhoto.enhanced_url;
     if (heroPhoto?.url) return heroPhoto.url;
     return staticImageUrl;
   }, [heroPhoto, staticImageUrl]);
