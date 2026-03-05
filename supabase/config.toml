@@ -101,3 +101,6 @@ verify_jwt = false
 
 [functions.check-fleet-alerts]
 verify_jwt = false
+
+[functions.weekly-intelligence-digest]
+verify_jwt = false
