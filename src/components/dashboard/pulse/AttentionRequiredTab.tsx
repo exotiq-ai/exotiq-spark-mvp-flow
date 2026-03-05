@@ -3,6 +3,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
+import { useRealtimeTable } from "@/hooks/useRealtimeTable";
+import { useFleet } from "@/contexts/FleetContext";
+import { useTeam } from "@/contexts/TeamContext";
 import { useFleetTasks } from "@/hooks/useFleetTasks";
 import { useNavigate } from "react-router-dom";
 import { 
