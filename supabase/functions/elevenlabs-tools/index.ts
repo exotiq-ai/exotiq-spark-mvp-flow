@@ -1015,7 +1015,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         const totalRevenue = revenue.reduce((sum: number, b: any) => sum + Number(b.total_value || 0), 0);
         const activeBookings = bookings.filter((b: any) => b.status === 'active' || b.status === 'confirmed').length;
         const avgUtilization = vehicles.length > 0 
-          ? vehicles.reduce((sum, v) => sum + ((v.utilization || 70) || 0), 0) / vehicles.length 
+          ? vehicles.reduce((sum, v) => sum + ((v.utilization || 0) || 0), 0) / vehicles.length 
           : 0;
 
         // Check for peak season
