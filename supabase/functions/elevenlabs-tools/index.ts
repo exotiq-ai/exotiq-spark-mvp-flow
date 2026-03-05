@@ -1081,7 +1081,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
           locationStats[loc].vehicles.push({
             name: `${vehicle.year} ${vehicle.make} ${vehicle.model}`,
             status: vehicle.status,
-            utilization: vehicle.utilization || 70,
+            utilization: vehicle.utilization || 0,
             rate: vehicle.current_rate || vehicle.daily_rate
           });
         }
