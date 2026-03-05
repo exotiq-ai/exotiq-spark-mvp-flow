@@ -1276,7 +1276,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
             location: vehicle.location || 'Miami',
             rate: `$${vehicle.current_rate || vehicle.daily_rate} per day`,
             suggestedRate: vehicle.suggested_rate ? `$${vehicle.suggested_rate}` : null,
-            utilization: `${vehicle.utilization || 70}% utilization`,
+            utilization: `${vehicle.utilization || 0}% utilization`,
             revenue: `$${Number(vehicle.revenue || 0).toFixed(0)} total revenue`,
             licensePlate: vehicle.license_plate,
             vin: vehicle.vin
