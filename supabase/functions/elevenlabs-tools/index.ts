@@ -2157,7 +2157,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
             expenses: `$${expenses.toFixed(0)}`,
             profit: `$${profit.toFixed(0)}`,
             profitMargin: revenue > 0 ? `${((profit / revenue) * 100).toFixed(1)}%` : '0%',
-            utilization: `${vehicle.utilization || 70}%`
+            utilization: `${vehicle.utilization || 0}%`
           };
         });
         
