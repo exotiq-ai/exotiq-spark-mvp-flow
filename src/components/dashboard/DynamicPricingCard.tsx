@@ -2,7 +2,6 @@ import { useState, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { useAIPricingEnhanced } from "@/hooks/useAIPricingEnhanced";
@@ -10,17 +9,16 @@ import { SuccessCheckmark } from "@/components/ui/success-checkmark";
 import {
   DollarSign,
   TrendingUp,
-  TrendingDown,
   Calendar,
   Zap,
-  Info,
-  Settings,
   Sparkles,
   RefreshCw,
   BarChart3,
   ArrowUpRight,
   ArrowDownRight,
   CheckCircle2,
+  Car,
+  ChevronRight,
 } from "lucide-react";
 import {
   Tooltip,
@@ -29,13 +27,18 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { format, subMonths, subYears, differenceInDays } from "date-fns";
+import { format, subMonths, subYears } from "date-fns";
 
 interface AppliedVehicle {
   oldRate: number;
@@ -43,14 +46,23 @@ interface AppliedVehicle {
   appliedAt: Date;
 }
 
-interface DynamicPricingCardProps {
-  onApplyOptimization: () => void;
+export interface PricingContext {
+  reasoning: string;
+  factors: Array<{ name: string; impact: number; description: string }>;
+  confidence: number;
+  expectedRevenue: { daily: number; monthly: number; improvement: number };
+  events: Array<{ id: string; name: string; date: string; category: string; attendance: number; impactScore: number }>;
+  demandMultiplier?: number;
 }
 
-export const DynamicPricingCard = ({ onApplyOptimization }: DynamicPricingCardProps) => {
+interface DynamicPricingCardProps {
+  onApplyOptimization: () => void;
+  onOpenPriceEditor?: (vehicle: any, context: PricingContext | null) => void;
+}
+
+export const DynamicPricingCard = ({ onApplyOptimization, onOpenPriceEditor }: DynamicPricingCardProps) => {
   const { vehicles, bookings, applyPriceOptimization } = useLocationFilteredFleet();
   const { loading, pricingResult, events, analyzePricing } = useAIPricingEnhanced();
-  const [autoPricingEnabled, setAutoPricingEnabled] = useState<Record<string, boolean>>({});
   const [selectedVehicle, setSelectedVehicle] = useState<string | null>(null);
   const [appliedVehicles, setAppliedVehicles] = useState<Record<string, AppliedVehicle>>({});
 
@@ -107,23 +119,15 @@ export const DynamicPricingCard = ({ onApplyOptimization }: DynamicPricingCardPr
 
   const momChange = lastMonthRevenue > 0 
     ? ((currentMonthRevenue - lastMonthRevenue) / lastMonthRevenue * 100).toFixed(1) 
-    : 'N/A';
+    : null;
   const yoyChange = lastYearRevenue > 0 
     ? ((currentMonthRevenue - lastYearRevenue) / lastYearRevenue * 100).toFixed(1) 
-    : 'N/A';
-
-  const toggleAutoPricing = (vehicleId: string) => {
-    setAutoPricingEnabled(prev => ({
-      ...prev,
-      [vehicleId]: !prev[vehicleId]
-    }));
-  };
+    : null;
 
   const handleAnalyzeVehicle = async (vehicleId: string) => {
     const vehicle = vehicles.find(v => v.id === vehicleId);
     if (vehicle) {
       setSelectedVehicle(vehicleId);
-      // Pass computed utilization to the analysis
       const vehicleWithRealUtil = {
         ...vehicle,
         utilization: vehicleUtilizations[vehicleId] ?? 0,
@@ -160,12 +164,8 @@ export const DynamicPricingCard = ({ onApplyOptimization }: DynamicPricingCardPr
     { name: 'Thanksgiving Week', start: '11-24', end: '11-30', city: 'all', surge: 1.30 },
   ];
 
-  // Find active peak season
   const monthDay = `${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-  const activeSeason = PEAK_SEASONS_CLIENT.find(s => {
-    const inRange = monthDay >= s.start && monthDay <= s.end;
-    return inRange;
-  });
+  const activeSeason = PEAK_SEASONS_CLIENT.find(s => monthDay >= s.start && monthDay <= s.end);
 
   // Calculate real fleet utilization from bookings
   const realUtilization = useMemo(() => {
@@ -201,11 +201,53 @@ export const DynamicPricingCard = ({ onApplyOptimization }: DynamicPricingCardPr
     utilization: realUtilization,
   };
 
-  const effectiveMultiplier = pricingFactors.demandMultiplier * pricingFactors.seasonalFactor * 
-    (1 + pricingFactors.eventPremium / 100);
+  // Fleet summary metrics
+  const avgRate = vehicles.length > 0 
+    ? Math.round(vehicles.reduce((sum, v) => sum + Number(v.current_rate), 0) / vehicles.length) 
+    : 0;
+  const optimizedCount = Object.keys(appliedVehicles).length;
+
+  // Sort vehicles: highest opportunity first, applied last
+  const sortedVehicles = useMemo(() => {
+    return [...vehicles].sort((a, b) => {
+      const aApplied = !!appliedVehicles[a.id];
+      const bApplied = !!appliedVehicles[b.id];
+      if (aApplied !== bApplied) return aApplied ? 1 : -1;
+      
+      const aGain = (a.suggested_rate && a.suggested_rate > a.current_rate) 
+        ? (a.suggested_rate - a.current_rate) : 0;
+      const bGain = (b.suggested_rate && b.suggested_rate > b.current_rate) 
+        ? (b.suggested_rate - b.current_rate) : 0;
+      return bGain - aGain;
+    });
+  }, [vehicles, appliedVehicles]);
+
+  // Build pricing context for the dialog
+  const buildPricingContext = (): PricingContext | null => {
+    if (!pricingResult) return null;
+    return {
+      reasoning: pricingResult.reasoning,
+      factors: pricingResult.factors,
+      confidence: pricingResult.confidence,
+      expectedRevenue: pricingResult.expectedRevenue,
+      events: pricingResult.events || [],
+      demandMultiplier: pricingResult.demandMultiplier,
+    };
+  };
+
+  const handleVehicleClick = (vehicle: any) => {
+    if (onOpenPriceEditor) {
+      const context = selectedVehicle === vehicle.id ? buildPricingContext() : null;
+      onOpenPriceEditor(vehicle, context);
+    } else {
+      const event = new CustomEvent('openQuickPriceEditor', { detail: vehicle });
+      window.dispatchEvent(event);
+    }
+  };
 
   return (
     <Card className="card-premium p-6">
+      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <div className="p-3 bg-gradient-to-br from-primary/20 to-accent/20 rounded-xl">
@@ -216,170 +258,244 @@ export const DynamicPricingCard = ({ onApplyOptimization }: DynamicPricingCardPr
             <p className="text-sm text-muted-foreground">Powered by MotorIQ Intelligence</p>
           </div>
         </div>
-        <Badge className="bg-primary/20 text-primary border-primary/30">
-          <Sparkles className="h-3 w-3 mr-1" />
-          AI Active
+        <Badge className="bg-primary/20 text-primary border-primary/30 gap-1.5">
+          <Sparkles className="h-3 w-3" />
+          FleetCopilot™ Active
         </Badge>
       </div>
 
-      {/* Historical Comparison Section */}
-      <div className="mb-6 p-4 rounded-lg bg-muted/20 border">
-        <div className="flex items-center gap-2 mb-3">
-          <BarChart3 className="h-4 w-4 text-primary" />
-          <span className="font-medium text-sm">Revenue Comparison</span>
-        </div>
-        <div className="grid grid-cols-3 gap-4">
-          <div className="text-center">
-            <div className="text-2xl font-bold">${currentMonthRevenue.toLocaleString()}</div>
-            <div className="text-xs text-muted-foreground">{format(now, 'MMM yyyy')}</div>
+      {/* Revenue Comparison — Compact Row */}
+      <div className="mb-6 p-3 rounded-lg bg-muted/20 border">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 text-primary" />
+            <span className="font-semibold text-lg">${currentMonthRevenue.toLocaleString()}</span>
+            <span className="text-xs text-muted-foreground">{format(now, 'MMM yyyy')}</span>
           </div>
-          <div className="text-center">
-            <div className="flex items-center justify-center gap-1">
-              {momChange !== 'N/A' && Number(momChange) >= 0 ? (
-                <ArrowUpRight className="h-4 w-4 text-success" />
-              ) : (
-                <ArrowDownRight className="h-4 w-4 text-destructive" />
-              )}
-              <span className={`text-lg font-bold ${
-                momChange !== 'N/A' && Number(momChange) >= 0 ? 'text-success' : 'text-destructive'
-              }`}>
-                {momChange !== 'N/A' ? `${momChange}%` : '--'}
-              </span>
-            </div>
-            <div className="text-xs text-muted-foreground">vs Last Month</div>
-          </div>
-          <div className="text-center">
-            <div className="flex items-center justify-center gap-1">
-              {yoyChange !== 'N/A' && Number(yoyChange) >= 0 ? (
-                <ArrowUpRight className="h-4 w-4 text-success" />
-              ) : (
-                <ArrowDownRight className="h-4 w-4 text-destructive" />
-              )}
-              <span className={`text-lg font-bold ${
-                yoyChange !== 'N/A' && Number(yoyChange) >= 0 ? 'text-success' : 'text-destructive'
-              }`}>
-                {yoyChange !== 'N/A' ? `${yoyChange}%` : '--'}
-              </span>
-            </div>
-            <div className="text-xs text-muted-foreground">vs Last Year</div>
+          <div className="flex items-center gap-4">
+            {/* MoM */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center gap-1 cursor-default">
+                    {momChange !== null ? (
+                      <>
+                        {Number(momChange) >= 0 ? (
+                          <ArrowUpRight className="h-3.5 w-3.5 text-success" />
+                        ) : (
+                          <ArrowDownRight className="h-3.5 w-3.5 text-destructive" />
+                        )}
+                        <span className={`text-sm font-semibold ${Number(momChange) >= 0 ? 'text-success' : 'text-destructive'}`}>
+                          {momChange}%
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">—</span>
+                    )}
+                    <span className="text-xs text-muted-foreground">MoM</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {momChange !== null 
+                    ? <p>${lastMonthRevenue.toLocaleString()} in {format(lastMonth, 'MMM yyyy')}</p>
+                    : <p>No prior month data available</p>
+                  }
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            <div className="h-4 w-px bg-border" />
+
+            {/* YoY */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center gap-1 cursor-default">
+                    {yoyChange !== null ? (
+                      <>
+                        {Number(yoyChange) >= 0 ? (
+                          <ArrowUpRight className="h-3.5 w-3.5 text-success" />
+                        ) : (
+                          <ArrowDownRight className="h-3.5 w-3.5 text-destructive" />
+                        )}
+                        <span className={`text-sm font-semibold ${Number(yoyChange) >= 0 ? 'text-success' : 'text-destructive'}`}>
+                          {yoyChange}%
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">—</span>
+                    )}
+                    <span className="text-xs text-muted-foreground">YoY</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {yoyChange !== null 
+                    ? <p>${lastYearRevenue.toLocaleString()} in {format(lastYear, 'MMM yyyy')}</p>
+                    : <p>No prior year data available</p>
+                  }
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </div>
       </div>
 
-      {/* Pricing Factors Breakdown */}
-      <div className="space-y-4 mb-6">
-        <h4 className="font-medium text-sm text-muted-foreground">AI Pricing Factors</h4>
-        
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="p-4 rounded-lg bg-muted/30 border">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-muted-foreground">Base Rate</span>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger>
-                    <Info className="h-3 w-3 text-muted-foreground" />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Average daily rate across fleet</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-            <div className="text-2xl font-bold">${Math.round(pricingFactors.baseRate)}</div>
-            <div className="text-xs text-muted-foreground">per day</div>
-          </div>
+      {/* Compact Pricing Factor Chips */}
+      <div className="mb-6">
+        <h4 className="font-medium text-xs text-muted-foreground uppercase tracking-wider mb-3">Pricing Factors</h4>
+        <div className="flex flex-wrap gap-2">
+          {/* Base Rate */}
+          <HoverCard>
+            <HoverCardTrigger asChild>
+              <Badge variant="outline" className="cursor-pointer px-3 py-1.5 text-sm gap-1.5 hover:bg-muted/50 transition-colors">
+                <DollarSign className="h-3 w-3" />
+                Base ${Math.round(pricingFactors.baseRate)}
+              </Badge>
+            </HoverCardTrigger>
+            <HoverCardContent className="w-64">
+              <div className="space-y-2">
+                <h4 className="font-semibold text-sm">Base Rate</h4>
+                <p className="text-xs text-muted-foreground">Average daily rate across your fleet, calculated from current vehicle rates.</p>
+                <div className="text-xs text-muted-foreground">{vehicles.length} vehicles in fleet</div>
+              </div>
+            </HoverCardContent>
+          </HoverCard>
 
-          <div className="p-4 rounded-lg bg-success/10 border border-success/20">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-muted-foreground">Demand</span>
-              <TrendingUp className="h-3 w-3 text-success" />
-            </div>
-            <div className="text-2xl font-bold text-success">
-              +{((pricingFactors.demandMultiplier - 1) * 100).toFixed(0)}%
-            </div>
-            <div className="text-xs text-muted-foreground">{pricingFactors.utilization}% utilized</div>
-          </div>
+          {/* Demand */}
+          <HoverCard>
+            <HoverCardTrigger asChild>
+              <Badge className="cursor-pointer px-3 py-1.5 text-sm gap-1.5 bg-success/15 text-success border-success/30 hover:bg-success/25 transition-colors">
+                <TrendingUp className="h-3 w-3" />
+                Demand +{((pricingFactors.demandMultiplier - 1) * 100).toFixed(0)}%
+              </Badge>
+            </HoverCardTrigger>
+            <HoverCardContent className="w-64">
+              <div className="space-y-2">
+                <h4 className="font-semibold text-sm">Demand Multiplier</h4>
+                <p className="text-xs text-muted-foreground">Based on current booking velocity and fleet utilization ({pricingFactors.utilization}% utilized).</p>
+                <div className="text-xs">{currentMonthBookings.length} bookings this month</div>
+              </div>
+            </HoverCardContent>
+          </HoverCard>
 
-          <div className="p-4 rounded-lg bg-warning/10 border border-warning/20">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-muted-foreground">Seasonal</span>
-              <Calendar className="h-3 w-3 text-warning" />
-            </div>
-            <div className="text-2xl font-bold text-warning">
-              +{((pricingFactors.seasonalFactor - 1) * 100).toFixed(0)}%
-            </div>
-            <div className="text-xs text-muted-foreground">{format(now, 'MMMM')} rates</div>
-          </div>
+          {/* Seasonal */}
+          <HoverCard>
+            <HoverCardTrigger asChild>
+              <Badge className="cursor-pointer px-3 py-1.5 text-sm gap-1.5 bg-warning/15 text-warning border-warning/30 hover:bg-warning/25 transition-colors">
+                <Calendar className="h-3 w-3" />
+                Season +{((pricingFactors.seasonalFactor - 1) * 100).toFixed(0)}%
+              </Badge>
+            </HoverCardTrigger>
+            <HoverCardContent className="w-64">
+              <div className="space-y-2">
+                <h4 className="font-semibold text-sm">Seasonal Adjustment</h4>
+                <p className="text-xs text-muted-foreground">{format(now, 'MMMM')} booking density compared to 3-month rolling average.</p>
+                <div className="text-xs">{monthlyAvg.toFixed(0)} avg monthly bookings</div>
+              </div>
+            </HoverCardContent>
+          </HoverCard>
 
-          <div className={`p-4 rounded-lg ${pricingFactors.eventPremium > 0 ? 'bg-accent/10 border border-accent/20' : 'bg-muted/30 border border-dashed'}`}>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-muted-foreground">Events</span>
-              {pricingFactors.eventPremium > 0 ? (
-                <Sparkles className="h-3 w-3 text-accent" />
-              ) : (
-                <Badge variant="outline" className="text-xs">None</Badge>
+          {/* Events */}
+          <HoverCard>
+            <HoverCardTrigger asChild>
+              <Badge className={`cursor-pointer px-3 py-1.5 text-sm gap-1.5 transition-colors ${
+                pricingFactors.eventPremium > 0 
+                  ? 'bg-accent/15 text-accent border-accent/30 hover:bg-accent/25' 
+                  : 'bg-muted/30 text-muted-foreground border-border hover:bg-muted/50'
+              }`}>
+                <Sparkles className="h-3 w-3" />
+                {pricingFactors.eventPremium > 0 
+                  ? `🎪 ${pricingFactors.activeSeason || 'Events'} +${pricingFactors.eventPremium}%`
+                  : 'No Events'
+                }
+              </Badge>
+            </HoverCardTrigger>
+            <HoverCardContent className="w-72">
+              <div className="space-y-2">
+                <h4 className="font-semibold text-sm">Event Impact</h4>
+                {pricingFactors.activeSeason ? (
+                  <p className="text-xs text-muted-foreground">
+                    <span className="font-medium text-foreground">{pricingFactors.activeSeason}</span> is driving a {pricingFactors.eventPremium}% premium on luxury vehicle demand.
+                  </p>
+                ) : events.length > 0 ? (
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Upcoming events in market:</p>
+                    {events.slice(0, 3).map(e => (
+                      <div key={e.id} className="text-xs flex justify-between">
+                        <span>{e.name}</span>
+                        <span className="text-muted-foreground">Impact: {e.impactScore}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">No major events detected in your market this period.</p>
+                )}
+              </div>
+            </HoverCardContent>
+          </HoverCard>
+        </div>
+      </div>
+
+      {/* AI Insight (when analysis is available) */}
+      {pricingResult && (
+        <div className="mb-6 p-4 rounded-lg bg-gradient-to-r from-primary/10 to-accent/10 border border-primary/20">
+          <div className="flex items-start gap-3">
+            <Sparkles className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <div className="font-medium text-sm mb-1">AI Insight</div>
+              <p className="text-sm text-muted-foreground">{pricingResult.reasoning}</p>
+              <div className="flex items-center gap-2 mt-2">
+                <Badge variant="outline" className="text-xs">
+                  {pricingResult.confidence}% confidence
+                </Badge>
+                <Badge variant="outline" className="text-xs text-success">
+                  {pricingResult.expectedRevenue.improvement > 0 ? '+' : ''}{pricingResult.expectedRevenue.improvement}% potential
+                </Badge>
+              </div>
+              {pricingResult.events && pricingResult.events.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-3 pt-2 border-t border-primary/10">
+                  <span className="text-xs text-muted-foreground">Events factored:</span>
+                  {pricingResult.events.slice(0, 3).map((event) => (
+                    <Badge key={event.id} variant="outline" className="text-xs gap-1">
+                      <Calendar className="h-3 w-3" />
+                      {event.name}
+                      <span className="text-muted-foreground">({event.impactScore})</span>
+                    </Badge>
+                  ))}
+                </div>
               )}
-            </div>
-            <div className={`text-2xl font-bold ${pricingFactors.eventPremium > 0 ? 'text-accent' : 'text-muted-foreground'}`}>
-              {pricingFactors.eventPremium > 0 ? `+${pricingFactors.eventPremium}%` : '--'}
-            </div>
-            <div className="text-xs text-muted-foreground">
-              {pricingFactors.activeSeason 
-                ? pricingFactors.activeSeason 
-                : (events.length > 0 ? `${events.length} events` : 'No active events')}
             </div>
           </div>
         </div>
+      )}
 
-        {/* AI Insight */}
-        {pricingResult && (
-          <div className="p-4 rounded-lg bg-gradient-to-r from-primary/10 to-accent/10 border border-primary/20">
-            <div className="flex items-start gap-3">
-              <Sparkles className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
-              <div>
-                <div className="font-medium text-sm mb-1">AI Insight</div>
-                <p className="text-sm text-muted-foreground">{pricingResult.reasoning}</p>
-                <div className="flex items-center gap-2 mt-2">
-                  <Badge variant="outline" className="text-xs">
-                    {pricingResult.confidence}% confidence
-                  </Badge>
-                  <Badge variant="outline" className="text-xs text-success">
-                    {pricingResult.expectedRevenue.improvement > 0 ? '+' : ''}{pricingResult.expectedRevenue.improvement}% potential
-                  </Badge>
-                </div>
-                {/* Inline events driving this analysis */}
-                {pricingResult.events && pricingResult.events.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-3 pt-2 border-t border-primary/10">
-                    <span className="text-xs text-muted-foreground">Events factored:</span>
-                    {pricingResult.events.slice(0, 3).map((event) => (
-                      <Badge key={event.id} variant="outline" className="text-xs gap-1">
-                        <Calendar className="h-3 w-3" />
-                        {event.name}
-                        <span className="text-muted-foreground">({event.impactScore})</span>
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-              </div>
+      {/* Fleet Pricing Summary */}
+      <div className="mb-6 p-4 rounded-lg bg-gradient-to-r from-primary/10 to-accent/10 border border-primary/20">
+        <div className="flex items-center gap-2 mb-3">
+          <BarChart3 className="h-4 w-4 text-primary" />
+          <span className="font-medium text-sm">Fleet Pricing Summary</span>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div>
+            <div className="text-xs text-muted-foreground">Avg Rate</div>
+            <div className="text-xl font-bold">${avgRate}/day</div>
+          </div>
+          <div>
+            <div className="text-xs text-muted-foreground">Fleet Revenue</div>
+            <div className="text-xl font-bold">
+              ${currentMonthRevenue >= 1000 
+                ? `${(currentMonthRevenue / 1000).toFixed(0)}K` 
+                : currentMonthRevenue.toLocaleString()
+              }
             </div>
           </div>
-        )}
-
-        {/* Effective Rate */}
-        <div className="p-4 rounded-lg bg-gradient-to-r from-primary/10 to-accent/10 border border-primary/20">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm text-muted-foreground mb-1">Effective Rate Multiplier</div>
-              <div className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                {effectiveMultiplier.toFixed(2)}x
-              </div>
-            </div>
-            <div className="text-right">
-              <div className="text-sm text-muted-foreground mb-1">Example Rate</div>
-              <div className="text-2xl font-bold">
-                ${Math.round(pricingFactors.baseRate * effectiveMultiplier)}/day
-              </div>
-            </div>
+          <div>
+            <div className="text-xs text-muted-foreground">Optimized</div>
+            <div className="text-xl font-bold">{optimizedCount}/{vehicles.length}</div>
+          </div>
+          <div>
+            <div className="text-xs text-muted-foreground">Utilization</div>
+            <div className="text-xl font-bold">{realUtilization}%</div>
           </div>
         </div>
       </div>
@@ -412,12 +528,15 @@ export const DynamicPricingCard = ({ onApplyOptimization }: DynamicPricingCardPr
           </Select>
         </div>
 
-        <div className="space-y-3 max-h-[300px] overflow-y-auto">
-          {vehicles.map((vehicle) => {
+        <div className="space-y-2 max-h-[320px] overflow-y-auto">
+          {sortedVehicles.map((vehicle) => {
             const isAnalyzing = loading && selectedVehicle === vehicle.id;
             const hasResult = pricingResult && selectedVehicle === vehicle.id;
             const isApplied = appliedVehicles[vehicle.id];
             const computedUtil = vehicleUtilizations[vehicle.id] ?? 0;
+            const gain = hasResult && pricingResult.suggestedRate > Number(vehicle.current_rate) 
+              ? (pricingResult.suggestedRate - Number(vehicle.current_rate)) * 30 
+              : 0;
             
             return (
               <div
@@ -429,55 +548,52 @@ export const DynamicPricingCard = ({ onApplyOptimization }: DynamicPricingCardPr
                       ? 'bg-primary/5 border-primary/20' 
                       : 'hover:bg-muted/30 hover:border-primary/30'
                 }`}
-                onClick={() => {
-                  const event = new CustomEvent('openQuickPriceEditor', { detail: vehicle });
-                  window.dispatchEvent(event);
-                }}
+                onClick={() => handleVehicleClick(vehicle)}
               >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    {isApplied && (
-                      <SuccessCheckmark size="sm" />
-                    )}
-                    <span className={`font-medium truncate ${isApplied ? 'text-success' : 'group-hover:text-primary'} transition-colors`}>
-                      {vehicle.name}
-                    </span>
-                    {isApplied ? (
-                      <Badge className="bg-success/20 text-success border-success/30 text-xs">
-                        Updated
-                      </Badge>
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  {/* Vehicle thumbnail */}
+                  <div className="h-10 w-14 bg-muted rounded-md flex items-center justify-center overflow-hidden flex-shrink-0">
+                    {vehicle.image_url ? (
+                      <img src={vehicle.image_url} alt={vehicle.name} className="w-full h-full object-cover" />
                     ) : (
-                      <Badge 
-                        variant="outline" 
-                        className="opacity-0 group-hover:opacity-100 transition-opacity text-xs"
-                      >
-                        Edit
-                      </Badge>
+                      <Car className="h-4 w-4 text-muted-foreground" />
                     )}
                   </div>
-                  <div className="text-sm text-muted-foreground flex items-center gap-2">
-                    {isApplied ? (
-                      <>
-                        <span className="line-through">${isApplied.oldRate.toLocaleString()}/day</span>
-                        <span className="text-success font-medium">→ ${isApplied.newRate.toLocaleString()}/day</span>
-                      </>
-                    ) : (
-                      <>
-                        ${Number(vehicle.current_rate).toLocaleString()}/day
-                        {hasResult && pricingResult.suggestedRate > Number(vehicle.current_rate) && (
-                          <span className="text-success">
-                            → ${pricingResult.suggestedRate.toLocaleString()}
-                            <span className="text-xs ml-1">
-                              (+${(pricingResult.suggestedRate - Number(vehicle.current_rate)).toLocaleString()})
-                            </span>
-                          </span>
-                        )}
-                      </>
-                    )}
-                    <span className="text-xs">• {computedUtil}% util</span>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      {isApplied && <SuccessCheckmark size="sm" />}
+                      <span className={`font-medium truncate text-sm ${isApplied ? 'text-success' : 'group-hover:text-primary'} transition-colors`}>
+                        {vehicle.name}
+                      </span>
+                      {isApplied && (
+                        <Badge className="bg-success/20 text-success border-success/30 text-[10px] px-1.5 py-0">
+                          Updated
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="text-xs text-muted-foreground flex items-center gap-1.5">
+                      {isApplied ? (
+                        <>
+                          <span className="line-through">${isApplied.oldRate.toLocaleString()}</span>
+                          <span className="text-success font-medium">→ ${isApplied.newRate.toLocaleString()}/day</span>
+                        </>
+                      ) : (
+                        <>
+                          ${Number(vehicle.current_rate).toLocaleString()}/day
+                          <span className="text-muted-foreground/60">•</span>
+                          <span>{computedUtil}% util</span>
+                          {hasResult && gain > 0 && (
+                            <>
+                              <span className="text-muted-foreground/60">•</span>
+                              <span className="text-success">+${gain.toLocaleString()}/mo</span>
+                            </>
+                          )}
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center gap-2 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                   {isApplied ? (
                     <Badge variant="outline" className="text-xs text-success border-success/30">
                       ✓ ${isApplied.newRate.toLocaleString()}
@@ -488,17 +604,20 @@ export const DynamicPricingCard = ({ onApplyOptimization }: DynamicPricingCardPr
                     <Button
                       size="sm"
                       variant="default"
+                      className="h-8 text-xs"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleApplyRate(vehicle.id, pricingResult.suggestedRate);
+                        handleVehicleClick(vehicle);
                       }}
                     >
-                      Apply ${pricingResult.suggestedRate.toLocaleString()}
+                      Review ${pricingResult.suggestedRate.toLocaleString()}
+                      <ChevronRight className="h-3 w-3 ml-1" />
                     </Button>
                   ) : (
                     <Button
                       size="sm"
                       variant="outline"
+                      className="h-8 text-xs"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleAnalyzeVehicle(vehicle.id);
@@ -507,10 +626,6 @@ export const DynamicPricingCard = ({ onApplyOptimization }: DynamicPricingCardPr
                       Analyze
                     </Button>
                   )}
-                  <Switch
-                    checked={autoPricingEnabled[vehicle.id] || false}
-                    onCheckedChange={() => toggleAutoPricing(vehicle.id)}
-                  />
                 </div>
               </div>
             );

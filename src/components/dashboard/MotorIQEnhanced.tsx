@@ -11,6 +11,7 @@ import { PriceOptimizationDialog } from "@/components/dialogs/PriceOptimizationD
 import { QuickPriceEditorDialog } from "@/components/dialogs/QuickPriceEditorDialog";
 import { PriceUtilizationScatterPlot } from "@/components/charts/PriceUtilizationScatterPlot";
 import { DynamicPricingCard } from "@/components/dashboard/DynamicPricingCard";
+import type { PricingContext } from "@/components/dashboard/DynamicPricingCard";
 import { DemandForecastCard } from "@/components/dashboard/DemandForecastCard";
 import { PricingCalendar } from "@/components/dashboard/PricingCalendar";
 import { LocationBadge } from "@/components/common/LocationBadge";
@@ -49,6 +50,7 @@ export const MotorIQEnhanced = () => {
   const [showAddVehicle, setShowAddVehicle] = useState(false);
   const [dismissedRecommendationId, setDismissedRecommendationId] = useState<string | null>(null);
   const [selectedVehicleForPricing, setSelectedVehicleForPricing] = useState<typeof vehicles[0] | null>(null);
+  const [currentPricingContext, setCurrentPricingContext] = useState<PricingContext | null>(null);
 
   // Calculate real revenue from bookings
   const bookingsWithDates = useMemo(() => 
@@ -72,7 +74,6 @@ export const MotorIQEnhanced = () => {
     if (stored) {
       try {
         const { id, dismissedAt } = JSON.parse(stored);
-        // Clear dismissal if older than 24 hours
         const dismissedTime = new Date(dismissedAt).getTime();
         const now = Date.now();
         if (now - dismissedTime < 24 * 60 * 60 * 1000) {
@@ -86,10 +87,11 @@ export const MotorIQEnhanced = () => {
     }
   }, []);
 
-  // Listen for custom event from DynamicPricingCard to open quick price editor
+  // Listen for custom event from DynamicPricingCard (legacy fallback)
   useEffect(() => {
     const handleOpenQuickPriceEditor = (event: CustomEvent) => {
       setSelectedVehicleForPricing(event.detail);
+      setCurrentPricingContext(null);
       setShowPriceEditor(true);
     };
 
@@ -98,6 +100,13 @@ export const MotorIQEnhanced = () => {
       window.removeEventListener('openQuickPriceEditor', handleOpenQuickPriceEditor as EventListener);
     };
   }, []);
+
+  // New handler passed to DynamicPricingCard
+  const handleOpenPriceEditor = (vehicle: any, context: PricingContext | null) => {
+    setSelectedVehicleForPricing(vehicle);
+    setCurrentPricingContext(context);
+    setShowPriceEditor(true);
+  };
 
   const handleExportFleetData = () => {
     const exportData = vehicles.map(v => ({
@@ -119,6 +128,7 @@ export const MotorIQEnhanced = () => {
 
   const handleEditPricing = (vehicle: typeof vehicles[0]) => {
     setSelectedVehicleForPricing(vehicle);
+    setCurrentPricingContext(null);
     setShowPriceEditor(true);
   };
 
@@ -144,7 +154,6 @@ export const MotorIQEnhanced = () => {
     ? (topRecommendation.suggested_rate - topRecommendation.current_rate) * 30 
     : 0;
 
-  // Show recommendation card only if not dismissed or if it's a different recommendation
   const showRecommendationCard = topRecommendation && 
     potentialIncrease > 0 && 
     dismissedRecommendationId !== topRecommendation.id;
@@ -163,14 +172,12 @@ export const MotorIQEnhanced = () => {
     }
   };
 
-  // Swipe gesture for mobile dismiss
   const { handlers: swipeHandlers, dragOffset, isDragging } = useSwipeGesture({
     onSwipeLeft: handleDismissRecommendation,
     onSwipeRight: handleDismissRecommendation,
     threshold: 80,
   });
 
-  // Show empty state if no vehicles
   if (!loading && vehicles.length === 0) {
     return (
       <div className="space-y-6">
@@ -187,16 +194,9 @@ export const MotorIQEnhanced = () => {
   if (loading) {
     return (
       <div className="space-y-6">
-        {/* AI Recommendation skeleton */}
         <SkeletonAIInsight />
-        
-        {/* Metrics skeleton */}
         <SkeletonStatsRow count={3} />
-        
-        {/* Chart skeleton */}
         <SkeletonBarChart height={200} bars={8} />
-        
-        {/* Fleet list skeleton */}
         <Card className="p-6">
           <div className="flex items-center justify-between mb-6">
             <div className="space-y-2">
@@ -243,10 +243,10 @@ export const MotorIQEnhanced = () => {
         onOpenChange={setShowPriceEditor}
         vehicle={selectedVehicleForPricing}
         onApplyRate={handleApplyRate}
+        pricingContext={currentPricingContext}
       />
 
       <div className="space-y-4 sm:space-y-6 overflow-x-hidden w-full">
-        {/* Module Tabs */}
         <ModuleTabs
           tabs={[
             { id: "overview", label: "Overview", shortLabel: "Home", icon: Brain },
@@ -277,7 +277,6 @@ export const MotorIQEnhanced = () => {
               }}
             >
               <Card className="card-premium bg-gradient-to-br from-success/10 via-primary/5 to-accent/10 border-success/20 p-3 sm:p-4 md:p-5 relative overflow-hidden">
-                {/* Dismiss button */}
                 <button
                   onClick={handleDismissRecommendation}
                   className="absolute top-2 right-2 p-1 rounded-full hover:bg-muted/50 transition-colors z-10 group"
@@ -489,7 +488,10 @@ export const MotorIQEnhanced = () => {
           </TabsContent>
 
           <TabsContent value="pricing" className="space-y-6">
-            <DynamicPricingCard onApplyOptimization={() => setShowOptimizationDialog(true)} />
+            <DynamicPricingCard 
+              onApplyOptimization={() => setShowOptimizationDialog(true)} 
+              onOpenPriceEditor={handleOpenPriceEditor}
+            />
           </TabsContent>
 
           <TabsContent value="forecast" className="space-y-6">
