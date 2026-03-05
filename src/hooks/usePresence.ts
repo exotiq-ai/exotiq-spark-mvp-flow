@@ -124,19 +124,15 @@ export const usePresence = (conversationId?: string | null) => {
     };
   }, [fetchPresence]);
 
-  // Heartbeat to keep presence alive
+  // Visibility-based presence (replaces 30s heartbeat to reduce DB writes)
+  // Only writes on state transitions: visible→online, hidden→away, unload→offline
   useEffect(() => {
     if (!user) return;
 
-    // Set initial online status
+    // Set initial online status (single write on mount)
     updatePresence('online');
 
-    // Heartbeat every 30 seconds
-    heartbeatRef.current = setInterval(() => {
-      updatePresence('online');
-    }, 30000);
-
-    // Handle visibility change
+    // Write only on visibility state changes — no polling
     const handleVisibilityChange = () => {
       if (document.hidden) {
         updatePresence('away');
@@ -145,10 +141,11 @@ export const usePresence = (conversationId?: string | null) => {
       }
     };
 
-    // Handle before unload - use supabase client for proper auth headers
+    // Handle before unload — keepalive fetch survives page close
+    // Note: uses anon key because user session may not be available during unload.
+    // RLS on user_presence requires auth.uid() = user_id, so this PATCH may silently
+    // fail. The 5-minute staleness threshold in fetchPresence() acts as the fallback.
     const handleBeforeUnload = () => {
-      // sendBeacon doesn't support custom headers properly, so we use a fire-and-forget fetch
-      // wrapped in keepalive to survive page unload
       try {
         fetch(
           `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/user_presence?user_id=eq.${user.id}`,
@@ -173,7 +170,6 @@ export const usePresence = (conversationId?: string | null) => {
     window.addEventListener('beforeunload', handleBeforeUnload);
 
     return () => {
-      if (heartbeatRef.current) clearInterval(heartbeatRef.current);
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('beforeunload', handleBeforeUnload);
