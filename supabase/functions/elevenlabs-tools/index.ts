@@ -820,7 +820,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
           status: v.status,
           location: v.location || 'Miami',
           rate: `$${v.daily_rate || v.current_rate} per day`,
-          utilization: `${(v.utilization || 70)}% utilized`,
+          utilization: `${(v.utilization || 0)}% utilized`,
           revenue: `$${Number(v.revenue || 0).toFixed(0)} total revenue`
         }));
 
