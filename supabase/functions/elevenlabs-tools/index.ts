@@ -1871,8 +1871,8 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         const totalRevenue = vehicles.reduce((sum, v) => sum + Number(v.revenue || 0), 0);
         
         // Find under and over-utilized vehicles
-        const underUtilized = vehicles.filter(v => (v.utilization || 70) < 50);
-        const highPerformers = vehicles.filter(v => (v.utilization || 70) > 75);
+        const underUtilized = vehicles.filter(v => (v.utilization || 0) < 50);
+        const highPerformers = vehicles.filter(v => (v.utilization || 0) > 75);
         
         // Check for peak season
         const peakSeason = getCurrentPeakSeason(location);
