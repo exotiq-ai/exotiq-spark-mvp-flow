@@ -15,7 +15,6 @@ export const usePresence = (conversationId?: string | null) => {
   const [presenceMap, setPresenceMap] = useState<Map<string, UserPresence>>(new Map());
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const heartbeatRef = useRef<NodeJS.Timeout | null>(null);
 
   // Update user's online status
   const updatePresence = useCallback(async (status: 'online' | 'away' | 'offline') => {
