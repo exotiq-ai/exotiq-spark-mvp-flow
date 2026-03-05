@@ -1294,6 +1294,9 @@ export type Database = {
       notification_preferences: {
         Row: {
           created_at: string
+          digest_email_enabled: boolean
+          digest_enabled: boolean
+          digest_frequency: string
           email_direct_messages: boolean
           email_mentions: boolean
           email_team_updates: boolean
@@ -1309,6 +1312,9 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          digest_email_enabled?: boolean
+          digest_enabled?: boolean
+          digest_frequency?: string
           email_direct_messages?: boolean
           email_mentions?: boolean
           email_team_updates?: boolean
@@ -1324,6 +1330,9 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          digest_email_enabled?: boolean
+          digest_enabled?: boolean
+          digest_frequency?: string
           email_direct_messages?: boolean
           email_mentions?: boolean
           email_team_updates?: boolean
@@ -3089,6 +3098,50 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      weekly_digests: {
+        Row: {
+          bookings_count: number | null
+          created_at: string
+          id: string
+          revenue_total: number | null
+          summary_json: Json
+          team_id: string | null
+          top_insight: string | null
+          user_id: string
+          week_start: string
+        }
+        Insert: {
+          bookings_count?: number | null
+          created_at?: string
+          id?: string
+          revenue_total?: number | null
+          summary_json?: Json
+          team_id?: string | null
+          top_insight?: string | null
+          user_id: string
+          week_start: string
+        }
+        Update: {
+          bookings_count?: number | null
+          created_at?: string
+          id?: string
+          revenue_total?: number | null
+          summary_json?: Json
+          team_id?: string | null
+          top_insight?: string | null
+          user_id?: string
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekly_digests_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
             referencedColumns: ["id"]
           },
         ]
