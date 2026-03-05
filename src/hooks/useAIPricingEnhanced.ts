@@ -53,7 +53,7 @@ export const useAIPricingEnhanced = (): UseAIPricingEnhancedReturn => {
 
   const fetchEvents = useCallback(async (city?: string) => {
     try {
-      const response = await supabase.functions.invoke('predicthq-events', {
+      const response = await supabase.functions.invoke('ai-event-intelligence', {
         body: { city: city || 'miami' },
       });
 
