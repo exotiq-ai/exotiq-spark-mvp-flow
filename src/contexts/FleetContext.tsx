@@ -70,6 +70,8 @@ interface FleetContextType {
   refreshPayments: () => void;
   refreshDamageClaims: () => void;
   refreshCustomers: () => void;
+  refreshInspections: () => void;
+  refreshMaintenance: () => void;
 }
 
 const FleetContext = createContext<FleetContextType | undefined>(undefined);
