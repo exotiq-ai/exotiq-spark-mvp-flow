@@ -41,7 +41,7 @@ export const RevenueWidget = ({ isLoading }: RevenueWidgetProps) => {
 
   // Calculate revenue metrics from real booking data
   const totalRevenue = bookings
-    .filter(b => b.status === 'completed')
+    .filter(b => b.status === 'completed' || b.status === 'confirmed')
     .reduce((sum, b) => sum + (b.total_value || 0), 0);
 
   const now = new Date();
