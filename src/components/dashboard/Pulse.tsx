@@ -55,7 +55,7 @@ export const Pulse = () => {
       trend: activeBookings > 0 ? "up" : "neutral" 
     },
     { 
-      label: "Revenue Today", 
+      label: "Collected Today", 
       value: `$${todayRevenue.toLocaleString()}`, 
       change: `${revenueChange >= 0 ? '+' : ''}${revenueChange}% vs yesterday`, 
       trend: revenueChange >= 0 ? "up" : "down" 

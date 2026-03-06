@@ -219,14 +219,14 @@ export const RevenueLineChart = () => {
                 <Area 
                   type="monotone" 
                   dataKey="revenue" 
-                  stroke="hsl(var(--success))" 
+                  stroke={chartColor}
                   strokeWidth={isMobile ? 2 : 2.5}
                   fill="url(#revenueGradient)"
                   style={{ cursor: 'pointer' }}
                   animationDuration={1500}
                   animationEasing="ease-out"
                   dot={false}
-                  activeDot={getTouchActiveDot('hsl(var(--success))')}
+                  activeDot={getTouchActiveDot(chartColor)}
                 />
                 {comparePeriod && (
                   <Line
