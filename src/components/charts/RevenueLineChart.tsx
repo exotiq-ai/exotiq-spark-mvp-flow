@@ -57,16 +57,20 @@ export const RevenueLineChart = () => {
     }
   };
 
+  const activeData = viewMode === 'booked' ? revenueData : collectedData;
+  const chartColor = viewMode === 'booked' ? 'hsl(var(--success))' : 'hsl(var(--primary))';
+  const chartLabel = viewMode === 'booked' ? 'Booked Revenue' : 'Collected Revenue';
+
   // Generate comparison data (previous period)
-  const comparisonData = comparePeriod ? revenueData.map((d, i) => ({
+  const comparisonData = comparePeriod ? activeData.map((d, i) => ({
     ...d,
-    previousRevenue: i > 0 ? revenueData[i - 1].revenue * 0.92 : 0 // Mock previous period
-  })) : revenueData;
+    previousRevenue: i > 0 ? activeData[i - 1].revenue * 0.92 : 0
+  })) : activeData;
 
-  const totalRevenue = revenueData.reduce((sum, d) => sum + d.revenue, 0);
-  const avgRevenue = totalRevenue / revenueData.length;
+  const totalRevenue = activeData.reduce((sum, d) => sum + d.revenue, 0);
+  const avgRevenue = activeData.length > 0 ? totalRevenue / activeData.length : 0;
 
-  // Animated data - gradually reveal points
+  // Animated data
   const animatedData = isAnimated 
     ? comparisonData 
     : comparisonData.map(d => ({ ...d, revenue: 0, previousRevenue: 0 }));
