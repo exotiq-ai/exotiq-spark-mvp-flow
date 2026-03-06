@@ -213,7 +213,7 @@ export const RevenueLineChart = () => {
                   tickFormatter={(value) => `$${formatCompactNumber(value)}`}
                 />
                 <Tooltip 
-                  content={<TouchTooltip formatter={(value) => [`$${value.toLocaleString()}`, 'Revenue']} />}
+                  content={<TouchTooltip formatter={(value) => [`$${value.toLocaleString()}`, chartLabel]} />}
                   cursor={{ stroke: 'hsl(var(--primary))', strokeWidth: 1, strokeDasharray: '4 4' }}
                 />
                 <Area 
