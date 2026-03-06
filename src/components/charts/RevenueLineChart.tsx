@@ -16,11 +16,12 @@ import { useIsMobile } from "@/hooks/use-mobile";
 
 export const RevenueLineChart = () => {
   const { bookings, vehicles, payments } = useLocationFilteredFleet();
-  const { revenueData } = useChartData(bookings, payments);
+  const { revenueData, collectedData } = useChartData(bookings, payments);
   const { toast } = useToast();
   const [selectedDay, setSelectedDay] = useState<typeof revenueData[0] | null>(null);
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [comparePeriod, setComparePeriod] = useState(false);
+  const [viewMode, setViewMode] = useState<'booked' | 'collected'>('booked');
   const [isAnimated, setIsAnimated] = useState(false);
   
   const isMobile = useIsMobile();
