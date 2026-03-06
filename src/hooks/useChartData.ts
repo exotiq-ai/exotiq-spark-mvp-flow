@@ -18,7 +18,6 @@ export const useChartData = (bookings: Booking[], payments: Payment[]) => {
       date.setDate(date.getDate() - i);
       const dateStr = toLocalDateStr(date);
       
-      // Revenue from confirmed/completed bookings starting on this date
       const dayBookings = bookings.filter(b => {
         const startDate = new Date(b.start_date);
         return toLocalDateStr(startDate) === dateStr && 
@@ -39,5 +38,34 @@ export const useChartData = (bookings: Booking[], payments: Payment[]) => {
     return data;
   }, [bookings, payments]);
 
-  return { revenueData };
+  const collectedData = useMemo(() => {
+    const data = [];
+    const today = new Date();
+    
+    for (let i = 29; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      const dateStr = toLocalDateStr(date);
+      
+      const dayPayments = payments.filter(p => {
+        if (!p.transaction_date) return false;
+        const txDate = new Date(p.transaction_date);
+        return toLocalDateStr(txDate) === dateStr;
+      });
+      
+      const dayCollected = dayPayments.reduce((sum, p) => sum + p.amount, 0);
+      
+      data.push({
+        date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        fullDate: dateStr,
+        revenue: dayCollected,
+        bookingsCount: dayPayments.length,
+        bookings: [] as Booking[]
+      });
+    }
+    
+    return data;
+  }, [payments]);
+
+  return { revenueData, collectedData };
 };

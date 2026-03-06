@@ -70,7 +70,7 @@ export const TodaySnapshot = () => {
       onClick: () => navigate('/dashboard?module=book&filter=returns-today')
     },
     { 
-      label: "Revenue Today", 
+      label: "Collected Today", 
       value: `$${todayRevenue.toLocaleString()}`,
       subtext: format(new Date(), 'MMM d'),
       icon: DollarSign,

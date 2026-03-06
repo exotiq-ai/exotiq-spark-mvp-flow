@@ -16,11 +16,12 @@ import { useIsMobile } from "@/hooks/use-mobile";
 
 export const RevenueLineChart = () => {
   const { bookings, vehicles, payments } = useLocationFilteredFleet();
-  const { revenueData } = useChartData(bookings, payments);
+  const { revenueData, collectedData } = useChartData(bookings, payments);
   const { toast } = useToast();
   const [selectedDay, setSelectedDay] = useState<typeof revenueData[0] | null>(null);
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [comparePeriod, setComparePeriod] = useState(false);
+  const [viewMode, setViewMode] = useState<'booked' | 'collected'>('booked');
   const [isAnimated, setIsAnimated] = useState(false);
   
   const isMobile = useIsMobile();
@@ -56,16 +57,20 @@ export const RevenueLineChart = () => {
     }
   };
 
+  const activeData = viewMode === 'booked' ? revenueData : collectedData;
+  const chartColor = viewMode === 'booked' ? 'hsl(var(--success))' : 'hsl(var(--primary))';
+  const chartLabel = viewMode === 'booked' ? 'Booked Revenue' : 'Collected Revenue';
+
   // Generate comparison data (previous period)
-  const comparisonData = comparePeriod ? revenueData.map((d, i) => ({
+  const comparisonData = comparePeriod ? activeData.map((d, i) => ({
     ...d,
-    previousRevenue: i > 0 ? revenueData[i - 1].revenue * 0.92 : 0 // Mock previous period
-  })) : revenueData;
+    previousRevenue: i > 0 ? activeData[i - 1].revenue * 0.92 : 0
+  })) : activeData;
 
-  const totalRevenue = revenueData.reduce((sum, d) => sum + d.revenue, 0);
-  const avgRevenue = totalRevenue / revenueData.length;
+  const totalRevenue = activeData.reduce((sum, d) => sum + d.revenue, 0);
+  const avgRevenue = activeData.length > 0 ? totalRevenue / activeData.length : 0;
 
-  // Animated data - gradually reveal points
+  // Animated data
   const animatedData = isAnimated 
     ? comparisonData 
     : comparisonData.map(d => ({ ...d, revenue: 0, previousRevenue: 0 }));
@@ -106,6 +111,20 @@ export const RevenueLineChart = () => {
               </p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
+              <Badge 
+                variant={viewMode === 'booked' ? 'default' : 'outline'}
+                className="cursor-pointer hover:bg-primary/10 transition-colors text-xs"
+                onClick={() => setViewMode('booked')}
+              >
+                Booked
+              </Badge>
+              <Badge 
+                variant={viewMode === 'collected' ? 'default' : 'outline'}
+                className="cursor-pointer hover:bg-primary/10 transition-colors text-xs"
+                onClick={() => setViewMode('collected')}
+              >
+                Collected
+              </Badge>
               <Badge 
                 variant="outline" 
                 className="cursor-pointer hover:bg-primary/10 transition-colors text-xs"
@@ -169,9 +188,9 @@ export const RevenueLineChart = () => {
               <AreaChart data={animatedData} onClick={handlePointClick}>
                 <defs>
                   <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--success))" stopOpacity={0.4}/>
-                    <stop offset="50%" stopColor="hsl(var(--success))" stopOpacity={0.15}/>
-                    <stop offset="95%" stopColor="hsl(var(--success))" stopOpacity={0}/>
+                    <stop offset="5%" stopColor={chartColor} stopOpacity={0.4}/>
+                    <stop offset="50%" stopColor={chartColor} stopOpacity={0.15}/>
+                    <stop offset="95%" stopColor={chartColor} stopOpacity={0}/>
                   </linearGradient>
                   <filter id="chartGlow">
                     <feGaussianBlur stdDeviation="2" result="coloredBlur" />
@@ -194,20 +213,20 @@ export const RevenueLineChart = () => {
                   tickFormatter={(value) => `$${formatCompactNumber(value)}`}
                 />
                 <Tooltip 
-                  content={<TouchTooltip formatter={(value) => [`$${value.toLocaleString()}`, 'Revenue']} />}
+                  content={<TouchTooltip formatter={(value) => [`$${value.toLocaleString()}`, chartLabel]} />}
                   cursor={{ stroke: 'hsl(var(--primary))', strokeWidth: 1, strokeDasharray: '4 4' }}
                 />
                 <Area 
                   type="monotone" 
                   dataKey="revenue" 
-                  stroke="hsl(var(--success))" 
+                  stroke={chartColor}
                   strokeWidth={isMobile ? 2 : 2.5}
                   fill="url(#revenueGradient)"
                   style={{ cursor: 'pointer' }}
                   animationDuration={1500}
                   animationEasing="ease-out"
                   dot={false}
-                  activeDot={getTouchActiveDot('hsl(var(--success))')}
+                  activeDot={getTouchActiveDot(chartColor)}
                 />
                 {comparePeriod && (
                   <Line
