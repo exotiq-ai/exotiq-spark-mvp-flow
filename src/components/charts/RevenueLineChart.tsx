@@ -188,9 +188,9 @@ export const RevenueLineChart = () => {
               <AreaChart data={animatedData} onClick={handlePointClick}>
                 <defs>
                   <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--success))" stopOpacity={0.4}/>
-                    <stop offset="50%" stopColor="hsl(var(--success))" stopOpacity={0.15}/>
-                    <stop offset="95%" stopColor="hsl(var(--success))" stopOpacity={0}/>
+                    <stop offset="5%" stopColor={chartColor} stopOpacity={0.4}/>
+                    <stop offset="50%" stopColor={chartColor} stopOpacity={0.15}/>
+                    <stop offset="95%" stopColor={chartColor} stopOpacity={0}/>
                   </linearGradient>
                   <filter id="chartGlow">
                     <feGaussianBlur stdDeviation="2" result="coloredBlur" />
