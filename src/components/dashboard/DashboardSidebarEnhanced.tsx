@@ -191,8 +191,8 @@ export const DashboardSidebarEnhanced = ({
       id: "intelligence",
       name: "Intelligence",
       items: [
-        { id: "core", name: "FleetCopilot™", icon: Brain, minRole: 'operator' },
         { id: "motoriq", name: "MotorIQ", icon: TrendingUp, minRole: 'manager' },
+        { id: "core", name: "FleetCopilot™", icon: Brain, minRole: 'operator' },
         { id: "vault", name: "Vault", icon: Shield, minRole: 'operator' },
       ]
     },
