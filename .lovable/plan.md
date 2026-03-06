@@ -1,83 +1,54 @@
 
 
-# Fix Magic Link -- Rate Limiting and UX
+# Revenue Chart Data Mismatch — Root Cause & Fix
 
-## Root Cause
+## The Problem
 
-The magic link uses `supabase.auth.signInWithOtp()` which hits the `/otp` endpoint. Supabase enforces a rate limit of ~1 request per 60 seconds on this endpoint. The current UI has no cooldown -- users can spam the button and immediately hit 429 errors with a raw Supabase message like "For security purposes, you can only request this after 11 seconds."
+The revenue chart shows **$0 for March 5** despite there being bookings worth **$47,200** visible in the calendar for that day. This is caused by two compounding issues:
 
-Password reset works because it uses `/recover`, a different endpoint with separate rate limits.
+### Issue 1: Wrong Data Source
+The chart (`useChartData.ts`) calculates daily revenue from the **payments table** (`transaction_date`), while the calendar and booking views show **booking `total_value`** by `start_date`. These are fundamentally different numbers:
+- Payments for March 5: only $5,900 (2 payment records)
+- Bookings starting March 5: $47,200 (from calendar view)
 
-## Fixes
+The RevenueWidget header also mixes approaches — "Total Revenue" counts only `completed` bookings' `total_value`, while the chart underneath sums payments. This creates visual inconsistency.
 
-### 1. Add Cooldown Timer to Magic Link Button
+### Issue 2: Timezone Bug
+Even the $5,900 in payments may not show correctly. The chart generates date strings using `new Date().toISOString().split('T')[0]` which converts local time to UTC, potentially shifting dates by a day. For example, at 8pm EST on March 5, `toISOString()` returns `2026-03-06T01:00:00Z`, making the date string "2026-03-06" instead of "2026-03-05".
 
-After a successful send, disable the button for 60 seconds with a visible countdown ("Resend in 42s"). This prevents users from hitting the rate limit.
+## The Fix
 
-**File:** `src/pages/Auth.tsx`
-- Add `cooldownSeconds` state (starts at 0)
-- After successful send, set to 60 and decrement via `setInterval`
-- Disable button and show countdown text while `cooldownSeconds > 0`
+### `src/hooks/useChartData.ts` — Use booking revenue instead of payments
 
-### 2. Improve Error Message for 429
+Change the revenue calculation to use **booking `total_value` by `start_date`** for `confirmed` and `completed` bookings. This aligns with the calendar view and makes the chart meaningful for fleet operators (booked revenue per day, not just cash collected).
 
-Catch the specific rate-limit error and show a user-friendly message instead of the raw Supabase text.
+Also fix the timezone issue by using local date formatting (`toLocaleDateString` with `en-CA` for YYYY-MM-DD) instead of `toISOString()`.
 
-**File:** `src/contexts/AuthContext.tsx` (in `signInWithMagicLink`)
-- Check if `error.message` contains "security purposes" or `error.status === 429`
-- Replace with: "Please wait a moment before requesting another magic link."
-
-### 3. Add Cooldown to Password Reset Too
-
-Apply the same cooldown pattern to the "Send Reset Link" button to prevent the same issue there (auth logs show 429s on `/recover` too from `hello@exotiq.ai`).
-
-**File:** `src/pages/Auth.tsx`
-- Same cooldown pattern for `handlePasswordReset`
-
-## Technical Details
-
-### Cooldown Logic (Auth.tsx)
-
-```text
-const [magicLinkCooldown, setMagicLinkCooldown] = useState(0);
-
-useEffect(() => {
-  if (magicLinkCooldown <= 0) return;
-  const timer = setInterval(() => {
-    setMagicLinkCooldown(prev => prev - 1);
-  }, 1000);
-  return () => clearInterval(timer);
-}, [magicLinkCooldown]);
-
-// In handleMagicLink, after successful send:
-setMagicLinkCooldown(60);
-
-// Button:
-<Button disabled={loading || magicLinkCooldown > 0}>
-  {magicLinkCooldown > 0 ? `Resend in ${magicLinkCooldown}s` : 'Send Magic Link'}
-</Button>
+```typescript
+// Revenue = sum of booking total_value for confirmed/completed bookings starting on this date
+const dayBookings = bookings.filter(b => {
+  const startDate = new Date(b.start_date);
+  const localDate = `${startDate.getFullYear()}-${String(startDate.getMonth()+1).padStart(2,'0')}-${String(startDate.getDate()).padStart(2,'0')}`;
+  return localDate === dateStr && (b.status === 'confirmed' || b.status === 'completed');
+});
+const dayRevenue = dayBookings.reduce((sum, b) => sum + (b.total_value || 0), 0);
 ```
 
-### Friendlier 429 Error (AuthContext.tsx)
+The `payments` parameter can remain for future use but won't drive the chart revenue anymore.
 
-```text
-if (error) {
-  const isRateLimit = error.message?.includes('security purposes') 
-    || error.status === 429;
-  toast({
-    title: "Error Sending Magic Link",
-    description: isRateLimit 
-      ? "Please wait a moment before requesting another link."
-      : error.message,
-    variant: "destructive"
-  });
-}
-```
+### `src/components/dashboard/widgets/RevenueWidget.tsx` — Align "Total Revenue"
 
-### Files Changed
+Update the total revenue calculation to include both `completed` AND `confirmed` bookings (currently only counts `completed`), matching the chart's data source.
+
+## Impact
+
+- Revenue chart will show booking-based revenue per day, matching the calendar view
+- March 5 will correctly show $47,200 (the two confirmed bookings)
+- Timezone-safe date comparisons throughout
+- Consistent metric definitions across dashboard, chart, and calendar
 
 | File | Change |
 |------|--------|
-| `src/pages/Auth.tsx` | Add 60s cooldown timer to magic link and password reset buttons |
-| `src/contexts/AuthContext.tsx` | Friendlier error messages for 429 rate limits on `signInWithMagicLink` and `resetPassword` |
+| `src/hooks/useChartData.ts` | Revenue from bookings instead of payments; fix timezone |
+| `src/components/dashboard/widgets/RevenueWidget.tsx` | Include confirmed bookings in total revenue |
 
