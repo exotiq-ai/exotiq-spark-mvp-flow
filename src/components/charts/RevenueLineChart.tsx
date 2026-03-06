@@ -112,6 +112,20 @@ export const RevenueLineChart = () => {
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               <Badge 
+                variant={viewMode === 'booked' ? 'default' : 'outline'}
+                className="cursor-pointer hover:bg-primary/10 transition-colors text-xs"
+                onClick={() => setViewMode('booked')}
+              >
+                Booked
+              </Badge>
+              <Badge 
+                variant={viewMode === 'collected' ? 'default' : 'outline'}
+                className="cursor-pointer hover:bg-primary/10 transition-colors text-xs"
+                onClick={() => setViewMode('collected')}
+              >
+                Collected
+              </Badge>
+              <Badge 
                 variant="outline" 
                 className="cursor-pointer hover:bg-primary/10 transition-colors text-xs"
                 onClick={() => setComparePeriod(!comparePeriod)}
