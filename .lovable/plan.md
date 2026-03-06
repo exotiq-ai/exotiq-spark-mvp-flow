@@ -1,83 +1,33 @@
 
 
-# Fix Magic Link -- Rate Limiting and UX
+# Fix: Gregory Ringler $1M Test Booking
 
-## Root Cause
+## The Problem
 
-The magic link uses `supabase.auth.signInWithOtp()` which hits the `/otp` endpoint. Supabase enforces a rate limit of ~1 request per 60 seconds on this endpoint. The current UI has no cooldown -- users can spam the button and immediately hit 429 errors with a raw Supabase message like "For security purposes, you can only request this after 11 seconds."
+The Feb 9 spike is caused by a **single test booking** from Gregory Ringler:
 
-Password reset works because it uses `/recover`, a different endpoint with separate rate limits.
+| Field | Value |
+|-------|-------|
+| Customer | Gregory Ringler |
+| Total Value | $1,000,000 |
+| Daily Rate | $799 |
+| Start Date | 2026-02-10 UTC (shows as Feb 9 in your timezone) |
+| End Date | 2026-02-08 (before start — invalid) |
+| Vehicle | None assigned |
+| Created | Jan 31, 2026 |
 
-## Fixes
+He has a second identical $1M booking from 2025 (status: pending) that's also bad data. Both were created on Jan 31 during early testing — $799/day rate with a $1M total value is clearly a data entry error.
 
-### 1. Add Cooldown Timer to Magic Link Button
+## Fix
 
-After a successful send, disable the button for 60 seconds with a visible countdown ("Resend in 42s"). This prevents users from hitting the rate limit.
+Delete both Gregory Ringler bookings and any associated payments via a database migration. This is the same surgical cleanup approach we just used — exact name match, 2 records only.
 
-**File:** `src/pages/Auth.tsx`
-- Add `cooldownSeconds` state (starts at 0)
-- After successful send, set to 60 and decrement via `setInterval`
-- Disable button and show countdown text while `cooldownSeconds > 0`
-
-### 2. Improve Error Message for 429
-
-Catch the specific rate-limit error and show a user-friendly message instead of the raw Supabase text.
-
-**File:** `src/contexts/AuthContext.tsx` (in `signInWithMagicLink`)
-- Check if `error.message` contains "security purposes" or `error.status === 429`
-- Replace with: "Please wait a moment before requesting another magic link."
-
-### 3. Add Cooldown to Password Reset Too
-
-Apply the same cooldown pattern to the "Send Reset Link" button to prevent the same issue there (auth logs show 429s on `/recover` too from `hello@exotiq.ai`).
-
-**File:** `src/pages/Auth.tsx`
-- Same cooldown pattern for `handlePasswordReset`
-
-## Technical Details
-
-### Cooldown Logic (Auth.tsx)
-
-```text
-const [magicLinkCooldown, setMagicLinkCooldown] = useState(0);
-
-useEffect(() => {
-  if (magicLinkCooldown <= 0) return;
-  const timer = setInterval(() => {
-    setMagicLinkCooldown(prev => prev - 1);
-  }, 1000);
-  return () => clearInterval(timer);
-}, [magicLinkCooldown]);
-
-// In handleMagicLink, after successful send:
-setMagicLinkCooldown(60);
-
-// Button:
-<Button disabled={loading || magicLinkCooldown > 0}>
-  {magicLinkCooldown > 0 ? `Resend in ${magicLinkCooldown}s` : 'Send Magic Link'}
-</Button>
+```sql
+DELETE FROM payments WHERE booking_id IN (
+  SELECT id FROM bookings WHERE customer_name = 'Gregory Ringler'
+);
+DELETE FROM bookings WHERE customer_name = 'Gregory Ringler';
 ```
 
-### Friendlier 429 Error (AuthContext.tsx)
-
-```text
-if (error) {
-  const isRateLimit = error.message?.includes('security purposes') 
-    || error.status === 429;
-  toast({
-    title: "Error Sending Magic Link",
-    description: isRateLimit 
-      ? "Please wait a moment before requesting another link."
-      : error.message,
-    variant: "destructive"
-  });
-}
-```
-
-### Files Changed
-
-| File | Change |
-|------|--------|
-| `src/pages/Auth.tsx` | Add 60s cooldown timer to magic link and password reset buttons |
-| `src/contexts/AuthContext.tsx` | Friendlier error messages for 429 rate limits on `signInWithMagicLink` and `resetPassword` |
+After this, the Feb 9 spike disappears and the chart will show accurate revenue figures.
 
