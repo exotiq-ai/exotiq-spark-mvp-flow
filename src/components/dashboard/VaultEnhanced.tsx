@@ -57,6 +57,7 @@ export const VaultEnhanced = () => {
   const [alertDismissed, setAlertDismissed] = useState(false);
   const [alertExpanded, setAlertExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [previewDoc, setPreviewDoc] = useState<{ url: string; name: string } | null>(null);
 
   // Calculate urgent alert from real documents
   const urgentAlert = useMemo(() => {
