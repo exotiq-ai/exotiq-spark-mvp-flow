@@ -131,7 +131,7 @@ export const DocumentUploadDialog = ({
       return;
     }
 
-    if (!isRentalAgreement && !expiryDate) {
+    if (requiresExpiry && !expiryDate) {
       toast.error('Please fill in the expiration date');
       return;
     }
