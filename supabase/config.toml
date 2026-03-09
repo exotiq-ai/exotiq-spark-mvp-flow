@@ -107,3 +107,9 @@ verify_jwt = false
 
 [functions.generate-signed-pdf]
 verify_jwt = false
+
+[functions.fill-rental-template]
+verify_jwt = false
+
+[functions.send-signed-document]
+verify_jwt = false
