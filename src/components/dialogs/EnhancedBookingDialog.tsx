@@ -95,6 +95,7 @@ export const EnhancedBookingDialog = ({
   onNavigateToModule,
 }: EnhancedBookingDialogProps) => {
   const { bookings, vehicles, payments, customers, updateBookingStatus, updateBookingDetails, createPayment, sendMessage, refreshData } = useFleet();
+  const { currentTeam } = useTeam();
   const { toast } = useToast();
   
   const [showVehicleImage, setShowVehicleImage] = useState(false);
