@@ -31,6 +31,7 @@ import { EditBookingDialog } from "./EditBookingDialog";
 import { LinkCustomerDialog } from "./LinkCustomerDialog";
 import { LinkVehicleDialog } from "./LinkVehicleDialog";
 import { useFleet } from "@/contexts/FleetContext";
+import { useTeam } from "@/contexts/TeamContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
