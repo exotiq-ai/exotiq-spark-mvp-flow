@@ -50,6 +50,7 @@ import { Trash2 } from "lucide-react";
 import { EnhancedBookingDialog } from "@/components/dialogs/EnhancedBookingDialog";
 import { EditCustomerDialog } from "@/components/dialogs/EditCustomerDialog";
 import { formatCurrency } from "@/lib/utils";
+import { CustomerTimeline } from "@/components/crm/CustomerTimeline";
 
 type Customer = Database['public']['Tables']['customers']['Row'];
 type Booking = Database['public']['Tables']['bookings']['Row'];
