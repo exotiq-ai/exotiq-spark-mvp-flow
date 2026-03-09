@@ -301,8 +301,8 @@ export const DocumentUploadDialog = ({
               </SelectTrigger>
               <SelectContent>
                 {documentTypes.map((t) => (
-                  <SelectItem key={t} value={t}>
-                    {t}
+                  <SelectItem key={t.value} value={t.value}>
+                    {t.label}
                   </SelectItem>
                 ))}
               </SelectContent>
