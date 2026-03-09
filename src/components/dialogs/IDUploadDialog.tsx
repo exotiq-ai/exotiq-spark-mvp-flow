@@ -92,10 +92,13 @@ export const IDUploadDialog = ({
 
       if (uploadError) throw uploadError;
 
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
+      // Get signed URL (private bucket)
+      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
         .from("customer-documents")
-        .getPublicUrl(fileName);
+        .createSignedUrl(fileName, 31536000); // 1-year signed URL
+
+      if (signedUrlError || !signedUrlData?.signedUrl) throw signedUrlError || new Error("Failed to create signed URL");
+      const publicUrl = signedUrlData.signedUrl;
 
       // Update customer record
       const { error: updateError } = await supabase

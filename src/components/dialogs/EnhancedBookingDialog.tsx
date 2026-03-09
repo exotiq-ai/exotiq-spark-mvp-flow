@@ -24,7 +24,10 @@ import { ChangeVehicleDialog } from "./ChangeVehicleDialog";
 import { EditBookingDialog } from "./EditBookingDialog";
 import { LinkCustomerDialog } from "./LinkCustomerDialog";
 import { LinkVehicleDialog } from "./LinkVehicleDialog";
+import { SigningCeremony } from "@/components/signing/SigningCeremony";
+import { DocumentPicker } from "@/components/signing/DocumentPicker";
 import { useFleet } from "@/contexts/FleetContext";
+import { useTeam } from "@/contexts/TeamContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -60,6 +63,7 @@ import {
   AlertTriangle,
   X,
   Save,
+  FileText,
 } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -88,6 +92,7 @@ export const EnhancedBookingDialog = ({
   onNavigateToModule,
 }: EnhancedBookingDialogProps) => {
   const { bookings, vehicles, payments, customers, updateBookingStatus, updateBookingDetails, createPayment, sendMessage, refreshData } = useFleet();
+  const { currentTeam } = useTeam();
   const { toast } = useToast();
   
   const [showVehicleImage, setShowVehicleImage] = useState(false);
@@ -98,6 +103,10 @@ export const EnhancedBookingDialog = ({
   const [showLinkCustomer, setShowLinkCustomer] = useState(false);
   const [showLinkVehicle, setShowLinkVehicle] = useState(false);
   const [showCheckInOut, setShowCheckInOut] = useState<"check-out" | "check-in" | null>(null);
+  const [showSigningCeremony, setShowSigningCeremony] = useState(false);
+  const [showDocumentPicker, setShowDocumentPicker] = useState(false);
+  const [signingDocument, setSigningDocument] = useState<{ id: string; name: string; file_url: string; doc_ref?: string | null; team_id?: string | null } | null>(null);
+  const [bookingDocuments, setBookingDocuments] = useState<any[]>([]);
   const [customerNotes, setCustomerNotes] = useState<CustomerNote[]>([]);
   const [newNote, setNewNote] = useState("");
   const [addingNote, setAddingNote] = useState(false);
@@ -237,6 +246,39 @@ export const EnhancedBookingDialog = ({
     };
     if (open) fetchLocations();
   }, [open]);
+  // Fetch signed documents for this booking
+  useEffect(() => {
+    const fetchBookingDocs = async () => {
+      if (!bookingId) return;
+      const { data } = await supabase
+        .from("documents")
+        .select("id, name, doc_ref, signed_at, signed_by_name, type, file_url")
+        .eq("booking_id", bookingId)
+        .order("created_at", { ascending: false });
+      setBookingDocuments(data || []);
+    };
+    if (open && bookingId) fetchBookingDocs();
+  }, [open, bookingId]);
+
+  const handleSignDocument = async () => {
+    if (!currentTeam?.id) return;
+    // Check for default rental agreement
+    const { data: defaultDoc } = await supabase
+      .from("documents")
+      .select("id, name, file_url, doc_ref, team_id")
+      .eq("team_id", currentTeam.id)
+      .eq("type", "Rental Agreement")
+      .eq("is_default", true)
+      .limit(1)
+      .maybeSingle();
+
+    if (defaultDoc) {
+      setSigningDocument(defaultDoc);
+      setShowSigningCeremony(true);
+    } else {
+      setShowDocumentPicker(true);
+    }
+  };
 
   useEffect(() => {
     const fetchCustomerNotes = async () => {
@@ -899,7 +941,39 @@ export const EnhancedBookingDialog = ({
                         </div>
                       </div>
 
-                      {/* Quick Links */}
+                      {/* Documents & Signing */}
+                      <div className="space-y-3">
+                        <h4 className="font-semibold flex items-center gap-2">
+                          <FileText className="h-4 w-4" />
+                          Documents
+                        </h4>
+                        {bookingDocuments.length > 0 ? (
+                          <div className="space-y-2">
+                            {bookingDocuments.map((doc) => (
+                              <div key={doc.id} className="p-3 bg-muted/20 rounded-lg flex items-center justify-between">
+                                <div>
+                                  <div className="font-medium text-sm">{doc.name}</div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {doc.doc_ref && `${doc.doc_ref} • `}
+                                    {doc.signed_by_name && `Signed by ${doc.signed_by_name}`}
+                                    {doc.signed_at && ` • ${format(new Date(doc.signed_at), "MMM d, yyyy")}`}
+                                  </div>
+                                </div>
+                                <Badge variant="outline" className="bg-success/10 text-success text-xs">
+                                  Signed
+                                </Badge>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">No signed documents for this booking.</p>
+                        )}
+                        <Button variant="outline" size="sm" onClick={handleSignDocument}>
+                          <FileText className="h-3.5 w-3.5 mr-1.5" />
+                          Sign Document
+                        </Button>
+                      </div>
+
                       <div className="flex flex-wrap gap-2">
                         <Button variant="outline" size="sm" onClick={() => { onOpenChange(false); onNavigateToModule?.("motoriq", { vehicleId: booking.vehicle_id }); }}>
                           <Car className="h-3 w-3 mr-1" />Vehicle<ExternalLink className="h-3 w-3 ml-1" />
@@ -1117,6 +1191,47 @@ export const EnhancedBookingDialog = ({
           </ScrollArea>
         </DialogContent>
       </Dialog>
+      {booking && signingDocument && (
+        <SigningCeremony
+          open={showSigningCeremony}
+          onOpenChange={setShowSigningCeremony}
+          booking={{
+            id: booking.id,
+            customer_name: booking.customer_name,
+            customer_email: booking.customer_email,
+            vehicle_name: booking.vehicle_name || vehicle?.name,
+            vehicle_id: booking.vehicle_id,
+            customer_id: booking.customer_id,
+            start_date: booking.start_date,
+            end_date: booking.end_date,
+            total_value: Number(booking.total_value),
+            daily_rate: Number(booking.daily_rate),
+          }}
+          document={signingDocument}
+          onComplete={(docRef) => {
+            toast({ title: "Document Signed", description: `Reference: ${docRef}` });
+            // Refresh booking documents
+            const fetchDocs = async () => {
+              const { data } = await supabase
+                .from("documents")
+                .select("id, name, doc_ref, signed_at, signed_by_name, type, file_url")
+                .eq("booking_id", booking.id)
+                .order("created_at", { ascending: false });
+              setBookingDocuments(data || []);
+            };
+            fetchDocs();
+          }}
+        />
+      )}
+      <DocumentPicker
+        open={showDocumentPicker}
+        onOpenChange={setShowDocumentPicker}
+        onSelect={(doc) => {
+          setSigningDocument(doc);
+          setShowDocumentPicker(false);
+          setShowSigningCeremony(true);
+        }}
+      />
     </>
   );
 };
