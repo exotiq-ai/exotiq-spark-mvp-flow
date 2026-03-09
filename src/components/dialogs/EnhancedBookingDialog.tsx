@@ -1190,6 +1190,47 @@ export const EnhancedBookingDialog = ({
           </ScrollArea>
         </DialogContent>
       </Dialog>
+      {booking && signingDocument && (
+        <SigningCeremony
+          open={showSigningCeremony}
+          onOpenChange={setShowSigningCeremony}
+          booking={{
+            id: booking.id,
+            customer_name: booking.customer_name,
+            customer_email: booking.customer_email,
+            vehicle_name: booking.vehicle_name || vehicle?.name,
+            vehicle_id: booking.vehicle_id,
+            customer_id: booking.customer_id,
+            start_date: booking.start_date,
+            end_date: booking.end_date,
+            total_value: Number(booking.total_value),
+            daily_rate: Number(booking.daily_rate),
+          }}
+          document={signingDocument}
+          onComplete={(docRef) => {
+            toast({ title: "Document Signed", description: `Reference: ${docRef}` });
+            // Refresh booking documents
+            const fetchDocs = async () => {
+              const { data } = await supabase
+                .from("documents")
+                .select("id, name, doc_ref, signed_at, signed_by_name, type, file_url")
+                .eq("booking_id", booking.id)
+                .order("created_at", { ascending: false });
+              setBookingDocuments(data || []);
+            };
+            fetchDocs();
+          }}
+        />
+      )}
+      <DocumentPicker
+        open={showDocumentPicker}
+        onOpenChange={setShowDocumentPicker}
+        onSelect={(doc) => {
+          setSigningDocument(doc);
+          setShowDocumentPicker(false);
+          setShowSigningCeremony(true);
+        }}
+      />
     </>
   );
 };
