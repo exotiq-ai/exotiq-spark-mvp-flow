@@ -299,6 +299,10 @@ export const CustomerProfileDialog = ({
             </AlertDialog>
           </TabsContent>
 
+          <TabsContent value="activity" className="space-y-4">
+            <CustomerTimeline bookings={bookings} notes={customerNotesList} />
+          </TabsContent>
+
           <TabsContent value="bookings" className="space-y-4">
             {onAddBooking && (
               <Button onClick={() => onAddBooking(customer)} className="w-full">
