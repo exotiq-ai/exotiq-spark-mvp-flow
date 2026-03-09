@@ -949,7 +949,7 @@ export const EnhancedBookingDialog = ({
                         </h4>
                         {bookingDocuments.length > 0 ? (
                           <div className="space-y-2">
-                            {bookingDocuments.map((doc) => (
+                        {bookingDocuments.map((doc) => (
                               <div key={doc.id} className="p-3 bg-muted/20 rounded-lg flex items-center justify-between">
                                 <div>
                                   <div className="font-medium text-sm">{doc.name}</div>
@@ -959,9 +959,22 @@ export const EnhancedBookingDialog = ({
                                     {doc.signed_at && ` • ${format(new Date(doc.signed_at), "MMM d, yyyy")}`}
                                   </div>
                                 </div>
-                                <Badge variant="outline" className="bg-success/10 text-success text-xs">
-                                  Signed
-                                </Badge>
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                      setPreviewDocUrl(doc.file_url);
+                                      setPreviewDocName(doc.name);
+                                      setShowDocPreview(true);
+                                    }}
+                                  >
+                                    View
+                                  </Button>
+                                  <Badge variant="outline" className="bg-success/10 text-success text-xs">
+                                    Signed
+                                  </Badge>
+                                </div>
                               </div>
                             ))}
                           </div>
