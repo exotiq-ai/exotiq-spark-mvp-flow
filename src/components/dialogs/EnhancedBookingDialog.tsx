@@ -1249,6 +1249,12 @@ export const EnhancedBookingDialog = ({
           setShowSigningCeremony(true);
         }}
       />
+      <DocumentPreviewDialog
+        open={showDocPreview}
+        onOpenChange={setShowDocPreview}
+        documentUrl={previewDocUrl}
+        documentName={previewDocName}
+      />
     </>
   );
 };
