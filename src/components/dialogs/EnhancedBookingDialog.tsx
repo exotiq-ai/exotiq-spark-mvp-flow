@@ -1282,10 +1282,9 @@ export const EnhancedBookingDialog = ({
       <DocumentPicker
         open={showDocumentPicker}
         onOpenChange={setShowDocumentPicker}
-        onSelect={(doc) => {
-          setSigningDocument(doc);
+        onSelect={async (doc) => {
           setShowDocumentPicker(false);
-          setShowSigningCeremony(true);
+          await fillTemplateAndOpen(doc);
         }}
       />
       <DocumentPreviewDialog
