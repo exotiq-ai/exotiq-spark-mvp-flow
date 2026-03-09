@@ -63,6 +63,7 @@ import {
   AlertTriangle,
   X,
   Save,
+  FileText,
 } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 
