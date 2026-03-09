@@ -89,6 +89,33 @@ export const CRMSection = () => {
         return <Badge className="bg-success/10 text-success border-success/30">Active</Badge>;
     }
   };
+  // Get last booking date per customer
+  const lastBookingMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    bookings.forEach(b => {
+      const existing = map[b.customer_id || ''];
+      if (!existing || new Date(b.start_date) > new Date(existing)) {
+        map[b.customer_id || ''] = b.start_date;
+      }
+    });
+    return map;
+  }, [bookings]);
+
+  const handleExport = useCallback(() => {
+    const data = filteredCustomers.map(c => ({
+      Name: c.full_name,
+      Email: c.email,
+      Phone: c.phone || '',
+      Status: c.customer_status || 'active',
+      'Total Bookings': c.total_bookings || 0,
+      'Lifetime Value': c.lifetime_value || 0,
+      'Last Booking': lastBookingMap[c.id] ? new Date(lastBookingMap[c.id]).toLocaleDateString() : 'Never',
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Customers");
+    XLSX.writeFile(wb, "customers_export.xlsx");
+  }, [filteredCustomers, lastBookingMap]);
 
   const handleCustomerClick = (customerId: string) => {
     setSelectedCustomerId(customerId);
