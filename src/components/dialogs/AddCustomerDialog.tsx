@@ -176,6 +176,16 @@ export const AddCustomerDialog = ({
                   />
                 </div>
                 <div>
+                  <Label htmlFor="secondary_phone">Secondary Phone</Label>
+                  <Input
+                    id="secondary_phone"
+                    type="tel"
+                    value={formData.secondary_phone}
+                    onChange={(e) => setFormData({ ...formData, secondary_phone: e.target.value })}
+                    placeholder="+1 (555) 000-0000"
+                  />
+                </div>
+                <div>
                   <Label htmlFor="date_of_birth">Date of Birth</Label>
                   <Input
                     id="date_of_birth"
