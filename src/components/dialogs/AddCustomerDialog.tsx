@@ -36,6 +36,7 @@ export const AddCustomerDialog = ({
     full_name: "",
     email: "",
     phone: "",
+    secondary_phone: "",
     drivers_license: "",
     license_expiry: "",
     insurance_provider: "",
@@ -44,6 +45,8 @@ export const AddCustomerDialog = ({
     date_of_birth: "",
     address: "",
     notes: "",
+    emergency_contact_name: "",
+    emergency_contact_phone: "",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
