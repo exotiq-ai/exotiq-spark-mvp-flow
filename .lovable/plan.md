@@ -1,46 +1,42 @@
 
-# Vault Signing Module — Implementation Complete
 
-## What was built
+# Fix: Signing Flow — 3 Bugs Blocking End-to-End
 
-### Phase A: Database Migration ✅
-- Added `doc_ref` (auto-generated `EXQ-DOC-YYYY-NNNNN`), `booking_id`, `is_default`, `signed_at`, `signed_by_name`, `signature_image_url`, `signing_metadata` (JSONB), `parent_document_id` columns to `documents` table
-- Created sequence + trigger for human-readable document references
-- Added indexes for performance
+## Problems Found
 
-### Phase B: Storage Fix ✅
-- Fixed `getPublicUrl` → `createSignedUrl` in `IDUploadDialog`, `InsuranceUploadDialog`, `DocumentUploadDialog`
-- Uses 1-year signed URLs for private `customer-documents` bucket
+1. **`fill-rental-template` and `send-signed-document` use `auth.getClaims()` which doesn't exist** in the Supabase JS client. The working `generate-signed-pdf` uses `auth.getUser()`. This means template auto-fill silently fails (the UI gracefully falls back to the raw template, so you wouldn't notice — but the auto-fill never actually runs).
 
-### Phase C: Rental Agreement Support ✅
-- Added "Rental Agreement" type to DocumentUploadDialog
-- PDF-only restriction for rental agreements
-- "Set as Default" toggle with automatic clearing of previous defaults
-- Expiry date optional for rental agreements
+2. **Neither `fill-rental-template` nor `send-signed-document` are registered in `supabase/config.toml`**. Without config entries, these functions won't be deployed. The plan called for adding them but it was missed during implementation.
 
-### Phase D: SignatureCanvas ✅
-- Native HTML5 canvas with pointer events (touch/stylus/mouse)
-- Clear button, visual feedback, export to PNG data URL
-- No external dependencies
+## Fixes
 
-### Phase E: generate-signed-pdf Edge Function ✅
-- Uses pdf-lib to append signature page to original PDF
-- Captures IP from request headers (x-forwarded-for)
-- Uploads signed PDF to customer-documents bucket
+### Fix 1: `fill-rental-template/index.ts` (lines 31-40)
+Replace `getClaims` with `getUser` (matching the working pattern from `generate-signed-pdf`):
+```typescript
+const { data: { user }, error: authError } = await anonClient.auth.getUser(token);
+if (authError || !user) { ... }
+const userId = user.id;
+```
 
-### Phase F: SigningCeremony + DocumentPicker ✅
-- Full-screen 3-step wizard: Review → Sign → Complete
-- PDF viewer via iframe, agreement checkbox, signature canvas, printed name
-- Captures signing_metadata (IP, userAgent, deviceType, screen size)
-- DocumentPicker for selecting rental agreement when no default exists
+### Fix 2: `send-signed-document/index.ts` (lines 39-47)
+Same fix — replace `getClaims` with `getUser`.
 
-### Phase G: Booking Integration ✅
-- Documents section in EnhancedBookingDialog Details tab
-- "Sign Document" button checks for default rental agreement
-- Shows signed documents linked to booking with doc_ref and signer info
+### Fix 3: `supabase/config.toml`
+Append two entries:
+```toml
+[functions.fill-rental-template]
+verify_jwt = false
 
-### Phase H: Vault Enhancements ✅
-- Search by name, type, doc_ref, signer name
-- "Default" badge on active rental agreement
-- "Signed" status badge for signed documents
-- View/Download buttons open actual file URLs
+[functions.send-signed-document]
+verify_jwt = false
+```
+
+## What This Unblocks
+
+Once these 3 fixes are applied:
+- Clicking "Sign Document" on a booking → calls `fill-rental-template` → auto-fills the uploaded template with booking/customer/vehicle data → opens SigningCeremony with the filled PDF
+- Signing completes → `generate-signed-pdf` appends signature page (already working)
+- Email delivery via `send-signed-document` becomes functional
+
+No other code changes needed — the UI wiring is already correct with proper fallback handling.
+
