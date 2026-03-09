@@ -707,6 +707,7 @@ export type Database = {
           created_at: string | null
           customer_id: string | null
           doc_ref: string | null
+          email_sent_at: string | null
           expires_at: string | null
           file_size: number | null
           file_url: string
@@ -733,6 +734,7 @@ export type Database = {
           created_at?: string | null
           customer_id?: string | null
           doc_ref?: string | null
+          email_sent_at?: string | null
           expires_at?: string | null
           file_size?: number | null
           file_url: string
@@ -759,6 +761,7 @@ export type Database = {
           created_at?: string | null
           customer_id?: string | null
           doc_ref?: string | null
+          email_sent_at?: string | null
           expires_at?: string | null
           file_size?: number | null
           file_url?: string
