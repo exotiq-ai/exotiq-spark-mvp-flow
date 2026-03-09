@@ -17,6 +17,7 @@ import { ComplianceStackedBar } from "@/components/charts/ComplianceStackedBar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { AskRariQuickAction } from "@/components/common/AskRariQuickAction";
 import { useToast } from "@/hooks/use-toast";
+import { DocumentPreviewDialog } from "@/components/common/DocumentPreviewDialog";
 import { SkeletonCard, SkeletonMetric } from "@/components/ui/skeleton-card";
 import { EmptyState } from "@/components/common/EmptyState";
 import { 
@@ -56,6 +57,7 @@ export const VaultEnhanced = () => {
   const [alertDismissed, setAlertDismissed] = useState(false);
   const [alertExpanded, setAlertExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [previewDoc, setPreviewDoc] = useState<{ url: string; name: string } | null>(null);
 
   // Calculate urgent alert from real documents
   const urgentAlert = useMemo(() => {
@@ -170,25 +172,32 @@ export const VaultEnhanced = () => {
     ).slice(0, 20);
   }, [documents, searchQuery]);
 
-  const handleDownload = (doc: any) => {
-    if (doc.file_url) {
-      window.open(doc.file_url, '_blank');
-    } else {
-      toast({
-        title: "Download Started",
-        description: `Downloading ${doc.name}...`,
-      });
+  const handleDownload = async (doc: any) => {
+    if (!doc.file_url) {
+      toast({ title: "No file available", variant: "destructive" });
+      return;
+    }
+    try {
+      const response = await fetch(doc.file_url);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = doc.name || "document";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+    } catch {
+      toast({ title: "Download failed", description: "Try opening in a new tab instead.", variant: "destructive" });
     }
   };
 
   const handleView = (doc: any) => {
     if (doc.file_url) {
-      window.open(doc.file_url, '_blank');
+      setPreviewDoc({ url: doc.file_url, name: doc.name || "Document" });
     } else {
-      toast({
-        title: "Opening Document",
-        description: `Opening ${doc.name} in viewer...`,
-      });
+      toast({ title: "No file available", variant: "destructive" });
     }
   };
 
@@ -215,6 +224,13 @@ export const VaultEnhanced = () => {
 
   return (
     <>
+      <DocumentPreviewDialog
+        open={!!previewDoc}
+        onOpenChange={(open) => !open && setPreviewDoc(null)}
+        documentUrl={previewDoc?.url ?? null}
+        documentName={previewDoc?.name ?? ""}
+      />
+
       <DocumentUploadDialog
         open={showUploadDialog}
         onOpenChange={setShowUploadDialog}

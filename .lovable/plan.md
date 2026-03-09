@@ -1,60 +1,46 @@
 
+# Vault Signing Module — Implementation Complete
 
-# Two Issues: Chrome PDF Blocking + Post-Signing User Flow
+## What was built
 
-## Issue 1: Chrome Blocking the PDF URL
+### Phase A: Database Migration ✅
+- Added `doc_ref` (auto-generated `EXQ-DOC-YYYY-NNNNN`), `booking_id`, `is_default`, `signed_at`, `signed_by_name`, `signature_image_url`, `signing_metadata` (JSONB), `parent_document_id` columns to `documents` table
+- Created sequence + trigger for human-readable document references
+- Added indexes for performance
 
-The screenshot shows `ERR_BLOCKED_BY_CLIENT` when Chrome navigates directly to the signed storage URL. This is caused by **ad blockers or browser extensions** blocking the Supabase storage domain. Incognito works because extensions are disabled by default.
+### Phase B: Storage Fix ✅
+- Fixed `getPublicUrl` → `createSignedUrl` in `IDUploadDialog`, `InsuranceUploadDialog`, `DocumentUploadDialog`
+- Uses 1-year signed URLs for private `customer-documents` bucket
 
-This is NOT a code bug -- it's an extension/browser configuration issue. However, we can make the experience more resilient:
+### Phase C: Rental Agreement Support ✅
+- Added "Rental Agreement" type to DocumentUploadDialog
+- PDF-only restriction for rental agreements
+- "Set as Default" toggle with automatic clearing of previous defaults
+- Expiry date optional for rental agreements
 
-**Fix: Use an embedded PDF viewer instead of relying on direct URL navigation.**
+### Phase D: SignatureCanvas ✅
+- Native HTML5 canvas with pointer events (touch/stylus/mouse)
+- Clear button, visual feedback, export to PNG data URL
+- No external dependencies
 
-Currently the Vault and signing flow use raw signed URLs that the user might click to open in a new tab. Instead:
+### Phase E: generate-signed-pdf Edge Function ✅
+- Uses pdf-lib to append signature page to original PDF
+- Captures IP from request headers (x-forwarded-for)
+- Uploads signed PDF to customer-documents bucket
 
-1. **In VaultEnhanced.tsx** -- when "View" is clicked, show the PDF in an `<iframe>` inside a dialog (same pattern as the signing ceremony's review step) rather than opening a new tab via `window.open()`. This avoids the ad-blocker issue entirely.
-2. **For downloads** -- use a programmatic `fetch()` + `blob` + `URL.createObjectURL()` approach to download, which bypasses extension blocking since it happens via JS, not a direct navigation.
+### Phase F: SigningCeremony + DocumentPicker ✅
+- Full-screen 3-step wizard: Review → Sign → Complete
+- PDF viewer via iframe, agreement checkbox, signature canvas, printed name
+- Captures signing_metadata (IP, userAgent, deviceType, screen size)
+- DocumentPicker for selecting rental agreement when no default exists
 
-Files to change:
-- `VaultEnhanced.tsx` -- add a PDF preview dialog and change "View" button to open it inline; change "Download" to use fetch+blob
+### Phase G: Booking Integration ✅
+- Documents section in EnhancedBookingDialog Details tab
+- "Sign Document" button checks for default rental agreement
+- Shows signed documents linked to booking with doc_ref and signer info
 
-## Issue 2: Post-Signing User Flow
-
-Currently after signing completes, here's what happens:
-1. `SigningCeremony` shows a "Signing Complete" confirmation with the `doc_ref`
-2. User clicks "Done" which closes the dialog
-3. `onComplete(newDocRef)` callback fires back to `EnhancedBookingDialog`
-
-**What's missing / needs improvement:**
-
-The `onComplete` handler in `EnhancedBookingDialog` needs to:
-1. **Refresh the booking documents list** so the newly signed doc appears immediately
-2. **Show a success toast** with the doc_ref
-3. **Optionally navigate to Vault** or offer a "View in Vault" link
-
-Looking at the current `EnhancedBookingDialog`, I need to check the `onComplete` handler:
-
-The `handleSigningComplete` likely just closes the dialog. It should also refresh `bookingDocuments` state.
-
-**Plan:**
-
-### A. Inline PDF Viewer for Vault (Chrome fix)
-- Add a `DocumentPreviewDialog` component that renders an `<iframe>` with the signed URL
-- Update VaultEnhanced "View" button to open this dialog instead of `window.open()`
-- Update "Download" to use `fetch` → `blob` → `createObjectURL` → programmatic `<a>` click
-
-### B. Post-Signing Flow Polish
-- In `EnhancedBookingDialog`, after signing completes:
-  - Re-fetch documents for the booking (`bookingDocuments`)
-  - Show toast: "Document signed successfully — EXQ-DOC-2026-XXXXX"
-  - The signed doc should now appear in the Documents section of the booking dialog
-- The signed document also appears in VaultEnhanced on next load (already works via the DB insert)
-
-### Files to Change
-
-| File | Change |
-|------|--------|
-| `src/components/dashboard/VaultEnhanced.tsx` | Replace `window.open` with inline PDF preview dialog; blob-based download |
-| `src/components/dialogs/EnhancedBookingDialog.tsx` | Refresh bookingDocuments after signing; success toast |
-| `src/components/common/DocumentPreviewDialog.tsx` | Create -- reusable inline PDF viewer dialog |
-
+### Phase H: Vault Enhancements ✅
+- Search by name, type, doc_ref, signer name
+- "Default" badge on active rental agreement
+- "Signed" status badge for signed documents
+- View/Download buttons open actual file URLs
