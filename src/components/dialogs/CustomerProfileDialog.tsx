@@ -30,7 +30,9 @@ import {
   DollarSign,
   ArrowRight,
   FileText,
-  Truck
+  Truck,
+  Pencil,
+  UserCheck
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -46,6 +48,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Trash2 } from "lucide-react";
 import { EnhancedBookingDialog } from "@/components/dialogs/EnhancedBookingDialog";
+import { EditCustomerDialog } from "@/components/dialogs/EditCustomerDialog";
 import { formatCurrency } from "@/lib/utils";
 
 type Customer = Database['public']['Tables']['customers']['Row'];
