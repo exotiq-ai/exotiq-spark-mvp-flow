@@ -940,7 +940,39 @@ export const EnhancedBookingDialog = ({
                         </div>
                       </div>
 
-                      {/* Quick Links */}
+                      {/* Documents & Signing */}
+                      <div className="space-y-3">
+                        <h4 className="font-semibold flex items-center gap-2">
+                          <FileText className="h-4 w-4" />
+                          Documents
+                        </h4>
+                        {bookingDocuments.length > 0 ? (
+                          <div className="space-y-2">
+                            {bookingDocuments.map((doc) => (
+                              <div key={doc.id} className="p-3 bg-muted/20 rounded-lg flex items-center justify-between">
+                                <div>
+                                  <div className="font-medium text-sm">{doc.name}</div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {doc.doc_ref && `${doc.doc_ref} • `}
+                                    {doc.signed_by_name && `Signed by ${doc.signed_by_name}`}
+                                    {doc.signed_at && ` • ${format(new Date(doc.signed_at), "MMM d, yyyy")}`}
+                                  </div>
+                                </div>
+                                <Badge variant="outline" className="bg-success/10 text-success text-xs">
+                                  Signed
+                                </Badge>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">No signed documents for this booking.</p>
+                        )}
+                        <Button variant="outline" size="sm" onClick={handleSignDocument}>
+                          <FileText className="h-3.5 w-3.5 mr-1.5" />
+                          Sign Document
+                        </Button>
+                      </div>
+
                       <div className="flex flex-wrap gap-2">
                         <Button variant="outline" size="sm" onClick={() => { onOpenChange(false); onNavigateToModule?.("motoriq", { vehicleId: booking.vehicle_id }); }}>
                           <Car className="h-3 w-3 mr-1" />Vehicle<ExternalLink className="h-3 w-3 ml-1" />
