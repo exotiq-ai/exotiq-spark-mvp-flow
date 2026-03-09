@@ -117,6 +117,7 @@ export const EnhancedBookingDialog = ({
   const [loadingNotes, setLoadingNotes] = useState(false);
   const [activeTab, setActiveTab] = useState("details");
   const [locations, setLocations] = useState<Array<{ id: string; name: string }>>([]);
+  const [preparingDocument, setPreparingDocument] = useState(false);
   
   // Inline edit mode state
   const [isEditMode, setIsEditMode] = useState(false);
