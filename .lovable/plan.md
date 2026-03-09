@@ -1,33 +1,46 @@
 
+# Vault Signing Module — Implementation Complete
 
-# Fix: Gregory Ringler $1M Test Booking
+## What was built
 
-## The Problem
+### Phase A: Database Migration ✅
+- Added `doc_ref` (auto-generated `EXQ-DOC-YYYY-NNNNN`), `booking_id`, `is_default`, `signed_at`, `signed_by_name`, `signature_image_url`, `signing_metadata` (JSONB), `parent_document_id` columns to `documents` table
+- Created sequence + trigger for human-readable document references
+- Added indexes for performance
 
-The Feb 9 spike is caused by a **single test booking** from Gregory Ringler:
+### Phase B: Storage Fix ✅
+- Fixed `getPublicUrl` → `createSignedUrl` in `IDUploadDialog`, `InsuranceUploadDialog`, `DocumentUploadDialog`
+- Uses 1-year signed URLs for private `customer-documents` bucket
 
-| Field | Value |
-|-------|-------|
-| Customer | Gregory Ringler |
-| Total Value | $1,000,000 |
-| Daily Rate | $799 |
-| Start Date | 2026-02-10 UTC (shows as Feb 9 in your timezone) |
-| End Date | 2026-02-08 (before start — invalid) |
-| Vehicle | None assigned |
-| Created | Jan 31, 2026 |
+### Phase C: Rental Agreement Support ✅
+- Added "Rental Agreement" type to DocumentUploadDialog
+- PDF-only restriction for rental agreements
+- "Set as Default" toggle with automatic clearing of previous defaults
+- Expiry date optional for rental agreements
 
-He has a second identical $1M booking from 2025 (status: pending) that's also bad data. Both were created on Jan 31 during early testing — $799/day rate with a $1M total value is clearly a data entry error.
+### Phase D: SignatureCanvas ✅
+- Native HTML5 canvas with pointer events (touch/stylus/mouse)
+- Clear button, visual feedback, export to PNG data URL
+- No external dependencies
 
-## Fix
+### Phase E: generate-signed-pdf Edge Function ✅
+- Uses pdf-lib to append signature page to original PDF
+- Captures IP from request headers (x-forwarded-for)
+- Uploads signed PDF to customer-documents bucket
 
-Delete both Gregory Ringler bookings and any associated payments via a database migration. This is the same surgical cleanup approach we just used — exact name match, 2 records only.
+### Phase F: SigningCeremony + DocumentPicker ✅
+- Full-screen 3-step wizard: Review → Sign → Complete
+- PDF viewer via iframe, agreement checkbox, signature canvas, printed name
+- Captures signing_metadata (IP, userAgent, deviceType, screen size)
+- DocumentPicker for selecting rental agreement when no default exists
 
-```sql
-DELETE FROM payments WHERE booking_id IN (
-  SELECT id FROM bookings WHERE customer_name = 'Gregory Ringler'
-);
-DELETE FROM bookings WHERE customer_name = 'Gregory Ringler';
-```
+### Phase G: Booking Integration ✅
+- Documents section in EnhancedBookingDialog Details tab
+- "Sign Document" button checks for default rental agreement
+- Shows signed documents linked to booking with doc_ref and signer info
 
-After this, the Feb 9 spike disappears and the chart will show accurate revenue figures.
-
+### Phase H: Vault Enhancements ✅
+- Search by name, type, doc_ref, signer name
+- "Default" badge on active rental agreement
+- "Signed" status badge for signed documents
+- View/Download buttons open actual file URLs
