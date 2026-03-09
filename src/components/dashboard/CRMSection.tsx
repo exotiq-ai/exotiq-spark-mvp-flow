@@ -168,10 +168,16 @@ export const CRMSection = () => {
       <Card className="card-premium p-6">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-xl font-semibold">Customer Database</h3>
-          <Button onClick={() => setShowAddCustomer(true)} className="btn-premium">
-            <Plus className="w-4 h-4 mr-2" />
-            Add Customer
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={handleExport} disabled={customers.length === 0}>
+              <Download className="w-4 h-4 mr-2" />
+              Export
+            </Button>
+            <Button onClick={() => setShowAddCustomer(true)} className="btn-premium">
+              <Plus className="w-4 h-4 mr-2" />
+              Add Customer
+            </Button>
+          </div>
         </div>
 
         {/* Search and Filter */}
