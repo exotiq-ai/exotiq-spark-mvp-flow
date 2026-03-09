@@ -180,6 +180,15 @@ export const CustomerProfileDialog = ({
                     </div>
                   </div>
                 )}
+                {(customer as any).secondary_phone && (
+                  <div className="flex items-center space-x-3 p-3 rounded-lg bg-muted/30">
+                    <Phone className="w-4 h-4 text-muted-foreground" />
+                    <div>
+                      <div className="text-sm font-medium">{(customer as any).secondary_phone}</div>
+                      <div className="text-xs text-muted-foreground">Secondary Phone</div>
+                    </div>
+                  </div>
+                )}
                 {customer.address && (
                   <div className="flex items-center space-x-3 p-3 rounded-lg bg-muted/30">
                     <MapPin className="w-4 h-4 text-muted-foreground" />
