@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { TabsContent } from "@/components/ui/tabs";
 import { ModuleTabs } from "@/components/common/ModuleTabs";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
@@ -32,7 +33,8 @@ import {
   UserCheck,
   ChevronDown,
   ChevronUp,
-  X
+  X,
+  Search
 } from "lucide-react";
 
 const EXPIRING_SOON_DAYS = 30;
@@ -44,7 +46,6 @@ export const VaultEnhanced = () => {
   const { currentTeam } = useTeam();
   const { toast } = useToast();
 
-  // Page-level realtime subscription for maintenance_schedules table
   useRealtimeTable('maintenance_schedules', {
     teamId: currentTeam?.id,
     onUpdate: refreshMaintenance,
@@ -54,8 +55,9 @@ export const VaultEnhanced = () => {
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [alertDismissed, setAlertDismissed] = useState(false);
   const [alertExpanded, setAlertExpanded] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
-  // Calculate urgent alert from real documents (soonest expiring within 30 days)
+  // Calculate urgent alert from real documents
   const urgentAlert = useMemo(() => {
     const now = new Date();
     const soonThreshold = new Date(now.getTime() + EXPIRING_SOON_DAYS * 24 * 60 * 60 * 1000);
@@ -73,7 +75,6 @@ export const VaultEnhanced = () => {
     const doc = expiringDocs[0];
     const daysLeft = Math.ceil((new Date(doc.expires_at!).getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
     
-    // Try to find the associated vehicle name
     const vehicle = vehicles?.find(v => v.id === doc.vehicle_id);
     const vehicleName = vehicle ? `${vehicle.year || ''} ${vehicle.make || ''} ${vehicle.model || ''}`.trim() : null;
 
@@ -86,22 +87,17 @@ export const VaultEnhanced = () => {
     };
   }, [documents, vehicles]);
 
-  // Calculate compliance score from real documents
+  // Compliance score
   const complianceScore = useMemo(() => {
     const now = new Date();
     const docs = documents || [];
     
     if (docs.length === 0) {
-      return {
-        percentage: 0,
-        status: "empty",
-        itemsCompliant: 0,
-        itemsTotal: 0
-      };
+      return { percentage: 0, status: "empty", itemsCompliant: 0, itemsTotal: 0 };
     }
 
     const compliantDocs = docs.filter(d => {
-      if (!d.expires_at) return true; // No expiry = compliant
+      if (!d.expires_at) return true;
       return new Date(d.expires_at) > now;
     }).length;
 
@@ -115,16 +111,15 @@ export const VaultEnhanced = () => {
     };
   }, [documents]);
 
-  // Calculate categories from real documents
+  // Categories
   const categories = useMemo(() => {
     const now = new Date();
     const docs = documents || [];
     
     return CATEGORY_TYPES.map(categoryName => {
-      // Match documents by type (partial match, case-insensitive)
       const categoryDocs = docs.filter(d => 
         d.type?.toLowerCase().includes(categoryName.toLowerCase()) ||
-        d.type?.toLowerCase().includes(categoryName.slice(0, -1).toLowerCase()) // Handle plural/singular
+        d.type?.toLowerCase().includes(categoryName.slice(0, -1).toLowerCase())
       );
       
       const expired = categoryDocs.filter(d => 
@@ -161,20 +156,40 @@ export const VaultEnhanced = () => {
     });
   }, [documents]);
 
-  const recentDocuments = Array.isArray(documents) ? documents.slice(0, 5) : [];
+  // Filter documents by search
+  const filteredDocuments = useMemo(() => {
+    const docs = Array.isArray(documents) ? documents : [];
+    if (!searchQuery.trim()) return docs.slice(0, 20);
+    
+    const q = searchQuery.toLowerCase();
+    return docs.filter(d =>
+      d.name?.toLowerCase().includes(q) ||
+      d.type?.toLowerCase().includes(q) ||
+      (d as any).doc_ref?.toLowerCase().includes(q) ||
+      (d as any).signed_by_name?.toLowerCase().includes(q)
+    ).slice(0, 20);
+  }, [documents, searchQuery]);
 
-  const handleDownload = (docName: string) => {
-    toast({
-      title: "Download Started",
-      description: `Downloading ${docName}...`,
-    });
+  const handleDownload = (doc: any) => {
+    if (doc.file_url) {
+      window.open(doc.file_url, '_blank');
+    } else {
+      toast({
+        title: "Download Started",
+        description: `Downloading ${doc.name}...`,
+      });
+    }
   };
 
-  const handleView = (docName: string) => {
-    toast({
-      title: "Opening Document",
-      description: `Opening ${docName} in viewer...`,
-    });
+  const handleView = (doc: any) => {
+    if (doc.file_url) {
+      window.open(doc.file_url, '_blank');
+    } else {
+      toast({
+        title: "Opening Document",
+        description: `Opening ${doc.name} in viewer...`,
+      });
+    }
   };
 
   const formatDate = (dateString: string | null) => {
@@ -217,7 +232,7 @@ export const VaultEnhanced = () => {
         data-tour="vault-tabs"
       >
         <TabsContent value="documents" className="space-y-4 sm:space-y-6">
-      {/* Compact Urgent Alert - Only show if there's actually an expiring document */}
+      {/* Compact Urgent Alert */}
       {urgentAlert && !alertDismissed && (
         <Collapsible open={alertExpanded} onOpenChange={setAlertExpanded}>
           <Card className="border-l-4 border-l-warning bg-warning/5 overflow-hidden">
@@ -350,10 +365,10 @@ export const VaultEnhanced = () => {
       {/* Compliance Distribution Chart */}
       <ComplianceStackedBar />
 
-      {/* Recent Documents */}
+      {/* Documents List */}
       <Card className="card-premium p-4 sm:p-6">
         <div className="flex items-center justify-between mb-4 sm:mb-6 gap-2">
-          <h3 className="text-lg sm:text-xl font-semibold">Recent Documents</h3>
+          <h3 className="text-lg sm:text-xl font-semibold">Documents</h3>
           <Button 
             className="btn-premium hover-scale text-xs sm:text-sm px-3 sm:px-4"
             onClick={() => setShowUploadDialog(true)}
@@ -362,20 +377,31 @@ export const VaultEnhanced = () => {
             Upload
           </Button>
         </div>
+
+        {/* Search */}
+        <div className="relative mb-4">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by name, type, doc ref, signer..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
         
         <div className="space-y-3 sm:space-y-4">
-          {recentDocuments.length === 0 ? (
+          {filteredDocuments.length === 0 ? (
             <EmptyState
               icon={<FileText className="h-12 w-12 sm:h-16 sm:w-16" />}
-              title="No documents yet"
-              description="Upload your first document to track insurance, registration, inspections, and compliance."
-              action={{
+              title={searchQuery ? "No documents match your search" : "No documents yet"}
+              description={searchQuery ? "Try a different search term." : "Upload your first document to track insurance, registration, inspections, and compliance."}
+              action={!searchQuery ? {
                 label: "Upload Document",
                 onClick: () => setShowUploadDialog(true)
-              }}
+              } : undefined}
             />
           ) : (
-            recentDocuments.map((doc, index) => (
+            filteredDocuments.map((doc, index) => (
             <div key={index} className="p-3 sm:p-4 rounded-lg sm:rounded-xl bg-muted/30 border border-primary/10 hover-scale cursor-pointer">
               <div className="flex items-start justify-between gap-2 mb-2 sm:mb-3">
                 <div className="flex items-start gap-2 sm:gap-3 min-w-0 flex-1">
@@ -383,26 +409,47 @@ export const VaultEnhanced = () => {
                     <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <h4 className="font-semibold text-sm sm:text-base truncate">{doc.name}</h4>
-                    <p className="text-[10px] sm:text-xs text-muted-foreground">{doc.type} • {formatDate(doc.created_at)}</p>
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-semibold text-sm sm:text-base truncate">{doc.name}</h4>
+                      {(doc as any).is_default && (
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 flex-shrink-0">Default</Badge>
+                      )}
+                    </div>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">
+                      {(doc as any).doc_ref && <span className="font-mono">{(doc as any).doc_ref} • </span>}
+                      {doc.type} • {formatDate(doc.created_at)}
+                      {(doc as any).signed_by_name && ` • Signed by ${(doc as any).signed_by_name}`}
+                    </p>
                   </div>
                 </div>
-                <Badge className={`text-[10px] sm:text-xs flex-shrink-0 ${doc.status === 'active' ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'}`}>
-                  {doc.status}
+                <Badge className={`text-[10px] sm:text-xs flex-shrink-0 ${
+                  (doc as any).signed_at ? 'bg-primary/10 text-primary' :
+                  doc.status === 'active' ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'
+                }`}>
+                  {(doc as any).signed_at ? 'Signed' : doc.status}
                 </Badge>
               </div>
               
               <div className="flex items-center justify-between">
                 <div className="flex items-center text-[10px] sm:text-xs text-muted-foreground">
-                  <Calendar className="w-3 h-3 mr-1" />
-                  Expires: {formatDate(doc.expires_at)}
+                  {(doc as any).signed_at ? (
+                    <>
+                      <Calendar className="w-3 h-3 mr-1" />
+                      Signed: {formatDate((doc as any).signed_at)}
+                    </>
+                  ) : (
+                    <>
+                      <Calendar className="w-3 h-3 mr-1" />
+                      Expires: {formatDate(doc.expires_at)}
+                    </>
+                  )}
                 </div>
                 <div className="flex">
                   <Button 
                     size="sm" 
                     variant="ghost"
                     className="h-7 w-7 sm:h-8 sm:w-8 p-0"
-                    onClick={() => handleView(doc.name)}
+                    onClick={() => handleView(doc)}
                   >
                     <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   </Button>
@@ -410,7 +457,7 @@ export const VaultEnhanced = () => {
                     size="sm" 
                     variant="ghost"
                     className="h-7 w-7 sm:h-8 sm:w-8 p-0"
-                    onClick={() => handleDownload(doc.name)}
+                    onClick={() => handleDownload(doc)}
                   >
                     <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   </Button>
