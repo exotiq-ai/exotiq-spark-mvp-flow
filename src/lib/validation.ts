@@ -32,7 +32,7 @@ export const validators = {
 
   phone: (value: string): ValidationResult => {
     if (!value) return { isValid: true }; // Optional field
-    const phoneRegex = /^[\d\s\-\+\(\)]+$/;
+    const phoneRegex = /^[\d\s\-\+\(\)\.]+$/;
     if (!phoneRegex.test(value)) {
       return { isValid: false, error: "Please enter a valid phone number" };
     }

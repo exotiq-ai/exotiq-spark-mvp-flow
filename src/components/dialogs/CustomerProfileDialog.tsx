@@ -30,7 +30,9 @@ import {
   DollarSign,
   ArrowRight,
   FileText,
-  Truck
+  Truck,
+  Pencil,
+  UserCheck
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -46,7 +48,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Trash2 } from "lucide-react";
 import { EnhancedBookingDialog } from "@/components/dialogs/EnhancedBookingDialog";
+import { EditCustomerDialog } from "@/components/dialogs/EditCustomerDialog";
 import { formatCurrency } from "@/lib/utils";
+import { CustomerTimeline } from "@/components/crm/CustomerTimeline";
 
 type Customer = Database['public']['Tables']['customers']['Row'];
 type Booking = Database['public']['Tables']['bookings']['Row'];
@@ -67,10 +71,11 @@ export const CustomerProfileDialog = ({
   onAddBooking,
 }: CustomerProfileDialogProps) => {
   const { user } = useAuth();
-  const { addCustomerNote, updateCustomer, blacklistCustomer, deleteCustomer, customerNotes } = useFleet();
+  const { addCustomerNote, updateCustomer, blacklistCustomer, deleteCustomer, customerNotes, refreshCustomers } = useFleet();
   const [newNote, setNewNote] = useState("");
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [isAddingNote, setIsAddingNote] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
 
   const customerNotesList = customerNotes.filter(note => note.customer_id === customer.id);
   
@@ -119,7 +124,12 @@ export const CustomerProfileDialog = ({
         <DialogHeader>
           <div className="flex items-start justify-between">
             <div>
-              <DialogTitle className="text-2xl">{customer.full_name}</DialogTitle>
+              <DialogTitle className="text-2xl flex items-center gap-2">
+                {customer.full_name}
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setShowEditDialog(true)}>
+                  <Pencil className="w-4 h-4" />
+                </Button>
+              </DialogTitle>
               <DialogDescription className="flex items-center space-x-2 mt-1">
                 <Mail className="w-3 h-3" />
                 <span>{customer.email}</span>
@@ -130,8 +140,9 @@ export const CustomerProfileDialog = ({
         </DialogHeader>
 
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="activity">Activity</TabsTrigger>
             <TabsTrigger value="bookings">Bookings</TabsTrigger>
             <TabsTrigger value="notes">Notes</TabsTrigger>
           </TabsList>
@@ -171,6 +182,15 @@ export const CustomerProfileDialog = ({
                     </div>
                   </div>
                 )}
+                {(customer as any).secondary_phone && (
+                  <div className="flex items-center space-x-3 p-3 rounded-lg bg-muted/30">
+                    <Phone className="w-4 h-4 text-muted-foreground" />
+                    <div>
+                      <div className="text-sm font-medium">{(customer as any).secondary_phone}</div>
+                      <div className="text-xs text-muted-foreground">Secondary Phone</div>
+                    </div>
+                  </div>
+                )}
                 {customer.address && (
                   <div className="flex items-center space-x-3 p-3 rounded-lg bg-muted/30">
                     <MapPin className="w-4 h-4 text-muted-foreground" />
@@ -182,6 +202,24 @@ export const CustomerProfileDialog = ({
                 )}
               </div>
             </div>
+
+            {/* Emergency Contact */}
+            {((customer as any).emergency_contact_name || (customer as any).emergency_contact_phone) && (
+              <div className="space-y-3">
+                <h4 className="font-semibold text-sm text-muted-foreground">Emergency Contact</h4>
+                <div className="flex items-center space-x-3 p-3 rounded-lg bg-muted/30">
+                  <UserCheck className="w-4 h-4 text-muted-foreground" />
+                  <div>
+                    {(customer as any).emergency_contact_name && (
+                      <div className="text-sm font-medium">{(customer as any).emergency_contact_name}</div>
+                    )}
+                    {(customer as any).emergency_contact_phone && (
+                      <div className="text-xs text-muted-foreground">{(customer as any).emergency_contact_phone}</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* License & Insurance */}
             <div className="space-y-3">
@@ -259,6 +297,10 @@ export const CustomerProfileDialog = ({
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
+          </TabsContent>
+
+          <TabsContent value="activity" className="space-y-4">
+            <CustomerTimeline bookings={bookings} notes={customerNotesList} />
           </TabsContent>
 
           <TabsContent value="bookings" className="space-y-4">
@@ -415,6 +457,15 @@ export const CustomerProfileDialog = ({
         open={!!selectedBookingId}
         onOpenChange={(open) => !open && setSelectedBookingId(null)}
         bookingId={selectedBookingId || ''}
+      />
+      <EditCustomerDialog
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
+        customer={customer}
+        onSubmit={async (id, updates) => {
+          await updateCustomer(id, updates);
+          refreshCustomers();
+        }}
       />
     </Dialog>
   );

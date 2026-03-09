@@ -36,6 +36,7 @@ export const AddCustomerDialog = ({
     full_name: "",
     email: "",
     phone: "",
+    secondary_phone: "",
     drivers_license: "",
     license_expiry: "",
     insurance_provider: "",
@@ -44,6 +45,8 @@ export const AddCustomerDialog = ({
     date_of_birth: "",
     address: "",
     notes: "",
+    emergency_contact_name: "",
+    emergency_contact_phone: "",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -77,6 +80,7 @@ export const AddCustomerDialog = ({
         full_name: "",
         email: "",
         phone: "",
+        secondary_phone: "",
         drivers_license: "",
         license_expiry: "",
         insurance_provider: "",
@@ -85,6 +89,8 @@ export const AddCustomerDialog = ({
         date_of_birth: "",
         address: "",
         notes: "",
+        emergency_contact_name: "",
+        emergency_contact_phone: "",
       });
       setIsVIP(false);
       setError(null);
@@ -170,6 +176,16 @@ export const AddCustomerDialog = ({
                   />
                 </div>
                 <div>
+                  <Label htmlFor="secondary_phone">Secondary Phone</Label>
+                  <Input
+                    id="secondary_phone"
+                    type="tel"
+                    value={formData.secondary_phone}
+                    onChange={(e) => setFormData({ ...formData, secondary_phone: e.target.value })}
+                    placeholder="+1 (555) 000-0000"
+                  />
+                </div>
+                <div>
                   <Label htmlFor="date_of_birth">Date of Birth</Label>
                   <Input
                     id="date_of_birth"
@@ -244,6 +260,32 @@ export const AddCustomerDialog = ({
                     type="date"
                     value={formData.insurance_expiry}
                     onChange={(e) => setFormData({ ...formData, insurance_expiry: e.target.value })}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Emergency Contact */}
+            <div className="space-y-4">
+              <h4 className="font-semibold text-sm text-muted-foreground">Emergency Contact</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="emergency_contact_name">Contact Name</Label>
+                  <Input
+                    id="emergency_contact_name"
+                    value={formData.emergency_contact_name}
+                    onChange={(e) => setFormData({ ...formData, emergency_contact_name: e.target.value })}
+                    placeholder="Jane Doe"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="emergency_contact_phone">Contact Phone</Label>
+                  <Input
+                    id="emergency_contact_phone"
+                    type="tel"
+                    value={formData.emergency_contact_phone}
+                    onChange={(e) => setFormData({ ...formData, emergency_contact_phone: e.target.value })}
+                    placeholder="+1 555 000 0000"
                   />
                 </div>
               </div>

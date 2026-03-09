@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,12 +20,16 @@ import {
   Phone,
   Mail,
   Plus,
-  Filter
+  Filter,
+  Calendar,
+  Download
 } from "lucide-react";
 import { CustomerProfileDialog } from "@/components/dialogs/CustomerProfileDialog";
 import { AddCustomerDialog } from "@/components/dialogs/AddCustomerDialog";
 import { NewBookingDialog } from "@/components/dialogs/NewBookingDialog";
 import { Database } from "@/integrations/supabase/types";
+import { formatDistanceToNow } from "date-fns";
+import * as XLSX from "xlsx";
 
 type Customer = Database['public']['Tables']['customers']['Row'];
 
@@ -85,6 +89,33 @@ export const CRMSection = () => {
         return <Badge className="bg-success/10 text-success border-success/30">Active</Badge>;
     }
   };
+  // Get last booking date per customer
+  const lastBookingMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    bookings.forEach(b => {
+      const existing = map[b.customer_id || ''];
+      if (!existing || new Date(b.start_date) > new Date(existing)) {
+        map[b.customer_id || ''] = b.start_date;
+      }
+    });
+    return map;
+  }, [bookings]);
+
+  const handleExport = useCallback(() => {
+    const data = filteredCustomers.map(c => ({
+      Name: c.full_name,
+      Email: c.email,
+      Phone: c.phone || '',
+      Status: c.customer_status || 'active',
+      'Total Bookings': c.total_bookings || 0,
+      'Lifetime Value': c.lifetime_value || 0,
+      'Last Booking': lastBookingMap[c.id] ? new Date(lastBookingMap[c.id]).toLocaleDateString() : 'Never',
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Customers");
+    XLSX.writeFile(wb, "customers_export.xlsx");
+  }, [filteredCustomers, lastBookingMap]);
 
   const handleCustomerClick = (customerId: string) => {
     setSelectedCustomerId(customerId);
@@ -164,10 +195,16 @@ export const CRMSection = () => {
       <Card className="card-premium p-6">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-xl font-semibold">Customer Database</h3>
-          <Button onClick={() => setShowAddCustomer(true)} className="btn-premium">
-            <Plus className="w-4 h-4 mr-2" />
-            Add Customer
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={handleExport} disabled={customers.length === 0}>
+              <Download className="w-4 h-4 mr-2" />
+              Export
+            </Button>
+            <Button onClick={() => setShowAddCustomer(true)} className="btn-premium">
+              <Plus className="w-4 h-4 mr-2" />
+              Add Customer
+            </Button>
+          </div>
         </div>
 
         {/* Search and Filter */}
@@ -211,7 +248,9 @@ export const CRMSection = () => {
 
         {/* Customer Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {filteredCustomers.map((customer) => (
+          {filteredCustomers.map((customer) => {
+            const lastBooking = lastBookingMap[customer.id];
+            return (
             <div
               key={customer.id}
               onClick={() => handleCustomerClick(customer.id)}
@@ -225,25 +264,53 @@ export const CRMSection = () => {
                 {getStatusBadge(customer.customer_status)}
               </div>
 
-              <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="grid grid-cols-3 gap-3 text-sm">
                 <div>
-                  <div className="text-muted-foreground text-xs">Total Bookings</div>
+                  <div className="text-muted-foreground text-xs">Bookings</div>
                   <div className="font-medium">{customer.total_bookings || 0}</div>
                 </div>
                 <div>
                   <div className="text-muted-foreground text-xs">Lifetime Value</div>
                   <div className="font-medium text-success">${(customer.lifetime_value || 0).toLocaleString()}</div>
                 </div>
+                <div>
+                  <div className="text-muted-foreground text-xs">Last Booking</div>
+                  <div className="font-medium text-xs">
+                    {lastBooking ? formatDistanceToNow(new Date(lastBooking), { addSuffix: true }) : 'Never'}
+                  </div>
+                </div>
               </div>
 
-              {customer.phone && (
-                <div className="flex items-center space-x-2 mt-3 text-sm text-muted-foreground">
-                  <Phone className="w-3 h-3" />
-                  <span>{customer.phone}</span>
+              {/* Quick Actions */}
+              <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/50">
+                <div className="flex gap-1">
+                  {customer.phone && (
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); window.open(`tel:${customer.phone}`); }}>
+                      <Phone className="w-3.5 h-3.5" />
+                    </Button>
+                  )}
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); window.open(`mailto:${customer.email}`); }}>
+                    <Mail className="w-3.5 h-3.5" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => {
+                    e.stopPropagation();
+                    setPrefillCustomer(customer);
+                    setShowNewBooking(true);
+                  }}>
+                    <Calendar className="w-3.5 h-3.5" />
+                  </Button>
                 </div>
-              )}
+                {(customer as any).tags?.length > 0 && (
+                  <div className="flex gap-1">
+                    {((customer as any).tags as string[]).slice(0, 2).map((tag: string) => (
+                      <Badge key={tag} variant="secondary" className="text-[10px] px-1.5 py-0">{tag}</Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-          ))}
+            );
+          })}
 
           {filteredCustomers.length === 0 && searchQuery === "" && filterStatus === "all" && (
             <div className="col-span-2">

@@ -357,6 +357,8 @@ export type Database = {
           date_of_birth: string | null
           drivers_license: string | null
           email: string
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
           full_name: string
           id: string
           id_document_url: string | null
@@ -373,7 +375,9 @@ export type Database = {
           notes: string | null
           phone: string | null
           preferences: Json | null
+          secondary_phone: string | null
           stripe_customer_id: string | null
+          tags: string[] | null
           team_id: string | null
           total_bookings: number | null
           updated_at: string | null
@@ -387,6 +391,8 @@ export type Database = {
           date_of_birth?: string | null
           drivers_license?: string | null
           email: string
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
           full_name: string
           id?: string
           id_document_url?: string | null
@@ -403,7 +409,9 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           preferences?: Json | null
+          secondary_phone?: string | null
           stripe_customer_id?: string | null
+          tags?: string[] | null
           team_id?: string | null
           total_bookings?: number | null
           updated_at?: string | null
@@ -417,6 +425,8 @@ export type Database = {
           date_of_birth?: string | null
           drivers_license?: string | null
           email?: string
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
           full_name?: string
           id?: string
           id_document_url?: string | null
@@ -433,7 +443,9 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           preferences?: Json | null
+          secondary_phone?: string | null
           stripe_customer_id?: string | null
+          tags?: string[] | null
           team_id?: string | null
           total_bookings?: number | null
           updated_at?: string | null
