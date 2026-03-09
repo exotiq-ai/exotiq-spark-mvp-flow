@@ -245,8 +245,41 @@ export const EnhancedBookingDialog = ({
     };
     if (open) fetchLocations();
   }, [open]);
-
+  // Fetch signed documents for this booking
   useEffect(() => {
+    const fetchBookingDocs = async () => {
+      if (!bookingId) return;
+      const { data } = await supabase
+        .from("documents")
+        .select("id, name, doc_ref, signed_at, signed_by_name, type, file_url")
+        .eq("booking_id", bookingId)
+        .order("created_at", { ascending: false });
+      setBookingDocuments(data || []);
+    };
+    if (open && bookingId) fetchBookingDocs();
+  }, [open, bookingId]);
+
+  const handleSignDocument = async () => {
+    if (!currentTeam?.id) return;
+    // Check for default rental agreement
+    const { data: defaultDoc } = await supabase
+      .from("documents")
+      .select("id, name, file_url, doc_ref, team_id")
+      .eq("team_id", currentTeam.id)
+      .eq("type", "Rental Agreement")
+      .eq("is_default", true)
+      .limit(1)
+      .maybeSingle();
+
+    if (defaultDoc) {
+      setSigningDocument(defaultDoc);
+      setShowSigningCeremony(true);
+    } else {
+      setShowDocumentPicker(true);
+    }
+  };
+
+
     const fetchCustomerNotes = async () => {
       if (!booking?.customer_id) return;
       setLoadingNotes(true);
