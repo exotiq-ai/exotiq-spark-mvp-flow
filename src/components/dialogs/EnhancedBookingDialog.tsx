@@ -26,6 +26,7 @@ import { LinkCustomerDialog } from "./LinkCustomerDialog";
 import { LinkVehicleDialog } from "./LinkVehicleDialog";
 import { SigningCeremony } from "@/components/signing/SigningCeremony";
 import { DocumentPicker } from "@/components/signing/DocumentPicker";
+import { DocumentPreviewDialog } from "@/components/common/DocumentPreviewDialog";
 import { useFleet } from "@/contexts/FleetContext";
 import { useTeam } from "@/contexts/TeamContext";
 import { useToast } from "@/hooks/use-toast";
@@ -64,6 +65,7 @@ import {
   X,
   Save,
   FileText,
+  Loader2,
 } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -107,12 +109,16 @@ export const EnhancedBookingDialog = ({
   const [showDocumentPicker, setShowDocumentPicker] = useState(false);
   const [signingDocument, setSigningDocument] = useState<{ id: string; name: string; file_url: string; doc_ref?: string | null; team_id?: string | null } | null>(null);
   const [bookingDocuments, setBookingDocuments] = useState<any[]>([]);
+  const [showDocPreview, setShowDocPreview] = useState(false);
+  const [previewDocUrl, setPreviewDocUrl] = useState<string | null>(null);
+  const [previewDocName, setPreviewDocName] = useState("");
   const [customerNotes, setCustomerNotes] = useState<CustomerNote[]>([]);
   const [newNote, setNewNote] = useState("");
   const [addingNote, setAddingNote] = useState(false);
   const [loadingNotes, setLoadingNotes] = useState(false);
   const [activeTab, setActiveTab] = useState("details");
   const [locations, setLocations] = useState<Array<{ id: string; name: string }>>([]);
+  const [preparingDocument, setPreparingDocument] = useState(false);
   
   // Inline edit mode state
   const [isEditMode, setIsEditMode] = useState(false);
@@ -260,9 +266,31 @@ export const EnhancedBookingDialog = ({
     if (open && bookingId) fetchBookingDocs();
   }, [open, bookingId]);
 
+  const fillTemplateAndOpen = async (doc: { id: string; name: string; file_url: string; doc_ref?: string | null; team_id?: string | null }) => {
+    if (!booking) return;
+    setPreparingDocument(true);
+    try {
+      const { data: result, error } = await supabase.functions.invoke("fill-rental-template", {
+        body: { templateDocumentId: doc.id, bookingId: booking.id },
+      });
+      if (error || result?.error) {
+        console.warn("Auto-fill unavailable, using raw template:", error || result?.error);
+        setSigningDocument(doc);
+      } else {
+        // Use the filled PDF URL
+        setSigningDocument({ ...doc, file_url: result.filledPdfUrl });
+      }
+    } catch (e) {
+      console.warn("Auto-fill failed, using raw template:", e);
+      setSigningDocument(doc);
+    } finally {
+      setPreparingDocument(false);
+      setShowSigningCeremony(true);
+    }
+  };
+
   const handleSignDocument = async () => {
-    if (!currentTeam?.id) return;
-    // Check for default rental agreement
+    if (!currentTeam?.id || !booking) return;
     const { data: defaultDoc } = await supabase
       .from("documents")
       .select("id, name, file_url, doc_ref, team_id")
@@ -273,8 +301,7 @@ export const EnhancedBookingDialog = ({
       .maybeSingle();
 
     if (defaultDoc) {
-      setSigningDocument(defaultDoc);
-      setShowSigningCeremony(true);
+      await fillTemplateAndOpen(defaultDoc);
     } else {
       setShowDocumentPicker(true);
     }
@@ -949,7 +976,7 @@ export const EnhancedBookingDialog = ({
                         </h4>
                         {bookingDocuments.length > 0 ? (
                           <div className="space-y-2">
-                            {bookingDocuments.map((doc) => (
+                        {bookingDocuments.map((doc) => (
                               <div key={doc.id} className="p-3 bg-muted/20 rounded-lg flex items-center justify-between">
                                 <div>
                                   <div className="font-medium text-sm">{doc.name}</div>
@@ -959,18 +986,40 @@ export const EnhancedBookingDialog = ({
                                     {doc.signed_at && ` • ${format(new Date(doc.signed_at), "MMM d, yyyy")}`}
                                   </div>
                                 </div>
-                                <Badge variant="outline" className="bg-success/10 text-success text-xs">
-                                  Signed
-                                </Badge>
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                      setPreviewDocUrl(doc.file_url);
+                                      setPreviewDocName(doc.name);
+                                      setShowDocPreview(true);
+                                    }}
+                                  >
+                                    View
+                                  </Button>
+                                  <Badge variant="outline" className="bg-success/10 text-success text-xs">
+                                    Signed
+                                  </Badge>
+                                </div>
                               </div>
                             ))}
                           </div>
                         ) : (
                           <p className="text-sm text-muted-foreground">No signed documents for this booking.</p>
                         )}
-                        <Button variant="outline" size="sm" onClick={handleSignDocument}>
-                          <FileText className="h-3.5 w-3.5 mr-1.5" />
-                          Sign Document
+                        <Button className="bg-teal-600 hover:bg-teal-700 text-white" onClick={handleSignDocument} disabled={preparingDocument}>
+                          {preparingDocument ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Preparing Agreement...
+                            </>
+                          ) : (
+                            <>
+                              <FileText className="h-4 w-4 mr-2" />
+                              Sign Document
+                            </>
+                          )}
                         </Button>
                       </div>
 
@@ -1208,29 +1257,41 @@ export const EnhancedBookingDialog = ({
             daily_rate: Number(booking.daily_rate),
           }}
           document={signingDocument}
-          onComplete={(docRef) => {
+          onComplete={async (docRef) => {
             toast({ title: "Document Signed", description: `Reference: ${docRef}` });
             // Refresh booking documents
-            const fetchDocs = async () => {
-              const { data } = await supabase
-                .from("documents")
-                .select("id, name, doc_ref, signed_at, signed_by_name, type, file_url")
-                .eq("booking_id", booking.id)
-                .order("created_at", { ascending: false });
-              setBookingDocuments(data || []);
-            };
-            fetchDocs();
+            const { data } = await supabase
+              .from("documents")
+              .select("id, name, doc_ref, signed_at, signed_by_name, type, file_url")
+              .eq("booking_id", booking.id)
+              .order("created_at", { ascending: false });
+            setBookingDocuments(data || []);
+
+            // Auto-send signed document via email
+            const signedDoc = data?.find((d: any) => d.doc_ref === docRef);
+            if (signedDoc) {
+              supabase.functions.invoke("send-signed-document", {
+                body: { documentId: signedDoc.id, sendToRenter: true, sendToOperator: true },
+              }).then(({ error }) => {
+                if (!error) toast({ title: "Signed agreement emailed to renter and operator" });
+              });
+            }
           }}
         />
       )}
       <DocumentPicker
         open={showDocumentPicker}
         onOpenChange={setShowDocumentPicker}
-        onSelect={(doc) => {
-          setSigningDocument(doc);
+        onSelect={async (doc) => {
           setShowDocumentPicker(false);
-          setShowSigningCeremony(true);
+          await fillTemplateAndOpen(doc);
         }}
+      />
+      <DocumentPreviewDialog
+        open={showDocPreview}
+        onOpenChange={setShowDocPreview}
+        documentUrl={previewDocUrl}
+        documentName={previewDocName}
       />
     </>
   );

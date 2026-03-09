@@ -168,7 +168,8 @@ export const VaultEnhanced = () => {
       d.name?.toLowerCase().includes(q) ||
       d.type?.toLowerCase().includes(q) ||
       (d as any).doc_ref?.toLowerCase().includes(q) ||
-      (d as any).signed_by_name?.toLowerCase().includes(q)
+      (d as any).signed_by_name?.toLowerCase().includes(q) ||
+      (d as any).booking_id?.toLowerCase().includes(q)
     ).slice(0, 20);
   }, [documents, searchQuery]);
 
