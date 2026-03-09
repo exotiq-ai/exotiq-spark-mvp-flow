@@ -224,6 +224,13 @@ export const VaultEnhanced = () => {
 
   return (
     <>
+      <DocumentPreviewDialog
+        open={!!previewDoc}
+        onOpenChange={(open) => !open && setPreviewDoc(null)}
+        documentUrl={previewDoc?.url ?? null}
+        documentName={previewDoc?.name ?? ""}
+      />
+
       <DocumentUploadDialog
         open={showUploadDialog}
         onOpenChange={setShowUploadDialog}
