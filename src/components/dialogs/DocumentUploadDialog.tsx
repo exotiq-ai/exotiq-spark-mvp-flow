@@ -147,7 +147,7 @@ export const DocumentUploadDialog = ({
         .from('documents')
         .update({ is_default: false })
         .eq('team_id', currentTeam.id)
-        .eq('type', 'Rental Agreement')
+        .eq('type', 'rental_agreement')
         .eq('is_default', true);
 
       if (clearError) {
