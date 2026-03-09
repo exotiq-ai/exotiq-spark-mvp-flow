@@ -26,6 +26,7 @@ import { LinkCustomerDialog } from "./LinkCustomerDialog";
 import { LinkVehicleDialog } from "./LinkVehicleDialog";
 import { SigningCeremony } from "@/components/signing/SigningCeremony";
 import { DocumentPicker } from "@/components/signing/DocumentPicker";
+import { DocumentPreviewDialog } from "@/components/common/DocumentPreviewDialog";
 import { useFleet } from "@/contexts/FleetContext";
 import { useTeam } from "@/contexts/TeamContext";
 import { useToast } from "@/hooks/use-toast";
