@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -22,6 +22,10 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { SignatureCanvas, SignatureCanvasRef } from "./SignatureCanvas";
+import { ExotiqLogoCompact } from "@/components/common/ExotiqLogo";
+import { VehicleThumbnail } from "@/components/common/VehicleThumbnail";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
+import { Celebration } from "@/components/common/MicroInteractions";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -70,6 +74,8 @@ export const SigningCeremony = ({
   const [hasSignature, setHasSignature] = useState(false);
   const [loading, setLoading] = useState(false);
   const [completedDocRef, setCompletedDocRef] = useState<string | null>(null);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  const [celebrate, setCelebrate] = useState(false);
   const signatureRef = useRef<SignatureCanvasRef>(null);
 
   const resetState = useCallback(() => {
@@ -79,24 +85,44 @@ export const SigningCeremony = ({
     setHasSignature(false);
     setLoading(false);
     setCompletedDocRef(null);
+    setCelebrate(false);
   }, [booking.customer_name]);
 
+  // Prevent accidental navigation when signing is in progress
+  useEffect(() => {
+    if (!open) return;
+    const inProgress = step === "sign" && (hasSignature || agreed);
+    if (!inProgress) return;
+
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [open, step, hasSignature, agreed]);
+
   const handleClose = (isOpen: boolean) => {
+    if (!isOpen && step === "sign" && (hasSignature || agreed)) {
+      setShowCloseConfirm(true);
+      return;
+    }
     if (!isOpen) resetState();
     onOpenChange(isOpen);
   };
 
+  const confirmClose = () => {
+    setShowCloseConfirm(false);
+    resetState();
+    onOpenChange(false);
+  };
+
   // Extract storage path from file_url
   const getStoragePath = (fileUrl: string): string => {
-    // Signed URLs contain the path after /object/sign/customer-documents/
     const signMatch = fileUrl.match(/\/object\/sign\/customer-documents\/([^?]+)/);
     if (signMatch) return decodeURIComponent(signMatch[1]);
-
-    // Public URLs contain the path after /object/public/customer-documents/
     const pubMatch = fileUrl.match(/\/object\/public\/customer-documents\/([^?]+)/);
     if (pubMatch) return decodeURIComponent(pubMatch[1]);
-
-    // Fallback: assume it's already a path
     return fileUrl;
   };
 
@@ -105,7 +131,6 @@ export const SigningCeremony = ({
       toast.error("Please provide your signature");
       return;
     }
-
     if (!signerName.trim()) {
       toast.error("Please enter your printed name");
       return;
@@ -122,7 +147,7 @@ export const SigningCeremony = ({
       const timestamp = new Date().toISOString();
       const originalPdfPath = getStoragePath(rentalDoc.file_url);
 
-      // Upload signature image to storage
+      // Upload signature image
       const sigBase64 = signatureDataUrl.split(",")[1];
       const sigBytes = Uint8Array.from(atob(sigBase64), (c) => c.charCodeAt(0));
       const sigFileName = `signatures/${user.id}/${booking.id}-${Date.now()}.png`;
@@ -130,10 +155,8 @@ export const SigningCeremony = ({
       const { error: sigUploadError } = await supabase.storage
         .from("customer-documents")
         .upload(sigFileName, sigBytes, { contentType: "image/png" });
-
       if (sigUploadError) throw sigUploadError;
 
-      // Get signed URL for signature
       const { data: sigUrlData } = await supabase.storage
         .from("customer-documents")
         .createSignedUrl(sigFileName, 31536000);
@@ -162,12 +185,10 @@ export const SigningCeremony = ({
       if (fnError) throw fnError;
       if (result?.error) throw new Error(result.error);
 
-      // Get signed URL for the completed PDF
       const { data: signedPdfUrl } = await supabase.storage
         .from("customer-documents")
         .createSignedUrl(result.signedPdfPath, 31536000);
 
-      // Capture signing metadata
       const signingMetadata = {
         ip: result.clientIp || "unknown",
         userAgent: navigator.userAgent,
@@ -177,7 +198,6 @@ export const SigningCeremony = ({
         signedAt: timestamp,
       };
 
-      // Insert signed document record
       const { data: insertedDoc, error: insertError } = await supabase
         .from("documents")
         .insert({
@@ -204,6 +224,7 @@ export const SigningCeremony = ({
       const newDocRef = insertedDoc?.doc_ref || "Unknown";
       setCompletedDocRef(newDocRef);
       setStep("complete");
+      setCelebrate(true);
       onComplete(newDocRef);
     } catch (error: any) {
       console.error("Signing error:", error);
@@ -214,148 +235,175 @@ export const SigningCeremony = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            {step === "review" && "Review Rental Agreement"}
-            {step === "sign" && "Sign Document"}
-            {step === "complete" && "Signing Complete"}
-          </DialogTitle>
-        </DialogHeader>
-
-        {/* Booking header */}
-        {step !== "complete" && (
-          <div className="flex flex-wrap gap-3 text-sm">
-            <div className="flex items-center gap-1.5 text-muted-foreground">
-              <User className="h-3.5 w-3.5" />
-              <span>{booking.customer_name}</span>
-            </div>
-            {booking.vehicle_name && (
-              <div className="flex items-center gap-1.5 text-muted-foreground">
-                <Car className="h-3.5 w-3.5" />
-                <span>{booking.vehicle_name}</span>
-              </div>
-            )}
-            <div className="flex items-center gap-1.5 text-muted-foreground">
-              <CalendarIcon className="h-3.5 w-3.5" />
-              <span>
-                {format(new Date(booking.start_date), "MMM d")} — {format(new Date(booking.end_date), "MMM d, yyyy")}
+    <>
+      <Dialog open={open} onOpenChange={handleClose}>
+        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto max-sm:h-[100dvh] max-sm:max-h-none max-sm:w-screen max-sm:rounded-none max-sm:border-0">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3">
+              <ExotiqLogoCompact variant="auto" />
+              <Separator orientation="vertical" className="h-5" />
+              <span className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                {step === "review" && "Review Rental Agreement"}
+                {step === "sign" && "Sign Document"}
+                {step === "complete" && "Signing Complete"}
               </span>
-            </div>
-          </div>
-        )}
+            </DialogTitle>
+          </DialogHeader>
 
-        <Separator />
-
-        {/* Step: Review */}
-        {step === "review" && (
-          <div className="space-y-4">
-            <div className="rounded-lg border overflow-hidden bg-muted/20">
-              <iframe
-                src={rentalDoc.file_url}
-                className="w-full h-[400px]"
-                title="Rental Agreement Preview"
+          {/* Booking context card */}
+          {step !== "complete" && (
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border">
+              <VehicleThumbnail
+                vehicleName={booking.vehicle_name || "Vehicle"}
+                size="sm"
               />
-            </div>
-            <div className="flex justify-between items-center">
-              <p className="text-xs text-muted-foreground">
-                {rentalDoc.doc_ref && `Ref: ${rentalDoc.doc_ref} • `}
-                {rentalDoc.name}
-              </p>
-              <Button onClick={() => setStep("sign")}>
-                Continue to Sign
-                <ArrowRight className="h-4 w-4 ml-2" />
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Step: Sign */}
-        {step === "sign" && (
-          <div className="space-y-6">
-            {/* Agreement checkbox */}
-            <div className="flex items-start gap-3 p-4 rounded-lg border">
-              <Checkbox
-                id="agree-terms"
-                checked={agreed}
-                onCheckedChange={(checked) => setAgreed(checked === true)}
-                className="mt-0.5"
-              />
-              <label htmlFor="agree-terms" className="text-sm leading-relaxed cursor-pointer">
-                I have read and understand the rental agreement above. I agree to all terms and conditions
-                outlined in this document.
-              </label>
-            </div>
-
-            {/* Printed name */}
-            <div className="space-y-2">
-              <Label htmlFor="signer-name">Printed Name</Label>
-              <Input
-                id="signer-name"
-                value={signerName}
-                onChange={(e) => setSignerName(e.target.value)}
-                placeholder="Enter your full name"
-              />
-            </div>
-
-            {/* Signature canvas */}
-            <div className="space-y-2">
-              <Label>Signature</Label>
-              <SignatureCanvas
-                ref={signatureRef}
-                onSignatureChange={setHasSignature}
-              />
-            </div>
-
-            {/* Actions */}
-            <div className="flex justify-between">
-              <Button variant="outline" onClick={() => setStep("review")}>
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Review
-              </Button>
-              <Button
-                onClick={handleSign}
-                disabled={!agreed || !hasSignature || !signerName.trim() || loading}
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="h-4 w-4 mr-2" />
-                    Complete Signing
-                  </>
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                <div className="flex items-center gap-1.5 text-muted-foreground">
+                  <User className="h-3.5 w-3.5" />
+                  <span>{booking.customer_name}</span>
+                </div>
+                {booking.vehicle_name && (
+                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                    <Car className="h-3.5 w-3.5" />
+                    <span>{booking.vehicle_name}</span>
+                  </div>
                 )}
+                <div className="flex items-center gap-1.5 text-muted-foreground">
+                  <CalendarIcon className="h-3.5 w-3.5" />
+                  <span>
+                    {format(new Date(booking.start_date), "MMM d")} — {format(new Date(booking.end_date), "MMM d, yyyy")}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <Separator />
+
+          {/* Step: Review */}
+          {step === "review" && (
+            <div className="space-y-4">
+              <div className="rounded-lg border overflow-hidden bg-muted/20">
+                <iframe
+                  src={rentalDoc.file_url}
+                  className="w-full h-[400px] max-sm:h-[50dvh]"
+                  title="Rental Agreement Preview"
+                />
+              </div>
+              <div className="flex justify-between items-center">
+                <p className="text-xs text-muted-foreground">
+                  {rentalDoc.doc_ref && `Ref: ${rentalDoc.doc_ref} • `}
+                  {rentalDoc.name}
+                </p>
+                <Button onClick={() => setStep("sign")}>
+                  Continue to Sign
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Step: Sign */}
+          {step === "sign" && (
+            <div className="space-y-6">
+              <div className="flex items-start gap-3 p-4 rounded-lg border">
+                <Checkbox
+                  id="agree-terms"
+                  checked={agreed}
+                  onCheckedChange={(checked) => setAgreed(checked === true)}
+                  className="mt-0.5"
+                />
+                <label htmlFor="agree-terms" className="text-sm leading-relaxed cursor-pointer">
+                  I have read and understand the rental agreement above. I agree to all terms and conditions
+                  outlined in this document.
+                </label>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="signer-name">Printed Name</Label>
+                <Input
+                  id="signer-name"
+                  value={signerName}
+                  onChange={(e) => setSignerName(e.target.value)}
+                  placeholder="Enter your full name"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Signature</Label>
+                <SignatureCanvas
+                  ref={signatureRef}
+                  onSignatureChange={setHasSignature}
+                />
+              </div>
+
+              <div className="flex justify-between">
+                <Button variant="outline" onClick={() => setStep("review")}>
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Back to Review
+                </Button>
+                <Button
+                  onClick={handleSign}
+                  disabled={!agreed || !hasSignature || !signerName.trim() || loading}
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="h-4 w-4 mr-2" />
+                      Complete Signing
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Step: Complete */}
+          {step === "complete" && (
+            <div className="flex flex-col items-center py-8 space-y-4 text-center">
+              <div className="p-4 rounded-full bg-success/10">
+                <CheckCircle2 className="h-12 w-12 text-success" />
+              </div>
+              <h3 className="text-xl font-semibold">Document Signed Successfully</h3>
+              <p className="text-sm text-muted-foreground max-w-md">
+                The signed rental agreement has been filed in the Vault and linked to this booking.
+              </p>
+              {completedDocRef && (
+                <Badge variant="secondary" className="text-sm px-3 py-1">
+                  {completedDocRef}
+                </Badge>
+              )}
+              <Button onClick={() => handleClose(false)} className="mt-4">
+                Done
               </Button>
             </div>
-          </div>
-        )}
+          )}
+        </DialogContent>
+      </Dialog>
 
-        {/* Step: Complete */}
-        {step === "complete" && (
-          <div className="flex flex-col items-center py-8 space-y-4 text-center">
-            <div className="p-4 rounded-full bg-success/10">
-              <CheckCircle2 className="h-12 w-12 text-success" />
-            </div>
-            <h3 className="text-xl font-semibold">Document Signed Successfully</h3>
-            <p className="text-sm text-muted-foreground max-w-md">
-              The signed rental agreement has been filed in the Vault and linked to this booking.
-            </p>
-            {completedDocRef && (
-              <Badge variant="secondary" className="text-sm px-3 py-1">
-                {completedDocRef}
-              </Badge>
-            )}
-            <Button onClick={() => handleClose(false)} className="mt-4">
-              Done
-            </Button>
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
+      {/* Close confirmation */}
+      <ConfirmationDialog
+        open={showCloseConfirm}
+        onOpenChange={setShowCloseConfirm}
+        title="Cancel Signing?"
+        description="You have an in-progress signature. Closing now will discard your work."
+        confirmText="Discard & Close"
+        cancelText="Continue Signing"
+        variant="destructive"
+        onConfirm={confirmClose}
+      />
+
+      {/* Celebration confetti */}
+      <Celebration
+        trigger={celebrate}
+        message="Document signed! 🎉"
+        variant="success"
+      />
+    </>
   );
 };

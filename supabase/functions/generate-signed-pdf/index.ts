@@ -186,7 +186,8 @@ serve(async (req) => {
     y -= 40;
 
     // Footer
-    page.drawText("This document was digitally signed via ExotIQ Fleet Management.", {
+    const footerRef = docRef ? ` Reference: ${docRef}` : "";
+    page.drawText(`This document was digitally signed through Exotiq Vault on ${new Date(signedDate).toLocaleDateString("en-US", { dateStyle: "long" })}.${footerRef}`, {
       x: 50, y: 50, size: 8, font, color: mutedColor,
     });
 

@@ -981,8 +981,8 @@ export const EnhancedBookingDialog = ({
                         ) : (
                           <p className="text-sm text-muted-foreground">No signed documents for this booking.</p>
                         )}
-                        <Button variant="outline" size="sm" onClick={handleSignDocument}>
-                          <FileText className="h-3.5 w-3.5 mr-1.5" />
+                        <Button className="bg-teal-600 hover:bg-teal-700 text-white" onClick={handleSignDocument}>
+                          <FileText className="h-4 w-4 mr-2" />
                           Sign Document
                         </Button>
                       </div>
