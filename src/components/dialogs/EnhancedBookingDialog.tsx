@@ -265,9 +265,31 @@ export const EnhancedBookingDialog = ({
     if (open && bookingId) fetchBookingDocs();
   }, [open, bookingId]);
 
+  const fillTemplateAndOpen = async (doc: { id: string; name: string; file_url: string; doc_ref?: string | null; team_id?: string | null }) => {
+    if (!booking) return;
+    setPreparingDocument(true);
+    try {
+      const { data: result, error } = await supabase.functions.invoke("fill-rental-template", {
+        body: { templateDocumentId: doc.id, bookingId: booking.id },
+      });
+      if (error || result?.error) {
+        console.warn("Auto-fill unavailable, using raw template:", error || result?.error);
+        setSigningDocument(doc);
+      } else {
+        // Use the filled PDF URL
+        setSigningDocument({ ...doc, file_url: result.filledPdfUrl });
+      }
+    } catch (e) {
+      console.warn("Auto-fill failed, using raw template:", e);
+      setSigningDocument(doc);
+    } finally {
+      setPreparingDocument(false);
+      setShowSigningCeremony(true);
+    }
+  };
+
   const handleSignDocument = async () => {
-    if (!currentTeam?.id) return;
-    // Check for default rental agreement
+    if (!currentTeam?.id || !booking) return;
     const { data: defaultDoc } = await supabase
       .from("documents")
       .select("id, name, file_url, doc_ref, team_id")
@@ -278,8 +300,7 @@ export const EnhancedBookingDialog = ({
       .maybeSingle();
 
     if (defaultDoc) {
-      setSigningDocument(defaultDoc);
-      setShowSigningCeremony(true);
+      await fillTemplateAndOpen(defaultDoc);
     } else {
       setShowDocumentPicker(true);
     }
