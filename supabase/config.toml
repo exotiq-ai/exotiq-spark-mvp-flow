@@ -104,3 +104,6 @@ verify_jwt = false
 
 [functions.weekly-intelligence-digest]
 verify_jwt = false
+
+[functions.generate-signed-pdf]
+verify_jwt = false

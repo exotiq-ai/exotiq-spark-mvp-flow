@@ -1,50 +1,46 @@
 
+# Vault Signing Module — Implementation Complete
 
-# Signing Module Readiness Audit — Issues to Fix Before Testing
+## What was built
 
-I've reviewed every file in the signing pipeline end-to-end. The core logic is solid, but there's **one blocker** that will prevent the edge function from deploying, plus a couple of minor items to clean up for a smooth test.
+### Phase A: Database Migration ✅
+- Added `doc_ref` (auto-generated `EXQ-DOC-YYYY-NNNNN`), `booking_id`, `is_default`, `signed_at`, `signed_by_name`, `signature_image_url`, `signing_metadata` (JSONB), `parent_document_id` columns to `documents` table
+- Created sequence + trigger for human-readable document references
+- Added indexes for performance
 
----
+### Phase B: Storage Fix ✅
+- Fixed `getPublicUrl` → `createSignedUrl` in `IDUploadDialog`, `InsuranceUploadDialog`, `DocumentUploadDialog`
+- Uses 1-year signed URLs for private `customer-documents` bucket
 
-## Blocker: `generate-signed-pdf` missing from `config.toml`
+### Phase C: Rental Agreement Support ✅
+- Added "Rental Agreement" type to DocumentUploadDialog
+- PDF-only restriction for rental agreements
+- "Set as Default" toggle with automatic clearing of previous defaults
+- Expiry date optional for rental agreements
 
-The edge function code exists at `supabase/functions/generate-signed-pdf/index.ts`, but there's no entry in `supabase/config.toml`. Without this, the function won't deploy and the signing ceremony will fail at the PDF generation step.
+### Phase D: SignatureCanvas ✅
+- Native HTML5 canvas with pointer events (touch/stylus/mouse)
+- Clear button, visual feedback, export to PNG data URL
+- No external dependencies
 
-**Fix:** Add to `config.toml`:
-```toml
-[functions.generate-signed-pdf]
-verify_jwt = false
-```
+### Phase E: generate-signed-pdf Edge Function ✅
+- Uses pdf-lib to append signature page to original PDF
+- Captures IP from request headers (x-forwarded-for)
+- Uploads signed PDF to customer-documents bucket
 
----
+### Phase F: SigningCeremony + DocumentPicker ✅
+- Full-screen 3-step wizard: Review → Sign → Complete
+- PDF viewer via iframe, agreement checkbox, signature canvas, printed name
+- Captures signing_metadata (IP, userAgent, deviceType, screen size)
+- DocumentPicker for selecting rental agreement when no default exists
 
-## Everything Else Checks Out
+### Phase G: Booking Integration ✅
+- Documents section in EnhancedBookingDialog Details tab
+- "Sign Document" button checks for default rental agreement
+- Shows signed documents linked to booking with doc_ref and signer info
 
-Here's what I verified is correctly wired:
-
-| Component | Status |
-|-----------|--------|
-| **Database columns** (`doc_ref`, `booking_id`, `is_default`, `signed_at`, `signed_by_name`, `signature_image_url`, `signing_metadata`, `parent_document_id`) | Present in `types.ts` — migration ran successfully |
-| **`doc_ref` trigger** (`generate_doc_ref()`) | Listed in db-functions — auto-generates `EXQ-DOC-YYYY-NNNNN` on insert |
-| **`DocumentUploadDialog`** — "Rental Agreement" type, PDF-only restriction, "Set as Default" toggle, clear-previous-defaults logic | All implemented correctly |
-| **`uploadDocument` in FleetContext** — passes `is_default` through to insert | Works — spreads all document fields including `is_default` |
-| **`SignatureCanvas`** — canvas with pointer events, clear button, `toDataURL` export | Implemented |
-| **`SigningCeremony`** — review step (iframe PDF viewer), sign step (checkbox + name + canvas), complete step, metadata capture (`userAgent`, `deviceType`, `screenSize`, IP from edge function) | Implemented |
-| **`DocumentPicker`** — queries rental agreements for team, pre-selects default | Implemented |
-| **`EnhancedBookingDialog`** — "Sign Document" button, `handleSignDocument` checks for default then opens ceremony or picker, fetches `bookingDocuments` linked by `booking_id` | Implemented |
-| **`VaultEnhanced`** — search by `doc_ref`/signer name, "Default" badge, "Signed" badge, `doc_ref` display | Implemented |
-| **Storage** — uses `createSignedUrl` (not `getPublicUrl`) for private bucket access | Fixed in `DocumentUploadDialog` |
-| **Edge function** — loads PDF via service role key, appends signature page with `pdf-lib`, uploads result, returns path + client IP | Implemented |
-
----
-
-## Plan: Single Fix
-
-1. **Add `generate-signed-pdf` to `config.toml`** so the edge function deploys
-
-That's it. Once that's in, you can:
-1. Go to Vault → Upload → select "Rental Agreement" → upload your PDF → toggle "Set as Default"
-2. Open any booking → scroll to Documents section → click "Sign Document"
-3. Review the PDF in the iframe → Continue to Sign → check agreement, enter name, draw signature → Complete Signing
-4. Signed doc appears in both the booking's Documents section and in Vault with its `EXQ-DOC-YYYY-NNNNN` reference
-
+### Phase H: Vault Enhancements ✅
+- Search by name, type, doc_ref, signer name
+- "Default" badge on active rental agreement
+- "Signed" status badge for signed documents
+- View/Download buttons open actual file URLs
