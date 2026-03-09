@@ -80,12 +80,17 @@ export const DocumentUploadDialog = ({
         return;
       }
 
-      const { data: urlData } = supabase.storage
+      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
         .from('customer-documents')
-        .getPublicUrl(fileName);
+        .createSignedUrl(fileName, 31536000); // 1-year signed URL
+
+      if (signedUrlError || !signedUrlData?.signedUrl) {
+        toast.error('Failed to generate document URL');
+        return;
+      }
 
       setUploadedFile({
-        url: urlData.publicUrl,
+        url: signedUrlData.signedUrl,
         name: file.name,
         size: file.size
       });

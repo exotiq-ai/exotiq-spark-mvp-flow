@@ -703,13 +703,21 @@ export type Database = {
       }
       documents: {
         Row: {
+          booking_id: string | null
           created_at: string | null
           customer_id: string | null
+          doc_ref: string | null
           expires_at: string | null
           file_size: number | null
           file_url: string
           id: string
+          is_default: boolean | null
           name: string
+          parent_document_id: string | null
+          signature_image_url: string | null
+          signed_at: string | null
+          signed_by_name: string | null
+          signing_metadata: Json | null
           status: string | null
           team_id: string | null
           type: string
@@ -721,13 +729,21 @@ export type Database = {
           verified_by: string | null
         }
         Insert: {
+          booking_id?: string | null
           created_at?: string | null
           customer_id?: string | null
+          doc_ref?: string | null
           expires_at?: string | null
           file_size?: number | null
           file_url: string
           id?: string
+          is_default?: boolean | null
           name: string
+          parent_document_id?: string | null
+          signature_image_url?: string | null
+          signed_at?: string | null
+          signed_by_name?: string | null
+          signing_metadata?: Json | null
           status?: string | null
           team_id?: string | null
           type: string
@@ -739,13 +755,21 @@ export type Database = {
           verified_by?: string | null
         }
         Update: {
+          booking_id?: string | null
           created_at?: string | null
           customer_id?: string | null
+          doc_ref?: string | null
           expires_at?: string | null
           file_size?: number | null
           file_url?: string
           id?: string
+          is_default?: boolean | null
           name?: string
+          parent_document_id?: string | null
+          signature_image_url?: string | null
+          signed_at?: string | null
+          signed_by_name?: string | null
+          signing_metadata?: Json | null
           status?: string | null
           team_id?: string | null
           type?: string
@@ -758,10 +782,24 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "documents_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "documents_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_parent_document_id_fkey"
+            columns: ["parent_document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
             referencedColumns: ["id"]
           },
           {
