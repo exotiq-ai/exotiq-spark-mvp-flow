@@ -331,7 +331,7 @@ export const DocumentUploadDialog = ({
           {/* Expiry Date (optional for Rental Agreements) */}
           <div className="space-y-2">
             <Label htmlFor="expiry-date">
-              Expiration Date {isRentalAgreement ? '(optional)' : '*'}
+              Expiration Date {requiresExpiry ? '*' : '(optional)'}
             </Label>
             <div className="relative">
               <Calendar className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
