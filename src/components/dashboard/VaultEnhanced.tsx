@@ -17,6 +17,7 @@ import { ComplianceStackedBar } from "@/components/charts/ComplianceStackedBar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { AskRariQuickAction } from "@/components/common/AskRariQuickAction";
 import { useToast } from "@/hooks/use-toast";
+import { DocumentPreviewDialog } from "@/components/common/DocumentPreviewDialog";
 import { SkeletonCard, SkeletonMetric } from "@/components/ui/skeleton-card";
 import { EmptyState } from "@/components/common/EmptyState";
 import { 
