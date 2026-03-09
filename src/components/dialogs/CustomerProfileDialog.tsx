@@ -123,7 +123,12 @@ export const CustomerProfileDialog = ({
         <DialogHeader>
           <div className="flex items-start justify-between">
             <div>
-              <DialogTitle className="text-2xl">{customer.full_name}</DialogTitle>
+              <DialogTitle className="text-2xl flex items-center gap-2">
+                {customer.full_name}
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setShowEditDialog(true)}>
+                  <Pencil className="w-4 h-4" />
+                </Button>
+              </DialogTitle>
               <DialogDescription className="flex items-center space-x-2 mt-1">
                 <Mail className="w-3 h-3" />
                 <span>{customer.email}</span>
