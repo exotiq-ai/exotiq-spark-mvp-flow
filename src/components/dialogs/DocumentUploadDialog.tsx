@@ -44,17 +44,19 @@ export const DocumentUploadDialog = ({
   const [uploadedFile, setUploadedFile] = useState<{ url: string; name: string; size: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const isRentalAgreement = type === 'Rental Agreement';
+  const isRentalAgreement = type === 'rental_agreement';
 
   const documentTypes = [
-    'Insurance',
-    'Registration',
-    'License',
-    'Inspection',
-    'Contract',
-    'Rental Agreement',
-    'Other'
+    { label: 'Insurance', value: 'insurance' },
+    { label: 'Registration', value: 'registration' },
+    { label: 'License', value: 'license' },
+    { label: 'Inspection', value: 'inspection' },
+    { label: 'Contract', value: 'contract' },
+    { label: 'Rental Agreement', value: 'rental_agreement' },
+    { label: 'Other', value: 'other' },
   ];
+
+  const requiresExpiry = ['insurance', 'registration', 'license'].includes(type);
 
   const fileAccept = isRentalAgreement
     ? '.pdf'
