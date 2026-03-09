@@ -65,6 +65,7 @@ import {
   X,
   Save,
   FileText,
+  Loader2,
 } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 
