@@ -417,7 +417,7 @@ export const VaultEnhanced = () => {
                     </div>
                     <p className="text-[10px] sm:text-xs text-muted-foreground">
                       {(doc as any).doc_ref && <span className="font-mono">{(doc as any).doc_ref} • </span>}
-                      {doc.type} • {formatDate(doc.created_at)}
+                      {doc.type?.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())} • {formatDate(doc.created_at)}
                       {(doc as any).signed_by_name && ` • Signed by ${(doc as any).signed_by_name}`}
                     </p>
                   </div>

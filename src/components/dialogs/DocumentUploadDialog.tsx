@@ -44,17 +44,19 @@ export const DocumentUploadDialog = ({
   const [uploadedFile, setUploadedFile] = useState<{ url: string; name: string; size: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const isRentalAgreement = type === 'Rental Agreement';
+  const isRentalAgreement = type === 'rental_agreement';
 
   const documentTypes = [
-    'Insurance',
-    'Registration',
-    'License',
-    'Inspection',
-    'Contract',
-    'Rental Agreement',
-    'Other'
+    { label: 'Insurance', value: 'insurance' },
+    { label: 'Registration', value: 'registration' },
+    { label: 'License', value: 'license' },
+    { label: 'Inspection', value: 'inspection' },
+    { label: 'Contract', value: 'contract' },
+    { label: 'Rental Agreement', value: 'rental_agreement' },
+    { label: 'Other', value: 'other' },
   ];
+
+  const requiresExpiry = ['insurance', 'registration', 'license'].includes(type);
 
   const fileAccept = isRentalAgreement
     ? '.pdf'
@@ -129,7 +131,7 @@ export const DocumentUploadDialog = ({
       return;
     }
 
-    if (!isRentalAgreement && !expiryDate) {
+    if (requiresExpiry && !expiryDate) {
       toast.error('Please fill in the expiration date');
       return;
     }
@@ -145,7 +147,7 @@ export const DocumentUploadDialog = ({
         .from('documents')
         .update({ is_default: false })
         .eq('team_id', currentTeam.id)
-        .eq('type', 'Rental Agreement')
+        .eq('type', 'rental_agreement')
         .eq('is_default', true);
 
       if (clearError) {
@@ -195,12 +197,12 @@ export const DocumentUploadDialog = ({
   // Reset file when type changes to rental agreement (enforce PDF)
   const handleTypeChange = (newType: string) => {
     setType(newType);
-    if (newType === 'Rental Agreement' && uploadedFile && !uploadedFile.name.endsWith('.pdf')) {
+    if (newType === 'rental_agreement' && uploadedFile && !uploadedFile.name.endsWith('.pdf')) {
       setUploadedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
       toast.info('Rental agreements require PDF format. Please re-upload.');
     }
-    if (newType !== 'Rental Agreement') {
+    if (newType !== 'rental_agreement') {
       setIsDefault(false);
     }
   };
@@ -299,8 +301,8 @@ export const DocumentUploadDialog = ({
               </SelectTrigger>
               <SelectContent>
                 {documentTypes.map((t) => (
-                  <SelectItem key={t} value={t}>
-                    {t}
+                  <SelectItem key={t.value} value={t.value}>
+                    {t.label}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -329,7 +331,7 @@ export const DocumentUploadDialog = ({
           {/* Expiry Date (optional for Rental Agreements) */}
           <div className="space-y-2">
             <Label htmlFor="expiry-date">
-              Expiration Date {isRentalAgreement ? '(optional)' : '*'}
+              Expiration Date {requiresExpiry ? '*' : '(optional)'}
             </Label>
             <div className="relative">
               <Calendar className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -350,7 +352,7 @@ export const DocumentUploadDialog = ({
           </Button>
           <Button 
             onClick={handleSubmit} 
-            disabled={!name || !type || (!isRentalAgreement && !expiryDate) || !uploadedFile || isUploading}
+            disabled={!name || !type || (requiresExpiry && !expiryDate) || !uploadedFile || isUploading}
           >
             <Upload className="h-4 w-4 mr-2" />
             Upload Document

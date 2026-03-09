@@ -44,7 +44,7 @@ export const DocumentPicker = ({ open, onOpenChange, onSelect }: DocumentPickerP
         .from("documents")
         .select("id, name, doc_ref, created_at, is_default, file_url")
         .eq("team_id", currentTeam.id)
-        .eq("type", "Rental Agreement")
+        .eq("type", "rental_agreement")
         .order("is_default", { ascending: false })
         .order("created_at", { ascending: false });
 
