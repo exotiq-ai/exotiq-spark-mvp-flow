@@ -374,6 +374,8 @@ export const EnhancedBookingDialog = ({
           onOpenChange={(v) => { if (!v) setShowCheckInOut(null); }}
           booking={booking}
           mode={showCheckInOut}
+          vehicleId={vehicle?.id}
+          vehicleName={vehicle?.name || booking.vehicle_name || undefined}
           onComplete={() => refreshData(true)}
           onCollectPayment={() => { setShowCheckInOut(null); setShowPaymentDialog(true); }}
         />
