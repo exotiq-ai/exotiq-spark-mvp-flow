@@ -409,8 +409,12 @@ export const NewBookingDialog = ({
                   placeholder="+1 234 567 8900"
                   value={customerPhone}
                   onChange={(e) => setCustomerPhone(e.target.value)}
-                  disabled={selectedCustomerId !== 'new'}
                 />
+                {selectedCustomerId !== 'new' && (
+                  <p className="text-xs text-muted-foreground">
+                    Phone can be updated for this booking
+                  </p>
+                )}
               </div>
             </div>
 
