@@ -248,7 +248,9 @@ export const CRMSection = () => {
 
         {/* Customer Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {filteredCustomers.map((customer) => (
+          {filteredCustomers.map((customer) => {
+            const lastBooking = lastBookingMap[customer.id];
+            return (
             <div
               key={customer.id}
               onClick={() => handleCustomerClick(customer.id)}
@@ -262,25 +264,53 @@ export const CRMSection = () => {
                 {getStatusBadge(customer.customer_status)}
               </div>
 
-              <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="grid grid-cols-3 gap-3 text-sm">
                 <div>
-                  <div className="text-muted-foreground text-xs">Total Bookings</div>
+                  <div className="text-muted-foreground text-xs">Bookings</div>
                   <div className="font-medium">{customer.total_bookings || 0}</div>
                 </div>
                 <div>
                   <div className="text-muted-foreground text-xs">Lifetime Value</div>
                   <div className="font-medium text-success">${(customer.lifetime_value || 0).toLocaleString()}</div>
                 </div>
+                <div>
+                  <div className="text-muted-foreground text-xs">Last Booking</div>
+                  <div className="font-medium text-xs">
+                    {lastBooking ? formatDistanceToNow(new Date(lastBooking), { addSuffix: true }) : 'Never'}
+                  </div>
+                </div>
               </div>
 
-              {customer.phone && (
-                <div className="flex items-center space-x-2 mt-3 text-sm text-muted-foreground">
-                  <Phone className="w-3 h-3" />
-                  <span>{customer.phone}</span>
+              {/* Quick Actions */}
+              <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/50">
+                <div className="flex gap-1">
+                  {customer.phone && (
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); window.open(`tel:${customer.phone}`); }}>
+                      <Phone className="w-3.5 h-3.5" />
+                    </Button>
+                  )}
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); window.open(`mailto:${customer.email}`); }}>
+                    <Mail className="w-3.5 h-3.5" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => {
+                    e.stopPropagation();
+                    setPrefillCustomer(customer);
+                    setShowNewBooking(true);
+                  }}>
+                    <Calendar className="w-3.5 h-3.5" />
+                  </Button>
                 </div>
-              )}
+                {(customer as any).tags?.length > 0 && (
+                  <div className="flex gap-1">
+                    {((customer as any).tags as string[]).slice(0, 2).map((tag: string) => (
+                      <Badge key={tag} variant="secondary" className="text-[10px] px-1.5 py-0">{tag}</Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-          ))}
+            );
+          })}
 
           {filteredCustomers.length === 0 && searchQuery === "" && filterStatus === "all" && (
             <div className="col-span-2">
