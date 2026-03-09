@@ -70,10 +70,11 @@ export const CustomerProfileDialog = ({
   onAddBooking,
 }: CustomerProfileDialogProps) => {
   const { user } = useAuth();
-  const { addCustomerNote, updateCustomer, blacklistCustomer, deleteCustomer, customerNotes } = useFleet();
+  const { addCustomerNote, updateCustomer, blacklistCustomer, deleteCustomer, customerNotes, refreshCustomers } = useFleet();
   const [newNote, setNewNote] = useState("");
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [isAddingNote, setIsAddingNote] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
 
   const customerNotesList = customerNotes.filter(note => note.customer_id === customer.id);
   
