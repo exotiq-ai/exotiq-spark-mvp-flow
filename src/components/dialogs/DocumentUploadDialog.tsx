@@ -197,12 +197,12 @@ export const DocumentUploadDialog = ({
   // Reset file when type changes to rental agreement (enforce PDF)
   const handleTypeChange = (newType: string) => {
     setType(newType);
-    if (newType === 'Rental Agreement' && uploadedFile && !uploadedFile.name.endsWith('.pdf')) {
+    if (newType === 'rental_agreement' && uploadedFile && !uploadedFile.name.endsWith('.pdf')) {
       setUploadedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
       toast.info('Rental agreements require PDF format. Please re-upload.');
     }
-    if (newType !== 'Rental Agreement') {
+    if (newType !== 'rental_agreement') {
       setIsDefault(false);
     }
   };
