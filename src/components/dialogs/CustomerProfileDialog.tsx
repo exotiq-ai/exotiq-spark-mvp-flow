@@ -452,6 +452,15 @@ export const CustomerProfileDialog = ({
         onOpenChange={(open) => !open && setSelectedBookingId(null)}
         bookingId={selectedBookingId || ''}
       />
+      <EditCustomerDialog
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
+        customer={customer}
+        onSubmit={async (id, updates) => {
+          await updateCustomer(id, updates);
+          refreshCustomers();
+        }}
+      />
     </Dialog>
   );
 };
