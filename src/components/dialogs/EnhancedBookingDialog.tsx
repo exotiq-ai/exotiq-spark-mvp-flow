@@ -1007,9 +1007,18 @@ export const EnhancedBookingDialog = ({
                         ) : (
                           <p className="text-sm text-muted-foreground">No signed documents for this booking.</p>
                         )}
-                        <Button className="bg-teal-600 hover:bg-teal-700 text-white" onClick={handleSignDocument}>
-                          <FileText className="h-4 w-4 mr-2" />
-                          Sign Document
+                        <Button className="bg-teal-600 hover:bg-teal-700 text-white" onClick={handleSignDocument} disabled={preparingDocument}>
+                          {preparingDocument ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Preparing Agreement...
+                            </>
+                          ) : (
+                            <>
+                              <FileText className="h-4 w-4 mr-2" />
+                              Sign Document
+                            </>
+                          )}
                         </Button>
                       </div>
 
