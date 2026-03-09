@@ -352,7 +352,7 @@ export const DocumentUploadDialog = ({
           </Button>
           <Button 
             onClick={handleSubmit} 
-            disabled={!name || !type || (!isRentalAgreement && !expiryDate) || !uploadedFile || isUploading}
+            disabled={!name || !type || (requiresExpiry && !expiryDate) || !uploadedFile || isUploading}
           >
             <Upload className="h-4 w-4 mr-2" />
             Upload Document

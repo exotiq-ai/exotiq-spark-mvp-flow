@@ -182,7 +182,7 @@ export const SigningCeremony = ({
         .from("documents")
         .insert({
           name: `Signed - ${rentalDoc.name}`,
-          type: "Signed Rental Agreement",
+          type: "rental_agreement",
           file_url: signedPdfUrl?.signedUrl || result.signedPdfPath,
           user_id: user.id,
           team_id: rentalDoc.team_id || null,

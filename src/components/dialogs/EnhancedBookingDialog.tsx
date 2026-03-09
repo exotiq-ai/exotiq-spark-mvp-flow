@@ -267,7 +267,7 @@ export const EnhancedBookingDialog = ({
       .from("documents")
       .select("id, name, file_url, doc_ref, team_id")
       .eq("team_id", currentTeam.id)
-      .eq("type", "Rental Agreement")
+      .eq("type", "rental_agreement")
       .eq("is_default", true)
       .limit(1)
       .maybeSingle();
