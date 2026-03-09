@@ -279,7 +279,7 @@ export const EnhancedBookingDialog = ({
     }
   };
 
-
+  useEffect(() => {
     const fetchCustomerNotes = async () => {
       if (!booking?.customer_id) return;
       setLoadingNotes(true);
