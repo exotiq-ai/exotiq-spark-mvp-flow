@@ -255,6 +255,32 @@ export const AddCustomerDialog = ({
               </div>
             </div>
 
+            {/* Emergency Contact */}
+            <div className="space-y-4">
+              <h4 className="font-semibold text-sm text-muted-foreground">Emergency Contact</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="emergency_contact_name">Contact Name</Label>
+                  <Input
+                    id="emergency_contact_name"
+                    value={formData.emergency_contact_name}
+                    onChange={(e) => setFormData({ ...formData, emergency_contact_name: e.target.value })}
+                    placeholder="Jane Doe"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="emergency_contact_phone">Contact Phone</Label>
+                  <Input
+                    id="emergency_contact_phone"
+                    type="tel"
+                    value={formData.emergency_contact_phone}
+                    onChange={(e) => setFormData({ ...formData, emergency_contact_phone: e.target.value })}
+                    placeholder="+1 555 000 0000"
+                  />
+                </div>
+              </div>
+            </div>
+
             {/* Notes */}
             <div>
               <Label htmlFor="notes">Notes</Label>
