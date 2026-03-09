@@ -201,6 +201,24 @@ export const CustomerProfileDialog = ({
               </div>
             </div>
 
+            {/* Emergency Contact */}
+            {((customer as any).emergency_contact_name || (customer as any).emergency_contact_phone) && (
+              <div className="space-y-3">
+                <h4 className="font-semibold text-sm text-muted-foreground">Emergency Contact</h4>
+                <div className="flex items-center space-x-3 p-3 rounded-lg bg-muted/30">
+                  <UserCheck className="w-4 h-4 text-muted-foreground" />
+                  <div>
+                    {(customer as any).emergency_contact_name && (
+                      <div className="text-sm font-medium">{(customer as any).emergency_contact_name}</div>
+                    )}
+                    {(customer as any).emergency_contact_phone && (
+                      <div className="text-xs text-muted-foreground">{(customer as any).emergency_contact_phone}</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* License & Insurance */}
             <div className="space-y-3">
               <h4 className="font-semibold text-sm text-muted-foreground">Verification Details</h4>
