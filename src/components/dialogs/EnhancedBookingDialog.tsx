@@ -1257,18 +1257,25 @@ export const EnhancedBookingDialog = ({
             daily_rate: Number(booking.daily_rate),
           }}
           document={signingDocument}
-          onComplete={(docRef) => {
+          onComplete={async (docRef) => {
             toast({ title: "Document Signed", description: `Reference: ${docRef}` });
             // Refresh booking documents
-            const fetchDocs = async () => {
-              const { data } = await supabase
-                .from("documents")
-                .select("id, name, doc_ref, signed_at, signed_by_name, type, file_url")
-                .eq("booking_id", booking.id)
-                .order("created_at", { ascending: false });
-              setBookingDocuments(data || []);
-            };
-            fetchDocs();
+            const { data } = await supabase
+              .from("documents")
+              .select("id, name, doc_ref, signed_at, signed_by_name, type, file_url")
+              .eq("booking_id", booking.id)
+              .order("created_at", { ascending: false });
+            setBookingDocuments(data || []);
+
+            // Auto-send signed document via email
+            const signedDoc = data?.find((d: any) => d.doc_ref === docRef);
+            if (signedDoc) {
+              supabase.functions.invoke("send-signed-document", {
+                body: { documentId: signedDoc.id, sendToRenter: true, sendToOperator: true },
+              }).then(({ error }) => {
+                if (!error) toast({ title: "Signed agreement emailed to renter and operator" });
+              });
+            }
           }}
         />
       )}
