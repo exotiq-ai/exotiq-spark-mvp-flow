@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CollapsibleSection } from "@/components/ui/collapsible-section";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { BannerWidget } from "./widgets/BannerWidget";
 import { RevenueWidget } from "./widgets/RevenueWidget";
 import { CompactMetricsBar } from "./widgets/CompactMetricsBar";
@@ -17,8 +18,11 @@ import { AddCustomerDialog } from "@/components/dialogs/AddCustomerDialog";
 import { GenerateReportDialog } from "@/components/dialogs/GenerateReportDialog";
 import { ScheduleMaintenanceDialog } from "@/components/dialogs/ScheduleMaintenanceDialog";
 import { RecordPaymentDialog } from "@/components/dialogs/RecordPaymentDialog";
+import { ImportWizard } from "@/components/import/ImportWizard";
+import { GettingStartedChecklist } from "./GettingStartedChecklist";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { useFleetAIInsight } from "@/hooks/useFleetAIInsight";
+import { useProfile } from "@/hooks/useProfile";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTeam } from "@/contexts/TeamContext";
 import { LocationContextBanner } from "@/components/common/LocationBadge";
@@ -44,6 +48,7 @@ import {
   Sparkles,
   FileText,
   Plus,
+  Upload,
   AlertCircle,
   ChevronRight,
   ChevronDown,
