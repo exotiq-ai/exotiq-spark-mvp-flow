@@ -345,7 +345,7 @@ export const EnhancedBookingDialog = ({
       if (!user) throw new Error("Not authenticated");
       const { data, error } = await supabase
         .from("customer_notes")
-        .insert({ customer_id: booking.customer_id, user_id: user.id, note: newNote.trim(), created_by: "You" })
+        .insert({ customer_id: booking.customer_id, user_id: user.id, note: newNote.trim(), created_by: "You", booking_id: booking.id } as any)
         .select()
         .single();
       if (error) throw error;
