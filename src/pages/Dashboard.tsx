@@ -60,6 +60,7 @@ const DashboardInner = () => {
   const [chatMinimized, setChatMinimized] = useState(false);
   const [mobileAddLocationOpen, setMobileAddLocationOpen] = useState(false);
   const rariSidebar = useRariSidebar();
+  const { showPostTourModal, setShowPostTourModal } = useTourData();
   const { displayName } = useProfile();
 
   // Ensure module transition overlay never gets stuck
