@@ -172,6 +172,7 @@ serve(async (req) => {
       }),
       operator_name: teamName,
       booking_id: bookingId,
+      booking_ref: booking.booking_ref || "",
     };
 
     // Extract storage path from file_url
