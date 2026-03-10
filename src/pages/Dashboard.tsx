@@ -53,7 +53,7 @@ import { AddLocationDialog } from "@/components/dialogs/AddLocationDialog";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
-const Dashboard = () => {
+const DashboardInner = () => {
   const [searchParams] = useSearchParams();
   const [activeModule, setActiveModule] = useLocalStorage("activeModule", "dashboard");
   const [chatOpen, setChatOpen] = useState(false);
