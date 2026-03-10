@@ -57,6 +57,7 @@ export const ModuleTabs = (props: ModuleTabsProps) => {
                 <TabsTrigger
                   key={tab.id}
                   value={tab.id}
+                  data-tab={tab.id}
                   className={cn(
                     // Base styles - vertical on mobile, horizontal on tablet+
                     "relative flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 md:gap-2",
