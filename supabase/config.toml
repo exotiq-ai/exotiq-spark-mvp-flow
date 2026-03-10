@@ -99,6 +99,9 @@ verify_jwt = false
 [functions.cleanup-unmatched-photos]
 verify_jwt = false
 
+[functions.demo-data-snapshot]
+verify_jwt = false
+
 [functions.check-fleet-alerts]
 verify_jwt = false
 
