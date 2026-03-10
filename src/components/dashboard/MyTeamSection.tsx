@@ -60,38 +60,30 @@ export const MyTeamSection = () => {
 
   useEffect(() => {
     const fetchTeamMembers = async () => {
-      if (!user?.id) return;
+      if (!user?.id || !currentTeam?.id) return;
 
       setIsLoading(true);
       try {
-        // Fetch profiles - admins can see all, others see based on company
-        const { data: profiles, error: profilesError } = await supabase
-          .from('profiles')
-          .select('id, email, full_name');
+        // Query team_members with profile join — scoped to current team only
+        const { data: teamMembersData, error } = await supabase
+          .from('team_members')
+          .select('user_id, role, is_active, profiles(id, full_name, email)')
+          .eq('team_id', currentTeam.id)
+          .eq('is_active', true);
 
-        if (profilesError) {
-          console.error('Error fetching profiles:', profilesError);
+        if (error) {
+          console.error('Error fetching team members:', error);
           return;
         }
 
-        // Fetch user roles
-        const { data: roles, error: rolesError } = await supabase
-          .from('user_roles')
-          .select('user_id, role');
-
-        if (rolesError) {
-          console.error('Error fetching roles:', rolesError);
-        }
-
-        // Merge profiles with roles
-        const members: TeamMember[] = (profiles || []).map(profile => {
-          const userRole = roles?.find(r => r.user_id === profile.id);
+        const members: TeamMember[] = (teamMembersData || []).map(tm => {
+          const profile = tm.profiles as any;
           return {
-            id: profile.id,
-            name: profile.full_name || 'Unknown User',
-            email: profile.email,
-            role: (userRole?.role as AppRole) || 'viewer',
-            isCurrentUser: profile.id === user.id,
+            id: tm.user_id,
+            name: profile?.full_name || 'Unknown User',
+            email: profile?.email || '',
+            role: tm.role as AppRole,
+            isCurrentUser: tm.user_id === user.id,
           };
         });
 
