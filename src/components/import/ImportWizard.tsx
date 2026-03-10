@@ -205,6 +205,7 @@ export function ImportWizard({ onClose, onComplete }: ImportWizardProps) {
 
     try {
       let imported = 0, failed = 0;
+      let lastInsertError: string | null = null;
       
       // Record import batch
       const { data: batchRecord } = await supabase
@@ -230,8 +231,11 @@ export function ImportWizard({ onClose, onComplete }: ImportWizardProps) {
           .insert(batch as any)
           .select();
         
-        if (error) { failed += batch.length; } 
-        else { imported += data?.length || 0; }
+        if (error) { 
+          console.error('[ImportWizard] Batch insert error:', error.message, error.details, error.hint);
+          lastInsertError = `${error.message}${error.details ? ` | ${error.details}` : ''}`;
+          failed += batch.length; 
+        } else { imported += data?.length || 0; }
         
         setImportProgress(prev => ({
           ...prev, processedRows: (i + 1) * batchSize,
@@ -269,7 +273,8 @@ export function ImportWizard({ onClose, onComplete }: ImportWizardProps) {
             imported_count: imported,
             skipped_count: validationResult.invalidRows.length + skippedFromDuplicates,
             failed_count: failed,
-            completed_at: new Date().toISOString()
+            completed_at: new Date().toISOString(),
+            ...(lastInsertError ? { error_details: { lastError: lastInsertError } } : {})
           } as any)
           .eq('id', batchRecord.id);
       }

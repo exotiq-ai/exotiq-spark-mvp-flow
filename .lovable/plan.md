@@ -1,63 +1,46 @@
 
+# Vault Signing Module — Implementation Complete
 
-# Fix: Vehicle Import Failing — 105/105 Rows Rejected
+## What was built
 
-## Root Cause
+### Phase A: Database Migration ✅
+- Added `doc_ref` (auto-generated `EXQ-DOC-YYYY-NNNNN`), `booking_id`, `is_default`, `signed_at`, `signed_by_name`, `signature_image_url`, `signing_metadata` (JSONB), `parent_document_id` columns to `documents` table
+- Created sequence + trigger for human-readable document references
+- Added indexes for performance
 
-The `year` column in the `vehicles` database table is `NOT NULL`, but most rows in the CSV have no year. The Zod validation schema (updated last session) correctly allows `null` for year, so **validation preview passes** — but then the actual database `INSERT` fails because Postgres rejects `year: null` on a NOT NULL column. The error is silently caught and counted as "failed."
+### Phase B: Storage Fix ✅
+- Fixed `getPublicUrl` → `createSignedUrl` in `IDUploadDialog`, `InsuranceUploadDialog`, `DocumentUploadDialog`
+- Uses 1-year signed URLs for private `customer-documents` bucket
 
-This is a **schema mismatch** between the validation layer (allows null) and the database (forbids null).
+### Phase C: Rental Agreement Support ✅
+- Added "Rental Agreement" type to DocumentUploadDialog
+- PDF-only restriction for rental agreements
+- "Set as Default" toggle with automatic clearing of previous defaults
+- Expiry date optional for rental agreements
 
-## Fix (2 changes)
+### Phase D: SignatureCanvas ✅
+- Native HTML5 canvas with pointer events (touch/stylus/mouse)
+- Clear button, visual feedback, export to PNG data URL
+- No external dependencies
 
-### 1. Database Migration: Make `year` nullable
+### Phase E: generate-signed-pdf Edge Function ✅
+- Uses pdf-lib to append signature page to original PDF
+- Captures IP from request headers (x-forwarded-for)
+- Uploads signed PDF to customer-documents bucket
 
-```sql
-ALTER TABLE public.vehicles ALTER COLUMN year DROP NOT NULL;
-```
+### Phase F: SigningCeremony + DocumentPicker ✅
+- Full-screen 3-step wizard: Review → Sign → Complete
+- PDF viewer via iframe, agreement checkbox, signature canvas, printed name
+- Captures signing_metadata (IP, userAgent, deviceType, screen size)
+- DocumentPicker for selecting rental agreement when no default exists
 
-This is safe — year is genuinely optional for rental fleet imports (many operators don't track it). Existing rows with year values are unaffected.
+### Phase G: Booking Integration ✅
+- Documents section in EnhancedBookingDialog Details tab
+- "Sign Document" button checks for default rental agreement
+- Shows signed documents linked to booking with doc_ref and signer info
 
-### 2. Harden the import error logging
-
-**File: `src/components/import/ImportWizard.tsx`** (line ~228-233)
-
-Currently the insert error is silently swallowed:
-```typescript
-if (error) { failed += batch.length; }
-```
-
-Add `console.error` with the actual Supabase error so future failures are diagnosable:
-```typescript
-if (error) {
-  console.error('[ImportWizard] Batch insert error:', error.message, error.details);
-  failed += batch.length;
-}
-```
-
-Also store the error in the `import_batches` record's `error_details` column so it shows in the import report.
-
-### 3. Protect model field from numeric coercion (preventive)
-
-**File: `src/lib/importUtils.ts`** — in `transformRows` (line ~407-417)
-
-When a CSV cell contains `911`, PapaParse or XLSX may parse it as a number. The `model` field in Zod is `z.string().min(1)` — if the value arrives as `number 911` instead of `string "911"`, it could fail validation.
-
-Add a safeguard: if the target field is `model`, `name`, `make`, `color`, or `location`, force-stringify the value:
-```typescript
-const stringFields = ['name', 'make', 'model', 'color', 'location', 'license_plate', 'vin'];
-if (stringFields.includes(mapping.targetField) && value !== null) {
-  value = String(value);
-}
-```
-
-## Summary
-
-| # | Change | Type | Risk |
-|---|--------|------|------|
-| 1 | Make `year` column nullable | DB migration | None — additive |
-| 2 | Log insert errors to console + batch record | Code fix | None — debug improvement |
-| 3 | Force-stringify text fields in transform | Code fix | None — defensive |
-
-This will make the CSV from the screenshots import successfully.
-
+### Phase H: Vault Enhancements ✅
+- Search by name, type, doc_ref, signer name
+- "Default" badge on active rental agreement
+- "Signed" status badge for signed documents
+- View/Download buttons open actual file URLs

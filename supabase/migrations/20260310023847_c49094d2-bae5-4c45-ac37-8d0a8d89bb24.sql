@@ -1,0 +1,1 @@
+ALTER TABLE public.vehicles ALTER COLUMN year DROP NOT NULL;
