@@ -397,8 +397,16 @@ export const BulkUploadModal = ({
                               item.status === 'error' && 'border-destructive/50 text-destructive'
                             )}
                           >
-                            {STATUS_LABELS[item.status]}
+                            {STATUS_LABELS[item.status] || item.status}
                           </Badge>
+                          {item.matchResult && MATCH_BADGES[item.matchResult] && (
+                            <Badge 
+                              variant="outline" 
+                              className={cn('text-xs', MATCH_BADGES[item.matchResult].className)}
+                            >
+                              {MATCH_BADGES[item.matchResult].label}
+                            </Badge>
+                          )}
                           {item.result?.analysis && (
                             <Badge variant="secondary" className="text-xs">
                               {item.result.analysis.angle?.replace('_', ' ')}
