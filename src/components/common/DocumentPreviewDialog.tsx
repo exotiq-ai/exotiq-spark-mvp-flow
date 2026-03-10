@@ -1,6 +1,7 @@
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Download, ExternalLink, X } from "lucide-react";
+import { Download, ExternalLink, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface DocumentPreviewDialogProps {
@@ -17,20 +18,47 @@ export const DocumentPreviewDialog = ({
   documentName,
 }: DocumentPreviewDialogProps) => {
   const { toast } = useToast();
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [blobLoading, setBlobLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open || !documentUrl) {
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+      setBlobUrl(null);
+      return;
+    }
+    let cancelled = false;
+    setBlobLoading(true);
+    fetch(documentUrl)
+      .then((res) => res.blob())
+      .then((blob) => {
+        if (cancelled) return;
+        setBlobUrl(URL.createObjectURL(blob));
+      })
+      .catch(() => {
+        if (!cancelled) setBlobUrl(documentUrl);
+      })
+      .finally(() => { if (!cancelled) setBlobLoading(false); });
+    return () => { cancelled = true; };
+  }, [open, documentUrl]);
+
+  useEffect(() => {
+    return () => { if (blobUrl) URL.revokeObjectURL(blobUrl); };
+  }, [blobUrl]);
 
   const handleDownload = async () => {
     if (!documentUrl) return;
     try {
       const response = await fetch(documentUrl);
       const blob = await response.blob();
-      const blobUrl = URL.createObjectURL(blob);
+      const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = blobUrl;
+      a.href = url;
       a.download = documentName || "document.pdf";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      URL.revokeObjectURL(blobUrl);
+      URL.revokeObjectURL(url);
     } catch {
       toast({
         title: "Download failed",
@@ -69,9 +97,13 @@ export const DocumentPreviewDialog = ({
           </div>
         </DialogHeader>
         <div className="flex-1 min-h-0">
-          {documentUrl ? (
+          {blobLoading ? (
+            <div className="flex items-center justify-center h-full">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : blobUrl ? (
             <iframe
-              src={documentUrl}
+              src={blobUrl}
               className="w-full h-full border-0"
               title={documentName}
             />

@@ -312,13 +312,22 @@ export const EnhancedBookingDialog = ({
       if (!booking?.customer_id) return;
       setLoadingNotes(true);
       try {
+        // Fetch booking-specific notes first, then general customer notes
         const { data } = await supabase
           .from("customer_notes")
           .select("*")
           .eq("customer_id", booking.customer_id)
           .order("created_at", { ascending: false })
-          .limit(5);
-        setCustomerNotes(data || []);
+          .limit(20);
+        // Sort: booking-specific notes first, then general
+        const sorted = (data || []).sort((a, b) => {
+          const aIsBooking = (a as any).booking_id === bookingId;
+          const bIsBooking = (b as any).booking_id === bookingId;
+          if (aIsBooking && !bIsBooking) return -1;
+          if (!aIsBooking && bIsBooking) return 1;
+          return new Date(b.created_at!).getTime() - new Date(a.created_at!).getTime();
+        });
+        setCustomerNotes(sorted);
       } catch (error) {
         console.error("Error fetching customer notes:", error);
       } finally {
@@ -326,7 +335,7 @@ export const EnhancedBookingDialog = ({
       }
     };
     if (open && booking?.customer_id) fetchCustomerNotes();
-  }, [open, booking?.customer_id]);
+  }, [open, booking?.customer_id, bookingId]);
 
   const handleAddNote = async () => {
     if (!newNote.trim() || !booking?.customer_id) return;
@@ -336,7 +345,7 @@ export const EnhancedBookingDialog = ({
       if (!user) throw new Error("Not authenticated");
       const { data, error } = await supabase
         .from("customer_notes")
-        .insert({ customer_id: booking.customer_id, user_id: user.id, note: newNote.trim(), created_by: "You" })
+        .insert({ customer_id: booking.customer_id, user_id: user.id, note: newNote.trim(), created_by: "You", booking_id: booking.id } as any)
         .select()
         .single();
       if (error) throw error;
@@ -495,6 +504,11 @@ export const EnhancedBookingDialog = ({
             <div className="flex items-center justify-between">
               <DialogTitle className="text-xl">
                 {isEditMode ? "Edit Booking" : "Booking Details"}
+                {!isEditMode && (booking as any)?.booking_ref && (
+                  <span className="ml-2 text-sm font-normal text-muted-foreground">
+                    {(booking as any).booking_ref}
+                  </span>
+                )}
               </DialogTitle>
               <div className="flex items-center gap-2">
                 {!isEditMode && (

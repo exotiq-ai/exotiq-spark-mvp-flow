@@ -213,19 +213,20 @@ export const EnhancedGlobalSearch = () => {
         });
       });
 
-    // Search bookings
+    // Search bookings (including booking_ref)
     bookings
       .filter(b =>
         b.customer_name?.toLowerCase().includes(query) ||
         b.status?.toLowerCase().includes(query) ||
-        b.vehicle_name?.toLowerCase().includes(query)
+        b.vehicle_name?.toLowerCase().includes(query) ||
+        (b as any).booking_ref?.toLowerCase().includes(query)
       )
       .slice(0, 5)
       .forEach(b => {
         results.push({
           id: b.id,
           type: "booking",
-          title: b.customer_name || "Unknown Customer",
+          title: `${(b as any).booking_ref ? (b as any).booking_ref + ' — ' : ''}${b.customer_name || "Unknown Customer"}`,
           subtitle: `${new Date(b.start_date).toLocaleDateString()} - ${b.status}`,
           icon: Calendar,
           action: () => navigate(`/dashboard?module=book&bookingId=${b.id}`),
