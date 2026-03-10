@@ -261,14 +261,15 @@ export const InteractiveModuleTour = ({ onModuleChange }: InteractiveModuleTourP
         {/* Desktop Glass Card - hidden on mobile */}
         <motion.div
           key={tour.currentStep.id}
-          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          initial={{ opacity: 0, scale: 0.92, x: cardEntrance.x, y: cardEntrance.y }}
           animate={{ 
             opacity: tour.isTransitioning ? 0.3 : 1, 
-            scale: tour.isTransitioning ? 0.98 : 1, 
-            y: 0 
+            scale: tour.isTransitioning ? 0.96 : 1, 
+            x: 0,
+            y: 0,
           }}
-          exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          exit={{ opacity: 0, scale: 0.92, x: cardEntrance.x, y: cardEntrance.y }}
+          transition={{ type: "spring", stiffness: 260, damping: 28, mass: 0.8 }}
           className={cn(
             'hidden md:block absolute pointer-events-auto z-[110]',
             cardPosition
