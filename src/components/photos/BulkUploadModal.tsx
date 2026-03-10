@@ -29,12 +29,16 @@ import {
   FolderOpen,
   Sparkles,
   Zap,
+  Link,
+  HelpCircle,
+  TrendingDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import { usePhotoAnalysis } from './usePhotoAnalysis';
 import { toast } from 'sonner';
 import type { PhotoUploadProgress } from './types';
+import { uploadMetrics, formatBytes } from '@/lib/uploadMetrics';
 
 interface Vehicle {
   id: string;
@@ -42,6 +46,7 @@ interface Vehicle {
   make?: string;
   model?: string;
   year?: number;
+  color?: string;
 }
 
 interface BulkUploadModalProps {
@@ -52,20 +57,31 @@ interface BulkUploadModalProps {
   onComplete?: (results: PhotoUploadProgress[]) => void;
 }
 
-const STATUS_ICONS = {
+const STATUS_ICONS: Record<string, React.ReactNode> = {
   pending: <ImageIcon className="h-4 w-4 text-muted-foreground" />,
+  preprocessing: <Zap className="h-4 w-4 animate-pulse text-amber-500" />,
   uploading: <Loader2 className="h-4 w-4 animate-spin text-primary" />,
+  matching: <Link className="h-4 w-4 animate-pulse text-blue-500" />,
   analyzing: <Sparkles className="h-4 w-4 animate-pulse text-amber-500" />,
   complete: <CheckCircle2 className="h-4 w-4 text-success" />,
   error: <AlertCircle className="h-4 w-4 text-destructive" />,
 };
 
-const STATUS_LABELS = {
+const STATUS_LABELS: Record<string, string> = {
   pending: 'Pending',
+  preprocessing: 'Compressing...',
   uploading: 'Uploading...',
+  matching: 'Matching...',
   analyzing: 'AI Analyzing...',
   complete: 'Complete',
   error: 'Failed',
+};
+
+const MATCH_BADGES: Record<string, { label: string; className: string }> = {
+  'auto-matched': { label: 'Auto-matched', className: 'border-success/50 text-success' },
+  'suggested': { label: 'Suggested', className: 'border-amber-500/50 text-amber-600' },
+  'unmatched': { label: 'Review needed', className: 'border-muted-foreground/30 text-muted-foreground' },
+  'skipped': { label: 'Assigned', className: 'border-primary/50 text-primary' },
 };
 
 export const BulkUploadModal = ({
@@ -138,9 +154,12 @@ export const BulkUploadModal = ({
   const handleStartUpload = async () => {
     if (files.length === 0) return;
     
+    // Reset session metrics for this batch
+    uploadMetrics.reset();
+    
     // Convert 'auto-detect' placeholder back to undefined
     const vehicleId = selectedVehicleId === 'auto-detect' ? undefined : selectedVehicleId;
-    await processBatch(files, vehicleId, { skipAnalysis });
+    await processBatch(files, vehicleId, { skipAnalysis, vehicles });
   };
 
   const handleClose = () => {
@@ -307,28 +326,53 @@ export const BulkUploadModal = ({
                 </div>
 
                 {/* Summary Stats */}
-                {isComplete && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="grid grid-cols-3 gap-3"
-                  >
-                    <div className="p-3 rounded-lg bg-success/10 border border-success/20 text-center">
-                      <p className="text-2xl font-bold text-success">{matchedCount}</p>
-                      <p className="text-xs text-success">Matched</p>
-                    </div>
-                    <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-center">
-                      <p className="text-2xl font-bold text-amber-600">{unmatchedCount}</p>
-                      <p className="text-xs text-amber-600">Review Queue</p>
-                    </div>
-                    {errorCount > 0 && (
-                      <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-center">
-                        <p className="text-2xl font-bold text-destructive">{errorCount}</p>
-                        <p className="text-xs text-destructive">Failed</p>
+                {isComplete && (() => {
+                  const sessionStats = uploadMetrics.getSessionStats();
+                  const autoMatchCount = uploadProgress.filter(p => p.matchResult === 'auto-matched').length;
+                  
+                  return (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="space-y-3"
+                    >
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="p-3 rounded-lg bg-success/10 border border-success/20 text-center">
+                          <p className="text-2xl font-bold text-success">{matchedCount}</p>
+                          <p className="text-xs text-success">Matched</p>
+                        </div>
+                        <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-center">
+                          <p className="text-2xl font-bold text-amber-600">{unmatchedCount}</p>
+                          <p className="text-xs text-amber-600">Review Queue</p>
+                        </div>
+                        {errorCount > 0 && (
+                          <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-center">
+                            <p className="text-2xl font-bold text-destructive">{errorCount}</p>
+                            <p className="text-xs text-destructive">Failed</p>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </motion.div>
-                )}
+
+                      {/* Session Metrics */}
+                      {sessionStats.totalUploads > 0 && (
+                        <div className="flex items-center gap-4 p-3 rounded-lg bg-muted/50 border text-xs text-muted-foreground">
+                          {sessionStats.savedBytes > 0 && (
+                            <span className="flex items-center gap-1">
+                              <TrendingDown className="h-3 w-3 text-success" />
+                              Saved {formatBytes(sessionStats.savedBytes)} ({Math.round(sessionStats.compressionRatio * 100)}% smaller)
+                            </span>
+                          )}
+                          {autoMatchCount > 0 && (
+                            <span className="flex items-center gap-1">
+                              <Zap className="h-3 w-3 text-primary" />
+                              Auto-matched {autoMatchCount}/{completedCount}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </motion.div>
+                  );
+                })()}
 
                 {/* Individual File Progress */}
                 <ScrollArea className="h-[250px] border rounded-lg p-2">
@@ -353,8 +397,16 @@ export const BulkUploadModal = ({
                               item.status === 'error' && 'border-destructive/50 text-destructive'
                             )}
                           >
-                            {STATUS_LABELS[item.status]}
+                            {STATUS_LABELS[item.status] || item.status}
                           </Badge>
+                          {item.matchResult && MATCH_BADGES[item.matchResult] && (
+                            <Badge 
+                              variant="outline" 
+                              className={cn('text-xs', MATCH_BADGES[item.matchResult].className)}
+                            >
+                              {MATCH_BADGES[item.matchResult].label}
+                            </Badge>
+                          )}
                           {item.result?.analysis && (
                             <Badge variant="secondary" className="text-xs">
                               {item.result.analysis.angle?.replace('_', ' ')}

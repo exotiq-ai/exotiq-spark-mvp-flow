@@ -75,6 +75,8 @@ export const DamageReportDialog = ({ open, onOpenChange, vehicles }: DamageRepor
         return;
       }
 
+      const { uploadVehiclePhoto } = await import('@/lib/photoUpload');
+
       for (const file of Array.from(files)) {
         if (!file.type.startsWith('image/')) {
           toast.error(`${file.name} is not an image file`);
@@ -86,24 +88,19 @@ export const DamageReportDialog = ({ open, onOpenChange, vehicles }: DamageRepor
           continue;
         }
 
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const result = await uploadVehiclePhoto(
+          file,
+          `damage/${Date.now()}`,
+          user.id,
+          { preset: 'operational', bucket: 'damage-photos' }
+        );
 
-        const { error: uploadError } = await supabase.storage
-          .from('damage-photos')
-          .upload(fileName, file);
-
-        if (uploadError) {
-          console.error('Upload error:', uploadError);
-          toast.error(`Failed to upload ${file.name}`);
+        if (result.error) {
+          toast.error(`Failed to upload ${file.name}: ${result.error}`);
           continue;
         }
 
-        const { data: urlData } = supabase.storage
-          .from('damage-photos')
-          .getPublicUrl(fileName);
-
-        newPhotos.push({ url: urlData.publicUrl, name: file.name });
+        newPhotos.push({ url: result.url, name: file.name });
       }
 
       setUploadedPhotos(prev => [...prev, ...newPhotos]);

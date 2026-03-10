@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { uploadMetrics, formatBytes } from '@/lib/uploadMetrics';
 import {
   Image,
   Upload,
@@ -18,6 +19,8 @@ import {
   ChevronDown,
   ChevronRight,
   Plus,
+  TrendingDown,
+  Zap,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePhotoHubStats, useVehiclePhotos } from '@/hooks/useVehiclePhotos';
@@ -201,6 +204,31 @@ export const PhotoHubTab = ({ vehicles, loading: vehiclesLoading }: PhotoHubTabP
           clickable={stats.unmatchedPhotos > 0}
         />
       </div>
+      {/* Session Metrics Banner */}
+      {uploadMetrics.hasEntries() && (() => {
+        const sessionStats = uploadMetrics.getSessionStats();
+        return (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center gap-4 p-3 rounded-lg bg-muted/50 border text-sm"
+          >
+            <span className="font-medium text-foreground">Session Summary</span>
+            {sessionStats.savedBytes > 0 && (
+              <span className="flex items-center gap-1 text-muted-foreground">
+                <TrendingDown className="h-3.5 w-3.5 text-success" />
+                Saved {formatBytes(sessionStats.savedBytes)} ({Math.round(sessionStats.compressionRatio * 100)}% smaller)
+              </span>
+            )}
+            {sessionStats.autoMatchCount > 0 && (
+              <span className="flex items-center gap-1 text-muted-foreground">
+                <Zap className="h-3.5 w-3.5 text-primary" />
+                Auto-matched {sessionStats.autoMatchCount}/{sessionStats.totalUploads}
+              </span>
+            )}
+          </motion.div>
+        );
+      })()}
 
       {/* Quick Actions / Empty State */}
       {stats.totalPhotos === 0 ? (
