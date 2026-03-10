@@ -104,8 +104,17 @@ export const TourDataProvider = ({ children }: { children: ReactNode }) => {
 
 export const useTourData = () => {
   const context = useContext(TourDataContext);
+  // Safe to use outside provider — returns inactive defaults
   if (!context) {
-    throw new Error('useTourData must be used within a TourDataProvider');
+    return {
+      tourActive: false,
+      demoSnapshot: null,
+      isLoading: false,
+      activateTour: async () => false,
+      deactivateTour: () => {},
+      showPostTourModal: false,
+      setShowPostTourModal: () => {},
+    } as TourDataContextType;
   }
   return context;
 };

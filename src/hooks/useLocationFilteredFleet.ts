@@ -13,17 +13,7 @@ import { useTourData } from '@/contexts/TourDataContext';
 export const useLocationFilteredFleet = () => {
   const fleet = useFleet();
   const { selectedLocationId, currentLocation, locations } = useTeam();
-  
-  // Check if demo tour is active
-  let tourActive = false;
-  let demoSnapshot: any = null;
-  try {
-    const tourData = useTourData();
-    tourActive = tourData.tourActive;
-    demoSnapshot = tourData.demoSnapshot;
-  } catch {
-    // TourDataProvider not mounted — use real data
-  }
+  const { tourActive, demoSnapshot } = useTourData();
 
   // Filter vehicles by selected location
   const filteredVehicles = useMemo(() => {
