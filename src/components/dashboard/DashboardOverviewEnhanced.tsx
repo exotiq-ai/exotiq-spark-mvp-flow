@@ -335,31 +335,89 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
   }
 
   // Empty state - show getting started UI for new users
+  const firstName = profile?.full_name?.split(' ')[0] || 'there';
+  const companyName = profile?.company_name;
+  
   if (!loading && vehicles.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 space-y-4">
-        <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
-          <Car className="h-8 w-8 text-primary" />
-        </div>
-        <h2 className="text-2xl font-semibold text-foreground">Welcome to Exotiq!</h2>
-        <p className="text-muted-foreground text-center max-w-md">
-          Let's get your fleet set up. Add your first vehicle to start managing bookings, tracking revenue, and optimizing your rental business.
-        </p>
-        <Button
-          size="lg"
-          onClick={() => setShowAddVehicleDialog(true)}
-          className="gap-2 mt-4"
+      <div className="space-y-8 pb-20">
+        {/* Personalized Welcome */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          className="flex flex-col items-center justify-center py-12 space-y-4"
         >
-          <Plus className="h-5 w-5" />
-          Add Your First Vehicle
-        </Button>
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.1, type: "spring", stiffness: 300, damping: 20 }}
+            className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center"
+          >
+            <Sparkles className="h-8 w-8 text-primary" />
+          </motion.div>
+          <h2 className="text-2xl font-bold text-foreground">
+            Welcome, {firstName}! 👋
+          </h2>
+          <p className="text-muted-foreground text-center max-w-md">
+            Let's get {companyName ? <span className="font-medium text-foreground">{companyName}</span> : 'your fleet'} set up and running.
+          </p>
+          
+          {/* Action Buttons */}
+          <div className="flex flex-col sm:flex-row items-center gap-3 mt-4">
+            <Button
+              size="lg"
+              onClick={() => setShowAddVehicleDialog(true)}
+              className="gap-2 min-w-[200px]"
+            >
+              <Plus className="h-5 w-5" />
+              Add Your First Vehicle
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              onClick={() => setShowImportWizard(true)}
+              className="gap-2 min-w-[200px]"
+            >
+              <Upload className="h-5 w-5" />
+              Import Fleet from CSV
+            </Button>
+          </div>
+        </motion.div>
+
+        {/* Getting Started Checklist */}
+        <GettingStartedChecklist
+          vehicleCount={vehicles.length}
+          bookingCount={bookings.length}
+          onAddVehicle={() => setShowAddVehicleDialog(true)}
+          onImportFleet={() => setShowImportWizard(true)}
+          onCreateBooking={() => setShowBookingDialog(true)}
+          onStartTour={() => window.dispatchEvent(new Event('start-tour'))}
+          onNavigateToTeam={() => onModuleClick('settings')}
+        />
         
-        {/* Still show the add vehicle dialog */}
+        {/* Dialogs */}
         <AddVehicleDialog
           open={showAddVehicleDialog}
           onOpenChange={setShowAddVehicleDialog}
           onSubmit={createVehicle}
         />
+        <Dialog open={showImportWizard} onOpenChange={setShowImportWizard}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+            <DialogHeader>
+              <DialogTitle>Import Fleet</DialogTitle>
+            </DialogHeader>
+            <div className="flex-1 overflow-y-auto">
+              <ImportWizard 
+                onClose={() => setShowImportWizard(false)}
+                onComplete={() => {
+                  setShowImportWizard(false);
+                  refreshData(true);
+                }}
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
