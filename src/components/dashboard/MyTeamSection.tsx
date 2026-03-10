@@ -53,6 +53,7 @@ const roleLabels: Record<AppRole, string> = {
 export const MyTeamSection = () => {
   const { user } = useAuth();
   const { isAdmin, loading: roleLoading } = useUserRole();
+  const { currentTeam } = useTeam();
   const [searchQuery, setSearchQuery] = useState("");
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
