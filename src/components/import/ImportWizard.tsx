@@ -205,6 +205,7 @@ export function ImportWizard({ onClose, onComplete }: ImportWizardProps) {
 
     try {
       let imported = 0, failed = 0;
+      let lastInsertError: string | null = null;
       
       // Record import batch
       const { data: batchRecord } = await supabase
