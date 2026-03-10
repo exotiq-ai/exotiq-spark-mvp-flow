@@ -24,26 +24,24 @@ export const useLocationFilteredFleet = () => {
     return fleet.vehicles.filter(v => v.location_id === selectedLocationId);
   }, [fleet.vehicles, selectedLocationId, tourActive, demoSnapshot]);
 
-  // Filter bookings by pickup location
+  // Filter bookings by pickup location (or use demo data)
   const filteredBookings = useMemo(() => {
+    if (tourActive && demoSnapshot) return demoSnapshot.bookings;
     if (selectedLocationId === 'all') {
       return fleet.bookings;
     }
     // Filter by pickup_location_id or by vehicle's location
     return fleet.bookings.filter(b => {
-      // First check if booking has a pickup_location_id
       if (b.pickup_location_id) {
         return b.pickup_location_id === selectedLocationId;
       }
-      // Fall back to checking the vehicle's location
       const vehicle = fleet.vehicles.find(v => v.id === b.vehicle_id);
-      // If booking has no vehicle_id and no pickup_location_id, include it (unassigned imports)
       if (!vehicle && !b.vehicle_id) {
-        return true; // Include unassigned bookings in all location views
+        return true;
       }
       return vehicle?.location_id === selectedLocationId;
     });
-  }, [fleet.bookings, fleet.vehicles, selectedLocationId]);
+  }, [fleet.bookings, fleet.vehicles, selectedLocationId, tourActive, demoSnapshot]);
 
   // Filter maintenance by location_id or vehicle's location
   const filteredMaintenance = useMemo(() => {
