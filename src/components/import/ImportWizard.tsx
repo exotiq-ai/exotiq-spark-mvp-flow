@@ -500,6 +500,15 @@ export function ImportWizard({ onClose, onComplete }: ImportWizardProps) {
               failed: importProgress.failedCount,
               needsAttention: bookingsNeedingAttention
             }}
+            fileName={selectedFile?.name}
+            columnMappings={columnMappings.map(m => ({
+              sourceColumn: m.sourceColumn,
+              targetField: m.targetField
+            }))}
+            failedRows={validationResult?.invalidRows.map(r => ({
+              row: r.row,
+              errors: r.errors.map(e => ({ field: e.field, message: e.message }))
+            }))}
             onClose={() => {
               resetWizard();
             }}
