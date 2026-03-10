@@ -126,34 +126,28 @@ export const InspectionWidget = ({
     setDamageItems(prev => prev.filter(d => d.id !== damageId));
   }, []);
 
-  // Upload photo to storage
+  // Upload photo to storage via unified photoUpload
   const uploadPhoto = async (
     imageData: string, 
     folder: string, 
     filename: string
   ): Promise<string | null> => {
     try {
-      // Convert base64 to blob
       const response = await fetch(imageData);
       const blob = await response.blob();
+      const file = new File([blob], filename, { type: 'image/jpeg' });
 
-      const filePath = `${folder}/${filename}`;
-      
-      const { data, error } = await supabase.storage
-        .from('vehicle-photos')
-        .upload(filePath, blob, {
-          contentType: 'image/jpeg',
-          upsert: true,
-        });
+      const { uploadVehiclePhoto } = await import('@/lib/photoUpload');
+      const result = await uploadVehiclePhoto(file, folder, user?.id || '', {
+        preset: 'operational',
+      });
 
-      if (error) throw error;
+      if (result.error) {
+        console.error('Upload error:', result.error);
+        return null;
+      }
 
-      // Get public URL
-      const { data: publicUrlData } = supabase.storage
-        .from('vehicle-photos')
-        .getPublicUrl(filePath);
-
-      return publicUrlData.publicUrl;
+      return result.url;
     } catch (error) {
       console.error('Error uploading photo:', error);
       return null;

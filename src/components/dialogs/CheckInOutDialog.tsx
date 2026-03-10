@@ -174,7 +174,7 @@ export const CheckInOutDialog = ({
     setDamageItems((prev) => prev.filter((d) => d.id !== damageId));
   }, []);
 
-  // Upload photo helper
+  // Upload photo helper via unified photoUpload
   const uploadPhoto = async (
     imageData: string,
     folder: string,
@@ -183,15 +183,19 @@ export const CheckInOutDialog = ({
     try {
       const response = await fetch(imageData);
       const blob = await response.blob();
-      const filePath = `${folder}/${filename}`;
-      const { error } = await supabase.storage
-        .from("vehicle-photos")
-        .upload(filePath, blob, { contentType: "image/jpeg", upsert: true });
-      if (error) throw error;
-      const { data: publicUrlData } = supabase.storage
-        .from("vehicle-photos")
-        .getPublicUrl(filePath);
-      return publicUrlData.publicUrl;
+      const file = new File([blob], filename, { type: 'image/jpeg' });
+
+      const { uploadVehiclePhoto } = await import('@/lib/photoUpload');
+      const result = await uploadVehiclePhoto(file, folder, user?.id || '', {
+        preset: 'operational',
+      });
+
+      if (result.error) {
+        console.error('Upload error:', result.error);
+        return null;
+      }
+
+      return result.url;
     } catch (error) {
       console.error("Error uploading photo:", error);
       return null;
