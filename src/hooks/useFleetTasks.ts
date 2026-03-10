@@ -114,7 +114,7 @@ export const useFleetTasks = () => {
         .insert({
           vehicle_id: input.vehicle_id,
           team_id: currentTeam.id,
-          location_id: input.location_id || selectedLocationId !== 'all' ? selectedLocationId : null,
+          location_id: input.location_id || (selectedLocationId !== 'all' ? selectedLocationId : null),
           created_by: user.id,
           assigned_to: input.assigned_to || null,
           task_type: input.task_type,
