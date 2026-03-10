@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,8 @@ import {
   Compass, 
   Check,
   ChevronRight,
-  Sparkles
+  Sparkles,
+  X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -35,6 +36,9 @@ export const GettingStartedChecklist = ({
   onNavigateToTeam,
 }: GettingStartedChecklistProps) => {
   const { profile } = useProfile();
+  const [dismissed, setDismissed] = useState(() => 
+    localStorage.getItem('checklist-dismissed') === 'true'
+  );
   
   const tourCompleted = profile ? (profile as any).tour_completed === true : false;
 
@@ -78,8 +82,13 @@ export const GettingStartedChecklist = ({
   const completedCount = steps.filter(s => s.done).length;
   const progress = (completedCount / steps.length) * 100;
 
-  // Don't show if all steps are done
-  if (completedCount === steps.length) return null;
+  // Don't show if all steps are done or dismissed
+  if (completedCount === steps.length || dismissed) return null;
+
+  const handleDismiss = () => {
+    localStorage.setItem('checklist-dismissed', 'true');
+    setDismissed(true);
+  };
 
   return (
     <motion.div
@@ -98,6 +107,13 @@ export const GettingStartedChecklist = ({
               {completedCount} of {steps.length} complete
             </p>
           </div>
+          <button
+            onClick={handleDismiss}
+            className="h-6 w-6 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            aria-label="Dismiss checklist"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
         </div>
 
         <Progress value={progress} className="h-1.5 mb-5" />

@@ -1,9 +1,11 @@
 import { useMemo } from 'react';
 import { useFleet } from '@/contexts/FleetContext';
 import { useTeam } from '@/contexts/TeamContext';
+import { useTourData } from '@/contexts/TourDataContext';
 
 /**
  * Hook that provides fleet data filtered by the currently selected location.
+ * When tour is active, returns demo snapshot data instead.
  * When "All Locations" is selected, returns all data.
  * When a specific location is selected, filters vehicles by location_id
  * and bookings by pickup_location_id.
@@ -11,35 +13,35 @@ import { useTeam } from '@/contexts/TeamContext';
 export const useLocationFilteredFleet = () => {
   const fleet = useFleet();
   const { selectedLocationId, currentLocation, locations } = useTeam();
+  const { tourActive, demoSnapshot } = useTourData();
 
-  // Filter vehicles by selected location
+  // Filter vehicles by selected location (or use demo data when tour active)
   const filteredVehicles = useMemo(() => {
+    if (tourActive && demoSnapshot) return demoSnapshot.vehicles;
     if (selectedLocationId === 'all') {
       return fleet.vehicles;
     }
     return fleet.vehicles.filter(v => v.location_id === selectedLocationId);
-  }, [fleet.vehicles, selectedLocationId]);
+  }, [fleet.vehicles, selectedLocationId, tourActive, demoSnapshot]);
 
-  // Filter bookings by pickup location
+  // Filter bookings by pickup location (or use demo data)
   const filteredBookings = useMemo(() => {
+    if (tourActive && demoSnapshot) return demoSnapshot.bookings;
     if (selectedLocationId === 'all') {
       return fleet.bookings;
     }
     // Filter by pickup_location_id or by vehicle's location
     return fleet.bookings.filter(b => {
-      // First check if booking has a pickup_location_id
       if (b.pickup_location_id) {
         return b.pickup_location_id === selectedLocationId;
       }
-      // Fall back to checking the vehicle's location
       const vehicle = fleet.vehicles.find(v => v.id === b.vehicle_id);
-      // If booking has no vehicle_id and no pickup_location_id, include it (unassigned imports)
       if (!vehicle && !b.vehicle_id) {
-        return true; // Include unassigned bookings in all location views
+        return true;
       }
       return vehicle?.location_id === selectedLocationId;
     });
-  }, [fleet.bookings, fleet.vehicles, selectedLocationId]);
+  }, [fleet.bookings, fleet.vehicles, selectedLocationId, tourActive, demoSnapshot]);
 
   // Filter maintenance by location_id or vehicle's location
   const filteredMaintenance = useMemo(() => {
@@ -138,6 +140,11 @@ export const useLocationFilteredFleet = () => {
     };
   }, [filteredVehicles, filteredBookings, filteredMaintenance, filteredDamageClaims]);
 
+  // When tour is active, override with demo data
+  const effectiveRevenue = tourActive && demoSnapshot ? demoSnapshot.revenue : filteredRevenue;
+  const effectiveCustomers = tourActive && demoSnapshot ? demoSnapshot.customers : fleet.customers;
+  const effectivePayments = tourActive && demoSnapshot ? demoSnapshot.payments : filteredPayments;
+
   return {
     // Filtered data
     vehicles: filteredVehicles,
@@ -145,12 +152,12 @@ export const useLocationFilteredFleet = () => {
     maintenance: filteredMaintenance,
     damageClaims: filteredDamageClaims,
     inspections: filteredInspections,
-    payments: filteredPayments,
-    revenue: filteredRevenue,
+    payments: effectivePayments,
+    revenue: effectiveRevenue,
 
     // Unfiltered data (for operations that need all data)
-    allVehicles: fleet.vehicles,
-    allBookings: fleet.bookings,
+    allVehicles: tourActive && demoSnapshot ? demoSnapshot.vehicles : fleet.vehicles,
+    allBookings: tourActive && demoSnapshot ? demoSnapshot.bookings : fleet.bookings,
 
     // Location context
     selectedLocationId,
@@ -164,10 +171,10 @@ export const useLocationFilteredFleet = () => {
     // Pass through other fleet context values unchanged
     documents: fleet.documents,
     messages: fleet.messages,
-    customers: fleet.customers,
+    customers: effectiveCustomers,
     customerNotes: fleet.customerNotes,
-    loading: fleet.loading,
-    error: fleet.error, // Expose error state for UI recovery
+    loading: tourActive ? false : fleet.loading,
+    error: tourActive ? null : fleet.error,
 
     // Pass through all actions
     applyPriceOptimization: fleet.applyPriceOptimization,

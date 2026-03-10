@@ -12,6 +12,8 @@ import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { LocationContextBanner } from "@/components/common/LocationBadge";
 import { InteractiveModuleTour } from "@/components/onboarding/InteractiveModuleTour";
 import { AutomatedDemoTour } from "@/components/onboarding/AutomatedDemoTour";
+import { PostTourChoiceModal } from "@/components/onboarding/PostTourChoiceModal";
+import { TourDataProvider, useTourData } from "@/contexts/TourDataContext";
 import { useAnalytics } from "@/lib/analytics";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -51,13 +53,14 @@ import { AddLocationDialog } from "@/components/dialogs/AddLocationDialog";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
-const Dashboard = () => {
+const DashboardInner = () => {
   const [searchParams] = useSearchParams();
   const [activeModule, setActiveModule] = useLocalStorage("activeModule", "dashboard");
   const [chatOpen, setChatOpen] = useState(false);
   const [chatMinimized, setChatMinimized] = useState(false);
   const [mobileAddLocationOpen, setMobileAddLocationOpen] = useState(false);
   const rariSidebar = useRariSidebar();
+  const { showPostTourModal, setShowPostTourModal } = useTourData();
   const { displayName } = useProfile();
 
   // Ensure module transition overlay never gets stuck
@@ -283,6 +286,25 @@ const Dashboard = () => {
       {/* Rari-narrated Automated Demo Tour */}
       <AutomatedDemoTour onModuleChange={handleModuleChange} />
       
+      {/* Post-tour choice modal */}
+      <PostTourChoiceModal
+        open={showPostTourModal}
+        onAddVehicle={() => {
+          setShowPostTourModal(false);
+          handleModuleChange('dashboard');
+          // Dispatch event to open add vehicle dialog in dashboard
+          setTimeout(() => window.dispatchEvent(new Event('open-add-vehicle')), 300);
+        }}
+        onImportFleet={() => {
+          setShowPostTourModal(false);
+          handleModuleChange('dashboard');
+          setTimeout(() => window.dispatchEvent(new Event('open-import-wizard')), 300);
+        }}
+        onExplore={() => {
+          setShowPostTourModal(false);
+          handleModuleChange('dashboard');
+        }}
+      />
       <SEOHead
         title="Fleet Management Dashboard"
         description="Manage your luxury fleet with comprehensive analytics, AI-powered insights, and real-time monitoring."
@@ -460,5 +482,11 @@ const Dashboard = () => {
     </div>
   );
 };
+
+const Dashboard = () => (
+  <TourDataProvider>
+    <DashboardInner />
+  </TourDataProvider>
+);
 
 export default Dashboard;

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { useDemoScript } from '@/hooks/useDemoScript';
 import { useDemoOrchestrator } from '@/hooks/useDemoOrchestrator';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTourData } from '@/contexts/TourDataContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import confetti from 'canvas-confetti';
@@ -25,12 +26,16 @@ interface AutomatedDemoTourProps {
 export const AutomatedDemoTour = ({ onModuleChange }: AutomatedDemoTourProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { activateTour, deactivateTour } = useTourData();
   const steps = useDemoScript();
   
   const demo = useDemoOrchestrator({
     steps,
     onModuleChange,
     onComplete: () => {
+      // Deactivate tour data overlay first
+      deactivateTour();
+      
       confetti({
         particleCount: 150,
         spread: 80,
@@ -38,8 +43,8 @@ export const AutomatedDemoTour = ({ onModuleChange }: AutomatedDemoTourProps) =>
         colors: ['#0B3D91', '#FF6B35', '#FFD700'],
       });
       toast({
-        title: "Full Tour Complete! 🎉",
-        description: "You've seen everything Exotiq has to offer.",
+        title: "Tour Complete! 🎉",
+        description: "Now let's set up your fleet.",
         duration: 5000,
       });
       if (user?.id) {
@@ -48,12 +53,17 @@ export const AutomatedDemoTour = ({ onModuleChange }: AutomatedDemoTourProps) =>
     },
   });
 
-  // Listen for 'start-demo-tour' events
+  // Listen for 'start-demo-tour' events — pre-fetch demo data before starting
   useEffect(() => {
-    const handler = () => demo.start();
+    const handler = async () => {
+      const success = await activateTour();
+      if (success) {
+        setTimeout(() => demo.start(), 300);
+      }
+    };
     window.addEventListener('start-demo-tour', handler);
     return () => window.removeEventListener('start-demo-tour', handler);
-  }, [demo.start]);
+  }, [demo.start, activateTour]);
 
   // Keyboard controls
   useEffect(() => {
