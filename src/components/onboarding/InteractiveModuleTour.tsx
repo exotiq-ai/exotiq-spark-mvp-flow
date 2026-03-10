@@ -234,7 +234,7 @@ export const InteractiveModuleTour = ({ onModuleChange }: InteractiveModuleTourP
   const Icon = tour.currentStep.icon;
   const isCenterStep = tour.currentStep.spotlights.length === 0;
   const hasSpotlights = tour.currentStep.spotlights.length > 0;
-  const cardPosition = getCardPosition(tour.currentStep.id, isCenterStep);
+  const { position: cardPosition, entrance: cardEntrance } = getCardPosition(tour.currentStep.id, isCenterStep);
 
   return (
     <AnimatePresence>
