@@ -1,9 +1,11 @@
 import { useMemo } from 'react';
 import { useFleet } from '@/contexts/FleetContext';
 import { useTeam } from '@/contexts/TeamContext';
+import { useTourData } from '@/contexts/TourDataContext';
 
 /**
  * Hook that provides fleet data filtered by the currently selected location.
+ * When tour is active, returns demo snapshot data instead.
  * When "All Locations" is selected, returns all data.
  * When a specific location is selected, filters vehicles by location_id
  * and bookings by pickup_location_id.
@@ -11,6 +13,17 @@ import { useTeam } from '@/contexts/TeamContext';
 export const useLocationFilteredFleet = () => {
   const fleet = useFleet();
   const { selectedLocationId, currentLocation, locations } = useTeam();
+  
+  // Check if demo tour is active
+  let tourActive = false;
+  let demoSnapshot: any = null;
+  try {
+    const tourData = useTourData();
+    tourActive = tourData.tourActive;
+    demoSnapshot = tourData.demoSnapshot;
+  } catch {
+    // TourDataProvider not mounted — use real data
+  }
 
   // Filter vehicles by selected location
   const filteredVehicles = useMemo(() => {
