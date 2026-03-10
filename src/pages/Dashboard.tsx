@@ -463,4 +463,10 @@ const DashboardInner = () => {
   );
 };
 
+const Dashboard = () => (
+  <TourDataProvider>
+    <DashboardInner />
+  </TourDataProvider>
+);
+
 export default Dashboard;
