@@ -36,6 +36,9 @@ export const GettingStartedChecklist = ({
   onNavigateToTeam,
 }: GettingStartedChecklistProps) => {
   const { profile } = useProfile();
+  const [dismissed, setDismissed] = useState(() => 
+    localStorage.getItem('checklist-dismissed') === 'true'
+  );
   
   const tourCompleted = profile ? (profile as any).tour_completed === true : false;
 
