@@ -4,12 +4,39 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTeam } from '@/contexts/TeamContext';
 import { AIAnalysisResult, PhotoUploadProgress } from './types';
 import type { Json } from '@/integrations/supabase/types';
-import { compressImage } from '@/lib/imageCompression';
+import { compressImage, generateThumbnail, UPLOAD_PRESETS } from '@/lib/imageCompression';
+import { isFeatureEnabled } from '@/lib/featureFlags';
+import { matchFilenameToVehicle, type MatchableVehicle } from '@/lib/filenameVehicleMatcher';
+import { uploadMetrics } from '@/lib/uploadMetrics';
 
 interface UsePhotoAnalysisOptions {
   onProgress?: (progress: PhotoUploadProgress[]) => void;
   onComplete?: (results: PhotoUploadProgress[]) => void;
   onError?: (error: string) => void;
+}
+
+/** Process items with a concurrency limit */
+async function processWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  processor: (item: T, index: number) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let nextIndex = 0;
+
+  async function worker(): Promise<void> {
+    while (nextIndex < items.length) {
+      const i = nextIndex++;
+      results[i] = await processor(items[i], i);
+    }
+  }
+
+  const workers = Array.from(
+    { length: Math.min(concurrency, items.length) },
+    () => worker()
+  );
+  await Promise.all(workers);
+  return results;
 }
 
 export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
@@ -19,16 +46,19 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
   const [progress, setProgress] = useState<PhotoUploadProgress[]>([]);
 
   /**
-   * Upload a single photo to Supabase storage and get a signed URL
+   * Upload a single photo to Supabase storage and get a signed URL.
+   * Optionally generates and uploads a thumbnail.
    */
   const uploadToStorage = useCallback(async (
     file: File,
-    folder: string = 'unmatched'
-  ): Promise<{ path: string; url: string }> => {
+    folder: string = 'unmatched',
+    preset: keyof typeof UPLOAD_PRESETS = 'display'
+  ): Promise<{ path: string; url: string; thumbnailUrl?: string; thumbnailPath?: string; compressedBytes: number }> => {
     if (!user) throw new Error('User not authenticated');
 
-    // Compress before upload
-    const compressedFile = await compressImage(file);
+    // Compress with preset
+    const presetOptions = isFeatureEnabled('uploadPresets') ? UPLOAD_PRESETS[preset] : undefined;
+    const compressedFile = await compressImage(file, presetOptions);
 
     const timestamp = Date.now();
     const randomString = Math.random().toString(36).substring(7);
@@ -44,20 +74,49 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
 
     if (error) throw error;
 
-    // Use the actual stored path from response (data.path) for consistency
     const storedPath = data.path;
 
-    // Use signed URL for private bucket access (valid for 1 year)
+    // 1-year signed URL
     const { data: signedData, error: signedError } = await supabase.storage
       .from('vehicle-photos')
-      .createSignedUrl(storedPath, 60 * 60 * 24 * 365); // 1 year
+      .createSignedUrl(storedPath, 60 * 60 * 24 * 365);
 
     if (signedError || !signedData?.signedUrl) {
-      console.error('Failed to create signed URL:', signedError);
       throw new Error('Failed to create signed URL');
     }
 
-    return { path: storedPath, url: signedData.signedUrl };
+    const result: { path: string; url: string; thumbnailUrl?: string; thumbnailPath?: string; compressedBytes: number } = {
+      path: storedPath,
+      url: signedData.signedUrl,
+      compressedBytes: compressedFile.size,
+    };
+
+    // Generate + upload thumbnail
+    if (isFeatureEnabled('thumbnailGeneration')) {
+      try {
+        const thumbnail = await generateThumbnail(file);
+        const thumbPath = storedPath.replace(/\.[^.]+$/, '_thumb.jpg');
+
+        const { error: thumbErr } = await supabase.storage
+          .from('vehicle-photos')
+          .upload(thumbPath, thumbnail, { cacheControl: '3600', upsert: false });
+
+        if (!thumbErr) {
+          const { data: thumbSigned } = await supabase.storage
+            .from('vehicle-photos')
+            .createSignedUrl(thumbPath, 60 * 60 * 24 * 365);
+
+          if (thumbSigned?.signedUrl) {
+            result.thumbnailUrl = thumbSigned.signedUrl;
+            result.thumbnailPath = thumbPath;
+          }
+        }
+      } catch (e) {
+        console.warn('Thumbnail generation failed:', e);
+      }
+    }
+
+    return result;
   }, [user]);
 
   /**
@@ -67,7 +126,6 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
     imageUrl: string,
     filename?: string
   ): Promise<AIAnalysisResult> => {
-    // Use the new Gemini-based identify-vehicle function
     const { data, error } = await supabase.functions.invoke('identify-vehicle', {
       body: { imageUrl, filename }
     });
@@ -90,16 +148,12 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
   }> => {
     if (!user) throw new Error('User not authenticated');
 
-    // 1. Upload to storage
     const folder = vehicleId ? `vehicles/${vehicleId}` : 'unmatched';
-    const { path, url } = await uploadToStorage(file, folder);
+    const { path, url, thumbnailUrl, compressedBytes } = await uploadToStorage(file, folder);
 
-    // 2. Analyze with AI
     const analysis = await analyzePhoto(url, file.name);
 
-    // 3. Save to database
     if (vehicleId && analysis.isVehicle) {
-      // Map detected angle to photo type
       const getPhotoType = (angle: string | undefined): string => {
         if (!angle) return 'exterior';
         if (angle === 'interior' || angle.includes('interior')) return 'interior';
@@ -108,7 +162,6 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
         return 'exterior';
       };
 
-      // Save as vehicle photo
       const { data: photoData, error: insertError } = await supabase
         .from('vehicle_photos')
         .insert({
@@ -117,6 +170,7 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
           team_id: currentTeam?.id || null,
           storage_path: path,
           url: url,
+          thumbnail_url: thumbnailUrl || null,
           photo_type: getPhotoType(analysis.angle),
           detected_angle: analysis.angle,
           ai_analysis: analysis as unknown as Json,
@@ -124,7 +178,7 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
           quality_score: analysis.quality.score,
           quality_issues: analysis.quality.issues,
           original_filename: file.name,
-          file_size_bytes: file.size,
+          file_size_bytes: compressedBytes,
           mime_type: file.type,
           analyzed_at: new Date().toISOString()
         })
@@ -135,7 +189,6 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
       
       return { path, url, analysis, photoId: photoData?.id };
     } else {
-      // Save to unmatched queue
       const { error: unmatchedError } = await supabase
         .from('unmatched_photos')
         .insert({
@@ -157,46 +210,64 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
   }, [user, currentTeam, uploadToStorage, analyzePhoto]);
 
   /**
-   * Process multiple photos in batch
-   * @param skipAnalysis - If true, skip AI analysis and just upload (for faster onboarding)
+   * Process multiple photos in batch with concurrency pool.
+   * @param vehicles - Fleet inventory for filename-based auto-matching
+   * @param skipAnalysis - If true, skip AI analysis (faster onboarding)
    */
   const processBatch = useCallback(async (
     files: File[],
     vehicleId?: string,
-    options_?: { skipAnalysis?: boolean }
+    options_?: { skipAnalysis?: boolean; vehicles?: MatchableVehicle[] }
   ): Promise<PhotoUploadProgress[]> => {
     if (!user) throw new Error('User not authenticated');
 
     const skipAnalysis = options_?.skipAnalysis ?? false;
+    const fleetVehicles = options_?.vehicles ?? [];
+    const useConcurrency = isFeatureEnabled('concurrentUploads');
 
     setIsProcessing(true);
     
     // Initialize progress tracking
-    const initialProgress: PhotoUploadProgress[] = files.map(file => ({
+    const progressArr: PhotoUploadProgress[] = files.map(file => ({
       file,
       status: 'pending',
       progress: 0
     }));
-    setProgress(initialProgress);
-    options.onProgress?.(initialProgress);
+    setProgress([...progressArr]);
+    options.onProgress?.([...progressArr]);
 
-    const results: PhotoUploadProgress[] = [];
+    const updateProgress = (index: number, update: Partial<PhotoUploadProgress>) => {
+      Object.assign(progressArr[index], update);
+      setProgress([...progressArr]);
+      options.onProgress?.([...progressArr]);
+    };
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      
-      // Update to uploading
-      const uploadingProgress = [...initialProgress];
-      uploadingProgress[i] = { ...uploadingProgress[i], status: 'uploading', progress: 25 };
-      setProgress(uploadingProgress);
-      options.onProgress?.(uploadingProgress);
+    const processFile = async (file: File, i: number): Promise<PhotoUploadProgress> => {
+      const startTime = Date.now();
+      const originalBytes = file.size;
 
       try {
+        // Preprocessing: filename matching
+        let resolvedVehicleId = vehicleId;
+        let matchResult: PhotoUploadProgress['matchResult'] = vehicleId ? 'skipped' : 'unmatched';
+
+        if (!vehicleId && fleetVehicles.length > 0) {
+          updateProgress(i, { status: 'matching', progress: 10 });
+          const match = matchFilenameToVehicle(file.name, fleetVehicles);
+          if (match.confidence === 'high') {
+            resolvedVehicleId = match.vehicleId!;
+            matchResult = 'auto-matched';
+          } else if (match.confidence === 'medium') {
+            matchResult = 'suggested';
+          }
+        }
+
         // Upload
-        const folder = vehicleId ? `vehicles/${vehicleId}` : 'unmatched';
-        const { path, url } = await uploadToStorage(file, folder);
-        
-        // Default analysis for skipAnalysis mode
+        updateProgress(i, { status: 'uploading', progress: 25 });
+        const folder = resolvedVehicleId ? `vehicles/${resolvedVehicleId}` : 'unmatched';
+        const { path, url, thumbnailUrl, compressedBytes } = await uploadToStorage(file, folder);
+
+        // Default analysis
         let analysis: AIAnalysisResult = {
           isVehicle: true,
           confidence: 100,
@@ -207,26 +278,18 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
         };
 
         if (!skipAnalysis) {
-          // Update to analyzing
-          const analyzingProgress = [...uploadingProgress];
-          analyzingProgress[i] = { ...analyzingProgress[i], status: 'analyzing', progress: 50 };
-          setProgress(analyzingProgress);
-          options.onProgress?.(analyzingProgress);
-
-          // Analyze with AI
+          updateProgress(i, { status: 'analyzing', progress: 50 });
           try {
             analysis = await analyzePhoto(url, file.name);
           } catch (analysisError) {
             console.warn('AI analysis failed, using defaults:', analysisError);
-            // Continue with default analysis
           }
         }
 
         // Save to database
         let photoId: string | undefined;
         
-        if (vehicleId) {
-          // Map detected angle to photo type
+        if (resolvedVehicleId && (matchResult === 'auto-matched' || matchResult === 'skipped')) {
           const getPhotoType = (angle: string | undefined): string => {
             if (!angle) return 'exterior';
             if (angle === 'interior' || angle.includes('interior')) return 'interior';
@@ -238,11 +301,12 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
           const { data } = await supabase
             .from('vehicle_photos')
             .insert({
-              vehicle_id: vehicleId,
+              vehicle_id: resolvedVehicleId,
               user_id: user.id,
               team_id: currentTeam?.id || null,
               storage_path: path,
               url: url,
+              thumbnail_url: thumbnailUrl || null,
               photo_type: getPhotoType(analysis.angle),
               detected_angle: analysis.angle,
               ai_analysis: analysis as unknown as Json,
@@ -250,7 +314,7 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
               quality_score: analysis.quality.score,
               quality_issues: analysis.quality.issues,
               original_filename: file.name,
-              file_size_bytes: file.size,
+              file_size_bytes: compressedBytes,
               mime_type: file.type,
               analyzed_at: skipAnalysis ? null : new Date().toISOString()
             })
@@ -259,6 +323,11 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
           
           photoId = data?.id;
         } else {
+          // Save to unmatched queue (including suggested matches)
+          const match = !vehicleId && fleetVehicles.length > 0
+            ? matchFilenameToVehicle(file.name, fleetVehicles)
+            : null;
+
           await supabase
             .from('unmatched_photos')
             .insert({
@@ -270,24 +339,33 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
               ai_analysis: analysis as unknown as Json,
               suggested_make: analysis.suggestedVehicleMatch?.make,
               suggested_color: analysis.suggestedVehicleMatch?.color,
-              suggestion_confidence: analysis.confidence
+              suggestion_confidence: analysis.confidence,
+              ...(match?.confidence === 'medium' && match.vehicleId
+                ? { suggested_vehicle_id: match.vehicleId }
+                : {}),
             });
         }
 
-        // Update to complete
-        const completeProgress = [...uploadingProgress];
-        completeProgress[i] = {
-          ...completeProgress[i],
+        // Record metrics
+        const durationMs = Date.now() - startTime;
+        uploadMetrics.record({
+          originalBytes,
+          compressedBytes,
+          durationMs,
+          matchResult: matchResult || 'unmatched',
+        });
+
+        const result: PhotoUploadProgress = {
+          file,
           status: 'complete',
           progress: 100,
-          result: { url, analysis, vehicleId, photoId }
+          matchResult,
+          compressionStats: { originalBytes, compressedBytes },
+          result: { url, analysis, vehicleId: resolvedVehicleId, photoId }
         };
-        setProgress(completeProgress);
-        options.onProgress?.(completeProgress);
-        
-        results.push(completeProgress[i]);
+        updateProgress(i, result);
+        return result;
       } catch (error) {
-        // Better error messages for common storage failures
         let errorMessage = 'Upload failed';
         if (error instanceof Error) {
           if (error.message.includes('Payload too large') || 
@@ -298,19 +376,33 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
             errorMessage = error.message;
           }
         }
-        
-        // Update to error
-        const errorProgress = [...initialProgress];
-        errorProgress[i] = {
-          ...errorProgress[i],
+
+        const durationMs = Date.now() - startTime;
+        uploadMetrics.record({
+          originalBytes,
+          compressedBytes: 0,
+          durationMs,
+          matchResult: 'unmatched',
+        });
+
+        const result: PhotoUploadProgress = {
+          file,
           status: 'error',
           progress: 0,
           error: errorMessage
         };
-        setProgress(errorProgress);
-        options.onProgress?.(errorProgress);
-        
-        results.push(errorProgress[i]);
+        updateProgress(i, result);
+        return result;
+      }
+    };
+
+    let results: PhotoUploadProgress[];
+    if (useConcurrency) {
+      results = await processWithConcurrency(files, 3, processFile);
+    } else {
+      results = [];
+      for (let i = 0; i < files.length; i++) {
+        results.push(await processFile(files[i], i));
       }
     }
 
@@ -329,7 +421,6 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
   ): Promise<string> => {
     if (!user) throw new Error('User not authenticated');
 
-    // 1. Get the unmatched photo
     const { data: unmatchedPhoto, error: fetchError } = await supabase
       .from('unmatched_photos')
       .select('*')
@@ -338,10 +429,8 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
 
     if (fetchError || !unmatchedPhoto) throw new Error('Photo not found');
 
-    // Parse AI analysis safely
     const aiAnalysis = unmatchedPhoto.ai_analysis as Record<string, unknown> | null;
 
-    // 2. Create vehicle_photo record
     const { data: vehiclePhoto, error: insertError } = await supabase
       .from('vehicle_photos')
       .insert({
@@ -364,7 +453,6 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
 
     if (insertError) throw insertError;
 
-    // 3. Update unmatched photo status
     await supabase
       .from('unmatched_photos')
       .update({
@@ -380,10 +468,8 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
 
   /**
    * Set a photo as the hero photo for its vehicle
-   * Also updates the vehicle's image_url for display throughout the app
    */
   const setAsHero = useCallback(async (photoId: string): Promise<void> => {
-    // First get the photo details to update the vehicle
     const { data: photo, error: fetchError } = await supabase
       .from('vehicle_photos')
       .select('vehicle_id, url')
@@ -392,7 +478,6 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
 
     if (fetchError) throw fetchError;
 
-    // Update the photo to hero type (trigger will handle the rest, but we also update explicitly)
     const { error } = await supabase
       .from('vehicle_photos')
       .update({ photo_type: 'hero' })
@@ -400,7 +485,6 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
 
     if (error) throw error;
 
-    // Also explicitly update the vehicle's image_url for immediate UI update
     if (photo.url) {
       await supabase
         .from('vehicles')
@@ -410,10 +494,9 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
   }, []);
 
   /**
-   * Delete a photo
+   * Delete a photo and its thumbnail
    */
   const deletePhoto = useCallback(async (photoId: string): Promise<void> => {
-    // Get the photo first to delete from storage
     const { data: photo } = await supabase
       .from('vehicle_photos')
       .select('storage_path')
@@ -421,9 +504,11 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
       .single();
 
     if (photo?.storage_path) {
+      // Delete both main file and thumbnail
+      const thumbPath = photo.storage_path.replace(/\.[^.]+$/, '_thumb.jpg');
       await supabase.storage
         .from('vehicle-photos')
-        .remove([photo.storage_path]);
+        .remove([photo.storage_path, thumbPath]);
     }
 
     const { error } = await supabase
@@ -441,7 +526,6 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
     vehicleId: string,
     photoIds: string[]
   ): Promise<void> => {
-    // Update each photo's display_order
     const updates = photoIds.map((id, index) => 
       supabase
         .from('vehicle_photos')
