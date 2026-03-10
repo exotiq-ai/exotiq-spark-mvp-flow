@@ -11,6 +11,7 @@ import { UnifiedNotificationCenter } from "@/components/common/UnifiedNotificati
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { LocationContextBanner } from "@/components/common/LocationBadge";
 import { InteractiveModuleTour } from "@/components/onboarding/InteractiveModuleTour";
+import { AutomatedDemoTour } from "@/components/onboarding/AutomatedDemoTour";
 import { useAnalytics } from "@/lib/analytics";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useUserRole } from "@/hooks/useUserRole";
