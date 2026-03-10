@@ -341,9 +341,10 @@ export const MyAccountSection = () => {
                 }
                 toast({
                   title: "Tour Restarting",
-                  description: "Starting the interactive tour now...",
+                  description: "Starting the demo tour now...",
                 });
-                navigate('/dashboard?startTour=true&t=' + Date.now());
+                navigate('/dashboard');
+                setTimeout(() => window.dispatchEvent(new Event('start-demo-tour')), 500);
               }}
             >
               <RotateCcw className="w-4 h-4 mr-2" />
