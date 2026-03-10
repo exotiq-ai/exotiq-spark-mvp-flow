@@ -83,6 +83,19 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
   const navigate = useNavigate();
   const [isRetrying, setIsRetrying] = useState(false);
   const [skippedTour, setSkippedTour] = useState(false);
+
+  // Listen for post-tour events to open dialogs
+  useEffect(() => {
+    const openVehicle = () => setShowAddVehicleDialog(true);
+    const openImport = () => setShowImportWizard(true);
+    window.addEventListener('open-add-vehicle', openVehicle);
+    window.addEventListener('open-import-wizard', openImport);
+    return () => {
+      window.removeEventListener('open-add-vehicle', openVehicle);
+      window.removeEventListener('open-import-wizard', openImport);
+    };
+  }, []);
+
   // Track loading duration to show recovery options if stuck
   useEffect(() => {
     if (loading) {
