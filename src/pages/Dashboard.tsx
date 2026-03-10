@@ -286,6 +286,25 @@ const DashboardInner = () => {
       {/* Rari-narrated Automated Demo Tour */}
       <AutomatedDemoTour onModuleChange={handleModuleChange} />
       
+      {/* Post-tour choice modal */}
+      <PostTourChoiceModal
+        open={showPostTourModal}
+        onAddVehicle={() => {
+          setShowPostTourModal(false);
+          handleModuleChange('dashboard');
+          // Dispatch event to open add vehicle dialog in dashboard
+          setTimeout(() => window.dispatchEvent(new Event('open-add-vehicle')), 300);
+        }}
+        onImportFleet={() => {
+          setShowPostTourModal(false);
+          handleModuleChange('dashboard');
+          setTimeout(() => window.dispatchEvent(new Event('open-import-wizard')), 300);
+        }}
+        onExplore={() => {
+          setShowPostTourModal(false);
+          handleModuleChange('dashboard');
+        }}
+      />
       <SEOHead
         title="Fleet Management Dashboard"
         description="Manage your luxury fleet with comprehensive analytics, AI-powered insights, and real-time monitoring."
