@@ -411,6 +411,19 @@ export const UnifiedNotificationCenter = ({ onNavigate }: { onNavigate?: (module
                         View Details
                       </Button>
                     )}
+                    {!isAI && (notification as SystemNotification).data && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-2 h-7 text-xs"
+                        onClick={() => {
+                          if (navigator.vibrate) navigator.vibrate(5);
+                          handleSystemAction(notification as SystemNotification);
+                        }}
+                      >
+                        View Details
+                      </Button>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center space-x-1 ml-2">

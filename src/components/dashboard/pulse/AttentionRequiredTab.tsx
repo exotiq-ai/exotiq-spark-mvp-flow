@@ -170,6 +170,42 @@ export const AttentionRequiredTab = () => {
       })
     },
     { 
+      id: 'overdue_wo', 
+      label: 'Overdue Work Orders', 
+      icon: Wrench, 
+      count: overdueOrders.length, 
+      color: 'text-destructive',
+      bgColor: 'bg-destructive/10',
+      action: () => navigate('/dashboard?module=fleet&tab=maintenance'),
+      items: overdueOrders.slice(0, 5).map(wo => {
+        const vehicle = vehicles.find(v => v.id === wo.vehicle_id);
+        return {
+          id: wo.id,
+          label: wo.title,
+          sublabel: `${vehicle ? `${vehicle.make} ${vehicle.model}` : 'Unknown'} • Due ${wo.due_at ? format(new Date(wo.due_at), 'MMM d') : 'N/A'}`,
+          onClick: () => navigate(`/dashboard?module=fleet&tab=maintenance&workOrderId=${wo.id}`)
+        };
+      })
+    },
+    { 
+      id: 'blocked_wo', 
+      label: 'Blocked Work Orders', 
+      icon: AlertTriangle, 
+      count: blockedOrders.length, 
+      color: 'text-warning',
+      bgColor: 'bg-warning/10',
+      action: () => navigate('/dashboard?module=fleet&tab=maintenance'),
+      items: blockedOrders.slice(0, 5).map(wo => {
+        const vehicle = vehicles.find(v => v.id === wo.vehicle_id);
+        return {
+          id: wo.id,
+          label: wo.title,
+          sublabel: `${vehicle ? `${vehicle.make} ${vehicle.model}` : 'Unknown'} • ${wo.status === 'blocked_parts' ? 'Waiting on parts' : 'Waiting on vendor'}`,
+          onClick: () => navigate(`/dashboard?module=fleet&tab=maintenance&workOrderId=${wo.id}`)
+        };
+      })
+    },
+    { 
       id: 'docs', 
       label: 'Expiring Docs', 
       icon: FileWarning, 

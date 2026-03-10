@@ -190,15 +190,31 @@ export const useFleetTasks = () => {
     if (!user) return false;
 
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('vehicle_tasks')
         .update({
           assigned_to: user.id,
           status: 'in_progress',
         })
-        .eq('id', taskId);
+        .eq('id', taskId)
+        .is('assigned_to', null)
+        .select();
 
       if (error) throw error;
+
+      if (!data || data.length === 0) {
+        toast({
+          title: 'Task already claimed',
+          description: 'Someone else claimed this task before you',
+          variant: 'destructive',
+        });
+        await fetchTasks();
+        return false;
+      }
+
+      if ('vibrate' in navigator) {
+        navigator.vibrate(10);
+      }
 
       toast({
         title: 'Task claimed',
@@ -215,7 +231,7 @@ export const useFleetTasks = () => {
       });
       return false;
     }
-  }, [user, toast]);
+  }, [user, toast, fetchTasks]);
 
   const deleteTask = useCallback(async (taskId: string): Promise<boolean> => {
     try {

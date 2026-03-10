@@ -557,6 +557,30 @@ export const FleetPageEnhanced = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Task Detail Sheet */}
+      <TaskDetailSheet
+        task={selectedTask}
+        open={!!selectedTask}
+        onOpenChange={(open) => !open && setSelectedTask(null)}
+        vehicleMap={vehicleMap}
+        onStatusChange={updateTaskStatus}
+        onClaim={claimTask}
+        onConvertToWorkOrder={(task) => {
+          setSelectedTask(null);
+          window.dispatchEvent(new CustomEvent('create-work-order', {
+            detail: {
+              vehicle_id: task.vehicle_id,
+              title: task.title,
+              notes: task.notes || '',
+              priority: task.priority,
+              source: 'task',
+              source_id: task.id,
+              issue_type: task.task_type === 'repair' ? 'mechanical' : task.task_type === 'maintenance' ? 'general' : 'general',
+            }
+          }));
+        }}
+      />
+
       <VehicleImageDialog
         open={!!detailsVehicle}
         onOpenChange={(open) => !open && setDetailsVehicle(null)}
