@@ -1200,13 +1200,19 @@ export type Database = {
           created_at: string
           estimated_cost: number | null
           id: string
+          last_completed_at: string | null
+          last_completed_mileage: number | null
           location_id: string | null
           maintenance_type: string
           notes: string | null
+          recurrence_interval_days: number | null
+          recurrence_mileage_interval: number | null
+          recurrence_type: string | null
           scheduled_date: string
           service_provider: string | null
           status: string | null
           team_id: string | null
+          template_name: string | null
           updated_at: string
           user_id: string
           vehicle_id: string
@@ -1215,13 +1221,19 @@ export type Database = {
           created_at?: string
           estimated_cost?: number | null
           id?: string
+          last_completed_at?: string | null
+          last_completed_mileage?: number | null
           location_id?: string | null
           maintenance_type: string
           notes?: string | null
+          recurrence_interval_days?: number | null
+          recurrence_mileage_interval?: number | null
+          recurrence_type?: string | null
           scheduled_date: string
           service_provider?: string | null
           status?: string | null
           team_id?: string | null
+          template_name?: string | null
           updated_at?: string
           user_id: string
           vehicle_id: string
@@ -1230,13 +1242,19 @@ export type Database = {
           created_at?: string
           estimated_cost?: number | null
           id?: string
+          last_completed_at?: string | null
+          last_completed_mileage?: number | null
           location_id?: string | null
           maintenance_type?: string
           notes?: string | null
+          recurrence_interval_days?: number | null
+          recurrence_mileage_interval?: number | null
+          recurrence_type?: string | null
           scheduled_date?: string
           service_provider?: string | null
           status?: string | null
           team_id?: string | null
+          template_name?: string | null
           updated_at?: string
           user_id?: string
           vehicle_id?: string
@@ -3208,6 +3226,150 @@ export type Database = {
             columns: ["team_id"]
             isOneToOne: false
             referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      work_order_events: {
+        Row: {
+          actor_id: string | null
+          created_at: string | null
+          event_type: string
+          id: string
+          new_value: string | null
+          notes: string | null
+          old_value: string | null
+          work_order_id: string
+        }
+        Insert: {
+          actor_id?: string | null
+          created_at?: string | null
+          event_type: string
+          id?: string
+          new_value?: string | null
+          notes?: string | null
+          old_value?: string | null
+          work_order_id: string
+        }
+        Update: {
+          actor_id?: string | null
+          created_at?: string | null
+          event_type?: string
+          id?: string
+          new_value?: string | null
+          notes?: string | null
+          old_value?: string | null
+          work_order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_order_events_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      work_orders: {
+        Row: {
+          actual_cost: number | null
+          assigned_to: string | null
+          completed_at: string | null
+          created_at: string | null
+          created_by: string
+          due_at: string | null
+          estimate_cost: number | null
+          expected_return_at: string | null
+          id: string
+          internal_or_outsourced: string | null
+          issue_type: string
+          location_id: string | null
+          notes: string | null
+          out_of_rotation: boolean | null
+          priority: string
+          resolution_summary: string | null
+          source: string
+          source_id: string | null
+          status: string
+          team_id: string
+          title: string
+          updated_at: string | null
+          vehicle_id: string
+          vendor_name: string | null
+        }
+        Insert: {
+          actual_cost?: number | null
+          assigned_to?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          created_by: string
+          due_at?: string | null
+          estimate_cost?: number | null
+          expected_return_at?: string | null
+          id?: string
+          internal_or_outsourced?: string | null
+          issue_type?: string
+          location_id?: string | null
+          notes?: string | null
+          out_of_rotation?: boolean | null
+          priority?: string
+          resolution_summary?: string | null
+          source?: string
+          source_id?: string | null
+          status?: string
+          team_id: string
+          title: string
+          updated_at?: string | null
+          vehicle_id: string
+          vendor_name?: string | null
+        }
+        Update: {
+          actual_cost?: number | null
+          assigned_to?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          created_by?: string
+          due_at?: string | null
+          estimate_cost?: number | null
+          expected_return_at?: string | null
+          id?: string
+          internal_or_outsourced?: string | null
+          issue_type?: string
+          location_id?: string | null
+          notes?: string | null
+          out_of_rotation?: boolean | null
+          priority?: string
+          resolution_summary?: string | null
+          source?: string
+          source_id?: string | null
+          status?: string
+          team_id?: string
+          title?: string
+          updated_at?: string | null
+          vehicle_id?: string
+          vendor_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_orders_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_orders_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_orders_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
             referencedColumns: ["id"]
           },
         ]

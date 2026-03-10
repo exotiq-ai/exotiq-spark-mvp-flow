@@ -7,6 +7,7 @@ import { useRealtimeTable } from "@/hooks/useRealtimeTable";
 import { useFleet } from "@/contexts/FleetContext";
 import { useTeam } from "@/contexts/TeamContext";
 import { useFleetTasks } from "@/hooks/useFleetTasks";
+import { useWorkOrders } from "@/hooks/useWorkOrders";
 import { useNavigate } from "react-router-dom";
 import { 
   AlertTriangle, 
@@ -45,6 +46,7 @@ export const AttentionRequiredTab = () => {
   const { refreshMaintenance } = useFleet();
   const { currentTeam } = useTeam();
   const { tasks } = useFleetTasks();
+  const { overdueOrders, blockedOrders } = useWorkOrders();
 
   useRealtimeTable('maintenance_schedules', {
     teamId: currentTeam?.id,
@@ -164,6 +166,42 @@ export const AttentionRequiredTab = () => {
           label: `${t.task_type}: ${vehicle ? `${vehicle.make} ${vehicle.model}` : 'Unknown'}`,
           sublabel: t.due_at ? `Due ${format(new Date(t.due_at), 'MMM d')}` : 'No due date',
           onClick: () => navigate(`/dashboard?module=motoriq&tab=tasks&taskId=${t.id}`)
+        };
+      })
+    },
+    { 
+      id: 'overdue_wo', 
+      label: 'Overdue Work Orders', 
+      icon: Wrench, 
+      count: overdueOrders.length, 
+      color: 'text-destructive',
+      bgColor: 'bg-destructive/10',
+      action: () => navigate('/dashboard?module=fleet&tab=maintenance'),
+      items: overdueOrders.slice(0, 5).map(wo => {
+        const vehicle = vehicles.find(v => v.id === wo.vehicle_id);
+        return {
+          id: wo.id,
+          label: wo.title,
+          sublabel: `${vehicle ? `${vehicle.make} ${vehicle.model}` : 'Unknown'} • Due ${wo.due_at ? format(new Date(wo.due_at), 'MMM d') : 'N/A'}`,
+          onClick: () => navigate(`/dashboard?module=fleet&tab=maintenance&workOrderId=${wo.id}`)
+        };
+      })
+    },
+    { 
+      id: 'blocked_wo', 
+      label: 'Blocked Work Orders', 
+      icon: AlertTriangle, 
+      count: blockedOrders.length, 
+      color: 'text-warning',
+      bgColor: 'bg-warning/10',
+      action: () => navigate('/dashboard?module=fleet&tab=maintenance'),
+      items: blockedOrders.slice(0, 5).map(wo => {
+        const vehicle = vehicles.find(v => v.id === wo.vehicle_id);
+        return {
+          id: wo.id,
+          label: wo.title,
+          sublabel: `${vehicle ? `${vehicle.make} ${vehicle.model}` : 'Unknown'} • ${wo.status === 'blocked_parts' ? 'Waiting on parts' : 'Waiting on vendor'}`,
+          onClick: () => navigate(`/dashboard?module=fleet&tab=maintenance&workOrderId=${wo.id}`)
         };
       })
     },

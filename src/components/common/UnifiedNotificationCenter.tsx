@@ -40,6 +40,7 @@ import { useFleet } from "@/contexts/FleetContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { NotificationPreferences, useNotificationPreferences } from "./NotificationPreferences";
 import { useNotifications } from "@/hooks/useNotifications";
+import { useSearchParams } from "react-router-dom";
 
 interface SystemNotification {
   id: string;
@@ -49,6 +50,8 @@ interface SystemNotification {
   timestamp: string;
   read: boolean;
   category: "system";
+  data?: Record<string, any> | null;
+  notificationType?: string;
 }
 
 interface AIAlert {
@@ -74,16 +77,19 @@ export const UnifiedNotificationCenter = ({ onNavigate }: { onNavigate?: (module
   const { vehicles, bookings, customers, damageClaims, inspections } = useFleet();
   const { prefs, isInQuietHours } = useNotificationPreferences();
   const { notifications: dbNotifications, markAsRead: markDbRead, markAllAsRead: markAllDbRead, deleteNotification: deleteDbNotification, clearAll: clearAllDb } = useNotifications();
+  const [, setNotifSearchParams] = useSearchParams();
   
   const systemNotifications = useMemo<SystemNotification[]>(() => {
     return dbNotifications.map(n => ({
       id: n.id,
-      type: (n.type === 'booking_update' || n.type === 'booking' ? 'info' : n.type === 'payment' ? 'success' : n.type === 'damage_claim' ? 'error' : 'info') as SystemNotification['type'],
+      type: (n.type === 'booking_update' || n.type === 'booking' ? 'info' : n.type === 'payment' ? 'success' : n.type === 'damage_claim' || n.type === 'damage' ? 'error' : 'info') as SystemNotification['type'],
       title: n.title,
       message: n.message,
       timestamp: n.timestamp,
       read: n.read,
       category: 'system' as const,
+      data: n.data,
+      notificationType: n.type,
     }));
   }, [dbNotifications]);
 
@@ -276,6 +282,35 @@ export const UnifiedNotificationCenter = ({ onNavigate }: { onNavigate?: (module
     }
   };
 
+  const handleSystemAction = (notification: SystemNotification) => {
+    const data = notification.data;
+    if (!data) return;
+    const nType = notification.notificationType;
+    const params: Record<string, string> = {};
+
+    if (nType === 'booking' || nType === 'booking_update') {
+      params.module = 'book';
+      if (data.booking_id) params.bookingId = data.booking_id;
+    } else if (nType === 'payment') {
+      params.module = 'book';
+      params.view = 'payments';
+      if (data.booking_id) params.bookingId = data.booking_id;
+    } else if (nType === 'damage' || nType === 'damage_claim') {
+      params.module = 'vault';
+      params.view = 'damage';
+      if (data.claim_id) params.damageClaimId = data.claim_id;
+    } else if (nType === 'maintenance') {
+      params.module = 'fleet';
+      params.tab = 'maintenance';
+    } else {
+      return;
+    }
+
+    setNotifSearchParams(params);
+    setOpen(false);
+    if (navigator.vibrate) navigator.vibrate(10);
+  };
+
   const formatTimestamp = (timestamp: Date | string): string => {
     if (typeof timestamp === 'string') return timestamp;
     
@@ -371,6 +406,19 @@ export const UnifiedNotificationCenter = ({ onNavigate }: { onNavigate?: (module
                         onClick={() => {
                           if (navigator.vibrate) navigator.vibrate(5);
                           handleAlertAction(notification);
+                        }}
+                      >
+                        View Details
+                      </Button>
+                    )}
+                    {!isAI && (notification as SystemNotification).data && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-2 h-7 text-xs"
+                        onClick={() => {
+                          if (navigator.vibrate) navigator.vibrate(5);
+                          handleSystemAction(notification as SystemNotification);
                         }}
                       >
                         View Details

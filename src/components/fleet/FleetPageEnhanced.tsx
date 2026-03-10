@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useLocationFilteredFleet } from '@/hooks/useLocationFilteredFleet';
-import { useFleetTasks } from '@/hooks/useFleetTasks';
+import { useFleetTasks, type VehicleTask } from '@/hooks/useFleetTasks';
 import { useVehicleOpsStatus, OpsStatus } from '@/hooks/useVehicleOpsStatus';
 import { useVehiclePhotos } from '@/hooks/useVehiclePhotos';
 import { useTeam } from '@/contexts/TeamContext';
@@ -18,6 +18,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { FleetVehicleCard } from './FleetVehicleCard';
 import { FleetFilters, FleetFiltersState, ViewMode } from './FleetFilters';
 import { TaskQueue } from './TaskQueue';
+import { TaskDetailSheet } from './TaskDetailSheet';
+import { MaintenanceHub } from './MaintenanceHub';
 import { CreateVehicleTaskDialog } from '@/components/dialogs/CreateVehicleTaskDialog';
 import { QuickPriceEditorDialog } from '@/components/dialogs/QuickPriceEditorDialog';
 import { VehicleImageDialog } from '@/components/dialogs/VehicleImageDialog';
@@ -37,8 +39,10 @@ import {
   Plus,
   Upload,
   Trash2,
+  Wrench,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useSearchParams } from 'react-router-dom';
 
 interface TeamMember {
   id: string;
@@ -105,8 +109,37 @@ export const FleetPageEnhanced = () => {
     fetchTeamMembers();
   }, [currentTeam?.id]);
 
+  // Deep-link routing
+  const [searchParams] = useSearchParams();
+
   // Tab state
   const [activeTab, setActiveTab] = useState('fleet');
+  const [selectedTask, setSelectedTask] = useState<VehicleTask | null>(null);
+
+  // Deep-link from notifications/attention tab
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    const taskId = searchParams.get('taskId');
+    
+    if (tab === 'maintenance') setActiveTab('maintenance');
+    if (taskId && tasks.length > 0) {
+      const task = tasks.find(t => t.id === taskId);
+      if (task) setSelectedTask(task);
+    }
+  }, [searchParams, tasks]);
+
+  // Listen for work order creation from other modules (e.g., CheckInOutDialog)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail) {
+        sessionStorage.setItem('wo-prefill', JSON.stringify(detail));
+        setActiveTab('maintenance');
+      }
+    };
+    window.addEventListener('create-work-order', handler);
+    return () => window.removeEventListener('create-work-order', handler);
+  }, []);
 
   // View state
   const [isOpsMode, setIsOpsMode] = useState(isMobile);
@@ -275,6 +308,7 @@ export const FleetPageEnhanced = () => {
   // Module tabs configuration
   const moduleTabs = [
     { id: 'fleet', label: 'Fleet', shortLabel: 'Fleet', icon: Car },
+    { id: 'maintenance', label: 'Maintenance', shortLabel: 'Maint.', icon: Wrench },
     { id: 'photos', label: 'Photos', shortLabel: 'Photos', icon: Camera },
   ];
 
@@ -354,7 +388,7 @@ export const FleetPageEnhanced = () => {
                 vehicleMap={vehicleMap}
                 onCompleteTask={handleCompleteTask}
                 onClaimTask={claimTask}
-                onViewTask={() => {}}
+                onViewTask={(task) => setSelectedTask(task)}
                 title="My Tasks"
                 emptyMessage="No tasks assigned to you"
                 compact
@@ -450,13 +484,18 @@ export const FleetPageEnhanced = () => {
                 vehicleMap={vehicleMap}
                 onCompleteTask={handleCompleteTask}
                 onClaimTask={claimTask}
-                onViewTask={() => {}}
+                onViewTask={(task) => setSelectedTask(task)}
                 showClaimButton
                 title="Unassigned Tasks"
                 emptyMessage="All tasks are assigned"
               />
             </>
           )}
+        </TabsContent>
+
+        {/* Maintenance Tab Content */}
+        <TabsContent value="maintenance" className="mt-0">
+          <MaintenanceHub />
         </TabsContent>
 
         {/* Photos Tab Content */}
@@ -517,6 +556,30 @@ export const FleetPageEnhanced = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Task Detail Sheet */}
+      <TaskDetailSheet
+        task={selectedTask}
+        open={!!selectedTask}
+        onOpenChange={(open) => !open && setSelectedTask(null)}
+        vehicleMap={vehicleMap}
+        onStatusChange={updateTaskStatus}
+        onClaim={claimTask}
+        onConvertToWorkOrder={(task) => {
+          setSelectedTask(null);
+          window.dispatchEvent(new CustomEvent('create-work-order', {
+            detail: {
+              vehicle_id: task.vehicle_id,
+              title: task.title,
+              notes: task.notes || '',
+              priority: task.priority,
+              source: 'task',
+              source_id: task.id,
+              issue_type: task.task_type === 'repair' ? 'mechanical' : task.task_type === 'maintenance' ? 'general' : 'general',
+            }
+          }));
+        }}
+      />
 
       <VehicleImageDialog
         open={!!detailsVehicle}

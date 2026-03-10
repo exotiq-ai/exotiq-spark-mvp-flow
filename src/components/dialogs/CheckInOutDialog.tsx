@@ -35,6 +35,7 @@ import {
   Zap,
   Check,
   AlertCircle,
+  Wrench,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -730,6 +731,39 @@ export const CheckInOutDialog = ({
                 </Badge>
               )}
             </div>
+            {(damageItems.length > 0 || checklist.exteriorCondition === 'poor' || checklist.interiorCondition === 'poor' || checklist.tireCondition === 'poor') && (
+              <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-center">
+                <p className="text-sm text-amber-700 dark:text-amber-400 mb-2">Issues found during inspection</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    onComplete?.();
+                    handleOpenChange(false);
+                    window.dispatchEvent(new CustomEvent('create-work-order', {
+                      detail: {
+                        vehicle_id: resolvedVehicleId,
+                        title: `${isCheckIn ? 'Check-in' : 'Check-out'} issue: ${resolvedVehicleName}`,
+                        source: 'check_in_out',
+                        notes: [
+                          damageItems.length > 0 ? `${damageItems.length} damage item(s) found` : '',
+                          checklist.exteriorCondition === 'poor' ? 'Poor exterior condition' : '',
+                          checklist.interiorCondition === 'poor' ? 'Poor interior condition' : '',
+                          checklist.tireCondition === 'poor' ? 'Poor tire condition' : '',
+                          conditionNotes || '',
+                        ].filter(Boolean).join('\n'),
+                        issue_type: damageItems.length > 0 ? 'body' : 'general',
+                        priority: damageItems.some(d => d.severity === 'severe') ? 'urgent' : 'normal',
+                      }
+                    }));
+                  }}
+                  className="border-amber-500/30 text-amber-700 dark:text-amber-400"
+                >
+                  <Wrench className="h-4 w-4 mr-2" />
+                  Create Work Order
+                </Button>
+              </div>
+            )}
             <Button
               onClick={() => {
                 onComplete?.();

@@ -68,11 +68,31 @@ export const useModuleNavigation = () => {
     scrollToTop();
   };
 
+  const goToTask = (taskId: string) => {
+    setSearchParams({ module: 'fleet', taskId });
+    scrollToTop();
+  };
+
+  const goToWorkOrder = (workOrderId: string) => {
+    setSearchParams({ module: 'fleet', tab: 'maintenance', workOrderId });
+    scrollToTop();
+  };
+
+  const goToMaintenance = (maintenanceId?: string) => {
+    const params: Record<string, string> = { module: 'fleet', tab: 'maintenance' };
+    if (maintenanceId) params.maintenanceId = maintenanceId;
+    setSearchParams(params);
+    scrollToTop();
+  };
+
   const getCurrentModule = () => searchParams.get('module') || 'core';
   const getCurrentView = () => searchParams.get('view');
   const getCurrentCustomerId = () => searchParams.get('customerId');
   const getCurrentBookingId = () => searchParams.get('bookingId');
   const getCurrentVehicleId = () => searchParams.get('vehicleId');
+  const getCurrentTaskId = () => searchParams.get('taskId');
+  const getCurrentWorkOrderId = () => searchParams.get('workOrderId');
+  const getCurrentTab = () => searchParams.get('tab');
 
   return {
     goToCustomerProfile,
@@ -82,10 +102,16 @@ export const useModuleNavigation = () => {
     goToInspection,
     goToPayments,
     goToCustomerBookings,
+    goToTask,
+    goToWorkOrder,
+    goToMaintenance,
     getCurrentModule,
     getCurrentView,
     getCurrentCustomerId,
     getCurrentBookingId,
     getCurrentVehicleId,
+    getCurrentTaskId,
+    getCurrentWorkOrderId,
+    getCurrentTab,
   };
 };

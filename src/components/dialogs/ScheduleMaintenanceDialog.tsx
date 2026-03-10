@@ -5,9 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import { Database } from "@/integrations/supabase/types";
 import { useTeam } from "@/contexts/TeamContext";
-import { MapPin, Loader2 } from "lucide-react";
+import { MapPin, Loader2, RotateCcw } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 type MaintenanceInsert = Omit<Database['public']['Tables']['maintenance_schedules']['Insert'], 'user_id'>;
 type Vehicle = Database['public']['Tables']['vehicles']['Row'];
@@ -19,12 +21,21 @@ interface ScheduleMaintenanceDialogProps {
   onSubmit: (maintenance: MaintenanceInsert) => Promise<void>;
 }
 
-export const ScheduleMaintenanceDialog = ({ 
-  open, 
-  onOpenChange, 
-  vehicles,
-  onSubmit 
-}: ScheduleMaintenanceDialogProps) => {
+const TEMPLATES = [
+  { name: 'Oil Change', type: 'Oil Change', intervalDays: null, intervalMiles: 5000 },
+  { name: 'Brake Inspection', type: 'Brake Inspection', intervalDays: null, intervalMiles: 10000 },
+  { name: 'Tire Rotation', type: 'Tire Rotation', intervalDays: null, intervalMiles: 7500 },
+  { name: 'Annual Service', type: 'Routine Service', intervalDays: 365, intervalMiles: null },
+  { name: 'Safety Inspection', type: 'Safety Inspection', intervalDays: 180, intervalMiles: null },
+];
+
+const MAINTENANCE_TYPES = [
+  "Routine Service", "Oil Change", "Tire Rotation", "Brake Inspection",
+  "Engine Repair", "Transmission Service", "Body Work", "Detail & Cleaning",
+  "Safety Inspection", "Other"
+];
+
+export const ScheduleMaintenanceDialog = ({ open, onOpenChange, vehicles, onSubmit }: ScheduleMaintenanceDialogProps) => {
   const { selectedLocationId, locations } = useTeam();
   
   const [vehicleId, setVehicleId] = useState("");
@@ -35,34 +46,35 @@ export const ScheduleMaintenanceDialog = ({
   const [notes, setNotes] = useState("");
   const [locationId, setLocationId] = useState("");
   const [loading, setLoading] = useState(false);
-  
-  // Auto-set location based on selected vehicle or current selection
+
+  // Recurrence state
+  const [recurrenceType, setRecurrenceType] = useState<'once' | 'interval' | 'mileage'>('once');
+  const [intervalDays, setIntervalDays] = useState("");
+  const [mileageInterval, setMileageInterval] = useState("");
+  const [templateName, setTemplateName] = useState("");
+
   const selectedVehicle = vehicles.find(v => v.id === vehicleId);
   const effectiveLocationId = locationId || selectedVehicle?.location_id || (selectedLocationId !== 'all' ? selectedLocationId : locations[0]?.id || '');
 
-  const maintenanceTypes = [
-    "Routine Service",
-    "Oil Change",
-    "Tire Rotation",
-    "Brake Inspection",
-    "Engine Repair",
-    "Transmission Service",
-    "Body Work",
-    "Detail & Cleaning",
-    "Safety Inspection",
-    "Other"
-  ];
+  const applyTemplate = (template: typeof TEMPLATES[0]) => {
+    setMaintenanceType(template.type);
+    setTemplateName(template.name);
+    if (template.intervalDays) {
+      setRecurrenceType('interval');
+      setIntervalDays(String(template.intervalDays));
+    } else if (template.intervalMiles) {
+      setRecurrenceType('mileage');
+      setMileageInterval(String(template.intervalMiles));
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!vehicleId || !maintenanceType || !scheduledDate) {
-      return;
-    }
+    if (!vehicleId || !maintenanceType || !scheduledDate) return;
 
     setLoading(true);
     try {
-      await onSubmit({
+      const data: any = {
         vehicle_id: vehicleId,
         maintenance_type: maintenanceType,
         scheduled_date: new Date(scheduledDate).toISOString(),
@@ -70,17 +82,19 @@ export const ScheduleMaintenanceDialog = ({
         estimated_cost: estimatedCost ? parseFloat(estimatedCost) : null,
         notes: notes || null,
         status: 'scheduled',
-        location_id: effectiveLocationId || null
-      });
+        location_id: effectiveLocationId || null,
+        recurrence_type: recurrenceType,
+        recurrence_interval_days: recurrenceType === 'interval' && intervalDays ? parseInt(intervalDays) : null,
+        recurrence_mileage_interval: recurrenceType === 'mileage' && mileageInterval ? parseInt(mileageInterval) : null,
+        template_name: templateName || null,
+      };
 
-      // Reset form
-      setVehicleId("");
-      setMaintenanceType("");
-      setScheduledDate("");
-      setServiceProvider("");
-      setEstimatedCost("");
-      setNotes("");
-      setLocationId("");
+      await onSubmit(data);
+
+      // Reset
+      setVehicleId(""); setMaintenanceType(""); setScheduledDate(""); setServiceProvider("");
+      setEstimatedCost(""); setNotes(""); setLocationId(""); setRecurrenceType('once');
+      setIntervalDays(""); setMileageInterval(""); setTemplateName("");
       onOpenChange(false);
     } catch (error) {
       console.error("Error scheduling maintenance:", error);
@@ -91,18 +105,36 @@ export const ScheduleMaintenanceDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[520px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Schedule Maintenance</DialogTitle>
         </DialogHeader>
 
+        {/* Quick Templates */}
+        <div className="space-y-2">
+          <Label className="text-xs text-muted-foreground">Quick Templates</Label>
+          <div className="flex flex-wrap gap-2">
+            {TEMPLATES.map(t => (
+              <Badge
+                key={t.name}
+                variant="outline"
+                className={cn(
+                  'cursor-pointer hover:bg-primary/10 transition-colors',
+                  templateName === t.name && 'bg-primary/10 border-primary/50'
+                )}
+                onClick={() => applyTemplate(t)}
+              >
+                {t.name}
+              </Badge>
+            ))}
+          </div>
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="vehicle">Vehicle *</Label>
+            <Label>Vehicle *</Label>
             <Select value={vehicleId} onValueChange={setVehicleId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select vehicle" />
-              </SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="Select vehicle" /></SelectTrigger>
               <SelectContent>
                 {vehicles.map((vehicle) => (
                   <SelectItem key={vehicle.id} value={vehicle.id}>
@@ -114,16 +146,12 @@ export const ScheduleMaintenanceDialog = ({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="maintenanceType">Maintenance Type *</Label>
+            <Label>Maintenance Type *</Label>
             <Select value={maintenanceType} onValueChange={setMaintenanceType}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select type" />
-              </SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
               <SelectContent>
-                {maintenanceTypes.map((type) => (
-                  <SelectItem key={type} value={type}>
-                    {type}
-                  </SelectItem>
+                {MAINTENANCE_TYPES.map((type) => (
+                  <SelectItem key={type} value={type}>{type}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -131,56 +159,67 @@ export const ScheduleMaintenanceDialog = ({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="scheduledDate">Scheduled Date & Time *</Label>
-              <Input
-                id="scheduledDate"
-                type="datetime-local"
-                value={scheduledDate}
-                onChange={(e) => setScheduledDate(e.target.value)}
-                required
-              />
+              <Label>Scheduled Date & Time *</Label>
+              <Input type="datetime-local" value={scheduledDate} onChange={(e) => setScheduledDate(e.target.value)} required />
             </div>
-
             <div className="space-y-2">
-              <Label htmlFor="estimatedCost">Estimated Cost ($)</Label>
-              <Input
-                id="estimatedCost"
-                type="number"
-                placeholder="500"
-                value={estimatedCost}
-                onChange={(e) => setEstimatedCost(e.target.value)}
-                min="0"
-                step="0.01"
-              />
+              <Label>Estimated Cost ($)</Label>
+              <Input type="number" placeholder="500" value={estimatedCost} onChange={(e) => setEstimatedCost(e.target.value)} min="0" step="0.01" />
             </div>
+          </div>
+
+          {/* Recurrence Section */}
+          <div className="space-y-3 p-3 rounded-lg border bg-muted/10">
+            <div className="flex items-center gap-2">
+              <RotateCcw className="h-4 w-4 text-muted-foreground" />
+              <Label className="text-sm font-medium">Recurrence</Label>
+            </div>
+            <div className="flex gap-1">
+              {([
+                { key: 'once' as const, label: 'One-time' },
+                { key: 'interval' as const, label: 'Every X days' },
+                { key: 'mileage' as const, label: 'Every X miles' },
+              ]).map(opt => (
+                <Button
+                  key={opt.key}
+                  type="button"
+                  variant={recurrenceType === opt.key ? 'default' : 'outline'}
+                  size="sm"
+                  className="flex-1 text-xs"
+                  onClick={() => setRecurrenceType(opt.key)}
+                >
+                  {opt.label}
+                </Button>
+              ))}
+            </div>
+            {recurrenceType === 'interval' && (
+              <div className="space-y-1">
+                <Label className="text-xs">Repeat every (days)</Label>
+                <Input type="number" placeholder="90" value={intervalDays} onChange={(e) => setIntervalDays(e.target.value)} min="1" />
+              </div>
+            )}
+            {recurrenceType === 'mileage' && (
+              <div className="space-y-1">
+                <Label className="text-xs">Repeat every (miles)</Label>
+                <Input type="number" placeholder="5000" value={mileageInterval} onChange={(e) => setMileageInterval(e.target.value)} min="100" />
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="serviceProvider">Service Provider</Label>
-            <Input
-              id="serviceProvider"
-              placeholder="e.g., Premium Auto Care"
-              value={serviceProvider}
-              onChange={(e) => setServiceProvider(e.target.value)}
-            />
+            <Label>Service Provider</Label>
+            <Input placeholder="e.g., Premium Auto Care" value={serviceProvider} onChange={(e) => setServiceProvider(e.target.value)} />
           </div>
 
-          {/* Location Selection */}
           {locations.length > 1 && (
             <div className="space-y-2">
-              <Label htmlFor="location" className="flex items-center gap-2">
-                <MapPin className="h-4 w-4" />
-                Location
-              </Label>
+              <Label className="flex items-center gap-2"><MapPin className="h-4 w-4" />Location</Label>
               <Select value={effectiveLocationId} onValueChange={setLocationId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select location" />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Select location" /></SelectTrigger>
                 <SelectContent>
                   {locations.map((loc) => (
                     <SelectItem key={loc.id} value={loc.id}>
-                      {loc.name}
-                      {loc.is_default && " (Default)"}
+                      {loc.name}{loc.is_default && " (Default)"}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -189,29 +228,14 @@ export const ScheduleMaintenanceDialog = ({
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="notes">Notes</Label>
-            <Textarea
-              id="notes"
-              placeholder="Additional details about the maintenance..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={3}
-            />
+            <Label>Notes</Label>
+            <Textarea placeholder="Additional details about the maintenance..." value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} />
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
             <Button type="submit" disabled={loading}>
-              {loading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Scheduling...
-                </>
-              ) : (
-                "Schedule Maintenance"
-              )}
+              {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Scheduling...</> : "Schedule Maintenance"}
             </Button>
           </DialogFooter>
         </form>
