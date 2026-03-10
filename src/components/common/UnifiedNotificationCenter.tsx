@@ -282,6 +282,35 @@ export const UnifiedNotificationCenter = ({ onNavigate }: { onNavigate?: (module
     }
   };
 
+  const handleSystemAction = (notification: SystemNotification) => {
+    const data = notification.data;
+    if (!data) return;
+    const nType = notification.notificationType;
+    const params: Record<string, string> = {};
+
+    if (nType === 'booking' || nType === 'booking_update') {
+      params.module = 'book';
+      if (data.booking_id) params.bookingId = data.booking_id;
+    } else if (nType === 'payment') {
+      params.module = 'book';
+      params.view = 'payments';
+      if (data.booking_id) params.bookingId = data.booking_id;
+    } else if (nType === 'damage' || nType === 'damage_claim') {
+      params.module = 'vault';
+      params.view = 'damage';
+      if (data.claim_id) params.damageClaimId = data.claim_id;
+    } else if (nType === 'maintenance') {
+      params.module = 'fleet';
+      params.tab = 'maintenance';
+    } else {
+      return;
+    }
+
+    setNotifSearchParams(params);
+    setOpen(false);
+    if (navigator.vibrate) navigator.vibrate(10);
+  };
+
   const formatTimestamp = (timestamp: Date | string): string => {
     if (typeof timestamp === 'string') return timestamp;
     
