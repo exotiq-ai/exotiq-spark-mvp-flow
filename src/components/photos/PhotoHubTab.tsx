@@ -19,6 +19,8 @@ import {
   ChevronDown,
   ChevronRight,
   Plus,
+  TrendingDown,
+  Zap,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePhotoHubStats, useVehiclePhotos } from '@/hooks/useVehiclePhotos';
