@@ -109,8 +109,37 @@ export const FleetPageEnhanced = () => {
     fetchTeamMembers();
   }, [currentTeam?.id]);
 
+  // Deep-link routing
+  const [searchParams] = useSearchParams();
+
   // Tab state
   const [activeTab, setActiveTab] = useState('fleet');
+  const [selectedTask, setSelectedTask] = useState<VehicleTask | null>(null);
+
+  // Deep-link from notifications/attention tab
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    const taskId = searchParams.get('taskId');
+    
+    if (tab === 'maintenance') setActiveTab('maintenance');
+    if (taskId && tasks.length > 0) {
+      const task = tasks.find(t => t.id === taskId);
+      if (task) setSelectedTask(task);
+    }
+  }, [searchParams, tasks]);
+
+  // Listen for work order creation from other modules (e.g., CheckInOutDialog)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail) {
+        sessionStorage.setItem('wo-prefill', JSON.stringify(detail));
+        setActiveTab('maintenance');
+      }
+    };
+    window.addEventListener('create-work-order', handler);
+    return () => window.removeEventListener('create-work-order', handler);
+  }, []);
 
   // View state
   const [isOpsMode, setIsOpsMode] = useState(isMobile);
