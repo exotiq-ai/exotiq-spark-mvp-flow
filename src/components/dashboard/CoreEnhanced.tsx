@@ -94,7 +94,7 @@ export const CoreEnhanced = () => {
       ]);
 
       if (insightsRes.data) {
-        setInsights(insightsRes.data as RariInsight[]);
+        setInsights(insightsRes.data as unknown as RariInsight[]);
       }
       if (notificationsRes.data) {
         setNotifications(notificationsRes.data as Notification[]);
