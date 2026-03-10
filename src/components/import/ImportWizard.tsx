@@ -272,7 +272,8 @@ export function ImportWizard({ onClose, onComplete }: ImportWizardProps) {
             imported_count: imported,
             skipped_count: validationResult.invalidRows.length + skippedFromDuplicates,
             failed_count: failed,
-            completed_at: new Date().toISOString()
+            completed_at: new Date().toISOString(),
+            ...(lastInsertError ? { error_details: { lastError: lastInsertError } } : {})
           } as any)
           .eq('id', batchRecord.id);
       }
