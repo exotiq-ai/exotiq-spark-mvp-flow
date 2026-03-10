@@ -484,11 +484,14 @@ export const vehicleImportValidation = z.object({
   name: z.string().min(1, 'Vehicle name is required'),
   make: z.string().min(1, 'Make is required'),
   model: z.string().min(1, 'Model is required'),
-  year: z.coerce.number().min(1900, 'Year must be 1900 or later').max(2027, 'Year cannot exceed 2027'),
+  year: z.preprocess(
+    (val) => (val === '' || val === null || val === undefined ? undefined : val),
+    z.coerce.number().min(1900, 'Year must be 1900 or later').max(2027, 'Year cannot exceed 2027').optional().nullable().default(null)
+  ),
   license_plate: z.string().optional().nullable(),
   vin: z.string().max(17, 'VIN cannot exceed 17 characters').optional().nullable().or(z.literal('')).transform(val => val === '' ? null : val),
-  current_rate: z.coerce.number().min(0, 'Rate must be positive').default(0), // Now defaults to 0
-  status: z.enum(['available', 'rented', 'maintenance', 'unavailable']).optional().default('available'),
+  current_rate: z.coerce.number().min(0, 'Rate must be positive').default(0),
+  status: z.enum(['available', 'rented', 'maintenance', 'unavailable', 'booked']).optional().nullable().default('available'),
   location: z.string().optional().nullable(),
   color: z.string().optional().nullable(),
   mileage: z.coerce.number().min(0).optional().nullable()
