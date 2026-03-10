@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { useDemoScript } from '@/hooks/useDemoScript';
@@ -42,7 +42,6 @@ export const AutomatedDemoTour = ({ onModuleChange }: AutomatedDemoTourProps) =>
         description: "You've seen everything Exotiq has to offer.",
         duration: 5000,
       });
-      // Mark tour as completed
       if (user?.id) {
         supabase.from('profiles').update({ tour_completed: true }).eq('id', user.id).then(() => {});
       }
@@ -56,18 +55,48 @@ export const AutomatedDemoTour = ({ onModuleChange }: AutomatedDemoTourProps) =>
     return () => window.removeEventListener('start-demo-tour', handler);
   }, [demo.start]);
 
-  if (!demo.isActive) return null;
+  // Keyboard controls
+  useEffect(() => {
+    if (!demo.isActive) return;
+    
+    const handleKeyDown = (e: KeyboardEvent) => {
+      switch (e.key) {
+        case 'Escape':
+          e.preventDefault();
+          demo.stop();
+          break;
+        case ' ':
+          e.preventDefault();
+          demo.isPaused ? demo.resume() : demo.pause();
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          demo.skipToNext();
+          break;
+        case 'm':
+        case 'M':
+          e.preventDefault();
+          demo.toggleMute();
+          break;
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [demo.isActive, demo.isPaused, demo.stop, demo.pause, demo.resume, demo.skipToNext, demo.toggleMute]);
 
-  const formatTime = (ms: number) => {
+  const formatTime = useCallback((ms: number) => {
     const seconds = Math.ceil(ms / 1000);
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
-  };
+  }, []);
+
+  if (!demo.isActive) return null;
 
   return (
     <AnimatePresence>
-      {/* Cinematic zoom overlay */}
+      {/* Cinematic vignette overlay */}
       {demo.zoomTarget && (
         <motion.div
           className="fixed inset-0 z-[80] pointer-events-none"
@@ -75,7 +104,6 @@ export const AutomatedDemoTour = ({ onModuleChange }: AutomatedDemoTourProps) =>
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         >
-          {/* Vignette effect */}
           <div 
             className="absolute inset-0"
             style={{
@@ -85,17 +113,17 @@ export const AutomatedDemoTour = ({ onModuleChange }: AutomatedDemoTourProps) =>
         </motion.div>
       )}
 
-      {/* Subtitle bar */}
+      {/* Subtitle bar — top center */}
       {demo.currentStep && (
         <motion.div
           key={`subtitle-${demo.currentStep.id}`}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 20 }}
-          className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] pointer-events-none"
+          className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] pointer-events-none max-w-[90vw]"
         >
           <div className={cn(
-            'px-6 py-3 rounded-2xl max-w-lg text-center',
+            'px-4 sm:px-6 py-3 rounded-2xl max-w-lg text-center',
             'bg-background/90 backdrop-blur-xl',
             'border border-border/50',
             'shadow-xl'
@@ -103,7 +131,7 @@ export const AutomatedDemoTour = ({ onModuleChange }: AutomatedDemoTourProps) =>
             <div className="flex items-center justify-center gap-2 mb-1">
               <Brain className="h-4 w-4 text-primary" />
               <span className="text-xs font-medium text-primary">Rari</span>
-              {demo.isSpeaking && (
+              {demo.isSpeaking && !demo.isMuted && (
                 <motion.div
                   className="flex gap-0.5"
                   animate={{ opacity: [0.5, 1, 0.5] }}
@@ -119,6 +147,9 @@ export const AutomatedDemoTour = ({ onModuleChange }: AutomatedDemoTourProps) =>
                   ))}
                 </motion.div>
               )}
+              {demo.isMuted && (
+                <VolumeX className="h-3 w-3 text-muted-foreground" />
+              )}
             </div>
             <p className="text-sm text-foreground font-medium">
               {demo.currentStep.subtitle}
@@ -127,27 +158,27 @@ export const AutomatedDemoTour = ({ onModuleChange }: AutomatedDemoTourProps) =>
         </motion.div>
       )}
 
-      {/* Control bar at bottom */}
+      {/* Control bar — bottom center */}
       <motion.div
         initial={{ y: 100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 100, opacity: 0 }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] pointer-events-auto"
+        className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] pointer-events-auto max-w-[95vw]"
       >
         <div className={cn(
-          'flex items-center gap-3 px-4 py-3 rounded-2xl',
+          'flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 rounded-2xl',
           'bg-background/95 backdrop-blur-xl',
           'border border-border/50',
           'shadow-2xl'
         )}>
           {/* Step indicator */}
-          <span className="text-xs text-muted-foreground font-mono min-w-[60px]">
+          <span className="text-[10px] sm:text-xs text-muted-foreground font-mono min-w-[40px] sm:min-w-[60px] text-center">
             {demo.currentStepIndex + 1}/{demo.totalSteps}
           </span>
 
           {/* Progress bar */}
-          <div className="w-32 sm:w-48 h-1.5 bg-muted rounded-full overflow-hidden">
+          <div className="w-20 sm:w-32 md:w-48 h-1.5 bg-muted rounded-full overflow-hidden">
             <motion.div
               className="h-full bg-primary rounded-full"
               animate={{ width: `${demo.progress}%` }}
@@ -156,42 +187,63 @@ export const AutomatedDemoTour = ({ onModuleChange }: AutomatedDemoTourProps) =>
           </div>
 
           {/* Controls */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5 sm:gap-1">
+            {/* Mute toggle */}
             <Button
               size="icon"
               variant="ghost"
-              className="h-8 w-8"
+              className="h-7 w-7 sm:h-8 sm:w-8"
+              onClick={demo.toggleMute}
+              title={demo.isMuted ? 'Unmute (M)' : 'Mute (M)'}
+            >
+              {demo.isMuted ? (
+                <VolumeX className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              ) : (
+                <Volume2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              )}
+            </Button>
+
+            {/* Play/Pause */}
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-7 w-7 sm:h-8 sm:w-8"
               onClick={demo.isPaused ? demo.resume : demo.pause}
+              title={demo.isPaused ? 'Resume (Space)' : 'Pause (Space)'}
             >
               {demo.isPaused ? (
-                <Play className="h-4 w-4" />
+                <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               ) : (
-                <Pause className="h-4 w-4" />
+                <Pause className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               )}
             </Button>
             
+            {/* Skip */}
             <Button
               size="icon"
               variant="ghost"
-              className="h-8 w-8"
+              className="h-7 w-7 sm:h-8 sm:w-8"
               onClick={demo.skipToNext}
+              title="Skip (→)"
             >
-              <SkipForward className="h-4 w-4" />
+              <SkipForward className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </Button>
 
+            {/* Exit */}
             <Button
               size="icon"
               variant="ghost"
-              className="h-8 w-8 text-muted-foreground hover:text-destructive"
+              className="h-7 w-7 sm:h-8 sm:w-8 text-muted-foreground hover:text-destructive"
               onClick={demo.stop}
+              title="Exit (Esc)"
             >
-              <X className="h-4 w-4" />
+              <X className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </Button>
           </div>
 
-          {/* Time remaining */}
-          <span className="text-[10px] text-muted-foreground hidden sm:block">
-            ~{formatTime(demo.estimatedTimeRemaining)} left
+          {/* Time remaining — hidden on small screens */}
+          <span className="text-[10px] text-muted-foreground hidden md:block whitespace-nowrap">
+            ~{formatTime(demo.estimatedTimeRemaining)}
           </span>
         </div>
       </motion.div>

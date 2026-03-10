@@ -392,7 +392,7 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
           onAddVehicle={() => setShowAddVehicleDialog(true)}
           onImportFleet={() => setShowImportWizard(true)}
           onCreateBooking={() => setShowBookingDialog(true)}
-          onStartTour={() => window.dispatchEvent(new Event('start-tour'))}
+          onStartTour={() => window.dispatchEvent(new Event('start-demo-tour'))}
           onNavigateToTeam={() => onModuleClick('settings')}
         />
         

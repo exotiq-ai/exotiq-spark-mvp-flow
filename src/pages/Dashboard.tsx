@@ -279,6 +279,9 @@ const Dashboard = () => {
       {/* Interactive Module Tour */}
       <InteractiveModuleTour onModuleChange={handleModuleChange} />
       
+      {/* Rari-narrated Automated Demo Tour */}
+      <AutomatedDemoTour onModuleChange={handleModuleChange} />
+      
       <SEOHead
         title="Fleet Management Dashboard"
         description="Manage your luxury fleet with comprehensive analytics, AI-powered insights, and real-time monitoring."
