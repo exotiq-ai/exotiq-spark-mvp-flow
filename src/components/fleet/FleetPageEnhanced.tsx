@@ -484,13 +484,18 @@ export const FleetPageEnhanced = () => {
                 vehicleMap={vehicleMap}
                 onCompleteTask={handleCompleteTask}
                 onClaimTask={claimTask}
-                onViewTask={() => {}}
+                onViewTask={(task) => setSelectedTask(task)}
                 showClaimButton
                 title="Unassigned Tasks"
                 emptyMessage="All tasks are assigned"
               />
             </>
           )}
+        </TabsContent>
+
+        {/* Maintenance Tab Content */}
+        <TabsContent value="maintenance" className="mt-0">
+          <MaintenanceHub />
         </TabsContent>
 
         {/* Photos Tab Content */}
