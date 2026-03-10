@@ -3088,7 +3088,7 @@ export type Database = {
           user_id: string
           utilization: number | null
           vin: string | null
-          year: number
+          year: number | null
         }
         Insert: {
           color?: string | null
@@ -3115,7 +3115,7 @@ export type Database = {
           user_id: string
           utilization?: number | null
           vin?: string | null
-          year: number
+          year?: number | null
         }
         Update: {
           color?: string | null
@@ -3142,7 +3142,7 @@ export type Database = {
           user_id?: string
           utilization?: number | null
           vin?: string | null
-          year?: number
+          year?: number | null
         }
         Relationships: [
           {

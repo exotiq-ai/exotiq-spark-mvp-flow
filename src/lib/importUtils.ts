@@ -414,6 +414,12 @@ export function transformRows(
           if (value === '') value = null;
         }
         
+        // Force-stringify fields that must be text (e.g. model "911" parsed as number)
+        const stringFields = ['name', 'make', 'model', 'color', 'location', 'license_plate', 'vin'];
+        if (stringFields.includes(mapping.targetField) && value !== null && value !== undefined) {
+          value = String(value);
+        }
+        
         transformed[mapping.targetField] = value;
       } else {
         transformed[mapping.targetField] = null;

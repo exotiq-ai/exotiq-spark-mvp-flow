@@ -230,8 +230,11 @@ export function ImportWizard({ onClose, onComplete }: ImportWizardProps) {
           .insert(batch as any)
           .select();
         
-        if (error) { failed += batch.length; } 
-        else { imported += data?.length || 0; }
+        if (error) { 
+          console.error('[ImportWizard] Batch insert error:', error.message, error.details, error.hint);
+          lastInsertError = `${error.message}${error.details ? ` | ${error.details}` : ''}`;
+          failed += batch.length; 
+        } else { imported += data?.length || 0; }
         
         setImportProgress(prev => ({
           ...prev, processedRows: (i + 1) * batchSize,
