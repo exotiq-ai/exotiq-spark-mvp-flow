@@ -104,7 +104,7 @@ export const MyTeamSection = () => {
     };
 
     fetchTeamMembers();
-  }, [user?.id, isAdmin]);
+  }, [user?.id, currentTeam?.id]);
 
   const filteredMembers = teamMembers.filter(member =>
     member.name.toLowerCase().includes(searchQuery.toLowerCase()) ||

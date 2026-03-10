@@ -35,6 +35,7 @@ export const TeamInvitationsSection = () => {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const fetchInvitations = async () => {
+    if (!currentTeam?.id) return;
     try {
       setLoading(true);
       
@@ -42,6 +43,7 @@ export const TeamInvitationsSection = () => {
         .from("user_invitations")
         .select("*")
         .eq("status", "pending")
+        .eq("team_id", currentTeam.id)
         .order("created_at", { ascending: false });
 
       if (error) throw error;

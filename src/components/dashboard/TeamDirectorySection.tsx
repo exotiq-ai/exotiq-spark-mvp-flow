@@ -118,7 +118,7 @@ export const TeamDirectorySection = () => {
 
   useEffect(() => {
     fetchTeamMembers();
-  }, [user?.id]);
+  }, [user?.id, currentTeam?.id]);
 
   const handleReactivate = async (member: TeamMember) => {
     try {

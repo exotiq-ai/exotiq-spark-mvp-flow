@@ -91,7 +91,7 @@ export const useTeamActivity = (options: UseTeamActivityOptions = {}) => {
     } finally {
       setLoading(false);
     }
-  }, [user, limit, activityTypes]);
+  }, [user, currentTeam?.id, limit, activityTypes]);
 
   useEffect(() => {
     fetchActivities();
