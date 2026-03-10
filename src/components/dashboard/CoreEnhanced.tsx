@@ -37,10 +37,9 @@ interface RariInsight {
   id: string;
   title: string;
   description: string;
-  impact: string;
-  confidence: number;
   priority: string;
   action_items: any;
+  metadata: any;
   is_read: boolean;
   is_dismissed: boolean;
   created_at: string;
