@@ -27,6 +27,7 @@ interface PendingInvitation {
 
 export const TeamInvitationsSection = () => {
   const { toast } = useToast();
+  const { currentTeam } = useTeam();
   
   const [invitations, setInvitations] = useState<PendingInvitation[]>([]);
   const [loading, setLoading] = useState(true);
