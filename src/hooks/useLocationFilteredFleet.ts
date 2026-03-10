@@ -140,6 +140,11 @@ export const useLocationFilteredFleet = () => {
     };
   }, [filteredVehicles, filteredBookings, filteredMaintenance, filteredDamageClaims]);
 
+  // When tour is active, override with demo data
+  const effectiveRevenue = tourActive && demoSnapshot ? demoSnapshot.revenue : filteredRevenue;
+  const effectiveCustomers = tourActive && demoSnapshot ? demoSnapshot.customers : fleet.customers;
+  const effectivePayments = tourActive && demoSnapshot ? demoSnapshot.payments : filteredPayments;
+
   return {
     // Filtered data
     vehicles: filteredVehicles,
@@ -147,12 +152,12 @@ export const useLocationFilteredFleet = () => {
     maintenance: filteredMaintenance,
     damageClaims: filteredDamageClaims,
     inspections: filteredInspections,
-    payments: filteredPayments,
-    revenue: filteredRevenue,
+    payments: effectivePayments,
+    revenue: effectiveRevenue,
 
     // Unfiltered data (for operations that need all data)
-    allVehicles: fleet.vehicles,
-    allBookings: fleet.bookings,
+    allVehicles: tourActive && demoSnapshot ? demoSnapshot.vehicles : fleet.vehicles,
+    allBookings: tourActive && demoSnapshot ? demoSnapshot.bookings : fleet.bookings,
 
     // Location context
     selectedLocationId,
@@ -166,10 +171,10 @@ export const useLocationFilteredFleet = () => {
     // Pass through other fleet context values unchanged
     documents: fleet.documents,
     messages: fleet.messages,
-    customers: fleet.customers,
+    customers: effectiveCustomers,
     customerNotes: fleet.customerNotes,
-    loading: fleet.loading,
-    error: fleet.error, // Expose error state for UI recovery
+    loading: tourActive ? false : fleet.loading,
+    error: tourActive ? null : fleet.error,
 
     // Pass through all actions
     applyPriceOptimization: fleet.applyPriceOptimization,
