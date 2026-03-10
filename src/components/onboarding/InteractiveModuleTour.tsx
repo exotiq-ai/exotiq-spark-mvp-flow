@@ -117,28 +117,26 @@ const generateTourSteps = (profile: UserProfile | null): TourStep[] => {
   ];
 };
 
-// Get smart card position based on current step to avoid overlapping spotlights
-// Card should NEVER cover what it's describing - positioned away from spotlight
-const getCardPosition = (stepId: string, isCenterStep: boolean): string => {
+// Get smart card position + entrance direction based on spotlight location
+const getCardPosition = (stepId: string, isCenterStep: boolean): { position: string; entrance: { x: number; y: number } } => {
   if (isCenterStep) {
-    return 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2';
+    return { 
+      position: 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2',
+      entrance: { x: 0, y: 40 },
+    };
   }
 
   switch (stepId) {
     case 'rari-assistant':
-      // Rari FAB is bottom-right, card goes top-left (clear of sidebar)
-      return 'top-24 left-24';
+      return { position: 'top-24 left-24', entrance: { x: -60, y: 0 } };
     case 'pulse-overview':
-      // Fleet snapshot is top area, card goes bottom-right
-      return 'bottom-24 right-8';
+      return { position: 'bottom-24 right-8', entrance: { x: 60, y: 0 } };
     case 'book-overview':
-      // Next pickup is LEFT side, card goes TOP-RIGHT to avoid overlap
-      return 'top-24 right-8';
+      return { position: 'top-24 right-8', entrance: { x: 60, y: -30 } };
     case 'vault-overview':
-      // Compliance overview center/top, card goes top-left
-      return 'top-24 left-24';
+      return { position: 'top-24 left-24', entrance: { x: -60, y: 0 } };
     default:
-      return 'bottom-24 right-8';
+      return { position: 'bottom-24 right-8', entrance: { x: 40, y: 20 } };
   }
 };
 
