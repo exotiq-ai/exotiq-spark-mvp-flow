@@ -1,10 +1,15 @@
 import React from 'react';
-import { CheckCircle2, AlertTriangle, XCircle, ExternalLink, Users, Car, Calendar, MapPin } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, XCircle, ExternalLink, Users, Car, Calendar, MapPin, Download } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ImportEntityType } from '@/lib/importSchemas';
+
+interface FailedRowInfo {
+  row: number;
+  errors: { field: string; message: string }[];
+}
 
 interface ImportSummaryProps {
   entityType: ImportEntityType;
@@ -16,6 +21,9 @@ interface ImportSummaryProps {
   };
   onClose: () => void;
   onViewData: (module: string) => void;
+  fileName?: string;
+  columnMappings?: { sourceColumn: string; targetField: string | null }[];
+  failedRows?: FailedRowInfo[];
 }
 
 const ENTITY_CONFIG: Record<ImportEntityType, { 
@@ -30,11 +38,98 @@ const ENTITY_CONFIG: Record<ImportEntityType, {
   locations: { icon: MapPin, label: 'Locations', module: 'settings', color: 'text-accent' }
 };
 
-export function ImportSummary({ entityType, stats, onClose, onViewData }: ImportSummaryProps) {
+function generateReportText(
+  entityType: ImportEntityType,
+  stats: ImportSummaryProps['stats'],
+  fileName?: string,
+  columnMappings?: ImportSummaryProps['columnMappings'],
+  failedRows?: FailedRowInfo[]
+): string {
+  const config = ENTITY_CONFIG[entityType];
+  const lines: string[] = [];
+  const now = new Date();
+
+  lines.push('═══════════════════════════════════════════');
+  lines.push('         IMPORT SUMMARY REPORT');
+  lines.push('═══════════════════════════════════════════');
+  lines.push('');
+  lines.push(`Date:        ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`);
+  lines.push(`Entity Type: ${config.label}`);
+  if (fileName) lines.push(`File:        ${fileName}`);
+  lines.push('');
+
+  lines.push('── Results ──────────────────────────────');
+  lines.push(`  Imported:   ${stats.imported}`);
+  lines.push(`  Skipped:    ${stats.skipped}`);
+  lines.push(`  Failed:     ${stats.failed}`);
+  const total = stats.imported + stats.skipped + stats.failed;
+  const rate = total > 0 ? Math.round((stats.imported / total) * 100) : 0;
+  lines.push(`  Total:      ${total}`);
+  lines.push(`  Success:    ${rate}%`);
+  lines.push('');
+
+  if (columnMappings && columnMappings.length > 0) {
+    const mapped = columnMappings.filter(m => m.targetField);
+    const skipped = columnMappings.filter(m => !m.targetField);
+
+    lines.push('── Column Mappings ─────────────────────');
+    lines.push(`  Mapped: ${mapped.length}  |  Skipped: ${skipped.length}`);
+    lines.push('');
+    if (mapped.length > 0) {
+      lines.push('  Mapped columns:');
+      mapped.forEach(m => lines.push(`    ${m.sourceColumn} → ${m.targetField}`));
+    }
+    if (skipped.length > 0) {
+      lines.push('  Skipped columns:');
+      skipped.forEach(m => lines.push(`    ${m.sourceColumn}`));
+    }
+    lines.push('');
+  }
+
+  if (failedRows && failedRows.length > 0) {
+    lines.push('── Failed Rows ─────────────────────────');
+    failedRows.slice(0, 50).forEach(r => {
+      lines.push(`  Row ${r.row}:`);
+      r.errors.forEach(e => lines.push(`    • ${e.field}: ${e.message}`));
+    });
+    if (failedRows.length > 50) {
+      lines.push(`  ... and ${failedRows.length - 50} more`);
+    }
+    lines.push('');
+  }
+
+  if (stats.needsAttention > 0) {
+    lines.push('── Attention Needed ────────────────────');
+    lines.push(`  ${stats.needsAttention} record(s) may need review.`);
+    lines.push('');
+  }
+
+  lines.push('═══════════════════════════════════════════');
+  return lines.join('\n');
+}
+
+function downloadReport(content: string, entityType: string) {
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `import-report-${entityType}-${new Date().toISOString().slice(0, 10)}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+export function ImportSummary({ entityType, stats, onClose, onViewData, fileName, columnMappings, failedRows }: ImportSummaryProps) {
   const config = ENTITY_CONFIG[entityType];
   const Icon = config.icon;
   const totalProcessed = stats.imported + stats.skipped + stats.failed;
   const successRate = totalProcessed > 0 ? Math.round((stats.imported / totalProcessed) * 100) : 0;
+
+  const handleDownloadReport = () => {
+    const report = generateReportText(entityType, stats, fileName, columnMappings, failedRows);
+    downloadReport(report, entityType);
+  };
 
   return (
     <div className="space-y-6">
@@ -127,6 +222,17 @@ export function ImportSummary({ entityType, stats, onClose, onViewData }: Import
               </Badge>
             </Button>
           )}
+
+          <Button 
+            variant="outline" 
+            className="w-full justify-between"
+            onClick={handleDownloadReport}
+          >
+            <span className="flex items-center gap-2">
+              <Download className="w-4 h-4" />
+              Download Import Report
+            </span>
+          </Button>
           
           <Button 
             variant="ghost" 
