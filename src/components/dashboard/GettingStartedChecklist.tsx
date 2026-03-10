@@ -82,8 +82,13 @@ export const GettingStartedChecklist = ({
   const completedCount = steps.filter(s => s.done).length;
   const progress = (completedCount / steps.length) * 100;
 
-  // Don't show if all steps are done
-  if (completedCount === steps.length) return null;
+  // Don't show if all steps are done or dismissed
+  if (completedCount === steps.length || dismissed) return null;
+
+  const handleDismiss = () => {
+    localStorage.setItem('checklist-dismissed', 'true');
+    setDismissed(true);
+  };
 
   return (
     <motion.div
