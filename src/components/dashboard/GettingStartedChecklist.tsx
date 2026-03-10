@@ -4,7 +4,6 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { useProfile } from '@/hooks/useProfile';
-import { useTeam } from '@/contexts/TeamContext';
 import { 
   Car, 
   Calendar, 
