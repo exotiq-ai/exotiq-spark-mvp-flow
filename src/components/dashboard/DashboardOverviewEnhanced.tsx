@@ -75,6 +75,7 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
   
   const { vehicles, bookings, loading, error, applyPriceOptimization, createBooking, createCustomer, generateReport, createMaintenance, createPayment, createVehicle, refreshData } = useLocationFilteredFleet();
   const { signOut, loading: authLoading } = useAuth();
+  const { profile } = useProfile();
   const { currentTeam, loading: teamLoading, error: teamError } = useTeam();
   const { toast } = useToast();
   const rariSidebar = useRariSidebar();
