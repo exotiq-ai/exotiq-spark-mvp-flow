@@ -388,7 +388,7 @@ export const FleetPageEnhanced = () => {
                 vehicleMap={vehicleMap}
                 onCompleteTask={handleCompleteTask}
                 onClaimTask={claimTask}
-                onViewTask={() => {}}
+                onViewTask={(task) => setSelectedTask(task)}
                 title="My Tasks"
                 emptyMessage="No tasks assigned to you"
                 compact
