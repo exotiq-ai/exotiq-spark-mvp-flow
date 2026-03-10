@@ -61,7 +61,7 @@ export const vehicleImportSchema: ImportEntitySchema = {
     {
       name: 'year',
       label: 'Year',
-      required: true,
+      required: false,
       type: 'number',
       aliases: ['model_year', 'vehicle_year', 'manufacture_year', 'yr'],
       description: 'Model year (1900-2027)',
