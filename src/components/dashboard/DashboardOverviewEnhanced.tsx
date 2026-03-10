@@ -363,38 +363,37 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
             Let's get {companyName ? <span className="font-medium text-foreground">{companyName}</span> : 'your fleet'} set up and running.
           </p>
           
-          {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row items-center gap-3 mt-4">
+          {/* Primary CTA: See Exotiq in Action */}
+          <div className="flex flex-col items-center gap-3 mt-4">
             <Button
               size="lg"
-              onClick={() => setShowAddVehicleDialog(true)}
-              className="gap-2 min-w-[200px]"
+              onClick={() => window.dispatchEvent(new Event('start-demo-tour'))}
+              className="gap-2 min-w-[260px]"
             >
-              <Plus className="h-5 w-5" />
-              Add Your First Vehicle
+              <Play className="h-5 w-5" />
+              See Exotiq in Action
             </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              onClick={() => setShowImportWizard(true)}
-              className="gap-2 min-w-[200px]"
+            <button
+              onClick={() => setSkippedTour(true)}
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline"
             >
-              <Upload className="h-5 w-5" />
-              Import Fleet from CSV
-            </Button>
+              Skip, I'll set up myself
+            </button>
           </div>
         </motion.div>
 
-        {/* Getting Started Checklist */}
-        <GettingStartedChecklist
-          vehicleCount={vehicles.length}
-          bookingCount={bookings.length}
-          onAddVehicle={() => setShowAddVehicleDialog(true)}
-          onImportFleet={() => setShowImportWizard(true)}
-          onCreateBooking={() => setShowBookingDialog(true)}
-          onStartTour={() => window.dispatchEvent(new Event('start-demo-tour'))}
-          onNavigateToTeam={() => onModuleClick('settings')}
-        />
+        {/* Show checklist only if they skipped the tour */}
+        {skippedTour && (
+          <GettingStartedChecklist
+            vehicleCount={vehicles.length}
+            bookingCount={bookings.length}
+            onAddVehicle={() => setShowAddVehicleDialog(true)}
+            onImportFleet={() => setShowImportWizard(true)}
+            onCreateBooking={() => setShowBookingDialog(true)}
+            onStartTour={() => window.dispatchEvent(new Event('start-demo-tour'))}
+            onNavigateToTeam={() => onModuleClick('settings')}
+          />
+        )}
         
         {/* Dialogs */}
         <AddVehicleDialog
