@@ -46,6 +46,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useTeam } from "@/contexts/TeamContext";
 import { EditUserRoleDialog, type AppRole } from "@/components/dialogs/EditUserRoleDialog";
 import { InviteUserDialog } from "@/components/dialogs/InviteUserDialog";
 import { DeleteUserDialog } from "@/components/dialogs/DeleteUserDialog";
