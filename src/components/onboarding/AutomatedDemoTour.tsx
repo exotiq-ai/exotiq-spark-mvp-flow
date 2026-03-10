@@ -26,12 +26,16 @@ interface AutomatedDemoTourProps {
 export const AutomatedDemoTour = ({ onModuleChange }: AutomatedDemoTourProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { activateTour, deactivateTour } = useTourData();
   const steps = useDemoScript();
   
   const demo = useDemoOrchestrator({
     steps,
     onModuleChange,
     onComplete: () => {
+      // Deactivate tour data overlay first
+      deactivateTour();
+      
       confetti({
         particleCount: 150,
         spread: 80,
@@ -39,8 +43,8 @@ export const AutomatedDemoTour = ({ onModuleChange }: AutomatedDemoTourProps) =>
         colors: ['#0B3D91', '#FF6B35', '#FFD700'],
       });
       toast({
-        title: "Full Tour Complete! 🎉",
-        description: "You've seen everything Exotiq has to offer.",
+        title: "Tour Complete! 🎉",
+        description: "Now let's set up your fleet.",
         duration: 5000,
       });
       if (user?.id) {
