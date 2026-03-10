@@ -29,12 +29,16 @@ import {
   FolderOpen,
   Sparkles,
   Zap,
+  Link,
+  HelpCircle,
+  TrendingDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import { usePhotoAnalysis } from './usePhotoAnalysis';
 import { toast } from 'sonner';
 import type { PhotoUploadProgress } from './types';
+import { uploadMetrics, formatBytes } from '@/lib/uploadMetrics';
 
 interface Vehicle {
   id: string;
@@ -42,6 +46,7 @@ interface Vehicle {
   make?: string;
   model?: string;
   year?: number;
+  color?: string;
 }
 
 interface BulkUploadModalProps {
@@ -52,20 +57,31 @@ interface BulkUploadModalProps {
   onComplete?: (results: PhotoUploadProgress[]) => void;
 }
 
-const STATUS_ICONS = {
+const STATUS_ICONS: Record<string, React.ReactNode> = {
   pending: <ImageIcon className="h-4 w-4 text-muted-foreground" />,
+  preprocessing: <Zap className="h-4 w-4 animate-pulse text-amber-500" />,
   uploading: <Loader2 className="h-4 w-4 animate-spin text-primary" />,
+  matching: <Link className="h-4 w-4 animate-pulse text-blue-500" />,
   analyzing: <Sparkles className="h-4 w-4 animate-pulse text-amber-500" />,
   complete: <CheckCircle2 className="h-4 w-4 text-success" />,
   error: <AlertCircle className="h-4 w-4 text-destructive" />,
 };
 
-const STATUS_LABELS = {
+const STATUS_LABELS: Record<string, string> = {
   pending: 'Pending',
+  preprocessing: 'Compressing...',
   uploading: 'Uploading...',
+  matching: 'Matching...',
   analyzing: 'AI Analyzing...',
   complete: 'Complete',
   error: 'Failed',
+};
+
+const MATCH_BADGES: Record<string, { label: string; className: string }> = {
+  'auto-matched': { label: 'Auto-matched', className: 'border-success/50 text-success' },
+  'suggested': { label: 'Suggested', className: 'border-amber-500/50 text-amber-600' },
+  'unmatched': { label: 'Review needed', className: 'border-muted-foreground/30 text-muted-foreground' },
+  'skipped': { label: 'Assigned', className: 'border-primary/50 text-primary' },
 };
 
 export const BulkUploadModal = ({
