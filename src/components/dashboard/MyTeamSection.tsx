@@ -16,6 +16,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole, AppRole } from "@/hooks/useUserRole";
+import { useTeam } from "@/contexts/TeamContext";
 
 interface TeamMember {
   id: string;
