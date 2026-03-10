@@ -187,6 +187,22 @@ serve(async (req) => {
     });
     y -= 40;
 
+    // Operator Representative section
+    if (operatorName) {
+      page.drawText("Operator Representative:", {
+        x: 50, y, size: 11, font: boldFont, color: textColor,
+      });
+      y -= 20;
+      page.drawText(operatorName, {
+        x: 50, y, size: 11, font, color: textColor,
+      });
+      y -= 16;
+      page.drawText("Digitally acknowledged", {
+        x: 50, y, size: 9, font, color: mutedColor,
+      });
+      y -= 30;
+    }
+
     // Footer
     const footerRef = docRef ? ` Reference: ${docRef}` : "";
     page.drawText(`This document was digitally signed through Exotiq Vault on ${new Date(signedDate).toLocaleDateString("en-US", { dateStyle: "long" })}.${footerRef}`, {
