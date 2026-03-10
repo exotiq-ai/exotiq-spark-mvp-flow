@@ -77,16 +77,19 @@ export const UnifiedNotificationCenter = ({ onNavigate }: { onNavigate?: (module
   const { vehicles, bookings, customers, damageClaims, inspections } = useFleet();
   const { prefs, isInQuietHours } = useNotificationPreferences();
   const { notifications: dbNotifications, markAsRead: markDbRead, markAllAsRead: markAllDbRead, deleteNotification: deleteDbNotification, clearAll: clearAllDb } = useNotifications();
+  const [, setNotifSearchParams] = useSearchParams();
   
   const systemNotifications = useMemo<SystemNotification[]>(() => {
     return dbNotifications.map(n => ({
       id: n.id,
-      type: (n.type === 'booking_update' || n.type === 'booking' ? 'info' : n.type === 'payment' ? 'success' : n.type === 'damage_claim' ? 'error' : 'info') as SystemNotification['type'],
+      type: (n.type === 'booking_update' || n.type === 'booking' ? 'info' : n.type === 'payment' ? 'success' : n.type === 'damage_claim' || n.type === 'damage' ? 'error' : 'info') as SystemNotification['type'],
       title: n.title,
       message: n.message,
       timestamp: n.timestamp,
       read: n.read,
       category: 'system' as const,
+      data: n.data,
+      notificationType: n.type,
     }));
   }, [dbNotifications]);
 
