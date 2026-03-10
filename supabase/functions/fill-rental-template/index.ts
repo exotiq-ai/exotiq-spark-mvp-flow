@@ -64,7 +64,7 @@ serve(async (req) => {
     // Fetch booking with related data
     const { data: booking, error: bookingErr } = await supabase
       .from("bookings")
-      .select("*")
+      .select("*, booking_ref")
       .eq("id", bookingId)
       .single();
     if (bookingErr || !booking) {
