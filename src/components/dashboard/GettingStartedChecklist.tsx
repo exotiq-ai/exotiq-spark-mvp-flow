@@ -107,6 +107,13 @@ export const GettingStartedChecklist = ({
               {completedCount} of {steps.length} complete
             </p>
           </div>
+          <button
+            onClick={handleDismiss}
+            className="h-6 w-6 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            aria-label="Dismiss checklist"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
         </div>
 
         <Progress value={progress} className="h-1.5 mb-5" />
