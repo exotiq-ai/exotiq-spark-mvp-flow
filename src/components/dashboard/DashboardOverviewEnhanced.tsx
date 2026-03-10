@@ -55,7 +55,8 @@ import {
   RefreshCw,
   AlertTriangle,
   RotateCcw,
-  LogOut
+  LogOut,
+  Play
 } from "lucide-react";
 
 interface DashboardOverviewEnhancedProps {
