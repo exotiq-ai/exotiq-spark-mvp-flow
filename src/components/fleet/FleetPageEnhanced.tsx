@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useLocationFilteredFleet } from '@/hooks/useLocationFilteredFleet';
-import { useFleetTasks } from '@/hooks/useFleetTasks';
+import { useFleetTasks, type VehicleTask } from '@/hooks/useFleetTasks';
 import { useVehicleOpsStatus, OpsStatus } from '@/hooks/useVehicleOpsStatus';
 import { useVehiclePhotos } from '@/hooks/useVehiclePhotos';
 import { useTeam } from '@/contexts/TeamContext';
@@ -18,6 +18,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { FleetVehicleCard } from './FleetVehicleCard';
 import { FleetFilters, FleetFiltersState, ViewMode } from './FleetFilters';
 import { TaskQueue } from './TaskQueue';
+import { TaskDetailSheet } from './TaskDetailSheet';
+import { MaintenanceHub } from './MaintenanceHub';
 import { CreateVehicleTaskDialog } from '@/components/dialogs/CreateVehicleTaskDialog';
 import { QuickPriceEditorDialog } from '@/components/dialogs/QuickPriceEditorDialog';
 import { VehicleImageDialog } from '@/components/dialogs/VehicleImageDialog';
@@ -37,8 +39,10 @@ import {
   Plus,
   Upload,
   Trash2,
+  Wrench,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useSearchParams } from 'react-router-dom';
 
 interface TeamMember {
   id: string;
