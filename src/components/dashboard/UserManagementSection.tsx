@@ -46,6 +46,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useTeam } from "@/contexts/TeamContext";
 import { EditUserRoleDialog, type AppRole } from "@/components/dialogs/EditUserRoleDialog";
 import { InviteUserDialog } from "@/components/dialogs/InviteUserDialog";
 import { DeleteUserDialog } from "@/components/dialogs/DeleteUserDialog";
@@ -75,6 +76,7 @@ interface PendingInvitation {
 
 export const UserManagementSection = () => {
   const { toast } = useToast();
+  const { currentTeam } = useTeam();
   const [searchQuery, setSearchQuery] = useState("");
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [pendingInvitations, setPendingInvitations] = useState<PendingInvitation[]>([]);
@@ -93,26 +95,20 @@ export const UserManagementSection = () => {
   const [isBulkUpdating, setIsBulkUpdating] = useState(false);
 
   const fetchUsers = async () => {
+    if (!currentTeam?.id) return;
     setIsLoading(true);
     try {
-      // Fetch profiles with their roles
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, email, full_name, updated_at');
+      // Query team_members with profile join — scoped to current team only
+      const { data: teamMembersData, error } = await supabase
+        .from('team_members')
+        .select('user_id, role, is_active, profiles(id, full_name, email, updated_at)')
+        .eq('team_id', currentTeam.id);
 
-      if (profilesError) throw profilesError;
+      if (error) throw error;
 
-      // Fetch user roles
-      const { data: roles, error: rolesError } = await supabase
-        .from('user_roles')
-        .select('*');
-
-      if (rolesError) throw rolesError;
-
-      // Merge profiles with roles
-      const mergedUsers: UserWithRole[] = (profiles || []).map(profile => {
-        const userRole = roles?.find(r => r.user_id === profile.id);
-        const lastUpdated = profile.updated_at 
+      const mergedUsers: UserWithRole[] = (teamMembersData || []).map(tm => {
+        const profile = tm.profiles as any;
+        const lastUpdated = profile?.updated_at 
           ? new Date(profile.updated_at)
           : new Date();
         const now = new Date();
@@ -131,25 +127,26 @@ export const UserManagementSection = () => {
         }
 
         return {
-          id: userRole?.id || profile.id,
-          user_id: profile.id,
-          name: profile.full_name || 'Unknown User',
-          email: profile.email,
-          role: (userRole?.role as AppRole) || 'viewer',
-          permissions: userRole?.permissions || [],
-          status: 'active',
+          id: tm.user_id,
+          user_id: tm.user_id,
+          name: profile?.full_name || 'Unknown User',
+          email: profile?.email || '',
+          role: (tm.role as AppRole) || 'viewer',
+          permissions: [],
+          status: tm.is_active ? 'active' : 'inactive',
           lastActive
         };
       });
 
       setUsers(mergedUsers);
-      setSelectedUserIds([]); // Clear selection on refresh
+      setSelectedUserIds([]);
 
-      // Fetch pending invitations
+      // Fetch pending invitations scoped to team
       const { data: invitations } = await supabase
         .from('user_invitations')
         .select('*')
         .eq('status', 'pending')
+        .eq('team_id', currentTeam.id)
         .order('created_at', { ascending: false });
 
       setPendingInvitations(invitations || []);

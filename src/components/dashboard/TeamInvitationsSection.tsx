@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useTeam } from "@/contexts/TeamContext";
 import { InviteUserDialog } from "@/components/dialogs/InviteUserDialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDistanceToNow } from "date-fns";
@@ -26,6 +27,7 @@ interface PendingInvitation {
 
 export const TeamInvitationsSection = () => {
   const { toast } = useToast();
+  const { currentTeam } = useTeam();
   
   const [invitations, setInvitations] = useState<PendingInvitation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,6 +35,7 @@ export const TeamInvitationsSection = () => {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const fetchInvitations = async () => {
+    if (!currentTeam?.id) return;
     try {
       setLoading(true);
       
@@ -40,6 +43,7 @@ export const TeamInvitationsSection = () => {
         .from("user_invitations")
         .select("*")
         .eq("status", "pending")
+        .eq("team_id", currentTeam.id)
         .order("created_at", { ascending: false });
 
       if (error) throw error;

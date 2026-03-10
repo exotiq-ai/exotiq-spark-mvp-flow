@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTeam } from '@/contexts/TeamContext';
 
 export interface ActivityLog {
   id: string;
@@ -28,14 +29,30 @@ export const useTeamActivity = (options: UseTeamActivityOptions = {}) => {
   const [activities, setActivities] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
+  const { currentTeam } = useTeam();
 
   const fetchActivities = useCallback(async () => {
-    if (!user) return;
+    if (!user || !currentTeam?.id) return;
     
     try {
+      // First fetch team member user_ids to scope activity
+      const { data: teamMembersData } = await supabase
+        .from('team_members')
+        .select('user_id')
+        .eq('team_id', currentTeam.id)
+        .eq('is_active', true);
+
+      const teamUserIds = teamMembersData?.map(m => m.user_id) || [];
+      if (teamUserIds.length === 0) {
+        setActivities([]);
+        setLoading(false);
+        return;
+      }
+
       let query = supabase
         .from('user_activity_log')
         .select('*')
+        .in('user_id', teamUserIds)
         .order('created_at', { ascending: false })
         .limit(limit);
 
@@ -74,7 +91,7 @@ export const useTeamActivity = (options: UseTeamActivityOptions = {}) => {
     } finally {
       setLoading(false);
     }
-  }, [user, limit, activityTypes]);
+  }, [user, currentTeam?.id, limit, activityTypes]);
 
   useEffect(() => {
     fetchActivities();
