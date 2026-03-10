@@ -753,7 +753,7 @@ export const CheckInOutDialog = ({
                           conditionNotes || '',
                         ].filter(Boolean).join('\n'),
                         issue_type: damageItems.length > 0 ? 'body' : 'general',
-                        priority: damageItems.some(d => d.severity === 'severe') ? 'urgent' : 'normal',
+                        priority: damageItems.some(d => d.severity === 'major') ? 'urgent' : 'normal',
                       }
                     }));
                   }}
