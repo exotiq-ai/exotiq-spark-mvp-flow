@@ -297,12 +297,14 @@ export const CoreEnhanced = () => {
                           </div>
                           <p className="text-xs text-muted-foreground mb-2">{insight.description}</p>
                           <div className="flex items-center space-x-4 text-xs">
-                            {insight.impact && (
-                              <span className="font-medium text-success">{insight.impact}</span>
+                            {insight.metadata?.impact && (
+                              <span className="font-medium text-success">{String(insight.metadata.impact)}</span>
                             )}
-                            <span className="text-muted-foreground">
-                              Confidence: {insight.confidence}%
-                            </span>
+                            {insight.metadata?.confidence && (
+                              <span className="text-muted-foreground">
+                                Confidence: {String(insight.metadata.confidence)}%
+                              </span>
+                            )}
                           </div>
                         </div>
                         <Badge className={getPriorityColor(insight.priority)}>
