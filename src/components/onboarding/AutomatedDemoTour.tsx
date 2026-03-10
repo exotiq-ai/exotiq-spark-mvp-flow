@@ -53,12 +53,17 @@ export const AutomatedDemoTour = ({ onModuleChange }: AutomatedDemoTourProps) =>
     },
   });
 
-  // Listen for 'start-demo-tour' events
+  // Listen for 'start-demo-tour' events — pre-fetch demo data before starting
   useEffect(() => {
-    const handler = () => demo.start();
+    const handler = async () => {
+      const success = await activateTour();
+      if (success) {
+        setTimeout(() => demo.start(), 300);
+      }
+    };
     window.addEventListener('start-demo-tour', handler);
     return () => window.removeEventListener('start-demo-tour', handler);
-  }, [demo.start]);
+  }, [demo.start, activateTour]);
 
   // Keyboard controls
   useEffect(() => {
