@@ -504,6 +504,11 @@ export const EnhancedBookingDialog = ({
             <div className="flex items-center justify-between">
               <DialogTitle className="text-xl">
                 {isEditMode ? "Edit Booking" : "Booking Details"}
+                {!isEditMode && (booking as any)?.booking_ref && (
+                  <span className="ml-2 text-sm font-normal text-muted-foreground">
+                    {(booking as any).booking_ref}
+                  </span>
+                )}
               </DialogTitle>
               <div className="flex items-center gap-2">
                 {!isEditMode && (
