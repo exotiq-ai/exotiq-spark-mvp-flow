@@ -76,6 +76,7 @@ interface PendingInvitation {
 
 export const UserManagementSection = () => {
   const { toast } = useToast();
+  const { currentTeam } = useTeam();
   const [searchQuery, setSearchQuery] = useState("");
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [pendingInvitations, setPendingInvitations] = useState<PendingInvitation[]>([]);
