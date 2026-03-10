@@ -25,6 +25,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useTeam } from "@/contexts/TeamContext";
 import { useToast } from "@/hooks/use-toast";
 import { DeactivateUserDialog } from "@/components/dialogs/DeactivateUserDialog";
 import { EditUserRoleDialog } from "@/components/dialogs/EditUserRoleDialog";
