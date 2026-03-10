@@ -1,46 +1,27 @@
 
-# Vault Signing Module — Implementation Complete
 
-## What was built
+# Make Year/Status Optional + Add Post-Import Summary Download
 
-### Phase A: Database Migration ✅
-- Added `doc_ref` (auto-generated `EXQ-DOC-YYYY-NNNNN`), `booking_id`, `is_default`, `signed_at`, `signed_by_name`, `signature_image_url`, `signing_metadata` (JSONB), `parent_document_id` columns to `documents` table
-- Created sequence + trigger for human-readable document references
-- Added indexes for performance
+## Two small, fast changes:
 
-### Phase B: Storage Fix ✅
-- Fixed `getPublicUrl` → `createSignedUrl` in `IDUploadDialog`, `InsuranceUploadDialog`, `DocumentUploadDialog`
-- Uses 1-year signed URLs for private `customer-documents` bucket
+### 1. Make `year` and `status` optional in vehicle import validation
+**File: `src/lib/importSchemas.ts`**
+- Line 64: Change `required: true` → `required: false` for `year`
+- Line 487: Change `z.coerce.number().min(1900)...` → add `.optional().nullable().default(null)` with a preprocess to handle empty strings
+- Line 491: Add `'booked'` to the status enum, add `.nullable()` (it already has `.optional().default('available')`)
 
-### Phase C: Rental Agreement Support ✅
-- Added "Rental Agreement" type to DocumentUploadDialog
-- PDF-only restriction for rental agreements
-- "Set as Default" toggle with automatic clearing of previous defaults
-- Expiry date optional for rental agreements
+### 2. Add "Download Import Report" button to ImportSummary
+**File: `src/components/import/ImportSummary.tsx`**
+- Accept new optional props: `fileName?: string`, `columnMappings?: array`, `failedRows?: array`, `skippedRows?: array`
+- Add a "Download Summary" button that generates a simple text/CSV report containing:
+  - Date/time, file name, entity type
+  - Fields mapped vs skipped (columns present vs not)
+  - Row counts: imported, skipped, failed
+  - List of failed rows with error reasons (if any)
+- Uses the existing `downloadFile` pattern (Blob → link click) — no new dependencies
 
-### Phase D: SignatureCanvas ✅
-- Native HTML5 canvas with pointer events (touch/stylus/mouse)
-- Clear button, visual feedback, export to PNG data URL
-- No external dependencies
+**File: `src/components/import/ImportWizard.tsx`**
+- Pass the extra props (`fileName`, `columnMappings`, validation result details) through to `ImportSummary`
 
-### Phase E: generate-signed-pdf Edge Function ✅
-- Uses pdf-lib to append signature page to original PDF
-- Captures IP from request headers (x-forwarded-for)
-- Uploads signed PDF to customer-documents bucket
+This is ~30 minutes of work — no database changes, no new components, just tweaking validation constants and adding one button with a blob download.
 
-### Phase F: SigningCeremony + DocumentPicker ✅
-- Full-screen 3-step wizard: Review → Sign → Complete
-- PDF viewer via iframe, agreement checkbox, signature canvas, printed name
-- Captures signing_metadata (IP, userAgent, deviceType, screen size)
-- DocumentPicker for selecting rental agreement when no default exists
-
-### Phase G: Booking Integration ✅
-- Documents section in EnhancedBookingDialog Details tab
-- "Sign Document" button checks for default rental agreement
-- Shows signed documents linked to booking with doc_ref and signer info
-
-### Phase H: Vault Enhancements ✅
-- Search by name, type, doc_ref, signer name
-- "Default" badge on active rental agreement
-- "Signed" status badge for signed documents
-- View/Download buttons open actual file URLs
