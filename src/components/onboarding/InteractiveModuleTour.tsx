@@ -117,28 +117,26 @@ const generateTourSteps = (profile: UserProfile | null): TourStep[] => {
   ];
 };
 
-// Get smart card position based on current step to avoid overlapping spotlights
-// Card should NEVER cover what it's describing - positioned away from spotlight
-const getCardPosition = (stepId: string, isCenterStep: boolean): string => {
+// Get smart card position + entrance direction based on spotlight location
+const getCardPosition = (stepId: string, isCenterStep: boolean): { position: string; entrance: { x: number; y: number } } => {
   if (isCenterStep) {
-    return 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2';
+    return { 
+      position: 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2',
+      entrance: { x: 0, y: 40 },
+    };
   }
 
   switch (stepId) {
     case 'rari-assistant':
-      // Rari FAB is bottom-right, card goes top-left (clear of sidebar)
-      return 'top-24 left-24';
+      return { position: 'top-24 left-24', entrance: { x: -60, y: 0 } };
     case 'pulse-overview':
-      // Fleet snapshot is top area, card goes bottom-right
-      return 'bottom-24 right-8';
+      return { position: 'bottom-24 right-8', entrance: { x: 60, y: 0 } };
     case 'book-overview':
-      // Next pickup is LEFT side, card goes TOP-RIGHT to avoid overlap
-      return 'top-24 right-8';
+      return { position: 'top-24 right-8', entrance: { x: 60, y: -30 } };
     case 'vault-overview':
-      // Compliance overview center/top, card goes top-left
-      return 'top-24 left-24';
+      return { position: 'top-24 left-24', entrance: { x: -60, y: 0 } };
     default:
-      return 'bottom-24 right-8';
+      return { position: 'bottom-24 right-8', entrance: { x: 40, y: 20 } };
   }
 };
 
@@ -236,7 +234,7 @@ export const InteractiveModuleTour = ({ onModuleChange }: InteractiveModuleTourP
   const Icon = tour.currentStep.icon;
   const isCenterStep = tour.currentStep.spotlights.length === 0;
   const hasSpotlights = tour.currentStep.spotlights.length > 0;
-  const cardPosition = getCardPosition(tour.currentStep.id, isCenterStep);
+  const { position: cardPosition, entrance: cardEntrance } = getCardPosition(tour.currentStep.id, isCenterStep);
 
   return (
     <AnimatePresence>
@@ -263,14 +261,15 @@ export const InteractiveModuleTour = ({ onModuleChange }: InteractiveModuleTourP
         {/* Desktop Glass Card - hidden on mobile */}
         <motion.div
           key={tour.currentStep.id}
-          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          initial={{ opacity: 0, scale: 0.92, x: cardEntrance.x, y: cardEntrance.y }}
           animate={{ 
             opacity: tour.isTransitioning ? 0.3 : 1, 
-            scale: tour.isTransitioning ? 0.98 : 1, 
-            y: 0 
+            scale: tour.isTransitioning ? 0.96 : 1, 
+            x: 0,
+            y: 0,
           }}
-          exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          exit={{ opacity: 0, scale: 0.92, x: cardEntrance.x, y: cardEntrance.y }}
+          transition={{ type: "spring", stiffness: 260, damping: 28, mass: 0.8 }}
           className={cn(
             'hidden md:block absolute pointer-events-auto z-[110]',
             cardPosition
