@@ -154,9 +154,12 @@ export const BulkUploadModal = ({
   const handleStartUpload = async () => {
     if (files.length === 0) return;
     
+    // Reset session metrics for this batch
+    uploadMetrics.reset();
+    
     // Convert 'auto-detect' placeholder back to undefined
     const vehicleId = selectedVehicleId === 'auto-detect' ? undefined : selectedVehicleId;
-    await processBatch(files, vehicleId, { skipAnalysis });
+    await processBatch(files, vehicleId, { skipAnalysis, vehicles });
   };
 
   const handleClose = () => {
