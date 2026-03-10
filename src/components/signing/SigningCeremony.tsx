@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   FileText,
   Loader2,
@@ -20,6 +21,7 @@ import {
   User,
   ArrowLeft,
   ArrowRight,
+  ShieldCheck,
 } from "lucide-react";
 import { SignatureCanvas, SignatureCanvasRef } from "./SignatureCanvas";
 import { ExotiqLogoCompact } from "@/components/common/ExotiqLogo";
@@ -27,6 +29,7 @@ import { VehicleThumbnail } from "@/components/common/VehicleThumbnail";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { Celebration } from "@/components/common/MicroInteractions";
 import { supabase } from "@/integrations/supabase/client";
+import { useTeam } from "@/contexts/TeamContext";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
@@ -59,7 +62,18 @@ interface SigningCeremonyProps {
   onComplete: (signedDocRef: string) => void;
 }
 
-type Step = "review" | "sign" | "complete";
+const ACKNOWLEDGEMENTS = [
+  "I have read and understand all terms and conditions of this Agreement.",
+  "I confirm that I hold a valid driver's license and am legally authorized to operate a motor vehicle.",
+  "I confirm that my insurance policy covers exotic/high-value vehicles and have provided proof of coverage.",
+  "I have inspected the Vehicle and acknowledge its current condition as documented.",
+  "I understand that I am personally liable for any damage, loss, or violation occurring during the rental period.",
+  "I understand that the Vehicle is equipped with GPS tracking and I consent to location monitoring.",
+  "I have been informed of the Vehicle's fuel requirements (91+ octane premium fuel).",
+  "I understand that this Vehicle may not be operated by anyone not listed on this Agreement.",
+];
+
+type Step = "review" | "acknowledge" | "sign" | "complete";
 
 export const SigningCeremony = ({
   open,
@@ -76,7 +90,13 @@ export const SigningCeremony = ({
   const [completedDocRef, setCompletedDocRef] = useState<string | null>(null);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [celebrate, setCelebrate] = useState(false);
+  const [acknowledgements, setAcknowledgements] = useState<boolean[]>(new Array(ACKNOWLEDGEMENTS.length).fill(false));
+  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
   const signatureRef = useRef<SignatureCanvasRef>(null);
+  const { currentTeam } = useTeam();
+
+  const allAcknowledged = acknowledgements.every(Boolean);
 
   const resetState = useCallback(() => {
     setStep("review");
@@ -86,12 +106,47 @@ export const SigningCeremony = ({
     setLoading(false);
     setCompletedDocRef(null);
     setCelebrate(false);
-  }, [booking.customer_name]);
+    setAcknowledgements(new Array(ACKNOWLEDGEMENTS.length).fill(false));
+    if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl);
+    setPdfBlobUrl(null);
+  }, [booking.customer_name, pdfBlobUrl]);
+
+  // Fetch PDF as blob for iframe preview
+  useEffect(() => {
+    if (!open || !rentalDoc.file_url) return;
+    let cancelled = false;
+    setPdfLoading(true);
+
+    fetch(rentalDoc.file_url)
+      .then((res) => res.blob())
+      .then((blob) => {
+        if (cancelled) return;
+        const url = URL.createObjectURL(blob);
+        setPdfBlobUrl(url);
+      })
+      .catch((err) => {
+        console.error("Failed to fetch PDF for preview:", err);
+      })
+      .finally(() => {
+        if (!cancelled) setPdfLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, rentalDoc.file_url]);
+
+  // Cleanup blob URL on unmount
+  useEffect(() => {
+    return () => {
+      if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl);
+    };
+  }, [pdfBlobUrl]);
 
   // Prevent accidental navigation when signing is in progress
   useEffect(() => {
     if (!open) return;
-    const inProgress = step === "sign" && (hasSignature || agreed);
+    const inProgress = (step === "sign" || step === "acknowledge") && (hasSignature || agreed || acknowledgements.some(Boolean));
     if (!inProgress) return;
 
     const handler = (e: BeforeUnloadEvent) => {
@@ -100,10 +155,10 @@ export const SigningCeremony = ({
     };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
-  }, [open, step, hasSignature, agreed]);
+  }, [open, step, hasSignature, agreed, acknowledgements]);
 
   const handleClose = (isOpen: boolean) => {
-    if (!isOpen && step === "sign" && (hasSignature || agreed)) {
+    if (!isOpen && (step === "sign" || step === "acknowledge") && (hasSignature || agreed || acknowledgements.some(Boolean))) {
       setShowCloseConfirm(true);
       return;
     }
@@ -124,6 +179,14 @@ export const SigningCeremony = ({
     const pubMatch = fileUrl.match(/\/object\/public\/customer-documents\/([^?]+)/);
     if (pubMatch) return decodeURIComponent(pubMatch[1]);
     return fileUrl;
+  };
+
+  const toggleAcknowledgement = (index: number) => {
+    setAcknowledgements((prev) => {
+      const next = [...prev];
+      next[index] = !next[index];
+      return next;
+    });
   };
 
   const handleSign = async () => {
@@ -161,6 +224,9 @@ export const SigningCeremony = ({
         .from("customer-documents")
         .createSignedUrl(sigFileName, 31536000);
 
+      // Get operator name from team or user profile
+      const operatorName = currentTeam?.name || user.user_metadata?.full_name || "Operator";
+
       // Call edge function to generate signed PDF
       const { data: result, error: fnError } = await supabase.functions.invoke(
         "generate-signed-pdf",
@@ -169,6 +235,7 @@ export const SigningCeremony = ({
             originalPdfPath,
             signatureImageDataUrl: signatureDataUrl,
             signerName: signerName.trim(),
+            operatorName,
             docRef: rentalDoc.doc_ref,
             bookingDetails: {
               vehicleName: booking.vehicle_name,
@@ -178,6 +245,11 @@ export const SigningCeremony = ({
               totalValue: booking.total_value,
             },
             timestamp,
+            acknowledgements: ACKNOWLEDGEMENTS.map((text, i) => ({
+              text,
+              acknowledged: acknowledgements[i],
+              acknowledgedAt: timestamp,
+            })),
           },
         }
       );
@@ -196,6 +268,11 @@ export const SigningCeremony = ({
         screenWidth: window.screen.width,
         screenHeight: window.screen.height,
         signedAt: timestamp,
+        acknowledgements: ACKNOWLEDGEMENTS.map((text, i) => ({
+          text,
+          acknowledged: acknowledgements[i],
+          acknowledgedAt: timestamp,
+        })),
       };
 
       const { data: insertedDoc, error: insertError } = await supabase
@@ -234,6 +311,13 @@ export const SigningCeremony = ({
     }
   };
 
+  const stepTitle = {
+    review: "Review Rental Agreement",
+    acknowledge: "Renter Acknowledgements",
+    sign: "Sign Document",
+    complete: "Signing Complete",
+  };
+
   return (
     <>
       <Dialog open={open} onOpenChange={handleClose}>
@@ -243,13 +327,25 @@ export const SigningCeremony = ({
               <ExotiqLogoCompact variant="auto" />
               <Separator orientation="vertical" className="h-5" />
               <span className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                {step === "review" && "Review Rental Agreement"}
-                {step === "sign" && "Sign Document"}
-                {step === "complete" && "Signing Complete"}
+                {step === "acknowledge" ? <ShieldCheck className="h-5 w-5" /> : <FileText className="h-5 w-5" />}
+                {stepTitle[step]}
               </span>
             </DialogTitle>
           </DialogHeader>
+
+          {/* Progress indicator */}
+          {step !== "complete" && (
+            <div className="flex items-center gap-1 px-1">
+              {(["review", "acknowledge", "sign"] as const).map((s, i) => (
+                <div
+                  key={s}
+                  className={`h-1 flex-1 rounded-full transition-colors ${
+                    s === step ? "bg-primary" : (["review", "acknowledge", "sign"].indexOf(step) > i ? "bg-primary/40" : "bg-muted")
+                  }`}
+                />
+              ))}
+            </div>
+          )}
 
           {/* Booking context card */}
           {step !== "complete" && (
@@ -285,21 +381,71 @@ export const SigningCeremony = ({
           {step === "review" && (
             <div className="space-y-4">
               <div className="rounded-lg border overflow-hidden bg-muted/20">
-                <iframe
-                  src={rentalDoc.file_url}
-                  className="w-full h-[400px] max-sm:h-[50dvh]"
-                  title="Rental Agreement Preview"
-                />
+                {pdfLoading ? (
+                  <div className="w-full h-[400px] max-sm:h-[50dvh] flex items-center justify-center">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : (
+                  <iframe
+                    src={pdfBlobUrl || rentalDoc.file_url}
+                    className="w-full h-[400px] max-sm:h-[50dvh]"
+                    title="Rental Agreement Preview"
+                  />
+                )}
               </div>
               <div className="flex justify-between items-center">
                 <p className="text-xs text-muted-foreground">
                   {rentalDoc.doc_ref && `Ref: ${rentalDoc.doc_ref} • `}
                   {rentalDoc.name}
                 </p>
-                <Button onClick={() => setStep("sign")}>
-                  Continue to Sign
+                <Button onClick={() => setStep("acknowledge")}>
+                  Continue
                   <ArrowRight className="h-4 w-4 ml-2" />
                 </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Step: Acknowledge */}
+          {step === "acknowledge" && (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Please review and confirm each item below before signing.
+              </p>
+              <ScrollArea className="h-[400px] max-sm:h-[50dvh] pr-4">
+                <div className="space-y-3">
+                  {ACKNOWLEDGEMENTS.map((text, i) => (
+                    <div
+                      key={i}
+                      className={`flex items-start gap-3 p-3 rounded-lg border transition-colors cursor-pointer ${
+                        acknowledgements[i] ? "bg-success/5 border-success/30" : "hover:bg-muted/30"
+                      }`}
+                      onClick={() => toggleAcknowledgement(i)}
+                    >
+                      <Checkbox
+                        checked={acknowledgements[i]}
+                        onCheckedChange={() => toggleAcknowledgement(i)}
+                        className="mt-0.5"
+                      />
+                      <span className="text-sm leading-relaxed">{text}</span>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+              <div className="flex justify-between items-center">
+                <Button variant="outline" onClick={() => setStep("review")}>
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Back
+                </Button>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-muted-foreground">
+                    {acknowledgements.filter(Boolean).length}/{ACKNOWLEDGEMENTS.length} confirmed
+                  </span>
+                  <Button onClick={() => setStep("sign")} disabled={!allAcknowledged}>
+                    Continue to Sign
+                    <ArrowRight className="h-4 w-4 ml-2" />
+                  </Button>
+                </div>
               </div>
             </div>
           )}
@@ -339,9 +485,9 @@ export const SigningCeremony = ({
               </div>
 
               <div className="flex justify-between">
-                <Button variant="outline" onClick={() => setStep("review")}>
+                <Button variant="outline" onClick={() => setStep("acknowledge")}>
                   <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back to Review
+                  Back
                 </Button>
                 <Button
                   onClick={handleSign}

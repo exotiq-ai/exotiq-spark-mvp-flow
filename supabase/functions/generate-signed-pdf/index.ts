@@ -43,9 +43,11 @@ serve(async (req) => {
       originalPdfPath,
       signatureImageDataUrl,
       signerName,
+      operatorName,
       docRef,
       bookingDetails,
       timestamp,
+      acknowledgements,
     } = await req.json();
 
     if (!originalPdfPath || !signatureImageDataUrl || !signerName) {
