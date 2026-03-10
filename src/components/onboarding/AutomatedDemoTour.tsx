@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { useDemoScript } from '@/hooks/useDemoScript';
 import { useDemoOrchestrator } from '@/hooks/useDemoOrchestrator';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTourData } from '@/contexts/TourDataContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import confetti from 'canvas-confetti';
