@@ -82,7 +82,7 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
   const rariSidebar = useRariSidebar();
   const navigate = useNavigate();
   const [isRetrying, setIsRetrying] = useState(false);
-  
+  const [skippedTour, setSkippedTour] = useState(false);
   // Track loading duration to show recovery options if stuck
   useEffect(() => {
     if (loading) {
