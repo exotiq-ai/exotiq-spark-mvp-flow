@@ -142,7 +142,7 @@ export interface AIAnalysisResult {
 // Upload Progress Tracking
 export interface PhotoUploadProgress {
   file: File;
-  status: 'pending' | 'uploading' | 'analyzing' | 'complete' | 'error';
+  status: 'pending' | 'preprocessing' | 'uploading' | 'matching' | 'analyzing' | 'complete' | 'error';
   progress: number; // 0-100
   result?: {
     url: string;
@@ -151,6 +151,13 @@ export interface PhotoUploadProgress {
     photoId?: string;
   };
   error?: string;
+  /** How this photo was matched to a vehicle */
+  matchResult?: 'auto-matched' | 'suggested' | 'unmatched' | 'skipped';
+  /** Compression stats for metrics display */
+  compressionStats?: {
+    originalBytes: number;
+    compressedBytes: number;
+  };
 }
 
 // Photo Stats for Dashboard
