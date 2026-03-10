@@ -312,13 +312,22 @@ export const EnhancedBookingDialog = ({
       if (!booking?.customer_id) return;
       setLoadingNotes(true);
       try {
+        // Fetch booking-specific notes first, then general customer notes
         const { data } = await supabase
           .from("customer_notes")
           .select("*")
           .eq("customer_id", booking.customer_id)
           .order("created_at", { ascending: false })
-          .limit(5);
-        setCustomerNotes(data || []);
+          .limit(20);
+        // Sort: booking-specific notes first, then general
+        const sorted = (data || []).sort((a, b) => {
+          const aIsBooking = (a as any).booking_id === bookingId;
+          const bIsBooking = (b as any).booking_id === bookingId;
+          if (aIsBooking && !bIsBooking) return -1;
+          if (!aIsBooking && bIsBooking) return 1;
+          return new Date(b.created_at!).getTime() - new Date(a.created_at!).getTime();
+        });
+        setCustomerNotes(sorted);
       } catch (error) {
         console.error("Error fetching customer notes:", error);
       } finally {
@@ -326,7 +335,7 @@ export const EnhancedBookingDialog = ({
       }
     };
     if (open && booking?.customer_id) fetchCustomerNotes();
-  }, [open, booking?.customer_id]);
+  }, [open, booking?.customer_id, bookingId]);
 
   const handleAddNote = async () => {
     if (!newNote.trim() || !booking?.customer_id) return;
