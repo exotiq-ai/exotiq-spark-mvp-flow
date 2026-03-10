@@ -35,10 +35,8 @@ export const GettingStartedChecklist = ({
   onNavigateToTeam,
 }: GettingStartedChecklistProps) => {
   const { profile } = useProfile();
-  const { teamMembers } = useTeam();
   
   const tourCompleted = profile ? (profile as any).tour_completed === true : false;
-  const teamSetUp = (teamMembers?.length ?? 0) > 1;
 
   const steps = useMemo(() => [
     {
