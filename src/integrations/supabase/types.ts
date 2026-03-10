@@ -93,6 +93,7 @@ export type Database = {
       bookings: {
         Row: {
           balance_due: number | null
+          booking_ref: string | null
           cancellation_reason: string | null
           cancelled_at: string | null
           confirmed_at: string | null
@@ -137,6 +138,7 @@ export type Database = {
         }
         Insert: {
           balance_due?: number | null
+          booking_ref?: string | null
           cancellation_reason?: string | null
           cancelled_at?: string | null
           confirmed_at?: string | null
@@ -181,6 +183,7 @@ export type Database = {
         }
         Update: {
           balance_due?: number | null
+          booking_ref?: string | null
           cancellation_reason?: string | null
           cancelled_at?: string | null
           confirmed_at?: string | null
@@ -308,6 +311,7 @@ export type Database = {
       }
       customer_notes: {
         Row: {
+          booking_id: string | null
           created_at: string | null
           created_by: string | null
           customer_id: string
@@ -316,6 +320,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          booking_id?: string | null
           created_at?: string | null
           created_by?: string | null
           customer_id: string
@@ -324,6 +329,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          booking_id?: string | null
           created_at?: string | null
           created_by?: string | null
           customer_id?: string
@@ -332,6 +338,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "customer_notes_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "customer_notes_customer_id_fkey"
             columns: ["customer_id"]
