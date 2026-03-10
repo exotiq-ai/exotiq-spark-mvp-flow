@@ -1,6 +1,8 @@
 /**
  * Client-side image compression using the native Canvas API.
  * Resizes and compresses images before upload to reduce storage costs.
+ * 
+ * Photo Hub v2: Context-aware presets for different upload scenarios.
  */
 
 export interface CompressionOptions {
@@ -10,6 +12,20 @@ export interface CompressionOptions {
   /** Files under this size (in bytes) are returned unchanged */
   skipUnderBytes?: number;
 }
+
+/** Named presets for different upload contexts */
+export const UPLOAD_PRESETS = {
+  /** Premium hero/display photos — highest quality */
+  hero: { maxWidth: 2048, maxHeight: 2048, quality: 0.90, skipUnderBytes: 0 },
+  /** Gallery/display photos — balanced quality */
+  display: { maxWidth: 1600, maxHeight: 1600, quality: 0.82, skipUnderBytes: 300 * 1024 },
+  /** Operational photos (inspections, check-in/out, damage) — optimized for cost */
+  operational: { maxWidth: 1200, maxHeight: 1200, quality: 0.70, skipUnderBytes: 200 * 1024 },
+  /** Thumbnail generation — small preview */
+  thumbnail: { maxWidth: 400, maxHeight: 400, quality: 0.70, skipUnderBytes: 0 },
+} as const;
+
+export type UploadPreset = keyof typeof UPLOAD_PRESETS;
 
 const DEFAULT_OPTIONS: Required<CompressionOptions> = {
   maxWidth: 2048,
@@ -37,7 +53,7 @@ export async function compressImage(
   }
 
   // Skip small files
-  if (file.size <= opts.skipUnderBytes) {
+  if (opts.skipUnderBytes > 0 && file.size <= opts.skipUnderBytes) {
     return file;
   }
 
@@ -86,4 +102,13 @@ export async function compressImage(
     console.warn('Image compression failed, using original file:', error);
     return file;
   }
+}
+
+/**
+ * Generate a thumbnail for a given image file.
+ * Uses the 'thumbnail' preset (400px max, 70% quality).
+ * Returns a small JPEG suitable for preview/grid display.
+ */
+export async function generateThumbnail(file: File): Promise<File> {
+  return compressImage(file, UPLOAD_PRESETS.thumbnail);
 }

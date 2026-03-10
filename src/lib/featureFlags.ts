@@ -24,6 +24,12 @@ export const featureFlags = {
   maintenanceTracking: true, // Ready
   documentManagement: true, // Ready
   complianceChecks: true, // Ready
+  
+  // Photo Hub v2 — Storage Optimization
+  filenameAutoMatch: true, // Deterministic filename-to-vehicle scorer
+  uploadPresets: true, // Context-aware compression presets
+  thumbnailGeneration: true, // Client-side thumbnail generation
+  concurrentUploads: true, // Parallel upload processing pool
 } as const;
 
 export type FeatureFlag = keyof typeof featureFlags;
