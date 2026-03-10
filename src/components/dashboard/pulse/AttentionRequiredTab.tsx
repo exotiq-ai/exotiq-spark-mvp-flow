@@ -46,6 +46,7 @@ export const AttentionRequiredTab = () => {
   const { refreshMaintenance } = useFleet();
   const { currentTeam } = useTeam();
   const { tasks } = useFleetTasks();
+  const { overdueOrders, blockedOrders } = useWorkOrders();
 
   useRealtimeTable('maintenance_schedules', {
     teamId: currentTeam?.id,
