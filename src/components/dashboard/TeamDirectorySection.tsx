@@ -56,6 +56,7 @@ export const TeamDirectorySection = () => {
   const { user } = useAuth();
   const { isAdmin, isOwner } = useUserRole();
   const { toast } = useToast();
+  const { currentTeam } = useTeam();
   
   const [searchQuery, setSearchQuery] = useState("");
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
