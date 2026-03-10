@@ -1372,34 +1372,3 @@ export const useFleet = () => {
   return context;
 };
 
-// Tour-aware version that returns demo data when tour is active
-export const useTourAwareFleet = () => {
-  const fleet = useFleet();
-  
-  // Lazy import to avoid circular dependency — TourDataContext is optional
-  let tourData: { tourActive: boolean; demoSnapshot: any } | null = null;
-  try {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const { useTourData } = require('@/contexts/TourDataContext');
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    tourData = useTourData();
-  } catch {
-    // TourDataProvider not mounted — use real data
-  }
-
-  if (tourData?.tourActive && tourData.demoSnapshot) {
-    const snap = tourData.demoSnapshot;
-    return {
-      ...fleet,
-      vehicles: snap.vehicles,
-      bookings: snap.bookings,
-      customers: snap.customers,
-      payments: snap.payments,
-      revenue: snap.revenue,
-      loading: false,
-      error: null,
-    };
-  }
-
-  return fleet;
-};
