@@ -326,28 +326,53 @@ export const BulkUploadModal = ({
                 </div>
 
                 {/* Summary Stats */}
-                {isComplete && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="grid grid-cols-3 gap-3"
-                  >
-                    <div className="p-3 rounded-lg bg-success/10 border border-success/20 text-center">
-                      <p className="text-2xl font-bold text-success">{matchedCount}</p>
-                      <p className="text-xs text-success">Matched</p>
-                    </div>
-                    <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-center">
-                      <p className="text-2xl font-bold text-amber-600">{unmatchedCount}</p>
-                      <p className="text-xs text-amber-600">Review Queue</p>
-                    </div>
-                    {errorCount > 0 && (
-                      <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-center">
-                        <p className="text-2xl font-bold text-destructive">{errorCount}</p>
-                        <p className="text-xs text-destructive">Failed</p>
+                {isComplete && (() => {
+                  const sessionStats = uploadMetrics.getSessionStats();
+                  const autoMatchCount = uploadProgress.filter(p => p.matchResult === 'auto-matched').length;
+                  
+                  return (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="space-y-3"
+                    >
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="p-3 rounded-lg bg-success/10 border border-success/20 text-center">
+                          <p className="text-2xl font-bold text-success">{matchedCount}</p>
+                          <p className="text-xs text-success">Matched</p>
+                        </div>
+                        <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-center">
+                          <p className="text-2xl font-bold text-amber-600">{unmatchedCount}</p>
+                          <p className="text-xs text-amber-600">Review Queue</p>
+                        </div>
+                        {errorCount > 0 && (
+                          <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-center">
+                            <p className="text-2xl font-bold text-destructive">{errorCount}</p>
+                            <p className="text-xs text-destructive">Failed</p>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </motion.div>
-                )}
+
+                      {/* Session Metrics */}
+                      {sessionStats.totalUploads > 0 && (
+                        <div className="flex items-center gap-4 p-3 rounded-lg bg-muted/50 border text-xs text-muted-foreground">
+                          {sessionStats.savedBytes > 0 && (
+                            <span className="flex items-center gap-1">
+                              <TrendingDown className="h-3 w-3 text-success" />
+                              Saved {formatBytes(sessionStats.savedBytes)} ({Math.round(sessionStats.compressionRatio * 100)}% smaller)
+                            </span>
+                          )}
+                          {autoMatchCount > 0 && (
+                            <span className="flex items-center gap-1">
+                              <Zap className="h-3 w-3 text-primary" />
+                              Auto-matched {autoMatchCount}/{completedCount}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </motion.div>
+                  );
+                })()}
 
                 {/* Individual File Progress */}
                 <ScrollArea className="h-[250px] border rounded-lg p-2">
