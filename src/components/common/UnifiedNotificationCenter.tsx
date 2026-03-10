@@ -40,6 +40,7 @@ import { useFleet } from "@/contexts/FleetContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { NotificationPreferences, useNotificationPreferences } from "./NotificationPreferences";
 import { useNotifications } from "@/hooks/useNotifications";
+import { useSearchParams } from "react-router-dom";
 
 interface SystemNotification {
   id: string;
@@ -49,6 +50,8 @@ interface SystemNotification {
   timestamp: string;
   read: boolean;
   category: "system";
+  data?: Record<string, any> | null;
+  notificationType?: string;
 }
 
 interface AIAlert {
