@@ -97,10 +97,12 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
       throw new Error('Failed to create signed URL');
     }
 
-    const result: { path: string; url: string; thumbnailUrl?: string; thumbnailPath?: string; compressedBytes: number } = {
+    const result: { path: string; url: string; thumbnailUrl?: string; thumbnailPath?: string; compressedBytes: number; width: number; height: number } = {
       path: storedPath,
       url: signedData.signedUrl,
       compressedBytes: compressedFile.size,
+      width: imgWidth,
+      height: imgHeight,
     };
 
     // Generate + upload thumbnail
