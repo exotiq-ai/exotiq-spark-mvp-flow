@@ -98,6 +98,7 @@ export const FleetVehicleCard = ({
   onCreateTask,
   onViewDetails,
   onStatusChange,
+  onEdit,
   onDelete,
   isOpsMode = false,
   isSelected = false,
