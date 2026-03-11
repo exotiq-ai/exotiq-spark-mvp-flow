@@ -298,6 +298,13 @@ export const VehiclePhotoManager = ({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="center">
                   <DropdownMenuItem
+                    onClick={() => setEditingPhoto(heroPhoto as unknown as VehiclePhoto)}
+                  >
+                    <Crop className="h-4 w-4 mr-2" />
+                    Edit / Crop
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
                     className="text-destructive focus:text-destructive"
                     onClick={async () => {
                        if (heroPhoto?.id) {
