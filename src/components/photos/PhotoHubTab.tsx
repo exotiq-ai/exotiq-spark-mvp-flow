@@ -57,6 +57,7 @@ export const PhotoHubTab = ({ vehicles, loading: vehiclesLoading }: PhotoHubTabP
   const [expandedVehicle, setExpandedVehicle] = useState<string | null>(null);
   const [uploadForVehicle, setUploadForVehicle] = useState<string | null>(null);
   const [addVehicleWizardOpen, setAddVehicleWizardOpen] = useState(false);
+  const [isCleaningUp, setIsCleaningUp] = useState(false);
   const previousQueueCountRef = useRef<number>(queueCount);
 
   const loading = vehiclesLoading || statsLoading;
