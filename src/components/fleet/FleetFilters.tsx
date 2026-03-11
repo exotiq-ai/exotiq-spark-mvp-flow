@@ -39,6 +39,7 @@ export interface FleetFiltersState {
   opsStatus: OpsStatus[];
   sortBy: SortOption;
   sortDesc: boolean;
+  hideRetired: boolean;
 }
 
 interface FleetFiltersProps {
