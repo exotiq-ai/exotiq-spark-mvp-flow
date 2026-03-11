@@ -263,6 +263,28 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
       const originalBytes = file.size;
 
       try {
+        // Dedup guard: check if identical file already uploaded
+        const dedupKey = `${file.name}_${file.size}_${file.lastModified}`;
+        if (vehicleId) {
+          const { data: existing } = await supabase
+            .from('vehicle_photos')
+            .select('id')
+            .eq('vehicle_id', vehicleId)
+            .eq('original_filename', file.name)
+            .eq('file_size_bytes', file.size)
+            .limit(1);
+          if (existing && existing.length > 0) {
+            const result: PhotoUploadProgress = {
+              file,
+              status: 'complete',
+              progress: 100,
+              matchResult: 'skipped',
+              error: 'Duplicate detected — already uploaded',
+            };
+            updateProgress(i, result);
+            return result;
+          }
+        }
         // Preprocessing: filename matching
         let resolvedVehicleId = vehicleId;
         let matchResult: PhotoUploadProgress['matchResult'] = vehicleId ? 'skipped' : 'unmatched';
