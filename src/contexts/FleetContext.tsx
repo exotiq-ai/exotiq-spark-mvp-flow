@@ -319,7 +319,7 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
         .reduce((sum, b) => sum + parseFloat(b.total_value?.toString() || '0'), 0);
 
       if (seq === refreshSeqRef.current) {
-        setRevenue({ today: todayRevenue, month: monthRevenue, change: 12 });
+        setRevenue({ today: todayRevenue, month: monthRevenue, change: 0 });
         devLog('[FleetContext] Refresh complete, seq:', seq, 'vehicles:', vehiclesResult.data?.length || 0);
       }
 
