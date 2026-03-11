@@ -110,7 +110,7 @@ export function PhotoEditorDialog({ open, onOpenChange, photo, imageUrl, filenam
         {/* Crop Area */}
         <div className="relative w-full h-[340px] bg-black">
           <Cropper
-            image={photo.url}
+            image={resolvedUrl}
             crop={crop}
             zoom={zoom}
             rotation={rotation}
