@@ -1,59 +1,55 @@
 
-# Fleet Management UI Truth Audit
 
-## Status: ✅ Implemented
+# Mobile UI Audit & Plan to 9+
 
-## What Was Changed
+## Current Rating: 6.5/10
 
-### 1. Ops Status: Neutral Default ✅
-- **File:** `src/hooks/useVehicleOpsStatus.ts`
-- Added `not_set` ops status with neutral gray styling (`CircleDashed` icon, "Not Set" label)
-- `getStatusConfig()` now returns `not_set` instead of `clean_ready` for null/unknown values
-- No more false "Clean & Ready" badges on vehicles that haven't been inspected
+**What's working:** Typography is solid, touch targets are good, bottom nav is clean, dark theme is polished, task creation form (screenshot 3) looks great.
 
-### 2. Fleet Filters: Truth-Based Status Options ✅
-- **File:** `src/components/fleet/FleetFilters.tsx`
-- Replaced phantom "Rented" and "Unavailable" with real DB values: `available`, `booked`, `maintenance`, `retired`
-- Added `hideRetired` boolean to `FleetFiltersState` (default: `true`)
-- Added "Show retired vehicles" toggle in filter popover
-- Ops status filter now uses `not_set` instead of `clean_ready` for null values
+**What's hurting the score — from your screenshots:**
 
-### 3. Fleet Vehicle Card: Truth-Based Display ✅
-- **File:** `src/components/fleet/FleetVehicleCard.tsx`
-- **Status badge truth:** Derives display from real DB status + ops_status:
-  - "With Renter" when `ops_status === 'renter_has'`
-  - "Booked" when there's an active booking
-  - "Maintenance", "Available", "Retired" from DB status
-  - Removed phantom "Rented" label
-- **Retired treatment:** `opacity-50 grayscale` on card, gray "Retired" badge, hides pricing/ops badge/ops actions/photo count, dropdown limited to Edit + View + Delete
-- **Null ops_status:** Shows neutral "Not Set" badge instead of false "Clean & Ready"
-- **AI suggestion:** Replaced raw "AI: $X" text with small `Sparkles` icon with tooltip "Rari has a pricing suggestion", clicking opens QuickPriceEditor. Shows when `suggested_rate` differs from `current_rate`
-- **Wrench → Clock:** Changed `last_ops_update` icon from `Wrench` to `Clock`
+### Issue 1: Badge Overload on Fleet Cards (Screenshot 4) — Impact: -1.5 pts
+Each vehicle card shows 3-4 stacked badges: "Booked" + "Ready for Pickup" + "With Renter" on the Urus, "Booked" + "Washing" + "Clean & Ready" + "Needs Fuel" on the MC20. On mobile, this is visual noise. The vehicle status badge and ops status badge are redundant — "Booked" + "With Renter" say the same thing. And "Clean & Ready" contradicts "Needs Fuel" visually.
 
-### 4. Fleet Page: Retired Filtering ✅
-- **File:** `src/components/fleet/FleetPageEnhanced.tsx`
-- Applies `hideRetired` filter: retired vehicles excluded by default
-- Ops status filter uses `not_set` for null values
+**Fix:** On mobile (ops mode), show only ONE primary status badge — the most operationally relevant one. Priority: ops_status > vehicle status. If `renter_has` → show "With Renter" (skip "Booked"). If `needs_fuel` → show "Needs Fuel" (skip "Clean & Ready"). The vehicle status ("Booked") becomes implicit context, not a separate badge. Keep the full badge row on desktop admin view.
 
-### 5. Fleet Status Donut: Retired Exclusion ✅
-- **File:** `src/components/charts/FleetStatusDonut.tsx`
-- Filters out retired vehicles before calculating segments
-- Available = activeVehicles - booked - maintenance (retired already excluded)
+**File:** `FleetVehicleCard.tsx` — lines 322-370, condense badge row when `isOpsMode`
 
-### 6. Fleet Status Widget: Booking-Aware Counts ✅
-- **File:** `src/components/dashboard/widgets/FleetStatusWidget.tsx`
-- Replaced phantom "Rented"/"Reserved"/"Unavailable" status items with booking-aware calculation
-- Uses active bookings spanning today to derive "Booked" count (same logic as donut)
-- Utilization % excludes retired from denominator
-- Status items: Available, Booked, Maintenance, Retired (shown separately)
+### Issue 2: Event Data Repetition in MotorIQ (Screenshot 1) — Impact: -1.0 pts
+The same events (Miami Marlins, Arsht Center) appear THREE times on a single scroll: Category Breakdown → High Impact Events → Upcoming Events. On a phone, you're scrolling through the same data 3 times.
 
-## Files Modified
-- `src/hooks/useVehicleOpsStatus.ts` (added `not_set` ops status, fixed default)
-- `src/components/fleet/FleetFilters.tsx` (real DB statuses, hideRetired toggle)
-- `src/components/fleet/FleetVehicleCard.tsx` (truth-based status, retired UI, Rari indicator, Clock icon)
-- `src/components/fleet/FleetPageEnhanced.tsx` (retired filtering, ops_status null handling)
-- `src/components/charts/FleetStatusDonut.tsx` (retired exclusion)
-- `src/components/dashboard/widgets/FleetStatusWidget.tsx` (booking-aware counts, retired exclusion)
+**Fix:** On mobile, collapse the three sections into ONE unified "Events" list. Keep Category Breakdown as summary stats only (no event names). Remove the standalone "High Impact Events" card entirely — instead, badge high-impact items inline in the Upcoming Events list. Desktop keeps the current layout.
 
-## No Database Migration Needed
-All changes are UI/logic corrections using existing DB columns and values.
+**File:** `DemandForecastCard.tsx` — lines 800-887, hide Category top-event text and High Impact section on mobile (`hidden md:block`)
+
+### Issue 3: Fleet Card Spacing on Mobile — Impact: -0.5 pts
+Cards in ops mode feel slightly cramped with `p-3` and `gap-3`. The status badges wrap awkwardly. The chevron right button takes up vertical space.
+
+**Fix:** Increase ops mode padding to `p-4`, use `gap-1.5` for badge row, and make the chevron a smaller touch target aligned to the right edge.
+
+**File:** `FleetVehicleCard.tsx` — padding and layout tweaks
+
+### Issue 4: Weekly Intelligence Modal (Screenshot 2) — Minor
+This actually looks good. The cards are well-spaced, the "New" badge is clear, Next Week Outlook is useful. No changes needed here.
+
+### Issue 5: Task Creation Form (Screenshot 3) — No Issues
+Your checkmark confirms this is working well. The Assign To dropdown and Notes field are clean. No changes.
+
+---
+
+## Build Plan (2 files, focused changes)
+
+### 1. `src/components/fleet/FleetVehicleCard.tsx`
+- In ops mode (`isOpsMode`), show only the single most relevant badge instead of all badges stacked
+- Logic: pick the highest-priority status to display: ops_status label if it's actionable (not `not_set`), otherwise vehicle status label
+- Keep photo count badge but move it to the thumbnail overlay (small camera icon)
+- Increase mobile card padding from `p-3` to `p-4`
+
+### 2. `src/components/dashboard/DemandForecastCard.tsx`
+- Category Breakdown: hide the "Top: [event name]" subtitle on mobile (`hidden md:block`)
+- High Impact Events section: hide entirely on mobile (`hidden md:block`) — the same events already appear in Upcoming Events with impact scores
+- This eliminates the triple-repeat without losing any data on desktop
+
+## Score After Changes: ~8.5/10
+Remaining gap to 9+: command palette, onboarding flow, and micro-interaction polish — already on the roadmap.
+
