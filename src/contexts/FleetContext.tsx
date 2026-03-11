@@ -39,7 +39,7 @@ interface FleetContextType {
   inspections: VehicleInspection[];
   damageClaims: DamageClaim[];
   payments: Payment[];
-  revenue: { today: number; month: number; change: number };
+  revenue: { today: number; month: number; change: number | null };
   loading: boolean;
   isRefreshing: boolean; // New: show subtle "updating" state without blocking UI
   error: string | null;
