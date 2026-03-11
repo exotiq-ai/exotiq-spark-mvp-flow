@@ -11,6 +11,7 @@ import {
   DollarSign, 
   Calendar, 
   Wrench,
+  Pencil,
   ClipboardCheck,
   Droplets,
   Fuel,
