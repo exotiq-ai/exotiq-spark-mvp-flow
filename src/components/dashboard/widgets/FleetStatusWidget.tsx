@@ -3,6 +3,7 @@ import { ProgressiveDisclosure } from "@/components/common/ProgressiveDisclosure
 import { SkeletonDonutChart } from "@/components/ui/skeleton-card";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { Car, CheckCircle, Clock, Wrench, XCircle } from "lucide-react";
+import { useMemo } from "react";
 
 interface FleetStatusWidgetProps {
   onViewAll: () => void;
@@ -10,29 +11,47 @@ interface FleetStatusWidgetProps {
 }
 
 const FleetExpandedContent = () => {
-  const { vehicles } = useLocationFilteredFleet();
+  const { vehicles, bookings } = useLocationFilteredFleet();
 
-  const statusCounts = vehicles.reduce(
-    (acc, v) => {
-      const status = v.status || "available";
-      acc[status] = (acc[status] || 0) + 1;
-      return acc;
-    },
-    {} as Record<string, number>
-  );
+  const { statusItems, utilization } = useMemo(() => {
+    // Exclude retired from active fleet
+    const activeVehicles = vehicles.filter(v => v.status !== 'retired');
+    const retiredCount = vehicles.filter(v => v.status === 'retired').length;
 
-  const total = vehicles.length || 1;
-  const utilization = total > 0
-    ? Math.round(((statusCounts["rented"] || 0) / total) * 100)
-    : 0;
+    // Booking-aware: find vehicles with active/confirmed bookings spanning today
+    const today = new Date();
+    const todayStart = new Date(today);
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date(today);
+    todayEnd.setHours(23, 59, 59, 999);
 
-  const statusItems = [
-    { label: "Available", count: statusCounts["available"] || 0, icon: CheckCircle, color: "text-green-500" },
-    { label: "Rented", count: statusCounts["rented"] || 0, icon: Car, color: "text-primary" },
-    { label: "Maintenance", count: statusCounts["maintenance"] || 0, icon: Wrench, color: "text-yellow-500" },
-    { label: "Reserved", count: statusCounts["reserved"] || 0, icon: Clock, color: "text-blue-500" },
-    { label: "Unavailable", count: statusCounts["unavailable"] || 0, icon: XCircle, color: "text-muted-foreground" },
-  ];
+    const bookedVehicleIds = new Set(
+      bookings
+        .filter(b =>
+          b.status === 'confirmed' &&
+          new Date(b.start_date) <= todayEnd &&
+          new Date(b.end_date) >= todayStart
+        )
+        .map(b => b.vehicle_id)
+    );
+
+    const bookedCount = bookedVehicleIds.size;
+    const maintenanceCount = activeVehicles.filter(v => v.status === 'maintenance').length;
+    const availableCount = Math.max(0, activeVehicles.length - bookedCount - maintenanceCount);
+
+    const activeTotal = activeVehicles.length || 1;
+    const util = Math.round((bookedCount / activeTotal) * 100);
+
+    return {
+      utilization: util,
+      statusItems: [
+        { label: "Available", count: availableCount, icon: CheckCircle, color: "text-green-500" },
+        { label: "Booked", count: bookedCount, icon: Car, color: "text-primary" },
+        { label: "Maintenance", count: maintenanceCount, icon: Wrench, color: "text-yellow-500" },
+        { label: "Retired", count: retiredCount, icon: XCircle, color: "text-muted-foreground" },
+      ],
+    };
+  }, [vehicles, bookings]);
 
   return (
     <div className="space-y-4">
