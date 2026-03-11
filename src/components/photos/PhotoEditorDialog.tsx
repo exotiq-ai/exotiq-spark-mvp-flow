@@ -74,9 +74,9 @@ export function PhotoEditorDialog({ open, onOpenChange, photo, imageUrl, filenam
         saturation,
       };
       const editedFile = await applyEdits(
-        photo.url,
+        resolvedUrl,
         params,
-        photo.original_filename || 'edited-photo'
+        resolvedFilename
       );
       await onSave(editedFile);
       onOpenChange(false);
