@@ -22,6 +22,8 @@ import {
   Plus,
   TrendingDown,
   Zap,
+  Trash2,
+  Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePhotoHubStats, useVehiclePhotos } from '@/hooks/useVehiclePhotos';
