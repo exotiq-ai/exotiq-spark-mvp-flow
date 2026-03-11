@@ -522,7 +522,6 @@ interface PhotoThumbnailProps {
 
 const PhotoThumbnail = forwardRef<HTMLDivElement, PhotoThumbnailProps>(
   ({ photo, isLoading, onView, onSetHero, onDelete, onEdit, compact }, ref) => {
-  ({ photo, isLoading, onView, onSetHero, onDelete, compact }, ref) => {
   const hasQualityIssues = (photo.quality_issues?.length ?? 0) > 0 || (photo.quality_score ?? 100) < 70;
 
   return (
