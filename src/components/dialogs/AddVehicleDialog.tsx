@@ -135,7 +135,7 @@ export const AddVehicleDialog = ({ open, onOpenChange, onSubmit, onAddPhotos }: 
           make,
           model,
           year: parseInt(year),
-          color: undefined // We don't have color in this form currently
+          color: color || undefined
         }).then((heroResult) => {
           setGeneratingHero(false);
           if (heroResult.success) {
