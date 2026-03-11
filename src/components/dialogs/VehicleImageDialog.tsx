@@ -125,7 +125,7 @@ export function VehicleImageDialog({
         {vehicleId ? (
           <>
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="overview" className="gap-2">
                   <Image className="h-4 w-4" />
                   Overview
@@ -133,6 +133,10 @@ export function VehicleImageDialog({
                 <TabsTrigger value="photos" className="gap-2">
                   <Camera className="h-4 w-4" />
                   Photos
+                </TabsTrigger>
+                <TabsTrigger value="history" className="gap-2">
+                  <History className="h-4 w-4" />
+                  History
                 </TabsTrigger>
               </TabsList>
               
