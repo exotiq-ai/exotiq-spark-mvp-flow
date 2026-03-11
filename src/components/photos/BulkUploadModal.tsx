@@ -530,6 +530,32 @@ export const BulkUploadModal = ({
           )}
         </div>
       </DialogContent>
+
+      {/* Photo Editor for pre-upload editing */}
+      {editingUrl && editingIndex !== null && (
+        <PhotoEditorDialog
+          open
+          onOpenChange={(open) => {
+            if (!open) {
+              if (editingUrl) URL.revokeObjectURL(editingUrl);
+              setEditingUrl(null);
+              setEditingIndex(null);
+            }
+          }}
+          imageUrl={editingUrl}
+          filename={files[editingIndex]?.name}
+          onSave={async (editedFile) => {
+            setFiles((prev) => {
+              const next = [...prev];
+              next[editingIndex] = editedFile;
+              return next;
+            });
+            if (editingUrl) URL.revokeObjectURL(editingUrl);
+            setEditingUrl(null);
+            setEditingIndex(null);
+          }}
+        />
+      )}
     </Dialog>
   );
 };
