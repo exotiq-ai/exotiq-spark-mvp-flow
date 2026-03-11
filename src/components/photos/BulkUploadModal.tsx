@@ -91,6 +91,7 @@ export const BulkUploadModal = ({
   vehicles,
   preSelectedVehicleId,
   onComplete,
+  onReviewQueue,
 }: BulkUploadModalProps) => {
   const [files, setFiles] = useState<File[]>([]);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>(preSelectedVehicleId || 'auto-detect');
