@@ -30,6 +30,11 @@ export const featureFlags = {
   uploadPresets: true, // Context-aware compression presets
   thumbnailGeneration: true, // Client-side thumbnail generation
   concurrentUploads: true, // Parallel upload processing pool
+  
+  // Fleet Inventory Management
+  vehicleEditDialog: true, // Edit vehicle details dialog
+  vehicleChangeLog: true, // Audit trail for vehicle changes
+  deleteUndoToast: true, // Undo toast pattern for vehicle deletion
 } as const;
 
 export type FeatureFlag = keyof typeof featureFlags;

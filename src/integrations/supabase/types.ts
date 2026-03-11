@@ -2679,6 +2679,42 @@ export type Database = {
           },
         ]
       }
+      vehicle_change_log: {
+        Row: {
+          change_source: string | null
+          created_at: string | null
+          field_name: string
+          id: string
+          new_value: string | null
+          old_value: string | null
+          team_id: string | null
+          user_id: string
+          vehicle_id: string
+        }
+        Insert: {
+          change_source?: string | null
+          created_at?: string | null
+          field_name: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          team_id?: string | null
+          user_id: string
+          vehicle_id: string
+        }
+        Update: {
+          change_source?: string | null
+          created_at?: string | null
+          field_name?: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          team_id?: string | null
+          user_id?: string
+          vehicle_id?: string
+        }
+        Relationships: []
+      }
       vehicle_inspections: {
         Row: {
           booking_id: string | null

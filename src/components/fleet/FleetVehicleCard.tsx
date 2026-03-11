@@ -4,12 +4,14 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { PermissionGuard } from '@/components/common/PermissionGuard';
 import { VehicleThumbnail } from '@/components/common/VehicleThumbnail';
 import { 
   MoreHorizontal, 
   DollarSign, 
   Calendar, 
   Wrench,
+  Pencil,
   ClipboardCheck,
   Droplets,
   Fuel,
@@ -67,6 +69,7 @@ interface FleetVehicleCardProps {
   onCreateTask: (vehicle: Vehicle) => void;
   onViewDetails: (vehicle: Vehicle) => void;
   onStatusChange: (vehicle: Vehicle, newStatus: OpsStatus) => void;
+  onEdit?: (vehicle: Vehicle) => void;
   onDelete?: (vehicle: Vehicle) => void;
   isOpsMode?: boolean;
   isSelected?: boolean;
@@ -95,6 +98,7 @@ export const FleetVehicleCard = ({
   onCreateTask,
   onViewDetails,
   onStatusChange,
+  onEdit,
   onDelete,
   isOpsMode = false,
   isSelected = false,
@@ -219,6 +223,14 @@ export const FleetVehicleCard = ({
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
+                      <PermissionGuard minRole="manager">
+                        {onEdit && (
+                          <DropdownMenuItem onClick={() => onEdit(vehicle)}>
+                            <Pencil className="h-4 w-4 mr-2" />
+                            Edit Vehicle
+                          </DropdownMenuItem>
+                        )}
+                      </PermissionGuard>
                       <DropdownMenuItem onClick={() => onEditPrice(vehicle)}>
                         <DollarSign className="h-4 w-4 mr-2" />
                         Edit Pricing
@@ -231,18 +243,20 @@ export const FleetVehicleCard = ({
                       <DropdownMenuItem onClick={() => onViewDetails(vehicle)}>
                         View Details
                       </DropdownMenuItem>
-                      {onDelete && (
-                        <>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem 
-                            onClick={() => onDelete(vehicle)}
-                            className="text-destructive focus:text-destructive focus:bg-destructive/10"
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete Vehicle
-                          </DropdownMenuItem>
-                        </>
-                      )}
+                      <PermissionGuard role="admin">
+                        {onDelete && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem 
+                              onClick={() => onDelete(vehicle)}
+                              className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete Vehicle
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                      </PermissionGuard>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>

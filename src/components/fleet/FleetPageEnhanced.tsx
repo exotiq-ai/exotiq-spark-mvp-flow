@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,6 @@ import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useLocationFilteredFleet } from '@/hooks/useLocationFilteredFleet';
 import { useFleetTasks, type VehicleTask } from '@/hooks/useFleetTasks';
@@ -24,6 +23,7 @@ import { CreateVehicleTaskDialog } from '@/components/dialogs/CreateVehicleTaskD
 import { QuickPriceEditorDialog } from '@/components/dialogs/QuickPriceEditorDialog';
 import { VehicleImageDialog } from '@/components/dialogs/VehicleImageDialog';
 import { AddVehicleDialog } from '@/components/dialogs/AddVehicleDialog';
+import { EditVehicleDialog } from '@/components/dialogs/EditVehicleDialog';
 import { ImportWizard } from '@/components/import/ImportWizard';
 import { BulkUploadModal } from '@/components/photos/BulkUploadModal';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -43,6 +43,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSearchParams } from 'react-router-dom';
+import { toast as sonnerToast } from 'sonner';
 
 interface TeamMember {
   id: string;
@@ -55,16 +56,9 @@ interface TeamMember {
   };
 }
 
-interface DeleteConfirmState {
-  open: boolean;
-  vehicleId?: string;
-  vehicleName?: string;
-  isBatch?: boolean;
-}
-
 export const FleetPageEnhanced = () => {
   const isMobile = useIsMobile();
-  const { vehicles, bookings, loading, applyPriceOptimization, refreshData, createVehicle, deleteVehicle, deleteVehicles } = useLocationFilteredFleet();
+  const { vehicles, bookings, loading, applyPriceOptimization, updateVehicle, refreshData, createVehicle, deleteVehicle, deleteVehicles } = useLocationFilteredFleet();
   const { tasks, myTasks, unassignedTasks, createTask, updateTaskStatus, claimTask } = useFleetTasks();
   const { updateOpsStatus } = useVehicleOpsStatus();
   const { photoCountByVehicle } = useVehiclePhotos({ realtime: false });
@@ -73,8 +67,11 @@ export const FleetPageEnhanced = () => {
 
   // Selection state for batch operations
   const [selectedVehicleIds, setSelectedVehicleIds] = useState<Set<string>>(new Set());
-  const [deleteConfirm, setDeleteConfirm] = useState<DeleteConfirmState>({ open: false });
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Undo-toast delete refs
+  const deleteTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const deletedVehicleRef = useRef<any>(null);
 
   // Fetch team members
   useEffect(() => {
@@ -159,6 +156,7 @@ export const FleetPageEnhanced = () => {
   const [showAddVehicle, setShowAddVehicle] = useState(false);
   const [showImportWizard, setShowImportWizard] = useState(false);
   const [photoUploadVehicle, setPhotoUploadVehicle] = useState<{ id: string; name: string } | null>(null);
+  const [editVehicle, setEditVehicle] = useState<any>(null);
 
   // Filter and sort vehicles
   const filteredVehicles = useMemo(() => {
@@ -261,36 +259,43 @@ export const FleetPageEnhanced = () => {
     }
   };
 
-  // Delete handlers
-  const handleDeleteVehicle = (vehicle: any) => {
-    setDeleteConfirm({
-      open: true,
-      vehicleId: vehicle.id,
-      vehicleName: vehicle.name,
-      isBatch: false,
+  // Undo-toast delete handler
+  const handleDeleteVehicle = useCallback((vehicle: any) => {
+    // Show undo toast via sonner
+    sonnerToast.success(`${vehicle.name} deleted`, {
+      duration: 5000,
+      action: {
+        label: "Undo",
+        onClick: () => {
+          // Cancel the pending delete
+          if (deleteTimeoutRef.current) {
+            clearTimeout(deleteTimeoutRef.current);
+            deleteTimeoutRef.current = null;
+          }
+          // Restore by refreshing data
+          refreshData();
+          sonnerToast.success("Delete undone");
+          deletedVehicleRef.current = null;
+        },
+      },
     });
-  };
 
-  const handleBatchDelete = () => {
+    // Schedule actual deletion after 5 seconds
+    deleteTimeoutRef.current = setTimeout(async () => {
+      await deleteVehicle(vehicle.id, { silent: true });
+      deletedVehicleRef.current = null;
+      deleteTimeoutRef.current = null;
+    }, 5000);
+  }, [deleteVehicle, refreshData]);
+
+  const handleBatchDelete = async () => {
     if (selectedVehicleIds.size === 0) return;
-    setDeleteConfirm({
-      open: true,
-      isBatch: true,
-    });
-  };
-
-  const confirmDelete = async () => {
     setIsDeleting(true);
     try {
-      if (deleteConfirm.isBatch) {
-        await deleteVehicles(Array.from(selectedVehicleIds));
-        setSelectedVehicleIds(new Set());
-      } else if (deleteConfirm.vehicleId) {
-        await deleteVehicle(deleteConfirm.vehicleId);
-      }
+      await deleteVehicles(Array.from(selectedVehicleIds));
+      setSelectedVehicleIds(new Set());
     } finally {
       setIsDeleting(false);
-      setDeleteConfirm({ open: false });
     }
   };
 
@@ -462,6 +467,7 @@ export const FleetPageEnhanced = () => {
                     taskCount={taskCountMap[vehicle.id] || 0}
                     photoCount={photoCountByVehicle[vehicle.id]}
                     onEditPrice={(v) => setPriceEditVehicle(v)}
+                    onEdit={(v) => setEditVehicle(v)}
                     onCreateTask={(v) => setTaskVehicle(v)}
                     onViewDetails={(v) => setDetailsVehicle(v)}
                     onStatusChange={handleStatusChange}
@@ -595,21 +601,12 @@ export const FleetPageEnhanced = () => {
         }}
       />
 
-      {/* Delete Confirmation Dialog */}
-      <ConfirmationDialog
-        open={deleteConfirm.open}
-        onOpenChange={(open) => !open && setDeleteConfirm({ open: false })}
-        title={deleteConfirm.isBatch 
-          ? `Delete ${selectedVehicleIds.size} Vehicle${selectedVehicleIds.size !== 1 ? 's' : ''}?`
-          : `Delete ${deleteConfirm.vehicleName}?`
-        }
-        description={deleteConfirm.isBatch
-          ? `This will permanently delete ${selectedVehicleIds.size} vehicle${selectedVehicleIds.size !== 1 ? 's' : ''} from your fleet. This action cannot be undone.`
-          : `This will permanently delete ${deleteConfirm.vehicleName} from your fleet. This action cannot be undone.`
-        }
-        confirmText={isDeleting ? "Deleting..." : "Delete"}
-        onConfirm={confirmDelete}
-        variant="destructive"
+      {/* Edit Vehicle Dialog */}
+      <EditVehicleDialog
+        open={!!editVehicle}
+        onOpenChange={(open) => !open && setEditVehicle(null)}
+        vehicle={editVehicle}
+        onSave={updateVehicle}
       />
     </div>
   );

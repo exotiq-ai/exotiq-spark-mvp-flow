@@ -89,6 +89,10 @@ export const vehicleSchema = z.object({
   vin: z.string().max(17, "VIN too long").optional().nullable().or(z.literal('')),
   current_rate: z.number().min(0, "Rate cannot be negative").max(100000, "Rate too high"),
   status: z.enum(['available', 'rented', 'maintenance', 'retired', 'booked']).optional(),
+  color: z.string().max(30, "Color too long").optional().nullable().or(z.literal('')),
+  default_mileage_limit: z.number().min(0, "Mileage limit cannot be negative").max(10000, "Mileage limit too high").optional().nullable(),
+  mileage_overage_rate: z.number().min(0, "Overage rate cannot be negative").max(100, "Overage rate too high").optional().nullable(),
+  location_id: z.string().uuid("Invalid location ID").optional().nullable().or(z.literal('')),
 });
 
 // Edge function chat messages validation
