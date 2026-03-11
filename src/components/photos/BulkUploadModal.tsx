@@ -307,6 +307,19 @@ export const BulkUploadModal = ({
                             variant="ghost"
                             size="icon"
                             className="h-6 w-6"
+                            title="Edit / Crop"
+                            onClick={() => {
+                              const url = URL.createObjectURL(file);
+                              setEditingUrl(url);
+                              setEditingIndex(index);
+                            }}
+                          >
+                            <Crop className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
                             onClick={() => handleRemoveFile(index)}
                           >
                             <X className="h-3 w-3" />
