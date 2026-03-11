@@ -14,9 +14,12 @@ import { VehiclePhotoManager } from "@/components/photos/VehiclePhotoManager";
 import { BulkUploadModal } from "@/components/photos/BulkUploadModal";
 import { PhotoGalleryStrip } from "@/components/photos/PhotoGalleryStrip";
 import { useVehiclePhotos } from "@/hooks/useVehiclePhotos";
-import { Calendar, TrendingUp, DollarSign, CheckCircle2, AlertTriangle, Camera, Image, ChevronLeft, ChevronRight } from "lucide-react";
+import { PermissionGuard } from "@/components/common/PermissionGuard";
+import { supabase } from "@/integrations/supabase/client";
+import { Calendar, TrendingUp, DollarSign, CheckCircle2, AlertTriangle, Camera, Image, ChevronLeft, ChevronRight, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { formatDistanceToNow } from "date-fns";
 
 interface VehicleImageDialogProps {
   open: boolean;
