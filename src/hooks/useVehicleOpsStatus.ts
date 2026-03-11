@@ -158,7 +158,7 @@ export const useVehicleOpsStatus = () => {
 
   const getStatusConfig = useCallback((status: OpsStatus | string | null): OpsStatusConfig => {
     if (!status || !(status in OPS_STATUS_CONFIG)) {
-      return OPS_STATUS_CONFIG.clean_ready;
+      return OPS_STATUS_CONFIG.not_set;
     }
     return OPS_STATUS_CONFIG[status as OpsStatus];
   }, []);

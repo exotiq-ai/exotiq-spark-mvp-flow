@@ -210,6 +210,17 @@ export const FleetFilters = ({
 
                 <Separator />
 
+                {/* Show Retired Toggle */}
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium text-foreground">Show retired vehicles</Label>
+                  <Checkbox
+                    checked={!filters.hideRetired}
+                    onCheckedChange={(checked) => updateFilter('hideRetired', !checked)}
+                  />
+                </div>
+
+                <Separator />
+
                 {/* Ops Status */}
                 <div className="space-y-3">
                   <Label className="text-sm font-medium text-foreground">Ops Status</Label>
