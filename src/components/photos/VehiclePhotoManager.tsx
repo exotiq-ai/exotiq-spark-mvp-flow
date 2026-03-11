@@ -447,6 +447,7 @@ export const VehiclePhotoManager = ({
                 onView={onPhotoClick ? () => onPhotoClick(photo as unknown as VehiclePhoto) : undefined}
                 onSetHero={() => handleSetAsHero(photo.id)}
                 onDelete={() => setDeleteConfirm(photo.id)}
+                onEdit={() => setEditingPhoto(photo as unknown as VehiclePhoto)}
                 compact={compact}
               />
             </div>
