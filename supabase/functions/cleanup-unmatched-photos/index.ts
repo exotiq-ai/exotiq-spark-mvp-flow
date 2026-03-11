@@ -45,8 +45,11 @@ Deno.serve(async (req) => {
     if (rejected && rejected.length > 0) {
       // Delete storage files
       const paths = rejected
-        .map((r: any) => r.storage_path)
-        .filter(Boolean);
+        .flatMap((r: any) => {
+          if (!r.storage_path) return [];
+          const thumbPath = r.storage_path.replace(/\.[^.]+$/, '_thumb.jpg');
+          return [r.storage_path, thumbPath];
+        });
 
       if (paths.length > 0) {
         const { error: storageError } = await supabase.storage

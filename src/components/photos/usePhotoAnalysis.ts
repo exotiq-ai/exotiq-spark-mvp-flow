@@ -53,8 +53,20 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
     file: File,
     folder: string = 'unmatched',
     preset: keyof typeof UPLOAD_PRESETS = 'display'
-  ): Promise<{ path: string; url: string; thumbnailUrl?: string; thumbnailPath?: string; compressedBytes: number }> => {
+  ): Promise<{ path: string; url: string; thumbnailUrl?: string; thumbnailPath?: string; compressedBytes: number; width: number; height: number }> => {
     if (!user) throw new Error('User not authenticated');
+
+    // Get original dimensions before compression
+    let imgWidth = 0;
+    let imgHeight = 0;
+    try {
+      const bitmap = await createImageBitmap(file);
+      imgWidth = bitmap.width;
+      imgHeight = bitmap.height;
+      bitmap.close();
+    } catch (e) {
+      console.warn('Could not read image dimensions:', e);
+    }
 
     // Compress with preset
     const presetOptions = isFeatureEnabled('uploadPresets') ? UPLOAD_PRESETS[preset] : undefined;
@@ -85,10 +97,12 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
       throw new Error('Failed to create signed URL');
     }
 
-    const result: { path: string; url: string; thumbnailUrl?: string; thumbnailPath?: string; compressedBytes: number } = {
+    const result: { path: string; url: string; thumbnailUrl?: string; thumbnailPath?: string; compressedBytes: number; width: number; height: number } = {
       path: storedPath,
       url: signedData.signedUrl,
       compressedBytes: compressedFile.size,
+      width: imgWidth,
+      height: imgHeight,
     };
 
     // Generate + upload thumbnail
@@ -149,7 +163,7 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
     if (!user) throw new Error('User not authenticated');
 
     const folder = vehicleId ? `vehicles/${vehicleId}` : 'unmatched';
-    const { path, url, thumbnailUrl, compressedBytes } = await uploadToStorage(file, folder);
+    const { path, url, thumbnailUrl, compressedBytes, width, height } = await uploadToStorage(file, folder);
 
     const analysis = await analyzePhoto(url, file.name);
 
@@ -180,6 +194,8 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
           original_filename: file.name,
           file_size_bytes: compressedBytes,
           mime_type: file.type,
+          width: width || null,
+          height: height || null,
           analyzed_at: new Date().toISOString()
         })
         .select()
@@ -247,6 +263,28 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
       const originalBytes = file.size;
 
       try {
+        // Dedup guard: check if identical file already uploaded
+        const dedupKey = `${file.name}_${file.size}_${file.lastModified}`;
+        if (vehicleId) {
+          const { data: existing } = await supabase
+            .from('vehicle_photos')
+            .select('id')
+            .eq('vehicle_id', vehicleId)
+            .eq('original_filename', file.name)
+            .eq('file_size_bytes', file.size)
+            .limit(1);
+          if (existing && existing.length > 0) {
+            const result: PhotoUploadProgress = {
+              file,
+              status: 'complete',
+              progress: 100,
+              matchResult: 'skipped',
+              error: 'Duplicate detected — already uploaded',
+            };
+            updateProgress(i, result);
+            return result;
+          }
+        }
         // Preprocessing: filename matching
         let resolvedVehicleId = vehicleId;
         let matchResult: PhotoUploadProgress['matchResult'] = vehicleId ? 'skipped' : 'unmatched';
@@ -265,7 +303,7 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
         // Upload
         updateProgress(i, { status: 'uploading', progress: 25 });
         const folder = resolvedVehicleId ? `vehicles/${resolvedVehicleId}` : 'unmatched';
-        const { path, url, thumbnailUrl, compressedBytes } = await uploadToStorage(file, folder);
+        const { path, url, thumbnailUrl, compressedBytes, width, height } = await uploadToStorage(file, folder);
 
         // Default analysis
         let analysis: AIAnalysisResult = {
@@ -316,6 +354,8 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
               original_filename: file.name,
               file_size_bytes: compressedBytes,
               mime_type: file.type,
+              width: width || null,
+              height: height || null,
               analyzed_at: skipAnalysis ? null : new Date().toISOString()
             })
             .select()

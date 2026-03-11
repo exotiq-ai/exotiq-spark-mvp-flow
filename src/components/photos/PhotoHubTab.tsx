@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,6 +22,8 @@ import {
   Plus,
   TrendingDown,
   Zap,
+  Trash2,
+  Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePhotoHubStats, useVehiclePhotos } from '@/hooks/useVehiclePhotos';
@@ -54,6 +57,7 @@ export const PhotoHubTab = ({ vehicles, loading: vehiclesLoading }: PhotoHubTabP
   const [expandedVehicle, setExpandedVehicle] = useState<string | null>(null);
   const [uploadForVehicle, setUploadForVehicle] = useState<string | null>(null);
   const [addVehicleWizardOpen, setAddVehicleWizardOpen] = useState(false);
+  const [isCleaningUp, setIsCleaningUp] = useState(false);
   const previousQueueCountRef = useRef<number>(queueCount);
 
   const loading = vehiclesLoading || statsLoading;
@@ -85,7 +89,29 @@ export const PhotoHubTab = ({ vehicles, loading: vehiclesLoading }: PhotoHubTabP
     }
   }, [queueCount, refetchStats, refetchPhotos, refetchQueue]);
 
-  // Handle error state
+  // Handle cleanup of matched/rejected unmatched photos
+  const handleCleanup = useCallback(async () => {
+    setIsCleaningUp(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('cleanup-unmatched-photos');
+      if (error) throw error;
+      const { rejected, matched } = data;
+      const totalCleaned = (rejected?.rowsDeleted || 0) + (matched?.rowsDeleted || 0);
+      const filesRemoved = rejected?.filesDeleted || 0;
+      toast.success(`Cleaned up ${totalCleaned} items`, {
+        description: filesRemoved > 0 ? `${filesRemoved} storage files removed` : undefined,
+      });
+      refetchStats?.();
+      refetchQueue?.();
+    } catch (error) {
+      toast.error('Cleanup failed', {
+        description: error instanceof Error ? error.message : 'Unknown error',
+      });
+    } finally {
+      setIsCleaningUp(false);
+    }
+  }, [refetchStats, refetchQueue]);
+
   if (hasError && !loading) {
     return (
       <Card className="border-destructive/30 bg-destructive/5">
@@ -158,6 +184,22 @@ export const PhotoHubTab = ({ vehicles, loading: vehiclesLoading }: PhotoHubTabP
               >
                 {queueCount}
               </Badge>
+            </Button>
+          )}
+          {stats.unmatchedPhotos === 0 && stats.totalPhotos > 0 && (
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleCleanup}
+              disabled={isCleaningUp}
+              className="text-muted-foreground"
+            >
+              {isCleaningUp ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4 mr-2" />
+              )}
+              Clean Up
             </Button>
           )}
           <Button variant="outline" onClick={() => setAddVehicleWizardOpen(true)}>

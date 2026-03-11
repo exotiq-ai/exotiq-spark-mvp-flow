@@ -66,6 +66,7 @@ const STATUS_ICONS: Record<string, React.ReactNode> = {
   analyzing: <Sparkles className="h-4 w-4 animate-pulse text-amber-500" />,
   complete: <CheckCircle2 className="h-4 w-4 text-success" />,
   error: <AlertCircle className="h-4 w-4 text-destructive" />,
+  skipped: <CheckCircle2 className="h-4 w-4 text-muted-foreground" />,
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -76,6 +77,7 @@ const STATUS_LABELS: Record<string, string> = {
   analyzing: 'AI Analyzing...',
   complete: 'Complete',
   error: 'Failed',
+  skipped: 'Skipped (duplicate)',
 };
 
 const MATCH_BADGES: Record<string, { label: string; className: string }> = {
@@ -441,6 +443,23 @@ export const BulkUploadModal = ({
             </>
           ) : isComplete ? (
             <>
+              {errorCount > 0 && (
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    const failedFiles = uploadProgress
+                      .filter(p => p.status === 'error')
+                      .map(p => p.file);
+                    setFiles(failedFiles);
+                    setUploadProgress([]);
+                    setIsComplete(false);
+                  }}
+                  className="text-destructive border-destructive/30"
+                >
+                  <AlertCircle className="h-4 w-4 mr-2" />
+                  Retry {errorCount} Failed
+                </Button>
+              )}
               {unmatchedCount > 0 && (
                 <Button variant="outline" onClick={() => {
                   onReviewQueue?.();

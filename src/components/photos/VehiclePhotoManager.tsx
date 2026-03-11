@@ -67,12 +67,14 @@ export const VehiclePhotoManager = ({
   compact = false,
 }: VehiclePhotoManagerProps) => {
   const { photos, loading, refetch } = useVehiclePhotos({ vehicleId, realtime: true });
-  const { setAsHero, deletePhoto, uploadAndAnalyze } = usePhotoAnalysis();
+  const { setAsHero, deletePhoto, uploadAndAnalyze, reorderPhotos } = usePhotoAnalysis();
   const { generateHeroWithToast, isGenerating } = useGenerateHeroImage();
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [replacePhotoId, setReplacePhotoId] = useState<string | null>(null);
   const replaceInputRef = useRef<HTMLInputElement>(null);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   // Find hero photo
   const heroPhoto = useMemo(() => 
@@ -366,22 +368,56 @@ export const VehiclePhotoManager = ({
         )}
       </div>
 
-      {/* Photo Grid */}
+      {/* Photo Grid — drag-to-reorder */}
       <div className={cn(
         'grid gap-2',
         compact ? 'grid-cols-4' : 'grid-cols-3 md:grid-cols-4'
       )}>
         <AnimatePresence mode="popLayout">
-          {otherPhotos.map((photo) => (
-            <PhotoThumbnail
+          {otherPhotos.map((photo, index) => (
+            <div
               key={photo.id}
-              photo={photo as unknown as VehiclePhoto}
-              isLoading={actionLoading === photo.id}
-              onView={onPhotoClick ? () => onPhotoClick(photo as unknown as VehiclePhoto) : undefined}
-              onSetHero={() => handleSetAsHero(photo.id)}
-              onDelete={() => setDeleteConfirm(photo.id)}
-              compact={compact}
-            />
+              draggable
+              onDragStart={() => setDraggedIndex(index)}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragOverIndex(index);
+              }}
+              onDragEnd={() => {
+                setDraggedIndex(null);
+                setDragOverIndex(null);
+              }}
+              onDrop={async (e) => {
+                e.preventDefault();
+                if (draggedIndex === null || draggedIndex === index) return;
+                const reordered = [...otherPhotos];
+                const [moved] = reordered.splice(draggedIndex, 1);
+                reordered.splice(index, 0, moved);
+                const newIds = reordered.map(p => p.id);
+                try {
+                  await reorderPhotos(vehicleId, newIds);
+                  await refetch();
+                } catch {
+                  toast.error('Failed to reorder photos');
+                }
+                setDraggedIndex(null);
+                setDragOverIndex(null);
+              }}
+              className={cn(
+                'transition-all',
+                draggedIndex === index && 'opacity-40 scale-95',
+                dragOverIndex === index && draggedIndex !== index && 'ring-2 ring-primary rounded-lg'
+              )}
+            >
+              <PhotoThumbnail
+                photo={photo as unknown as VehiclePhoto}
+                isLoading={actionLoading === photo.id}
+                onView={onPhotoClick ? () => onPhotoClick(photo as unknown as VehiclePhoto) : undefined}
+                onSetHero={() => handleSetAsHero(photo.id)}
+                onDelete={() => setDeleteConfirm(photo.id)}
+                compact={compact}
+              />
+            </div>
           ))}
         </AnimatePresence>
 
