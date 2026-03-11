@@ -684,6 +684,11 @@ export const PhotoReviewQueue = ({ vehicles }: PhotoReviewQueueProps) => {
 
                       {/* Info Overlay */}
                       <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-2">
+                        {photo.original_filename && (
+                          <p className="text-white/80 text-[10px] truncate mb-0.5" title={photo.original_filename}>
+                            📄 {photo.original_filename}
+                          </p>
+                        )}
                         <p className="text-white text-xs truncate">
                           {photo.suggested_make || 'Unknown vehicle'}
                         </p>
