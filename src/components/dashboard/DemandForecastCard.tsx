@@ -846,7 +846,7 @@ export const DemandForecastCard = ({ bookings = [] }: DemandForecastCardProps) =
                           />
                         </div>
                         {cat.topEvent && (
-                          <p className="text-xs text-muted-foreground pl-8">
+                          <p className="hidden md:block text-xs text-muted-foreground pl-8">
                             Top: {cat.topEvent.name} ({cat.topEvent.attendance.toLocaleString()} attendees)
                           </p>
                         )}
