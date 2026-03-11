@@ -492,6 +492,19 @@ export const VehiclePhotoManager = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Photo Editor Dialog */}
+      {editingPhoto && (
+        <PhotoEditorDialog
+          open={!!editingPhoto}
+          onOpenChange={(open) => { if (!open) setEditingPhoto(null); }}
+          photo={editingPhoto}
+          onSave={async (editedFile) => {
+            await replacePhotoFile(editingPhoto.id, editedFile);
+            await refetch();
+          }}
+        />
+      )}
     </div>
   );
 };
