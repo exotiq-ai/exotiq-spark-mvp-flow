@@ -300,7 +300,7 @@ export const VehiclePhotoManager = ({
                   <DropdownMenuItem
                     onClick={() => setEditingPhoto(heroPhoto as unknown as VehiclePhoto)}
                   >
-                    <Crop className="h-4 w-4 mr-2" />
+                    <Pencil className="h-4 w-4 mr-2" />
                     Edit / Crop
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
