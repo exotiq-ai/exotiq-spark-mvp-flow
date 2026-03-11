@@ -32,6 +32,7 @@ import {
   Link,
   HelpCircle,
   TrendingDown,
+  Crop,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
@@ -39,6 +40,7 @@ import { usePhotoAnalysis } from './usePhotoAnalysis';
 import { toast } from 'sonner';
 import type { PhotoUploadProgress } from './types';
 import { uploadMetrics, formatBytes } from '@/lib/uploadMetrics';
+import { PhotoEditorDialog } from './PhotoEditorDialog';
 
 interface Vehicle {
   id: string;
@@ -100,6 +102,8 @@ export const BulkUploadModal = ({
   const [uploadProgress, setUploadProgress] = useState<PhotoUploadProgress[]>([]);
   const [isComplete, setIsComplete] = useState(false);
   const [skipAnalysis, setSkipAnalysis] = useState(true); // Default to skip for faster uploads
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editingUrl, setEditingUrl] = useState<string | null>(null);
 
   // Sync preSelectedVehicleId when it changes
   useEffect(() => {
@@ -299,6 +303,19 @@ export const BulkUploadModal = ({
                           <span className="text-xs text-muted-foreground">
                             {(file.size / 1024 / 1024).toFixed(1)} MB
                           </span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            title="Edit / Crop"
+                            onClick={() => {
+                              const url = URL.createObjectURL(file);
+                              setEditingUrl(url);
+                              setEditingIndex(index);
+                            }}
+                          >
+                            <Crop className="h-3 w-3" />
+                          </Button>
                           <Button
                             variant="ghost"
                             size="icon"
@@ -513,6 +530,32 @@ export const BulkUploadModal = ({
           )}
         </div>
       </DialogContent>
+
+      {/* Photo Editor for pre-upload editing */}
+      {editingUrl && editingIndex !== null && (
+        <PhotoEditorDialog
+          open
+          onOpenChange={(open) => {
+            if (!open) {
+              if (editingUrl) URL.revokeObjectURL(editingUrl);
+              setEditingUrl(null);
+              setEditingIndex(null);
+            }
+          }}
+          imageUrl={editingUrl}
+          filename={files[editingIndex]?.name}
+          onSave={async (editedFile) => {
+            setFiles((prev) => {
+              const next = [...prev];
+              next[editingIndex] = editedFile;
+              return next;
+            });
+            if (editingUrl) URL.revokeObjectURL(editingUrl);
+            setEditingUrl(null);
+            setEditingIndex(null);
+          }}
+        />
+      )}
     </Dialog>
   );
 };

@@ -19,7 +19,10 @@ import type { VehiclePhoto } from './types';
 interface PhotoEditorDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  photo: VehiclePhoto;
+  /** Existing DB photo — or use imageUrl+filename for local files */
+  photo?: VehiclePhoto;
+  imageUrl?: string;
+  filename?: string;
   onSave: (editedFile: File) => Promise<void>;
 }
 
@@ -32,7 +35,9 @@ const ASPECT_VALUES: Record<AspectOption, number | undefined> = {
   '1:1': 1,
 };
 
-export function PhotoEditorDialog({ open, onOpenChange, photo, onSave }: PhotoEditorDialogProps) {
+export function PhotoEditorDialog({ open, onOpenChange, photo, imageUrl, filename, onSave }: PhotoEditorDialogProps) {
+  const resolvedUrl = photo?.url ?? imageUrl ?? '';
+  const resolvedFilename = photo?.original_filename ?? filename ?? 'edited-photo';
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(0);
@@ -69,9 +74,9 @@ export function PhotoEditorDialog({ open, onOpenChange, photo, onSave }: PhotoEd
         saturation,
       };
       const editedFile = await applyEdits(
-        photo.url,
+        resolvedUrl,
         params,
-        photo.original_filename || 'edited-photo'
+        resolvedFilename
       );
       await onSave(editedFile);
       onOpenChange(false);
@@ -105,7 +110,7 @@ export function PhotoEditorDialog({ open, onOpenChange, photo, onSave }: PhotoEd
         {/* Crop Area */}
         <div className="relative w-full h-[340px] bg-black">
           <Cropper
-            image={photo.url}
+            image={resolvedUrl}
             crop={crop}
             zoom={zoom}
             rotation={rotation}
