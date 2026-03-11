@@ -297,9 +297,9 @@ export const VehiclePhotoManager = ({
                 <DropdownMenuContent align="center">
                   <DropdownMenuItem
                     className="text-destructive focus:text-destructive"
-                    onClick={() => {
+                    onClick={async () => {
                       if (heroPhoto?.id) {
-                        deletePhoto(heroPhoto.id, heroPhoto.storage_path);
+                        await deletePhoto(heroPhoto.id);
                       }
                     }}
                   >
