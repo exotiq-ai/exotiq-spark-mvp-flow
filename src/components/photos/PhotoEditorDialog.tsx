@@ -19,7 +19,10 @@ import type { VehiclePhoto } from './types';
 interface PhotoEditorDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  photo: VehiclePhoto;
+  /** Existing DB photo — or use imageUrl+filename for local files */
+  photo?: VehiclePhoto;
+  imageUrl?: string;
+  filename?: string;
   onSave: (editedFile: File) => Promise<void>;
 }
 
