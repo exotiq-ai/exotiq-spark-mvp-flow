@@ -194,6 +194,8 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
           original_filename: file.name,
           file_size_bytes: compressedBytes,
           mime_type: file.type,
+          width: width || null,
+          height: height || null,
           analyzed_at: new Date().toISOString()
         })
         .select()
