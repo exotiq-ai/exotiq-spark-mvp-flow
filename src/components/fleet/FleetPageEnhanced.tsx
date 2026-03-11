@@ -155,6 +155,7 @@ export const FleetPageEnhanced = () => {
   const [showAddVehicle, setShowAddVehicle] = useState(false);
   const [showImportWizard, setShowImportWizard] = useState(false);
   const [photoUploadVehicle, setPhotoUploadVehicle] = useState<{ id: string; name: string } | null>(null);
+  const [editVehicle, setEditVehicle] = useState<any>(null);
 
   // Filter and sort vehicles
   const filteredVehicles = useMemo(() => {
