@@ -442,7 +442,10 @@ export const BulkUploadModal = ({
           ) : isComplete ? (
             <>
               {unmatchedCount > 0 && (
-                <Button variant="outline" onClick={handleClose}>
+                <Button variant="outline" onClick={() => {
+                  onReviewQueue?.();
+                  handleClose();
+                }}>
                   Review Queue ({unmatchedCount})
                 </Button>
               )}
