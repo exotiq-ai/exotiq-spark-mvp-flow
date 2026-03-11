@@ -114,7 +114,10 @@ export const AddVehicleDialog = ({ open, onOpenChange, onSubmit, onAddPhotos }: 
         utilization: 0,
         revenue: 0,
         suggested_rate: null,
-        location_id: effectiveLocationId || null
+        location_id: effectiveLocationId || null,
+        color: color || null,
+        default_mileage_limit: defaultMileageLimit ? parseInt(defaultMileageLimit) : null,
+        mileage_overage_rate: mileageOverageRate ? parseFloat(mileageOverageRate) : null,
       });
 
       if (result) {
