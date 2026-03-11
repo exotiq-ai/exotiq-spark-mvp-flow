@@ -1,95 +1,59 @@
 
-# Photo Hub v2 — Storage Optimization & Upload Performance
+# Fleet Management UI Truth Audit
 
 ## Status: ✅ Implemented
 
-## What Was Built
+## What Was Changed
 
-### 1. Upload Presets & Thumbnail Generator ✅
-- **File:** `src/lib/imageCompression.ts`
-- Named presets: `hero` (2048px/90%), `display` (1600px/82%), `operational` (1200px/70%), `thumbnail` (400px/70%)
-- `generateThumbnail()` function using thumbnail preset
-- Existing `compressImage()` signature unchanged — backward compatible
+### 1. Ops Status: Neutral Default ✅
+- **File:** `src/hooks/useVehicleOpsStatus.ts`
+- Added `not_set` ops status with neutral gray styling (`CircleDashed` icon, "Not Set" label)
+- `getStatusConfig()` now returns `not_set` instead of `clean_ready` for null/unknown values
+- No more false "Clean & Ready" badges on vehicles that haven't been inspected
 
-### 2. Unified Photo Upload Entry Point ✅
-- **File:** `src/lib/photoUpload.ts`
-- Single entry point for ALL upload surfaces
-- `preset` param (default: `operational`) and `bucket` param (default: `vehicle-photos`)
-- 1-year signed URLs for private bucket access
-- Automatic thumbnail generation and upload
-- File size limit raised to 10MB
-- `deleteVehiclePhoto()` deletes both main file and thumbnail
+### 2. Fleet Filters: Truth-Based Status Options ✅
+- **File:** `src/components/fleet/FleetFilters.tsx`
+- Replaced phantom "Rented" and "Unavailable" with real DB values: `available`, `booked`, `maintenance`, `retired`
+- Added `hideRetired` boolean to `FleetFiltersState` (default: `true`)
+- Added "Show retired vehicles" toggle in filter popover
+- Ops status filter now uses `not_set` instead of `clean_ready` for null values
 
-### 3. Filename-Based Auto-Matching ✅
-- **File:** `src/lib/filenameVehicleMatcher.ts`
-- Deterministic scorer: make+model=high, make-only=medium, color boost
-- Strips camera prefixes (IMG, DSC), numeric suffixes
-- Extracts angle hints from filenames (front, rear, interior, etc.)
-- Feature-flagged via `filenameAutoMatch`
+### 3. Fleet Vehicle Card: Truth-Based Display ✅
+- **File:** `src/components/fleet/FleetVehicleCard.tsx`
+- **Status badge truth:** Derives display from real DB status + ops_status:
+  - "With Renter" when `ops_status === 'renter_has'`
+  - "Booked" when there's an active booking
+  - "Maintenance", "Available", "Retired" from DB status
+  - Removed phantom "Rented" label
+- **Retired treatment:** `opacity-50 grayscale` on card, gray "Retired" badge, hides pricing/ops badge/ops actions/photo count, dropdown limited to Edit + View + Delete
+- **Null ops_status:** Shows neutral "Not Set" badge instead of false "Clean & Ready"
+- **AI suggestion:** Replaced raw "AI: $X" text with small `Sparkles` icon with tooltip "Rari has a pricing suggestion", clicking opens QuickPriceEditor. Shows when `suggested_rate` differs from `current_rate`
+- **Wrench → Clock:** Changed `last_ops_update` icon from `Wrench` to `Clock`
 
-### 4. Session Metrics Tracker ✅
-- **File:** `src/lib/uploadMetrics.ts`
-- In-memory tracker: original bytes, compressed bytes, duration, match result
-- `getSessionStats()`: compression ratio, auto-match rate, saved bytes
-- `formatBytes()` helper for UI display
+### 4. Fleet Page: Retired Filtering ✅
+- **File:** `src/components/fleet/FleetPageEnhanced.tsx`
+- Applies `hideRetired` filter: retired vehicles excluded by default
+- Ops status filter uses `not_set` for null values
 
-### 5. Feature Flags ✅
-- **File:** `src/lib/featureFlags.ts`
-- 4 new flags: `filenameAutoMatch`, `uploadPresets`, `thumbnailGeneration`, `concurrentUploads`
+### 5. Fleet Status Donut: Retired Exclusion ✅
+- **File:** `src/components/charts/FleetStatusDonut.tsx`
+- Filters out retired vehicles before calculating segments
+- Available = activeVehicles - booked - maintenance (retired already excluded)
 
-### 6. Concurrent Batch Processing ✅
-- **File:** `src/components/photos/usePhotoAnalysis.ts`
-- `processWithConcurrency()` pool (3 parallel uploads)
-- Thumbnail upload + `thumbnail_url` written to DB
-- Filename matcher integration: auto-assign on high confidence, suggest on medium
-- `deletePhoto()` deletes both main file and thumbnail
-- Metrics recorded per upload
-
-### 7. Updated Progress Types ✅
-- **File:** `src/components/photos/types.ts`
-- New statuses: `preprocessing`, `matching`
-- `matchResult`: `auto-matched` | `suggested` | `unmatched` | `skipped`
-- `compressionStats`: `{ originalBytes, compressedBytes }`
-
-### 8. Operational Surface Alignment ✅
-- **DamageReportDialog.tsx**: Routes through `uploadVehiclePhoto()` with `operational` preset and `damage-photos` bucket. **Fixed latent bug**: was using `getPublicUrl` on private bucket (would 403), now uses signed URLs.
-- **CheckInOutDialog.tsx**: Routes through `uploadVehiclePhoto()` with `operational` preset
-- **InspectionWidget.tsx**: Routes through `uploadVehiclePhoto()` with `operational` preset
-
-### 9. Bulk Upload UI Updates ✅
-- **File:** `src/components/photos/BulkUploadModal.tsx`
-- Per-file match badges: "Auto-matched", "Suggested", "Review needed", "Assigned"
-- Session summary after completion: saved MB, compression ratio, auto-match count
-- New status labels for `preprocessing` and `matching` stages
-- Vehicles passed to `processBatch()` for filename matching
-
-### 10. Photo Hub Metrics Display ✅
-- **File:** `src/components/photos/PhotoHubTab.tsx`
-- Session metrics banner: saved bytes, compression ratio, auto-match count
-- Animated appearance after bulk upload
-
-## Files Created
-- `src/lib/filenameVehicleMatcher.ts`
-- `src/lib/uploadMetrics.ts`
+### 6. Fleet Status Widget: Booking-Aware Counts ✅
+- **File:** `src/components/dashboard/widgets/FleetStatusWidget.tsx`
+- Replaced phantom "Rented"/"Reserved"/"Unavailable" status items with booking-aware calculation
+- Uses active bookings spanning today to derive "Booked" count (same logic as donut)
+- Utilization % excludes retired from denominator
+- Status items: Available, Booked, Maintenance, Retired (shown separately)
 
 ## Files Modified
-- `src/lib/imageCompression.ts` (presets + thumbnail generator)
-- `src/lib/photoUpload.ts` (unified entry point)
-- `src/lib/featureFlags.ts` (4 new flags)
-- `src/components/photos/types.ts` (new progress states)
-- `src/components/photos/usePhotoAnalysis.ts` (concurrency, thumbnails, matcher, metrics, delete lifecycle)
-- `src/components/photos/BulkUploadModal.tsx` (match badges, session summary)
-- `src/components/photos/PhotoHubTab.tsx` (session metrics display)
-- `src/components/dialogs/DamageReportDialog.tsx` (unified upload + signed URL fix)
-- `src/components/dialogs/CheckInOutDialog.tsx` (unified upload)
-- `src/components/inspections/InspectionWidget.tsx` (unified upload)
+- `src/hooks/useVehicleOpsStatus.ts` (added `not_set` ops status, fixed default)
+- `src/components/fleet/FleetFilters.tsx` (real DB statuses, hideRetired toggle)
+- `src/components/fleet/FleetVehicleCard.tsx` (truth-based status, retired UI, Rari indicator, Clock icon)
+- `src/components/fleet/FleetPageEnhanced.tsx` (retired filtering, ops_status null handling)
+- `src/components/charts/FleetStatusDonut.tsx` (retired exclusion)
+- `src/components/dashboard/widgets/FleetStatusWidget.tsx` (booking-aware counts, retired exclusion)
 
 ## No Database Migration Needed
-Existing columns `thumbnail_url`, `width`, `height`, `file_size_bytes` in `vehicle_photos` are now populated.
-
-## What This Enables for Phase 2 (R2 Evaluation)
-Session metrics provide real data on:
-- Average compression ratio per context
-- Monthly storage growth rate
-- Auto-match success rate
-- Upload latency distribution
+All changes are UI/logic corrections using existing DB columns and values.
