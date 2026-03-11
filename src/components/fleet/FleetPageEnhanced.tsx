@@ -601,21 +601,12 @@ export const FleetPageEnhanced = () => {
         }}
       />
 
-      {/* Delete Confirmation Dialog */}
-      <ConfirmationDialog
-        open={deleteConfirm.open}
-        onOpenChange={(open) => !open && setDeleteConfirm({ open: false })}
-        title={deleteConfirm.isBatch 
-          ? `Delete ${selectedVehicleIds.size} Vehicle${selectedVehicleIds.size !== 1 ? 's' : ''}?`
-          : `Delete ${deleteConfirm.vehicleName}?`
-        }
-        description={deleteConfirm.isBatch
-          ? `This will permanently delete ${selectedVehicleIds.size} vehicle${selectedVehicleIds.size !== 1 ? 's' : ''} from your fleet. This action cannot be undone.`
-          : `This will permanently delete ${deleteConfirm.vehicleName} from your fleet. This action cannot be undone.`
-        }
-        confirmText={isDeleting ? "Deleting..." : "Delete"}
-        onConfirm={confirmDelete}
-        variant="destructive"
+      {/* Edit Vehicle Dialog */}
+      <EditVehicleDialog
+        open={!!editVehicle}
+        onOpenChange={(open) => !open && setEditVehicle(null)}
+        vehicle={editVehicle}
+        onSave={updateVehicle}
       />
     </div>
   );
