@@ -24,6 +24,7 @@ import { CreateVehicleTaskDialog } from '@/components/dialogs/CreateVehicleTaskD
 import { QuickPriceEditorDialog } from '@/components/dialogs/QuickPriceEditorDialog';
 import { VehicleImageDialog } from '@/components/dialogs/VehicleImageDialog';
 import { AddVehicleDialog } from '@/components/dialogs/AddVehicleDialog';
+import { EditVehicleDialog } from '@/components/dialogs/EditVehicleDialog';
 import { ImportWizard } from '@/components/import/ImportWizard';
 import { BulkUploadModal } from '@/components/photos/BulkUploadModal';
 import { EmptyState } from '@/components/common/EmptyState';
