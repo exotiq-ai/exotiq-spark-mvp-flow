@@ -55,6 +55,7 @@ interface BulkUploadModalProps {
   vehicles: Vehicle[];
   preSelectedVehicleId?: string;
   onComplete?: (results: PhotoUploadProgress[]) => void;
+  onReviewQueue?: () => void;
 }
 
 const STATUS_ICONS: Record<string, React.ReactNode> = {
