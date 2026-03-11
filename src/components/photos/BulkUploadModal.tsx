@@ -102,6 +102,8 @@ export const BulkUploadModal = ({
   const [uploadProgress, setUploadProgress] = useState<PhotoUploadProgress[]>([]);
   const [isComplete, setIsComplete] = useState(false);
   const [skipAnalysis, setSkipAnalysis] = useState(true); // Default to skip for faster uploads
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editingUrl, setEditingUrl] = useState<string | null>(null);
 
   // Sync preSelectedVehicleId when it changes
   useEffect(() => {
