@@ -26,6 +26,15 @@ export interface OpsStatusConfig {
 }
 
 export const OPS_STATUS_CONFIG: Record<OpsStatus, OpsStatusConfig> = {
+  not_set: {
+    label: 'Not Set',
+    color: 'text-muted-foreground',
+    bgColor: 'bg-muted/50',
+    borderColor: 'border-muted-foreground/30',
+    icon: 'CircleDashed',
+    description: 'Ops status has not been set',
+    nextStates: ['pending_inspection', 'clean_ready'],
+  },
   pending_inspection: {
     label: 'Pending Inspection',
     color: 'text-amber-600 dark:text-amber-400',
