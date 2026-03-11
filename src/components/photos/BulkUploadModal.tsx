@@ -66,6 +66,7 @@ const STATUS_ICONS: Record<string, React.ReactNode> = {
   analyzing: <Sparkles className="h-4 w-4 animate-pulse text-amber-500" />,
   complete: <CheckCircle2 className="h-4 w-4 text-success" />,
   error: <AlertCircle className="h-4 w-4 text-destructive" />,
+  skipped: <CheckCircle2 className="h-4 w-4 text-muted-foreground" />,
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -76,6 +77,7 @@ const STATUS_LABELS: Record<string, string> = {
   analyzing: 'AI Analyzing...',
   complete: 'Complete',
   error: 'Failed',
+  skipped: 'Skipped (duplicate)',
 };
 
 const MATCH_BADGES: Record<string, { label: string; className: string }> = {
