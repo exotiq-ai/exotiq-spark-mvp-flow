@@ -43,6 +43,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSearchParams } from 'react-router-dom';
+import { toast as sonnerToast } from 'sonner';
 
 interface TeamMember {
   id: string;
