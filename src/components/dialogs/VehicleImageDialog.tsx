@@ -215,6 +215,12 @@ export function VehicleImageDialog({
                   onUploadClick={() => setShowUploadModal(true)}
                 />
               </TabsContent>
+
+              <TabsContent value="history" className="mt-4">
+                <PermissionGuard minRole="manager" fallback={<p className="text-sm text-muted-foreground text-center py-8">Change history is only available to managers and admins.</p>}>
+                  <VehicleChangeHistory vehicleId={vehicleId} />
+                </PermissionGuard>
+              </TabsContent>
             </Tabs>
             
             {/* Bulk Upload Modal for this vehicle */}
