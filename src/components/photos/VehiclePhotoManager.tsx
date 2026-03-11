@@ -41,6 +41,7 @@ import { usePhotoAnalysis } from './usePhotoAnalysis';
 import { useGenerateHeroImage } from '@/hooks/useGenerateHeroImage';
 import { RECOMMENDED_ANGLES, ANGLE_LABELS, PHOTO_TYPE_LABELS, VehiclePhoto, DetectedAngle } from './types';
 import { toast } from 'sonner';
+import { PhotoEditorDialog } from './PhotoEditorDialog';
 
 interface VehiclePhotoManagerProps {
   vehicleId: string;

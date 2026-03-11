@@ -570,6 +570,20 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
   /**
    * Reorder photos for a vehicle
    */
+  const reorderPhotos = useCallback(async (
+    vehicleId: string,
+    photoIds: string[]
+  ): Promise<void> => {
+    const updates = photoIds.map((id, index) => 
+      supabase
+        .from('vehicle_photos')
+        .update({ display_order: index })
+        .eq('id', id)
+    );
+
+    await Promise.all(updates);
+  }, []);
+
   /**
    * Replace a photo's file in storage and update the DB row.
    * Used by the client-side photo editor — uploads new file, deletes old one.
