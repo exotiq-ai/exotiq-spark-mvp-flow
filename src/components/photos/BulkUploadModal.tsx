@@ -443,6 +443,23 @@ export const BulkUploadModal = ({
             </>
           ) : isComplete ? (
             <>
+              {errorCount > 0 && (
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    const failedFiles = uploadProgress
+                      .filter(p => p.status === 'error')
+                      .map(p => p.file);
+                    setFiles(failedFiles);
+                    setUploadProgress([]);
+                    setIsComplete(false);
+                  }}
+                  className="text-destructive border-destructive/30"
+                >
+                  <AlertCircle className="h-4 w-4 mr-2" />
+                  Retry {errorCount} Failed
+                </Button>
+              )}
               {unmatchedCount > 0 && (
                 <Button variant="outline" onClick={() => {
                   onReviewQueue?.();
