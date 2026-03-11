@@ -35,7 +35,9 @@ const ASPECT_VALUES: Record<AspectOption, number | undefined> = {
   '1:1': 1,
 };
 
-export function PhotoEditorDialog({ open, onOpenChange, photo, onSave }: PhotoEditorDialogProps) {
+export function PhotoEditorDialog({ open, onOpenChange, photo, imageUrl, filename, onSave }: PhotoEditorDialogProps) {
+  const resolvedUrl = photo?.url ?? imageUrl ?? '';
+  const resolvedFilename = photo?.original_filename ?? filename ?? 'edited-photo';
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(0);
