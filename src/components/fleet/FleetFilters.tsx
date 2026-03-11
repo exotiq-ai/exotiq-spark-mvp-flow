@@ -54,9 +54,9 @@ interface FleetFiltersProps {
 
 const BOOKING_STATUS_OPTIONS = [
   { value: 'available', label: 'Available' },
-  { value: 'rented', label: 'Rented' },
+  { value: 'booked', label: 'Booked' },
   { value: 'maintenance', label: 'Maintenance' },
-  { value: 'unavailable', label: 'Unavailable' },
+  { value: 'retired', label: 'Retired' },
 ];
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
