@@ -596,6 +596,12 @@ const PhotoThumbnail = forwardRef<HTMLDivElement, PhotoThumbnailProps>(
                   View Full Size
                 </DropdownMenuItem>
               )}
+              {onEdit && (
+                <DropdownMenuItem onClick={onEdit}>
+                  <Pencil className="h-4 w-4 mr-2" />
+                  Edit / Crop
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={onSetHero}>
                 <Star className="h-4 w-4 mr-2" />
                 Set as Hero
