@@ -354,3 +354,81 @@ function VehicleDetailsSection({
     </>
   );
 }
+
+// Vehicle Change History component
+function VehicleChangeHistory({ vehicleId }: { vehicleId: string }) {
+  const [changes, setChanges] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchChanges = async () => {
+      setLoading(true);
+      const { data } = await supabase
+        .from('vehicle_change_log' as any)
+        .select('*')
+        .eq('vehicle_id', vehicleId)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      setChanges(data || []);
+      setLoading(false);
+    };
+
+    fetchChanges();
+  }, [vehicleId]);
+
+  const formatFieldName = (field: string) => {
+    return field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  };
+
+  const formatValue = (field: string, value: string | null) => {
+    if (value === null || value === '') return '—';
+    if (field === 'current_rate' || field === 'mileage_overage_rate') return `$${value}`;
+    return value;
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+      </div>
+    );
+  }
+
+  if (changes.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <History className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+        <p className="text-sm text-muted-foreground">No changes recorded yet</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3 max-h-[400px] overflow-y-auto">
+      {changes.map((change) => (
+        <div key={change.id} className="flex items-start gap-3 p-3 rounded-lg border bg-muted/30">
+          <div className="flex-shrink-0 mt-0.5">
+            <div className="h-2 w-2 rounded-full bg-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium">
+              {formatFieldName(change.field_name)}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {formatValue(change.field_name, change.old_value)} → {formatValue(change.field_name, change.new_value)}
+            </p>
+            <div className="flex items-center gap-2 mt-1">
+              <Badge variant="outline" className="text-xs">
+                {change.change_source || 'manual'}
+              </Badge>
+              <span className="text-xs text-muted-foreground">
+                {formatDistanceToNow(new Date(change.created_at), { addSuffix: true })}
+              </span>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
