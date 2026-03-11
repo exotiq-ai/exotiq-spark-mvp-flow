@@ -304,19 +304,30 @@ export const AddVehicleDialog = ({ open, onOpenChange, onSubmit, onAddPhotos }: 
                   </div>
 
                   <div className="space-y-2">
+                    <Label htmlFor="color">Color</Label>
+                    <Input
+                      id="color"
+                      placeholder="e.g., Midnight Blue"
+                      value={color}
+                      onChange={(e) => setColor(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
                     <Label htmlFor="mileageLimit">Included Miles/Day</Label>
                     <Input
                       id="mileageLimit"
                       type="number"
                       placeholder="250"
-                      defaultValue="250"
+                      value={defaultMileageLimit}
+                      onChange={(e) => setDefaultMileageLimit(e.target.value)}
                       min="0"
                     />
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="mileageRate">Overage Rate ($/mi)</Label>
-                    <Select defaultValue="1.99">
+                    <Select value={mileageOverageRate} onValueChange={setMileageOverageRate}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select rate" />
                       </SelectTrigger>
