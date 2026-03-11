@@ -89,7 +89,29 @@ export const PhotoHubTab = ({ vehicles, loading: vehiclesLoading }: PhotoHubTabP
     }
   }, [queueCount, refetchStats, refetchPhotos, refetchQueue]);
 
-  // Handle error state
+  // Handle cleanup of matched/rejected unmatched photos
+  const handleCleanup = useCallback(async () => {
+    setIsCleaningUp(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('cleanup-unmatched-photos');
+      if (error) throw error;
+      const { rejected, matched } = data;
+      const totalCleaned = (rejected?.rowsDeleted || 0) + (matched?.rowsDeleted || 0);
+      const filesRemoved = rejected?.filesDeleted || 0;
+      toast.success(`Cleaned up ${totalCleaned} items`, {
+        description: filesRemoved > 0 ? `${filesRemoved} storage files removed` : undefined,
+      });
+      refetchStats?.();
+      refetchQueue?.();
+    } catch (error) {
+      toast.error('Cleanup failed', {
+        description: error instanceof Error ? error.message : 'Unknown error',
+      });
+    } finally {
+      setIsCleaningUp(false);
+    }
+  }, [refetchStats, refetchQueue]);
+
   if (hasError && !loading) {
     return (
       <Card className="border-destructive/30 bg-destructive/5">
