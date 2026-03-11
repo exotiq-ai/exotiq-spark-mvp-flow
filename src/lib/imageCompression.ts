@@ -112,3 +112,74 @@ export async function compressImage(
 export async function generateThumbnail(file: File): Promise<File> {
   return compressImage(file, UPLOAD_PRESETS.thumbnail);
 }
+
+/**
+ * Edit parameters for applyEdits — all client-side, zero API cost.
+ */
+export interface ImageEditParams {
+  cropArea?: { x: number; y: number; width: number; height: number };
+  rotation?: number; // degrees, multiples of 90
+  brightness?: number; // 50-150, default 100
+  contrast?: number; // 50-150, default 100
+  saturation?: number; // 50-150, default 100
+}
+
+/**
+ * Apply crop, rotation, and color adjustments to an image entirely client-side.
+ * Uses OffscreenCanvas + ctx.filter — same pattern as compressImage.
+ * Returns a new JPEG File ready for upload.
+ */
+export async function applyEdits(
+  imageUrl: string,
+  params: ImageEditParams,
+  filename: string = 'edited.jpg'
+): Promise<File> {
+  const { cropArea, rotation = 0, brightness = 100, contrast = 100, saturation = 100 } = params;
+
+  // Load image
+  const response = await fetch(imageUrl);
+  const blob = await response.blob();
+  const bitmap = await createImageBitmap(blob);
+
+  // Determine source region (crop or full image)
+  const sx = cropArea?.x ?? 0;
+  const sy = cropArea?.y ?? 0;
+  const sw = cropArea?.width ?? bitmap.width;
+  const sh = cropArea?.height ?? bitmap.height;
+
+  // After rotation, canvas dimensions may swap
+  const normalizedRotation = ((rotation % 360) + 360) % 360;
+  const swapDims = normalizedRotation === 90 || normalizedRotation === 270;
+  const canvasW = swapDims ? sh : sw;
+  const canvasH = swapDims ? sw : sh;
+
+  const canvas = new OffscreenCanvas(canvasW, canvasH);
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas context unavailable');
+
+  // Build filter string for adjustments
+  const filters: string[] = [];
+  if (brightness !== 100) filters.push(`brightness(${brightness / 100})`);
+  if (contrast !== 100) filters.push(`contrast(${contrast / 100})`);
+  if (saturation !== 100) filters.push(`saturate(${saturation / 100})`);
+  if (filters.length > 0) {
+    ctx.filter = filters.join(' ');
+  }
+
+  // Apply rotation
+  ctx.save();
+  ctx.translate(canvasW / 2, canvasH / 2);
+  ctx.rotate((normalizedRotation * Math.PI) / 180);
+  // Draw cropped region centered
+  ctx.drawImage(bitmap, sx, sy, sw, sh, -sw / 2, -sh / 2, sw, sh);
+  ctx.restore();
+
+  bitmap.close();
+
+  const outputBlob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.88 });
+  const nameWithoutExt = filename.replace(/\.[^.]+$/, '');
+  return new File([outputBlob], `${nameWithoutExt}.jpg`, {
+    type: 'image/jpeg',
+    lastModified: Date.now(),
+  });
+}

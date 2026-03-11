@@ -584,6 +584,68 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
     await Promise.all(updates);
   }, []);
 
+  /**
+   * Replace a photo's file in storage and update the DB row.
+   * Used by the client-side photo editor — uploads new file, deletes old one.
+   */
+  const replacePhotoFile = useCallback(async (
+    photoId: string,
+    newFile: File
+  ): Promise<void> => {
+    if (!user) throw new Error('User not authenticated');
+
+    // Fetch current photo metadata
+    const { data: photo, error: fetchErr } = await supabase
+      .from('vehicle_photos')
+      .select('storage_path, vehicle_id')
+      .eq('id', photoId)
+      .single();
+
+    if (fetchErr || !photo) throw new Error('Photo not found');
+
+    // Upload replacement
+    const folder = photo.vehicle_id ? `vehicles/${photo.vehicle_id}` : 'unmatched';
+    const { path, url, thumbnailUrl, thumbnailPath, compressedBytes, width, height } = await uploadToStorage(newFile, folder);
+
+    // Update DB row
+    const { error: updateErr } = await supabase
+      .from('vehicle_photos')
+      .update({
+        storage_path: path,
+        url,
+        thumbnail_url: thumbnailUrl || null,
+        file_size_bytes: compressedBytes,
+        width: width || null,
+        height: height || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', photoId);
+
+    if (updateErr) throw updateErr;
+
+    // Delete old storage files
+    if (photo.storage_path) {
+      const oldThumbPath = photo.storage_path.replace(/\.[^.]+$/, '_thumb.jpg');
+      await supabase.storage
+        .from('vehicle-photos')
+        .remove([photo.storage_path, oldThumbPath]);
+    }
+
+    // Update vehicle hero image_url if this is the hero
+    const { data: updatedPhoto } = await supabase
+      .from('vehicle_photos')
+      .select('photo_type, vehicle_id')
+      .eq('id', photoId)
+      .single();
+
+    if (updatedPhoto?.photo_type === 'hero' && updatedPhoto.vehicle_id) {
+      await supabase
+        .from('vehicles')
+        .update({ image_url: url })
+        .eq('id', updatedPhoto.vehicle_id);
+    }
+  }, [user, uploadToStorage]);
+
   return {
     isProcessing,
     progress,
@@ -593,6 +655,7 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
     setAsHero,
     deletePhoto,
     reorderPhotos,
-    analyzePhoto
+    analyzePhoto,
+    replacePhotoFile
   };
 }

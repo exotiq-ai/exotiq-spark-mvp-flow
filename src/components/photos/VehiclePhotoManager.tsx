@@ -17,6 +17,7 @@ import {
   MoreVertical,
   Sparkles,
   RefreshCw,
+  Pencil,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -41,6 +42,7 @@ import { usePhotoAnalysis } from './usePhotoAnalysis';
 import { useGenerateHeroImage } from '@/hooks/useGenerateHeroImage';
 import { RECOMMENDED_ANGLES, ANGLE_LABELS, PHOTO_TYPE_LABELS, VehiclePhoto, DetectedAngle } from './types';
 import { toast } from 'sonner';
+import { PhotoEditorDialog } from './PhotoEditorDialog';
 
 interface VehiclePhotoManagerProps {
   vehicleId: string;
@@ -67,8 +69,9 @@ export const VehiclePhotoManager = ({
   compact = false,
 }: VehiclePhotoManagerProps) => {
   const { photos, loading, refetch } = useVehiclePhotos({ vehicleId, realtime: true });
-  const { setAsHero, deletePhoto, uploadAndAnalyze, reorderPhotos } = usePhotoAnalysis();
+  const { setAsHero, deletePhoto, uploadAndAnalyze, reorderPhotos, replacePhotoFile } = usePhotoAnalysis();
   const { generateHeroWithToast, isGenerating } = useGenerateHeroImage();
+  const [editingPhoto, setEditingPhoto] = useState<VehiclePhoto | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [replacePhotoId, setReplacePhotoId] = useState<string | null>(null);
@@ -296,6 +299,13 @@ export const VehiclePhotoManager = ({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="center">
                   <DropdownMenuItem
+                    onClick={() => setEditingPhoto(heroPhoto as unknown as VehiclePhoto)}
+                  >
+                    <Pencil className="h-4 w-4 mr-2" />
+                    Edit / Crop
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
                     className="text-destructive focus:text-destructive"
                     onClick={async () => {
                        if (heroPhoto?.id) {
@@ -437,6 +447,7 @@ export const VehiclePhotoManager = ({
                 onView={onPhotoClick ? () => onPhotoClick(photo as unknown as VehiclePhoto) : undefined}
                 onSetHero={() => handleSetAsHero(photo.id)}
                 onDelete={() => setDeleteConfirm(photo.id)}
+                onEdit={() => setEditingPhoto(photo as unknown as VehiclePhoto)}
                 compact={compact}
               />
             </div>
@@ -481,6 +492,19 @@ export const VehiclePhotoManager = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Photo Editor Dialog */}
+      {editingPhoto && (
+        <PhotoEditorDialog
+          open={!!editingPhoto}
+          onOpenChange={(open) => { if (!open) setEditingPhoto(null); }}
+          photo={editingPhoto}
+          onSave={async (editedFile) => {
+            await replacePhotoFile(editingPhoto.id, editedFile);
+            await refetch();
+          }}
+        />
+      )}
     </div>
   );
 };
@@ -492,11 +516,12 @@ interface PhotoThumbnailProps {
   onView?: () => void;
   onSetHero: () => void;
   onDelete: () => void;
+  onEdit?: () => void;
   compact?: boolean;
 }
 
 const PhotoThumbnail = forwardRef<HTMLDivElement, PhotoThumbnailProps>(
-  ({ photo, isLoading, onView, onSetHero, onDelete, compact }, ref) => {
+  ({ photo, isLoading, onView, onSetHero, onDelete, onEdit, compact }, ref) => {
   const hasQualityIssues = (photo.quality_issues?.length ?? 0) > 0 || (photo.quality_score ?? 100) < 70;
 
   return (
@@ -568,6 +593,12 @@ const PhotoThumbnail = forwardRef<HTMLDivElement, PhotoThumbnailProps>(
                 <DropdownMenuItem onClick={onView}>
                   <ZoomIn className="h-4 w-4 mr-2" />
                   View Full Size
+                </DropdownMenuItem>
+              )}
+              {onEdit && (
+                <DropdownMenuItem onClick={onEdit}>
+                  <Pencil className="h-4 w-4 mr-2" />
+                  Edit / Crop
                 </DropdownMenuItem>
               )}
               <DropdownMenuItem onClick={onSetHero}>

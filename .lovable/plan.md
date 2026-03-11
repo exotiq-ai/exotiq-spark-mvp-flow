@@ -1,49 +1,59 @@
 
+# Fleet Management UI Truth Audit
 
-# Client-Side Photo Editor — Plan
+## Status: ✅ Implemented
 
-## Approach
+## What Was Changed
 
-Add a `PhotoEditorDialog` component using `react-easy-crop` (lightweight, 15KB, MIT) for crop/rotate and Canvas API `ctx.filter` for brightness/contrast/saturation. Zero API calls, zero cloud costs — everything renders client-side via `OffscreenCanvas`, same pattern as existing `imageCompression.ts`.
+### 1. Ops Status: Neutral Default ✅
+- **File:** `src/hooks/useVehicleOpsStatus.ts`
+- Added `not_set` ops status with neutral gray styling (`CircleDashed` icon, "Not Set" label)
+- `getStatusConfig()` now returns `not_set` instead of `clean_ready` for null/unknown values
+- No more false "Clean & Ready" badges on vehicles that haven't been inspected
 
-## New Dependency
+### 2. Fleet Filters: Truth-Based Status Options ✅
+- **File:** `src/components/fleet/FleetFilters.tsx`
+- Replaced phantom "Rented" and "Unavailable" with real DB values: `available`, `booked`, `maintenance`, `retired`
+- Added `hideRetired` boolean to `FleetFiltersState` (default: `true`)
+- Added "Show retired vehicles" toggle in filter popover
+- Ops status filter now uses `not_set` instead of `clean_ready` for null values
 
-- `react-easy-crop` — provides the interactive crop area with pinch-zoom, drag, and aspect ratio presets
+### 3. Fleet Vehicle Card: Truth-Based Display ✅
+- **File:** `src/components/fleet/FleetVehicleCard.tsx`
+- **Status badge truth:** Derives display from real DB status + ops_status:
+  - "With Renter" when `ops_status === 'renter_has'`
+  - "Booked" when there's an active booking
+  - "Maintenance", "Available", "Retired" from DB status
+  - Removed phantom "Rented" label
+- **Retired treatment:** `opacity-50 grayscale` on card, gray "Retired" badge, hides pricing/ops badge/ops actions/photo count, dropdown limited to Edit + View + Delete
+- **Null ops_status:** Shows neutral "Not Set" badge instead of false "Clean & Ready"
+- **AI suggestion:** Replaced raw "AI: $X" text with small `Sparkles` icon with tooltip "Rari has a pricing suggestion", clicking opens QuickPriceEditor. Shows when `suggested_rate` differs from `current_rate`
+- **Wrench → Clock:** Changed `last_ops_update` icon from `Wrench` to `Clock`
 
-## New File: `src/components/photos/PhotoEditorDialog.tsx`
+### 4. Fleet Page: Retired Filtering ✅
+- **File:** `src/components/fleet/FleetPageEnhanced.tsx`
+- Applies `hideRetired` filter: retired vehicles excluded by default
+- Ops status filter uses `not_set` for null values
 
-A dialog containing:
+### 5. Fleet Status Donut: Retired Exclusion ✅
+- **File:** `src/components/charts/FleetStatusDonut.tsx`
+- Filters out retired vehicles before calculating segments
+- Available = activeVehicles - booked - maintenance (retired already excluded)
 
-1. **Crop area** — `react-easy-crop` `<Cropper>` with the image URL, outputs `croppedAreaPixels`
-2. **Aspect ratio presets** — Free, 16:9, 4:3, 1:1 (toggle buttons)
-3. **Rotate** — 90° CW/CCW buttons
-4. **Adjustments** — Three sliders (brightness 50-150, contrast 50-150, saturation 50-150), applied as CSS `filter` on the preview for instant feedback
-5. **Apply button** — Uses `OffscreenCanvas` to: load image → apply rotation → crop to pixel region → apply `ctx.filter = 'brightness(...) contrast(...) saturate(...)'` → export as JPEG → upload replacement via existing `uploadToStorage` → update the `vehicle_photos` row's `url`/`storage_path` → delete old file
-6. **Cancel** — Closes without changes
+### 6. Fleet Status Widget: Booking-Aware Counts ✅
+- **File:** `src/components/dashboard/widgets/FleetStatusWidget.tsx`
+- Replaced phantom "Rented"/"Reserved"/"Unavailable" status items with booking-aware calculation
+- Uses active bookings spanning today to derive "Booked" count (same logic as donut)
+- Utilization % excludes retired from denominator
+- Status items: Available, Booked, Maintenance, Retired (shown separately)
 
-Props: `{ open, onOpenChange, photo: VehiclePhoto, onSaved: () => void }`
+## Files Modified
+- `src/hooks/useVehicleOpsStatus.ts` (added `not_set` ops status, fixed default)
+- `src/components/fleet/FleetFilters.tsx` (real DB statuses, hideRetired toggle)
+- `src/components/fleet/FleetVehicleCard.tsx` (truth-based status, retired UI, Rari indicator, Clock icon)
+- `src/components/fleet/FleetPageEnhanced.tsx` (retired filtering, ops_status null handling)
+- `src/components/charts/FleetStatusDonut.tsx` (retired exclusion)
+- `src/components/dashboard/widgets/FleetStatusWidget.tsx` (booking-aware counts, retired exclusion)
 
-The Canvas rendering function will live in `src/lib/imageCompression.ts` as `applyEdits(imageUrl, { cropArea, rotation, brightness, contrast, saturation }) → File` to keep it colocated with existing image utilities.
-
-## Integration Points (2 existing files)
-
-### `src/components/photos/VehiclePhotoManager.tsx`
-- **Hero photo dropdown** (line 297): Add "Edit / Crop" menu item → opens `PhotoEditorDialog` with `heroPhoto`
-- **PhotoThumbnail dropdown** (line 566): Add "Edit / Crop" menu item → opens `PhotoEditorDialog` with that photo
-- State: single `editingPhoto: VehiclePhoto | null`, dialog open when non-null
-
-### `src/components/photos/usePhotoAnalysis.ts`
-- Add `replacePhotoFile(photoId, newFile)` — uploads new file, updates the DB row's `url`/`storage_path`/`thumbnail_url`/`file_size_bytes`/`width`/`height`, deletes old storage path. Reuses existing `uploadToStorage` + `deletePhoto` internals.
-
-## Files Summary
-
-| Action | File |
-|--------|------|
-| New dep | `react-easy-crop` |
-| New | `src/components/photos/PhotoEditorDialog.tsx` |
-| Enhance | `src/lib/imageCompression.ts` — add `applyEdits()` |
-| Enhance | `src/components/photos/VehiclePhotoManager.tsx` — add Edit menu items |
-| Enhance | `src/components/photos/usePhotoAnalysis.ts` — add `replacePhotoFile()` |
-
-**4 files touched, 1 new file, 1 new dependency, 0 API calls, 0 cloud costs.**
-
+## No Database Migration Needed
+All changes are UI/logic corrections using existing DB columns and values.
