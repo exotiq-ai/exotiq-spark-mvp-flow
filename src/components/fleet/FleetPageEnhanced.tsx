@@ -147,6 +147,7 @@ export const FleetPageEnhanced = () => {
     opsStatus: [],
     sortBy: 'name',
     sortDesc: false,
+    hideRetired: true,
   });
 
   // Dialog state
