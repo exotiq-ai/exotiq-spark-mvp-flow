@@ -281,7 +281,7 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
         // Upload
         updateProgress(i, { status: 'uploading', progress: 25 });
         const folder = resolvedVehicleId ? `vehicles/${resolvedVehicleId}` : 'unmatched';
-        const { path, url, thumbnailUrl, compressedBytes } = await uploadToStorage(file, folder);
+        const { path, url, thumbnailUrl, compressedBytes, width, height } = await uploadToStorage(file, folder);
 
         // Default analysis
         let analysis: AIAnalysisResult = {
