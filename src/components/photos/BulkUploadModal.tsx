@@ -409,9 +409,9 @@ export const BulkUploadModal = ({
                               {MATCH_BADGES[item.matchResult].label}
                             </Badge>
                           )}
-                          {item.result?.analysis && (
+                          {item.result?.analysis && item.result.analysis.angle && item.result.analysis.angle !== 'unknown' && (
                             <Badge variant="secondary" className="text-xs">
-                              {item.result.analysis.angle?.replace('_', ' ')}
+                              {item.result.analysis.angle.replace('_', ' ')}
                             </Badge>
                           )}
                         </motion.div>
