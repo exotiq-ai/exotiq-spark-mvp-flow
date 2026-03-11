@@ -261,12 +261,7 @@ export const FleetPageEnhanced = () => {
 
   // Undo-toast delete handler
   const handleDeleteVehicle = useCallback((vehicle: any) => {
-    // Store the vehicle for potential undo
-    const vehicleBackup = vehicles.find(v => v.id === vehicle.id);
-    deletedVehicleRef.current = vehicleBackup;
-
     // Show undo toast via sonner
-    const { toast: sonnerToast } = await import('sonner');
     sonnerToast.success(`${vehicle.name} deleted`, {
       duration: 5000,
       action: {
@@ -277,11 +272,9 @@ export const FleetPageEnhanced = () => {
             clearTimeout(deleteTimeoutRef.current);
             deleteTimeoutRef.current = null;
           }
-          // Restore vehicle to local state
-          if (deletedVehicleRef.current) {
-            refreshData();
-            sonnerToast.success("Delete undone");
-          }
+          // Restore by refreshing data
+          refreshData();
+          sonnerToast.success("Delete undone");
           deletedVehicleRef.current = null;
         },
       },
@@ -293,7 +286,7 @@ export const FleetPageEnhanced = () => {
       deletedVehicleRef.current = null;
       deleteTimeoutRef.current = null;
     }, 5000);
-  }, [vehicles, deleteVehicle, refreshData]);
+  }, [deleteVehicle, refreshData]);
 
   const handleBatchDelete = async () => {
     if (selectedVehicleIds.size === 0) return;
