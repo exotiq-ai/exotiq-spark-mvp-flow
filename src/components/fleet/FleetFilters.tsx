@@ -113,6 +113,7 @@ export const FleetFilters = ({
       opsStatus: [],
       sortBy: 'name',
       sortDesc: false,
+      hideRetired: true,
     });
   };
 
