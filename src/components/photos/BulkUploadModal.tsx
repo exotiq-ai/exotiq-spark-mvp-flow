@@ -55,6 +55,7 @@ interface BulkUploadModalProps {
   vehicles: Vehicle[];
   preSelectedVehicleId?: string;
   onComplete?: (results: PhotoUploadProgress[]) => void;
+  onReviewQueue?: () => void;
 }
 
 const STATUS_ICONS: Record<string, React.ReactNode> = {
@@ -90,6 +91,7 @@ export const BulkUploadModal = ({
   vehicles,
   preSelectedVehicleId,
   onComplete,
+  onReviewQueue,
 }: BulkUploadModalProps) => {
   const [files, setFiles] = useState<File[]>([]);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>(preSelectedVehicleId || 'auto-detect');
@@ -407,9 +409,9 @@ export const BulkUploadModal = ({
                               {MATCH_BADGES[item.matchResult].label}
                             </Badge>
                           )}
-                          {item.result?.analysis && (
+                          {item.result?.analysis && item.result.analysis.angle && item.result.analysis.angle !== 'unknown' && (
                             <Badge variant="secondary" className="text-xs">
-                              {item.result.analysis.angle?.replace('_', ' ')}
+                              {item.result.analysis.angle.replace('_', ' ')}
                             </Badge>
                           )}
                         </motion.div>
@@ -440,7 +442,10 @@ export const BulkUploadModal = ({
           ) : isComplete ? (
             <>
               {unmatchedCount > 0 && (
-                <Button variant="outline" onClick={handleClose}>
+                <Button variant="outline" onClick={() => {
+                  onReviewQueue?.();
+                  handleClose();
+                }}>
                   Review Queue ({unmatchedCount})
                 </Button>
               )}
