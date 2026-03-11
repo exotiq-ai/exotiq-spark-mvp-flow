@@ -67,12 +67,14 @@ export const VehiclePhotoManager = ({
   compact = false,
 }: VehiclePhotoManagerProps) => {
   const { photos, loading, refetch } = useVehiclePhotos({ vehicleId, realtime: true });
-  const { setAsHero, deletePhoto, uploadAndAnalyze } = usePhotoAnalysis();
+  const { setAsHero, deletePhoto, uploadAndAnalyze, reorderPhotos } = usePhotoAnalysis();
   const { generateHeroWithToast, isGenerating } = useGenerateHeroImage();
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [replacePhotoId, setReplacePhotoId] = useState<string | null>(null);
   const replaceInputRef = useRef<HTMLInputElement>(null);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   // Find hero photo
   const heroPhoto = useMemo(() => 
