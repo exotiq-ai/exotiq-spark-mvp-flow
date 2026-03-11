@@ -35,6 +35,9 @@ export const AddVehicleDialog = ({ open, onOpenChange, onSubmit, onAddPhotos }: 
   const [currentRate, setCurrentRate] = useState("");
   const [status, setStatus] = useState<string>("available");
   const [locationId, setLocationId] = useState<string>("");
+  const [color, setColor] = useState("");
+  const [defaultMileageLimit, setDefaultMileageLimit] = useState("250");
+  const [mileageOverageRate, setMileageOverageRate] = useState("1.99");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [createdVehicle, setCreatedVehicle] = useState<{ id: string; name: string } | null>(null);
@@ -55,6 +58,9 @@ export const AddVehicleDialog = ({ open, onOpenChange, onSubmit, onAddPhotos }: 
     setCurrentRate("");
     setStatus("available");
     setLocationId("");
+    setColor("");
+    setDefaultMileageLimit("250");
+    setMileageOverageRate("1.99");
     setError(null);
     setCreatedVehicle(null);
     setGeneratingHero(false);
