@@ -657,27 +657,85 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [user?.id, currentTeam?.id, teamLoading, recordRealtimeEvent]);
 
-  // CRUD Operations with optimistic updates where appropriate
-  const applyPriceOptimization = async (vehicleId: string, newRate: number) => {
-    if (!user) return;
+  // Update vehicle with change logging
+  const updateVehicle = async (vehicleId: string, updates: Partial<Vehicle>, options?: { silent?: boolean; source?: string }): Promise<boolean> => {
+    if (!user) return false;
+
+    const currentVehicle = vehicles.find(v => v.id === vehicleId);
+    if (!currentVehicle) return false;
+
+    const teamId = currentTeam?.id;
+
+    // Simple status sync rules
+    const finalUpdates = { ...updates };
+    if (updates.status === 'maintenance' && !updates.ops_status) {
+      finalUpdates.ops_status = 'pending_inspection';
+    }
+    if (updates.status === 'available' && !currentVehicle.ops_status && !updates.ops_status) {
+      finalUpdates.ops_status = 'clean_ready';
+    }
+
+    // Diff and log changes
+    const changedFields: Array<{ field_name: string; old_value: string | null; new_value: string | null }> = [];
+    for (const [key, newVal] of Object.entries(finalUpdates)) {
+      const oldVal = (currentVehicle as any)[key];
+      if (String(oldVal ?? '') !== String(newVal ?? '')) {
+        changedFields.push({
+          field_name: key,
+          old_value: oldVal != null ? String(oldVal) : null,
+          new_value: newVal != null ? String(newVal) : null,
+        });
+      }
+    }
+
+    if (changedFields.length === 0) {
+      if (!options?.silent) {
+        toast({ title: "No Changes", description: "No fields were modified." });
+      }
+      return true;
+    }
 
     const { error } = await supabase
       .from('vehicles')
-      .update({ current_rate: newRate, suggested_rate: null })
-      .eq('id', vehicleId)
-      .eq('user_id', user.id);
+      .update(finalUpdates as any)
+      .eq('id', vehicleId);
 
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
-      return;
+      return false;
     }
 
-    // Real-time will handle the refresh
-    const vehicle = vehicles.find(v => v.id === vehicleId);
-    toast({
-      title: "Price Updated Successfully",
-      description: `${vehicle?.name} rate updated to $${newRate}/day`,
-    });
+    // Insert change log entries
+    if (teamId) {
+      const logEntries = changedFields.map(cf => ({
+        vehicle_id: vehicleId,
+        user_id: user.id,
+        team_id: teamId,
+        field_name: cf.field_name,
+        old_value: cf.old_value,
+        new_value: cf.new_value,
+        change_source: options?.source || 'manual',
+      }));
+
+      await supabase.from('vehicle_change_log' as any).insert(logEntries);
+    }
+
+    // Optimistic UI update
+    setVehicles(prev => prev.map(v => v.id === vehicleId ? { ...v, ...finalUpdates } as Vehicle : v));
+
+    if (!options?.silent) {
+      toast({
+        title: "Vehicle Updated",
+        description: `${currentVehicle.name} updated (${changedFields.length} field${changedFields.length !== 1 ? 's' : ''})`,
+      });
+    }
+
+    return true;
+  };
+
+  // CRUD Operations with optimistic updates where appropriate
+  const applyPriceOptimization = async (vehicleId: string, newRate: number) => {
+    await updateVehicle(vehicleId, { current_rate: newRate, suggested_rate: null }, { source: 'ai_pricing' });
   };
 
   const createVehicle = async (vehicle: Omit<Database['public']['Tables']['vehicles']['Insert'], 'user_id'>): Promise<{ id: string; name: string } | undefined> => {
