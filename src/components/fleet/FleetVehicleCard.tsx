@@ -320,45 +320,73 @@ export const FleetVehicleCard = ({
             </div>
 
             {/* Status Row */}
-            <div className="flex flex-wrap items-center gap-2 mt-2">
-              {/* Vehicle Status Badge - truth-based */}
-              <Badge 
-                variant="outline" 
-                className={cn('text-xs', statusDisplay.className)}
-              >
-                {statusDisplay.label}
-              </Badge>
-
-              {/* Ops Status - hide for retired */}
-              {!isRetired && (
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    'text-xs',
-                    statusConfig.bgColor,
-                    statusConfig.borderColor,
-                    statusConfig.color
+            <div className="flex flex-wrap items-center gap-1.5 mt-2">
+              {/* Ops Mode (mobile): Show single most relevant badge */}
+              {isOpsMode ? (
+                <>
+                  {!isRetired && opsStatus !== 'not_set' ? (
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        'text-xs',
+                        statusConfig.bgColor,
+                        statusConfig.borderColor,
+                        statusConfig.color
+                      )}
+                    >
+                      <StatusIcon className="h-3 w-3 mr-1" />
+                      {statusConfig.label}
+                    </Badge>
+                  ) : (
+                    <Badge 
+                      variant="outline" 
+                      className={cn('text-xs', statusDisplay.className)}
+                    >
+                      {statusDisplay.label}
+                    </Badge>
                   )}
-                >
-                  <StatusIcon className="h-3 w-3 mr-1" />
-                  {statusConfig.label}
-                </Badge>
-              )}
+                </>
+              ) : (
+                <>
+                  {/* Desktop: Show all badges */}
+                  <Badge 
+                    variant="outline" 
+                    className={cn('text-xs', statusDisplay.className)}
+                  >
+                    {statusDisplay.label}
+                  </Badge>
 
-              {/* Photo Count Badge - hide for retired */}
-              {!isRetired && photoCount !== undefined && (
-                <Badge 
-                  variant="outline" 
-                  className={cn(
-                    'text-xs gap-1',
-                    photoCount >= 8 && 'border-success/50 text-success',
-                    photoCount >= 4 && photoCount < 8 && 'border-amber-500/50 text-amber-600',
-                    photoCount < 4 && 'border-muted-foreground/30 text-muted-foreground'
+                  {!isRetired && (
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        'text-xs',
+                        statusConfig.bgColor,
+                        statusConfig.borderColor,
+                        statusConfig.color
+                      )}
+                    >
+                      <StatusIcon className="h-3 w-3 mr-1" />
+                      {statusConfig.label}
+                    </Badge>
                   )}
-                >
-                  <Camera className="h-3 w-3" />
-                  {photoCount}/11
-                </Badge>
+
+                  {/* Photo Count Badge - desktop only */}
+                  {!isRetired && photoCount !== undefined && (
+                    <Badge 
+                      variant="outline" 
+                      className={cn(
+                        'text-xs gap-1',
+                        photoCount >= 8 && 'border-success/50 text-success',
+                        photoCount >= 4 && photoCount < 8 && 'border-amber-500/50 text-amber-600',
+                        photoCount < 4 && 'border-muted-foreground/30 text-muted-foreground'
+                      )}
+                    >
+                      <Camera className="h-3 w-3" />
+                      {photoCount}/11
+                    </Badge>
+                  )}
+                </>
               )}
 
               {/* License Plate */}

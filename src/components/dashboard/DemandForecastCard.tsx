@@ -857,9 +857,9 @@ export const DemandForecastCard = ({ bookings = [] }: DemandForecastCardProps) =
               </div>
             )}
 
-            {/* High Impact Events Alert */}
+            {/* High Impact Events Alert - hidden on mobile to avoid repetition */}
             {highImpactEvents.length > 0 && (
-              <div className="p-4 rounded-lg border border-warning/30 bg-warning/5">
+              <div className="hidden md:block p-4 rounded-lg border border-warning/30 bg-warning/5">
                 <div className="flex items-center gap-2 mb-3">
                   <Zap className="h-5 w-5 text-warning" />
                   <span className="font-medium">High Impact Events ({highImpactEvents.length})</span>
