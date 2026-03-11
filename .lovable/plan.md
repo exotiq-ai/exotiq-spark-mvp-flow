@@ -1,95 +1,44 @@
 
-# Photo Hub v2 — Storage Optimization & Upload Performance
 
-## Status: ✅ Implemented
+# Fixing Bulk Upload UX Issues
 
-## What Was Built
+## Problems Identified
 
-### 1. Upload Presets & Thumbnail Generator ✅
-- **File:** `src/lib/imageCompression.ts`
-- Named presets: `hero` (2048px/90%), `display` (1600px/82%), `operational` (1200px/70%), `thumbnail` (400px/70%)
-- `generateThumbnail()` function using thumbnail preset
-- Existing `compressImage()` signature unchanged — backward compatible
+**1. "unknown" angle badge showing on every file**
 
-### 2. Unified Photo Upload Entry Point ✅
-- **File:** `src/lib/photoUpload.ts`
-- Single entry point for ALL upload surfaces
-- `preset` param (default: `operational`) and `bucket` param (default: `vehicle-photos`)
-- 1-year signed URLs for private bucket access
-- Automatic thumbnail generation and upload
-- File size limit raised to 10MB
-- `deleteVehiclePhoto()` deletes both main file and thumbnail
+In `BulkUploadModal.tsx` lines 410-414, when a file completes it renders `item.result.analysis.angle` as a badge. Since `skipAnalysis` defaults to `true`, the code in `usePhotoAnalysis.ts` (line 274) sets a fallback analysis with `angle: 'unknown'`. So every completed file shows an unhelpful "unknown" badge.
 
-### 3. Filename-Based Auto-Matching ✅
-- **File:** `src/lib/filenameVehicleMatcher.ts`
-- Deterministic scorer: make+model=high, make-only=medium, color boost
-- Strips camera prefixes (IMG, DSC), numeric suffixes
-- Extracts angle hints from filenames (front, rear, interior, etc.)
-- Feature-flagged via `filenameAutoMatch`
+**Fix:** Only show the angle badge when AI analysis actually ran and returned a meaningful angle (not `'unknown'`).
 
-### 4. Session Metrics Tracker ✅
-- **File:** `src/lib/uploadMetrics.ts`
-- In-memory tracker: original bytes, compressed bytes, duration, match result
-- `getSessionStats()`: compression ratio, auto-match rate, saved bytes
-- `formatBytes()` helper for UI display
+**2. "Review Queue" button just closes the modal — no navigation to review**
 
-### 5. Feature Flags ✅
-- **File:** `src/lib/featureFlags.ts`
-- 4 new flags: `filenameAutoMatch`, `uploadPresets`, `thumbnailGeneration`, `concurrentUploads`
+In `BulkUploadModal.tsx` line 443, the "Review Queue" button calls `handleClose()` which resets state and closes the dialog. It does NOT trigger the Photo Hub's `setShowReviewQueue(true)`. The parent `PhotoHubTab` has review queue toggling, but the modal has no callback to activate it.
 
-### 6. Concurrent Batch Processing ✅
-- **File:** `src/components/photos/usePhotoAnalysis.ts`
-- `processWithConcurrency()` pool (3 parallel uploads)
-- Thumbnail upload + `thumbnail_url` written to DB
-- Filename matcher integration: auto-assign on high confidence, suggest on medium
-- `deletePhoto()` deletes both main file and thumbnail
-- Metrics recorded per upload
+**Fix:** Add an `onReviewQueue` callback prop to `BulkUploadModal`. When "Review Queue" is clicked, call it before closing. In `PhotoHubTab`, pass a handler that sets `showReviewQueue = true`.
 
-### 7. Updated Progress Types ✅
-- **File:** `src/components/photos/types.ts`
-- New statuses: `preprocessing`, `matching`
-- `matchResult`: `auto-matched` | `suggested` | `unmatched` | `skipped`
-- `compressionStats`: `{ originalBytes, compressedBytes }`
+**3. Photo Hub stat numbers are confusing**
 
-### 8. Operational Surface Alignment ✅
-- **DamageReportDialog.tsx**: Routes through `uploadVehiclePhoto()` with `operational` preset and `damage-photos` bucket. **Fixed latent bug**: was using `getPublicUrl` on private bucket (would 403), now uses signed URLs.
-- **CheckInOutDialog.tsx**: Routes through `uploadVehiclePhoto()` with `operational` preset
-- **InspectionWidget.tsx**: Routes through `uploadVehiclePhoto()` with `operational` preset
+The screenshot shows "Total Photos: 24", "Vehicles with Photos: 2 (2 of 59)", "Hero Photos: 2 (57 missing)", "Pending Review: 0". The issues:
+- "57 missing" hero photos is alarming when user just uploaded 5 photos — it counts ALL vehicles without heroes, not just ones the user is actively working with.
+- "Pending Review: 0" is confusing when the upload just said there are photos to review — this is because the stat counter queries the DB which may not have refreshed yet, or the filename matcher routed everything to unmatched but the stat query hasn't caught up.
+- The stats don't refresh automatically after the bulk upload modal closes.
 
-### 9. Bulk Upload UI Updates ✅
-- **File:** `src/components/photos/BulkUploadModal.tsx`
-- Per-file match badges: "Auto-matched", "Suggested", "Review needed", "Assigned"
-- Session summary after completion: saved MB, compression ratio, auto-match count
-- New status labels for `preprocessing` and `matching` stages
-- Vehicles passed to `processBatch()` for filename matching
+**Fix:** Force a stats refetch when the upload modal closes. Reword "57 missing" to be less alarming — show as a subtle subtitle rather than a warning-styled count.
 
-### 10. Photo Hub Metrics Display ✅
-- **File:** `src/components/photos/PhotoHubTab.tsx`
-- Session metrics banner: saved bytes, compression ratio, auto-match count
-- Animated appearance after bulk upload
+---
 
-## Files Created
-- `src/lib/filenameVehicleMatcher.ts`
-- `src/lib/uploadMetrics.ts`
+## Changes (3 files)
 
-## Files Modified
-- `src/lib/imageCompression.ts` (presets + thumbnail generator)
-- `src/lib/photoUpload.ts` (unified entry point)
-- `src/lib/featureFlags.ts` (4 new flags)
-- `src/components/photos/types.ts` (new progress states)
-- `src/components/photos/usePhotoAnalysis.ts` (concurrency, thumbnails, matcher, metrics, delete lifecycle)
-- `src/components/photos/BulkUploadModal.tsx` (match badges, session summary)
-- `src/components/photos/PhotoHubTab.tsx` (session metrics display)
-- `src/components/dialogs/DamageReportDialog.tsx` (unified upload + signed URL fix)
-- `src/components/dialogs/CheckInOutDialog.tsx` (unified upload)
-- `src/components/inspections/InspectionWidget.tsx` (unified upload)
+### `src/components/photos/BulkUploadModal.tsx`
+- Hide the angle badge when `angle === 'unknown'` or when analysis wasn't actually run
+- Add `onReviewQueue?: () => void` prop
+- "Review Queue" button calls `onReviewQueue()` then `handleClose()` instead of just closing
 
-## No Database Migration Needed
-Existing columns `thumbnail_url`, `width`, `height`, `file_size_bytes` in `vehicle_photos` are now populated.
+### `src/components/photos/PhotoHubTab.tsx`
+- Pass `onReviewQueue={() => setShowReviewQueue(true)}` to `BulkUploadModal`
+- Force refetch stats/queue when upload modal closes (in the `onOpenChange` handler)
+- Soften "X missing" hero subtitle — change to "X of Y set" framing instead of deficit-focused language
 
-## What This Enables for Phase 2 (R2 Evaluation)
-Session metrics provide real data on:
-- Average compression ratio per context
-- Monthly storage growth rate
-- Auto-match success rate
-- Upload latency distribution
+### `src/components/photos/usePhotoAnalysis.ts`
+- No changes needed — the `angle: 'unknown'` default is fine for DB storage; the display filtering happens in the modal
+
