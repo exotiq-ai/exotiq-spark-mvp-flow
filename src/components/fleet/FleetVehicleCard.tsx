@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { PermissionGuard } from '@/components/common/PermissionGuard';
 import { VehicleThumbnail } from '@/components/common/VehicleThumbnail';
 import { 
   MoreHorizontal, 
