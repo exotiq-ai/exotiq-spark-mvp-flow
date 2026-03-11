@@ -5,6 +5,7 @@ import { useFleet } from '@/contexts/FleetContext';
 import { useToast } from '@/hooks/use-toast';
 
 export type OpsStatus = 
+  | 'not_set'
   | 'pending_inspection'
   | 'needs_wash'
   | 'washing'
@@ -25,6 +26,15 @@ export interface OpsStatusConfig {
 }
 
 export const OPS_STATUS_CONFIG: Record<OpsStatus, OpsStatusConfig> = {
+  not_set: {
+    label: 'Not Set',
+    color: 'text-muted-foreground',
+    bgColor: 'bg-muted/50',
+    borderColor: 'border-muted-foreground/30',
+    icon: 'CircleDashed',
+    description: 'Ops status has not been set',
+    nextStates: ['pending_inspection', 'clean_ready'],
+  },
   pending_inspection: {
     label: 'Pending Inspection',
     color: 'text-amber-600 dark:text-amber-400',
@@ -148,7 +158,7 @@ export const useVehicleOpsStatus = () => {
 
   const getStatusConfig = useCallback((status: OpsStatus | string | null): OpsStatusConfig => {
     if (!status || !(status in OPS_STATUS_CONFIG)) {
-      return OPS_STATUS_CONFIG.clean_ready;
+      return OPS_STATUS_CONFIG.not_set;
     }
     return OPS_STATUS_CONFIG[status as OpsStatus];
   }, []);

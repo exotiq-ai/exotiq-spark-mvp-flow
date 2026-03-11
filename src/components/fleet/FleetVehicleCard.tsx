@@ -6,11 +6,17 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { PermissionGuard } from '@/components/common/PermissionGuard';
 import { VehicleThumbnail } from '@/components/common/VehicleThumbnail';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+  TooltipProvider,
+} from '@/components/ui/tooltip';
 import { 
   MoreHorizontal, 
   DollarSign, 
   Calendar, 
-  Wrench,
+  Clock,
   Pencil,
   ClipboardCheck,
   Droplets,
@@ -23,6 +29,8 @@ import {
   ChevronRight,
   Camera,
   Trash2,
+  Sparkles,
+  CircleDashed,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -86,6 +94,7 @@ const OpsStatusIcon: Record<string, React.ComponentType<{ className?: string }>>
   Car,
   LogIn,
   Loader2,
+  CircleDashed,
 };
 
 export const FleetVehicleCard = ({
@@ -107,15 +116,28 @@ export const FleetVehicleCard = ({
 }: FleetVehicleCardProps) => {
   const [isHovered, setIsHovered] = useState(false);
   
-  const opsStatus = (vehicle.ops_status || 'clean_ready') as OpsStatus;
-  const statusConfig = OPS_STATUS_CONFIG[opsStatus] || OPS_STATUS_CONFIG.clean_ready;
-  const StatusIcon = OpsStatusIcon[statusConfig.icon] || CheckCircle2;
+  const isRetired = vehicle.status === 'retired';
+  const opsStatus = (vehicle.ops_status || 'not_set') as OpsStatus;
+  const statusConfig = OPS_STATUS_CONFIG[opsStatus] || OPS_STATUS_CONFIG.not_set;
+  const StatusIcon = OpsStatusIcon[statusConfig.icon] || CircleDashed;
 
-  // Booking status
-  const isRented = vehicle.status === 'rented' || activeBooking;
+  // Derive display status from real DB values
   const isInMaintenance = vehicle.status === 'maintenance';
+  const hasActiveBooking = !!activeBooking;
+  const isWithRenter = opsStatus === 'renter_has';
   
-  // Time since last update (remove "about" prefix for cleaner display)
+  // Determine the display status label and styling
+  const getStatusDisplay = () => {
+    if (isRetired) return { label: 'Retired', className: 'border-muted-foreground/50 bg-muted/50 text-muted-foreground' };
+    if (isWithRenter) return { label: 'With Renter', className: 'border-primary/50 bg-primary/10 text-primary' };
+    if (hasActiveBooking) return { label: 'Booked', className: 'border-primary/50 bg-primary/10 text-primary' };
+    if (isInMaintenance) return { label: 'Maintenance', className: 'border-amber-500/50 bg-amber-500/10 text-amber-600 dark:text-amber-400' };
+    return { label: 'Available', className: 'border-success/50 bg-success/10 text-success' };
+  };
+
+  const statusDisplay = getStatusDisplay();
+  
+  // Time since last update
   const lastUpdateText = vehicle.last_ops_update 
     ? formatDistanceToNow(new Date(vehicle.last_ops_update), { addSuffix: true }).replace('about ', '')
     : null;
@@ -125,14 +147,17 @@ export const FleetVehicleCard = ({
     ? formatDistanceToNow(new Date(nextBooking.start_date), { addSuffix: true })
     : null;
 
-  // Quick status actions for ops mode
-  const quickStatusActions = OPS_STATUS_CONFIG[opsStatus]?.nextStates || [];
+  // Quick status actions for ops mode (hide for retired)
+  const quickStatusActions = !isRetired ? (OPS_STATUS_CONFIG[opsStatus]?.nextStates || []) : [];
+
+  // Has Rari pricing suggestion
+  const hasRariSuggestion = !isRetired && vehicle.suggested_rate != null && vehicle.suggested_rate !== vehicle.current_rate;
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      whileHover={{ scale: isOpsMode ? 1 : 1.01 }}
+      whileHover={{ scale: isOpsMode || isRetired ? 1 : 1.01 }}
       onHoverStart={() => setIsHovered(true)}
       onHoverEnd={() => setIsHovered(false)}
     >
@@ -142,7 +167,8 @@ export const FleetVehicleCard = ({
           isOpsMode 
             ? 'p-3 touch-manipulation' 
             : 'p-4 hover:shadow-lg hover:border-primary/20',
-          isHovered && !isOpsMode && 'ring-1 ring-primary/20',
+          isHovered && !isOpsMode && !isRetired && 'ring-1 ring-primary/20',
+          isRetired && 'opacity-50 grayscale',
           className
         )}
       >
@@ -177,15 +203,17 @@ export const FleetVehicleCard = ({
               ) : undefined}
             />
             
-            {/* Ops Status Badge - positioned over thumbnail */}
-            <div className={cn(
-              'absolute -bottom-1 -right-1 rounded-full p-1',
-              statusConfig.bgColor,
-              statusConfig.borderColor,
-              'border'
-            )}>
-              <StatusIcon className={cn('h-3 w-3', statusConfig.color)} />
-            </div>
+            {/* Ops Status Badge - positioned over thumbnail (hide for retired) */}
+            {!isRetired && (
+              <div className={cn(
+                'absolute -bottom-1 -right-1 rounded-full p-1',
+                statusConfig.bgColor,
+                statusConfig.borderColor,
+                'border'
+              )}>
+                <StatusIcon className={cn('h-3 w-3', statusConfig.color)} />
+              </div>
+            )}
           </div>
 
           {/* Content */}
@@ -204,17 +232,40 @@ export const FleetVehicleCard = ({
               {/* Desktop: Price + Actions */}
               {!isOpsMode && (
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  <div className="text-right">
-                    <div className="text-lg font-bold text-foreground">
-                      ${vehicle.current_rate}
-                      <span className="text-xs font-normal text-muted-foreground">/day</span>
-                    </div>
-                    {vehicle.suggested_rate && vehicle.suggested_rate > vehicle.current_rate && (
-                      <div className="text-xs text-success">
-                        AI: ${vehicle.suggested_rate}
+                  {/* Pricing block - hide for retired */}
+                  {!isRetired && (
+                    <div className="text-right flex items-center gap-1.5">
+                      <div>
+                        <div className="text-lg font-bold text-foreground">
+                          ${vehicle.current_rate}
+                          <span className="text-xs font-normal text-muted-foreground">/day</span>
+                        </div>
                       </div>
-                    )}
-                  </div>
+                      {/* Rari insight indicator */}
+                      {hasRariSuggestion && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 text-primary hover:text-primary"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onEditPrice(vehicle);
+                                }}
+                              >
+                                <Sparkles className="h-3.5 w-3.5" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Rari has a pricing suggestion</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                    </div>
+                  )}
                   
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -231,14 +282,19 @@ export const FleetVehicleCard = ({
                           </DropdownMenuItem>
                         )}
                       </PermissionGuard>
-                      <DropdownMenuItem onClick={() => onEditPrice(vehicle)}>
-                        <DollarSign className="h-4 w-4 mr-2" />
-                        Edit Pricing
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => onCreateTask(vehicle)}>
-                        <ClipboardCheck className="h-4 w-4 mr-2" />
-                        Create Task
-                      </DropdownMenuItem>
+                      {/* Hide operational actions for retired vehicles */}
+                      {!isRetired && (
+                        <>
+                          <DropdownMenuItem onClick={() => onEditPrice(vehicle)}>
+                            <DollarSign className="h-4 w-4 mr-2" />
+                            Edit Pricing
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => onCreateTask(vehicle)}>
+                            <ClipboardCheck className="h-4 w-4 mr-2" />
+                            Create Task
+                          </DropdownMenuItem>
+                        </>
+                      )}
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={() => onViewDetails(vehicle)}>
                         View Details
@@ -265,35 +321,32 @@ export const FleetVehicleCard = ({
 
             {/* Status Row */}
             <div className="flex flex-wrap items-center gap-2 mt-2">
-              {/* Booking Status */}
+              {/* Vehicle Status Badge - truth-based */}
               <Badge 
                 variant="outline" 
-                className={cn(
-                  'text-xs capitalize',
-                  isRented && 'border-primary/50 bg-primary/10 text-primary',
-                  isInMaintenance && 'border-amber-500/50 bg-amber-500/10 text-amber-600 dark:text-amber-400',
-                  !isRented && !isInMaintenance && 'border-success/50 bg-success/10 text-success'
-                )}
+                className={cn('text-xs', statusDisplay.className)}
               >
-                {isRented ? 'Rented' : isInMaintenance ? 'Maintenance' : 'Available'}
+                {statusDisplay.label}
               </Badge>
 
-              {/* Ops Status */}
-              <Badge
-                variant="outline"
-                className={cn(
-                  'text-xs',
-                  statusConfig.bgColor,
-                  statusConfig.borderColor,
-                  statusConfig.color
-                )}
-              >
-                <StatusIcon className="h-3 w-3 mr-1" />
-                {statusConfig.label}
-              </Badge>
+              {/* Ops Status - hide for retired */}
+              {!isRetired && (
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    'text-xs',
+                    statusConfig.bgColor,
+                    statusConfig.borderColor,
+                    statusConfig.color
+                  )}
+                >
+                  <StatusIcon className="h-3 w-3 mr-1" />
+                  {statusConfig.label}
+                </Badge>
+              )}
 
-              {/* Photo Count Badge */}
-              {photoCount !== undefined && (
+              {/* Photo Count Badge - hide for retired */}
+              {!isRetired && photoCount !== undefined && (
                 <Badge 
                   variant="outline" 
                   className={cn(
@@ -316,8 +369,8 @@ export const FleetVehicleCard = ({
               )}
             </div>
 
-            {/* Info Row - Desktop Only - Fixed height for consistency */}
-            {!isOpsMode && (
+            {/* Info Row - Desktop Only */}
+            {!isOpsMode && !isRetired && (
               <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground h-4">
                 {activeBooking && (
                   <div className="flex items-center gap-1">
@@ -335,15 +388,15 @@ export const FleetVehicleCard = ({
                 )}
                 {lastUpdateText && (
                   <div className="flex items-center gap-1">
-                    <Wrench className="h-3 w-3" />
+                    <Clock className="h-3 w-3" />
                     <span>{lastUpdateText}</span>
                   </div>
                 )}
               </div>
             )}
 
-            {/* Ops Mode: Quick Actions */}
-            {isOpsMode && quickStatusActions.length > 0 && (
+            {/* Ops Mode: Quick Actions (hide for retired) */}
+            {isOpsMode && !isRetired && quickStatusActions.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-3">
                 {quickStatusActions.slice(0, 2).map((nextStatus) => {
                   const nextConfig = OPS_STATUS_CONFIG[nextStatus];

@@ -39,6 +39,7 @@ export interface FleetFiltersState {
   opsStatus: OpsStatus[];
   sortBy: SortOption;
   sortDesc: boolean;
+  hideRetired: boolean;
 }
 
 interface FleetFiltersProps {
@@ -53,9 +54,9 @@ interface FleetFiltersProps {
 
 const BOOKING_STATUS_OPTIONS = [
   { value: 'available', label: 'Available' },
-  { value: 'rented', label: 'Rented' },
+  { value: 'booked', label: 'Booked' },
   { value: 'maintenance', label: 'Maintenance' },
-  { value: 'unavailable', label: 'Unavailable' },
+  { value: 'retired', label: 'Retired' },
 ];
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
@@ -79,7 +80,8 @@ export const FleetFilters = ({
   const activeFilterCount = 
     filters.bookingStatus.length + 
     filters.opsStatus.length + 
-    (filters.search ? 1 : 0);
+    (filters.search ? 1 : 0) +
+    (!filters.hideRetired ? 1 : 0);
 
   const updateFilter = <K extends keyof FleetFiltersState>(
     key: K,
@@ -111,6 +113,7 @@ export const FleetFilters = ({
       opsStatus: [],
       sortBy: 'name',
       sortDesc: false,
+      hideRetired: true,
     });
   };
 
@@ -203,6 +206,17 @@ export const FleetFilters = ({
                       </label>
                     ))}
                   </div>
+                </div>
+
+                <Separator />
+
+                {/* Show Retired Toggle */}
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium text-foreground">Show retired vehicles</Label>
+                  <Checkbox
+                    checked={!filters.hideRetired}
+                    onCheckedChange={(checked) => updateFilter('hideRetired', !checked)}
+                  />
                 </div>
 
                 <Separator />

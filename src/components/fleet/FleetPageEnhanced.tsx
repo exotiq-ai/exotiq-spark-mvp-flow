@@ -147,6 +147,7 @@ export const FleetPageEnhanced = () => {
     opsStatus: [],
     sortBy: 'name',
     sortDesc: false,
+    hideRetired: true,
   });
 
   // Dialog state
@@ -161,6 +162,11 @@ export const FleetPageEnhanced = () => {
   // Filter and sort vehicles
   const filteredVehicles = useMemo(() => {
     let result = [...vehicles];
+
+    // Hide retired vehicles by default
+    if (filters.hideRetired) {
+      result = result.filter(v => v.status !== 'retired');
+    }
 
     if (filters.search) {
       const search = filters.search.toLowerCase();
@@ -177,7 +183,7 @@ export const FleetPageEnhanced = () => {
     }
 
     if (filters.opsStatus.length > 0) {
-      result = result.filter(v => filters.opsStatus.includes((v.ops_status || 'clean_ready') as OpsStatus));
+      result = result.filter(v => filters.opsStatus.includes((v.ops_status || 'not_set') as OpsStatus));
     }
 
     result.sort((a, b) => {

@@ -1,47 +1,59 @@
 
+# Fleet Management UI Truth Audit
 
-# Fleet Management UI Truth Audit — Final Plan
+## Status: ✅ Implemented
 
-## Summary
+## What Was Changed
 
-6 files modified, 0 new files, 0 migrations. All changes are UI/logic corrections — no schema changes needed.
+### 1. Ops Status: Neutral Default ✅
+- **File:** `src/hooks/useVehicleOpsStatus.ts`
+- Added `not_set` ops status with neutral gray styling (`CircleDashed` icon, "Not Set" label)
+- `getStatusConfig()` now returns `not_set` instead of `clean_ready` for null/unknown values
+- No more false "Clean & Ready" badges on vehicles that haven't been inspected
 
-## One Addition to Previous Plan
+### 2. Fleet Filters: Truth-Based Status Options ✅
+- **File:** `src/components/fleet/FleetFilters.tsx`
+- Replaced phantom "Rented" and "Unavailable" with real DB values: `available`, `booked`, `maintenance`, `retired`
+- Added `hideRetired` boolean to `FleetFiltersState` (default: `true`)
+- Added "Show retired vehicles" toggle in filter popover
+- Ops status filter now uses `not_set` instead of `clean_ready` for null values
 
-**FleetStatusWidget is worse than the donut.** Line 26 calculates utilization from `statusCounts["rented"]` — which is always 0 (no vehicle ever has `status = 'rented'`). Lines 31-34 also count "Rented", "Reserved", and "Unavailable" — all phantom statuses. This widget shows 0% utilization and zeros for 3 of 5 rows. It needs the same booking-aware logic the donut already has, plus retired handling.
+### 3. Fleet Vehicle Card: Truth-Based Display ✅
+- **File:** `src/components/fleet/FleetVehicleCard.tsx`
+- **Status badge truth:** Derives display from real DB status + ops_status:
+  - "With Renter" when `ops_status === 'renter_has'`
+  - "Booked" when there's an active booking
+  - "Maintenance", "Available", "Retired" from DB status
+  - Removed phantom "Rented" label
+- **Retired treatment:** `opacity-50 grayscale` on card, gray "Retired" badge, hides pricing/ops badge/ops actions/photo count, dropdown limited to Edit + View + Delete
+- **Null ops_status:** Shows neutral "Not Set" badge instead of false "Clean & Ready"
+- **AI suggestion:** Replaced raw "AI: $X" text with small `Sparkles` icon with tooltip "Rari has a pricing suggestion", clicking opens QuickPriceEditor. Shows when `suggested_rate` differs from `current_rate`
+- **Wrench → Clock:** Changed `last_ops_update` icon from `Wrench` to `Clock`
 
-The previous plan is solid. No cuts needed.
+### 4. Fleet Page: Retired Filtering ✅
+- **File:** `src/components/fleet/FleetPageEnhanced.tsx`
+- Applies `hideRetired` filter: retired vehicles excluded by default
+- Ops status filter uses `not_set` for null values
 
----
+### 5. Fleet Status Donut: Retired Exclusion ✅
+- **File:** `src/components/charts/FleetStatusDonut.tsx`
+- Filters out retired vehicles before calculating segments
+- Available = activeVehicles - booked - maintenance (retired already excluded)
 
-## Build Order
+### 6. Fleet Status Widget: Booking-Aware Counts ✅
+- **File:** `src/components/dashboard/widgets/FleetStatusWidget.tsx`
+- Replaced phantom "Rented"/"Reserved"/"Unavailable" status items with booking-aware calculation
+- Uses active bookings spanning today to derive "Booked" count (same logic as donut)
+- Utilization % excludes retired from denominator
+- Status items: Available, Booked, Maintenance, Retired (shown separately)
 
-### 1. `src/hooks/useVehicleOpsStatus.ts`
-- Add `not_set` entry to `OPS_STATUS_CONFIG` — neutral gray, label "Not Set", no next states
-- `getStatusConfig` returns `not_set` config when status is null instead of `clean_ready`
+## Files Modified
+- `src/hooks/useVehicleOpsStatus.ts` (added `not_set` ops status, fixed default)
+- `src/components/fleet/FleetFilters.tsx` (real DB statuses, hideRetired toggle)
+- `src/components/fleet/FleetVehicleCard.tsx` (truth-based status, retired UI, Rari indicator, Clock icon)
+- `src/components/fleet/FleetPageEnhanced.tsx` (retired filtering, ops_status null handling)
+- `src/components/charts/FleetStatusDonut.tsx` (retired exclusion)
+- `src/components/dashboard/widgets/FleetStatusWidget.tsx` (booking-aware counts, retired exclusion)
 
-### 2. `src/components/fleet/FleetFilters.tsx`
-- Replace `BOOKING_STATUS_OPTIONS` with: `available`, `booked`, `maintenance`, `retired`
-- Add `hideRetired: boolean` to `FleetFiltersState` (default `true`)
-- Add toggle in filter popover: "Show retired vehicles"
-
-### 3. `src/components/fleet/FleetVehicleCard.tsx`
-- **Status badge truth:** Replace phantom `isRented` logic. Derive from: `vehicle.status` for DB state (`available`/`booked`/`maintenance`/`retired`), show "With Renter" only when `ops_status === 'renter_has'`
-- **Retired treatment:** When `status === 'retired'`: add `opacity-50 grayscale` to card, show gray "Retired" badge, hide pricing block, hide ops status badge, hide ops quick actions, limit dropdown to Edit + Delete only
-- **Null ops_status:** Use `not_set` config instead of false `clean_ready` default
-- **AI suggestion:** Replace raw "AI: $X" text with small sparkle icon (Sparkles from lucide). Tooltip: "Rari has a pricing suggestion". Clicking opens QuickPriceEditor. Only show when `suggested_rate` exists and differs from `current_rate`
-- **Wrench icon:** Change to `Clock` icon for `last_ops_update` timestamp
-
-### 4. `src/components/fleet/FleetPageEnhanced.tsx`
-- Apply `hideRetired` filter: when true, exclude `status === 'retired'` from `filteredVehicles`
-- Fix ops_status filter default: use `not_set` instead of `clean_ready` for null values
-
-### 5. `src/components/charts/FleetStatusDonut.tsx`
-- Filter out `retired` vehicles before calculating segments
-- Available = total - booked - maintenance (retired already excluded)
-
-### 6. `src/components/dashboard/widgets/FleetStatusWidget.tsx`
-- Replace phantom status list with booking-aware calculation (same logic as donut: use active bookings to derive "booked" count)
-- Filter out retired from total and utilization denominator
-- Status items: Available, Booked (from bookings), Maintenance, Retired (shown separately as info, not in utilization %)
-
+## No Database Migration Needed
+All changes are UI/logic corrections using existing DB columns and values.

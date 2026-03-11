@@ -20,6 +20,9 @@ export const FleetStatusDonut = () => {
   const isMobile = useIsMobile();
 
   const segments: DonutSegment[] = useMemo(() => {
+    // Exclude retired vehicles from operational counts
+    const activeVehicles = vehicles.filter(v => v.status !== 'retired');
+    
     // Calculate booked vehicles dynamically from active bookings
     const today = new Date();
     const todayStart = new Date(today);
@@ -39,8 +42,8 @@ export const FleetStatusDonut = () => {
     );
 
     const booked = bookedVehicleIds.size;
-    const maintenance = vehicles.filter(v => v.status === 'maintenance').length;
-    const available = Math.max(0, vehicles.length - booked - maintenance);
+    const maintenance = activeVehicles.filter(v => v.status === 'maintenance').length;
+    const available = Math.max(0, activeVehicles.length - booked - maintenance);
 
     return [
       { label: 'Available', value: available, color: 'hsl(var(--success))', colorVar: '--success', route: '/fleet?status=available' },
