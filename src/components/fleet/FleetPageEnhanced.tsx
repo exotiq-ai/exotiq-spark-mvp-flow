@@ -55,16 +55,9 @@ interface TeamMember {
   };
 }
 
-interface DeleteConfirmState {
-  open: boolean;
-  vehicleId?: string;
-  vehicleName?: string;
-  isBatch?: boolean;
-}
-
 export const FleetPageEnhanced = () => {
   const isMobile = useIsMobile();
-  const { vehicles, bookings, loading, applyPriceOptimization, refreshData, createVehicle, deleteVehicle, deleteVehicles } = useLocationFilteredFleet();
+  const { vehicles, bookings, loading, applyPriceOptimization, updateVehicle, refreshData, createVehicle, deleteVehicle, deleteVehicles } = useLocationFilteredFleet();
   const { tasks, myTasks, unassignedTasks, createTask, updateTaskStatus, claimTask } = useFleetTasks();
   const { updateOpsStatus } = useVehicleOpsStatus();
   const { photoCountByVehicle } = useVehiclePhotos({ realtime: false });
@@ -73,8 +66,11 @@ export const FleetPageEnhanced = () => {
 
   // Selection state for batch operations
   const [selectedVehicleIds, setSelectedVehicleIds] = useState<Set<string>>(new Set());
-  const [deleteConfirm, setDeleteConfirm] = useState<DeleteConfirmState>({ open: false });
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Undo-toast delete refs
+  const deleteTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const deletedVehicleRef = useRef<any>(null);
 
   // Fetch team members
   useEffect(() => {
