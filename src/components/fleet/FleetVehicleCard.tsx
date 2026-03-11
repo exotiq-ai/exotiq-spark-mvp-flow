@@ -165,7 +165,7 @@ export const FleetVehicleCard = ({
         className={cn(
           'overflow-hidden transition-all duration-200',
           isOpsMode 
-            ? 'p-3 touch-manipulation' 
+            ? 'p-4 touch-manipulation' 
             : 'p-4 hover:shadow-lg hover:border-primary/20',
           isHovered && !isOpsMode && !isRetired && 'ring-1 ring-primary/20',
           isRetired && 'opacity-50 grayscale',
