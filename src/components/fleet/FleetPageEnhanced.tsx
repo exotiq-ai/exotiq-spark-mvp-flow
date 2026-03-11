@@ -258,36 +258,50 @@ export const FleetPageEnhanced = () => {
     }
   };
 
-  // Delete handlers
-  const handleDeleteVehicle = (vehicle: any) => {
-    setDeleteConfirm({
-      open: true,
-      vehicleId: vehicle.id,
-      vehicleName: vehicle.name,
-      isBatch: false,
-    });
-  };
+  // Undo-toast delete handler
+  const handleDeleteVehicle = useCallback((vehicle: any) => {
+    // Store the vehicle for potential undo
+    const vehicleBackup = vehicles.find(v => v.id === vehicle.id);
+    deletedVehicleRef.current = vehicleBackup;
 
-  const handleBatchDelete = () => {
+    // Show undo toast via sonner
+    const { toast: sonnerToast } = await import('sonner');
+    sonnerToast.success(`${vehicle.name} deleted`, {
+      duration: 5000,
+      action: {
+        label: "Undo",
+        onClick: () => {
+          // Cancel the pending delete
+          if (deleteTimeoutRef.current) {
+            clearTimeout(deleteTimeoutRef.current);
+            deleteTimeoutRef.current = null;
+          }
+          // Restore vehicle to local state
+          if (deletedVehicleRef.current) {
+            refreshData();
+            sonnerToast.success("Delete undone");
+          }
+          deletedVehicleRef.current = null;
+        },
+      },
+    });
+
+    // Schedule actual deletion after 5 seconds
+    deleteTimeoutRef.current = setTimeout(async () => {
+      await deleteVehicle(vehicle.id, { silent: true });
+      deletedVehicleRef.current = null;
+      deleteTimeoutRef.current = null;
+    }, 5000);
+  }, [vehicles, deleteVehicle, refreshData]);
+
+  const handleBatchDelete = async () => {
     if (selectedVehicleIds.size === 0) return;
-    setDeleteConfirm({
-      open: true,
-      isBatch: true,
-    });
-  };
-
-  const confirmDelete = async () => {
     setIsDeleting(true);
     try {
-      if (deleteConfirm.isBatch) {
-        await deleteVehicles(Array.from(selectedVehicleIds));
-        setSelectedVehicleIds(new Set());
-      } else if (deleteConfirm.vehicleId) {
-        await deleteVehicle(deleteConfirm.vehicleId);
-      }
+      await deleteVehicles(Array.from(selectedVehicleIds));
+      setSelectedVehicleIds(new Set());
     } finally {
       setIsDeleting(false);
-      setDeleteConfirm({ open: false });
     }
   };
 
