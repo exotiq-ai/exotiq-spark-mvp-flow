@@ -163,7 +163,7 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
     if (!user) throw new Error('User not authenticated');
 
     const folder = vehicleId ? `vehicles/${vehicleId}` : 'unmatched';
-    const { path, url, thumbnailUrl, compressedBytes } = await uploadToStorage(file, folder);
+    const { path, url, thumbnailUrl, compressedBytes, width, height } = await uploadToStorage(file, folder);
 
     const analysis = await analyzePhoto(url, file.name);
 
