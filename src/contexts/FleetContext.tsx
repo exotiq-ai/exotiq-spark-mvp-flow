@@ -1391,6 +1391,7 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       isRefreshing,
       error,
       applyPriceOptimization,
+      updateVehicle,
       createVehicle,
       deleteVehicle,
       deleteVehicles,
