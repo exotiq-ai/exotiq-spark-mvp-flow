@@ -17,6 +17,7 @@ import {
   MoreVertical,
   Sparkles,
   RefreshCw,
+  Pencil,
 } from 'lucide-react';
 import {
   DropdownMenu,
