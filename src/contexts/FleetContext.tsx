@@ -93,7 +93,7 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
   const hasInitializedForUserRef = useRef<string | null>(null);
   const lastTeamIdRef = useRef<string | null>(null);
   
-  const [revenue, setRevenue] = useState({ today: 0, month: 0, change: 0 });
+  const [revenue, setRevenue] = useState<{ today: number; month: number; change: number | null }>({ today: 0, month: 0, change: null });
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
