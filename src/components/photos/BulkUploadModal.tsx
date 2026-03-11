@@ -32,6 +32,7 @@ import {
   Link,
   HelpCircle,
   TrendingDown,
+  Crop,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
@@ -39,6 +40,7 @@ import { usePhotoAnalysis } from './usePhotoAnalysis';
 import { toast } from 'sonner';
 import type { PhotoUploadProgress } from './types';
 import { uploadMetrics, formatBytes } from '@/lib/uploadMetrics';
+import { PhotoEditorDialog } from './PhotoEditorDialog';
 
 interface Vehicle {
   id: string;
