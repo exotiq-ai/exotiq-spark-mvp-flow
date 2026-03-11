@@ -467,6 +467,7 @@ export const FleetPageEnhanced = () => {
                     taskCount={taskCountMap[vehicle.id] || 0}
                     photoCount={photoCountByVehicle[vehicle.id]}
                     onEditPrice={(v) => setPriceEditVehicle(v)}
+                    onEdit={(v) => setEditVehicle(v)}
                     onCreateTask={(v) => setTaskVehicle(v)}
                     onViewDetails={(v) => setDetailsVehicle(v)}
                     onStatusChange={handleStatusChange}
