@@ -1,60 +1,59 @@
 
+# Fleet Management UI Truth Audit
 
-# Photo Hub Matching — Deep Dive & Fix Plan
+## Status: ✅ Implemented
 
-## What's Actually Happening (Root Cause Analysis)
+## What Was Changed
 
-I traced your exact filename `Chevrolet_Corvette_Z06_Yellow.jpg` through the matcher. Here's why it fails:
+### 1. Ops Status: Neutral Default ✅
+- **File:** `src/hooks/useVehicleOpsStatus.ts`
+- Added `not_set` ops status with neutral gray styling (`CircleDashed` icon, "Not Set" label)
+- `getStatusConfig()` now returns `not_set` instead of `clean_ready` for null/unknown values
+- No more false "Clean & Ready" badges on vehicles that haven't been inspected
 
-### Bug 1: Model substring matching causes ties
-The scorer checks `model.includes(token)` — meaning the token "corvette" matches BOTH `Corvette Z06` AND `Corvette Stingray`. Your Z06 Yellow file scores **12** against the Z06 Yellow vehicle, but ALSO **12** against the Stingray Yellow vehicle (same make + "corvette" substring + same color). With a gap of 0, confidence drops below "high" and it goes to the unmatched queue.
+### 2. Fleet Filters: Truth-Based Status Options ✅
+- **File:** `src/components/fleet/FleetFilters.tsx`
+- Replaced phantom "Rented" and "Unavailable" with real DB values: `available`, `booked`, `maintenance`, `retired`
+- Added `hideRetired` boolean to `FleetFiltersState` (default: `true`)
+- Added "Show retired vehicles" toggle in filter popover
+- Ops status filter now uses `not_set` instead of `clean_ready` for null values
 
-The same issue hits every Lamborghini Huracan upload — "huracan" matches Huracan, Huracan EVO, and Huracan STO equally.
+### 3. Fleet Vehicle Card: Truth-Based Display ✅
+- **File:** `src/components/fleet/FleetVehicleCard.tsx`
+- **Status badge truth:** Derives display from real DB status + ops_status:
+  - "With Renter" when `ops_status === 'renter_has'`
+  - "Booked" when there's an active booking
+  - "Maintenance", "Available", "Retired" from DB status
+  - Removed phantom "Rented" label
+- **Retired treatment:** `opacity-50 grayscale` on card, gray "Retired" badge, hides pricing/ops badge/ops actions/photo count, dropdown limited to Edit + View + Delete
+- **Null ops_status:** Shows neutral "Not Set" badge instead of false "Clean & Ready"
+- **AI suggestion:** Replaced raw "AI: $X" text with small `Sparkles` icon with tooltip "Rari has a pricing suggestion", clicking opens QuickPriceEditor. Shows when `suggested_rate` differs from `current_rate`
+- **Wrench → Clock:** Changed `last_ops_update` icon from `Wrench` to `Clock`
 
-### Bug 2: Hyphenated makes are broken
-`Rolls-Royce` and `Mercedes-Benz` never match. The normalizer splits `Rolls-Royce_Cullinan_Blue.jpg` into tokens `['rolls', 'royce', 'cullinan', 'blue']`. But then `tokens.includes('rolls-royce')` returns false because the hyphen was already split. Same for `Mercedes-Benz` → tokens `['mercedes', 'benz']` vs make `mercedes-benz`. **Zero Rolls-Royce or Mercedes files can ever auto-match.**
+### 4. Fleet Page: Retired Filtering ✅
+- **File:** `src/components/fleet/FleetPageEnhanced.tsx`
+- Applies `hideRetired` filter: retired vehicles excluded by default
+- Ops status filter uses `not_set` for null values
 
-### Bug 3: Color isn't weighted enough for disambiguation
-When you have 3 Yellow Corvettes but only 1 is a Z06 Yellow, color alone (+2 points) can't break the tie created by the model substring bug.
+### 5. Fleet Status Donut: Retired Exclusion ✅
+- **File:** `src/components/charts/FleetStatusDonut.tsx`
+- Filters out retired vehicles before calculating segments
+- Available = activeVehicles - booked - maintenance (retired already excluded)
 
-### Is the AI actually scanning photos?
-**Yes, it genuinely calls Gemini 2.5 Flash** with the image. The `identify-vehicle` edge function sends the photo to the AI and gets back make, model, color, angle, quality score. However, the AI results (`suggested_make`, `suggested_color`) are only stored in the `unmatched_photos` row — they're **never used to improve the filename match**. The two systems (filename matcher + AI vision) run independently and don't cross-reference.
+### 6. Fleet Status Widget: Booking-Aware Counts ✅
+- **File:** `src/components/dashboard/widgets/FleetStatusWidget.tsx`
+- Replaced phantom "Rented"/"Reserved"/"Unavailable" status items with booking-aware calculation
+- Uses active bookings spanning today to derive "Booked" count (same logic as donut)
+- Utilization % excludes retired from denominator
+- Status items: Available, Booked, Maintenance, Retired (shown separately)
 
----
+## Files Modified
+- `src/hooks/useVehicleOpsStatus.ts` (added `not_set` ops status, fixed default)
+- `src/components/fleet/FleetFilters.tsx` (real DB statuses, hideRetired toggle)
+- `src/components/fleet/FleetVehicleCard.tsx` (truth-based status, retired UI, Rari indicator, Clock icon)
+- `src/components/fleet/FleetPageEnhanced.tsx` (retired filtering, ops_status null handling)
+- `src/components/charts/FleetStatusDonut.tsx` (retired exclusion)
+- `src/components/dashboard/widgets/FleetStatusWidget.tsx` (booking-aware counts, retired exclusion)
 
-## Fix Plan (2 files)
-
-### 1. Rewrite `scoreVehicle` in `src/lib/filenameVehicleMatcher.ts`
-
-**Hyphenated makes:** Before checking `tokens.includes(make)`, also try joining adjacent tokens with a hyphen. `['rolls', 'royce']` → try `'rolls-royce'` → matches make `rolls-royce`. Same fix for `aston martin` (space-separated makes): try joining adjacent tokens with space.
-
-**Full model matching:** Instead of `model.includes(token)` (partial), split the model into words and count how many model words appear in the filename tokens. Score proportionally: `Corvette Z06` has 2 words, if both match → full score (10). If only "corvette" matches (1/2) → half score (5). This way `Corvette Z06` beats `Corvette Stingray` when the filename contains "z06".
-
-**Color as tiebreaker:** Increase color weight from +2 to +3, enough to break ties between same make/model vehicles of different colors.
-
-### 2. Show filename prominently in Review Queue — `src/components/photos/PhotoReviewQueue.tsx`
-
-In single-photo mode (line ~392, AI Analysis section), add the original filename as a visible label above the AI analysis. Something like:
-```
-📄 Chevrolet_Corvette_Z06_Yellow.jpg
-```
-This removes guesswork for operators who don't know every car but can read the filename.
-
-In batch mode (the grid cards, line ~640), show the filename below each thumbnail.
-
-### 3. Cross-reference AI + filename in `usePhotoAnalysis.ts` (processBatch)
-
-After AI analysis returns `suggested_make` / `suggested_color`, if the filename matcher returned `confidence: 'medium'`, check if the AI's detected make matches the filename-suggested vehicle's make. If they agree, upgrade to `'high'` confidence and auto-match. This combines both signals for stronger matching without extra API calls.
-
----
-
-## Summary
-
-| Fix | File | Impact |
-|-----|------|--------|
-| Fix hyphenated makes + full model matching + color weight | `filenameVehicleMatcher.ts` | Fixes Rolls-Royce, Mercedes-Benz, Corvette Z06 vs Stingray, Huracan vs EVO |
-| Show filename in review queue | `PhotoReviewQueue.tsx` | Removes guesswork for manual matching |
-| AI + filename cross-reference | `usePhotoAnalysis.ts` | Upgrades medium→high when both signals agree |
-
-3 files, focused logic changes. No new dependencies, no API costs.
-
+## No Database Migration Needed
+All changes are UI/logic corrections using existing DB columns and values.

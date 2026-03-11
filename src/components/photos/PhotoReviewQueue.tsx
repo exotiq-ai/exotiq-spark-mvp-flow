@@ -389,6 +389,15 @@ export const PhotoReviewQueue = ({ vehicles }: PhotoReviewQueueProps) => {
               </Badge>
             </div>
 
+            {/* Filename */}
+            {currentPhoto.original_filename && (
+              <div className="px-4 py-2 border-t bg-muted/20">
+                <p className="text-xs text-muted-foreground truncate" title={currentPhoto.original_filename}>
+                  📄 {currentPhoto.original_filename}
+                </p>
+              </div>
+            )}
+
             {/* AI Analysis Info */}
             {currentPhoto.ai_analysis && (
               <div className="p-4 border-t bg-muted/30">
@@ -675,6 +684,11 @@ export const PhotoReviewQueue = ({ vehicles }: PhotoReviewQueueProps) => {
 
                       {/* Info Overlay */}
                       <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-2">
+                        {photo.original_filename && (
+                          <p className="text-white/80 text-[10px] truncate mb-0.5" title={photo.original_filename}>
+                            📄 {photo.original_filename}
+                          </p>
+                        )}
                         <p className="text-white text-xs truncate">
                           {photo.suggested_make || 'Unknown vehicle'}
                         </p>

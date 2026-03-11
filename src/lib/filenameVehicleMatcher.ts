@@ -47,6 +47,18 @@ const ANGLE_KEYWORDS: Record<string, string> = {
   quarter: 'front_quarter',
 };
 
+// Multi-word makes that get split by normalizer
+const MULTI_WORD_MAKES = [
+  'rolls-royce',
+  'rolls royce',
+  'mercedes-benz',
+  'mercedes benz',
+  'aston martin',
+  'land rover',
+  'alfa romeo',
+  'de tomaso',
+];
+
 /**
  * Normalize a filename for matching:
  * - Strip extension
@@ -85,8 +97,34 @@ function extractAngleHint(tokens: string[]): string | undefined {
 }
 
 /**
+ * Check if a multi-word make is present by joining adjacent tokens.
+ */
+function findMultiWordMake(tokens: string[], make: string): boolean {
+  const makeParts = make.replace('-', ' ').split(/\s+/);
+  if (makeParts.length < 2) return false;
+
+  for (let i = 0; i <= tokens.length - makeParts.length; i++) {
+    let allMatch = true;
+    for (let j = 0; j < makeParts.length; j++) {
+      if (tokens[i + j] !== makeParts[j]) {
+        allMatch = false;
+        break;
+      }
+    }
+    if (allMatch) return true;
+  }
+  return false;
+}
+
+/**
  * Score a filename against a single vehicle.
  * Returns a numeric score (0 = no match).
+ *
+ * Scoring:
+ *  - Make match: +5
+ *  - Model match: proportional to model words matched (up to +10)
+ *  - Color match: +3
+ *  - Year match: +1
  */
 function scoreVehicle(tokens: string[], vehicle: MatchableVehicle): number {
   let score = 0;
@@ -94,20 +132,38 @@ function scoreVehicle(tokens: string[], vehicle: MatchableVehicle): number {
   const model = vehicle.model?.toLowerCase();
   const color = vehicle.color?.toLowerCase();
 
-  const hasMake = make && tokens.includes(make);
-  const hasModel = model && tokens.some(t => model.includes(t) || t.includes(model));
-  const hasColor = color && tokens.includes(color);
-
-  if (hasMake && hasModel) {
-    score += 10; // Strong match
-  } else if (hasMake) {
-    score += 4; // Make-only
-  } else if (hasModel) {
-    score += 3; // Model-only (could be ambiguous)
+  // --- Make matching (handles hyphenated & multi-word) ---
+  let hasMake = false;
+  if (make) {
+    if (tokens.includes(make)) {
+      hasMake = true;
+    } else if (MULTI_WORD_MAKES.some(m => m.replace('-', ' ').replace(/\s+/g, ' ') === make.replace('-', ' '))) {
+      hasMake = findMultiWordMake(tokens, make);
+    }
   }
 
-  if (hasColor) {
-    score += 2; // Color boosts confidence
+  // --- Model matching (proportional word coverage) ---
+  let modelScore = 0;
+  if (model) {
+    const modelWords = model.split(/\s+/).filter(w => w.length > 0);
+    const matchedWords = modelWords.filter(mw => tokens.includes(mw));
+    if (modelWords.length > 0 && matchedWords.length > 0) {
+      // Proportional: all words = 10, partial = proportional
+      modelScore = Math.round((matchedWords.length / modelWords.length) * 10);
+    }
+  }
+
+  if (hasMake && modelScore > 0) {
+    score += 5 + modelScore; // Make (5) + proportional model (up to 10) = up to 15
+  } else if (hasMake) {
+    score += 5; // Make-only
+  } else if (modelScore > 0) {
+    score += Math.max(modelScore - 2, 1); // Model-only, slightly discounted
+  }
+
+  // Color match (strong tiebreaker)
+  if (color && tokens.includes(color)) {
+    score += 3;
   }
 
   // Year match
@@ -120,7 +176,7 @@ function scoreVehicle(tokens: string[], vehicle: MatchableVehicle): number {
 
 /**
  * Match a filename to the best vehicle in the fleet.
- * 
+ *
  * @param filename - Original filename (e.g., 'Ferrari_F8_front_1.jpg')
  * @param vehicles - Fleet inventory to match against
  * @returns Match result with confidence level
@@ -169,8 +225,10 @@ export function matchFilenameToVehicle(
   const gap = bestScore - secondBestScore;
   let confidence: MatchConfidence;
 
-  if (bestScore >= 10 && gap >= 4) {
-    confidence = 'high'; // Make+model match, clearly ahead
+  if (bestScore >= 12 && gap >= 3) {
+    confidence = 'high'; // Make+full model+color, clearly ahead
+  } else if (bestScore >= 8 && gap >= 2) {
+    confidence = 'high'; // Make+model match with reasonable gap
   } else if (bestScore >= 6) {
     confidence = 'medium'; // Good match but could be ambiguous
   } else if (bestScore >= 3) {
