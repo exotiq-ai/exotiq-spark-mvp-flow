@@ -1300,7 +1300,7 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
   };
 
   // Delete a single vehicle
-  const deleteVehicle = async (vehicleId: string): Promise<boolean> => {
+  const deleteVehicle = async (vehicleId: string, options?: { silent?: boolean }): Promise<boolean> => {
     if (!user) return false;
 
     const vehicle = vehicles.find(v => v.id === vehicleId);
@@ -1323,10 +1323,12 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     // Optimistically remove from local state
     setVehicles(prev => prev.filter(v => v.id !== vehicleId));
     
-    toast({ 
-      title: "Vehicle Deleted", 
-      description: vehicle ? `${vehicle.name} has been removed from your fleet.` : "Vehicle has been removed." 
-    });
+    if (!options?.silent) {
+      toast({ 
+        title: "Vehicle Deleted", 
+        description: vehicle ? `${vehicle.name} has been removed from your fleet.` : "Vehicle has been removed." 
+      });
+    }
     
     return true;
   };
