@@ -298,8 +298,10 @@ export const VehiclePhotoManager = ({
                   <DropdownMenuItem
                     className="text-destructive focus:text-destructive"
                     onClick={async () => {
-                      if (heroPhoto?.id) {
+                       if (heroPhoto?.id) {
                         await deletePhoto(heroPhoto.id);
+                        await refetch();
+                        toast.success('Hero photo deleted');
                       }
                     }}
                   >
