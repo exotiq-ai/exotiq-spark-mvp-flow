@@ -176,6 +176,14 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
         return 'exterior';
       };
 
+      // Auto-hero: if this is the first photo for this vehicle, make it the hero
+      const { count: existingCount } = await supabase
+        .from('vehicle_photos')
+        .select('id', { count: 'exact', head: true })
+        .eq('vehicle_id', vehicleId);
+
+      const photoType = (existingCount === 0 || existingCount === null) ? 'hero' : getPhotoType(analysis.angle);
+
       const { data: photoData, error: insertError } = await supabase
         .from('vehicle_photos')
         .insert({
@@ -185,7 +193,7 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
           storage_path: path,
           url: url,
           thumbnail_url: thumbnailUrl || null,
-          photo_type: getPhotoType(analysis.angle),
+          photo_type: photoType,
           detected_angle: analysis.angle,
           ai_analysis: analysis as unknown as Json,
           is_vehicle_confirmed: analysis.isVehicle,

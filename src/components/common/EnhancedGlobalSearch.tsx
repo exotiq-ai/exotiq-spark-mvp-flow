@@ -179,7 +179,8 @@ export const EnhancedGlobalSearch = () => {
       .filter(v => 
         v.make.toLowerCase().includes(query) ||
         v.model.toLowerCase().includes(query) ||
-        v.license_plate?.toLowerCase().includes(query)
+        v.license_plate?.toLowerCase().includes(query) ||
+        (v as any).name?.toLowerCase().includes(query)
       )
       .slice(0, 5)
       .forEach(v => {

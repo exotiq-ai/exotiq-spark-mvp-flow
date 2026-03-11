@@ -288,6 +288,28 @@ export const VehiclePhotoManager = ({
                   View
                 </Button>
               )}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="sm" variant="secondary">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="center">
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={async () => {
+                       if (heroPhoto?.id) {
+                        await deletePhoto(heroPhoto.id);
+                        await refetch();
+                        toast.success('Hero photo deleted');
+                      }
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete Hero Photo
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
           
