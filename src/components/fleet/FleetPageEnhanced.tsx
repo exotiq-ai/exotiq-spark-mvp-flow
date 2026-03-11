@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,7 @@ import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useLocationFilteredFleet } from '@/hooks/useLocationFilteredFleet';
 import { useFleetTasks, type VehicleTask } from '@/hooks/useFleetTasks';
