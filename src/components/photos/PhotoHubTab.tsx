@@ -190,10 +190,9 @@ export const PhotoHubTab = ({ vehicles, loading: vehiclesLoading }: PhotoHubTabP
         <StatCard
           title="Hero Photos"
           value={stats.heroPhotos}
-          subtitle={stats.heroPhotos === vehicles.length ? 'All set!' : `${vehicles.length - stats.heroPhotos} missing`}
+          subtitle={stats.heroPhotos === vehicles.length ? 'All set!' : `${stats.heroPhotos} of ${vehicles.length} set`}
           icon={Star}
           loading={loading}
-          warning={stats.heroPhotos < vehicles.length}
         />
         <StatCard
           title="Pending Review"
