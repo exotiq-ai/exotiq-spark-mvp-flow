@@ -44,8 +44,9 @@ interface FleetContextType {
   isRefreshing: boolean; // New: show subtle "updating" state without blocking UI
   error: string | null;
   applyPriceOptimization: (vehicleId: string, newRate: number) => Promise<void>;
+  updateVehicle: (vehicleId: string, updates: Partial<Vehicle>, options?: { silent?: boolean; source?: string }) => Promise<boolean>;
   createVehicle: (vehicle: Omit<Database['public']['Tables']['vehicles']['Insert'], 'user_id'>) => Promise<{ id: string; name: string } | undefined>;
-  deleteVehicle: (vehicleId: string) => Promise<boolean>;
+  deleteVehicle: (vehicleId: string, options?: { silent?: boolean }) => Promise<boolean>;
   deleteVehicles: (vehicleIds: string[]) => Promise<{ success: number; failed: number }>;
   createBooking: (booking: Omit<Database['public']['Tables']['bookings']['Insert'], 'user_id'>) => Promise<void>;
   updateBookingStatus: (bookingId: string, status: Booking['status']) => Promise<void>;
