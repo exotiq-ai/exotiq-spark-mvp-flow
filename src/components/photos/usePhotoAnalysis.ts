@@ -53,8 +53,20 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
     file: File,
     folder: string = 'unmatched',
     preset: keyof typeof UPLOAD_PRESETS = 'display'
-  ): Promise<{ path: string; url: string; thumbnailUrl?: string; thumbnailPath?: string; compressedBytes: number }> => {
+  ): Promise<{ path: string; url: string; thumbnailUrl?: string; thumbnailPath?: string; compressedBytes: number; width: number; height: number }> => {
     if (!user) throw new Error('User not authenticated');
+
+    // Get original dimensions before compression
+    let imgWidth = 0;
+    let imgHeight = 0;
+    try {
+      const bitmap = await createImageBitmap(file);
+      imgWidth = bitmap.width;
+      imgHeight = bitmap.height;
+      bitmap.close();
+    } catch (e) {
+      console.warn('Could not read image dimensions:', e);
+    }
 
     // Compress with preset
     const presetOptions = isFeatureEnabled('uploadPresets') ? UPLOAD_PRESETS[preset] : undefined;
