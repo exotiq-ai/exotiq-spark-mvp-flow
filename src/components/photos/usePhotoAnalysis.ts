@@ -296,14 +296,15 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
         // Preprocessing: filename matching
         let resolvedVehicleId = vehicleId;
         let matchResult: PhotoUploadProgress['matchResult'] = vehicleId ? 'skipped' : 'unmatched';
+        let filenameMatch: ReturnType<typeof matchFilenameToVehicle> | null = null;
 
         if (!vehicleId && fleetVehicles.length > 0) {
           updateProgress(i, { status: 'matching', progress: 10 });
-          const match = matchFilenameToVehicle(file.name, fleetVehicles);
-          if (match.confidence === 'high') {
-            resolvedVehicleId = match.vehicleId!;
+          filenameMatch = matchFilenameToVehicle(file.name, fleetVehicles);
+          if (filenameMatch.confidence === 'high') {
+            resolvedVehicleId = filenameMatch.vehicleId!;
             matchResult = 'auto-matched';
-          } else if (match.confidence === 'medium') {
+          } else if (filenameMatch.confidence === 'medium') {
             matchResult = 'suggested';
           }
         }
@@ -329,6 +330,24 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
             analysis = await analyzePhoto(url, file.name);
           } catch (analysisError) {
             console.warn('AI analysis failed, using defaults:', analysisError);
+          }
+        }
+
+        // Cross-reference: if filename match was medium, check if AI agrees on make → upgrade to high
+        if (
+          matchResult === 'suggested' &&
+          filenameMatch?.vehicleId &&
+          analysis.suggestedVehicleMatch?.make
+        ) {
+          const suggestedVehicle = fleetVehicles.find(v => v.id === filenameMatch!.vehicleId);
+          if (suggestedVehicle?.make) {
+            const aiMake = analysis.suggestedVehicleMatch.make.toLowerCase().replace(/[-\s]/g, '');
+            const vehicleMake = suggestedVehicle.make.toLowerCase().replace(/[-\s]/g, '');
+            if (aiMake === vehicleMake || aiMake.includes(vehicleMake) || vehicleMake.includes(aiMake)) {
+              resolvedVehicleId = filenameMatch.vehicleId!;
+              matchResult = 'auto-matched';
+              console.log(`[PhotoHub] AI+filename cross-match upgraded to auto-match: ${suggestedVehicle.name}`);
+            }
           }
         }
 
