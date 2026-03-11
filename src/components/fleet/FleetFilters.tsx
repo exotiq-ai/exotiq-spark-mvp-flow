@@ -80,7 +80,8 @@ export const FleetFilters = ({
   const activeFilterCount = 
     filters.bookingStatus.length + 
     filters.opsStatus.length + 
-    (filters.search ? 1 : 0);
+    (filters.search ? 1 : 0) +
+    (!filters.hideRetired ? 1 : 0);
 
   const updateFilter = <K extends keyof FleetFiltersState>(
     key: K,
