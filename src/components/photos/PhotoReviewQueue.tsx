@@ -389,6 +389,15 @@ export const PhotoReviewQueue = ({ vehicles }: PhotoReviewQueueProps) => {
               </Badge>
             </div>
 
+            {/* Filename */}
+            {currentPhoto.original_filename && (
+              <div className="px-4 py-2 border-t bg-muted/20">
+                <p className="text-xs text-muted-foreground truncate" title={currentPhoto.original_filename}>
+                  📄 {currentPhoto.original_filename}
+                </p>
+              </div>
+            )}
+
             {/* AI Analysis Info */}
             {currentPhoto.ai_analysis && (
               <div className="p-4 border-t bg-muted/30">
