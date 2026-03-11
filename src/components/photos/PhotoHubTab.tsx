@@ -186,6 +186,22 @@ export const PhotoHubTab = ({ vehicles, loading: vehiclesLoading }: PhotoHubTabP
               </Badge>
             </Button>
           )}
+          {stats.unmatchedPhotos === 0 && stats.totalPhotos > 0 && (
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleCleanup}
+              disabled={isCleaningUp}
+              className="text-muted-foreground"
+            >
+              {isCleaningUp ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4 mr-2" />
+              )}
+              Clean Up
+            </Button>
+          )}
           <Button variant="outline" onClick={() => setAddVehicleWizardOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
             New Vehicle
