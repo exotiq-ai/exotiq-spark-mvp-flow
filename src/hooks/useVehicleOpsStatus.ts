@@ -5,6 +5,7 @@ import { useFleet } from '@/contexts/FleetContext';
 import { useToast } from '@/hooks/use-toast';
 
 export type OpsStatus = 
+  | 'not_set'
   | 'pending_inspection'
   | 'needs_wash'
   | 'washing'
