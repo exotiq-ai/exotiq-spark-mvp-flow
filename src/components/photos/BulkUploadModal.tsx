@@ -321,8 +321,41 @@ export const BulkUploadModal = ({
                 {/* Overall Progress */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium">
-                      {isComplete ? 'Upload Complete' : 'Processing photos...'}
+                    <span className="font-medium flex items-center gap-2">
+                      {isComplete ? (
+                        <>
+                          <CheckCircle2 className="h-4 w-4 text-success" />
+                          Upload Complete
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="h-4 w-4 text-primary animate-pulse" />
+                          <AnimatePresence mode="wait">
+                            <motion.span
+                              key={
+                                overallProgress < 25 ? 'relax' :
+                                overallProgress < 50 ? 'analyze' :
+                                overallProgress < 75 ? 'match' :
+                                overallProgress < 90 ? 'compress' : 'finalize'
+                              }
+                              initial={{ opacity: 0, y: 6 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: -6 }}
+                              transition={{ duration: 0.3 }}
+                            >
+                              {overallProgress < 25
+                                ? 'Sit back and relax — Rari is working her magic...'
+                                : overallProgress < 50
+                                ? 'Analyzing angles and quality with AI...'
+                                : overallProgress < 75
+                                ? 'Matching photos to your fleet vehicles...'
+                                : overallProgress < 90
+                                ? 'Compressing and optimizing for fast loading...'
+                                : 'Almost there — finalizing your uploads...'}
+                            </motion.span>
+                          </AnimatePresence>
+                        </>
+                      )}
                     </span>
                     <span className="text-muted-foreground">{overallProgress}%</span>
                   </div>
