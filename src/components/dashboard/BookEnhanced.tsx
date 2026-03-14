@@ -338,7 +338,7 @@ export const BookEnhanced = () => {
                     <Button 
                       size="sm" 
                       variant="outline" 
-                      onClick={() => updateBookingStatus(booking.id, 'cancelled')}
+                      onClick={() => setCancellingBookingId(booking.id)}
                     >
                       Decline
                     </Button>

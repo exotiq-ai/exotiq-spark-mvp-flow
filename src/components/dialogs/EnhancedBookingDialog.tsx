@@ -103,6 +103,7 @@ export const EnhancedBookingDialog = ({
   const [showMessageDialog, setShowMessageDialog] = useState(false);
   const [showChangeVehicle, setShowChangeVehicle] = useState(false);
   const [showEditBooking, setShowEditBooking] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [showLinkCustomer, setShowLinkCustomer] = useState(false);
   const [showLinkVehicle, setShowLinkVehicle] = useState(false);
   const [showCheckInOut, setShowCheckInOut] = useState<"check-out" | "check-in" | null>(null);
