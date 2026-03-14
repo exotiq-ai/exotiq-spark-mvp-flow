@@ -49,6 +49,7 @@ export const BookEnhanced = () => {
   const [showNewBooking, setShowNewBooking] = useState(false);
   const [showBookingDetails, setShowBookingDetails] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [cancellingBookingId, setCancellingBookingId] = useState<string | null>(null);
   const [showVehicleImage, setShowVehicleImage] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<{
     name: string;
