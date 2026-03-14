@@ -728,9 +728,10 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
 
 // Static helper to avoid closure issues in useMemo
 function getBookingsForDayStatic(filteredBookings: any[], day: Date) {
+  const dayStart = startOfDay(day);
   return filteredBookings.filter(booking => {
-    const bookingStart = new Date(booking.start_date);
-    const bookingEnd = new Date(booking.end_date);
-    return day >= bookingStart && day <= bookingEnd;
+    const bookingStart = startOfDay(new Date(booking.start_date));
+    const bookingEnd = startOfDay(new Date(booking.end_date));
+    return dayStart >= bookingStart && dayStart <= bookingEnd;
   });
 }
