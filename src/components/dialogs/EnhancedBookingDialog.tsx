@@ -1241,12 +1241,21 @@ export const EnhancedBookingDialog = ({
                     </div>
                   )}
                   {booking.status === "confirmed" && (
-                    <Button
-                      onClick={() => { updateBookingStatus(booking.id, "completed"); onOpenChange(false); }}
-                      className="w-full"
-                    >
-                      <CheckCircle className="h-4 w-4 mr-2" />Complete Booking
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => { updateBookingStatus(booking.id, "cancelled"); onOpenChange(false); }}
+                        className="flex-1 text-destructive border-destructive/30 hover:bg-destructive/10"
+                      >
+                        <XCircle className="h-4 w-4 mr-2" />Cancel Booking
+                      </Button>
+                      <Button
+                        onClick={() => { updateBookingStatus(booking.id, "completed"); onOpenChange(false); }}
+                        className="flex-1"
+                      >
+                        <CheckCircle className="h-4 w-4 mr-2" />Complete Booking
+                      </Button>
+                    </div>
                   )}
                 </>
               )}
