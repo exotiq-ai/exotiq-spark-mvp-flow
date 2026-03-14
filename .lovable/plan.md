@@ -1,40 +1,59 @@
 
+# Fleet Management UI Truth Audit
 
-# Add Legal Policy Pages with Full Content
+## Status: ✅ Implemented
 
-## Overview
-Create four legal pages with the actual document content from your Google Docs, linked from the landing page footer. All pages are public (no auth required).
+## What Was Changed
 
-## Changes
+### 1. Ops Status: Neutral Default ✅
+- **File:** `src/hooks/useVehicleOpsStatus.ts`
+- Added `not_set` ops status with neutral gray styling (`CircleDashed` icon, "Not Set" label)
+- `getStatusConfig()` now returns `not_set` instead of `clean_ready` for null/unknown values
+- No more false "Clean & Ready" badges on vehicles that haven't been inspected
 
-### 1. Create shared layout: `src/components/layout/LegalPageLayout.tsx`
-- Navigation header, back-to-home link, prose-styled content container
-- Consistent formatting for headings, lists, tables, and legal text
-- Responsive padding and max-width
+### 2. Fleet Filters: Truth-Based Status Options ✅
+- **File:** `src/components/fleet/FleetFilters.tsx`
+- Replaced phantom "Rented" and "Unavailable" with real DB values: `available`, `booked`, `maintenance`, `retired`
+- Added `hideRetired` boolean to `FleetFiltersState` (default: `true`)
+- Added "Show retired vehicles" toggle in filter popover
+- Ops status filter now uses `not_set` instead of `clean_ready` for null values
 
-### 2. Create four page components in `src/pages/legal/`
-Each renders the full document content as formatted JSX:
+### 3. Fleet Vehicle Card: Truth-Based Display ✅
+- **File:** `src/components/fleet/FleetVehicleCard.tsx`
+- **Status badge truth:** Derives display from real DB status + ops_status:
+  - "With Renter" when `ops_status === 'renter_has'`
+  - "Booked" when there's an active booking
+  - "Maintenance", "Available", "Retired" from DB status
+  - Removed phantom "Rented" label
+- **Retired treatment:** `opacity-50 grayscale` on card, gray "Retired" badge, hides pricing/ops badge/ops actions/photo count, dropdown limited to Edit + View + Delete
+- **Null ops_status:** Shows neutral "Not Set" badge instead of false "Clean & Ready"
+- **AI suggestion:** Replaced raw "AI: $X" text with small `Sparkles` icon with tooltip "Rari has a pricing suggestion", clicking opens QuickPriceEditor. Shows when `suggested_rate` differs from `current_rate`
+- **Wrench → Clock:** Changed `last_ops_update` icon from `Wrench` to `Clock`
 
-- **`Terms.tsx`** — Terms and Conditions (19 sections, ~367 lines of content)
-- **`Privacy.tsx`** — Privacy Policy (11 sections, ~167 lines)
-- **`AcceptableUse.tsx`** — Acceptable Use Policy (7 sections, ~81 lines)
-- **`DataProcessing.tsx`** — Data Processing Agreement (13 sections, ~173 lines)
+### 4. Fleet Page: Retired Filtering ✅
+- **File:** `src/components/fleet/FleetPageEnhanced.tsx`
+- Applies `hideRetired` filter: retired vehicles excluded by default
+- Ops status filter uses `not_set` for null values
 
-All content including tables (pricing tiers, third-party providers), bullet lists, and ALL CAPS disclaimer sections will be faithfully rendered.
+### 5. Fleet Status Donut: Retired Exclusion ✅
+- **File:** `src/components/charts/FleetStatusDonut.tsx`
+- Filters out retired vehicles before calculating segments
+- Available = activeVehicles - booked - maintenance (retired already excluded)
 
-### 3. Add routes in `src/App.tsx`
-Four public routes inside the `ProvidersWrapper` layout:
-- `/terms`, `/privacy`, `/acceptable-use`, `/data-processing`
+### 6. Fleet Status Widget: Booking-Aware Counts ✅
+- **File:** `src/components/dashboard/widgets/FleetStatusWidget.tsx`
+- Replaced phantom "Rented"/"Reserved"/"Unavailable" status items with booking-aware calculation
+- Uses active bookings spanning today to derive "Booked" count (same logic as donut)
+- Utilization % excludes retired from denominator
+- Status items: Available, Booked, Maintenance, Retired (shown separately)
 
-### 4. Update `src/components/landing/Footer.tsx`
-Replace the Legal column's placeholder `#` links with actual `<Link>` routes. Replace "Security" with "Acceptable Use" and add "Data Processing":
-- Privacy → `/privacy`
-- Terms → `/terms`
-- Acceptable Use → `/acceptable-use`
-- Data Processing → `/data-processing`
+## Files Modified
+- `src/hooks/useVehicleOpsStatus.ts` (added `not_set` ops status, fixed default)
+- `src/components/fleet/FleetFilters.tsx` (real DB statuses, hideRetired toggle)
+- `src/components/fleet/FleetVehicleCard.tsx` (truth-based status, retired UI, Rari indicator, Clock icon)
+- `src/components/fleet/FleetPageEnhanced.tsx` (retired filtering, ops_status null handling)
+- `src/components/charts/FleetStatusDonut.tsx` (retired exclusion)
+- `src/components/dashboard/widgets/FleetStatusWidget.tsx` (booking-aware counts, retired exclusion)
 
-## File Summary
-- 1 new shared layout component
-- 4 new page components (with full legal text)
-- 2 existing files updated (App.tsx, Footer.tsx)
-
+## No Database Migration Needed
+All changes are UI/logic corrections using existing DB columns and values.
