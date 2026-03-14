@@ -615,6 +615,21 @@ export const BookEnhanced = () => {
           <InspectionsTab vehicles={vehicles} />
         </TabsContent>
       </ModuleTabs>
+      <ConfirmationDialog
+        open={!!cancellingBookingId}
+        onOpenChange={(open) => { if (!open) setCancellingBookingId(null); }}
+        title="Decline Booking?"
+        description="Are you sure you want to decline this booking? This action cannot be undone."
+        confirmText="Yes, Decline"
+        cancelText="Keep Booking"
+        variant="destructive"
+        onConfirm={() => {
+          if (cancellingBookingId) {
+            updateBookingStatus(cancellingBookingId, 'cancelled');
+            setCancellingBookingId(null);
+          }
+        }}
+      />
     </>
   );
 };
