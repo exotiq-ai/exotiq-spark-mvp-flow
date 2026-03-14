@@ -26,6 +26,10 @@ import Welcome from "./pages/Welcome";
 import SignOut from "./pages/SignOut";
 import Reset from "./pages/Reset";
 import NotFound from "./pages/NotFound";
+import Terms from "./pages/legal/Terms";
+import Privacy from "./pages/legal/Privacy";
+import AcceptableUse from "./pages/legal/AcceptableUse";
+import DataProcessing from "./pages/legal/DataProcessing";
 
 const queryClient = new QueryClient({
   defaultOptions: {
