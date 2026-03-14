@@ -8,6 +8,7 @@ import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { useModuleNavigation } from "@/hooks/useModuleNavigation";
 import { useSearchParams } from "react-router-dom";
 import { NewBookingDialog } from "@/components/dialogs/NewBookingDialog";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { EnhancedBookingDialog } from "@/components/dialogs/EnhancedBookingDialog";
 import { BookingCalendar } from "@/components/dashboard/BookingCalendar";
 import { PaymentTracker } from "@/components/dashboard/PaymentTracker";
