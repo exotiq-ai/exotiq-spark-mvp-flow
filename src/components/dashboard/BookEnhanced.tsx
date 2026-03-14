@@ -8,6 +8,7 @@ import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { useModuleNavigation } from "@/hooks/useModuleNavigation";
 import { useSearchParams } from "react-router-dom";
 import { NewBookingDialog } from "@/components/dialogs/NewBookingDialog";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { EnhancedBookingDialog } from "@/components/dialogs/EnhancedBookingDialog";
 import { BookingCalendar } from "@/components/dashboard/BookingCalendar";
 import { PaymentTracker } from "@/components/dashboard/PaymentTracker";
@@ -49,6 +50,7 @@ export const BookEnhanced = () => {
   const [showNewBooking, setShowNewBooking] = useState(false);
   const [showBookingDetails, setShowBookingDetails] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [cancellingBookingId, setCancellingBookingId] = useState<string | null>(null);
   const [showVehicleImage, setShowVehicleImage] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<{
     name: string;
@@ -338,7 +340,7 @@ export const BookEnhanced = () => {
                     <Button 
                       size="sm" 
                       variant="outline" 
-                      onClick={() => updateBookingStatus(booking.id, 'cancelled')}
+                      onClick={() => setCancellingBookingId(booking.id)}
                     >
                       Decline
                     </Button>
@@ -614,6 +616,21 @@ export const BookEnhanced = () => {
           <InspectionsTab vehicles={vehicles} />
         </TabsContent>
       </ModuleTabs>
+      <ConfirmationDialog
+        open={!!cancellingBookingId}
+        onOpenChange={(open) => { if (!open) setCancellingBookingId(null); }}
+        title="Decline Booking?"
+        description="Are you sure you want to decline this booking? This action cannot be undone."
+        confirmText="Yes, Decline"
+        cancelText="Keep Booking"
+        variant="destructive"
+        onConfirm={() => {
+          if (cancellingBookingId) {
+            updateBookingStatus(cancellingBookingId, 'cancelled');
+            setCancellingBookingId(null);
+          }
+        }}
+      />
     </>
   );
 };

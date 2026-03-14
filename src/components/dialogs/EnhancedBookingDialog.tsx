@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import {
   Dialog,
   DialogContent,
@@ -102,6 +103,7 @@ export const EnhancedBookingDialog = ({
   const [showMessageDialog, setShowMessageDialog] = useState(false);
   const [showChangeVehicle, setShowChangeVehicle] = useState(false);
   const [showEditBooking, setShowEditBooking] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [showLinkCustomer, setShowLinkCustomer] = useState(false);
   const [showLinkVehicle, setShowLinkVehicle] = useState(false);
   const [showCheckInOut, setShowCheckInOut] = useState<"check-out" | "check-in" | null>(null);
@@ -1227,7 +1229,7 @@ export const EnhancedBookingDialog = ({
                     <div className="flex gap-2">
                       <Button
                         variant="outline"
-                        onClick={() => { updateBookingStatus(booking.id, "cancelled"); onOpenChange(false); }}
+                        onClick={() => setShowCancelConfirm(true)}
                         className="flex-1 text-destructive border-destructive/30 hover:bg-destructive/10"
                       >
                         <XCircle className="h-4 w-4 mr-2" />Cancel
@@ -1244,7 +1246,7 @@ export const EnhancedBookingDialog = ({
                     <div className="flex gap-2">
                       <Button
                         variant="outline"
-                        onClick={() => { updateBookingStatus(booking.id, "cancelled"); onOpenChange(false); }}
+                        onClick={() => setShowCancelConfirm(true)}
                         className="flex-1 text-destructive border-destructive/30 hover:bg-destructive/10"
                       >
                         <XCircle className="h-4 w-4 mr-2" />Cancel Booking
@@ -1257,6 +1259,20 @@ export const EnhancedBookingDialog = ({
                       </Button>
                     </div>
                   )}
+                  <ConfirmationDialog
+                    open={showCancelConfirm}
+                    onOpenChange={setShowCancelConfirm}
+                    title="Cancel Booking?"
+                    description={`Are you sure you want to cancel the booking for ${booking.customer_name}${booking.vehicle_name ? ` — ${booking.vehicle_name}` : ''}? This action cannot be undone.`}
+                    confirmText="Yes, Cancel Booking"
+                    cancelText="Keep Booking"
+                    variant="destructive"
+                    onConfirm={() => {
+                      updateBookingStatus(booking.id, "cancelled");
+                      setShowCancelConfirm(false);
+                      onOpenChange(false);
+                    }}
+                  />
                 </>
               )}
             </div>
