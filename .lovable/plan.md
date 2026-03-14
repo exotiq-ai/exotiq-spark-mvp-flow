@@ -1,38 +1,59 @@
 
+# Fleet Management UI Truth Audit
 
-# Fix: Same-Day / Hourly Bookings Not Appearing on Calendar
+## Status: ✅ Implemented
 
-## Root Cause
+## What Was Changed
 
-The calendar's `getBookingsForDayStatic` function (line 730-736 in `BookingCalendar.tsx`) compares a midnight `Date` object against booking timestamps that include time-of-day:
+### 1. Ops Status: Neutral Default ✅
+- **File:** `src/hooks/useVehicleOpsStatus.ts`
+- Added `not_set` ops status with neutral gray styling (`CircleDashed` icon, "Not Set" label)
+- `getStatusConfig()` now returns `not_set` instead of `clean_ready` for null/unknown values
+- No more false "Clean & Ready" badges on vehicles that haven't been inspected
 
-```ts
-// day = March 14 00:00:00
-// bookingStart = March 14 10:00:00, bookingEnd = March 14 13:00:00
-return day >= bookingStart && day <= bookingEnd;
-// → false, because midnight < 10am
-```
+### 2. Fleet Filters: Truth-Based Status Options ✅
+- **File:** `src/components/fleet/FleetFilters.tsx`
+- Replaced phantom "Rented" and "Unavailable" with real DB values: `available`, `booked`, `maintenance`, `retired`
+- Added `hideRetired` boolean to `FleetFiltersState` (default: `true`)
+- Added "Show retired vehicles" toggle in filter popover
+- Ops status filter now uses `not_set` instead of `clean_ready` for null values
 
-A 3-hour booking (e.g., 10am–1pm) on a single day **never appears on the calendar** because the day cell's midnight timestamp fails both comparisons.
+### 3. Fleet Vehicle Card: Truth-Based Display ✅
+- **File:** `src/components/fleet/FleetVehicleCard.tsx`
+- **Status badge truth:** Derives display from real DB status + ops_status:
+  - "With Renter" when `ops_status === 'renter_has'`
+  - "Booked" when there's an active booking
+  - "Maintenance", "Available", "Retired" from DB status
+  - Removed phantom "Rented" label
+- **Retired treatment:** `opacity-50 grayscale` on card, gray "Retired" badge, hides pricing/ops badge/ops actions/photo count, dropdown limited to Edit + View + Delete
+- **Null ops_status:** Shows neutral "Not Set" badge instead of false "Clean & Ready"
+- **AI suggestion:** Replaced raw "AI: $X" text with small `Sparkles` icon with tooltip "Rari has a pricing suggestion", clicking opens QuickPriceEditor. Shows when `suggested_rate` differs from `current_rate`
+- **Wrench → Clock:** Changed `last_ops_update` icon from `Wrench` to `Clock`
 
-## Fix
+### 4. Fleet Page: Retired Filtering ✅
+- **File:** `src/components/fleet/FleetPageEnhanced.tsx`
+- Applies `hideRetired` filter: retired vehicles excluded by default
+- Ops status filter uses `not_set` for null values
 
-### `src/components/dashboard/BookingCalendar.tsx` — `getBookingsForDayStatic`
+### 5. Fleet Status Donut: Retired Exclusion ✅
+- **File:** `src/components/charts/FleetStatusDonut.tsx`
+- Filters out retired vehicles before calculating segments
+- Available = activeVehicles - booked - maintenance (retired already excluded)
 
-Normalize all three dates to calendar-day boundaries so time-of-day is irrelevant:
+### 6. Fleet Status Widget: Booking-Aware Counts ✅
+- **File:** `src/components/dashboard/widgets/FleetStatusWidget.tsx`
+- Replaced phantom "Rented"/"Reserved"/"Unavailable" status items with booking-aware calculation
+- Uses active bookings spanning today to derive "Booked" count (same logic as donut)
+- Utilization % excludes retired from denominator
+- Status items: Available, Booked, Maintenance, Retired (shown separately)
 
-```ts
-function getBookingsForDayStatic(filteredBookings: any[], day: Date) {
-  const dayStart = startOfDay(day);
-  return filteredBookings.filter(booking => {
-    const bookingStart = startOfDay(new Date(booking.start_date));
-    const bookingEnd = startOfDay(new Date(booking.end_date));
-    return dayStart >= bookingStart && dayStart <= bookingEnd;
-  });
-}
-```
+## Files Modified
+- `src/hooks/useVehicleOpsStatus.ts` (added `not_set` ops status, fixed default)
+- `src/components/fleet/FleetFilters.tsx` (real DB statuses, hideRetired toggle)
+- `src/components/fleet/FleetVehicleCard.tsx` (truth-based status, retired UI, Rari indicator, Clock icon)
+- `src/components/fleet/FleetPageEnhanced.tsx` (retired filtering, ops_status null handling)
+- `src/components/charts/FleetStatusDonut.tsx` (retired exclusion)
+- `src/components/dashboard/widgets/FleetStatusWidget.tsx` (booking-aware counts, retired exclusion)
 
-`startOfDay` is already imported from `date-fns` in the file. This ensures a booking from 10am–1pm on March 14 maps to the March 14 cell (both start and end normalize to midnight March 14, and the day cell is also midnight March 14 → match).
-
-**One file, one function, ~3 lines changed.** No impact on pricing (which already uses `Math.max(1, …)` for minimum 1-day billing) or any other filtering logic (BookEnhanced and UpcomingScheduleWidget already handle same-day correctly).
-
+## No Database Migration Needed
+All changes are UI/logic corrections using existing DB columns and values.
