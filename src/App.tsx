@@ -99,6 +99,10 @@ const AppWithRouter = () => {
           {/* Demo pages temporarily disabled - demo login uses /dashboard */}
           <Route path="/demo-landing" element={<Navigate to="/auth" replace />} />
           <Route path="/demo" element={<Navigate to="/auth" replace />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/acceptable-use" element={<AcceptableUse />} />
+          <Route path="/data-processing" element={<DataProcessing />} />
           <Route path="/welcome" element={<Welcome />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
