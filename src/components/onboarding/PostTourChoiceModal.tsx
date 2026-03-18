@@ -28,6 +28,15 @@ export const PostTourChoiceModal = ({
     action();
   };
 
+  useEffect(() => {
+    if (!open) return;
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onExplore();
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [open, onExplore]);
+
   if (!open) return null;
 
   const choices = [
