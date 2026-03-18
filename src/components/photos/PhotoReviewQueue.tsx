@@ -466,6 +466,19 @@ export const PhotoReviewQueue = ({ vehicles }: PhotoReviewQueueProps) => {
                 </div>
 
                 {/* Vehicle List */}
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs text-muted-foreground">
+                    {filteredVehicles.length} vehicle{filteredVehicles.length !== 1 ? 's' : ''}
+                  </span>
+                  {matchedVehicleIds.size > 0 && (
+                    <button
+                      onClick={() => setShowMatchedVehicles(!showMatchedVehicles)}
+                      className="text-xs text-primary hover:underline"
+                    >
+                      {showMatchedVehicles ? `Hide matched (${matchedVehicleIds.size})` : `Show all (+${matchedVehicleIds.size} matched)`}
+                    </button>
+                  )}
+                </div>
                 <ScrollArea className="h-[200px] border rounded-lg">
                   <div className="p-2 space-y-1">
                     {filteredVehicles.map(vehicle => (
@@ -482,7 +495,7 @@ export const PhotoReviewQueue = ({ vehicles }: PhotoReviewQueueProps) => {
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate">{vehicle.name}</p>
                           <p className="text-xs text-muted-foreground">
-                            {vehicle.year} {vehicle.make} {vehicle.model}
+                            {vehicle.year} {vehicle.make} {vehicle.model}{vehicle.color ? ` · ${vehicle.color}` : ''}
                           </p>
                         </div>
                         {selectedVehicleId === vehicle.id && (
