@@ -168,6 +168,7 @@ export const DashboardSidebarEnhanced = ({
   const [collapsed, setCollapsed] = useLocalStorage("sidebarCollapsed", false);
   const [expandedGroups, setExpandedGroups] = useLocalStorage<string[]>("sidebarExpandedGroups", ["operations", "intelligence"]);
   const { hasRoleOrHigher, isReadOnly, loading: roleLoading } = useUserRole();
+  const { currentTeam } = useTeam();
 
   // Role hierarchy for filtering
   const roleHierarchy: Record<string, number> = {
