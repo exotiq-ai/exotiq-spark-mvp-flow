@@ -197,6 +197,7 @@ export const PhotoReviewQueue = ({ vehicles }: PhotoReviewQueueProps) => {
         toast.success(`Matched ${result.success} photos to vehicle`);
       }
       
+      setMatchedVehicleIds(prev => new Set(prev).add(batchVehicleId));
       setSelectedPhotoIds(new Set());
       setBatchVehicleId('');
     } catch (error) {
