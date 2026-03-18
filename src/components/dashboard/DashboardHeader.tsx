@@ -20,6 +20,7 @@ import { LocationSwitcher } from "@/components/common/LocationSwitcher";
 import { AddLocationDialog } from "@/components/dialogs/AddLocationDialog";
 import { useTeamMessaging } from "@/hooks/useTeamMessaging";
 import { useTeam } from "@/contexts/TeamContext";
+import { Separator } from "@/components/ui/separator";
 
 interface DashboardHeaderProps {
   onOpenChat?: () => void;
