@@ -58,6 +58,7 @@ interface TeamMember {
 }
 
 export const FleetPageEnhanced = () => {
+  const { user } = useAuth();
   const isMobile = useIsMobile();
   const { vehicles, bookings, loading, applyPriceOptimization, updateVehicle, refreshData, createVehicle, deleteVehicle, deleteVehicles } = useLocationFilteredFleet();
   const { tasks, myTasks, unassignedTasks, createTask, updateTaskStatus, claimTask } = useFleetTasks();
