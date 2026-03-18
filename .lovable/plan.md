@@ -1,59 +1,29 @@
 
-# Fleet Management UI Truth Audit
 
-## Status: ✅ Implemented
+# Fix Banner Photo Upload — Input Unmounts on File Dialog Open
 
-## What Was Changed
+## Root Cause
 
-### 1. Ops Status: Neutral Default ✅
-- **File:** `src/hooks/useVehicleOpsStatus.ts`
-- Added `not_set` ops status with neutral gray styling (`CircleDashed` icon, "Not Set" label)
-- `getStatusConfig()` now returns `not_set` instead of `clean_ready` for null/unknown values
-- No more false "Clean & Ready" badges on vehicles that haven't been inspected
+The file `<input>` element is inside a conditional block that only renders when `showUploadButton` is `true`. When the native file picker opens, the browser fires `onMouseLeave` on the banner div (the mouse is no longer "over" it), which sets `showUploadButton = false`, **removing the input from the DOM**. The `onChange` callback never fires because the element is gone.
 
-### 2. Fleet Filters: Truth-Based Status Options ✅
-- **File:** `src/components/fleet/FleetFilters.tsx`
-- Replaced phantom "Rented" and "Unavailable" with real DB values: `available`, `booked`, `maintenance`, `retired`
-- Added `hideRetired` boolean to `FleetFiltersState` (default: `true`)
-- Added "Show retired vehicles" toggle in filter popover
-- Ops status filter now uses `not_set` instead of `clean_ready` for null values
+## Fix
 
-### 3. Fleet Vehicle Card: Truth-Based Display ✅
-- **File:** `src/components/fleet/FleetVehicleCard.tsx`
-- **Status badge truth:** Derives display from real DB status + ops_status:
-  - "With Renter" when `ops_status === 'renter_has'`
-  - "Booked" when there's an active booking
-  - "Maintenance", "Available", "Retired" from DB status
-  - Removed phantom "Rented" label
-- **Retired treatment:** `opacity-50 grayscale` on card, gray "Retired" badge, hides pricing/ops badge/ops actions/photo count, dropdown limited to Edit + View + Delete
-- **Null ops_status:** Shows neutral "Not Set" badge instead of false "Clean & Ready"
-- **AI suggestion:** Replaced raw "AI: $X" text with small `Sparkles` icon with tooltip "Rari has a pricing suggestion", clicking opens QuickPriceEditor. Shows when `suggested_rate` differs from `current_rate`
-- **Wrench → Clock:** Changed `last_ops_update` icon from `Wrench` to `Clock`
+**`src/components/dashboard/DashboardBanner.tsx`** — Two changes:
 
-### 4. Fleet Page: Retired Filtering ✅
-- **File:** `src/components/fleet/FleetPageEnhanced.tsx`
-- Applies `hideRetired` filter: retired vehicles excluded by default
-- Ops status filter uses `not_set` for null values
+1. **Move the hidden `<input>` outside the conditional block** so it's always in the DOM regardless of hover state. Only the visible button label stays conditionally rendered.
 
-### 5. Fleet Status Donut: Retired Exclusion ✅
-- **File:** `src/components/charts/FleetStatusDonut.tsx`
-- Filters out retired vehicles before calculating segments
-- Available = activeVehicles - booked - maintenance (retired already excluded)
+2. **Guard `onMouseLeave`** to not hide controls while uploading (the `isUploading` state is already tracked):
+   ```tsx
+   onMouseLeave={() => {
+     if (!isUploading) setShowUploadButton(false);
+   }}
+   ```
 
-### 6. Fleet Status Widget: Booking-Aware Counts ✅
-- **File:** `src/components/dashboard/widgets/FleetStatusWidget.tsx`
-- Replaced phantom "Rented"/"Reserved"/"Unavailable" status items with booking-aware calculation
-- Uses active bookings spanning today to derive "Booked" count (same logic as donut)
-- Utilization % excludes retired from denominator
-- Status items: Available, Booked, Maintenance, Retired (shown separately)
+The `<input id="banner-upload" type="file" ... />` moves from inside the `{showUploadButton && (...)}` block to just after it, as a direct child of the outer `<div>`. It's already `className="hidden"` so there's no visual change.
 
-## Files Modified
-- `src/hooks/useVehicleOpsStatus.ts` (added `not_set` ops status, fixed default)
-- `src/components/fleet/FleetFilters.tsx` (real DB statuses, hideRetired toggle)
-- `src/components/fleet/FleetVehicleCard.tsx` (truth-based status, retired UI, Rari indicator, Clock icon)
-- `src/components/fleet/FleetPageEnhanced.tsx` (retired filtering, ops_status null handling)
-- `src/components/charts/FleetStatusDonut.tsx` (retired exclusion)
-- `src/components/dashboard/widgets/FleetStatusWidget.tsx` (booking-aware counts, retired exclusion)
+## Files Changed
 
-## No Database Migration Needed
-All changes are UI/logic corrections using existing DB columns and values.
+| File | Change |
+|------|--------|
+| `src/components/dashboard/DashboardBanner.tsx` | Move hidden input outside conditional render; guard onMouseLeave |
+
