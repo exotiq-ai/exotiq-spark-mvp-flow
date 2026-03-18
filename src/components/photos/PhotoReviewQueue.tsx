@@ -72,13 +72,25 @@ export const PhotoReviewQueue = ({ vehicles }: PhotoReviewQueueProps) => {
   // Batch mode state
   const [selectedPhotoIds, setSelectedPhotoIds] = useState<Set<string>>(new Set());
   const [batchVehicleId, setBatchVehicleId] = useState<string>('');
+  
+  // Track matched vehicles in this session to hide them
+  const [matchedVehicleIds, setMatchedVehicleIds] = useState<Set<string>>(new Set());
+  const [showMatchedVehicles, setShowMatchedVehicles] = useState(false);
 
-  // Filter vehicles by search
-  const filteredVehicles = vehicles.filter(v => 
-    v.name.toLowerCase().includes(vehicleSearch.toLowerCase()) ||
-    v.make?.toLowerCase().includes(vehicleSearch.toLowerCase()) ||
-    v.model?.toLowerCase().includes(vehicleSearch.toLowerCase())
-  );
+  // Filter vehicles by search and optionally hide matched ones
+  const filteredVehicles = useMemo(() => {
+    return vehicles.filter(v => {
+      // Hide matched vehicles unless toggled
+      if (!showMatchedVehicles && matchedVehicleIds.has(v.id)) return false;
+      const search = vehicleSearch.toLowerCase();
+      return (
+        v.name.toLowerCase().includes(search) ||
+        v.make?.toLowerCase().includes(search) ||
+        v.model?.toLowerCase().includes(search) ||
+        v.color?.toLowerCase().includes(search)
+      );
+    });
+  }, [vehicles, vehicleSearch, matchedVehicleIds, showMatchedVehicles]);
 
   const currentPhoto = queue[currentIndex];
 
