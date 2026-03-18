@@ -212,22 +212,8 @@ export const InteractiveModuleTour = ({ onModuleChange }: InteractiveModuleTourP
     return () => window.removeEventListener('start-tour', handleStartTour);
   }, [tourSteps.length]);
 
-  // Auto-show for first-time users - ONLY if tour_completed is false in database
-  useEffect(() => {
-    if (!user?.id || tourSteps.length === 0) return;
-    
-    // Wait for database status to load
-    if (tour.tourComplete === null) return;
-    
-    // Only auto-show if NOT completed and tour isn't already showing
-    if (tour.tourComplete === false && !showTour) {
-      const timer = setTimeout(() => {
-        setShowTour(true);
-        tour.startTour();
-      }, 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [user?.id, showTour, tourSteps.length, tour.tourComplete]);
+  // Auto-start disabled — Rari narrated demo tour is now the primary onboarding flow.
+  // This interactive card tour remains available via 'start-tour' event or ?startTour=true URL param.
 
   if (!tour.isActive || !showTour || !tour.currentStep) return null;
 

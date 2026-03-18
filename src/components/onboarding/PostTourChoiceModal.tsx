@@ -11,6 +11,11 @@ interface PostTourChoiceModalProps {
   onExplore: () => void;
 }
 
+const fireFullScreenConfetti = () => {
+  confetti({ particleCount: 120, angle: 60, spread: 55, origin: { x: 0, y: 0.6 }, colors: ['#0B3D91', '#FF6B35', '#FFD700'] });
+  confetti({ particleCount: 120, angle: 120, spread: 55, origin: { x: 1, y: 0.6 }, colors: ['#0B3D91', '#FF6B35', '#FFD700'] });
+};
+
 export const PostTourChoiceModal = ({
   open,
   onAddVehicle,
@@ -18,12 +23,7 @@ export const PostTourChoiceModal = ({
   onExplore,
 }: PostTourChoiceModalProps) => {
   const handleChoice = (action: () => void) => {
-    confetti({
-      particleCount: 80,
-      spread: 60,
-      origin: { y: 0.7 },
-      colors: ['#0B3D91', '#FF6B35', '#FFD700'],
-    });
+    fireFullScreenConfetti();
     action();
   };
 
@@ -58,17 +58,20 @@ export const PostTourChoiceModal = ({
 
   return (
     <AnimatePresence>
+      {/* Backdrop — clicking it does NOT dismiss */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 backdrop-blur-sm p-4"
       >
+        {/* Inner card — stop propagation to be safe */}
         <motion.div
           initial={{ scale: 0.9, opacity: 0, y: 20 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.9, opacity: 0, y: 20 }}
           transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+          onClick={(e) => e.stopPropagation()}
           className={cn(
             'w-full max-w-lg rounded-2xl p-6 sm:p-8',
             'bg-card border border-border',
