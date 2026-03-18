@@ -596,11 +596,11 @@ export const PhotoReviewQueue = ({ vehicles }: PhotoReviewQueueProps) => {
                       <SelectValue placeholder="Select vehicle to match..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {vehicles.map(vehicle => (
+                      {filteredVehicles.map(vehicle => (
                         <SelectItem key={vehicle.id} value={vehicle.id}>
                           <div className="flex items-center gap-2">
                             <Car className="h-4 w-4" />
-                            <span>{vehicle.name}</span>
+                            <span>{vehicle.name}{vehicle.color ? ` · ${vehicle.color}` : ''}</span>
                           </div>
                         </SelectItem>
                       ))}

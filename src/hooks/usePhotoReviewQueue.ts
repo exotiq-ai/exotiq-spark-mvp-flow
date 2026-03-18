@@ -151,6 +151,17 @@ export function usePhotoReviewQueue(options: UsePhotoReviewQueueOptions = {}) {
       return 'exterior';
     };
 
+    // Check if the vehicle already has a hero photo — if not, auto-set this as hero
+    const { data: existingHero } = await supabase
+      .from('vehicle_photos')
+      .select('id')
+      .eq('vehicle_id', vehicleId)
+      .eq('photo_type', 'hero')
+      .maybeSingle();
+
+    const angleBasedType = getPhotoType(detectedAngle);
+    const finalPhotoType = !existingHero ? 'hero' : angleBasedType;
+
     // Create vehicle_photo record
     const { error: insertError } = await supabase
       .from('vehicle_photos')
@@ -160,7 +171,7 @@ export function usePhotoReviewQueue(options: UsePhotoReviewQueueOptions = {}) {
         team_id: currentTeam?.id || null,
         storage_path: unmatchedPhoto.storage_path,
         url: unmatchedPhoto.url,
-        photo_type: getPhotoType(detectedAngle),
+        photo_type: finalPhotoType,
         detected_angle: detectedAngle,
         ai_analysis: unmatchedPhoto.ai_analysis,
         is_vehicle_confirmed: true,
