@@ -144,6 +144,7 @@ export const PhotoReviewQueue = ({ vehicles }: PhotoReviewQueueProps) => {
       setIsProcessing(true);
       await matchPhoto(currentPhoto.id, selectedVehicleId);
       toast.success('Photo matched to vehicle');
+      setMatchedVehicleIds(prev => new Set(prev).add(selectedVehicleId));
       setSelectedVehicleId('');
       // Move to next photo or stay at end
       if (currentIndex >= queue.length - 1) {
