@@ -20,6 +20,7 @@ import { LocationSwitcher } from "@/components/common/LocationSwitcher";
 import { AddLocationDialog } from "@/components/dialogs/AddLocationDialog";
 import { useTeamMessaging } from "@/hooks/useTeamMessaging";
 import { useTeam } from "@/contexts/TeamContext";
+import { Separator } from "@/components/ui/separator";
 
 interface DashboardHeaderProps {
   onOpenChat?: () => void;
@@ -29,7 +30,7 @@ export const DashboardHeader = ({ onOpenChat }: DashboardHeaderProps) => {
   const { user, signOut } = useAuth();
   const { profile, displayName } = useProfile();
   const { conversations } = useTeamMessaging();
-  const { refreshTeam } = useTeam();
+  const { currentTeam, refreshTeam } = useTeam();
   const [addLocationOpen, setAddLocationOpen] = useState(false);
 
   // Calculate total unread messages
@@ -51,6 +52,16 @@ export const DashboardHeader = ({ onOpenChat }: DashboardHeaderProps) => {
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-0.5 sm:gap-2 min-w-0">
           <ExotiqLogoBranded variant="gulf-blue" size="sm" className="sm:hidden" />
           <ExotiqLogoBranded variant="gulf-blue" size="md" className="hidden sm:flex" />
+          {currentTeam?.logo_url && (
+            <>
+              <Separator orientation="vertical" className="h-6 mx-1 sm:mx-2 hidden sm:block" />
+              <img
+                src={currentTeam.logo_url}
+                alt={currentTeam.name || "Company logo"}
+                className="h-7 sm:h-8 w-auto object-contain max-w-[100px] sm:max-w-[120px]"
+              />
+            </>
+          )}
           <LocationSwitcher onAddLocation={() => setAddLocationOpen(true)} />
         </div>
         
