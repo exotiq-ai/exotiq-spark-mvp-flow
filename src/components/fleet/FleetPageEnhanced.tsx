@@ -313,6 +313,7 @@ export const FleetPageEnhanced = () => {
       make: v.make,
       model: v.model,
       year: v.year,
+      color: v.color,
     }));
   }, [vehicles]);
 

@@ -42,6 +42,7 @@ interface Vehicle {
   make?: string;
   model?: string;
   year?: number;
+  color?: string;
 }
 
 interface PhotoReviewQueueProps {
@@ -71,13 +72,25 @@ export const PhotoReviewQueue = ({ vehicles }: PhotoReviewQueueProps) => {
   // Batch mode state
   const [selectedPhotoIds, setSelectedPhotoIds] = useState<Set<string>>(new Set());
   const [batchVehicleId, setBatchVehicleId] = useState<string>('');
+  
+  // Track matched vehicles in this session to hide them
+  const [matchedVehicleIds, setMatchedVehicleIds] = useState<Set<string>>(new Set());
+  const [showMatchedVehicles, setShowMatchedVehicles] = useState(false);
 
-  // Filter vehicles by search
-  const filteredVehicles = vehicles.filter(v => 
-    v.name.toLowerCase().includes(vehicleSearch.toLowerCase()) ||
-    v.make?.toLowerCase().includes(vehicleSearch.toLowerCase()) ||
-    v.model?.toLowerCase().includes(vehicleSearch.toLowerCase())
-  );
+  // Filter vehicles by search and optionally hide matched ones
+  const filteredVehicles = useMemo(() => {
+    return vehicles.filter(v => {
+      // Hide matched vehicles unless toggled
+      if (!showMatchedVehicles && matchedVehicleIds.has(v.id)) return false;
+      const search = vehicleSearch.toLowerCase();
+      return (
+        v.name.toLowerCase().includes(search) ||
+        v.make?.toLowerCase().includes(search) ||
+        v.model?.toLowerCase().includes(search) ||
+        v.color?.toLowerCase().includes(search)
+      );
+    });
+  }, [vehicles, vehicleSearch, matchedVehicleIds, showMatchedVehicles]);
 
   const currentPhoto = queue[currentIndex];
 
@@ -131,6 +144,7 @@ export const PhotoReviewQueue = ({ vehicles }: PhotoReviewQueueProps) => {
       setIsProcessing(true);
       await matchPhoto(currentPhoto.id, selectedVehicleId);
       toast.success('Photo matched to vehicle');
+      setMatchedVehicleIds(prev => new Set(prev).add(selectedVehicleId));
       setSelectedVehicleId('');
       // Move to next photo or stay at end
       if (currentIndex >= queue.length - 1) {
@@ -183,6 +197,7 @@ export const PhotoReviewQueue = ({ vehicles }: PhotoReviewQueueProps) => {
         toast.success(`Matched ${result.success} photos to vehicle`);
       }
       
+      setMatchedVehicleIds(prev => new Set(prev).add(batchVehicleId));
       setSelectedPhotoIds(new Set());
       setBatchVehicleId('');
     } catch (error) {
@@ -451,6 +466,19 @@ export const PhotoReviewQueue = ({ vehicles }: PhotoReviewQueueProps) => {
                 </div>
 
                 {/* Vehicle List */}
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs text-muted-foreground">
+                    {filteredVehicles.length} vehicle{filteredVehicles.length !== 1 ? 's' : ''}
+                  </span>
+                  {matchedVehicleIds.size > 0 && (
+                    <button
+                      onClick={() => setShowMatchedVehicles(!showMatchedVehicles)}
+                      className="text-xs text-primary hover:underline"
+                    >
+                      {showMatchedVehicles ? `Hide matched (${matchedVehicleIds.size})` : `Show all (+${matchedVehicleIds.size} matched)`}
+                    </button>
+                  )}
+                </div>
                 <ScrollArea className="h-[200px] border rounded-lg">
                   <div className="p-2 space-y-1">
                     {filteredVehicles.map(vehicle => (
@@ -467,7 +495,7 @@ export const PhotoReviewQueue = ({ vehicles }: PhotoReviewQueueProps) => {
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate">{vehicle.name}</p>
                           <p className="text-xs text-muted-foreground">
-                            {vehicle.year} {vehicle.make} {vehicle.model}
+                            {vehicle.year} {vehicle.make} {vehicle.model}{vehicle.color ? ` · ${vehicle.color}` : ''}
                           </p>
                         </div>
                         {selectedVehicleId === vehicle.id && (
@@ -568,11 +596,11 @@ export const PhotoReviewQueue = ({ vehicles }: PhotoReviewQueueProps) => {
                       <SelectValue placeholder="Select vehicle to match..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {vehicles.map(vehicle => (
+                      {filteredVehicles.map(vehicle => (
                         <SelectItem key={vehicle.id} value={vehicle.id}>
                           <div className="flex items-center gap-2">
                             <Car className="h-4 w-4" />
-                            <span>{vehicle.name}</span>
+                            <span>{vehicle.name}{vehicle.color ? ` · ${vehicle.color}` : ''}</span>
                           </div>
                         </SelectItem>
                       ))}

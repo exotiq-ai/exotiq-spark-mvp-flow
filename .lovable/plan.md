@@ -1,55 +1,59 @@
 
+# Fleet Management UI Truth Audit
 
-# Photo Matching Improvements: Color Display, Already-Matched Filtering, Auto-Hero
+## Status: ✅ Implemented
 
-## Three Changes
+## What Was Changed
 
-### 1. Include vehicle color in the matching UI and matching logic
+### 1. Ops Status: Neutral Default ✅
+- **File:** `src/hooks/useVehicleOpsStatus.ts`
+- Added `not_set` ops status with neutral gray styling (`CircleDashed` icon, "Not Set" label)
+- `getStatusConfig()` now returns `not_set` instead of `clean_ready` for null/unknown values
+- No more false "Clean & Ready" badges on vehicles that haven't been inspected
 
-**Problem**: The Vehicle interface passed to PhotoReviewQueue doesn't include `color`. So when two identical make/model vehicles differ only by color, the user can't tell them apart, and the filename matcher can't use color either.
+### 2. Fleet Filters: Truth-Based Status Options ✅
+- **File:** `src/components/fleet/FleetFilters.tsx`
+- Replaced phantom "Rented" and "Unavailable" with real DB values: `available`, `booked`, `maintenance`, `retired`
+- Added `hideRetired` boolean to `FleetFiltersState` (default: `true`)
+- Added "Show retired vehicles" toggle in filter popover
+- Ops status filter now uses `not_set` instead of `clean_ready` for null values
 
-**Changes**:
-- **`FleetPageEnhanced.tsx`** (line ~310): Add `color: v.color` to the `vehiclesForPhotos` mapping.
-- **`PhotoHubTab.tsx`** (line ~38): Add `color?: string` to the `Vehicle` interface.
-- **`PhotoReviewQueue.tsx`** (line ~39): Add `color?: string` to the `Vehicle` interface. Update the vehicle list display (line ~468-471) to show color: e.g. `"2024 BMW M4 · White"`. Update the batch Select (line ~575) similarly.
-- **`BulkUploadModal.tsx`**: Already has `color` in its Vehicle interface — no change needed there.
+### 3. Fleet Vehicle Card: Truth-Based Display ✅
+- **File:** `src/components/fleet/FleetVehicleCard.tsx`
+- **Status badge truth:** Derives display from real DB status + ops_status:
+  - "With Renter" when `ops_status === 'renter_has'`
+  - "Booked" when there's an active booking
+  - "Maintenance", "Available", "Retired" from DB status
+  - Removed phantom "Rented" label
+- **Retired treatment:** `opacity-50 grayscale` on card, gray "Retired" badge, hides pricing/ops badge/ops actions/photo count, dropdown limited to Edit + View + Delete
+- **Null ops_status:** Shows neutral "Not Set" badge instead of false "Clean & Ready"
+- **AI suggestion:** Replaced raw "AI: $X" text with small `Sparkles` icon with tooltip "Rari has a pricing suggestion", clicking opens QuickPriceEditor. Shows when `suggested_rate` differs from `current_rate`
+- **Wrench → Clock:** Changed `last_ops_update` icon from `Wrench` to `Clock`
 
-This also improves the **filename auto-matcher** (`filenameVehicleMatcher.ts`) since it already scores on color — it just needs the color data passed through, which `BulkUploadModal` already does.
+### 4. Fleet Page: Retired Filtering ✅
+- **File:** `src/components/fleet/FleetPageEnhanced.tsx`
+- Applies `hideRetired` filter: retired vehicles excluded by default
+- Ops status filter uses `not_set` for null values
 
-### 2. Hide already-matched vehicles from the selection list
+### 5. Fleet Status Donut: Retired Exclusion ✅
+- **File:** `src/components/charts/FleetStatusDonut.tsx`
+- Filters out retired vehicles before calculating segments
+- Available = activeVehicles - booked - maintenance (retired already excluded)
 
-**Problem**: After matching a photo to a vehicle, that vehicle still appears in the list. For single-photo-per-vehicle fleets, this creates confusion.
+### 6. Fleet Status Widget: Booking-Aware Counts ✅
+- **File:** `src/components/dashboard/widgets/FleetStatusWidget.tsx`
+- Replaced phantom "Rented"/"Reserved"/"Unavailable" status items with booking-aware calculation
+- Uses active bookings spanning today to derive "Booked" count (same logic as donut)
+- Utilization % excludes retired from denominator
+- Status items: Available, Booked, Maintenance, Retired (shown separately)
 
-**Approach**: Track which vehicle IDs have been matched during the current review session. Filter those out of the vehicle list. Add a small "X matched" counter and a toggle to show all vehicles if needed (safety valve for multi-photo scenarios).
+## Files Modified
+- `src/hooks/useVehicleOpsStatus.ts` (added `not_set` ops status, fixed default)
+- `src/components/fleet/FleetFilters.tsx` (real DB statuses, hideRetired toggle)
+- `src/components/fleet/FleetVehicleCard.tsx` (truth-based status, retired UI, Rari indicator, Clock icon)
+- `src/components/fleet/FleetPageEnhanced.tsx` (retired filtering, ops_status null handling)
+- `src/components/charts/FleetStatusDonut.tsx` (retired exclusion)
+- `src/components/dashboard/widgets/FleetStatusWidget.tsx` (booking-aware counts, retired exclusion)
 
-**Changes in `PhotoReviewQueue.tsx`**:
-- Add `matchedVehicleIds` state (`Set<string>`) — populated when `matchPhoto` or `batchMatchPhotos` succeeds.
-- Filter `filteredVehicles` to exclude matched IDs by default.
-- Add a small toggle: "Show all vehicles" / "Hide matched (N)" so users can override if they need to assign multiple photos to one vehicle.
-
-### 3. Auto-set matched photos as hero when the vehicle has no existing hero
-
-**Problem**: After matching, every photo is inserted as `exterior` type. Users must manually go into each vehicle and set the hero photo.
-
-**Approach**: Before inserting the `vehicle_photo` record in `matchPhoto()`, check if the vehicle already has a hero photo. If not, set `photo_type: 'hero'` instead of the angle-based type.
-
-**Changes in `usePhotoReviewQueue.ts`** (`matchPhoto` function, around line 154):
-- Before insert, query `vehicle_photos` for an existing hero: `SELECT id FROM vehicle_photos WHERE vehicle_id = ? AND photo_type = 'hero' LIMIT 1`
-- If none exists, set `photo_type: 'hero'` regardless of detected angle.
-- This means the first photo matched to any vehicle automatically becomes its hero — no manual step needed.
-
-## Files Changed
-
-| File | Change |
-|------|--------|
-| `src/components/fleet/FleetPageEnhanced.tsx` | Pass `color` in vehiclesForPhotos |
-| `src/components/photos/PhotoHubTab.tsx` | Add `color` to Vehicle interface |
-| `src/components/photos/PhotoReviewQueue.tsx` | Add `color` to Vehicle interface, display color in list, track matched vehicles, add show/hide toggle |
-| `src/hooks/usePhotoReviewQueue.ts` | Auto-set hero on first match per vehicle |
-
-## Discussion Points
-
-**Hiding matched vehicles**: The toggle ensures this works for both single-photo and multi-photo workflows. Defaulting to hidden makes the single-photo flow fast; the toggle is there as a safety net.
-
-**Auto-hero**: This is safe because the DB already has a trigger that enforces only one hero per vehicle. If a vehicle somehow already has a hero, the photo just gets its normal angle-based type.
-
+## No Database Migration Needed
+All changes are UI/logic corrections using existing DB columns and values.
