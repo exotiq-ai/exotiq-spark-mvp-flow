@@ -237,6 +237,10 @@ export const PhotoReviewQueue = ({ vehicles }: PhotoReviewQueueProps) => {
   // Keyboard navigation
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (isProcessing || viewMode === 'batch') return;
+
+    // Don't intercept shortcuts while typing in an input
+    const tag = (e.target as HTMLElement).tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
     
     switch (e.key) {
       case 'ArrowLeft':
