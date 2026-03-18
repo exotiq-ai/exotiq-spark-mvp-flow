@@ -105,7 +105,7 @@ export const ScheduleMaintenanceDialog = ({ open, onOpenChange, vehicles, onSubm
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[520px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[520px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Schedule Maintenance</DialogTitle>
         </DialogHeader>

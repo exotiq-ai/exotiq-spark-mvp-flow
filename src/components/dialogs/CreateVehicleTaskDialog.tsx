@@ -126,12 +126,12 @@ export const CreateVehicleTaskDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[500px] max-h-[85vh] flex flex-col p-0 gap-0">
+        <DialogHeader className="px-6 pt-6 pb-3 flex-shrink-0">
           <DialogTitle className="text-foreground">Create Task</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6 py-4">
+        <div className="space-y-4 px-6 pb-2 overflow-y-auto flex-1 min-h-0">
           {/* Vehicle Info */}
           <div className="flex items-center gap-4 p-3 rounded-lg bg-muted/30 border">
             <VehicleThumbnail vehicleName={vehicle.name} size="md" />
@@ -276,7 +276,7 @@ export const CreateVehicleTaskDialog = ({
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="px-6 pb-6 pt-3 flex-shrink-0">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>

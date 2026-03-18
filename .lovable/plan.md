@@ -1,28 +1,59 @@
 
+# Fleet Management UI Truth Audit
 
-# Fix Dialog Overflow: Consistent Max-Height and Scrolling Across All Dialogs
+## Status: ✅ Implemented
 
-## Problem
-Several dialogs (notably `CreateVehicleTaskDialog`) have no `max-h` or scroll constraints, causing content to clip below the viewport on standard screens. The screenshot shows the task creation form extending beyond the visible area with no way to scroll.
+## What Was Changed
 
-## Approach
-Two-pronged fix: (1) add a safe default `max-h` to the base `DialogContent` component so every dialog gets it automatically, and (2) fix individual dialogs that need internal scroll areas for their content.
+### 1. Ops Status: Neutral Default ✅
+- **File:** `src/hooks/useVehicleOpsStatus.ts`
+- Added `not_set` ops status with neutral gray styling (`CircleDashed` icon, "Not Set" label)
+- `getStatusConfig()` now returns `not_set` instead of `clean_ready` for null/unknown values
+- No more false "Clean & Ready" badges on vehicles that haven't been inspected
 
-## Changes
+### 2. Fleet Filters: Truth-Based Status Options ✅
+- **File:** `src/components/fleet/FleetFilters.tsx`
+- Replaced phantom "Rented" and "Unavailable" with real DB values: `available`, `booked`, `maintenance`, `retired`
+- Added `hideRetired` boolean to `FleetFiltersState` (default: `true`)
+- Added "Show retired vehicles" toggle in filter popover
+- Ops status filter now uses `not_set` instead of `clean_ready` for null values
 
-| # | File | Change |
-|---|------|--------|
-| 1 | `src/components/ui/dialog.tsx` | Add `max-h-[85vh] overflow-y-auto` to the base `DialogContent` class. This gives every dialog a safe viewport constraint by default. Dialogs that already specify their own `max-h` or `flex flex-col` layout will override this naturally. |
-| 2 | `src/components/dialogs/CreateVehicleTaskDialog.tsx` | Add `max-h-[85vh] flex flex-col p-0` to DialogContent. Wrap the form body in a `ScrollArea` with `flex-1 min-h-0`. Pin header and footer with `flex-shrink-0`. Reduce `space-y-6` to `space-y-4` for tighter spacing. |
-| 3 | `src/components/dialogs/ScheduleMaintenanceDialog.tsx` | Already has `max-h-[90vh] overflow-y-auto` — normalize to `85vh` for consistency. |
-| 4 | `src/components/dialogs/AddCustomerDialog.tsx` | Same — normalize `90vh` to `85vh`. |
-| 5 | `src/components/dialogs/EditCustomerDialog.tsx` | Same normalization. |
-| 6 | `src/components/dialogs/BookingDetailsDialog.tsx` | Missing `max-h` — will inherit from base. No individual change needed. |
-| 7 | `src/components/dialogs/SendMessageDialog.tsx` | Missing `max-h` — will inherit from base. No change needed. |
-| 8 | `src/components/dialogs/LinkCustomerDialog.tsx` | Missing `max-h` — will inherit from base. No change needed. |
+### 3. Fleet Vehicle Card: Truth-Based Display ✅
+- **File:** `src/components/fleet/FleetVehicleCard.tsx`
+- **Status badge truth:** Derives display from real DB status + ops_status:
+  - "With Renter" when `ops_status === 'renter_has'`
+  - "Booked" when there's an active booking
+  - "Maintenance", "Available", "Retired" from DB status
+  - Removed phantom "Rented" label
+- **Retired treatment:** `opacity-50 grayscale` on card, gray "Retired" badge, hides pricing/ops badge/ops actions/photo count, dropdown limited to Edit + View + Delete
+- **Null ops_status:** Shows neutral "Not Set" badge instead of false "Clean & Ready"
+- **AI suggestion:** Replaced raw "AI: $X" text with small `Sparkles` icon with tooltip "Rari has a pricing suggestion", clicking opens QuickPriceEditor. Shows when `suggested_rate` differs from `current_rate`
+- **Wrench → Clock:** Changed `last_ops_update` icon from `Wrench` to `Clock`
 
-## Key Design Decisions
-- **85vh** as the standard max-height — leaves room for browser chrome and mobile address bars
-- Base component gets `overflow-y-auto` as a safety net; dialogs with proper `ScrollArea` + `flex` layouts will manage scroll internally
-- `CreateVehicleTaskDialog` gets the full structural fix (pinned header/footer + scrollable body) since it's the most content-heavy offender
+### 4. Fleet Page: Retired Filtering ✅
+- **File:** `src/components/fleet/FleetPageEnhanced.tsx`
+- Applies `hideRetired` filter: retired vehicles excluded by default
+- Ops status filter uses `not_set` for null values
 
+### 5. Fleet Status Donut: Retired Exclusion ✅
+- **File:** `src/components/charts/FleetStatusDonut.tsx`
+- Filters out retired vehicles before calculating segments
+- Available = activeVehicles - booked - maintenance (retired already excluded)
+
+### 6. Fleet Status Widget: Booking-Aware Counts ✅
+- **File:** `src/components/dashboard/widgets/FleetStatusWidget.tsx`
+- Replaced phantom "Rented"/"Reserved"/"Unavailable" status items with booking-aware calculation
+- Uses active bookings spanning today to derive "Booked" count (same logic as donut)
+- Utilization % excludes retired from denominator
+- Status items: Available, Booked, Maintenance, Retired (shown separately)
+
+## Files Modified
+- `src/hooks/useVehicleOpsStatus.ts` (added `not_set` ops status, fixed default)
+- `src/components/fleet/FleetFilters.tsx` (real DB statuses, hideRetired toggle)
+- `src/components/fleet/FleetVehicleCard.tsx` (truth-based status, retired UI, Rari indicator, Clock icon)
+- `src/components/fleet/FleetPageEnhanced.tsx` (retired filtering, ops_status null handling)
+- `src/components/charts/FleetStatusDonut.tsx` (retired exclusion)
+- `src/components/dashboard/widgets/FleetStatusWidget.tsx` (booking-aware counts, retired exclusion)
+
+## No Database Migration Needed
+All changes are UI/logic corrections using existing DB columns and values.
