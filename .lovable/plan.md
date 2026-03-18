@@ -1,31 +1,59 @@
 
+# Fleet Management UI Truth Audit
 
-# Fix: Post-Tour Modal Not Dismissible (Click + Esc)
+## Status: ✅ Implemented
 
-## Analysis
+## What Was Changed
 
-The previous fix added `onClick={onExplore}` to the backdrop — **that part is correct and should work for click dismissal**. However, the user reports neither click NOR Esc works.
+### 1. Ops Status: Neutral Default ✅
+- **File:** `src/hooks/useVehicleOpsStatus.ts`
+- Added `not_set` ops status with neutral gray styling (`CircleDashed` icon, "Not Set" label)
+- `getStatusConfig()` now returns `not_set` instead of `clean_ready` for null/unknown values
+- No more false "Clean & Ready" badges on vehicles that haven't been inspected
 
-Two issues found:
+### 2. Fleet Filters: Truth-Based Status Options ✅
+- **File:** `src/components/fleet/FleetFilters.tsx`
+- Replaced phantom "Rented" and "Unavailable" with real DB values: `available`, `booked`, `maintenance`, `retired`
+- Added `hideRetired` boolean to `FleetFiltersState` (default: `true`)
+- Added "Show retired vehicles" toggle in filter popover
+- Ops status filter now uses `not_set` instead of `clean_ready` for null values
 
-### 1. No Esc key handler on PostTourChoiceModal
-The modal has **zero keyboard handling**. The Esc key previously "worked" only because the AutomatedDemoTour's keyboard listener was still active during a brief overlap. Once the tour fully unmounts, Esc does nothing.
+### 3. Fleet Vehicle Card: Truth-Based Display ✅
+- **File:** `src/components/fleet/FleetVehicleCard.tsx`
+- **Status badge truth:** Derives display from real DB status + ops_status:
+  - "With Renter" when `ops_status === 'renter_has'`
+  - "Booked" when there's an active booking
+  - "Maintenance", "Available", "Retired" from DB status
+  - Removed phantom "Rented" label
+- **Retired treatment:** `opacity-50 grayscale` on card, gray "Retired" badge, hides pricing/ops badge/ops actions/photo count, dropdown limited to Edit + View + Delete
+- **Null ops_status:** Shows neutral "Not Set" badge instead of false "Clean & Ready"
+- **AI suggestion:** Replaced raw "AI: $X" text with small `Sparkles` icon with tooltip "Rari has a pricing suggestion", clicking opens QuickPriceEditor. Shows when `suggested_rate` differs from `current_rate`
+- **Wrench → Clock:** Changed `last_ops_update` icon from `Wrench` to `Clock`
 
-### 2. Potential click interception
-The `InteractiveModuleTour` and `TourSpotlight` components render at `z-[100]` and `z-[90]` with `pointer-events-auto` on their SVG overlay. If either component doesn't fully unmount (e.g., stale state), it could sit invisibly on top of the PostTourChoiceModal (also `z-[100]`) and swallow clicks.
+### 4. Fleet Page: Retired Filtering ✅
+- **File:** `src/components/fleet/FleetPageEnhanced.tsx`
+- Applies `hideRetired` filter: retired vehicles excluded by default
+- Ops status filter uses `not_set` for null values
 
-## Fix
+### 5. Fleet Status Donut: Retired Exclusion ✅
+- **File:** `src/components/charts/FleetStatusDonut.tsx`
+- Filters out retired vehicles before calculating segments
+- Available = activeVehicles - booked - maintenance (retired already excluded)
 
-### `src/components/onboarding/PostTourChoiceModal.tsx`
-- Add a `useEffect` that listens for `Escape` key and calls `onExplore` when the modal is open
-- This gives consistent dismissal via keyboard
+### 6. Fleet Status Widget: Booking-Aware Counts ✅
+- **File:** `src/components/dashboard/widgets/FleetStatusWidget.tsx`
+- Replaced phantom "Rented"/"Reserved"/"Unavailable" status items with booking-aware calculation
+- Uses active bookings spanning today to derive "Booked" count (same logic as donut)
+- Utilization % excludes retired from denominator
+- Status items: Available, Booked, Maintenance, Retired (shown separately)
 
-### Verify click works
-The backdrop `onClick={onExplore}` is already in place. If click is still blocked, the z-index overlap with other tour components would be the cause — bump the modal's z-index from `z-[100]` to `z-[110]` to ensure it sits above any residual tour overlays.
+## Files Modified
+- `src/hooks/useVehicleOpsStatus.ts` (added `not_set` ops status, fixed default)
+- `src/components/fleet/FleetFilters.tsx` (real DB statuses, hideRetired toggle)
+- `src/components/fleet/FleetVehicleCard.tsx` (truth-based status, retired UI, Rari indicator, Clock icon)
+- `src/components/fleet/FleetPageEnhanced.tsx` (retired filtering, ops_status null handling)
+- `src/components/charts/FleetStatusDonut.tsx` (retired exclusion)
+- `src/components/dashboard/widgets/FleetStatusWidget.tsx` (booking-aware counts, retired exclusion)
 
-| File | Change |
-|------|--------|
-| `src/components/onboarding/PostTourChoiceModal.tsx` | Add Esc key listener via `useEffect`; bump z-index to `z-[110]` to prevent click interception from stale tour overlays |
-
-Single file, small change.
-
+## No Database Migration Needed
+All changes are UI/logic corrections using existing DB columns and values.

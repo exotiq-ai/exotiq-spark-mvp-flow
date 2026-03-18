@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Car, Upload, Compass, Sparkles } from 'lucide-react';
@@ -26,6 +27,15 @@ export const PostTourChoiceModal = ({
     fireFullScreenConfetti();
     action();
   };
+
+  useEffect(() => {
+    if (!open) return;
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onExplore();
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [open, onExplore]);
 
   if (!open) return null;
 
@@ -64,7 +74,7 @@ export const PostTourChoiceModal = ({
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={onExplore}
-        className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 backdrop-blur-sm p-4"
+        className="fixed inset-0 z-[110] flex items-center justify-center bg-background/80 backdrop-blur-sm p-4"
       >
         {/* Inner card — stop propagation to be safe */}
         <motion.div
