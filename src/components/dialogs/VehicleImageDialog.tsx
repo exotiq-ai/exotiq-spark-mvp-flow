@@ -46,10 +46,10 @@ import type { OpsStatus } from "@/hooks/useVehicleOpsStatus";
 const OPS_STATUS_OPTIONS: { value: OpsStatus; label: string; color: string }[] = [
   { value: "clean_ready", label: "Clean & Ready", color: "bg-success/15 text-success border-success/20" },
   { value: "needs_wash", label: "Needs Wash", color: "bg-warning/15 text-warning border-warning/20" },
-  { value: "needs_gas", label: "Needs Gas", color: "bg-accent/15 text-accent border-accent/20" },
-  { value: "needs_service", label: "Needs Service", color: "bg-destructive/15 text-destructive border-destructive/20" },
+  { value: "needs_fuel", label: "Needs Fuel", color: "bg-accent/15 text-accent border-accent/20" },
+  { value: "pending_inspection", label: "Pending Inspection", color: "bg-destructive/15 text-destructive border-destructive/20" },
   { value: "renter_has", label: "With Renter", color: "bg-primary/15 text-primary border-primary/20" },
-  { value: "out_of_rotation", label: "Out of Rotation", color: "bg-muted text-muted-foreground border-border" },
+  { value: "check_in_required", label: "Check-In Required", color: "bg-muted text-muted-foreground border-border" },
 ];
 
 interface VehicleImageDialogProps {
