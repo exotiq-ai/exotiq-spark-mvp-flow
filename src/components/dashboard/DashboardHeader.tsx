@@ -52,6 +52,16 @@ export const DashboardHeader = ({ onOpenChat }: DashboardHeaderProps) => {
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-0.5 sm:gap-2 min-w-0">
           <ExotiqLogoBranded variant="gulf-blue" size="sm" className="sm:hidden" />
           <ExotiqLogoBranded variant="gulf-blue" size="md" className="hidden sm:flex" />
+          {currentTeam?.logo_url && (
+            <>
+              <Separator orientation="vertical" className="h-6 mx-1 sm:mx-2 hidden sm:block" />
+              <img
+                src={currentTeam.logo_url}
+                alt={currentTeam.name || "Company logo"}
+                className="h-7 sm:h-8 w-auto object-contain max-w-[100px] sm:max-w-[120px]"
+              />
+            </>
+          )}
           <LocationSwitcher onAddLocation={() => setAddLocationOpen(true)} />
         </div>
         

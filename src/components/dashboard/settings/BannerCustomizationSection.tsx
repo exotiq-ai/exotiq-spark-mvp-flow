@@ -1,13 +1,15 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Save, Sparkles } from "lucide-react";
+import { useTeam } from "@/contexts/TeamContext";
+import { Save, Sparkles, Upload, X, Building2 } from "lucide-react";
 
 interface BannerSettings {
   company_name: string;
@@ -28,7 +30,17 @@ export const BannerCustomizationSection = () => {
     show_carbon_fiber: false,
   });
   const [isSaving, setIsSaving] = useState(false);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const { currentTeam, refreshTeam } = useTeam();
+
+  useEffect(() => {
+    if (currentTeam?.logo_url) {
+      setLogoUrl(currentTeam.logo_url);
+    }
+  }, [currentTeam]);
 
   useEffect(() => {
     loadSettings();
@@ -51,7 +63,6 @@ export const BannerCustomizationSection = () => {
       }
 
       if (data) {
-        // Use default values since these columns don't exist yet
         setSettings({
           company_name: '',
           company_tagline: '',
@@ -63,6 +74,78 @@ export const BannerCustomizationSection = () => {
       }
     } catch (error) {
       console.error('Error loading settings:', error);
+    }
+  };
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !currentTeam) return;
+
+    const validTypes = ['image/png', 'image/jpeg', 'image/svg+xml', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      toast({ title: "Invalid file type", description: "Please upload PNG, JPG, SVG, or WebP.", variant: "destructive" });
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast({ title: "File too large", description: "Logo must be under 2MB.", variant: "destructive" });
+      return;
+    }
+
+    setIsUploadingLogo(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/logo-${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('dashboard-banners')
+        .upload(fileName, file, { cacheControl: '3600', upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('dashboard-banners')
+        .getPublicUrl(fileName);
+
+      const { error: dbError } = await supabase
+        .from('teams')
+        .update({ logo_url: publicUrl })
+        .eq('id', currentTeam.id);
+
+      if (dbError) throw dbError;
+
+      setLogoUrl(publicUrl);
+      await refreshTeam();
+
+      toast({ title: "Logo uploaded", description: "Your company logo has been updated." });
+    } catch (error) {
+      console.error('Logo upload error:', error);
+      toast({ title: "Upload failed", description: "Could not upload logo. Please try again.", variant: "destructive" });
+    } finally {
+      setIsUploadingLogo(false);
+      if (logoInputRef.current) logoInputRef.current.value = '';
+    }
+  };
+
+  const handleRemoveLogo = async () => {
+    if (!currentTeam) return;
+    try {
+      const { error } = await supabase
+        .from('teams')
+        .update({ logo_url: null })
+        .eq('id', currentTeam.id);
+
+      if (error) throw error;
+
+      setLogoUrl(null);
+      await refreshTeam();
+      toast({ title: "Logo removed" });
+    } catch (error) {
+      console.error('Remove logo error:', error);
+      toast({ title: "Failed to remove logo", variant: "destructive" });
     }
   };
 
@@ -88,7 +171,6 @@ export const BannerCustomizationSection = () => {
         description: "Your banner customization has been updated. Refresh to see changes.",
       });
 
-      // Reload the page to show changes
       setTimeout(() => window.location.reload(), 1500);
     } catch (error) {
       console.error('Error saving settings:', error);
@@ -114,6 +196,47 @@ export const BannerCustomizationSection = () => {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
+
+        {/* Company Logo Upload */}
+        <div className="space-y-3">
+          <Label>Company Logo</Label>
+          <p className="text-sm text-muted-foreground">
+            Your logo appears in the header and sidebar. Square or transparent background recommended.
+          </p>
+          <div className="flex items-center gap-4">
+            <Avatar className="h-16 w-16 rounded-xl border-2 border-dashed border-muted-foreground/30">
+              <AvatarImage src={logoUrl || undefined} className="object-contain p-1" />
+              <AvatarFallback className="rounded-xl bg-muted">
+                <Building2 className="h-6 w-6 text-muted-foreground" />
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex flex-col gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => logoInputRef.current?.click()}
+                disabled={isUploadingLogo}
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                {isUploadingLogo ? 'Uploading...' : logoUrl ? 'Change Logo' : 'Upload Logo'}
+              </Button>
+              {logoUrl && (
+                <Button variant="ghost" size="sm" onClick={handleRemoveLogo} className="text-destructive hover:text-destructive">
+                  <X className="h-4 w-4 mr-2" />
+                  Remove
+                </Button>
+              )}
+            </div>
+            <input
+              ref={logoInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/svg+xml,image/webp"
+              className="hidden"
+              onChange={handleLogoUpload}
+            />
+          </div>
+        </div>
+
         {/* Company Branding Toggle */}
         <div className="flex items-center justify-between">
           <div className="space-y-0.5">
@@ -143,9 +266,6 @@ export const BannerCustomizationSection = () => {
             }
             disabled={!settings.show_company_branding}
           />
-          <p className="text-xs text-muted-foreground">
-            Your company name displayed prominently on the banner
-          </p>
         </div>
 
         {/* Company Tagline */}
@@ -160,9 +280,6 @@ export const BannerCustomizationSection = () => {
             }
             disabled={!settings.show_company_branding}
           />
-          <p className="text-xs text-muted-foreground">
-            A subtitle or tagline to complement your company name
-          </p>
         </div>
 
         {/* Banner Height */}

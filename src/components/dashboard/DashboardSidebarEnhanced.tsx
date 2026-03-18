@@ -244,14 +244,29 @@ export const DashboardSidebarEnhanced = ({
       {/* Logo Section */}
       <div className="p-4 border-b border-sidebar-border">
         {collapsed ? (
-          <div className="flex justify-center">
-            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center shadow-sm">
-              <span className="text-xl font-bold text-primary-foreground">E</span>
-            </div>
+          <div className="flex flex-col items-center gap-2">
+            {currentTeam?.logo_url ? (
+              <img
+                src={currentTeam.logo_url}
+                alt={currentTeam.name || "Company"}
+                className="w-9 h-9 object-contain rounded-lg"
+              />
+            ) : (
+              <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center shadow-sm">
+                <span className="text-xl font-bold text-primary-foreground">E</span>
+              </div>
+            )}
           </div>
         ) : (
-          <div className="flex justify-center">
+          <div className="flex flex-col items-center gap-2">
             <Logo size="lg" className="h-10" />
+            {currentTeam?.logo_url && (
+              <img
+                src={currentTeam.logo_url}
+                alt={currentTeam.name || "Company"}
+                className="h-8 w-auto max-w-[140px] object-contain"
+              />
+            )}
           </div>
         )}
       </div>
