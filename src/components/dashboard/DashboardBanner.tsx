@@ -235,14 +235,6 @@ export const DashboardBanner = () => {
               </span>
             </Button>
           </label>
-          <input
-            id="banner-upload"
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handleFileUpload}
-            disabled={isUploading}
-          />
           
           {bannerUrl !== defaultBanner && (
             <Button
@@ -255,6 +247,16 @@ export const DashboardBanner = () => {
           )}
         </div>
       )}
+
+      {/* Hidden file input — always in DOM so it survives mouseLeave during file dialog */}
+      <input
+        id="banner-upload"
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleFileUpload}
+        disabled={isUploading}
+      />
 
       {/* Welcome Text / Company Branding - Premium Glass Effect */}
       <div className={`absolute bottom-6 ${
