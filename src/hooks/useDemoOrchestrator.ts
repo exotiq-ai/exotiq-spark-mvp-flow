@@ -20,6 +20,8 @@ export const useDemoOrchestrator = ({
   const [zoomTarget, setZoomTarget] = useState<{ x: number; y: number; scale: number } | null>(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [cursorTarget, setCursorTarget] = useState<{ x: number; y: number } | null>(null);
+  const [cursorClicking, setCursorClicking] = useState(false);
   
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -45,19 +47,25 @@ export const useDemoOrchestrator = ({
       audioRef.current = null;
     }
     setIsSpeaking(false);
+    setCursorTarget(null);
+    setCursorClicking(false);
+  }, []);
+
+  const getElementCenter = useCallback((selector: string): { x: number; y: number } | null => {
+    const el = document.querySelector(selector);
+    if (!el) return null;
+    const rect = el.getBoundingClientRect();
+    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
   }, []);
 
   const zoomToElement = useCallback((selector: string, zoomLevel: number = 1.2) => {
-    const el = document.querySelector(selector);
-    if (!el) {
+    const center = getElementCenter(selector);
+    if (!center) {
       setZoomTarget(null);
       return;
     }
-    const rect = el.getBoundingClientRect();
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
-    setZoomTarget({ x: centerX, y: centerY, scale: zoomLevel });
-  }, []);
+    setZoomTarget({ x: center.x, y: center.y, scale: zoomLevel });
+  }, [getElementCenter]);
 
   // Pronunciation fixes for ElevenLabs
   const fixPronunciation = (text: string): string => {
@@ -68,7 +76,6 @@ export const useDemoOrchestrator = ({
   };
 
   const speakNarration = useCallback(async (text: string, fallbackDuration: number): Promise<void> => {
-    // If muted, just wait the fallback duration
     if (mutedRef.current) {
       setIsSpeaking(true);
       return new Promise<void>((resolve) => {
@@ -81,17 +88,11 @@ export const useDemoOrchestrator = ({
 
     try {
       setIsSpeaking(true);
-      
-      // Get user session token for auth
       const { data: sessionData } = await supabase.auth.getSession();
       const accessToken = sessionData?.session?.access_token;
-      
-      if (!accessToken) {
-        throw new Error('No auth session');
-      }
+      if (!accessToken) throw new Error('No auth session');
 
       const processedText = fixPronunciation(text);
-      
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/text-to-speech`,
         {
@@ -106,13 +107,9 @@ export const useDemoOrchestrator = ({
       );
 
       if (!response.ok) throw new Error(`TTS failed: ${response.status}`);
-
-      // The text-to-speech function returns JSON with base64 audio
       const data = await response.json();
-      
       if (!data.audioContent) throw new Error('No audio content in response');
 
-      // Use data URI for base64 audio (browser natively decodes)
       const audioUrl = `data:audio/mpeg;base64,${data.audioContent}`;
       const audio = new Audio(audioUrl);
       audioRef.current = audio;
@@ -122,22 +119,18 @@ export const useDemoOrchestrator = ({
           setIsSpeaking(false);
           resolve();
         };
-        
         audio.onended = finish;
         audio.onerror = () => {
           console.warn('Audio playback error, using fallback duration');
           finish();
         };
-        
         audio.play().catch(() => {
-          // Autoplay blocked or error — fall back to duration
           timerRef.current = setTimeout(finish, fallbackDuration);
         });
       });
     } catch (err) {
       console.warn('TTS error, using fallback duration:', err);
       setIsSpeaking(false);
-      // Fallback: wait the calibrated duration
       return new Promise<void>(resolve => {
         timerRef.current = setTimeout(resolve, fallbackDuration);
       });
@@ -145,16 +138,12 @@ export const useDemoOrchestrator = ({
   }, []);
 
   const waitWhilePaused = useCallback(async () => {
-    // Pause audio if playing
     if (pausedRef.current && audioRef.current && !audioRef.current.paused) {
       audioRef.current.pause();
     }
-    
     while (pausedRef.current && activeRef.current) {
       await new Promise(r => setTimeout(r, 200));
     }
-    
-    // Resume audio if it was paused
     if (!pausedRef.current && audioRef.current && audioRef.current.paused && audioRef.current.currentTime > 0) {
       audioRef.current.play().catch(() => {});
     }
@@ -165,6 +154,7 @@ export const useDemoOrchestrator = ({
       if (stepIndex >= steps.length) {
         setIsActive(false);
         setZoomTarget(null);
+        setCursorTarget(null);
         onComplete?.();
       }
       return;
@@ -178,48 +168,66 @@ export const useDemoOrchestrator = ({
     stepIndexRef.current = stepIndex;
     setIsTransitioning(true);
 
-    // Navigate to module
+    // Navigate to module — slower transition
     onModuleChange(step.module);
-    await new Promise(r => setTimeout(r, 500));
+    await new Promise(r => setTimeout(r, 1200));
     setIsTransitioning(false);
 
-    // Click tab if specified
+    // Move cursor to tab and click if specified
     if (step.tabSelector) {
-      await new Promise(r => setTimeout(r, 300));
-      const tabEl = document.querySelector(step.tabSelector);
-      if (tabEl instanceof HTMLElement) tabEl.click();
-      await new Promise(r => setTimeout(r, 400));
+      const tabCenter = getElementCenter(step.tabSelector);
+      if (tabCenter) {
+        setCursorTarget(tabCenter);
+        await new Promise(r => setTimeout(r, 800)); // cursor travel time
+        
+        // Click animation
+        setCursorClicking(true);
+        await new Promise(r => setTimeout(r, 300));
+        const tabEl = document.querySelector(step.tabSelector);
+        if (tabEl instanceof HTMLElement) tabEl.click();
+        await new Promise(r => setTimeout(r, 200));
+        setCursorClicking(false);
+        
+        await new Promise(r => setTimeout(r, 1200)); // let tab content settle
+      }
     }
 
-    // Zoom to element
-    if (step.selector && step.zoomLevel) {
-      zoomToElement(step.selector, step.zoomLevel);
-    } else {
-      setZoomTarget(null);
-    }
-
-    // Scroll element into view
+    // Move cursor to target element, then zoom
     if (step.selector) {
+      const elCenter = getElementCenter(step.selector);
+      if (elCenter) {
+        setCursorTarget(elCenter);
+        await new Promise(r => setTimeout(r, 600)); // cursor travel
+      }
+
+      if (step.zoomLevel) {
+        zoomToElement(step.selector, step.zoomLevel);
+      }
+
       const el = document.querySelector(step.selector);
       el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      await new Promise(r => setTimeout(r, 300));
+      await new Promise(r => setTimeout(r, 800));
+    } else {
+      setZoomTarget(null);
+      // For module-level steps with no selector, park cursor off-screen
+      setCursorTarget(null);
     }
 
     // Check pause again before narration
     await waitWhilePaused();
     if (!activeRef.current) return;
 
-    // Narrate (or use fallback duration if muted/failed)
+    // Narrate
     await speakNarration(step.narration, step.duration);
     
-    // Brief pause between steps
-    await new Promise(r => setTimeout(r, 600));
+    // Longer pause between steps for breathing room
+    await new Promise(r => setTimeout(r, 1500));
 
     // Move to next step
     if (activeRef.current) {
       executeStep(stepIndex + 1);
     }
-  }, [steps, onModuleChange, zoomToElement, speakNarration, waitWhilePaused, onComplete]);
+  }, [steps, onModuleChange, zoomToElement, getElementCenter, speakNarration, waitWhilePaused, onComplete]);
 
   const start = useCallback(() => {
     cleanup();
@@ -228,6 +236,7 @@ export const useDemoOrchestrator = ({
     setCurrentStepIndex(0);
     stepIndexRef.current = 0;
     setZoomTarget(null);
+    setCursorTarget(null);
     setTimeout(() => executeStep(0), 150);
   }, [cleanup, executeStep]);
 
@@ -253,6 +262,7 @@ export const useDemoOrchestrator = ({
     } else {
       setIsActive(false);
       setZoomTarget(null);
+      setCursorTarget(null);
       onComplete?.();
     }
   }, [cleanup, steps.length, executeStep, onComplete]);
@@ -264,6 +274,7 @@ export const useDemoOrchestrator = ({
     setCurrentStepIndex(0);
     stepIndexRef.current = 0;
     setZoomTarget(null);
+    setCursorTarget(null);
   }, [cleanup]);
 
   const toggleMute = useCallback(() => {
@@ -285,6 +296,8 @@ export const useDemoOrchestrator = ({
     isTransitioning,
     zoomTarget,
     isSpeaking,
+    cursorTarget,
+    cursorClicking,
     start,
     pause,
     resume,

@@ -7,21 +7,28 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTourData } from '@/contexts/TourDataContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { RariCursor } from './RariCursor';
 import confetti from 'canvas-confetti';
 import { cn } from '@/lib/utils';
 import { 
-  Play, 
-  Pause, 
-  SkipForward, 
-  X, 
-  Volume2, 
-  VolumeX,
-  Brain
+  Play, Pause, SkipForward, X, 
+  Volume2, VolumeX, Brain
 } from 'lucide-react';
 
 interface AutomatedDemoTourProps {
   onModuleChange: (moduleId: string) => void;
 }
+
+const fireFullScreenConfetti = () => {
+  // Left burst
+  confetti({ particleCount: 120, angle: 60, spread: 55, origin: { x: 0, y: 0.6 }, colors: ['#0B3D91', '#FF6B35', '#FFD700'] });
+  // Right burst
+  confetti({ particleCount: 120, angle: 120, spread: 55, origin: { x: 1, y: 0.6 }, colors: ['#0B3D91', '#FF6B35', '#FFD700'] });
+  // Center burst for extra density
+  setTimeout(() => {
+    confetti({ particleCount: 80, spread: 100, origin: { x: 0.5, y: 0.5 }, colors: ['#0B3D91', '#FF6B35', '#FFD700'] });
+  }, 200);
+};
 
 export const AutomatedDemoTour = ({ onModuleChange }: AutomatedDemoTourProps) => {
   const { user } = useAuth();
@@ -33,15 +40,8 @@ export const AutomatedDemoTour = ({ onModuleChange }: AutomatedDemoTourProps) =>
     steps,
     onModuleChange,
     onComplete: () => {
-      // Deactivate tour data overlay first
       deactivateTour();
-      
-      confetti({
-        particleCount: 150,
-        spread: 80,
-        origin: { y: 0.6 },
-        colors: ['#0B3D91', '#FF6B35', '#FFD700'],
-      });
+      fireFullScreenConfetti();
       toast({
         title: "Tour Complete! 🎉",
         description: "Now let's set up your fleet.",
@@ -53,7 +53,7 @@ export const AutomatedDemoTour = ({ onModuleChange }: AutomatedDemoTourProps) =>
     },
   });
 
-  // Listen for 'start-demo-tour' events — pre-fetch demo data before starting
+  // Listen for 'start-demo-tour' events
   useEffect(() => {
     const handler = async () => {
       const success = await activateTour();
@@ -68,29 +68,14 @@ export const AutomatedDemoTour = ({ onModuleChange }: AutomatedDemoTourProps) =>
   // Keyboard controls
   useEffect(() => {
     if (!demo.isActive) return;
-    
     const handleKeyDown = (e: KeyboardEvent) => {
       switch (e.key) {
-        case 'Escape':
-          e.preventDefault();
-          demo.stop();
-          break;
-        case ' ':
-          e.preventDefault();
-          demo.isPaused ? demo.resume() : demo.pause();
-          break;
-        case 'ArrowRight':
-          e.preventDefault();
-          demo.skipToNext();
-          break;
-        case 'm':
-        case 'M':
-          e.preventDefault();
-          demo.toggleMute();
-          break;
+        case 'Escape': e.preventDefault(); demo.stop(); break;
+        case ' ': e.preventDefault(); demo.isPaused ? demo.resume() : demo.pause(); break;
+        case 'ArrowRight': e.preventDefault(); demo.skipToNext(); break;
+        case 'm': case 'M': e.preventDefault(); demo.toggleMute(); break;
       }
     };
-    
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [demo.isActive, demo.isPaused, demo.stop, demo.pause, demo.resume, demo.skipToNext, demo.toggleMute]);
@@ -106,6 +91,13 @@ export const AutomatedDemoTour = ({ onModuleChange }: AutomatedDemoTourProps) =>
 
   return (
     <AnimatePresence>
+      {/* Rari animated cursor */}
+      <RariCursor
+        target={demo.cursorTarget}
+        clicking={demo.cursorClicking}
+        visible={demo.isActive}
+      />
+
       {/* Cinematic vignette overlay */}
       {demo.zoomTarget && (
         <motion.div
@@ -182,12 +174,10 @@ export const AutomatedDemoTour = ({ onModuleChange }: AutomatedDemoTourProps) =>
           'border border-border/50',
           'shadow-2xl'
         )}>
-          {/* Step indicator */}
           <span className="text-[10px] sm:text-xs text-muted-foreground font-mono min-w-[40px] sm:min-w-[60px] text-center">
             {demo.currentStepIndex + 1}/{demo.totalSteps}
           </span>
 
-          {/* Progress bar */}
           <div className="w-20 sm:w-32 md:w-48 h-1.5 bg-muted rounded-full overflow-hidden">
             <motion.div
               className="h-full bg-primary rounded-full"
@@ -196,62 +186,21 @@ export const AutomatedDemoTour = ({ onModuleChange }: AutomatedDemoTourProps) =>
             />
           </div>
 
-          {/* Controls */}
           <div className="flex items-center gap-0.5 sm:gap-1">
-            {/* Mute toggle */}
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-7 w-7 sm:h-8 sm:w-8"
-              onClick={demo.toggleMute}
-              title={demo.isMuted ? 'Unmute (M)' : 'Mute (M)'}
-            >
-              {demo.isMuted ? (
-                <VolumeX className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              ) : (
-                <Volume2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              )}
+            <Button size="icon" variant="ghost" className="h-7 w-7 sm:h-8 sm:w-8" onClick={demo.toggleMute} title={demo.isMuted ? 'Unmute (M)' : 'Mute (M)'}>
+              {demo.isMuted ? <VolumeX className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> : <Volume2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
             </Button>
-
-            {/* Play/Pause */}
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-7 w-7 sm:h-8 sm:w-8"
-              onClick={demo.isPaused ? demo.resume : demo.pause}
-              title={demo.isPaused ? 'Resume (Space)' : 'Pause (Space)'}
-            >
-              {demo.isPaused ? (
-                <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              ) : (
-                <Pause className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              )}
+            <Button size="icon" variant="ghost" className="h-7 w-7 sm:h-8 sm:w-8" onClick={demo.isPaused ? demo.resume : demo.pause} title={demo.isPaused ? 'Resume (Space)' : 'Pause (Space)'}>
+              {demo.isPaused ? <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> : <Pause className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
             </Button>
-            
-            {/* Skip */}
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-7 w-7 sm:h-8 sm:w-8"
-              onClick={demo.skipToNext}
-              title="Skip (→)"
-            >
+            <Button size="icon" variant="ghost" className="h-7 w-7 sm:h-8 sm:w-8" onClick={demo.skipToNext} title="Skip (→)">
               <SkipForward className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </Button>
-
-            {/* Exit */}
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-7 w-7 sm:h-8 sm:w-8 text-muted-foreground hover:text-destructive"
-              onClick={demo.stop}
-              title="Exit (Esc)"
-            >
+            <Button size="icon" variant="ghost" className="h-7 w-7 sm:h-8 sm:w-8 text-muted-foreground hover:text-destructive" onClick={demo.stop} title="Exit (Esc)">
               <X className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </Button>
           </div>
 
-          {/* Time remaining — hidden on small screens */}
           <span className="text-[10px] text-muted-foreground hidden md:block whitespace-nowrap">
             ~{formatTime(demo.estimatedTimeRemaining)}
           </span>

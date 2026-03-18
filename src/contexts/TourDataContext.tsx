@@ -42,7 +42,6 @@ export const TourDataProvider = ({ children }: { children: ReactNode }) => {
 
   const activateTour = useCallback(async (): Promise<boolean> => {
     if (demoSnapshot) {
-      // Already fetched, just activate
       setTourActive(true);
       return true;
     }
@@ -82,7 +81,10 @@ export const TourDataProvider = ({ children }: { children: ReactNode }) => {
 
   const deactivateTour = useCallback(() => {
     setTourActive(false);
-    setShowPostTourModal(true);
+    // Delay modal so confetti plays fully before the modal appears
+    setTimeout(() => {
+      setShowPostTourModal(true);
+    }, 800);
   }, []);
 
   return (
@@ -104,7 +106,6 @@ export const TourDataProvider = ({ children }: { children: ReactNode }) => {
 
 export const useTourData = () => {
   const context = useContext(TourDataContext);
-  // Safe to use outside provider — returns inactive defaults
   if (!context) {
     return {
       tourActive: false,
