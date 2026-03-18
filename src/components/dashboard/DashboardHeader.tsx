@@ -30,7 +30,7 @@ export const DashboardHeader = ({ onOpenChat }: DashboardHeaderProps) => {
   const { user, signOut } = useAuth();
   const { profile, displayName } = useProfile();
   const { conversations } = useTeamMessaging();
-  const { refreshTeam } = useTeam();
+  const { currentTeam, refreshTeam } = useTeam();
   const [addLocationOpen, setAddLocationOpen] = useState(false);
 
   // Calculate total unread messages
