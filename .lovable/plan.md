@@ -1,59 +1,39 @@
 
-# Fleet Management UI Truth Audit
 
-## Status: ✅ Implemented
+# Add Company Logo Upload and Display
 
-## What Was Changed
+## Current State
 
-### 1. Ops Status: Neutral Default ✅
-- **File:** `src/hooks/useVehicleOpsStatus.ts`
-- Added `not_set` ops status with neutral gray styling (`CircleDashed` icon, "Not Set" label)
-- `getStatusConfig()` now returns `not_set` instead of `clean_ready` for null/unknown values
-- No more false "Clean & Ready" badges on vehicles that haven't been inspected
+The database already has `logo_url` columns on both the `teams` table and `user_dashboard_preferences` table, but **there is no UI to upload a company logo anywhere**. The `BannerCustomizationSection` in Settings handles company name/tagline but has no logo upload. The header always shows the hardcoded Exotiq logo.
 
-### 2. Fleet Filters: Truth-Based Status Options ✅
-- **File:** `src/components/fleet/FleetFilters.tsx`
-- Replaced phantom "Rented" and "Unavailable" with real DB values: `available`, `booked`, `maintenance`, `retired`
-- Added `hideRetired` boolean to `FleetFiltersState` (default: `true`)
-- Added "Show retired vehicles" toggle in filter popover
-- Ops status filter now uses `not_set` instead of `clean_ready` for null values
+## Plan
 
-### 3. Fleet Vehicle Card: Truth-Based Display ✅
-- **File:** `src/components/fleet/FleetVehicleCard.tsx`
-- **Status badge truth:** Derives display from real DB status + ops_status:
-  - "With Renter" when `ops_status === 'renter_has'`
-  - "Booked" when there's an active booking
-  - "Maintenance", "Available", "Retired" from DB status
-  - Removed phantom "Rented" label
-- **Retired treatment:** `opacity-50 grayscale` on card, gray "Retired" badge, hides pricing/ops badge/ops actions/photo count, dropdown limited to Edit + View + Delete
-- **Null ops_status:** Shows neutral "Not Set" badge instead of false "Clean & Ready"
-- **AI suggestion:** Replaced raw "AI: $X" text with small `Sparkles` icon with tooltip "Rari has a pricing suggestion", clicking opens QuickPriceEditor. Shows when `suggested_rate` differs from `current_rate`
-- **Wrench → Clock:** Changed `last_ops_update` icon from `Wrench` to `Clock`
+### 1. Add Logo Upload to Banner Customization Settings
+**`src/components/dashboard/settings/BannerCustomizationSection.tsx`**
+- Add a "Company Logo" upload section (image picker + preview + remove button)
+- Upload to existing `dashboard-banners` storage bucket
+- Save the URL to `teams.logo_url` (team-level, so all members see it)
+- Show a circular preview of the current logo with a fallback icon
+- Accept PNG, SVG, JPG — recommend square/transparent background
 
-### 4. Fleet Page: Retired Filtering ✅
-- **File:** `src/components/fleet/FleetPageEnhanced.tsx`
-- Applies `hideRetired` filter: retired vehicles excluded by default
-- Ops status filter uses `not_set` for null values
+### 2. Display Company Logo in the Header
+**`src/components/dashboard/DashboardHeader.tsx`**
+- Read `currentTeam.logo_url` from `useTeam()` context (already available)
+- If `logo_url` exists, show the company logo **next to** the Exotiq logo (Exotiq stays as you specified)
+- Layout: `[Exotiq Logo] | [Company Logo]` with a subtle divider
 
-### 5. Fleet Status Donut: Retired Exclusion ✅
-- **File:** `src/components/charts/FleetStatusDonut.tsx`
-- Filters out retired vehicles before calculating segments
-- Available = activeVehicles - booked - maintenance (retired already excluded)
+### 3. Display in Sidebar
+**`src/components/dashboard/DashboardSidebarEnhanced.tsx`**
+- When expanded, show company logo below the Exotiq logo if available
+- When collapsed, show just the company logo icon (small)
 
-### 6. Fleet Status Widget: Booking-Aware Counts ✅
-- **File:** `src/components/dashboard/widgets/FleetStatusWidget.tsx`
-- Replaced phantom "Rented"/"Reserved"/"Unavailable" status items with booking-aware calculation
-- Uses active bookings spanning today to derive "Booked" count (same logic as donut)
-- Utilization % excludes retired from denominator
-- Status items: Available, Booked, Maintenance, Retired (shown separately)
+### Files Changed
 
-## Files Modified
-- `src/hooks/useVehicleOpsStatus.ts` (added `not_set` ops status, fixed default)
-- `src/components/fleet/FleetFilters.tsx` (real DB statuses, hideRetired toggle)
-- `src/components/fleet/FleetVehicleCard.tsx` (truth-based status, retired UI, Rari indicator, Clock icon)
-- `src/components/fleet/FleetPageEnhanced.tsx` (retired filtering, ops_status null handling)
-- `src/components/charts/FleetStatusDonut.tsx` (retired exclusion)
-- `src/components/dashboard/widgets/FleetStatusWidget.tsx` (booking-aware counts, retired exclusion)
+| File | Change |
+|------|--------|
+| `src/components/dashboard/settings/BannerCustomizationSection.tsx` | Add logo upload UI with preview, upload to storage, save to `teams.logo_url` |
+| `src/components/dashboard/DashboardHeader.tsx` | Show company logo from `currentTeam.logo_url` next to Exotiq logo |
+| `src/components/dashboard/DashboardSidebarEnhanced.tsx` | Show company logo in sidebar when available |
 
-## No Database Migration Needed
-All changes are UI/logic corrections using existing DB columns and values.
+No database migrations needed — `teams.logo_url` column already exists.
+
