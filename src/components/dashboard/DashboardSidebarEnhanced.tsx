@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useTeam } from "@/contexts/TeamContext";
 import { useProfile } from "@/hooks/useProfile";
 import { useRariInsightsCount } from "@/hooks/useRariInsightsCount";
 import { 
