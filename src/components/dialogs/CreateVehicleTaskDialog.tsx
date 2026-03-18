@@ -276,7 +276,7 @@ export const CreateVehicleTaskDialog = ({
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="px-6 pb-6 pt-3 flex-shrink-0">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
