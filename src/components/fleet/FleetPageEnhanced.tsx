@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -57,6 +58,7 @@ interface TeamMember {
 }
 
 export const FleetPageEnhanced = () => {
+  const { user } = useAuth();
   const isMobile = useIsMobile();
   const { vehicles, bookings, loading, applyPriceOptimization, updateVehicle, refreshData, createVehicle, deleteVehicle, deleteVehicles } = useLocationFilteredFleet();
   const { tasks, myTasks, unassignedTasks, createTask, updateTaskStatus, claimTask } = useFleetTasks();
@@ -605,7 +607,23 @@ export const FleetPageEnhanced = () => {
           year: detailsVehicle?.year,
           status: detailsVehicle?.status,
           dailyRate: detailsVehicle?.current_rate,
+          color: detailsVehicle?.color,
+          license_plate: detailsVehicle?.license_plate,
+          vin: detailsVehicle?.vin,
+          ops_status: detailsVehicle?.ops_status,
+          suggested_rate: detailsVehicle?.suggested_rate,
         }}
+        onApplyRate={applyPriceOptimization}
+        onCreateTask={(v) => { setDetailsVehicle(null); setTaskVehicle(v); }}
+        onStatusChange={handleStatusChange}
+        onEdit={(v) => { setDetailsVehicle(null); setEditVehicle(v); }}
+        vehicleTasks={detailsVehicle ? tasks.filter(t => t.vehicle_id === detailsVehicle.id) : []}
+        onCompleteTask={handleCompleteTask}
+        onClaimTask={claimTask}
+        onViewTask={(task) => { setDetailsVehicle(null); setSelectedTask(task); }}
+        currentUserId={user?.id}
+        activeBooking={detailsVehicle ? getActiveBooking(detailsVehicle.id) : undefined}
+        nextBooking={detailsVehicle ? getNextBooking(detailsVehicle.id) : undefined}
       />
 
       {/* Edit Vehicle Dialog */}
