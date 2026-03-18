@@ -160,8 +160,9 @@ export const PhotoReviewQueue = ({ vehicles }: PhotoReviewQueueProps) => {
   const handleSkip = useCallback(async () => {
     if (!currentPhoto) return;
     await skipPhoto(currentPhoto.id);
+    goToNext();
     toast.info('Photo skipped');
-  }, [currentPhoto, skipPhoto]);
+  }, [currentPhoto, skipPhoto, goToNext]);
 
   const handleReject = useCallback(async () => {
     if (!currentPhoto) return;

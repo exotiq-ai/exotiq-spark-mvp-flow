@@ -203,13 +203,8 @@ export function usePhotoReviewQueue(options: UsePhotoReviewQueueOptions = {}) {
   /**
    * Skip a photo (keep in queue for later)
    */
-  const skipPhoto = useCallback(async (photoId: string): Promise<void> => {
-    // Move to end of local queue for now
-    setQueue(prev => {
-      const photo = prev.find(p => p.id === photoId);
-      if (!photo) return prev;
-      return [...prev.filter(p => p.id !== photoId), photo];
-    });
+  const skipPhoto = useCallback(async (_photoId: string): Promise<void> => {
+    // No-op on the queue — photo stays in place so back arrow can return to it
   }, []);
 
   /**
