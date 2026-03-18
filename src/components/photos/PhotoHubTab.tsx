@@ -41,6 +41,7 @@ interface Vehicle {
   make?: string;
   model?: string;
   year?: number;
+  color?: string;
 }
 
 interface PhotoHubTabProps {
