@@ -525,6 +525,8 @@ export default function Onboarding() {
                     />
                   </div>
 
+                  <CompanyLogoUpload compact label="Company Logo" />
+
                   <div className="space-y-2">
                     <Label>Business Address *</Label>
                     <AddressAutocomplete
