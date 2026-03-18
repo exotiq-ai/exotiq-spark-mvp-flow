@@ -74,7 +74,7 @@ export const PostTourChoiceModal = ({
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={onExplore}
-        className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 backdrop-blur-sm p-4"
+        className="fixed inset-0 z-[110] flex items-center justify-center bg-background/80 backdrop-blur-sm p-4"
       >
         {/* Inner card — stop propagation to be safe */}
         <motion.div
