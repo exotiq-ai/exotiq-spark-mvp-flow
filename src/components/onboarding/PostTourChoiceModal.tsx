@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Car, Upload, Compass, Sparkles } from 'lucide-react';
