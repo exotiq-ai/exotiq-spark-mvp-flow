@@ -40,6 +40,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { ImportWizard } from '@/components/import/ImportWizard';
 import { Badge } from '@/components/ui/badge';
 import { AddVehicleFromPhotoWizard } from '@/components/photos/AddVehicleFromPhotoWizard';
+import { CompanyLogoUpload } from '@/components/shared/CompanyLogoUpload';
 
 const initialFormData: OnboardingFormData = {
   companyName: '',

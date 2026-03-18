@@ -243,6 +243,15 @@ export const MyAccountSection = () => {
         </div>
       </Card>
 
+      {/* Company Branding */}
+      <Card className="card-premium p-6">
+        <div className="flex items-center space-x-3 mb-6">
+          <Building className="w-5 h-5 text-primary" />
+          <h3 className="text-xl font-semibold">Company Branding</h3>
+        </div>
+        <CompanyLogoUpload />
+      </Card>
+
       {/* Password Section */}
       <Card className="card-premium p-6">
         <div className="flex items-center space-x-3 mb-6">
