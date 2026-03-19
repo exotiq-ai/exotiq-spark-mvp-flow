@@ -363,6 +363,21 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
             return 'exterior';
           };
 
+          // Check if this vehicle already has a hero photo (also check batch-local set)
+          let photoType = getPhotoType(analysis.angle);
+          if (!heroAssignedVehicles.has(resolvedVehicleId)) {
+            const { count: existingHeroCount } = await supabase
+              .from('vehicle_photos')
+              .select('id', { count: 'exact', head: true })
+              .eq('vehicle_id', resolvedVehicleId)
+              .eq('photo_type', 'hero');
+
+            if (existingHeroCount === 0 || existingHeroCount === null) {
+              photoType = 'hero';
+              heroAssignedVehicles.add(resolvedVehicleId);
+            }
+          }
+
           const { data } = await supabase
             .from('vehicle_photos')
             .insert({
@@ -372,7 +387,7 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
               storage_path: path,
               url: url,
               thumbnail_url: thumbnailUrl || null,
-              photo_type: getPhotoType(analysis.angle),
+              photo_type: photoType,
               detected_angle: analysis.angle,
               ai_analysis: analysis as unknown as Json,
               is_vehicle_confirmed: true,
