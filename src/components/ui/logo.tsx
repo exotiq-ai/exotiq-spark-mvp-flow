@@ -1,26 +1,46 @@
 import { cn } from "@/lib/utils";
+import { useTheme } from "next-themes";
 
 interface LogoProps {
   className?: string;
   size?: "sm" | "md" | "lg";
+  iconOnly?: boolean;
 }
 
-export const Logo = ({ className, size = "md" }: LogoProps) => {
-  const sizeClasses = {
-    sm: "h-8",
-    md: "h-12 sm:h-10", 
-    lg: "h-16 sm:h-12"
-  };
+const sizeConfig = {
+  sm: { emblem: "h-7 w-7", text: "text-base" },
+  md: { emblem: "h-9 w-9", text: "text-xl" },
+  lg: { emblem: "h-11 w-11", text: "text-2xl" },
+};
+
+export const Logo = ({ className, size = "md", iconOnly = false }: LogoProps) => {
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
+
+  const emblemSrc = isDark
+    ? "/brand/logos/svg/d-emblem-white-transparent.svg"
+    : "/brand/logos/svg/d-emblem-gulf-blue-transparent.svg";
+
+  const { emblem, text } = sizeConfig[size];
 
   return (
-    <img 
-      src="/lovable-uploads/ea741db3-49ad-45fc-8c13-a2e2dcb69d75.png" 
-      alt="Exotiq Logo" 
-      className={cn("w-auto", sizeClasses[size], className)}
-      onError={(e) => {
-        console.warn("Logo failed to load, using fallback");
-        e.currentTarget.style.display = "none";
-      }}
-    />
+    <div className={cn("flex items-center gap-2", className)}>
+      <img
+        src={emblemSrc}
+        alt="Exotiq"
+        className={cn(emblem, "object-contain")}
+      />
+      {!iconOnly && (
+        <span
+          className={cn(
+            text,
+            "font-brand font-bold tracking-tight",
+            isDark ? "text-white" : "text-[hsl(var(--foreground))]"
+          )}
+        >
+          Exotiq
+        </span>
+      )}
+    </div>
   );
 };

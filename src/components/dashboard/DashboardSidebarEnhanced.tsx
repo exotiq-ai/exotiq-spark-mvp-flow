@@ -252,7 +252,7 @@ export const DashboardSidebarEnhanced = ({
                 className="w-9 h-9 object-contain rounded-lg"
               />
             ) : (
-              <img src="/brand/exotiq-d-icon.svg" alt="Exotiq" className="w-10 h-10 object-contain" />
+              <Logo size="sm" iconOnly />
             )}
           </div>
         ) : (
