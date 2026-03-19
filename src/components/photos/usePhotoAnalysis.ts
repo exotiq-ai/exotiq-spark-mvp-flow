@@ -513,6 +513,15 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
 
     const aiAnalysis = unmatchedPhoto.ai_analysis as Record<string, unknown> | null;
 
+    // Check if this vehicle already has a hero photo
+    const { count: existingHeroCount } = await supabase
+      .from('vehicle_photos')
+      .select('id', { count: 'exact', head: true })
+      .eq('vehicle_id', vehicleId)
+      .eq('photo_type', 'hero');
+
+    const photoType = (existingHeroCount === 0 || existingHeroCount === null) ? 'hero' : 'exterior';
+
     const { data: vehiclePhoto, error: insertError } = await supabase
       .from('vehicle_photos')
       .insert({
@@ -521,7 +530,7 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
         team_id: currentTeam?.id || null,
         storage_path: unmatchedPhoto.storage_path,
         url: unmatchedPhoto.url,
-        photo_type: 'exterior',
+        photo_type: photoType,
         detected_angle: (aiAnalysis?.angle as string) || 'unknown',
         ai_analysis: unmatchedPhoto.ai_analysis,
         is_vehicle_confirmed: true,
