@@ -27,7 +27,7 @@ interface TourDataContextType {
   demoSnapshot: DemoSnapshot | null;
   isLoading: boolean;
   activateTour: () => Promise<boolean>;
-  deactivateTour: () => void;
+  deactivateTour: (completed?: boolean) => void;
   showPostTourModal: boolean;
   setShowPostTourModal: (show: boolean) => void;
 }
