@@ -114,7 +114,7 @@ export const useTourData = () => {
       demoSnapshot: null,
       isLoading: false,
       activateTour: async () => false,
-      deactivateTour: () => {},
+      deactivateTour: (completed?: boolean) => {},
       showPostTourModal: false,
       setShowPostTourModal: () => {},
     } as TourDataContextType;
