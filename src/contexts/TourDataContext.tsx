@@ -27,7 +27,7 @@ interface TourDataContextType {
   demoSnapshot: DemoSnapshot | null;
   isLoading: boolean;
   activateTour: () => Promise<boolean>;
-  deactivateTour: () => void;
+  deactivateTour: (completed?: boolean) => void;
   showPostTourModal: boolean;
   setShowPostTourModal: (show: boolean) => void;
 }
@@ -79,12 +79,14 @@ export const TourDataProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [demoSnapshot]);
 
-  const deactivateTour = useCallback(() => {
+  const deactivateTour = useCallback((completed = false) => {
     setTourActive(false);
-    // Delay modal so confetti plays fully before the modal appears
-    setTimeout(() => {
-      setShowPostTourModal(true);
-    }, 800);
+    setDemoSnapshot(null);
+    if (completed) {
+      setTimeout(() => {
+        setShowPostTourModal(true);
+      }, 800);
+    }
   }, []);
 
   return (
@@ -112,7 +114,7 @@ export const useTourData = () => {
       demoSnapshot: null,
       isLoading: false,
       activateTour: async () => false,
-      deactivateTour: () => {},
+      deactivateTour: (completed?: boolean) => {},
       showPostTourModal: false,
       setShowPostTourModal: () => {},
     } as TourDataContextType;

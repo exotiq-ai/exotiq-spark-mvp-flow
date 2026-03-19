@@ -40,7 +40,7 @@ export const AutomatedDemoTour = ({ onModuleChange }: AutomatedDemoTourProps) =>
     steps,
     onModuleChange,
     onComplete: () => {
-      deactivateTour();
+      deactivateTour(true);
       fireFullScreenConfetti();
       toast({
         title: "Tour Complete! 🎉",
@@ -70,7 +70,7 @@ export const AutomatedDemoTour = ({ onModuleChange }: AutomatedDemoTourProps) =>
     if (!demo.isActive) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       switch (e.key) {
-        case 'Escape': e.preventDefault(); demo.stop(); break;
+        case 'Escape': e.preventDefault(); demo.stop(); deactivateTour(); break;
         case ' ': e.preventDefault(); demo.isPaused ? demo.resume() : demo.pause(); break;
         case 'ArrowRight': e.preventDefault(); demo.skipToNext(); break;
         case 'm': case 'M': e.preventDefault(); demo.toggleMute(); break;
@@ -196,7 +196,7 @@ export const AutomatedDemoTour = ({ onModuleChange }: AutomatedDemoTourProps) =>
             <Button size="icon" variant="ghost" className="h-7 w-7 sm:h-8 sm:w-8" onClick={demo.skipToNext} title="Skip (→)">
               <SkipForward className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </Button>
-            <Button size="icon" variant="ghost" className="h-7 w-7 sm:h-8 sm:w-8 text-muted-foreground hover:text-destructive" onClick={demo.stop} title="Exit (Esc)">
+            <Button size="icon" variant="ghost" className="h-7 w-7 sm:h-8 sm:w-8 text-muted-foreground hover:text-destructive" onClick={() => { demo.stop(); deactivateTour(); }} title="Exit (Esc)">
               <X className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </Button>
           </div>
