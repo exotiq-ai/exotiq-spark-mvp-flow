@@ -70,7 +70,7 @@ export const AutomatedDemoTour = ({ onModuleChange }: AutomatedDemoTourProps) =>
     if (!demo.isActive) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       switch (e.key) {
-        case 'Escape': e.preventDefault(); demo.stop(); break;
+        case 'Escape': e.preventDefault(); demo.stop(); deactivateTour(); break;
         case ' ': e.preventDefault(); demo.isPaused ? demo.resume() : demo.pause(); break;
         case 'ArrowRight': e.preventDefault(); demo.skipToNext(); break;
         case 'm': case 'M': e.preventDefault(); demo.toggleMute(); break;
