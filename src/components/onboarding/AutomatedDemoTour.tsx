@@ -40,7 +40,7 @@ export const AutomatedDemoTour = ({ onModuleChange }: AutomatedDemoTourProps) =>
     steps,
     onModuleChange,
     onComplete: () => {
-      deactivateTour();
+      deactivateTour(true);
       fireFullScreenConfetti();
       toast({
         title: "Tour Complete! 🎉",
