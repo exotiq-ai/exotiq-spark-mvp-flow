@@ -248,6 +248,8 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
     const skipAnalysis = options_?.skipAnalysis ?? false;
     const fleetVehicles = options_?.vehicles ?? [];
     const useConcurrency = isFeatureEnabled('concurrentUploads');
+    // Track which vehicles got a hero assigned in this batch to avoid race conditions
+    const heroAssignedVehicles = new Set<string>();
 
     setIsProcessing(true);
     
