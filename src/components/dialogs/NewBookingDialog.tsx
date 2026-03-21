@@ -222,8 +222,8 @@ export const NewBookingDialog = ({
       );
 
       const pricing = calculateBookingTotal({
-        startDate: new Date(startDate),
-        endDate: new Date(endDate),
+        startDate: new Date(startDateTimeStr),
+        endDate: new Date(endDateTimeStr),
         dailyRate: effectiveRate,
         discountAmount: Number(discountAmount) || 0,
         gasFee: DEFAULT_GAS_FEE,
