@@ -10,7 +10,7 @@ import { CompactMetricsBar } from "./widgets/CompactMetricsBar";
 import { CompactAIInsightBanner } from "./widgets/CompactAIInsightBanner";
 import { FleetStatusWidget } from "./widgets/FleetStatusWidget";
 import { ScheduleWidget } from "./widgets/ScheduleWidget";
-import { DashboardBottomActionBar } from "./DashboardBottomActionBar";
+
 import { PriceOptimizationDialog } from "@/components/dialogs/PriceOptimizationDialog";
 import { AddVehicleDialog } from "@/components/dialogs/AddVehicleDialog";
 import { NewBookingDialog } from "@/components/dialogs/NewBookingDialog";
@@ -587,17 +587,6 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
             ))}
           </div>
         </div>
-
-        {/* Sticky Bottom Action Bar - Desktop only, within content bounds */}
-        <DashboardBottomActionBar
-          onNewBooking={() => setShowBookingDialog(true)}
-          onRecordPayment={() => setShowPaymentDialog(true)}
-          onAddCustomer={() => setShowCustomerDialog(true)}
-          onGenerateReport={() => setShowReportDialog(true)}
-          onScheduleMaintenance={() => setShowMaintenanceDialog(true)}
-          onAskRari={rariSidebar.open}
-          rariUnreadCount={rariSidebar.unreadCount + rariSidebar.urgentCount}
-        />
       </div>
     </>
   );

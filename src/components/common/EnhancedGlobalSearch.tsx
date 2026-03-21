@@ -238,6 +238,19 @@ export const EnhancedGlobalSearch = ({ onOpenRari }: EnhancedGlobalSearchProps) 
     }
   ];
 
+  // Helper: get booking summary for a customer
+  const getCustomerBookingSummary = useCallback((customerId: string) => {
+    const customerBookings = bookings.filter(b => b.customer_id === customerId);
+    if (customerBookings.length === 0) return null;
+    const active = customerBookings.filter(b => ['confirmed', 'active', 'rented'].includes(b.status?.toLowerCase() || '')).length;
+    const pending = customerBookings.filter(b => b.status?.toLowerCase() === 'pending').length;
+    const parts: string[] = [];
+    if (active > 0) parts.push(`${active} active`);
+    if (pending > 0) parts.push(`${pending} pending`);
+    if (parts.length === 0) parts.push(`${customerBookings.length} total`);
+    return parts.join(' · ');
+  }, [bookings]);
+
   // Search results with fixed deep-linking
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return [];
@@ -255,18 +268,19 @@ export const EnhancedGlobalSearch = ({ onOpenRari }: EnhancedGlobalSearchProps) 
       )
       .slice(0, 5)
       .forEach(v => {
+        const plate = v.license_plate ? `${v.license_plate} · ` : '';
         results.push({
           id: v.id,
           type: "vehicle",
           title: `${v.make} ${v.model}`,
-          subtitle: v.license_plate || v.status,
+          subtitle: `${plate}${v.status || 'Unknown'}`,
           icon: Car,
           action: () => navigate(`/dashboard?module=motoriq&vehicleId=${v.id}`),
           badge: v.status
         });
       });
 
-    // Search customers → deep-link to CRM tab
+    // Search customers → deep-link to CRM card with booking context
     customers
       .filter(c =>
         c.full_name.toLowerCase().includes(query) ||
@@ -275,23 +289,28 @@ export const EnhancedGlobalSearch = ({ onOpenRari }: EnhancedGlobalSearchProps) 
       )
       .slice(0, 5)
       .forEach(c => {
+        const bookingSummary = getCustomerBookingSummary(c.id);
+        const subtitle = bookingSummary 
+          ? `${c.email} · ${bookingSummary}`
+          : c.email;
         results.push({
           id: c.id,
           type: "customer",
           title: c.full_name,
-          subtitle: c.email,
+          subtitle,
           icon: Users,
           action: () => navigate(`/dashboard?module=book&tab=crm&customerId=${c.id}`)
         });
       });
 
-    // Search bookings (already works with deep-link)
+    // Search bookings — by customer name, vehicle, status, ref, OR UUID
     bookings
       .filter(b =>
         b.customer_name?.toLowerCase().includes(query) ||
         b.status?.toLowerCase().includes(query) ||
         b.vehicle_name?.toLowerCase().includes(query) ||
-        (b as any).booking_ref?.toLowerCase().includes(query)
+        (b as any).booking_ref?.toLowerCase().includes(query) ||
+        b.id.toLowerCase().includes(query)
       )
       .slice(0, 5)
       .forEach(b => {
@@ -299,7 +318,7 @@ export const EnhancedGlobalSearch = ({ onOpenRari }: EnhancedGlobalSearchProps) 
           id: b.id,
           type: "booking",
           title: `${(b as any).booking_ref ? (b as any).booking_ref + ' — ' : ''}${b.customer_name || "Unknown Customer"}`,
-          subtitle: `${new Date(b.start_date).toLocaleDateString()} - ${b.status}`,
+          subtitle: `${new Date(b.start_date).toLocaleDateString()} · ${b.vehicle_name || 'No vehicle'} · ${b.status}`,
           icon: Calendar,
           action: () => navigate(`/dashboard?module=book&bookingId=${b.id}`),
           badge: b.status
@@ -312,7 +331,7 @@ export const EnhancedGlobalSearch = ({ onOpenRari }: EnhancedGlobalSearchProps) 
       .forEach(e => results.push(e));
 
     return results;
-  }, [searchQuery, vehicles, customers, bookings, navigate]);
+  }, [searchQuery, vehicles, customers, bookings, navigate, getCustomerBookingSummary]);
 
   // Group search results by type for categorized display
   const groupedResults = useMemo(() => {
@@ -358,7 +377,8 @@ export const EnhancedGlobalSearch = ({ onOpenRari }: EnhancedGlobalSearchProps) 
             <div className="flex flex-col items-center py-6 text-muted-foreground">
               <Search className="w-10 h-10 mb-2 opacity-20" />
               <p>No results found</p>
-              <p className="text-xs">Try a different search term</p>
+              <p className="text-xs mt-1">Try searching by license plate, booking ref (BK-01001),</p>
+              <p className="text-xs">customer name, or vehicle make/model</p>
             </div>
           </CommandEmpty>
 
