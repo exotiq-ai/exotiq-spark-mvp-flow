@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useUserSettings } from "@/hooks/useUserSettings";
-import { Save, Building2, Clock, Bell, Loader2 } from "lucide-react";
+import { Save, Building2, Clock, Bell, Loader2, DollarSign } from "lucide-react";
 
 interface TeamSettings {
   companyName: string;
