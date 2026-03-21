@@ -51,11 +51,15 @@ interface Vehicle {
   year: number;
   status: string;
   ops_status?: string | null;
+  /** The 24hr/daily rate. Preserved name for backwards compatibility (48+ references). */
   current_rate: number;
   suggested_rate?: number | null;
   license_plate?: string | null;
   image_url?: string | null;
   last_ops_update?: string | null;
+  rate_3hr?: number | null;
+  rate_6hr?: number | null;
+  rate_multiday?: number | null;
 }
 
 interface Booking {
