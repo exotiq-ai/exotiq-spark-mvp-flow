@@ -1,73 +1,70 @@
 
 
-# Booking Overview Tab — UX Redesign
+# Search Bar Audit — Full Review
 
-## Current Layout (top to bottom)
-1. Pending Approval — large card, up to 3 bookings expanded, dominates viewport
-2. Next Pickup — large gradient card with vehicle image, details, value
-3. Quick Stats — 4 cards: Today's Revenue, Active Rentals, New Customers, Utilization
-4. Today's Schedule — full booking list with "New Booking" button buried inside
-5. Upcoming Bookings (next 15 days)
-6. Previous Bookings (last 30 days)
+## Two Competing Search Systems
 
-## Problems
-- "New Booking" is the #1 action but it's hidden inside the Today's Schedule card header — hard to find
-- Pending Approval takes disproportionate space for what's often 0-3 items
-- Revenue + Utilization stats belong in MotorIQ/Pulse, not the booking module
-- Next Pickup card is oversized for a single data point
-- The overview reads like an analytics dashboard, not an operations command center
+The project has **two separate search UIs** that overlap and confuse each other:
 
-## Proposed Layout
+1. **EnhancedGlobalSearch** — the header search bar (click to open). Searches real data (vehicles, customers, bookings) + quick actions + module navigation.
+2. **CommandPalette** — triggered by ⌘K. Searches only static actions and module navigation. No real data.
 
-```text
-┌─────────────────────────────────────────────┐
-│  [+ New Booking]  prominent, top-right      │
-│                                             │
-│  ┌─ Pending (2) ──────────────────────────┐ │
-│  │ ▸ collapsed bar, click to expand       │ │
-│  └────────────────────────────────────────┘ │
-│                                             │
-│  ┌─ Next Pickup ─────┐  ┌─ Today ────────┐ │
-│  │ compact inline     │  │ 3 bookings     │  │
-│  │ card, 1 row        │  │ 2 active       │  │
-│  └────────────────────┘  └────────────────┘ │
-│                                             │
-│  ┌─ Today's Schedule ────────────────────┐  │
-│  │ (full list, same as current)          │  │
-│  └───────────────────────────────────────┘  │
-│                                             │
-│  ┌─ Upcoming 15d ────┐ ┌─ Previous 30d ──┐ │
-│  │ collapsible        │ │ collapsible     │  │
-│  └────────────────────┘ └─────────────────┘ │
-└─────────────────────────────────────────────┘
-```
+Neither is complete. Together they create confusion.
 
-## Changes
+## What's Broken in EnhancedGlobalSearch (Header Bar)
 
-### 1. Promote "New Booking" button to page-level header
-Move it out of Today's Schedule and into a sticky header area at the top of the overview tab — large, prominent, always visible. Same pattern as the current `Book.tsx` header but inside the tab content.
+### Problem 1: Search results don't go anywhere useful
+- **Vehicle click** → navigates to `/dashboard?module=motoriq` (the MotorIQ module generically — not the vehicle)
+- **Customer click** → navigates to `/dashboard?module=core` (FleetCopilot generically — not the customer)
+- **Booking click** → navigates to `/dashboard?module=book&bookingId=X` (this one actually works — opens the booking dialog)
 
-### 2. Pending Approval → collapsed notification bar
-Replace the large card with a compact collapsible bar (using the existing `CollapsibleSection` pattern). Default collapsed. Shows count badge. Expands to reveal the same approve/decline/view actions. When count is 0, the bar is hidden entirely.
+So 2 out of 3 data types have broken navigation. If you search "BMW" and click the result, you land on MotorIQ with no context of which BMW you wanted.
 
-### 3. Remove revenue/utilization stats from overview
-Drop "Today's Revenue" and "Utilization" from the 4-stat grid — these live in MotorIQ and Pulse. Keep only **Active Rentals** and **Today's Bookings** as two compact inline metrics alongside the Next Pickup card.
+### Problem 2: "Ask FleetCopilot" catches everything
+When you type a car name and hit Enter, the cmdk library selects the first highlighted item. If results exist, it may select a vehicle (which goes to MotorIQ generically). But the "Ask FleetCopilot" item at the bottom navigates to `/dashboard?module=core` — this is what the user is experiencing.
 
-### 4. Compact Next Pickup card
-Shrink from a full-width gradient card to a compact card in a 2-column grid alongside the two key stats (Active Rentals, Today's Bookings). Show vehicle name, customer, time, and location in a dense single-card layout. Remove the large vehicle thumbnail and booking value display.
+### Problem 3: Rari isn't actually invoked
+The "Ask FleetCopilot" action just navigates to the FleetCopilot module page. It doesn't pass the query to Rari, doesn't open the Rari sidebar, doesn't start a conversation. The AI suggestion provides zero value — it's just a module link with a sparkle icon.
 
-### 5. Today's Schedule keeps "New Booking" as secondary action
-The schedule card retains a smaller "+ Add" button but it's no longer the primary entry point.
+## What a User Actually Wants from Search
+
+| User types... | Expected behavior | Current behavior |
+|---|---|---|
+| "BMW X5" | See the BMW X5, click to view/manage it | Goes to MotorIQ page (no vehicle context) |
+| "John Smith" | See customer profile, bookings | Goes to FleetCopilot page (no customer context) |
+| "EXQ-2024-001" | Open that booking | ✅ Works — opens booking dialog |
+| "bookings" | Navigate to Bookings module | ✅ Works |
+| "how's revenue" | Ask Rari AI | Goes to FleetCopilot page (doesn't invoke Rari) |
+
+## Proposed Fix
+
+### Consolidate into one search system
+Keep `EnhancedGlobalSearch` as the single search bar. Remove the duplicate `CommandPalette` or reduce it to keyboard-shortcut-only actions. ⌘K opens the same search.
+
+### Fix data result navigation
+- **Vehicles** → navigate to `/dashboard?module=motoriq&vehicleId=X` (Vehicle Command Center / detail view)
+- **Customers** → navigate to `/dashboard?module=book&tab=crm&customerId=X` (CRM tab with customer selected)
+- **Bookings** → keep current behavior (already works)
+
+### Replace "Ask FleetCopilot" with "Ask Rari"
+When the query doesn't match data results, offer "Ask Rari" which actually opens the Rari sidebar and passes the query as a conversation starter. This is where Rari provides real value — answering natural language questions about fleet operations directly from search.
+
+### Add type-ahead categories
+Show result categories inline: "Vehicles (3)" / "Customers (2)" / "Bookings (1)" with clear visual separation so users know what they're clicking.
 
 ## Files Changed
 
 | File | Change |
-|------|--------|
-| `src/components/dashboard/BookEnhanced.tsx` | Restructure overview tab: move New Booking button to top, collapse pending into bar, remove revenue/utilization stats, compact Next Pickup into grid with remaining stats |
+|---|---|
+| `src/components/common/EnhancedGlobalSearch.tsx` | Fix vehicle/customer navigation URLs. Replace "Ask FleetCopilot" with "Ask Rari" that opens Rari sidebar with query. Make ⌘K open this search. |
+| `src/components/common/CommandPalette.tsx` | Remove or reduce to shortcut-only (export actions). Stop ⌘K from opening this separately. |
+| `src/App.tsx` or wherever ⌘K is wired | Point ⌘K to EnhancedGlobalSearch instead of CommandPalette |
+| `src/components/dashboard/DashboardHeader.tsx` | Pass `onOpenRari` callback to search bar for "Ask Rari" action |
 
-## What Stays the Same
-- Today's Schedule booking list (content and interactions)
-- Upcoming/Previous booking cards
-- All other tabs (Calendar, CRM, Payments, Inspections)
-- All dialog logic (NewBookingDialog, EnhancedBookingDialog, etc.)
+## What Stays
+- All quick actions (New Booking, Add Vehicle, Add Customer)
+- Module navigation items
+- Recent searches
+- Booking deep-linking (already works)
+- Export actions (move to EnhancedGlobalSearch if CommandPalette is removed)
 
