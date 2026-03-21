@@ -21,7 +21,7 @@ import { format } from "date-fns";
 import { Calendar as CalendarIcon, MapPin, Clock, DollarSign } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { calculateBookingTotal, DEFAULT_GAS_FEE } from "@/lib/pricingUtils";
-import { TimeSelect } from "@/components/ui/time-select";
+import { TimeInput } from "@/components/ui/time-input";
 import type { Database } from "@/integrations/supabase/types";
 
 type Booking = Database["public"]["Tables"]["bookings"]["Row"];
@@ -148,7 +148,7 @@ export const EditBookingDialog = ({
                     />
                   </PopoverContent>
                 </Popover>
-                <TimeSelect value={startTime} onValueChange={setStartTime} />
+                <TimeInput value={startTime} onValueChange={setStartTime} />
               </div>
             </div>
 
@@ -180,7 +180,7 @@ export const EditBookingDialog = ({
                     />
                   </PopoverContent>
                 </Popover>
-                <TimeSelect value={endTime} onValueChange={setEndTime} />
+                <TimeInput value={endTime} onValueChange={setEndTime} />
               </div>
             </div>
 
