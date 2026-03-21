@@ -13,6 +13,7 @@ import { PriceUtilizationScatterPlot } from "@/components/charts/PriceUtilizatio
 import { DynamicPricingCard } from "@/components/dashboard/DynamicPricingCard";
 import type { PricingContext } from "@/components/dashboard/DynamicPricingCard";
 import { DemandForecastCard } from "@/components/dashboard/DemandForecastCard";
+import { RateTiersPanel } from "@/components/dashboard/RateTiersPanel";
 import { PricingCalendar } from "@/components/dashboard/PricingCalendar";
 import { WeeklyDigestCard } from "@/components/dashboard/WeeklyDigestCard";
 import { LocationBadge } from "@/components/common/LocationBadge";
