@@ -227,6 +227,7 @@ export const NewBookingDialog = ({
       setDropoffLocation('');
       setNotes('');
       setError(null);
+      setDurationType('daily');
       setAiExpanded(false);
       setDiscountExpanded(false);
       setDiscountAmount('');
