@@ -170,23 +170,9 @@ export const BookEnhanced = () => {
     }).slice(0, 5);
   }, [bookings]);
 
-  // Calculate live stats
+  // Calculate live stats - only Active Rentals and Today's Bookings
   const todayStats = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
     const now = new Date();
-    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-    
-    // Today's Revenue from confirmed/completed bookings starting today
-    const todayRevenue = bookings
-      .filter(b => {
-        const startDate = new Date(b.start_date);
-        return (b.status === 'confirmed' || b.status === 'completed') && 
-               startDate >= today && startDate < tomorrow;
-      })
-      .reduce((sum, b) => sum + (b.total_value || 0), 0);
     
     // Active rentals (confirmed bookings spanning now)
     const activeRentals = bookings.filter(b => 
@@ -195,23 +181,19 @@ export const BookEnhanced = () => {
       new Date(b.end_date) >= now
     ).length;
     
-    // New customers this month
-    const newCustomers = customers.filter(c => 
-      c.created_at && new Date(c.created_at) >= monthStart
-    ).length;
+    // Today's total bookings count
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const todayBookingCount = bookings.filter(b => {
+      const startDate = new Date(b.start_date);
+      const endDate = new Date(b.end_date);
+      return (startDate >= today && startDate < tomorrow) || (startDate <= now && endDate >= now);
+    }).length;
     
-    // Utilization rate
-    const utilization = vehicles.length > 0 
-      ? Math.round((activeRentals / vehicles.length) * 100) 
-      : 0;
-    
-    return [
-      { label: "Today's Revenue", value: `$${todayRevenue.toLocaleString()}`, icon: DollarSign },
-      { label: 'Active Rentals', value: String(activeRentals), icon: Car },
-      { label: 'New Customers', value: String(newCustomers), icon: Users },
-      { label: 'Utilization', value: `${utilization}%`, icon: TrendingUp },
-    ];
-  }, [bookings, vehicles, customers]);
+    return { activeRentals, todayBookingCount };
+  }, [bookings]);
 
   const handleViewDetails = (booking: Booking) => {
     goToBookingDetails(booking.id);
