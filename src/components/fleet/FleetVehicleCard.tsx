@@ -244,6 +244,17 @@ export const FleetVehicleCard = ({
                           ${vehicle.current_rate}
                           <span className="text-xs font-normal text-muted-foreground">/day</span>
                         </div>
+                        {/* Rate tier indicators */}
+                        {(vehicle.rate_3hr || vehicle.rate_6hr || vehicle.rate_multiday) && (
+                          <div className="flex gap-1 justify-end mt-0.5">
+                            {vehicle.rate_3hr && (
+                              <span className="text-[10px] text-muted-foreground">3h: ${vehicle.rate_3hr}</span>
+                            )}
+                            {vehicle.rate_6hr && (
+                              <span className="text-[10px] text-muted-foreground">6h: ${vehicle.rate_6hr}</span>
+                            )}
+                          </div>
+                        )}
                       </div>
                       {/* Rari insight indicator */}
                       {hasRariSuggestion && (
