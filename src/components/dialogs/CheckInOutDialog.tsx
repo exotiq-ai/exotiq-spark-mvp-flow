@@ -655,7 +655,7 @@ export const CheckInOutDialog = ({
                       />
                     </PopoverContent>
                   </Popover>
-                  <TimeSelect value={timeOverride} onValueChange={setTimeOverride} />
+                  <TimeInput value={timeOverride} onValueChange={setTimeOverride} />
                 </div>
               )}
             </div>

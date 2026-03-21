@@ -148,7 +148,7 @@ export const EditBookingDialog = ({
                     />
                   </PopoverContent>
                 </Popover>
-                <TimeSelect value={startTime} onValueChange={setStartTime} />
+                <TimeInput value={startTime} onValueChange={setStartTime} />
               </div>
             </div>
 
@@ -180,7 +180,7 @@ export const EditBookingDialog = ({
                     />
                   </PopoverContent>
                 </Popover>
-                <TimeSelect value={endTime} onValueChange={setEndTime} />
+                <TimeInput value={endTime} onValueChange={setEndTime} />
               </div>
             </div>
 

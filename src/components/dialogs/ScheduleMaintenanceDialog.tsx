@@ -192,7 +192,7 @@ export const ScheduleMaintenanceDialog = ({ open, onOpenChange, vehicles, onSubm
                   />
                 </PopoverContent>
               </Popover>
-              <TimeSelect value={scheduledTime} onValueChange={setScheduledTime} />
+              <TimeInput value={scheduledTime} onValueChange={setScheduledTime} />
             </div>
           </div>
 
