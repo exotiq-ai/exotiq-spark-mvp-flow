@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { NewBookingDialog } from "@/components/dialogs/NewBookingDialog";
+import { isBlockingBooking } from "@/lib/conflictDetection";
 import { format, isToday, isFuture, startOfWeek, endOfWeek, addDays } from "date-fns";
 
 export const Book = () => {
@@ -37,11 +38,26 @@ export const Book = () => {
     return startDate >= thisWeekStart && startDate <= thisWeekEnd;
   });
 
-  // Available vehicles (filter by search)
+  // Vehicles with active (pending/confirmed) bookings spanning now
+  const bookedVehicleIds = useMemo(() => {
+    const now = new Date();
+    return new Set(
+      bookings
+        .filter(b =>
+          isBlockingBooking(b.status) &&
+          new Date(b.start_date) <= now &&
+          new Date(b.end_date) >= now
+        )
+        .map(b => b.vehicle_id)
+    );
+  }, [bookings]);
+
+  // Available vehicles: not booked right now, not in maintenance/retired, matches search
   const availableVehicles = vehicles.filter(v => {
     const matchesSearch = searchQuery === "" || 
       `${v.make} ${v.model}`.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesSearch;
+    const isAvailable = v.status !== 'maintenance' && v.status !== 'retired' && !bookedVehicleIds.has(v.id);
+    return matchesSearch && isAvailable;
   }).slice(0, 5);
 
   // Calculate upcoming booking forecasts
@@ -159,7 +175,7 @@ export const Book = () => {
               <Car className="h-6 w-6 text-accent" />
             </div>
             <div className="ml-4">
-              <div className="text-2xl font-bold">{vehicles.filter(v => v.status === 'available').length}</div>
+              <div className="text-2xl font-bold">{vehicles.filter(v => v.status !== 'maintenance' && v.status !== 'retired' && !bookedVehicleIds.has(v.id)).length}</div>
               <div className="text-sm text-muted-foreground">Available Cars</div>
             </div>
           </div>

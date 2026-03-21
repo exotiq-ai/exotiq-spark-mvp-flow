@@ -2,6 +2,7 @@ import { LiveFleetStatusWidget } from "@/components/dashboard/LiveFleetStatusWid
 import { ProgressiveDisclosure } from "@/components/common/ProgressiveDisclosure";
 import { SkeletonDonutChart } from "@/components/ui/skeleton-card";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
+import { isBlockingBooking } from "@/lib/conflictDetection";
 import { Car, CheckCircle, Clock, Wrench, XCircle } from "lucide-react";
 import { useMemo } from "react";
 
@@ -28,7 +29,7 @@ const FleetExpandedContent = () => {
     const bookedVehicleIds = new Set(
       bookings
         .filter(b =>
-          b.status === 'confirmed' &&
+          isBlockingBooking(b.status) &&
           new Date(b.start_date) <= todayEnd &&
           new Date(b.end_date) >= todayStart
         )

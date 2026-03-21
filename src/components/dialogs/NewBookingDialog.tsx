@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -35,6 +35,8 @@ import { useTeam } from '@/contexts/TeamContext';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { calculateBookingTotal, DEFAULT_GAS_FEE, getRateForDuration, getAvailableDurations, getDurationLabel, type RentalDurationType } from '@/lib/pricingUtils';
+import { isBlockingBooking } from '@/lib/conflictDetection';
+import { useLocationFilteredFleet } from '@/hooks/useLocationFilteredFleet';
 import { Switch } from '@/components/ui/switch';
 
 interface NewBookingDialogProps {
@@ -53,6 +55,7 @@ export const NewBookingDialog = ({
   prefillCustomer,
 }: NewBookingDialogProps) => {
   const { selectedLocationId, currentLocation, locations, currentTeam } = useTeam();
+  const { bookings: allBookings } = useLocationFilteredFleet();
   
   const [vehicleId, setVehicleId] = useState('');
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('new');
@@ -138,6 +141,25 @@ export const NewBookingDialog = ({
 
   const selectedVehicle = vehicles.find(v => v.id === vehicleId);
   const pricingSuggestion = useAIPricing(selectedVehicle || null, startDate);
+
+  // Check which vehicles have conflicting bookings for the selected dates
+  const vehicleAvailability = useMemo(() => {
+    if (!startDate || !endDate) return {};
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const availability: Record<string, boolean> = {};
+    vehicles.forEach(v => {
+      const hasConflict = allBookings.some(b => {
+        if (b.vehicle_id !== v.id) return false;
+        if (!isBlockingBooking(b.status)) return false;
+        const bStart = new Date(b.start_date);
+        const bEnd = new Date(b.end_date);
+        return start < bEnd && end > bStart;
+      });
+      availability[v.id] = !hasConflict;
+    });
+    return availability;
+  }, [startDate, endDate, vehicles, allBookings]);
   
   // Auto-set pickup location when dialog opens
   const effectivePickupLocationId = pickupLocationId || (selectedLocationId !== 'all' ? selectedLocationId : locations[0]?.id || '');
@@ -281,11 +303,20 @@ export const NewBookingDialog = ({
                   <SelectValue placeholder="Select vehicle" />
                 </SelectTrigger>
                 <SelectContent>
-                  {vehicles.map((v) => (
-                    <SelectItem key={v.id} value={v.id}>
-                      {v.name} - ${v.current_rate}/day
-                    </SelectItem>
-                  ))}
+                  {vehicles.map((v) => {
+                    const hasDateSelected = startDate && endDate;
+                    const isAvailable = !hasDateSelected || vehicleAvailability[v.id] !== false;
+                    return (
+                      <SelectItem key={v.id} value={v.id}>
+                        <span className="flex items-center gap-2">
+                          {v.name} - ${v.current_rate}/day
+                          {hasDateSelected && !isAvailable && (
+                            <span className="text-xs text-destructive font-medium">Booked</span>
+                          )}
+                        </span>
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
