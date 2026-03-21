@@ -895,6 +895,11 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       toast({ title: "Booking Created", description: "Booking has been successfully created." });
       }
 
+      // Fire-and-forget Google Calendar sync
+      if (insertedBooking && teamId) {
+        syncBookingToGCal("create", insertedBooking.id, teamId);
+      }
+
       // Force refresh to show new booking immediately in calendar & pending approval
       await refreshData(true);
     } catch (error) {
