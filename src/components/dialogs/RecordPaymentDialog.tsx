@@ -115,6 +115,7 @@ export const RecordPaymentDialog = ({
       gasFee: Number((booking as any).gas_fee) || DEFAULT_GAS_FEE,
       gasFeeWaived: (booking as any).gas_fee_waived ?? false,
       deliveryFee: Number(booking.delivery_fee) || 0,
+      durationType: (booking as any).rental_duration_type || 'daily',
     });
     
     const depositsPaid = existingPayments
