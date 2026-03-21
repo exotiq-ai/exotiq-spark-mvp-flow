@@ -932,6 +932,12 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     }
 
     toast({ title: "Booking Updated", description: `Booking status changed to ${status}.` });
+
+    // Fire-and-forget Google Calendar sync
+    const booking = bookings.find(b => b.id === bookingId);
+    if (booking?.team_id) {
+      syncBookingToGCal(status === "cancelled" ? "delete" : "update", bookingId, booking.team_id);
+    }
   };
 
   const updateBookingVehicle = async (bookingId: string, newVehicleId: string) => {
