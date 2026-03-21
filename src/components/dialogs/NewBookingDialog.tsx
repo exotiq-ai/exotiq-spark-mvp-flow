@@ -141,6 +141,25 @@ export const NewBookingDialog = ({
 
   const selectedVehicle = vehicles.find(v => v.id === vehicleId);
   const pricingSuggestion = useAIPricing(selectedVehicle || null, startDate);
+
+  // Check which vehicles have conflicting bookings for the selected dates
+  const vehicleAvailability = useMemo(() => {
+    if (!startDate || !endDate) return {};
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const availability: Record<string, boolean> = {};
+    vehicles.forEach(v => {
+      const hasConflict = allBookings.some(b => {
+        if (b.vehicle_id !== v.id) return false;
+        if (!isBlockingBooking(b.status)) return false;
+        const bStart = new Date(b.start_date);
+        const bEnd = new Date(b.end_date);
+        return start < bEnd && end > bStart;
+      });
+      availability[v.id] = !hasConflict;
+    });
+    return availability;
+  }, [startDate, endDate, vehicles, allBookings]);
   
   // Auto-set pickup location when dialog opens
   const effectivePickupLocationId = pickupLocationId || (selectedLocationId !== 'all' ? selectedLocationId : locations[0]?.id || '');
