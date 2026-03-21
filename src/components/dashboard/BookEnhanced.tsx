@@ -124,6 +124,7 @@ export const BookEnhanced = () => {
   const { goToBookingDetails, goToVehicleDetails, goToCustomerProfile, goToPayments } = useModuleNavigation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [showNewBooking, setShowNewBooking] = useState(false);
+  const [showBookingDetails, setShowBookingDetails] = useState(false);
   const [activeTab, setActiveTab] = useState<string | undefined>(undefined);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [cancellingBookingId, setCancellingBookingId] = useState<string | null>(null);
