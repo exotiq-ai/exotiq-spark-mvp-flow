@@ -191,10 +191,10 @@ export const NewBookingDialog = ({
     const validation = validateForm([
       () => validators.required(vehicleId, 'Vehicle'),
       () => validators.required(customerName, 'Customer name'),
-      () => validators.required(startDate, 'Start date'),
-      () => validators.required(endDate, 'End date'),
+      () => validators.required(startDateTimeStr, 'Start date'),
+      () => validators.required(endDateTimeStr, 'End date'),
       () => validators.required(pickupLocationName, 'Pickup location'),
-      () => validators.dateRange(startDate, endDate),
+      () => validators.dateRange(startDateTimeStr, endDateTimeStr),
       () => customerEmail ? validators.email(customerEmail) : { isValid: true },
       () => customerPhone ? validators.phone(customerPhone) : { isValid: true },
     ]);
