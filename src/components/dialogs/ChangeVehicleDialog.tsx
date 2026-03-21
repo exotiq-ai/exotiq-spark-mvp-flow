@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { isBlockingBooking } from "@/lib/conflictDetection";
 import {
   Dialog,
   DialogContent,
