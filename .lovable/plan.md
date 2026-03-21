@@ -1,93 +1,73 @@
 
 
-# Inventory Availability Audit — Gaps Found
+# Booking Overview Tab — UX Redesign
 
-## Critical Findings
+## Current Layout (top to bottom)
+1. Pending Approval — large card, up to 3 bookings expanded, dominates viewport
+2. Next Pickup — large gradient card with vehicle image, details, value
+3. Quick Stats — 4 cards: Today's Revenue, Active Rentals, New Customers, Utilization
+4. Today's Schedule — full booking list with "New Booking" button buried inside
+5. Upcoming Bookings (next 15 days)
+6. Previous Bookings (last 30 days)
 
-After reviewing every file that checks booking status against vehicle availability, here are the inconsistencies:
+## Problems
+- "New Booking" is the #1 action but it's hidden inside the Today's Schedule card header — hard to find
+- Pending Approval takes disproportionate space for what's often 0-3 items
+- Revenue + Utilization stats belong in MotorIQ/Pulse, not the booking module
+- Next Pickup card is oversized for a single data point
+- The overview reads like an analytics dashboard, not an operations command center
 
-### Gap 1: `pending` bookings DO block vehicles — but inconsistently
+## Proposed Layout
 
-The conflict detection engine (`conflictDetection.ts` line 42) filters out only `cancelled` bookings:
+```text
+┌─────────────────────────────────────────────┐
+│  [+ New Booking]  prominent, top-right      │
+│                                             │
+│  ┌─ Pending (2) ──────────────────────────┐ │
+│  │ ▸ collapsed bar, click to expand       │ │
+│  └────────────────────────────────────────┘ │
+│                                             │
+│  ┌─ Next Pickup ─────┐  ┌─ Today ────────┐ │
+│  │ compact inline     │  │ 3 bookings     │  │
+│  │ card, 1 row        │  │ 2 active       │  │
+│  └────────────────────┘  └────────────────┘ │
+│                                             │
+│  ┌─ Today's Schedule ────────────────────┐  │
+│  │ (full list, same as current)          │  │
+│  └───────────────────────────────────────┘  │
+│                                             │
+│  ┌─ Upcoming 15d ────┐ ┌─ Previous 30d ──┐ │
+│  │ collapsible        │ │ collapsible     │  │
+│  └────────────────────┘ └─────────────────┘ │
+└─────────────────────────────────────────────┘
 ```
-b.status !== 'cancelled'
-```
-This means `pending`, `confirmed`, AND `completed` bookings all block a vehicle. A completed booking from last month still blocks the same dates — that's correct. But the real issue is elsewhere.
 
-**FleetStatusWidget** (line 31) only counts `confirmed` bookings when determining "Booked" vehicles:
-```
-b.status === 'confirmed'
-```
-A vehicle with a `pending` booking shows as "Available" in the fleet status widget, even though conflict detection would block it. The dashboard lies about availability.
+## Changes
 
-**ChangeVehicleDialog** (line 53) filters out only `cancelled`:
-```
-b.status === "cancelled"
-```
-This is correct — pending bookings block the vehicle here. But it's inconsistent with FleetStatusWidget.
+### 1. Promote "New Booking" button to page-level header
+Move it out of Today's Schedule and into a sticky header area at the top of the overview tab — large, prominent, always visible. Same pattern as the current `Book.tsx` header but inside the tab content.
 
-### Gap 2: `completed` bookings still block future dates in conflict detection
+### 2. Pending Approval → collapsed notification bar
+Replace the large card with a compact collapsible bar (using the existing `CollapsibleSection` pattern). Default collapsed. Shows count badge. Expands to reveal the same approve/decline/view actions. When count is 0, the bar is hidden entirely.
 
-`conflictDetection.ts` only excludes `cancelled`. If a booking was `completed` but its `end_date` is in the future (e.g., returned early), it still blocks. This is an edge case but worth fixing.
+### 3. Remove revenue/utilization stats from overview
+Drop "Today's Revenue" and "Utilization" from the 4-stat grid — these live in MotorIQ and Pulse. Keep only **Active Rentals** and **Today's Bookings** as two compact inline metrics alongside the Next Pickup card.
 
-### Gap 3: NewBookingDialog does NOT check availability when listing vehicles
+### 4. Compact Next Pickup card
+Shrink from a full-width gradient card to a compact card in a 2-column grid alongside the two key stats (Active Rentals, Today's Bookings). Show vehicle name, customer, time, and location in a dense single-card layout. Remove the large vehicle thumbnail and booking value display.
 
-The vehicle dropdown in `NewBookingDialog` shows ALL vehicles regardless of existing bookings for the selected dates. The only protection is the conflict check AFTER submission. A staff member can select a vehicle, fill out the entire form, and only learn it's unavailable when they try to submit. Bad UX.
-
-### Gap 4: Book.tsx "Available Vehicles" section has no availability check
-
-`Book.tsx` line 41-45 filters vehicles only by search query — not by booking status. It shows all vehicles as "available" regardless of whether they have active bookings.
-
-### Gap 5: LinkVehicleDialog correctly checks — good reference implementation
-
-`LinkVehicleDialog` properly excludes vehicles with overlapping non-cancelled bookings. This is the pattern everything else should follow.
-
----
-
-## Fix Plan
-
-### 1. Standardize booking status filter as a shared utility
-
-Create a helper in `conflictDetection.ts`:
-```typescript
-export const isBlockingBooking = (status: string) =>
-  status !== 'cancelled' && status !== 'completed';
-```
-Use this everywhere. A `completed` booking should NOT block future availability — the vehicle was returned. Only `pending` and `confirmed` block.
-
-### 2. Fix FleetStatusWidget to count `pending` as booked
-
-Change the filter from `b.status === 'confirmed'` to `isBlockingBooking(b.status)`. A pending booking means the vehicle is committed — it should show as "Booked" in the dashboard.
-
-### 3. Fix conflictDetection.ts to exclude `completed`
-
-Change the filter from `b.status !== 'cancelled'` to `isBlockingBooking(b.status)`. Completed bookings should not conflict with new bookings on the same dates.
-
-### 4. Add availability indicators to NewBookingDialog vehicle list
-
-After the user selects dates, mark vehicles in the dropdown that have conflicting bookings. Show a warning badge "Booked for these dates" next to unavailable vehicles. Don't prevent selection (staff may want to override) but make it visible.
-
-### 5. Fix Book.tsx "Available Vehicles" to check real availability
-
-Filter out vehicles that have blocking bookings spanning today. Show actual available-now count.
-
-### 6. Fix ChangeVehicleDialog to exclude `completed`
-
-Currently excludes only `cancelled`. Should use `isBlockingBooking()` for consistency.
-
----
+### 5. Today's Schedule keeps "New Booking" as secondary action
+The schedule card retains a smaller "+ Add" button but it's no longer the primary entry point.
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| `src/lib/conflictDetection.ts` | Add `isBlockingBooking()` helper, use it in `checkBookingConflicts` |
-| `src/components/dashboard/widgets/FleetStatusWidget.tsx` | Count `pending` bookings as "Booked" |
-| `src/components/dialogs/NewBookingDialog.tsx` | Show availability indicators on vehicle list after dates selected |
-| `src/components/dialogs/ChangeVehicleDialog.tsx` | Use `isBlockingBooking()` instead of `!== 'cancelled'` |
-| `src/components/dashboard/Book.tsx` | Filter "Available Vehicles" by actual booking availability |
+| `src/components/dashboard/BookEnhanced.tsx` | Restructure overview tab: move New Booking button to top, collapse pending into bar, remove revenue/utilization stats, compact Next Pickup into grid with remaining stats |
 
-## Risk
-
-Low-medium. These are filter logic fixes — no schema changes, no new APIs. The `isBlockingBooking` helper centralizes the logic so future status additions only need one update.
+## What Stays the Same
+- Today's Schedule booking list (content and interactions)
+- Upcoming/Previous booking cards
+- All other tabs (Calendar, CRM, Payments, Inspections)
+- All dialog logic (NewBookingDialog, EnhancedBookingDialog, etc.)
 
