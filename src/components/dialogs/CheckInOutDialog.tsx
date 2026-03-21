@@ -41,7 +41,7 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { TimeSelect } from "@/components/ui/time-select";
+import { TimeInput } from "@/components/ui/time-input";
 import { GuidedCaptureWizard } from "@/components/inspections/GuidedCaptureWizard";
 import { InspectionChecklistForm } from "@/components/inspections/InspectionChecklistForm";
 import {

@@ -27,7 +27,7 @@ import {
 import { Calendar as CalendarIcon, User, MapPin, Loader2, AlertCircle, Sparkles, UserPlus, ChevronDown, Check, DollarSign, Clock, Info } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { TimeSelect } from '@/components/ui/time-select';
+import { TimeInput } from '@/components/ui/time-input';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { TablesInsert, Tables } from '@/integrations/supabase/types';

@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { TimeSelect } from "@/components/ui/time-select";
+import { TimeInput } from "@/components/ui/time-input";
 import { Database } from "@/integrations/supabase/types";
 import { useTeam } from "@/contexts/TeamContext";
 import { MapPin, Loader2, RotateCcw, Calendar as CalendarIcon } from "lucide-react";
