@@ -524,53 +524,107 @@ export const NewBookingDialog = ({
               </div>
             </div>
 
-            {/* Start and End Date */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label htmlFor="start-date">
-                  {(durationType === '3hr' || durationType === '6hr') ? 'Pickup Date & Time' : 'Start Date'}
-                </Label>
-                <Input
-                  id="start-date"
-                  type="datetime-local"
-                  value={startDate}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setStartDate(val);
-                    // Auto-calculate end time for hourly tiers
-                    if (val && (durationType === '3hr' || durationType === '6hr')) {
-                      const start = new Date(val);
+            {/* Start Date & Time */}
+            <div className="space-y-2">
+              <Label>Pickup Date</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !startDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {startDate ? format(startDate, "MMM d, yyyy") : "Select date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={startDate}
+                      onSelect={(date) => {
+                        setStartDate(date);
+                        // Auto-calculate end for hourly tiers
+                        if (date && (durationType === '3hr' || durationType === '6hr')) {
+                          setEndDate(date);
+                          const [h, m] = startTime.split(':').map(Number);
+                          const hours = durationType === '3hr' ? 3 : 6;
+                          const endH = h + hours;
+                          const endTimeVal = `${String(Math.min(endH, 22)).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+                          setEndTime(endTimeVal);
+                          setEndDateManuallySet(false);
+                        }
+                      }}
+                      className={cn("p-3 pointer-events-auto")}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                <TimeSelect
+                  value={startTime}
+                  onValueChange={(val) => {
+                    setStartTime(val);
+                    if (startDate && (durationType === '3hr' || durationType === '6hr')) {
+                      const [h, m] = val.split(':').map(Number);
                       const hours = durationType === '3hr' ? 3 : 6;
-                      const end = new Date(start.getTime() + hours * 60 * 60 * 1000);
-                      // Format as datetime-local value
-                      const pad = (n: number) => String(n).padStart(2, '0');
-                      const endVal = `${end.getFullYear()}-${pad(end.getMonth() + 1)}-${pad(end.getDate())}T${pad(end.getHours())}:${pad(end.getMinutes())}`;
-                      setEndDate(endVal);
+                      const endH = h + hours;
+                      setEndTime(`${String(Math.min(endH, 22)).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+                      if (!endDate) setEndDate(startDate);
                       setEndDateManuallySet(false);
                     }
                   }}
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="end-date">
-                  {(durationType === '3hr' || durationType === '6hr') ? 'Return Date & Time' : 'End Date'}
-                </Label>
-                <Input
-                  id="end-date"
-                  type="datetime-local"
-                  value={endDate}
-                  onChange={(e) => {
-                    setEndDate(e.target.value);
+            </div>
+
+            {/* End Date & Time */}
+            <div className="space-y-2">
+              <Label>Return Date</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !endDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {endDate ? format(endDate, "MMM d, yyyy") : "Select date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={endDate}
+                      onSelect={(date) => {
+                        setEndDate(date);
+                        setEndDateManuallySet(true);
+                      }}
+                      disabled={(date) => startDate ? date < startDate : false}
+                      className={cn("p-3 pointer-events-auto")}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                <TimeSelect
+                  value={endTime}
+                  onValueChange={(val) => {
+                    setEndTime(val);
                     setEndDateManuallySet(true);
                   }}
                   disabled={!!(durationType === '3hr' || durationType === '6hr') && !endDateManuallySet}
                 />
-                {(durationType === '3hr' || durationType === '6hr') && !endDateManuallySet && startDate && (
-                  <p className="text-xs text-muted-foreground">
-                    Auto-set to {durationType === '3hr' ? '3' : '6'} hours after pickup
-                  </p>
-                )}
               </div>
+              {(durationType === '3hr' || durationType === '6hr') && !endDateManuallySet && startDate && (
+                <p className="text-xs text-muted-foreground">
+                  Auto-set to {durationType === '3hr' ? '3' : '6'} hours after pickup
+                </p>
+              )}
             </div>
 
             {/* Discount Section */}
