@@ -183,6 +183,32 @@ export const TeamSettingsSection = () => {
         </div>
       </Card>
 
+      {/* Rate Floor */}
+      <Card className="p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <DollarSign className="w-5 h-5 text-primary" />
+          <h3 className="text-lg font-semibold">Pricing</h3>
+        </div>
+        
+        <div className="space-y-2">
+          <Label htmlFor="minRate">Minimum Rental Rate ($)</Label>
+          <p className="text-sm text-muted-foreground">
+            The minimum allowed rate across all tiers (3hr, 6hr, daily, multi-day). 
+            Rates below this will be rejected when setting vehicle prices.
+          </p>
+          <Input
+            id="minRate"
+            type="number"
+            min="0"
+            step="1"
+            placeholder="100"
+            value={settings.minRate}
+            onChange={(e) => updateSetting('minRate', e.target.value)}
+            className="w-[200px]"
+          />
+        </div>
+      </Card>
+
       <div className="flex justify-end">
         <Button onClick={handleSave} disabled={isSaving}>
           {isSaving ? (
