@@ -72,8 +72,8 @@ export const EditBookingDialog = ({
 
   // Use centralized pricing - preserve existing discount & delivery fee
   const pricing = calculateBookingTotal({
-    startDate,
-    endDate,
+    startDate: effectiveStartDate,
+    endDate: effectiveEndDate,
     dailyRate,
     discountAmount: Number(booking.discount_amount) || 0,
     gasFee: Number((booking as any).gas_fee) || DEFAULT_GAS_FEE,
@@ -88,8 +88,8 @@ export const EditBookingDialog = ({
     setIsUpdating(true);
     try {
       await updateBookingDetails(booking.id, {
-        start_date: startDate.toISOString(),
-        end_date: endDate.toISOString(),
+        start_date: effectiveStartDate.toISOString(),
+        end_date: effectiveEndDate.toISOString(),
         pickup_location: pickupLocation,
         dropoff_location: dropoffLocation,
         notes,
