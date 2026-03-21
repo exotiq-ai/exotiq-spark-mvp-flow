@@ -74,7 +74,7 @@ export const NewBookingDialog = ({
   const [discountAmount, setDiscountAmount] = useState('');
   const [discountReason, setDiscountReason] = useState('');
   const [gasFeeWaived, setGasFeeWaived] = useState(false);
-
+  const [durationType, setDurationType] = useState<RentalDurationType>('daily');
   // Fetch existing customers when dialog opens
   useEffect(() => {
     if (open) {
