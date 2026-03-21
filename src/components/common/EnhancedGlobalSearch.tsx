@@ -377,7 +377,8 @@ export const EnhancedGlobalSearch = ({ onOpenRari }: EnhancedGlobalSearchProps) 
             <div className="flex flex-col items-center py-6 text-muted-foreground">
               <Search className="w-10 h-10 mb-2 opacity-20" />
               <p>No results found</p>
-              <p className="text-xs">Try a different search term</p>
+              <p className="text-xs mt-1">Try searching by license plate, booking ref (BK-01001),</p>
+              <p className="text-xs">customer name, or vehicle make/model</p>
             </div>
           </CommandEmpty>
 

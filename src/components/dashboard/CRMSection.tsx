@@ -38,6 +38,7 @@ export const CRMSection = () => {
   const { customers, bookings, vehicles, createCustomer, createBooking, loading, isAllLocations, currentLocation } = useLocationFilteredFleet();
   const { refreshCustomers } = useFleet();
   const { currentTeam } = useTeam();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   // Page-level realtime subscription for customers table
   useRealtimeTable('customers', {
@@ -53,6 +54,22 @@ export const CRMSection = () => {
   const [showAddCustomer, setShowAddCustomer] = useState(false);
   const [showNewBooking, setShowNewBooking] = useState(false);
   const [prefillCustomer, setPrefillCustomer] = useState<Customer | null>(null);
+
+  // Deep-link: auto-open customer profile from URL params
+  useEffect(() => {
+    const customerId = searchParams.get('customerId');
+    if (customerId && customers.length > 0) {
+      const exists = customers.find(c => c.id === customerId);
+      if (exists) {
+        setSelectedCustomerId(customerId);
+        setShowCustomerProfile(true);
+        // Clear the param after consuming
+        const newParams = new URLSearchParams(searchParams);
+        newParams.delete('customerId');
+        setSearchParams(newParams, { replace: true });
+      }
+    }
+  }, [searchParams, customers]);
 
   const filteredCustomers = customers.filter(customer => {
     const matchesSearch = 

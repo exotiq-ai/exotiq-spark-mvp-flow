@@ -587,17 +587,6 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
             ))}
           </div>
         </div>
-
-        {/* Sticky Bottom Action Bar - Desktop only, within content bounds */}
-        <DashboardBottomActionBar
-          onNewBooking={() => setShowBookingDialog(true)}
-          onRecordPayment={() => setShowPaymentDialog(true)}
-          onAddCustomer={() => setShowCustomerDialog(true)}
-          onGenerateReport={() => setShowReportDialog(true)}
-          onScheduleMaintenance={() => setShowMaintenanceDialog(true)}
-          onAskRari={rariSidebar.open}
-          rariUnreadCount={rariSidebar.unreadCount + rariSidebar.urgentCount}
-        />
       </div>
     </>
   );
