@@ -325,12 +325,10 @@ export const NewBookingDialog = ({
                   })}
                 </div>
                 {(durationType === '3hr' || durationType === '6hr') && (
-                  <Alert className="mt-2">
-                    <Info className="h-4 w-4" />
-                    <AlertDescription className="text-xs">
-                      Vehicle reserved for the full calendar day. Time picker is for scheduling reference.
-                    </AlertDescription>
-                  </Alert>
+                  <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    Select a pickup time — vehicle stays available for other bookings outside this window.
+                  </p>
                 )}
               </div>
             )}
