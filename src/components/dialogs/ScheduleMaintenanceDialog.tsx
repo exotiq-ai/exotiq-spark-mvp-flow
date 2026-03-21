@@ -44,7 +44,8 @@ export const ScheduleMaintenanceDialog = ({ open, onOpenChange, vehicles, onSubm
   
   const [vehicleId, setVehicleId] = useState("");
   const [maintenanceType, setMaintenanceType] = useState("");
-  const [scheduledDate, setScheduledDate] = useState("");
+  const [scheduledDate, setScheduledDate] = useState<Date | undefined>();
+  const [scheduledTime, setScheduledTime] = useState('09:00');
   const [serviceProvider, setServiceProvider] = useState("");
   const [estimatedCost, setEstimatedCost] = useState("");
   const [notes, setNotes] = useState("");
