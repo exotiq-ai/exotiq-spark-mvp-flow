@@ -16,6 +16,7 @@ interface TeamSettings {
   notifyOnRoleChange: boolean;
   requireTwoFactor: boolean;
   sessionTimeout: string;
+  minRate: string;
 }
 
 const defaultSettings: TeamSettings = {
