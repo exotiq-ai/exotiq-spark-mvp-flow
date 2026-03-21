@@ -3,6 +3,13 @@ import { Database } from '@/integrations/supabase/types';
 type Booking = Database['public']['Tables']['bookings']['Row'];
 type Maintenance = Database['public']['Tables']['maintenance_schedules']['Row'];
 
+/**
+ * Determines if a booking status should block vehicle availability.
+ * Only `pending` and `confirmed` bookings block — `cancelled` and `completed` do not.
+ */
+export const isBlockingBooking = (status: string | null): boolean =>
+  status !== 'cancelled' && status !== 'completed';
+
 export interface Conflict {
   type: 'overlap' | 'buffer' | 'maintenance' | 'availability';
   severity: 'critical' | 'warning' | 'info';
