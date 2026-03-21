@@ -145,8 +145,20 @@ export const NewBookingDialog = ({
     }
   };
 
+  // Helper to combine date + time into ISO string
+  const combineDateAndTime = (date: Date | undefined, time: string): string => {
+    if (!date) return '';
+    const [hours, minutes] = time.split(':').map(Number);
+    const combined = new Date(date);
+    combined.setHours(hours, minutes, 0, 0);
+    return combined.toISOString();
+  };
+
+  const startDateTimeStr = combineDateAndTime(startDate, startTime);
+  const endDateTimeStr = combineDateAndTime(endDate, endTime);
+
   const selectedVehicle = vehicles.find(v => v.id === vehicleId);
-  const pricingSuggestion = useAIPricing(selectedVehicle || null, startDate);
+  const pricingSuggestion = useAIPricing(selectedVehicle || null, startDateTimeStr);
 
   // Check which vehicles have conflicting bookings for the selected dates
   const vehicleAvailability = useMemo(() => {
