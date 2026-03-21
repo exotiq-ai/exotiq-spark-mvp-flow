@@ -175,7 +175,7 @@ export const Book = () => {
               <Car className="h-6 w-6 text-accent" />
             </div>
             <div className="ml-4">
-              <div className="text-2xl font-bold">{vehicles.filter(v => v.status === 'available').length}</div>
+              <div className="text-2xl font-bold">{vehicles.filter(v => v.status !== 'maintenance' && v.status !== 'retired' && !bookedVehicleIds.has(v.id)).length}</div>
               <div className="text-sm text-muted-foreground">Available Cars</div>
             </div>
           </div>
