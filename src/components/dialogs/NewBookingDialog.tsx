@@ -24,7 +24,11 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { Calendar, User, MapPin, Loader2, AlertCircle, Sparkles, UserPlus, ChevronDown, Check, DollarSign, Clock, Info } from 'lucide-react';
+import { Calendar as CalendarIcon, User, MapPin, Loader2, AlertCircle, Sparkles, UserPlus, ChevronDown, Check, DollarSign, Clock, Info } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { TimeSelect } from '@/components/ui/time-select';
+import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { TablesInsert, Tables } from '@/integrations/supabase/types';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -62,8 +66,10 @@ export const NewBookingDialog = ({
   const [customerName, setCustomerName] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [startDate, setStartDate] = useState<Date | undefined>();
+  const [startTime, setStartTime] = useState('09:00');
+  const [endDate, setEndDate] = useState<Date | undefined>();
+  const [endTime, setEndTime] = useState('09:00');
   const [endDateManuallySet, setEndDateManuallySet] = useState(false);
   const [pickupLocationId, setPickupLocationId] = useState('');
   const [pickupLocationText, setPickupLocationText] = useState('');
@@ -139,14 +145,26 @@ export const NewBookingDialog = ({
     }
   };
 
+  // Helper to combine date + time into ISO string
+  const combineDateAndTime = (date: Date | undefined, time: string): string => {
+    if (!date) return '';
+    const [hours, minutes] = time.split(':').map(Number);
+    const combined = new Date(date);
+    combined.setHours(hours, minutes, 0, 0);
+    return combined.toISOString();
+  };
+
+  const startDateTimeStr = combineDateAndTime(startDate, startTime);
+  const endDateTimeStr = combineDateAndTime(endDate, endTime);
+
   const selectedVehicle = vehicles.find(v => v.id === vehicleId);
-  const pricingSuggestion = useAIPricing(selectedVehicle || null, startDate);
+  const pricingSuggestion = useAIPricing(selectedVehicle || null, startDateTimeStr);
 
   // Check which vehicles have conflicting bookings for the selected dates
   const vehicleAvailability = useMemo(() => {
     if (!startDate || !endDate) return {};
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    const start = new Date(startDateTimeStr);
+    const end = new Date(endDateTimeStr);
     const availability: Record<string, boolean> = {};
     vehicles.forEach(v => {
       const hasConflict = allBookings.some(b => {
@@ -173,10 +191,10 @@ export const NewBookingDialog = ({
     const validation = validateForm([
       () => validators.required(vehicleId, 'Vehicle'),
       () => validators.required(customerName, 'Customer name'),
-      () => validators.required(startDate, 'Start date'),
-      () => validators.required(endDate, 'End date'),
+      () => validators.required(startDateTimeStr, 'Start date'),
+      () => validators.required(endDateTimeStr, 'End date'),
       () => validators.required(pickupLocationName, 'Pickup location'),
-      () => validators.dateRange(startDate, endDate),
+      () => validators.dateRange(startDateTimeStr, endDateTimeStr),
       () => customerEmail ? validators.email(customerEmail) : { isValid: true },
       () => customerPhone ? validators.phone(customerPhone) : { isValid: true },
     ]);
@@ -204,8 +222,8 @@ export const NewBookingDialog = ({
       );
 
       const pricing = calculateBookingTotal({
-        startDate: new Date(startDate),
-        endDate: new Date(endDate),
+        startDate: new Date(startDateTimeStr),
+        endDate: new Date(endDateTimeStr),
         dailyRate: effectiveRate,
         discountAmount: Number(discountAmount) || 0,
         gasFee: DEFAULT_GAS_FEE,
@@ -219,8 +237,8 @@ export const NewBookingDialog = ({
         customer_email: customerEmail || null,
         customer_phone: customerPhone || null,
         customer_id: selectedCustomerId !== 'new' ? selectedCustomerId : null,
-        start_date: new Date(startDate).toISOString(),
-        end_date: new Date(endDate).toISOString(),
+        start_date: startDateTimeStr,
+        end_date: endDateTimeStr,
         pickup_location: pickupLocationName,
         pickup_location_id: effectivePickupLocationId || null,
         dropoff_location: dropoffLocation || null,
@@ -243,8 +261,10 @@ export const NewBookingDialog = ({
       setCustomerName('');
       setCustomerEmail('');
       setCustomerPhone('');
-      setStartDate('');
-      setEndDate('');
+      setStartDate(undefined);
+      setStartTime('09:00');
+      setEndDate(undefined);
+      setEndTime('09:00');
       setPickupLocationId('');
       setPickupLocationText('');
       setDropoffLocation('');
@@ -504,53 +524,107 @@ export const NewBookingDialog = ({
               </div>
             </div>
 
-            {/* Start and End Date */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label htmlFor="start-date">
-                  {(durationType === '3hr' || durationType === '6hr') ? 'Pickup Date & Time' : 'Start Date'}
-                </Label>
-                <Input
-                  id="start-date"
-                  type="datetime-local"
-                  value={startDate}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setStartDate(val);
-                    // Auto-calculate end time for hourly tiers
-                    if (val && (durationType === '3hr' || durationType === '6hr')) {
-                      const start = new Date(val);
+            {/* Start Date & Time */}
+            <div className="space-y-2">
+              <Label>Pickup Date</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !startDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {startDate ? format(startDate, "MMM d, yyyy") : "Select date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={startDate}
+                      onSelect={(date) => {
+                        setStartDate(date);
+                        // Auto-calculate end for hourly tiers
+                        if (date && (durationType === '3hr' || durationType === '6hr')) {
+                          setEndDate(date);
+                          const [h, m] = startTime.split(':').map(Number);
+                          const hours = durationType === '3hr' ? 3 : 6;
+                          const endH = h + hours;
+                          const endTimeVal = `${String(Math.min(endH, 22)).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+                          setEndTime(endTimeVal);
+                          setEndDateManuallySet(false);
+                        }
+                      }}
+                      className={cn("p-3 pointer-events-auto")}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                <TimeSelect
+                  value={startTime}
+                  onValueChange={(val) => {
+                    setStartTime(val);
+                    if (startDate && (durationType === '3hr' || durationType === '6hr')) {
+                      const [h, m] = val.split(':').map(Number);
                       const hours = durationType === '3hr' ? 3 : 6;
-                      const end = new Date(start.getTime() + hours * 60 * 60 * 1000);
-                      // Format as datetime-local value
-                      const pad = (n: number) => String(n).padStart(2, '0');
-                      const endVal = `${end.getFullYear()}-${pad(end.getMonth() + 1)}-${pad(end.getDate())}T${pad(end.getHours())}:${pad(end.getMinutes())}`;
-                      setEndDate(endVal);
+                      const endH = h + hours;
+                      setEndTime(`${String(Math.min(endH, 22)).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+                      if (!endDate) setEndDate(startDate);
                       setEndDateManuallySet(false);
                     }
                   }}
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="end-date">
-                  {(durationType === '3hr' || durationType === '6hr') ? 'Return Date & Time' : 'End Date'}
-                </Label>
-                <Input
-                  id="end-date"
-                  type="datetime-local"
-                  value={endDate}
-                  onChange={(e) => {
-                    setEndDate(e.target.value);
+            </div>
+
+            {/* End Date & Time */}
+            <div className="space-y-2">
+              <Label>Return Date</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !endDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {endDate ? format(endDate, "MMM d, yyyy") : "Select date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={endDate}
+                      onSelect={(date) => {
+                        setEndDate(date);
+                        setEndDateManuallySet(true);
+                      }}
+                      disabled={(date) => startDate ? date < startDate : false}
+                      className={cn("p-3 pointer-events-auto")}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                <TimeSelect
+                  value={endTime}
+                  onValueChange={(val) => {
+                    setEndTime(val);
                     setEndDateManuallySet(true);
                   }}
                   disabled={!!(durationType === '3hr' || durationType === '6hr') && !endDateManuallySet}
                 />
-                {(durationType === '3hr' || durationType === '6hr') && !endDateManuallySet && startDate && (
-                  <p className="text-xs text-muted-foreground">
-                    Auto-set to {durationType === '3hr' ? '3' : '6'} hours after pickup
-                  </p>
-                )}
               </div>
+              {(durationType === '3hr' || durationType === '6hr') && !endDateManuallySet && startDate && (
+                <p className="text-xs text-muted-foreground">
+                  Auto-set to {durationType === '3hr' ? '3' : '6'} hours after pickup
+                </p>
+              )}
             </div>
 
             {/* Discount Section */}
@@ -613,8 +687,8 @@ export const NewBookingDialog = ({
                       (selectedVehicle as any).rate_multiday,
                     );
                     const pricing = calculateBookingTotal({
-                      startDate: new Date(startDate),
-                      endDate: new Date(endDate),
+                      startDate: new Date(startDateTimeStr),
+                      endDate: new Date(endDateTimeStr),
                       dailyRate: effectiveRate,
                       discountAmount: Number(discountAmount) || 0,
                       gasFee: DEFAULT_GAS_FEE,

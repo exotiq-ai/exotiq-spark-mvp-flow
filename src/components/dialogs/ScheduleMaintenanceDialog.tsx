@@ -6,10 +6,14 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { TimeSelect } from "@/components/ui/time-select";
 import { Database } from "@/integrations/supabase/types";
 import { useTeam } from "@/contexts/TeamContext";
-import { MapPin, Loader2, RotateCcw } from "lucide-react";
+import { MapPin, Loader2, RotateCcw, Calendar as CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { format } from "date-fns";
 
 type MaintenanceInsert = Omit<Database['public']['Tables']['maintenance_schedules']['Insert'], 'user_id'>;
 type Vehicle = Database['public']['Tables']['vehicles']['Row'];
@@ -40,7 +44,8 @@ export const ScheduleMaintenanceDialog = ({ open, onOpenChange, vehicles, onSubm
   
   const [vehicleId, setVehicleId] = useState("");
   const [maintenanceType, setMaintenanceType] = useState("");
-  const [scheduledDate, setScheduledDate] = useState("");
+  const [scheduledDate, setScheduledDate] = useState<Date | undefined>();
+  const [scheduledTime, setScheduledTime] = useState('09:00');
   const [serviceProvider, setServiceProvider] = useState("");
   const [estimatedCost, setEstimatedCost] = useState("");
   const [notes, setNotes] = useState("");
@@ -74,10 +79,14 @@ export const ScheduleMaintenanceDialog = ({ open, onOpenChange, vehicles, onSubm
 
     setLoading(true);
     try {
+      const [h, m] = scheduledTime.split(':').map(Number);
+      const combined = new Date(scheduledDate);
+      combined.setHours(h, m, 0, 0);
+
       const data: any = {
         vehicle_id: vehicleId,
         maintenance_type: maintenanceType,
-        scheduled_date: new Date(scheduledDate).toISOString(),
+        scheduled_date: combined.toISOString(),
         service_provider: serviceProvider || null,
         estimated_cost: estimatedCost ? parseFloat(estimatedCost) : null,
         notes: notes || null,
@@ -92,7 +101,7 @@ export const ScheduleMaintenanceDialog = ({ open, onOpenChange, vehicles, onSubm
       await onSubmit(data);
 
       // Reset
-      setVehicleId(""); setMaintenanceType(""); setScheduledDate(""); setServiceProvider("");
+      setVehicleId(""); setMaintenanceType(""); setScheduledDate(undefined); setScheduledTime("09:00"); setServiceProvider("");
       setEstimatedCost(""); setNotes(""); setLocationId(""); setRecurrenceType('once');
       setIntervalDays(""); setMileageInterval(""); setTemplateName("");
       onOpenChange(false);
@@ -157,15 +166,39 @@ export const ScheduleMaintenanceDialog = ({ open, onOpenChange, vehicles, onSubm
             </Select>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Scheduled Date & Time *</Label>
-              <Input type="datetime-local" value={scheduledDate} onChange={(e) => setScheduledDate(e.target.value)} required />
+          <div className="space-y-2">
+            <Label>Scheduled Date & Time *</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !scheduledDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {scheduledDate ? format(scheduledDate, "MMM d, yyyy") : "Select date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={scheduledDate}
+                    onSelect={setScheduledDate}
+                    className={cn("p-3 pointer-events-auto")}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+              <TimeSelect value={scheduledTime} onValueChange={setScheduledTime} />
             </div>
-            <div className="space-y-2">
-              <Label>Estimated Cost ($)</Label>
-              <Input type="number" placeholder="500" value={estimatedCost} onChange={(e) => setEstimatedCost(e.target.value)} min="0" step="0.01" />
-            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Estimated Cost ($)</Label>
+            <Input type="number" placeholder="500" value={estimatedCost} onChange={(e) => setEstimatedCost(e.target.value)} min="0" step="0.01" />
           </div>
 
           {/* Recurrence Section */}

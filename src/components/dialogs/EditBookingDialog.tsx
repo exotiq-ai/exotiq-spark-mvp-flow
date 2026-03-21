@@ -21,6 +21,7 @@ import { format } from "date-fns";
 import { Calendar as CalendarIcon, MapPin, Clock, DollarSign } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { calculateBookingTotal, DEFAULT_GAS_FEE } from "@/lib/pricingUtils";
+import { TimeSelect } from "@/components/ui/time-select";
 import type { Database } from "@/integrations/supabase/types";
 
 type Booking = Database["public"]["Tables"]["bookings"]["Row"];
@@ -43,17 +44,36 @@ export const EditBookingDialog = ({
   const { updateBookingDetails } = useFleet();
   
   const [startDate, setStartDate] = useState<Date>(new Date(booking.start_date));
+  const [startTime, setStartTime] = useState(() => {
+    const d = new Date(booking.start_date);
+    return `${String(d.getHours()).padStart(2, '0')}:${String(Math.floor(d.getMinutes() / 30) * 30).padStart(2, '0')}`;
+  });
   const [endDate, setEndDate] = useState<Date>(new Date(booking.end_date));
+  const [endTime, setEndTime] = useState(() => {
+    const d = new Date(booking.end_date);
+    return `${String(d.getHours()).padStart(2, '0')}:${String(Math.floor(d.getMinutes() / 30) * 30).padStart(2, '0')}`;
+  });
   const [pickupLocation, setPickupLocation] = useState(booking.pickup_location);
   const [dropoffLocation, setDropoffLocation] = useState(booking.dropoff_location || booking.pickup_location);
   const [notes, setNotes] = useState(booking.notes || "");
   const [gasFeeWaived, setGasFeeWaived] = useState((booking as any).gas_fee_waived ?? false);
   const [isUpdating, setIsUpdating] = useState(false);
 
+  // Combine date + time
+  const combineDateTime = (date: Date, time: string): Date => {
+    const [h, m] = time.split(':').map(Number);
+    const combined = new Date(date);
+    combined.setHours(h, m, 0, 0);
+    return combined;
+  };
+
+  const effectiveStartDate = combineDateTime(startDate, startTime);
+  const effectiveEndDate = combineDateTime(endDate, endTime);
+
   // Use centralized pricing - preserve existing discount & delivery fee
   const pricing = calculateBookingTotal({
-    startDate,
-    endDate,
+    startDate: effectiveStartDate,
+    endDate: effectiveEndDate,
     dailyRate,
     discountAmount: Number(booking.discount_amount) || 0,
     gasFee: Number((booking as any).gas_fee) || DEFAULT_GAS_FEE,
@@ -68,8 +88,8 @@ export const EditBookingDialog = ({
     setIsUpdating(true);
     try {
       await updateBookingDetails(booking.id, {
-        start_date: startDate.toISOString(),
-        end_date: endDate.toISOString(),
+        start_date: effectiveStartDate.toISOString(),
+        end_date: effectiveEndDate.toISOString(),
         pickup_location: pickupLocation,
         dropoff_location: dropoffLocation,
         notes,
@@ -101,10 +121,10 @@ export const EditBookingDialog = ({
 
         <ScrollArea className="flex-1 overflow-y-auto">
           <div className="px-6 py-4 space-y-4">
-            {/* Date Range */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Pickup Date</Label>
+            {/* Pickup Date & Time */}
+            <div className="space-y-2">
+              <Label>Pickup Date & Time</Label>
+              <div className="grid grid-cols-2 gap-2">
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
@@ -123,14 +143,19 @@ export const EditBookingDialog = ({
                       mode="single"
                       selected={startDate}
                       onSelect={(date) => date && setStartDate(date)}
+                      className={cn("p-3 pointer-events-auto")}
                       initialFocus
                     />
                   </PopoverContent>
                 </Popover>
+                <TimeSelect value={startTime} onValueChange={setStartTime} />
               </div>
+            </div>
 
-              <div className="space-y-2">
-                <Label>Return Date</Label>
+            {/* Return Date & Time */}
+            <div className="space-y-2">
+              <Label>Return Date & Time</Label>
+              <div className="grid grid-cols-2 gap-2">
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
@@ -150,10 +175,12 @@ export const EditBookingDialog = ({
                       selected={endDate}
                       onSelect={(date) => date && setEndDate(date)}
                       disabled={(date) => date < startDate}
+                      className={cn("p-3 pointer-events-auto")}
                       initialFocus
                     />
                   </PopoverContent>
                 </Popover>
+                <TimeSelect value={endTime} onValueChange={setEndTime} />
               </div>
             </div>
 

@@ -39,6 +39,9 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { Calendar as CalendarPicker } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { TimeSelect } from "@/components/ui/time-select";
 import { GuidedCaptureWizard } from "@/components/inspections/GuidedCaptureWizard";
 import { InspectionChecklistForm } from "@/components/inspections/InspectionChecklistForm";
 import {
@@ -101,8 +104,8 @@ export const CheckInOutDialog = ({
       : booking.pickup_fuel_level ?? 100,
   ]);
   const [manualDate, setManualDate] = useState(false);
-  const [dateOverride, setDateOverride] = useState("");
-
+  const [dateOverride, setDateOverride] = useState<Date | undefined>();
+  const [timeOverride, setTimeOverride] = useState('09:00');
   // Step 2: Photos (from inspection widget)
   const initialPhotos: GuidedPhoto[] = useMemo(
     () =>
@@ -230,10 +233,15 @@ export const CheckInOutDialog = ({
     const odoValue = Number(odometer);
     setLoading(true);
     try {
-      const timestamp =
-        manualDate && dateOverride
-          ? new Date(dateOverride).toISOString()
-          : new Date().toISOString();
+      let timestamp: string;
+      if (manualDate && dateOverride) {
+        const [h, m] = timeOverride.split(':').map(Number);
+        const combined = new Date(dateOverride);
+        combined.setHours(h, m, 0, 0);
+        timestamp = combined.toISOString();
+      } else {
+        timestamp = new Date().toISOString();
+      }
 
       // --- Update booking ---
       if (isCheckIn) {
@@ -623,11 +631,32 @@ export const CheckInOutDialog = ({
               </div>
 
               {manualDate && (
-                <Input
-                  type="datetime-local"
-                  value={dateOverride}
-                  onChange={(e) => setDateOverride(e.target.value)}
-                />
+                <div className="grid grid-cols-2 gap-2">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !dateOverride && "text-muted-foreground"
+                        )}
+                      >
+                        <Calendar className="mr-2 h-4 w-4" />
+                        {dateOverride ? format(dateOverride, "MMM d, yyyy") : "Select date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarPicker
+                        mode="single"
+                        selected={dateOverride}
+                        onSelect={setDateOverride}
+                        className={cn("p-3 pointer-events-auto")}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <TimeSelect value={timeOverride} onValueChange={setTimeOverride} />
+                </div>
               )}
             </div>
 
