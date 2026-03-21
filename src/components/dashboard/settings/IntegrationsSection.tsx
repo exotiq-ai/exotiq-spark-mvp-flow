@@ -1,177 +1,194 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { 
   Plug, 
   Check, 
   AlertCircle,
   ExternalLink,
   RefreshCw,
-  Key,
   CreditCard,
   Calendar,
   MessageSquare,
   Map,
   FileText,
-  Cloud,
-  Sparkles
+  Sparkles,
+  Loader2
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useTeam } from "@/contexts/TeamContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { useSearchParams } from "react-router-dom";
 
-interface Integration {
-  id: string;
-  name: string;
-  description: string;
-  icon: React.ElementType;
-  status: "connected" | "disconnected" | "error";
-  category: "payments" | "calendar" | "communication" | "maps" | "documents" | "ai";
-  lastSync?: string;
+interface GCalConfig {
+  connected_email: string;
+  calendar_name: string;
+  calendar_id: string;
 }
 
 export const IntegrationsSection = () => {
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState<string | null>(null);
+  const { currentTeam } = useTeam();
+  const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [gcalIntegration, setGcalIntegration] = useState<{
+    is_active: boolean;
+    config: GCalConfig;
+    last_used_at: string | null;
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const integrations: Integration[] = [
-    {
-      id: "stripe",
-      name: "Stripe",
-      description: "Payment processing and invoicing",
-      icon: CreditCard,
-      status: "connected",
-      category: "payments",
-      lastSync: "2 minutes ago"
-    },
-    {
-      id: "google-calendar",
-      name: "Google Calendar",
-      description: "Sync bookings with Google Calendar",
-      icon: Calendar,
-      status: "disconnected",
-      category: "calendar"
-    },
-    {
-      id: "twilio",
-      name: "Twilio",
-      description: "SMS and WhatsApp notifications",
-      icon: MessageSquare,
-      status: "disconnected",
-      category: "communication"
-    },
-    {
-      id: "google-maps",
-      name: "Google Maps",
-      description: "Location services and routing",
-      icon: Map,
-      status: "connected",
-      category: "maps",
-      lastSync: "Live"
-    },
-    {
-      id: "docusign",
-      name: "DocuSign",
-      description: "Digital contract signing",
-      icon: FileText,
-      status: "disconnected",
-      category: "documents"
-    },
-    {
-      id: "openai",
-      name: "AI Services",
-      description: "Powered by Lovable AI for intelligent features",
-      icon: Sparkles,
-      status: "connected",
-      category: "ai",
-      lastSync: "Active"
+  // Handle gcal callback params
+  useEffect(() => {
+    const gcalStatus = searchParams.get("gcal");
+    if (gcalStatus === "success") {
+      toast({ title: "Google Calendar Connected", description: "Your bookings will now sync automatically." });
+      searchParams.delete("gcal");
+      setSearchParams(searchParams, { replace: true });
+      fetchIntegration();
+    } else if (gcalStatus === "error") {
+      const reason = searchParams.get("reason") || "unknown";
+      toast({ title: "Connection Failed", description: `Google Calendar connection failed: ${reason}`, variant: "destructive" });
+      searchParams.delete("gcal");
+      searchParams.delete("reason");
+      setSearchParams(searchParams, { replace: true });
     }
+  }, []);
+
+  const fetchIntegration = async () => {
+    if (!currentTeam?.id) { setLoading(false); return; }
+    try {
+      const { data } = await supabase
+        .from("team_integrations")
+        .select("is_active, config, last_used_at")
+        .eq("team_id", currentTeam.id)
+        .eq("integration_type", "google_calendar")
+        .maybeSingle();
+      
+      if (data && data.is_active) {
+        setGcalIntegration({
+          is_active: true,
+          config: data.config as unknown as GCalConfig,
+          last_used_at: data.last_used_at,
+        });
+      } else {
+        setGcalIntegration(null);
+      }
+    } catch (err) {
+      console.error("Failed to fetch gcal integration:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchIntegration();
+  }, [currentTeam?.id]);
+
+  const handleConnect = async () => {
+    if (!currentTeam?.id) {
+      toast({ title: "Error", description: "No team selected.", variant: "destructive" });
+      return;
+    }
+    setIsConnecting(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Not authenticated");
+
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/gcal-auth`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ team_id: currentTeam.id }),
+        }
+      );
+      const result = await res.json();
+      if (result.url) {
+        window.location.href = result.url;
+      } else {
+        throw new Error(result.error || "Failed to get auth URL");
+      }
+    } catch (err: any) {
+      toast({ title: "Connection Failed", description: err.message, variant: "destructive" });
+      setIsConnecting(false);
+    }
+  };
+
+  const handleDisconnect = async () => {
+    if (!currentTeam?.id) return;
+    setIsDisconnecting(true);
+    try {
+      await supabase
+        .from("team_integrations")
+        .update({ is_active: false })
+        .eq("team_id", currentTeam.id)
+        .eq("integration_type", "google_calendar");
+
+      setGcalIntegration(null);
+      toast({ title: "Disconnected", description: "Google Calendar has been disconnected. Events already synced will remain." });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setIsDisconnecting(false);
+    }
+  };
+
+  const handleSyncNow = async () => {
+    if (!currentTeam?.id) return;
+    setIsSyncing(true);
+    try {
+      // Get all bookings that don't have a gcal event ID yet
+      const { data: bookings } = await supabase
+        .from("bookings")
+        .select("id")
+        .eq("team_id", currentTeam.id)
+        .is("google_calendar_event_id", null)
+        .in("status", ["pending", "confirmed"]);
+
+      if (!bookings?.length) {
+        toast({ title: "Already Synced", description: "All bookings are up to date." });
+        setIsSyncing(false);
+        return;
+      }
+
+      const { data: { session } } = await supabase.auth.getSession();
+      // Fire sync for each unsynced booking
+      const promises = bookings.map((b) =>
+        fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/gcal-sync`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({ action: "create", booking_id: b.id, team_id: currentTeam.id }),
+        }).catch(() => null)
+      );
+
+      await Promise.all(promises);
+      toast({ title: "Sync Complete", description: `Synced ${bookings.length} booking(s) to Google Calendar.` });
+      fetchIntegration();
+    } catch (err: any) {
+      toast({ title: "Sync Failed", description: err.message, variant: "destructive" });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const comingSoonIntegrations = [
+    { name: "Stripe", description: "Payment processing and invoicing", icon: CreditCard },
+    { name: "Twilio", description: "SMS and WhatsApp notifications", icon: MessageSquare },
+    { name: "Google Maps", description: "Location services and routing", icon: Map },
+    { name: "DocuSign", description: "Digital contract signing", icon: FileText },
   ];
-
-  const handleConnect = async (integrationId: string) => {
-    setIsLoading(integrationId);
-    
-    // Simulate connection process
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    toast({
-      title: "Integration Ready",
-      description: "Please complete the authorization in the popup window."
-    });
-    
-    setIsLoading(null);
-  };
-
-  const handleDisconnect = async (integrationId: string) => {
-    setIsLoading(integrationId);
-    
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    toast({
-      title: "Disconnected",
-      description: "Integration has been disconnected."
-    });
-    
-    setIsLoading(null);
-  };
-
-  const handleSync = async (integrationId: string) => {
-    setIsLoading(integrationId);
-    
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    toast({
-      title: "Sync Complete",
-      description: "Data has been synchronized successfully."
-    });
-    
-    setIsLoading(null);
-  };
-
-  const getStatusBadge = (status: Integration["status"]) => {
-    switch (status) {
-      case "connected":
-        return (
-          <Badge className="bg-success/10 text-success border-success/30">
-            <Check className="w-3 h-3 mr-1" />
-            Connected
-          </Badge>
-        );
-      case "error":
-        return (
-          <Badge variant="destructive">
-            <AlertCircle className="w-3 h-3 mr-1" />
-            Error
-          </Badge>
-        );
-      default:
-        return (
-          <Badge variant="secondary">
-            Not Connected
-          </Badge>
-        );
-    }
-  };
-
-  const groupedIntegrations = {
-    payments: integrations.filter(i => i.category === "payments"),
-    calendar: integrations.filter(i => i.category === "calendar"),
-    communication: integrations.filter(i => i.category === "communication"),
-    maps: integrations.filter(i => i.category === "maps"),
-    documents: integrations.filter(i => i.category === "documents"),
-    ai: integrations.filter(i => i.category === "ai")
-  };
-
-  const categoryLabels: Record<string, string> = {
-    payments: "Payment Processing",
-    calendar: "Calendar & Scheduling",
-    communication: "Communication",
-    maps: "Maps & Location",
-    documents: "Document Management",
-    ai: "AI & Intelligence"
-  };
 
   return (
     <div className="space-y-6">
@@ -179,176 +196,134 @@ export const IntegrationsSection = () => {
       <Card className="card-premium p-6">
         <div className="flex items-center space-x-3 mb-4">
           <Plug className="w-5 h-5 text-primary" />
-          <h3 className="text-xl font-semibold">Integrations Overview</h3>
+          <h3 className="text-xl font-semibold">Integrations</h3>
         </div>
-        <p className="text-muted-foreground mb-6">
-          Connect third-party services to extend EXOTIQ functionality. All integrations are securely managed and can be disconnected at any time.
+        <p className="text-muted-foreground">
+          Connect third-party services to extend EXOTIQ functionality. All integrations are tenant-specific and securely managed.
         </p>
+      </Card>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="p-4 rounded-lg bg-success/10 border border-success/20">
-            <p className="text-2xl font-bold text-success">
-              {integrations.filter(i => i.status === "connected").length}
-            </p>
-            <p className="text-sm text-muted-foreground">Connected</p>
+      {/* Google Calendar — Real Integration */}
+      <Card className="card-premium p-6">
+        <h3 className="text-lg font-semibold mb-4">Calendar & Scheduling</h3>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-lg bg-muted/30">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="p-2 rounded-lg bg-background border shrink-0">
+              <Calendar className="w-5 h-5 text-primary" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h4 className="font-medium">Google Calendar</h4>
+                {gcalIntegration ? (
+                  <Badge className="bg-success/10 text-success border-success/30">
+                    <Check className="w-3 h-3 mr-1" />
+                    Connected
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary">Not Connected</Badge>
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {gcalIntegration
+                  ? `Syncing to "${gcalIntegration.config.calendar_name}" (${gcalIntegration.config.connected_email})`
+                  : "One-way sync: bookings auto-push to a dedicated Google Calendar"}
+              </p>
+              {gcalIntegration?.last_used_at && (
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Last sync: {new Date(gcalIntegration.last_used_at).toLocaleString()}
+                </p>
+              )}
+            </div>
           </div>
-          <div className="p-4 rounded-lg bg-muted/50 border">
-            <p className="text-2xl font-bold">
-              {integrations.filter(i => i.status === "disconnected").length}
-            </p>
-            <p className="text-sm text-muted-foreground">Available</p>
-          </div>
-          <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20">
-            <p className="text-2xl font-bold text-destructive">
-              {integrations.filter(i => i.status === "error").length}
-            </p>
-            <p className="text-sm text-muted-foreground">Errors</p>
-          </div>
-          <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
-            <p className="text-2xl font-bold text-primary">
-              {integrations.length}
-            </p>
-            <p className="text-sm text-muted-foreground">Total</p>
+
+          <div className="flex items-center gap-2 shrink-0 sm:ml-auto">
+            {loading ? (
+              <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+            ) : gcalIntegration ? (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleSyncNow}
+                  disabled={isSyncing}
+                  className="h-8 w-8 p-0"
+                  title="Sync unsynced bookings"
+                >
+                  <RefreshCw className={`w-4 h-4 ${isSyncing ? "animate-spin" : ""}`} />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDisconnect}
+                  disabled={isDisconnecting}
+                  className="h-8"
+                >
+                  {isDisconnecting ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
+                  Disconnect
+                </Button>
+              </>
+            ) : (
+              <Button
+                size="sm"
+                onClick={handleConnect}
+                disabled={isConnecting}
+                className="btn-premium h-8"
+              >
+                {isConnecting ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                ) : (
+                  <ExternalLink className="w-4 h-4 mr-2" />
+                )}
+                Connect
+              </Button>
+            )}
           </div>
         </div>
       </Card>
 
-      {/* Integration Categories */}
-      {Object.entries(groupedIntegrations).map(([category, items]) => (
-        items.length > 0 && (
-          <Card key={category} className="card-premium p-6">
-            <h3 className="text-lg font-semibold mb-4">
-              {categoryLabels[category]}
-            </h3>
-            
-            <div className="space-y-4">
-              {items.map((integration) => (
-                <div 
-                  key={integration.id}
-                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="p-2 rounded-lg bg-background border shrink-0">
-                      <integration.icon className="w-5 h-5 text-primary" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h4 className="font-medium">{integration.name}</h4>
-                        {integration.status === "connected" && (
-                          <Check className="w-4 h-4 text-success shrink-0" />
-                        )}
-                        {integration.status === "error" && (
-                          <AlertCircle className="w-4 h-4 text-destructive shrink-0" />
-                        )}
-                        {integration.status === "disconnected" && (
-                          <span className="text-xs text-muted-foreground">Not connected</span>
-                        )}
-                      </div>
-                      <p className="text-sm text-muted-foreground truncate">
-                        {integration.description}
-                      </p>
-                      {integration.lastSync && integration.status === "connected" && (
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          Last sync: {integration.lastSync}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 shrink-0 sm:ml-auto">
-                    {integration.status === "connected" && (
-                      <>
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => handleSync(integration.id)}
-                          disabled={isLoading === integration.id}
-                          className="h-8 w-8 p-0"
-                        >
-                          <RefreshCw className={`w-4 h-4 ${isLoading === integration.id ? 'animate-spin' : ''}`} />
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => handleDisconnect(integration.id)}
-                          disabled={isLoading === integration.id}
-                          className="h-8"
-                        >
-                          Disconnect
-                        </Button>
-                      </>
-                    )}
-                    {integration.status === "disconnected" && (
-                      <Button 
-                        size="sm"
-                        onClick={() => handleConnect(integration.id)}
-                        disabled={isLoading === integration.id}
-                        className="btn-premium h-8"
-                      >
-                        {isLoading === integration.id ? (
-                          <RefreshCw className="w-4 h-4 animate-spin mr-2" />
-                        ) : (
-                          <ExternalLink className="w-4 h-4 mr-2" />
-                        )}
-                        Connect
-                      </Button>
-                    )}
-                    {integration.status === "error" && (
-                      <Button 
-                        variant="destructive" 
-                        size="sm"
-                        onClick={() => handleConnect(integration.id)}
-                        disabled={isLoading === integration.id}
-                        className="h-8"
-                      >
-                        Reconnect
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-        )
-      ))}
-
-      {/* API Keys Section */}
+      {/* AI Services — Active */}
       <Card className="card-premium p-6">
-        <div className="flex items-center space-x-3 mb-6">
-          <Key className="w-5 h-5 text-primary" />
-          <h3 className="text-xl font-semibold">API Access</h3>
-        </div>
-
-        <div className="space-y-4">
-          <div className="p-4 rounded-lg bg-muted/30">
-            <div className="flex items-center justify-between mb-2">
-              <Label>API Key</Label>
-              <Badge variant="secondary">Read Only</Badge>
+        <h3 className="text-lg font-semibold mb-4">AI & Intelligence</h3>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-lg bg-muted/30">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-background border shrink-0">
+              <Sparkles className="w-5 h-5 text-primary" />
             </div>
-            <div className="flex gap-2">
-              <Input 
-                value="exq_live_••••••••••••••••••••••••" 
-                disabled 
-                className="font-mono text-sm"
-              />
-              <Button variant="outline">
-                Regenerate
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              Use this key to access the EXOTIQ API. Keep it secure and never share publicly.
-            </p>
-          </div>
-
-          <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30">
             <div>
-              <Label className="font-medium">Webhook Notifications</Label>
-              <p className="text-sm text-muted-foreground">
-                Receive real-time event notifications
-              </p>
+              <div className="flex items-center gap-2">
+                <h4 className="font-medium">AI Services</h4>
+                <Badge className="bg-success/10 text-success border-success/30">
+                  <Check className="w-3 h-3 mr-1" />
+                  Active
+                </Badge>
+              </div>
+              <p className="text-sm text-muted-foreground">Powered by Lovable AI for intelligent features</p>
             </div>
-            <Switch />
           </div>
+        </div>
+      </Card>
+
+      {/* Coming Soon */}
+      <Card className="card-premium p-6">
+        <h3 className="text-lg font-semibold mb-4">Coming Soon</h3>
+        <div className="space-y-3">
+          {comingSoonIntegrations.map((integration) => (
+            <div
+              key={integration.name}
+              className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-lg bg-muted/30 opacity-60"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-background border shrink-0">
+                  <integration.icon className="w-5 h-5 text-muted-foreground" />
+                </div>
+                <div>
+                  <h4 className="font-medium">{integration.name}</h4>
+                  <p className="text-sm text-muted-foreground">{integration.description}</p>
+                </div>
+              </div>
+              <Badge variant="secondary">Coming Soon</Badge>
+            </div>
+          ))}
         </div>
       </Card>
     </div>

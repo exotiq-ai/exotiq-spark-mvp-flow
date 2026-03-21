@@ -113,6 +113,7 @@ export type Database = {
           end_date: string
           gas_fee: number | null
           gas_fee_waived: boolean | null
+          google_calendar_event_id: string | null
           id: string
           mileage_limit: number | null
           mileage_overage_fee: number | null
@@ -158,6 +159,7 @@ export type Database = {
           end_date: string
           gas_fee?: number | null
           gas_fee_waived?: boolean | null
+          google_calendar_event_id?: string | null
           id?: string
           mileage_limit?: number | null
           mileage_overage_fee?: number | null
@@ -203,6 +205,7 @@ export type Database = {
           end_date?: string
           gas_fee?: number | null
           gas_fee_waived?: boolean | null
+          google_calendar_event_id?: string | null
           id?: string
           mileage_limit?: number | null
           mileage_overage_fee?: number | null

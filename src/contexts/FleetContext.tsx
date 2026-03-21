@@ -794,6 +794,21 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Fire-and-forget helper for Google Calendar sync
+  const syncBookingToGCal = (action: "create" | "update" | "delete", bookingId: string, teamId: string) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) return;
+      fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/gcal-sync`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ action, booking_id: bookingId, team_id: teamId }),
+      }).catch((err) => devLog("gcal-sync fire-and-forget error (non-blocking):", err));
+    });
+  };
+
   const createBooking = async (booking: Omit<Database['public']['Tables']['bookings']['Insert'], 'user_id'>) => {
     if (!user) return;
 
@@ -895,6 +910,11 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       toast({ title: "Booking Created", description: "Booking has been successfully created." });
       }
 
+      // Fire-and-forget Google Calendar sync
+      if (insertedBooking && teamId) {
+        syncBookingToGCal("create", insertedBooking.id, teamId);
+      }
+
       // Force refresh to show new booking immediately in calendar & pending approval
       await refreshData(true);
     } catch (error) {
@@ -927,6 +947,12 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     }
 
     toast({ title: "Booking Updated", description: `Booking status changed to ${status}.` });
+
+    // Fire-and-forget Google Calendar sync
+    const booking = bookings.find(b => b.id === bookingId);
+    if (booking?.team_id) {
+      syncBookingToGCal(status === "cancelled" ? "delete" : "update", bookingId, booking.team_id);
+    }
   };
 
   const updateBookingVehicle = async (bookingId: string, newVehicleId: string) => {
@@ -959,6 +985,12 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     }
 
     toast({ title: "Booking Updated", description: "Booking details have been updated." });
+
+    // Fire-and-forget Google Calendar sync
+    const booking = bookings.find(b => b.id === bookingId);
+    if (booking?.team_id) {
+      syncBookingToGCal("update", bookingId, booking.team_id);
+    }
   };
 
   const uploadDocument = async (document: Omit<Database['public']['Tables']['documents']['Insert'], 'user_id'>) => {
