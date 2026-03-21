@@ -631,11 +631,32 @@ export const CheckInOutDialog = ({
               </div>
 
               {manualDate && (
-                <Input
-                  type="datetime-local"
-                  value={dateOverride}
-                  onChange={(e) => setDateOverride(e.target.value)}
-                />
+                <div className="grid grid-cols-2 gap-2">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !dateOverride && "text-muted-foreground"
+                        )}
+                      >
+                        <Calendar className="mr-2 h-4 w-4" />
+                        {dateOverride ? format(dateOverride, "MMM d, yyyy") : "Select date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarPicker
+                        mode="single"
+                        selected={dateOverride}
+                        onSelect={setDateOverride}
+                        className={cn("p-3 pointer-events-auto")}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <TimeSelect value={timeOverride} onValueChange={setTimeOverride} />
+                </div>
               )}
             </div>
 
