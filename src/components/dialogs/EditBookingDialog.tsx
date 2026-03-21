@@ -121,10 +121,10 @@ export const EditBookingDialog = ({
 
         <ScrollArea className="flex-1 overflow-y-auto">
           <div className="px-6 py-4 space-y-4">
-            {/* Date Range */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Pickup Date</Label>
+            {/* Pickup Date & Time */}
+            <div className="space-y-2">
+              <Label>Pickup Date & Time</Label>
+              <div className="grid grid-cols-2 gap-2">
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
@@ -143,14 +143,19 @@ export const EditBookingDialog = ({
                       mode="single"
                       selected={startDate}
                       onSelect={(date) => date && setStartDate(date)}
+                      className={cn("p-3 pointer-events-auto")}
                       initialFocus
                     />
                   </PopoverContent>
                 </Popover>
+                <TimeSelect value={startTime} onValueChange={setStartTime} />
               </div>
+            </div>
 
-              <div className="space-y-2">
-                <Label>Return Date</Label>
+            {/* Return Date & Time */}
+            <div className="space-y-2">
+              <Label>Return Date & Time</Label>
+              <div className="grid grid-cols-2 gap-2">
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
@@ -170,10 +175,12 @@ export const EditBookingDialog = ({
                       selected={endDate}
                       onSelect={(date) => date && setEndDate(date)}
                       disabled={(date) => date < startDate}
+                      className={cn("p-3 pointer-events-auto")}
                       initialFocus
                     />
                   </PopoverContent>
                 </Popover>
+                <TimeSelect value={endTime} onValueChange={setEndTime} />
               </div>
             </div>
 

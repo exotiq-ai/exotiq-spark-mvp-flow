@@ -101,7 +101,7 @@ export const ScheduleMaintenanceDialog = ({ open, onOpenChange, vehicles, onSubm
       await onSubmit(data);
 
       // Reset
-      setVehicleId(""); setMaintenanceType(""); setScheduledDate(""); setServiceProvider("");
+      setVehicleId(""); setMaintenanceType(""); setScheduledDate(undefined); setScheduledTime("09:00"); setServiceProvider("");
       setEstimatedCost(""); setNotes(""); setLocationId(""); setRecurrenceType('once');
       setIntervalDays(""); setMileageInterval(""); setTemplateName("");
       onOpenChange(false);
