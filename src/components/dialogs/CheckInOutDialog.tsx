@@ -233,10 +233,15 @@ export const CheckInOutDialog = ({
     const odoValue = Number(odometer);
     setLoading(true);
     try {
-      const timestamp =
-        manualDate && dateOverride
-          ? new Date(dateOverride).toISOString()
-          : new Date().toISOString();
+      let timestamp: string;
+      if (manualDate && dateOverride) {
+        const [h, m] = timeOverride.split(':').map(Number);
+        const combined = new Date(dateOverride);
+        combined.setHours(h, m, 0, 0);
+        timestamp = combined.toISOString();
+      } else {
+        timestamp = new Date().toISOString();
+      }
 
       // --- Update booking ---
       if (isCheckIn) {
