@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { NewBookingDialog } from "@/components/dialogs/NewBookingDialog";
+import { isBlockingBooking } from "@/lib/conflictDetection";
 import { format, isToday, isFuture, startOfWeek, endOfWeek, addDays } from "date-fns";
 
 export const Book = () => {
