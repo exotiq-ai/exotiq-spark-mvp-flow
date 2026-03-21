@@ -44,12 +44,31 @@ export const EditBookingDialog = ({
   const { updateBookingDetails } = useFleet();
   
   const [startDate, setStartDate] = useState<Date>(new Date(booking.start_date));
+  const [startTime, setStartTime] = useState(() => {
+    const d = new Date(booking.start_date);
+    return `${String(d.getHours()).padStart(2, '0')}:${String(Math.floor(d.getMinutes() / 30) * 30).padStart(2, '0')}`;
+  });
   const [endDate, setEndDate] = useState<Date>(new Date(booking.end_date));
+  const [endTime, setEndTime] = useState(() => {
+    const d = new Date(booking.end_date);
+    return `${String(d.getHours()).padStart(2, '0')}:${String(Math.floor(d.getMinutes() / 30) * 30).padStart(2, '0')}`;
+  });
   const [pickupLocation, setPickupLocation] = useState(booking.pickup_location);
   const [dropoffLocation, setDropoffLocation] = useState(booking.dropoff_location || booking.pickup_location);
   const [notes, setNotes] = useState(booking.notes || "");
   const [gasFeeWaived, setGasFeeWaived] = useState((booking as any).gas_fee_waived ?? false);
   const [isUpdating, setIsUpdating] = useState(false);
+
+  // Combine date + time
+  const combineDateTime = (date: Date, time: string): Date => {
+    const [h, m] = time.split(':').map(Number);
+    const combined = new Date(date);
+    combined.setHours(h, m, 0, 0);
+    return combined;
+  };
+
+  const effectiveStartDate = combineDateTime(startDate, startTime);
+  const effectiveEndDate = combineDateTime(endDate, endTime);
 
   // Use centralized pricing - preserve existing discount & delivery fee
   const pricing = calculateBookingTotal({
