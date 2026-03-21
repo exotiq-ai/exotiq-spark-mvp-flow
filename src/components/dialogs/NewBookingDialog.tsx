@@ -61,6 +61,7 @@ export const NewBookingDialog = ({
   const [customerPhone, setCustomerPhone] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [endDateManuallySet, setEndDateManuallySet] = useState(false);
   const [pickupLocationId, setPickupLocationId] = useState('');
   const [pickupLocationText, setPickupLocationText] = useState('');
   const [dropoffLocation, setDropoffLocation] = useState('');
