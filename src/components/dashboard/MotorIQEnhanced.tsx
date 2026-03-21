@@ -256,6 +256,7 @@ export const MotorIQEnhanced = () => {
             { id: "calendar", label: "Calendar", shortLabel: "Cal", icon: Calendar },
             { id: "pricing", label: "Dynamic Pricing", shortLabel: "Price", icon: DollarSign },
             { id: "forecast", label: "Demand Forecast", shortLabel: "Trends", icon: BarChart3 },
+            { id: "rate-tiers", label: "Rate Tiers", shortLabel: "Rates", icon: Layers },
           ]}
           value={activeTab}
           onValueChange={setActiveTab}
