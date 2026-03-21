@@ -312,7 +312,7 @@ export const RateTiersPanel = () => {
                           {formatRate(vehicle.rate_multiday)}
                         </TableCell>
                         <TableCell>
-                          <PermissionGuard requiredRole="manager" fallback={null}>
+                          <PermissionGuard minRole="manager" fallback={null}>
                             <Button
                               size="sm"
                               variant="outline"
