@@ -26,6 +26,7 @@ const defaultSettings: TeamSettings = {
   notifyOnRoleChange: true,
   requireTwoFactor: false,
   sessionTimeout: "30",
+  minRate: "100",
 };
 
 export const TeamSettingsSection = () => {
