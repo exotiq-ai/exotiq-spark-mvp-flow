@@ -45,6 +45,80 @@ import { Tables } from "@/integrations/supabase/types";
 
 type Booking = Tables<"bookings">;
 
+// Compact collapsible pending approvals bar
+const PendingApprovalsBar = ({
+  pendingBookings,
+  getVehicleDisplay,
+  formatDate,
+  goToCustomerProfile,
+  onView,
+  onDecline,
+  onApprove,
+}: {
+  pendingBookings: Booking[];
+  getVehicleDisplay: (booking: Booking) => string;
+  formatDate: (dateString: string) => string;
+  goToCustomerProfile: (id: string) => void;
+  onView: (booking: Booking) => void;
+  onDecline: (id: string) => void;
+  onApprove: (id: string) => void;
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <Card className="overflow-hidden border-warning/40">
+        <CollapsibleTrigger asChild>
+          <div className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-muted/30 transition-colors">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 text-warning" />
+              <span className="text-sm font-semibold">Pending Approval</span>
+              <Badge className="bg-warning/20 text-warning border-warning/30 text-xs">{pendingBookings.length}</Badge>
+            </div>
+            {isOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+          </div>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="px-4 pb-3 space-y-2">
+            <AnimatePresence mode="popLayout">
+              {pendingBookings.slice(0, 5).map((booking) => (
+                <motion.div
+                  key={booking.id}
+                  layout
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 100, height: 0 }}
+                  transition={{ type: "spring", damping: 20, stiffness: 300 }}
+                  className="flex items-center justify-between p-3 bg-muted/30 rounded-lg"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className={`font-medium text-sm truncate ${booking.customer_id ? 'cursor-pointer hover:text-primary transition-colors' : ''}`}
+                      onClick={() => booking.customer_id && goToCustomerProfile(booking.customer_id)}
+                    >{booking.customer_name}</p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {getVehicleDisplay(booking)} · {formatDate(booking.start_date)}
+                    </p>
+                  </div>
+                  <div className="flex gap-2 flex-shrink-0 ml-3">
+                    <Button size="sm" variant="ghost" onClick={() => onView(booking)}>View</Button>
+                    <Button size="sm" variant="outline" onClick={() => onDecline(booking.id)}>Decline</Button>
+                    <Button size="sm" onClick={() => onApprove(booking.id)}>Approve</Button>
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+            {pendingBookings.length > 5 && (
+              <p className="text-xs text-muted-foreground text-center pt-1">
+                +{pendingBookings.length - 5} more pending
+              </p>
+            )}
+          </div>
+        </CollapsibleContent>
+      </Card>
+    </Collapsible>
+  );
+};
+
 export const BookEnhanced = () => {
   const { bookings, vehicles, customers, createBooking, updateBookingStatus, loading } = useLocationFilteredFleet();
   const { goToBookingDetails, goToVehicleDetails, goToCustomerProfile, goToPayments } = useModuleNavigation();
