@@ -1,125 +1,61 @@
 
+# Rate Tiers & Duration-Based Pricing — Phase 1
 
-# Google Calendar Sync — Full Implementation Plan
+## Status: ✅ Implemented
 
-## Overview
+### What's Done
+- [x] DB migration: `rate_3hr`, `rate_6hr`, `rate_multiday` on vehicles; `rental_duration_type` on bookings; `min_rate` + `rental_buffer_minutes` on teams
+- [x] `pricingUtils.ts`: `durationType` param (optional, defaults to 'daily'), helper functions `getRateForDuration`, `getAvailableDurations`, `getDurationLabel`
+- [x] `validationSchemas.ts`: `rental_duration_type` enum + rate tier fields on vehicle schema
+- [x] `RateTiersPanel.tsx`: New editable rate table in MotorIQ "Rate Tiers" tab
+- [x] `MotorIQEnhanced.tsx`: 5th tab added
+- [x] `NewBookingDialog.tsx`: Duration selector chips, rate-tier-aware pricing, "full day reservation" note for hourly
+- [x] `FleetVehicleCard.tsx`: Rate tier badges (3h/6h indicators), updated Vehicle interface
+- [x] `EnhancedBookingDialog.tsx`: Passes `durationType` to pricing
+- [x] `EditBookingDialog.tsx`: Passes `durationType` to pricing
+- [x] `RecordPaymentDialog.tsx`: Passes `durationType` to pricing
+- [x] `TeamSettingsSection.tsx`: Min rate config field
 
-Build a one-way Google Calendar sync (Exotiq → Google) per tenant. When bookings are created, updated, or cancelled, events are automatically pushed to a dedicated "Exotiq Calendar - [Business Name]" calendar in the connected Google account.
+### Key Design Decisions
+- `current_rate` = 24hr/daily rate, NOT renamed (48+ references)
+- `durationType` optional, defaults to 'daily' — zero-risk for existing callers
+- Multiday threshold: hardcoded at 2+ calendar days
+- Phase 1 time picker: informational only, no availability impact
+- Rate floor: team-level setting via `useUserSettings`, default $100
 
-## Step 1: Store Secrets
+### Phase 2 (Future)
+- [ ] Timestamp-based availability engine (parallel to date-based)
+- [ ] `start_time` / `end_time` columns on bookings
+- [ ] Buffer time between hourly rentals using `rental_buffer_minutes`
+- [ ] Feature-flagged rollout
+- [ ] Utilization metrics updated for hourly rentals
 
-Add two secrets via the `add_secret` tool:
-- `GOOGLE_CALENDAR_CLIENT_ID` = `121670421485-ds6jcfs3dl0ob5bgq37772fha1083ji6.apps.googleusercontent.com`
-- `GOOGLE_CALENDAR_CLIENT_SECRET` = `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`
+---
 
-## Step 2: Database Migration
+# Google Calendar Integration — TODO
 
-Add `google_calendar_event_id` column to `bookings`:
+## Status: 🟡 Blocked — OAuth 403 Error
 
-```sql
-ALTER TABLE public.bookings
-ADD COLUMN IF NOT EXISTS google_calendar_event_id TEXT;
-```
+### What's Done ✅
+- [x] Edge functions created: `gcal-auth`, `gcal-callback`, `gcal-sync`
+- [x] Database migration: `google_calendar_event_id` column on bookings
+- [x] Frontend: IntegrationsSection rewritten with real connect/disconnect
+- [x] FleetContext: auto-sync on booking create/update/cancel
+- [x] Secrets stored: `GOOGLE_CALENDAR_CLIENT_ID`, `GOOGLE_CALENDAR_CLIENT_SECRET`
+- [x] Config: `verify_jwt = false` for all 3 functions
+- [x] Redirect URI set in Google Cloud Console
 
-## Step 3: Edge Functions (3 new)
+### What's Blocking ❌
+- **403 `access_denied`** when Google redirects back after OAuth consent
+- Google Cloud Project confirmed correct (Client ID `121670421485-...` matches)
+- Redirect URI confirmed correct: `https://jlgwbbqydjeokypoenoc.supabase.co/functions/v1/gcal-callback`
 
-### `gcal-auth` — Initiate OAuth Flow
-- Accepts `team_id` in POST body
-- Validates user is team admin/owner via auth token
-- Builds Google OAuth URL with:
-  - `scope`: `https://www.googleapis.com/auth/calendar`
-  - `redirect_uri`: `https://jlgwbbqydjeokypoenoc.supabase.co/functions/v1/gcal-callback`
-  - `state`: JSON with `team_id` + `user_id`
-  - `access_type`: `offline` (for refresh token)
-  - `prompt`: `consent` (ensures refresh token returned)
-- Returns the OAuth URL for frontend to redirect to
+### Likely Fix (try these)
+1. **OAuth Consent Screen → Test Users**: Add your Google account email to the test users list
+2. **OR Publish the App**: Move OAuth consent screen from "Testing" to "Published"
+3. **Enable Google Calendar API**: Go to APIs & Services → Library → search "Google Calendar API" → Enable
 
-### `gcal-callback` — Handle OAuth Redirect
-- Receives `code` and `state` from Google
-- Exchanges code for access + refresh tokens
-- Creates a secondary calendar named "Exotiq Calendar - [Team Name]" via Calendar API
-- Stores tokens + calendar ID in `team_integrations`:
-  ```json
-  {
-    "integration_type": "google_calendar",
-    "config": {
-      "access_token": "ya29...",
-      "refresh_token": "1//...",
-      "token_expiry": "2026-03-20T18:00:00Z",
-      "calendar_id": "abc123@group.calendar.google.com",
-      "connected_email": "user@example.com",
-      "calendar_name": "Exotiq Calendar - MPH Club"
-    }
-  }
-  ```
-- Redirects user back to dashboard settings with success param
-
-### `gcal-sync` — Create/Update/Delete Events
-- Accepts: `{ action: 'create'|'update'|'delete', booking_id, team_id }`
-- Fetches integration tokens from `team_integrations`
-- Auto-refreshes expired access tokens using refresh token
-- Maps booking data to Google Calendar event format:
-  - Title: `[Vehicle] - [Customer Name]`
-  - Location: pickup location
-  - Description: booking details, total, notes
-  - Start/End: booking dates
-- On create: creates event, stores `google_calendar_event_id` on booking
-- On update: updates existing event via event ID
-- On delete: deletes event from calendar
-- Updates `last_used_at` on the integration record
-
-## Step 4: Frontend Changes
-
-### `IntegrationsSection.tsx` — Complete Rewrite
-- **Remove all hardcoded fake data** (fake Stripe "Connected", fake Google Maps "Live", fake API key section)
-- **Google Calendar card**: Real connect/disconnect backed by `team_integrations` table
-  - Disconnected: "Connect Google Calendar" button → calls `gcal-auth` → redirects to Google
-  - Connected: Shows connected email, last sync time, "Sync Now" and "Disconnect" buttons
-- **Other integrations** (Stripe, Twilio, DocuSign, Maps): Show as "Coming Soon" with disabled buttons
-- **AI Services**: Keep as "Active" (real)
-- **Remove fake API key section entirely**
-- Query `team_integrations` on mount to get real Google Calendar connection status
-
-### `FleetContext.tsx` — Auto-sync on booking mutations
-After `createBooking` succeeds (line ~896): call `gcal-sync` with `action: 'create'`
-After `updateBookingStatus` succeeds: call `gcal-sync` with `action: 'update'` (or `delete` if cancelled)
-After `updateBookingDetails` succeeds: call `gcal-sync` with `action: 'update'`
-
-All sync calls are fire-and-forget (don't block the UI or show errors for sync failures).
-
-### Dashboard Settings — Handle OAuth Callback
-Add URL param detection in settings page: if `?gcal=success`, show toast "Google Calendar connected successfully"
-
-## Step 5: Config
-
-Add to `supabase/config.toml`:
-```toml
-[functions.gcal-auth]
-verify_jwt = false
-
-[functions.gcal-callback]
-verify_jwt = false
-
-[functions.gcal-sync]
-verify_jwt = false
-```
-
-## Files Changed
-
-| File | Action |
-|------|--------|
-| `supabase/functions/gcal-auth/index.ts` | Create |
-| `supabase/functions/gcal-callback/index.ts` | Create |
-| `supabase/functions/gcal-sync/index.ts` | Create |
-| `supabase/config.toml` | Add 3 function blocks |
-| `src/components/dashboard/settings/IntegrationsSection.tsx` | Rewrite — real Google Calendar connect/disconnect, remove all fake data |
-| `src/contexts/FleetContext.tsx` | Add gcal-sync calls after booking create/update/cancel |
-| Migration SQL | Add `google_calendar_event_id` to bookings |
-
-## Security
-
-- OAuth tokens stored in `team_integrations` with RLS (only team owners/admins can read/write)
-- Refresh tokens never exposed to frontend — only edge functions access them via service role key
-- Edge functions validate the calling user's team membership before syncing
-- `gcal-callback` validates `state` parameter matches authenticated user
-
+### Google Cloud Console Links
+- OAuth Consent Screen: https://console.cloud.google.com/apis/credentials/consent
+- Credentials: https://console.cloud.google.com/apis/credentials
+- Calendar API: https://console.cloud.google.com/apis/library/calendar-json.googleapis.com
