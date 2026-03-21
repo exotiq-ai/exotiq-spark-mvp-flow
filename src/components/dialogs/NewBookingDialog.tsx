@@ -35,6 +35,8 @@ import { useTeam } from '@/contexts/TeamContext';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { calculateBookingTotal, DEFAULT_GAS_FEE, getRateForDuration, getAvailableDurations, getDurationLabel, type RentalDurationType } from '@/lib/pricingUtils';
+import { isBlockingBooking } from '@/lib/conflictDetection';
+import { useLocationFilteredFleet } from '@/hooks/useLocationFilteredFleet';
 import { Switch } from '@/components/ui/switch';
 
 interface NewBookingDialogProps {
