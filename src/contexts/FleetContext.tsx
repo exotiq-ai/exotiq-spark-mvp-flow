@@ -970,6 +970,12 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     }
 
     toast({ title: "Booking Updated", description: "Booking details have been updated." });
+
+    // Fire-and-forget Google Calendar sync
+    const booking = bookings.find(b => b.id === bookingId);
+    if (booking?.team_id) {
+      syncBookingToGCal("update", bookingId, booking.team_id);
+    }
   };
 
   const uploadDocument = async (document: Omit<Database['public']['Tables']['documents']['Insert'], 'user_id'>) => {
