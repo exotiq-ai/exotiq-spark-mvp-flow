@@ -548,19 +548,33 @@ export const NewBookingDialog = ({
                     </div>
                   </div>
                   {selectedVehicle && startDate && endDate && (() => {
+                    const effectiveRate = getRateForDuration(
+                      durationType,
+                      Number(selectedVehicle.current_rate),
+                      (selectedVehicle as any).rate_3hr,
+                      (selectedVehicle as any).rate_6hr,
+                      (selectedVehicle as any).rate_multiday,
+                    );
                     const pricing = calculateBookingTotal({
                       startDate: new Date(startDate),
                       endDate: new Date(endDate),
-                      dailyRate: Number(selectedVehicle.current_rate),
+                      dailyRate: effectiveRate,
                       discountAmount: Number(discountAmount) || 0,
                       gasFee: DEFAULT_GAS_FEE,
                       gasFeeWaived,
+                      durationType,
                     });
                     if (pricing.rentalDays <= 0) return null;
+                    const isHourly = durationType === '3hr' || durationType === '6hr';
                     return (
                       <div className="space-y-1 text-sm p-2 rounded-lg bg-muted/30">
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">{pricing.rentalDays} day{pricing.rentalDays !== 1 ? 's' : ''} × ${Number(selectedVehicle.current_rate).toLocaleString()}</span>
+                          <span className="text-muted-foreground">
+                            {isHourly 
+                              ? `${getDurationLabel(durationType)} Rate`
+                              : `${pricing.rentalDays} day${pricing.rentalDays !== 1 ? 's' : ''} × $${effectiveRate.toLocaleString()}`
+                            }
+                          </span>
                           <span>${pricing.rentalSubtotal.toLocaleString()}</span>
                         </div>
                         {pricing.discountAmount > 0 && (
