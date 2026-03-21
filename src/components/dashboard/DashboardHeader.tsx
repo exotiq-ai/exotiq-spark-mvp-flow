@@ -24,9 +24,10 @@ import { Separator } from "@/components/ui/separator";
 
 interface DashboardHeaderProps {
   onOpenChat?: () => void;
+  onOpenRari?: (query?: string) => void;
 }
 
-export const DashboardHeader = ({ onOpenChat }: DashboardHeaderProps) => {
+export const DashboardHeader = ({ onOpenChat, onOpenRari }: DashboardHeaderProps) => {
   const { user, signOut } = useAuth();
   const { profile, displayName } = useProfile();
   const { conversations } = useTeamMessaging();
@@ -66,7 +67,7 @@ export const DashboardHeader = ({ onOpenChat }: DashboardHeaderProps) => {
         </div>
         
         <div className="hidden md:flex flex-1 max-w-md mx-4">
-          <EnhancedGlobalSearch />
+          <EnhancedGlobalSearch onOpenRari={onOpenRari} />
         </div>
 
         <div className="flex items-center space-x-2">

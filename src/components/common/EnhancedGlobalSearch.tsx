@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   CommandDialog,
@@ -25,13 +25,18 @@ import {
   Brain,
   Plus,
   ArrowRight,
-  Sparkles
+  Sparkles,
+  Download,
+  MessageSquare,
 } from "lucide-react";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
+import { supabase } from "@/integrations/supabase/client";
+import { exportToCSV } from "@/lib/exportUtils";
+import { useToast } from "@/hooks/use-toast";
 
 interface SearchResult {
   id: string;
-  type: "vehicle" | "customer" | "booking" | "action" | "module";
+  type: "vehicle" | "customer" | "booking" | "action" | "module" | "export";
   title: string;
   subtitle?: string;
   icon: React.ElementType;
@@ -39,12 +44,34 @@ interface SearchResult {
   badge?: string;
 }
 
-export const EnhancedGlobalSearch = () => {
+interface EnhancedGlobalSearchProps {
+  onOpenRari?: (query?: string) => void;
+}
+
+// Hook: ⌘K opens this search bar globally
+export const useGlobalSearchShortcut = (onOpen: () => void) => {
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        onOpen();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onOpen]);
+};
+
+export const EnhancedGlobalSearch = ({ onOpenRari }: EnhancedGlobalSearchProps) => {
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const navigate = useNavigate();
   const { vehicles, customers, bookings } = useLocationFilteredFleet();
+  const { toast } = useToast();
+
+  // ⌘K opens this search
+  useGlobalSearchShortcut(() => setOpen(true));
 
   // Load recent searches from localStorage
   useEffect(() => {
@@ -53,16 +80,6 @@ export const EnhancedGlobalSearch = () => {
       setRecentSearches(JSON.parse(saved));
     }
   }, []);
-
-  // Save recent searches
-  const addRecentSearch = (term: string) => {
-    const updated = [term, ...recentSearches.filter((s) => s !== term)].slice(0, 5);
-    setRecentSearches(updated);
-    localStorage.setItem("recentSearches", JSON.stringify(updated));
-  };
-
-  // NOTE: ⌘K shortcut is now handled exclusively by CommandPalette in App.tsx
-  // This search is opened via the button click only
 
   const saveRecentSearch = (query: string) => {
     if (!query.trim()) return;
@@ -115,6 +132,52 @@ export const EnhancedGlobalSearch = () => {
     }
   ];
 
+  // Export actions (merged from CommandPalette)
+  const exportActions: SearchResult[] = [
+    {
+      id: "export-fleet",
+      type: "export",
+      title: "Export Fleet Data",
+      subtitle: "Download CSV of all vehicles",
+      icon: Download,
+      action: async () => {
+        try {
+          const { data, error } = await supabase.from("vehicles").select("*");
+          if (error) throw error;
+          if (data && data.length > 0) {
+            exportToCSV(data, "fleet-data");
+            toast({ title: "Export complete", description: `${data.length} vehicles exported` });
+          } else {
+            toast({ title: "No data", description: "No vehicles to export", variant: "destructive" });
+          }
+        } catch {
+          toast({ title: "Export failed", description: "Could not export fleet data", variant: "destructive" });
+        }
+      },
+    },
+    {
+      id: "export-bookings",
+      type: "export",
+      title: "Export Bookings",
+      subtitle: "Download booking history",
+      icon: Download,
+      action: async () => {
+        try {
+          const { data, error } = await supabase.from("bookings").select("*");
+          if (error) throw error;
+          if (data && data.length > 0) {
+            exportToCSV(data, "bookings-export");
+            toast({ title: "Export complete", description: `${data.length} bookings exported` });
+          } else {
+            toast({ title: "No data", description: "No bookings to export", variant: "destructive" });
+          }
+        } catch {
+          toast({ title: "Export failed", description: "Could not export bookings", variant: "destructive" });
+        }
+      },
+    },
+  ];
+
   // Module navigation
   const modules: SearchResult[] = [
     {
@@ -158,6 +221,14 @@ export const EnhancedGlobalSearch = () => {
       action: () => navigate("/dashboard?module=core")
     },
     {
+      id: "messages-nav",
+      type: "module",
+      title: "Team Messages",
+      subtitle: "Internal communications",
+      icon: MessageSquare,
+      action: () => navigate("/dashboard?module=messages")
+    },
+    {
       id: "settings",
       type: "module",
       title: "Settings",
@@ -167,14 +238,14 @@ export const EnhancedGlobalSearch = () => {
     }
   ];
 
-  // Search results
+  // Search results with fixed deep-linking
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return [];
 
     const query = searchQuery.toLowerCase();
     const results: SearchResult[] = [];
 
-    // Search vehicles
+    // Search vehicles → deep-link to Vehicle Command Center
     vehicles
       .filter(v => 
         v.make.toLowerCase().includes(query) ||
@@ -190,12 +261,12 @@ export const EnhancedGlobalSearch = () => {
           title: `${v.make} ${v.model}`,
           subtitle: v.license_plate || v.status,
           icon: Car,
-          action: () => navigate("/dashboard?module=motoriq"),
+          action: () => navigate(`/dashboard?module=motoriq&vehicleId=${v.id}`),
           badge: v.status
         });
       });
 
-    // Search customers
+    // Search customers → deep-link to CRM tab
     customers
       .filter(c =>
         c.full_name.toLowerCase().includes(query) ||
@@ -210,11 +281,11 @@ export const EnhancedGlobalSearch = () => {
           title: c.full_name,
           subtitle: c.email,
           icon: Users,
-          action: () => navigate("/dashboard?module=core")
+          action: () => navigate(`/dashboard?module=book&tab=crm&customerId=${c.id}`)
         });
       });
 
-    // Search bookings (including booking_ref)
+    // Search bookings (already works with deep-link)
     bookings
       .filter(b =>
         b.customer_name?.toLowerCase().includes(query) ||
@@ -235,8 +306,24 @@ export const EnhancedGlobalSearch = () => {
         });
       });
 
+    // Also search export actions
+    exportActions
+      .filter(e => e.title.toLowerCase().includes(query) || e.subtitle?.toLowerCase().includes(query))
+      .forEach(e => results.push(e));
+
     return results;
   }, [searchQuery, vehicles, customers, bookings, navigate]);
+
+  // Group search results by type for categorized display
+  const groupedResults = useMemo(() => {
+    const groups: Record<string, SearchResult[]> = {};
+    searchResults.forEach(r => {
+      const label = r.type === "vehicle" ? "Vehicles" : r.type === "customer" ? "Customers" : r.type === "booking" ? "Bookings" : "Actions";
+      if (!groups[label]) groups[label] = [];
+      groups[label].push(r);
+    });
+    return groups;
+  }, [searchResults]);
 
   const getStatusColor = (status?: string) => {
     switch (status?.toLowerCase()) {
@@ -257,6 +344,7 @@ export const EnhancedGlobalSearch = () => {
       >
         <Search className="w-4 h-4" />
         <span className="flex-1 text-left">Search...</span>
+        <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-semibold bg-muted rounded">⌘K</kbd>
       </button>
 
       <CommandDialog open={open} onOpenChange={setOpen}>
@@ -274,10 +362,10 @@ export const EnhancedGlobalSearch = () => {
             </div>
           </CommandEmpty>
 
-          {/* Search Results */}
-          {searchResults.length > 0 && (
-            <CommandGroup heading="Search Results">
-              {searchResults.map((result) => (
+          {/* Categorized Search Results */}
+          {Object.entries(groupedResults).map(([label, results]) => (
+            <CommandGroup key={label} heading={`${label} (${results.length})`}>
+              {results.map((result) => (
                 <CommandItem
                   key={result.id}
                   onSelect={() => handleSelect(result.action, searchQuery)}
@@ -300,7 +388,7 @@ export const EnhancedGlobalSearch = () => {
                 </CommandItem>
               ))}
             </CommandGroup>
-          )}
+          ))}
 
           {/* Quick Actions - Show when no search query */}
           {!searchQuery && (
@@ -326,6 +414,24 @@ export const EnhancedGlobalSearch = () => {
                         {action.badge}
                       </kbd>
                     )}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+
+              <CommandSeparator />
+
+              <CommandGroup heading="Exports">
+                {exportActions.map((action) => (
+                  <CommandItem
+                    key={action.id}
+                    onSelect={() => handleSelect(action.action)}
+                    className="flex items-center gap-3"
+                  >
+                    <action.icon className="w-4 h-4 text-muted-foreground" />
+                    <div>
+                      <p className="font-medium">{action.title}</p>
+                      <p className="text-xs text-muted-foreground">{action.subtitle}</p>
+                    </div>
                   </CommandItem>
                 ))}
               </CommandGroup>
@@ -369,20 +475,26 @@ export const EnhancedGlobalSearch = () => {
             </>
           )}
 
-          {/* AI Suggestion */}
+          {/* Ask Rari — replaces generic "Ask FleetCopilot" */}
           {searchQuery && (
             <>
               <CommandSeparator />
               <CommandGroup>
                 <CommandItem
-                  onSelect={() => handleSelect(() => navigate("/dashboard?module=core"), searchQuery)}
+                  onSelect={() => handleSelect(() => {
+                    if (onOpenRari) {
+                      onOpenRari(searchQuery);
+                    } else {
+                      navigate("/dashboard?module=core");
+                    }
+                  }, searchQuery)}
                   className="flex items-center gap-3 bg-primary/5"
                 >
                   <Sparkles className="w-4 h-4 text-primary" />
                   <div>
-                    <p className="font-medium">Ask FleetCopilot™</p>
+                    <p className="font-medium">Ask Rari</p>
                     <p className="text-xs text-muted-foreground">
-                      "{searchQuery}" - Get AI-powered answers
+                      "{searchQuery}" — Get AI-powered answers
                     </p>
                   </div>
                 </CommandItem>
