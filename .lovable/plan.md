@@ -1,63 +1,53 @@
 
 
-# Standardize Date/Time Pickers Across All Dialogs
+# Fix Broken Calendar Layout + Hybrid Time Input
 
-## Current State — 3 Different Patterns
+## Root Cause of the Layout Bug
 
-| Dialog | Date Picker | Time Picker |
-|--------|------------|-------------|
-| **EnhancedBookingDialog** (Edit) | Calendar popover (clean) | Select dropdown with 30-min slots (clean) |
-| **NewBookingDialog** | `<input type="datetime-local">` (native browser, ugly) | Combined in datetime-local (no separation) |
-| **EditBookingDialog** | Calendar popover (clean) | None — date only, no time |
-| **ScheduleMaintenanceDialog** | `<input type="datetime-local">` (native) | Combined in datetime-local |
-| **CheckInOutDialog** | `<input type="datetime-local">` (native) | Combined in datetime-local |
-| **Customer/Report/Insurance dialogs** | `<input type="date">` (native) | N/A (date-only is fine) |
+The calendar popover renders behind the dialog form fields because of a **z-index collision**. Both `DialogContent` and `PopoverContent` use `z-50`. When the Popover portals to the body, it sits at the same z-level as the dialog overlay, causing the calendar to appear behind form elements.
 
-The EnhancedBookingDialog has the best pattern: Calendar popover for date + Select dropdown for time. The NewBookingDialog (the most-used dialog) has the worst — a raw browser `datetime-local` input.
-
-## Target Pattern
-
-**Date**: Calendar popover (Shadcn) — clean, visual, consistent.
-**Time**: Select dropdown with 30-min intervals (06:00–22:00), displayed as "9:00 AM" format. Scrollable, typeable-friendly via Select's built-in keyboard navigation.
+Additionally, the `DialogContent` base class has `overflow-y-auto` (line 39 of dialog.tsx), AND the NewBookingDialog adds its own `ScrollArea` — double overflow clipping compounds the rendering issue.
 
 ## Changes
 
-### 1. Create a shared `TimeSelect` component
-Extract the TIME_OPTIONS + Select pattern from EnhancedBookingDialog into `src/components/ui/time-select.tsx`. Reusable everywhere. Props: `value`, `onValueChange`, `label`, `placeholder`.
+### 1. Fix PopoverContent z-index
 
-### 2. Rewrite NewBookingDialog date/time inputs
-Replace the two `<input type="datetime-local">` fields with:
-- Pickup Date: Calendar popover
-- Pickup Time: TimeSelect dropdown
-- Return Date: Calendar popover
-- Return Time: TimeSelect dropdown
+In `src/components/ui/popover.tsx`, bump PopoverContent from `z-50` to `z-[60]` so it always renders above dialogs. This is the single-line fix that resolves the calendar-behind-fields bug across every dialog.
 
-Laid out as a 2x2 grid (Date | Time over Date | Time). Keep the auto-calculate logic for 3hr/6hr tiers — when pickup time changes, auto-set return time.
+### 2. Create hybrid TimeInput component
 
-State changes: split `startDate` (string) and `endDate` (string) into `startDate` (Date), `startTime` (string), `endDate` (Date), `endTime` (string). Combine them on submit.
+Replace the current `TimeSelect` (dropdown-only) with a new component that supports **both typing and dropdown selection**:
 
-### 3. Add time pickers to EditBookingDialog
-Currently date-only. Add Pickup Time and Return Time selects alongside the existing calendar popovers. Initialize from the booking's existing time. Same 2x2 grid layout.
+- An `Input` field where users can type "9:00 AM" or "14:30"
+- A small clock dropdown button that opens a scrollable list of 30-min intervals
+- Fuzzy matching: typing "9" highlights "9:00 AM", typing "930" resolves to "9:30 AM"
+- Built with Popover + Input + scrollable list (not a Select, so keyboard typing works naturally)
 
-### 4. Fix ScheduleMaintenanceDialog
-Replace `<input type="datetime-local">` with Calendar popover + TimeSelect. Same pattern.
+File: `src/components/ui/time-input.tsx` — new component replacing `TimeSelect`
 
-### 5. Fix CheckInOutDialog
-Replace `<input type="datetime-local">` for the manual date override with Calendar popover + TimeSelect.
+### 3. Update all dialogs to use new TimeInput
 
-### 6. Leave date-only fields alone
-Customer DOB, license expiry, insurance expiry, report date ranges — these are date-only and `<input type="date">` is acceptable. No change needed.
+Swap `TimeSelect` → `TimeInput` in:
+- `NewBookingDialog.tsx` (pickup + return time)
+- `EditBookingDialog.tsx` (pickup + return time)
+- `ScheduleMaintenanceDialog.tsx` (scheduled time)
+- `CheckInOutDialog.tsx` (manual date override time)
+
+No logic changes needed — same `value`/`onValueChange` props contract.
+
+### 4. Clean up the time-select file
+
+Update `time-select.tsx` to re-export from the new `TimeInput` for backward compat, or replace inline.
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| `src/components/ui/time-select.tsx` | New shared component — TimeSelect with 30-min intervals |
-| `src/components/dialogs/NewBookingDialog.tsx` | Replace `datetime-local` with Calendar + TimeSelect, split state |
-| `src/components/dialogs/EditBookingDialog.tsx` | Add TimeSelect alongside existing Calendar popovers |
-| `src/components/dialogs/ScheduleMaintenanceDialog.tsx` | Replace `datetime-local` with Calendar + TimeSelect |
-| `src/components/dialogs/CheckInOutDialog.tsx` | Replace `datetime-local` with Calendar + TimeSelect |
-
-## Risk
-Medium. NewBookingDialog has complex auto-calculation logic for hourly tiers that depends on the combined datetime string. The state split (Date + time string → combined ISO on submit) needs careful wiring to preserve that behavior.
+| `src/components/ui/popover.tsx` | Bump z-index from `z-50` to `z-[60]` |
+| `src/components/ui/time-input.tsx` | New hybrid type+dropdown time picker |
+| `src/components/ui/time-select.tsx` | Replace with re-export or update in-place |
+| `src/components/dialogs/NewBookingDialog.tsx` | Use new TimeInput |
+| `src/components/dialogs/EditBookingDialog.tsx` | Use new TimeInput |
+| `src/components/dialogs/ScheduleMaintenanceDialog.tsx` | Use new TimeInput |
+| `src/components/dialogs/CheckInOutDialog.tsx` | Use new TimeInput |
 
