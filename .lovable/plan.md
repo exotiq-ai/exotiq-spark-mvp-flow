@@ -1,61 +1,47 @@
 
-# Rate Tiers & Duration-Based Pricing — Phase 1
 
-## Status: ✅ Implemented
+# Fix: Enable Same-Day Multi-Rental for Hourly Tiers
 
-### What's Done
-- [x] DB migration: `rate_3hr`, `rate_6hr`, `rate_multiday` on vehicles; `rental_duration_type` on bookings; `min_rate` + `rental_buffer_minutes` on teams
-- [x] `pricingUtils.ts`: `durationType` param (optional, defaults to 'daily'), helper functions `getRateForDuration`, `getAvailableDurations`, `getDurationLabel`
-- [x] `validationSchemas.ts`: `rental_duration_type` enum + rate tier fields on vehicle schema
-- [x] `RateTiersPanel.tsx`: New editable rate table in MotorIQ "Rate Tiers" tab
-- [x] `MotorIQEnhanced.tsx`: 5th tab added
-- [x] `NewBookingDialog.tsx`: Duration selector chips, rate-tier-aware pricing, "full day reservation" note for hourly
-- [x] `FleetVehicleCard.tsx`: Rate tier badges (3h/6h indicators), updated Vehicle interface
-- [x] `EnhancedBookingDialog.tsx`: Passes `durationType` to pricing
-- [x] `EditBookingDialog.tsx`: Passes `durationType` to pricing
-- [x] `RecordPaymentDialog.tsx`: Passes `durationType` to pricing
-- [x] `TeamSettingsSection.tsx`: Min rate config field
+## The Problem
 
-### Key Design Decisions
-- `current_rate` = 24hr/daily rate, NOT renamed (48+ references)
-- `durationType` optional, defaults to 'daily' — zero-risk for existing callers
-- Multiday threshold: hardcoded at 2+ calendar days
-- Phase 1 time picker: informational only, no availability impact
-- Rate floor: team-level setting via `useUserSettings`, default $100
+The "Vehicle reserved for the full calendar day" banner contradicts the core value of hourly tiers — booking the same vehicle multiple times per day. The conflict detection engine already compares full timestamps (not just dates), so the infrastructure supports this. The banner was an unnecessary guardrail.
 
-### Phase 2 (Future)
-- [ ] Timestamp-based availability engine (parallel to date-based)
-- [ ] `start_time` / `end_time` columns on bookings
-- [ ] Buffer time between hourly rentals using `rental_buffer_minutes`
-- [ ] Feature-flagged rollout
-- [ ] Utilization metrics updated for hourly rentals
+## What's Missing
 
----
+There are no time inputs in the booking dialog. When a 3hr/6hr tier is selected, the user picks dates but has no way to specify start/end times. Without times, `start_date` and `end_date` default to midnight, making every same-day booking look like an overlap.
 
-# Google Calendar Integration — TODO
+## Changes
 
-## Status: 🟡 Blocked — OAuth 403 Error
+### 1. Remove the "full calendar day" banner
+In `NewBookingDialog.tsx` (lines 326-333): delete the `Alert` that says "Vehicle reserved for the full calendar day."
 
-### What's Done ✅
-- [x] Edge functions created: `gcal-auth`, `gcal-callback`, `gcal-sync`
-- [x] Database migration: `google_calendar_event_id` column on bookings
-- [x] Frontend: IntegrationsSection rewritten with real connect/disconnect
-- [x] FleetContext: auto-sync on booking create/update/cancel
-- [x] Secrets stored: `GOOGLE_CALENDAR_CLIENT_ID`, `GOOGLE_CALENDAR_CLIENT_SECRET`
-- [x] Config: `verify_jwt = false` for all 3 functions
-- [x] Redirect URI set in Google Cloud Console
+### 2. Add time inputs for hourly bookings
+When `durationType` is `3hr` or `6hr`, show a start time input (e.g., `<input type="time">`). Auto-calculate end time (start + 3 or 6 hours). For `daily`/`multiday`, no time picker — keep current behavior.
 
-### What's Blocking ❌
-- **403 `access_denied`** when Google redirects back after OAuth consent
-- Google Cloud Project confirmed correct (Client ID `121670421485-...` matches)
-- Redirect URI confirmed correct: `https://jlgwbbqydjeokypoenoc.supabase.co/functions/v1/gcal-callback`
+### 3. Combine date + time into stored timestamps
+Before submitting, merge the selected date with the selected time:
+- `start_date = selectedDate + startTime` (e.g., `2026-03-21T10:00:00`)
+- `end_date = selectedDate + endTime` (e.g., `2026-03-21T13:00:00`)
 
-### Likely Fix (try these)
-1. **OAuth Consent Screen → Test Users**: Add your Google account email to the test users list
-2. **OR Publish the App**: Move OAuth consent screen from "Testing" to "Published"
-3. **Enable Google Calendar API**: Go to APIs & Services → Library → search "Google Calendar API" → Enable
+This flows naturally into the existing conflict detection which already does proper datetime overlap checks.
 
-### Google Cloud Console Links
-- OAuth Consent Screen: https://console.cloud.google.com/apis/credentials/consent
-- Credentials: https://console.cloud.google.com/apis/credentials
-- Calendar API: https://console.cloud.google.com/apis/library/calendar-json.googleapis.com
+### 4. Replace banner with helpful context
+Instead of the blocking message, show: "Select a pickup time. The vehicle will be available for other bookings outside this window." This communicates the benefit rather than a limitation.
+
+## Files Changed
+
+| File | Change |
+|------|--------|
+| `src/components/dialogs/NewBookingDialog.tsx` | Remove "full day" alert, add time inputs for hourly tiers, merge date+time on submit |
+
+## What Already Works (No Changes Needed)
+
+- `conflictDetection.ts` — already compares full `Date` objects with time
+- `pricingUtils.ts` — `calculateRentalDays` handles same-day correctly (returns 1)
+- `calculateBookingTotal` — 3hr/6hr use flat rate, no day multiplication
+- Database — `start_date`/`end_date` are already timestamp columns
+
+## Risk
+
+Low. The only change is in `NewBookingDialog.tsx`. Conflict detection, pricing, and storage all already support this pattern. The unit tests confirmed same-day double bookings produce correct totals ($200 + $350 = $590 for 3hr morning + 6hr afternoon).
+
