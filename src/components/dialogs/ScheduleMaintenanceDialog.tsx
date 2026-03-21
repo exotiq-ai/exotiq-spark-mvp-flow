@@ -6,10 +6,14 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { TimeSelect } from "@/components/ui/time-select";
 import { Database } from "@/integrations/supabase/types";
 import { useTeam } from "@/contexts/TeamContext";
-import { MapPin, Loader2, RotateCcw } from "lucide-react";
+import { MapPin, Loader2, RotateCcw, Calendar as CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { format } from "date-fns";
 
 type MaintenanceInsert = Omit<Database['public']['Tables']['maintenance_schedules']['Insert'], 'user_id'>;
 type Vehicle = Database['public']['Tables']['vehicles']['Row'];
