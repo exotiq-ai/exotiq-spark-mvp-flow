@@ -79,10 +79,14 @@ export const ScheduleMaintenanceDialog = ({ open, onOpenChange, vehicles, onSubm
 
     setLoading(true);
     try {
+      const [h, m] = scheduledTime.split(':').map(Number);
+      const combined = new Date(scheduledDate);
+      combined.setHours(h, m, 0, 0);
+
       const data: any = {
         vehicle_id: vehicleId,
         maintenance_type: maintenanceType,
-        scheduled_date: new Date(scheduledDate).toISOString(),
+        scheduled_date: combined.toISOString(),
         service_provider: serviceProvider || null,
         estimated_cost: estimatedCost ? parseFloat(estimatedCost) : null,
         notes: notes || null,
