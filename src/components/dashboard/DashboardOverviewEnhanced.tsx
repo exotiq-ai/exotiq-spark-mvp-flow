@@ -10,7 +10,7 @@ import { CompactMetricsBar } from "./widgets/CompactMetricsBar";
 import { CompactAIInsightBanner } from "./widgets/CompactAIInsightBanner";
 import { FleetStatusWidget } from "./widgets/FleetStatusWidget";
 import { ScheduleWidget } from "./widgets/ScheduleWidget";
-import { DashboardBottomActionBar } from "./DashboardBottomActionBar";
+
 import { PriceOptimizationDialog } from "@/components/dialogs/PriceOptimizationDialog";
 import { AddVehicleDialog } from "@/components/dialogs/AddVehicleDialog";
 import { NewBookingDialog } from "@/components/dialogs/NewBookingDialog";
