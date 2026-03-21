@@ -38,7 +38,8 @@ import {
   Download,
   X,
   Pencil,
-  Calendar
+  Calendar,
+  Layers
 } from "lucide-react";
 import { createExportActions } from "@/lib/exportUtils";
 import { useToast } from "@/hooks/use-toast";
