@@ -310,7 +310,7 @@ export const NewBookingDialog = ({
                       <button
                         key={dt}
                         type="button"
-                        onClick={() => setDurationType(dt)}
+                        onClick={() => { setDurationType(dt); setEndDateManuallySet(false); }}
                         className={cn(
                           "px-3 py-2 rounded-lg border text-sm font-medium transition-colors",
                           durationType === dt
