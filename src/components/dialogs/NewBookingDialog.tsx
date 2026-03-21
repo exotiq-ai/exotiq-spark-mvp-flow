@@ -163,8 +163,8 @@ export const NewBookingDialog = ({
   // Check which vehicles have conflicting bookings for the selected dates
   const vehicleAvailability = useMemo(() => {
     if (!startDate || !endDate) return {};
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    const start = new Date(startDateTimeStr);
+    const end = new Date(endDateTimeStr);
     const availability: Record<string, boolean> = {};
     vehicles.forEach(v => {
       const hasConflict = allBookings.some(b => {
