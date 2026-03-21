@@ -204,8 +204,8 @@ export const RateTiersPanel = () => {
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <VehicleThumbnail
-                          vehicleId={vehicle.id}
                           vehicleName={vehicle.name}
+                          imageUrl={vehicle.image_url}
                           size="sm"
                         />
                         <div>
