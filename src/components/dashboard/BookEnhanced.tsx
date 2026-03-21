@@ -146,6 +146,20 @@ export const BookEnhanced = () => {
     }>;
   } | null>(null);
 
+  // Handle tab and customerId URL parameters
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab) {
+      // Map URL param 'crm' to tab id 'customers'
+      const tabMap: Record<string, string> = { crm: 'customers' };
+      setActiveTab(tabMap[tab] || tab);
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('tab');
+      newParams.delete('customerId'); // consumed by CRM component or future use
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
   // Handle bookingId URL parameter to auto-open booking details
   useEffect(() => {
     const bookingId = searchParams.get('bookingId');
@@ -154,7 +168,6 @@ export const BookEnhanced = () => {
       if (booking) {
         setSelectedBooking(booking);
         setShowBookingDetails(true);
-        // Clear the bookingId param after opening
         const newParams = new URLSearchParams(searchParams);
         newParams.delete('bookingId');
         setSearchParams(newParams, { replace: true });
