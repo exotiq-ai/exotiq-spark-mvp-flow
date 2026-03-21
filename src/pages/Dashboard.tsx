@@ -333,10 +333,16 @@ const DashboardInner = () => {
       <div className="flex-1 flex flex-col min-w-0">
         {/* Desktop Header */}
         <div className="hidden md:block">
-          <DashboardHeader onOpenChat={() => {
-            setChatOpen(true);
-            setChatMinimized(false);
-          }} />
+          <DashboardHeader 
+            onOpenChat={() => {
+              setChatOpen(true);
+              setChatMinimized(false);
+            }}
+            onOpenRari={(query) => {
+              rariSidebar.open();
+              // If Rari sidebar supports initial query, pass it here
+            }}
+          />
         </div>
 
         {/* Top Navigation - Mobile */}

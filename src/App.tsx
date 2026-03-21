@@ -54,59 +54,48 @@ const ProvidersWrapper = () => {
 };
 
 const AppWithRouter = () => {
-  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
-  
-  // Global keyboard shortcut (Cmd+K)
-  useCommandPalette(() => setCommandPaletteOpen(true));
-
   return (
-    <>
-      <CommandPalette 
-        open={commandPaletteOpen} 
-        onOpenChange={setCommandPaletteOpen} 
-      />
-      <Routes>
-        {/* Nuclear reset & signout routes - OUTSIDE all providers to prevent interference */}
-        <Route path="/reset" element={<Reset />} />
-        <Route path="/signout" element={<SignOut />} />
-        
-        {/* All other routes use layout route pattern with ProvidersWrapper */}
-        <Route element={<ProvidersWrapper />}>
-          <Route path="/" element={<Index />} />
-          <Route path="/auth" element={<Auth />} />
-          <Route path="/onboarding" element={
-            <ProtectedRoute>
-              <Onboarding />
-            </ProtectedRoute>
-          } />
-          <Route path="/team-onboarding" element={
-            <ProtectedRoute>
-              <TeamMemberOnboarding />
-            </ProtectedRoute>
-          } />
-          <Route path="/dashboard" element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          } />
-          <Route path="/super-admin" element={
-            <SuperAdminGuard>
-              <SuperAdminDashboard />
-            </SuperAdminGuard>
-          } />
-          {/* Demo pages temporarily disabled - demo login uses /dashboard */}
-          <Route path="/demo-landing" element={<Navigate to="/auth" replace />} />
-          <Route path="/demo" element={<Navigate to="/auth" replace />} />
-          <Route path="/terms" element={<Terms />} />
-          <Route path="/privacy" element={<Privacy />} />
-          <Route path="/acceptable-use" element={<AcceptableUse />} />
-          <Route path="/data-processing" element={<DataProcessing />} />
-          <Route path="/welcome" element={<Welcome />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Route>
-      </Routes>
-    </>
+    <Routes>
+      {/* Nuclear reset & signout routes - OUTSIDE all providers to prevent interference */}
+      <Route path="/reset" element={<Reset />} />
+      <Route path="/signout" element={<SignOut />} />
+      
+      {/* All other routes use layout route pattern with ProvidersWrapper */}
+      <Route element={<ProvidersWrapper />}>
+        <Route path="/" element={<Index />} />
+        <Route path="/auth" element={<Auth />} />
+        <Route path="/onboarding" element={
+          <ProtectedRoute>
+            <Onboarding />
+          </ProtectedRoute>
+        } />
+        <Route path="/team-onboarding" element={
+          <ProtectedRoute>
+            <TeamMemberOnboarding />
+          </ProtectedRoute>
+        } />
+        <Route path="/dashboard" element={
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        } />
+        <Route path="/super-admin" element={
+          <SuperAdminGuard>
+            <SuperAdminDashboard />
+          </SuperAdminGuard>
+        } />
+        {/* Demo pages temporarily disabled - demo login uses /dashboard */}
+        <Route path="/demo-landing" element={<Navigate to="/auth" replace />} />
+        <Route path="/demo" element={<Navigate to="/auth" replace />} />
+        <Route path="/terms" element={<Terms />} />
+        <Route path="/privacy" element={<Privacy />} />
+        <Route path="/acceptable-use" element={<AcceptableUse />} />
+        <Route path="/data-processing" element={<DataProcessing />} />
+        <Route path="/welcome" element={<Welcome />} />
+        {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+        <Route path="*" element={<NotFound />} />
+      </Route>
+    </Routes>
   );
 };
 

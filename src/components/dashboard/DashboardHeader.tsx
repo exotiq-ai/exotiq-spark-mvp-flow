@@ -67,7 +67,7 @@ export const DashboardHeader = ({ onOpenChat, onOpenRari }: DashboardHeaderProps
         </div>
         
         <div className="hidden md:flex flex-1 max-w-md mx-4">
-          <EnhancedGlobalSearch />
+          <EnhancedGlobalSearch onOpenRari={onOpenRari} />
         </div>
 
         <div className="flex items-center space-x-2">
