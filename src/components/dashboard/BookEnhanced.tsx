@@ -29,16 +29,18 @@ import {
   Clock, 
   MapPin, 
   Car,
-  TrendingUp,
   DollarSign,
-  Users,
   Plus,
   Receipt,
   ClipboardCheck,
   CheckCircle,
   Circle,
-  AlertCircle
+  AlertCircle,
+  ChevronDown,
+  ChevronUp,
+  Users
 } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tables } from "@/integrations/supabase/types";
 
 type Booking = Tables<"bookings">;
