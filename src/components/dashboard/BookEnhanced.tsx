@@ -125,6 +125,7 @@ export const BookEnhanced = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [showNewBooking, setShowNewBooking] = useState(false);
   const [showBookingDetails, setShowBookingDetails] = useState(false);
+  const [activeTab, setActiveTab] = useState<string | undefined>(undefined);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [cancellingBookingId, setCancellingBookingId] = useState<string | null>(null);
   const [showVehicleImage, setShowVehicleImage] = useState(false);
@@ -145,6 +146,20 @@ export const BookEnhanced = () => {
     }>;
   } | null>(null);
 
+  // Handle tab and customerId URL parameters
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab) {
+      // Map URL param 'crm' to tab id 'customers'
+      const tabMap: Record<string, string> = { crm: 'customers' };
+      setActiveTab(tabMap[tab] || tab);
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('tab');
+      newParams.delete('customerId'); // consumed by CRM component or future use
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
   // Handle bookingId URL parameter to auto-open booking details
   useEffect(() => {
     const bookingId = searchParams.get('bookingId');
@@ -153,7 +168,6 @@ export const BookEnhanced = () => {
       if (booking) {
         setSelectedBooking(booking);
         setShowBookingDetails(true);
-        // Clear the bookingId param after opening
         const newParams = new URLSearchParams(searchParams);
         newParams.delete('bookingId');
         setSearchParams(newParams, { replace: true });
@@ -346,6 +360,8 @@ export const BookEnhanced = () => {
           { id: "inspections", label: "Inspections", shortLabel: "Check", icon: ClipboardCheck },
         ]}
         defaultValue="overview"
+        value={activeTab}
+        onValueChange={(val) => setActiveTab(val)}
         data-tour="book-tabs"
       >
         <TabsContent value="overview" className="space-y-4 sm:space-y-6">
