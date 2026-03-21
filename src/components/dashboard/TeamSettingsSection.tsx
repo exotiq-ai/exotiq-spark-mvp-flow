@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useUserSettings } from "@/hooks/useUserSettings";
-import { Save, Building2, Clock, Bell, Loader2 } from "lucide-react";
+import { Save, Building2, Clock, Bell, Loader2, DollarSign } from "lucide-react";
 
 interface TeamSettings {
   companyName: string;
@@ -16,6 +16,7 @@ interface TeamSettings {
   notifyOnRoleChange: boolean;
   requireTwoFactor: boolean;
   sessionTimeout: string;
+  minRate: string;
 }
 
 const defaultSettings: TeamSettings = {
@@ -25,6 +26,7 @@ const defaultSettings: TeamSettings = {
   notifyOnRoleChange: true,
   requireTwoFactor: false,
   sessionTimeout: "30",
+  minRate: "100",
 };
 
 export const TeamSettingsSection = () => {
@@ -178,6 +180,32 @@ export const TeamSettingsSection = () => {
               </SelectContent>
             </Select>
           </div>
+        </div>
+      </Card>
+
+      {/* Rate Floor */}
+      <Card className="p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <DollarSign className="w-5 h-5 text-primary" />
+          <h3 className="text-lg font-semibold">Pricing</h3>
+        </div>
+        
+        <div className="space-y-2">
+          <Label htmlFor="minRate">Minimum Rental Rate ($)</Label>
+          <p className="text-sm text-muted-foreground">
+            The minimum allowed rate across all tiers (3hr, 6hr, daily, multi-day). 
+            Rates below this will be rejected when setting vehicle prices.
+          </p>
+          <Input
+            id="minRate"
+            type="number"
+            min="0"
+            step="1"
+            placeholder="100"
+            value={settings.minRate}
+            onChange={(e) => updateSetting('minRate', e.target.value)}
+            className="w-[200px]"
+          />
         </div>
       </Card>
 

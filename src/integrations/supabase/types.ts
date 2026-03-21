@@ -123,6 +123,7 @@ export type Database = {
           pickup_location: string
           pickup_location_id: string | null
           pickup_odometer: number | null
+          rental_duration_type: string | null
           requires_delivery: boolean | null
           return_fuel_level: number | null
           return_odometer: number | null
@@ -169,6 +170,7 @@ export type Database = {
           pickup_location: string
           pickup_location_id?: string | null
           pickup_odometer?: number | null
+          rental_duration_type?: string | null
           requires_delivery?: boolean | null
           return_fuel_level?: number | null
           return_odometer?: number | null
@@ -215,6 +217,7 @@ export type Database = {
           pickup_location?: string
           pickup_location_id?: string | null
           pickup_odometer?: number | null
+          rental_duration_type?: string | null
           requires_delivery?: boolean | null
           return_fuel_level?: number | null
           return_odometer?: number | null
@@ -2315,8 +2318,10 @@ export type Database = {
           is_deleted: boolean | null
           is_demo_account: boolean | null
           logo_url: string | null
+          min_rate: number | null
           name: string
           owner_id: string
+          rental_buffer_minutes: number | null
           settings: Json | null
           slug: string | null
           timezone: string | null
@@ -2331,8 +2336,10 @@ export type Database = {
           is_deleted?: boolean | null
           is_demo_account?: boolean | null
           logo_url?: string | null
+          min_rate?: number | null
           name: string
           owner_id: string
+          rental_buffer_minutes?: number | null
           settings?: Json | null
           slug?: string | null
           timezone?: string | null
@@ -2347,8 +2354,10 @@ export type Database = {
           is_deleted?: boolean | null
           is_demo_account?: boolean | null
           logo_url?: string | null
+          min_rate?: number | null
           name?: string
           owner_id?: string
+          rental_buffer_minutes?: number | null
           settings?: Json | null
           slug?: string | null
           timezone?: string | null
@@ -3137,6 +3146,9 @@ export type Database = {
           model: string
           name: string
           ops_status: string | null
+          rate_3hr: number | null
+          rate_6hr: number | null
+          rate_multiday: number | null
           revenue: number | null
           status: string | null
           suggested_rate: number | null
@@ -3164,6 +3176,9 @@ export type Database = {
           model: string
           name: string
           ops_status?: string | null
+          rate_3hr?: number | null
+          rate_6hr?: number | null
+          rate_multiday?: number | null
           revenue?: number | null
           status?: string | null
           suggested_rate?: number | null
@@ -3191,6 +3206,9 @@ export type Database = {
           model?: string
           name?: string
           ops_status?: string | null
+          rate_3hr?: number | null
+          rate_6hr?: number | null
+          rate_multiday?: number | null
           revenue?: number | null
           status?: string | null
           suggested_rate?: number | null

@@ -13,6 +13,7 @@ import { PriceUtilizationScatterPlot } from "@/components/charts/PriceUtilizatio
 import { DynamicPricingCard } from "@/components/dashboard/DynamicPricingCard";
 import type { PricingContext } from "@/components/dashboard/DynamicPricingCard";
 import { DemandForecastCard } from "@/components/dashboard/DemandForecastCard";
+import { RateTiersPanel } from "@/components/dashboard/RateTiersPanel";
 import { PricingCalendar } from "@/components/dashboard/PricingCalendar";
 import { WeeklyDigestCard } from "@/components/dashboard/WeeklyDigestCard";
 import { LocationBadge } from "@/components/common/LocationBadge";
@@ -37,7 +38,8 @@ import {
   Download,
   X,
   Pencil,
-  Calendar
+  Calendar,
+  Layers
 } from "lucide-react";
 import { createExportActions } from "@/lib/exportUtils";
 import { useToast } from "@/hooks/use-toast";
@@ -254,6 +256,7 @@ export const MotorIQEnhanced = () => {
             { id: "calendar", label: "Calendar", shortLabel: "Cal", icon: Calendar },
             { id: "pricing", label: "Dynamic Pricing", shortLabel: "Price", icon: DollarSign },
             { id: "forecast", label: "Demand Forecast", shortLabel: "Trends", icon: BarChart3 },
+            { id: "rate-tiers", label: "Rate Tiers", shortLabel: "Rates", icon: Layers },
           ]}
           value={activeTab}
           onValueChange={setActiveTab}
@@ -500,6 +503,10 @@ export const MotorIQEnhanced = () => {
 
           <TabsContent value="forecast" className="space-y-6">
             <DemandForecastCard bookings={bookings} />
+          </TabsContent>
+
+          <TabsContent value="rate-tiers" className="space-y-6">
+            <RateTiersPanel />
           </TabsContent>
         </ModuleTabs>
       </div>

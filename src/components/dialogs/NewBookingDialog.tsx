@@ -24,7 +24,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { Calendar, User, MapPin, Loader2, AlertCircle, Sparkles, UserPlus, ChevronDown, Check, DollarSign } from 'lucide-react';
+import { Calendar, User, MapPin, Loader2, AlertCircle, Sparkles, UserPlus, ChevronDown, Check, DollarSign, Clock, Info } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { TablesInsert, Tables } from '@/integrations/supabase/types';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -34,7 +34,7 @@ import { useAIPricing } from '@/hooks/useAIPricing';
 import { useTeam } from '@/contexts/TeamContext';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
-import { calculateBookingTotal, DEFAULT_GAS_FEE } from '@/lib/pricingUtils';
+import { calculateBookingTotal, DEFAULT_GAS_FEE, getRateForDuration, getAvailableDurations, getDurationLabel, type RentalDurationType } from '@/lib/pricingUtils';
 import { Switch } from '@/components/ui/switch';
 
 interface NewBookingDialogProps {
@@ -74,7 +74,7 @@ export const NewBookingDialog = ({
   const [discountAmount, setDiscountAmount] = useState('');
   const [discountReason, setDiscountReason] = useState('');
   const [gasFeeWaived, setGasFeeWaived] = useState(false);
-
+  const [durationType, setDurationType] = useState<RentalDurationType>('daily');
   // Fetch existing customers when dialog opens
   useEffect(() => {
     if (open) {
@@ -172,13 +172,22 @@ export const NewBookingDialog = ({
     setLoading(true);
 
     try {
+      const effectiveRate = getRateForDuration(
+        durationType,
+        Number(selectedVehicle.current_rate),
+        (selectedVehicle as any).rate_3hr,
+        (selectedVehicle as any).rate_6hr,
+        (selectedVehicle as any).rate_multiday,
+      );
+
       const pricing = calculateBookingTotal({
         startDate: new Date(startDate),
         endDate: new Date(endDate),
-        dailyRate: Number(selectedVehicle.current_rate),
+        dailyRate: effectiveRate,
         discountAmount: Number(discountAmount) || 0,
         gasFee: DEFAULT_GAS_FEE,
         gasFeeWaived,
+        durationType,
       });
 
       await onSubmit({
@@ -192,7 +201,7 @@ export const NewBookingDialog = ({
         pickup_location: pickupLocationName,
         pickup_location_id: effectivePickupLocationId || null,
         dropoff_location: dropoffLocation || null,
-        daily_rate: selectedVehicle.current_rate,
+        daily_rate: effectiveRate,
         total_value: pricing.grandTotal,
         discount_amount: pricing.discountAmount > 0 ? pricing.discountAmount : 0,
         discount_reason: pricing.discountAmount > 0 ? discountReason || null : null,
@@ -200,6 +209,7 @@ export const NewBookingDialog = ({
         gas_fee_waived: gasFeeWaived,
         notes: notes || null,
         status: 'pending',
+        rental_duration_type: durationType,
         mileage_limit: selectedVehicle.default_mileage_limit ?? 250,
         mileage_overage_fee: selectedVehicle.mileage_overage_rate ?? 1.50,
       } as any);
@@ -217,6 +227,7 @@ export const NewBookingDialog = ({
       setDropoffLocation('');
       setNotes('');
       setError(null);
+      setDurationType('daily');
       setAiExpanded(false);
       setDiscountExpanded(false);
       setDiscountAmount('');
@@ -277,6 +288,51 @@ export const NewBookingDialog = ({
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Duration Selector - shown after vehicle selection */}
+            {selectedVehicle && (
+              <div className="space-y-2">
+                <Label>Rental Duration</Label>
+                <div className="flex flex-wrap gap-2">
+                  {getAvailableDurations(
+                    (selectedVehicle as any).rate_3hr,
+                    (selectedVehicle as any).rate_6hr,
+                  ).map((dt) => {
+                    const rate = getRateForDuration(
+                      dt,
+                      Number(selectedVehicle.current_rate),
+                      (selectedVehicle as any).rate_3hr,
+                      (selectedVehicle as any).rate_6hr,
+                      (selectedVehicle as any).rate_multiday,
+                    );
+                    return (
+                      <button
+                        key={dt}
+                        type="button"
+                        onClick={() => setDurationType(dt)}
+                        className={cn(
+                          "px-3 py-2 rounded-lg border text-sm font-medium transition-colors",
+                          durationType === dt
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-background border-border hover:bg-muted"
+                        )}
+                      >
+                        <span>{getDurationLabel(dt)}</span>
+                        <span className="ml-1 opacity-75">${rate.toLocaleString()}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {(durationType === '3hr' || durationType === '6hr') && (
+                  <Alert className="mt-2">
+                    <Info className="h-4 w-4" />
+                    <AlertDescription className="text-xs">
+                      Vehicle reserved for the full calendar day. Time picker is for scheduling reference.
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            )}
 
             {/* AI Price Suggestion - Collapsible */}
             {pricingSuggestion && vehicleId && (
@@ -492,19 +548,33 @@ export const NewBookingDialog = ({
                     </div>
                   </div>
                   {selectedVehicle && startDate && endDate && (() => {
+                    const effectiveRate = getRateForDuration(
+                      durationType,
+                      Number(selectedVehicle.current_rate),
+                      (selectedVehicle as any).rate_3hr,
+                      (selectedVehicle as any).rate_6hr,
+                      (selectedVehicle as any).rate_multiday,
+                    );
                     const pricing = calculateBookingTotal({
                       startDate: new Date(startDate),
                       endDate: new Date(endDate),
-                      dailyRate: Number(selectedVehicle.current_rate),
+                      dailyRate: effectiveRate,
                       discountAmount: Number(discountAmount) || 0,
                       gasFee: DEFAULT_GAS_FEE,
                       gasFeeWaived,
+                      durationType,
                     });
                     if (pricing.rentalDays <= 0) return null;
+                    const isHourly = durationType === '3hr' || durationType === '6hr';
                     return (
                       <div className="space-y-1 text-sm p-2 rounded-lg bg-muted/30">
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">{pricing.rentalDays} day{pricing.rentalDays !== 1 ? 's' : ''} × ${Number(selectedVehicle.current_rate).toLocaleString()}</span>
+                          <span className="text-muted-foreground">
+                            {isHourly 
+                              ? `${getDurationLabel(durationType)} Rate`
+                              : `${pricing.rentalDays} day${pricing.rentalDays !== 1 ? 's' : ''} × $${effectiveRate.toLocaleString()}`
+                            }
+                          </span>
                           <span>${pricing.rentalSubtotal.toLocaleString()}</span>
                         </div>
                         {pricing.discountAmount > 0 && (

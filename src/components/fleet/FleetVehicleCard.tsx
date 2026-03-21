@@ -51,11 +51,15 @@ interface Vehicle {
   year: number;
   status: string;
   ops_status?: string | null;
+  /** The 24hr/daily rate. Preserved name for backwards compatibility (48+ references). */
   current_rate: number;
   suggested_rate?: number | null;
   license_plate?: string | null;
   image_url?: string | null;
   last_ops_update?: string | null;
+  rate_3hr?: number | null;
+  rate_6hr?: number | null;
+  rate_multiday?: number | null;
 }
 
 interface Booking {
@@ -240,6 +244,17 @@ export const FleetVehicleCard = ({
                           ${vehicle.current_rate}
                           <span className="text-xs font-normal text-muted-foreground">/day</span>
                         </div>
+                        {/* Rate tier indicators */}
+                        {(vehicle.rate_3hr || vehicle.rate_6hr || vehicle.rate_multiday) && (
+                          <div className="flex gap-1 justify-end mt-0.5">
+                            {vehicle.rate_3hr && (
+                              <span className="text-[10px] text-muted-foreground">3h: ${vehicle.rate_3hr}</span>
+                            )}
+                            {vehicle.rate_6hr && (
+                              <span className="text-[10px] text-muted-foreground">6h: ${vehicle.rate_6hr}</span>
+                            )}
+                          </div>
+                        )}
                       </div>
                       {/* Rari insight indicator */}
                       {hasRariSuggestion && (

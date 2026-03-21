@@ -32,11 +32,11 @@ export const bookingSchema = z.object({
   discount_reason: z.string().max(100, "Reason too long").optional().nullable().or(z.literal('')),
   status: z.string().max(50, "Status too long").optional().nullable(),
   notes: z.string().max(2000, "Notes too long").optional().nullable().or(z.literal('')),
+  rental_duration_type: z.enum(['3hr', '6hr', 'daily', 'multiday']).optional().nullable(),
 }).refine(data => new Date(data.end_date) > new Date(data.start_date), {
   message: "End date must be after start date",
   path: ["end_date"]
 });
-
 // Message validation schema
 export const messageSchema = z.object({
   recipient_name: z.string().min(1, "Recipient name required").max(100, "Name too long"),
@@ -88,13 +88,15 @@ export const vehicleSchema = z.object({
   license_plate: z.string().max(20, "License plate too long").optional().nullable().or(z.literal('')),
   vin: z.string().max(17, "VIN too long").optional().nullable().or(z.literal('')),
   current_rate: z.number().min(0, "Rate cannot be negative").max(100000, "Rate too high"),
+  rate_3hr: z.number().positive("3hr rate must be positive").max(100000, "Rate too high").optional().nullable(),
+  rate_6hr: z.number().positive("6hr rate must be positive").max(100000, "Rate too high").optional().nullable(),
+  rate_multiday: z.number().positive("Multi-day rate must be positive").max(100000, "Rate too high").optional().nullable(),
   status: z.enum(['available', 'rented', 'maintenance', 'retired', 'booked']).optional(),
   color: z.string().max(30, "Color too long").optional().nullable().or(z.literal('')),
   default_mileage_limit: z.number().min(0, "Mileage limit cannot be negative").max(10000, "Mileage limit too high").optional().nullable(),
   mileage_overage_rate: z.number().min(0, "Overage rate cannot be negative").max(100, "Overage rate too high").optional().nullable(),
   location_id: z.string().uuid("Invalid location ID").optional().nullable().or(z.literal('')),
 });
-
 // Edge function chat messages validation
 export const chatMessagesSchema = z.array(z.object({
   role: z.enum(['user', 'assistant', 'system']),

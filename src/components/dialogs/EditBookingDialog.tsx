@@ -59,6 +59,7 @@ export const EditBookingDialog = ({
     gasFee: Number((booking as any).gas_fee) || DEFAULT_GAS_FEE,
     gasFeeWaived,
     deliveryFee: Number(booking.delivery_fee) || 0,
+    durationType: (booking as any).rental_duration_type || 'daily',
   });
 
   const totalDiff = pricing.grandTotal - Number(booking.total_value);
