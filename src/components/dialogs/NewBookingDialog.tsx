@@ -303,11 +303,20 @@ export const NewBookingDialog = ({
                   <SelectValue placeholder="Select vehicle" />
                 </SelectTrigger>
                 <SelectContent>
-                  {vehicles.map((v) => (
-                    <SelectItem key={v.id} value={v.id}>
-                      {v.name} - ${v.current_rate}/day
-                    </SelectItem>
-                  ))}
+                  {vehicles.map((v) => {
+                    const hasDateSelected = startDate && endDate;
+                    const isAvailable = !hasDateSelected || vehicleAvailability[v.id] !== false;
+                    return (
+                      <SelectItem key={v.id} value={v.id}>
+                        <span className="flex items-center gap-2">
+                          {v.name} - ${v.current_rate}/day
+                          {hasDateSelected && !isAvailable && (
+                            <span className="text-xs text-destructive font-medium">Booked</span>
+                          )}
+                        </span>
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
