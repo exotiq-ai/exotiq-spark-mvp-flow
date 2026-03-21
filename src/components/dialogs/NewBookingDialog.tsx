@@ -55,6 +55,7 @@ export const NewBookingDialog = ({
   prefillCustomer,
 }: NewBookingDialogProps) => {
   const { selectedLocationId, currentLocation, locations, currentTeam } = useTeam();
+  const { bookings: allBookings } = useLocationFilteredFleet();
   
   const [vehicleId, setVehicleId] = useState('');
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('new');
