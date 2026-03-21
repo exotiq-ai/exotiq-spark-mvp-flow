@@ -51,7 +51,7 @@ export const ChangeVehicleDialog = ({
     const conflictingBooking = bookings.find(b => {
       if (b.vehicle_id !== vehicleId) return false;
       if (b.id === bookingId) return false;
-      if (b.status === "cancelled") return false;
+      if (!isBlockingBooking(b.status)) return false;
       
       const bStart = new Date(b.start_date);
       const bEnd = new Date(b.end_date);

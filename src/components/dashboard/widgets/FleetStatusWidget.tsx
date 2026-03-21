@@ -29,7 +29,7 @@ const FleetExpandedContent = () => {
     const bookedVehicleIds = new Set(
       bookings
         .filter(b =>
-          b.status === 'confirmed' &&
+          isBlockingBooking(b.status) &&
           new Date(b.start_date) <= todayEnd &&
           new Date(b.end_date) >= todayStart
         )

@@ -38,11 +38,26 @@ export const Book = () => {
     return startDate >= thisWeekStart && startDate <= thisWeekEnd;
   });
 
-  // Available vehicles (filter by search)
+  // Vehicles with active (pending/confirmed) bookings spanning now
+  const bookedVehicleIds = useMemo(() => {
+    const now = new Date();
+    return new Set(
+      bookings
+        .filter(b =>
+          isBlockingBooking(b.status) &&
+          new Date(b.start_date) <= now &&
+          new Date(b.end_date) >= now
+        )
+        .map(b => b.vehicle_id)
+    );
+  }, [bookings]);
+
+  // Available vehicles: not booked right now, not in maintenance/retired, matches search
   const availableVehicles = vehicles.filter(v => {
     const matchesSearch = searchQuery === "" || 
       `${v.make} ${v.model}`.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesSearch;
+    const isAvailable = v.status !== 'maintenance' && v.status !== 'retired' && !bookedVehicleIds.has(v.id);
+    return matchesSearch && isAvailable;
   }).slice(0, 5);
 
   // Calculate upcoming booking forecasts

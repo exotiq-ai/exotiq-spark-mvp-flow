@@ -46,7 +46,7 @@ export const checkBookingConflicts = (
   const relevantBookings = existingBookings.filter(
     (b) => 
       b.vehicle_id === newBooking.vehicle_id && 
-      b.status !== 'cancelled' &&
+      isBlockingBooking(b.status) &&
       b.id !== newBooking.id
   );
 
