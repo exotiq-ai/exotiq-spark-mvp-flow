@@ -61,6 +61,7 @@ export const NewBookingDialog = ({
   const [customerPhone, setCustomerPhone] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [endDateManuallySet, setEndDateManuallySet] = useState(false);
   const [pickupLocationId, setPickupLocationId] = useState('');
   const [pickupLocationText, setPickupLocationText] = useState('');
   const [dropoffLocation, setDropoffLocation] = useState('');
@@ -309,7 +310,7 @@ export const NewBookingDialog = ({
                       <button
                         key={dt}
                         type="button"
-                        onClick={() => setDurationType(dt)}
+                        onClick={() => { setDurationType(dt); setEndDateManuallySet(false); }}
                         className={cn(
                           "px-3 py-2 rounded-lg border text-sm font-medium transition-colors",
                           durationType === dt
@@ -324,12 +325,10 @@ export const NewBookingDialog = ({
                   })}
                 </div>
                 {(durationType === '3hr' || durationType === '6hr') && (
-                  <Alert className="mt-2">
-                    <Info className="h-4 w-4" />
-                    <AlertDescription className="text-xs">
-                      Vehicle reserved for the full calendar day. Time picker is for scheduling reference.
-                    </AlertDescription>
-                  </Alert>
+                  <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    Select a pickup time — vehicle stays available for other bookings outside this window.
+                  </p>
                 )}
               </div>
             )}
@@ -477,22 +476,49 @@ export const NewBookingDialog = ({
             {/* Start and End Date */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label htmlFor="start-date">Start Date</Label>
+                <Label htmlFor="start-date">
+                  {(durationType === '3hr' || durationType === '6hr') ? 'Pickup Date & Time' : 'Start Date'}
+                </Label>
                 <Input
                   id="start-date"
                   type="datetime-local"
                   value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setStartDate(val);
+                    // Auto-calculate end time for hourly tiers
+                    if (val && (durationType === '3hr' || durationType === '6hr')) {
+                      const start = new Date(val);
+                      const hours = durationType === '3hr' ? 3 : 6;
+                      const end = new Date(start.getTime() + hours * 60 * 60 * 1000);
+                      // Format as datetime-local value
+                      const pad = (n: number) => String(n).padStart(2, '0');
+                      const endVal = `${end.getFullYear()}-${pad(end.getMonth() + 1)}-${pad(end.getDate())}T${pad(end.getHours())}:${pad(end.getMinutes())}`;
+                      setEndDate(endVal);
+                      setEndDateManuallySet(false);
+                    }
+                  }}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="end-date">End Date</Label>
+                <Label htmlFor="end-date">
+                  {(durationType === '3hr' || durationType === '6hr') ? 'Return Date & Time' : 'End Date'}
+                </Label>
                 <Input
                   id="end-date"
                   type="datetime-local"
                   value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
+                  onChange={(e) => {
+                    setEndDate(e.target.value);
+                    setEndDateManuallySet(true);
+                  }}
+                  disabled={!!(durationType === '3hr' || durationType === '6hr') && !endDateManuallySet}
                 />
+                {(durationType === '3hr' || durationType === '6hr') && !endDateManuallySet && startDate && (
+                  <p className="text-xs text-muted-foreground">
+                    Auto-set to {durationType === '3hr' ? '3' : '6'} hours after pickup
+                  </p>
+                )}
               </div>
             </div>
 
