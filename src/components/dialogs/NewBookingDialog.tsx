@@ -289,6 +289,51 @@ export const NewBookingDialog = ({
               </Select>
             </div>
 
+            {/* Duration Selector - shown after vehicle selection */}
+            {selectedVehicle && (
+              <div className="space-y-2">
+                <Label>Rental Duration</Label>
+                <div className="flex flex-wrap gap-2">
+                  {getAvailableDurations(
+                    (selectedVehicle as any).rate_3hr,
+                    (selectedVehicle as any).rate_6hr,
+                  ).map((dt) => {
+                    const rate = getRateForDuration(
+                      dt,
+                      Number(selectedVehicle.current_rate),
+                      (selectedVehicle as any).rate_3hr,
+                      (selectedVehicle as any).rate_6hr,
+                      (selectedVehicle as any).rate_multiday,
+                    );
+                    return (
+                      <button
+                        key={dt}
+                        type="button"
+                        onClick={() => setDurationType(dt)}
+                        className={cn(
+                          "px-3 py-2 rounded-lg border text-sm font-medium transition-colors",
+                          durationType === dt
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-background border-border hover:bg-muted"
+                        )}
+                      >
+                        <span>{getDurationLabel(dt)}</span>
+                        <span className="ml-1 opacity-75">${rate.toLocaleString()}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {(durationType === '3hr' || durationType === '6hr') && (
+                  <Alert className="mt-2">
+                    <Info className="h-4 w-4" />
+                    <AlertDescription className="text-xs">
+                      Vehicle reserved for the full calendar day. Time picker is for scheduling reference.
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            )}
+
             {/* AI Price Suggestion - Collapsible */}
             {pricingSuggestion && vehicleId && (
               <Collapsible open={aiExpanded} onOpenChange={setAiExpanded}>
