@@ -24,9 +24,10 @@ import { Separator } from "@/components/ui/separator";
 
 interface DashboardHeaderProps {
   onOpenChat?: () => void;
+  onOpenRari?: (query?: string) => void;
 }
 
-export const DashboardHeader = ({ onOpenChat }: DashboardHeaderProps) => {
+export const DashboardHeader = ({ onOpenChat, onOpenRari }: DashboardHeaderProps) => {
   const { user, signOut } = useAuth();
   const { profile, displayName } = useProfile();
   const { conversations } = useTeamMessaging();
