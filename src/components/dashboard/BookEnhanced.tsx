@@ -360,6 +360,8 @@ export const BookEnhanced = () => {
           { id: "inspections", label: "Inspections", shortLabel: "Check", icon: ClipboardCheck },
         ]}
         defaultValue="overview"
+        value={activeTab}
+        onValueChange={(val) => setActiveTab(val)}
         data-tour="book-tabs"
       >
         <TabsContent value="overview" className="space-y-4 sm:space-y-6">
