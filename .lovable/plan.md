@@ -1,62 +1,63 @@
 
 
-# Search Bar Improvements + Sunset Bottom Action Bar
+# Standardize Date/Time Pickers Across All Dialogs
 
-## Bottom Action Bar — Sunset It
+## Current State — 3 Different Patterns
 
-The bottom bar duplicates the header search (both open ⌘K), duplicates quick actions already available in module headers (New Booking, Add Customer), and adds visual clutter. The only unique element is the Rari mic button — but Rari already has its own sidebar trigger/orb.
+| Dialog | Date Picker | Time Picker |
+|--------|------------|-------------|
+| **EnhancedBookingDialog** (Edit) | Calendar popover (clean) | Select dropdown with 30-min slots (clean) |
+| **NewBookingDialog** | `<input type="datetime-local">` (native browser, ugly) | Combined in datetime-local (no separation) |
+| **EditBookingDialog** | Calendar popover (clean) | None — date only, no time |
+| **ScheduleMaintenanceDialog** | `<input type="datetime-local">` (native) | Combined in datetime-local |
+| **CheckInOutDialog** | `<input type="datetime-local">` (native) | Combined in datetime-local |
+| **Customer/Report/Insurance dialogs** | `<input type="date">` (native) | N/A (date-only is fine) |
 
-**Recommendation: Remove it.** Keep the quick action icons (New Booking, Record Payment, Add Customer, Generate Report, Schedule Maintenance) as they are useful — but relocate them into the header search bar's "Quick Actions" section (they're already there). The Rari orb/sidebar handles AI access.
+The EnhancedBookingDialog has the best pattern: Calendar popover for date + Select dropdown for time. The NewBookingDialog (the most-used dialog) has the worst — a raw browser `datetime-local` input.
 
-## Search Bar Improvements
+## Target Pattern
 
-### What already works
-- Vehicle search by make/model/plate → deep-links to Vehicle Command Center
-- Customer search by name/email/phone → deep-links to CRM card
-- Booking search by customer name, vehicle name, status → opens booking dialog
-- Booking ref search (e.g., "BK-01001") → opens booking dialog
-- Quick actions (New Booking, Add Vehicle, Add Customer)
-- Module navigation
-- Export actions
-- Ask Rari with query passthrough
-
-### What's missing / broken
-
-1. **CRM deep-link incomplete** — search navigates to CRM tab but `CRMSection` doesn't read `customerId` from URL to auto-open the profile card (from the previous approved plan, not yet implemented)
-
-2. **No booking ID search** — users can't paste a UUID booking ID to find a booking. Only `booking_ref` (BK-01001) and customer/vehicle name work.
-
-3. **No vehicle name search** — vehicles have a `name` field (e.g., "Midnight Express") but the cast `(v as any).name` is fragile. Should use the proper typed field.
-
-4. **No license plate prominent display** — plate is in subtitle but not visually distinct. For fleet ops, plate is often the primary identifier.
-
-5. **Customer results lack context** — just shows email. No indication of booking activity (active rentals, pending bookings).
-
-6. **No "no results" guidance** — empty state just says "Try a different search term" with no helpful suggestions.
+**Date**: Calendar popover (Shadcn) — clean, visual, consistent.
+**Time**: Select dropdown with 30-min intervals (06:00–22:00), displayed as "9:00 AM" format. Scrollable, typeable-friendly via Select's built-in keyboard navigation.
 
 ## Changes
 
-### 1. Remove `DashboardBottomActionBar`
-Delete from `DashboardOverviewEnhanced.tsx`. The header ⌘K search already has all quick actions, module nav, and exports.
+### 1. Create a shared `TimeSelect` component
+Extract the TIME_OPTIONS + Select pattern from EnhancedBookingDialog into `src/components/ui/time-select.tsx`. Reusable everywhere. Props: `value`, `onValueChange`, `label`, `placeholder`.
 
-### 2. CRM deep-link: auto-open customer profile card
-In `CRMSection.tsx`, read `customerId` from URL params. If present, auto-select that customer and open `CustomerProfileDialog`. Clear the param after consuming it.
+### 2. Rewrite NewBookingDialog date/time inputs
+Replace the two `<input type="datetime-local">` fields with:
+- Pickup Date: Calendar popover
+- Pickup Time: TimeSelect dropdown
+- Return Date: Calendar popover
+- Return Time: TimeSelect dropdown
 
-### 3. Add booking UUID search
-In `EnhancedGlobalSearch.tsx`, add a filter that matches `b.id` (the UUID) against the search query. This lets users paste a booking ID directly.
+Laid out as a 2x2 grid (Date | Time over Date | Time). Keep the auto-calculate logic for 3hr/6hr tiers — when pickup time changes, auto-set return time.
 
-### 4. Enrich customer search results
-Look up each matched customer's bookings from the already-loaded `bookings` array. Show subtitle like "2 active · 1 pending" instead of just email.
+State changes: split `startDate` (string) and `endDate` (string) into `startDate` (Date), `startTime` (string), `endDate` (Date), `endTime` (string). Combine them on submit.
 
-### 5. Better empty state
-When no results, show contextual suggestions: "Try searching by booking ref (BK-01001), license plate, or customer name."
+### 3. Add time pickers to EditBookingDialog
+Currently date-only. Add Pickup Time and Return Time selects alongside the existing calendar popovers. Initialize from the booking's existing time. Same 2x2 grid layout.
+
+### 4. Fix ScheduleMaintenanceDialog
+Replace `<input type="datetime-local">` with Calendar popover + TimeSelect. Same pattern.
+
+### 5. Fix CheckInOutDialog
+Replace `<input type="datetime-local">` for the manual date override with Calendar popover + TimeSelect.
+
+### 6. Leave date-only fields alone
+Customer DOB, license expiry, insurance expiry, report date ranges — these are date-only and `<input type="date">` is acceptable. No change needed.
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| `src/components/dashboard/DashboardOverviewEnhanced.tsx` | Remove `DashboardBottomActionBar` import and usage |
-| `src/components/dashboard/DashboardBottomActionBar.tsx` | Delete file (or keep for future reference) |
-| `src/components/dashboard/CRMSection.tsx` | Read `customerId` from URL, auto-open profile dialog |
-| `src/components/common/EnhancedGlobalSearch.tsx` | Add booking UUID search, enrich customer subtitles with booking context, improve empty state |
+| `src/components/ui/time-select.tsx` | New shared component — TimeSelect with 30-min intervals |
+| `src/components/dialogs/NewBookingDialog.tsx` | Replace `datetime-local` with Calendar + TimeSelect, split state |
+| `src/components/dialogs/EditBookingDialog.tsx` | Add TimeSelect alongside existing Calendar popovers |
+| `src/components/dialogs/ScheduleMaintenanceDialog.tsx` | Replace `datetime-local` with Calendar + TimeSelect |
+| `src/components/dialogs/CheckInOutDialog.tsx` | Replace `datetime-local` with Calendar + TimeSelect |
+
+## Risk
+Medium. NewBookingDialog has complex auto-calculation logic for hourly tiers that depends on the combined datetime string. The state split (Date + time string → combined ISO on submit) needs careful wiring to preserve that behavior.
 
