@@ -1,47 +1,93 @@
 
 
-# Fix: Enable Same-Day Multi-Rental for Hourly Tiers
+# Inventory Availability Audit — Gaps Found
 
-## The Problem
+## Critical Findings
 
-The "Vehicle reserved for the full calendar day" banner contradicts the core value of hourly tiers — booking the same vehicle multiple times per day. The conflict detection engine already compares full timestamps (not just dates), so the infrastructure supports this. The banner was an unnecessary guardrail.
+After reviewing every file that checks booking status against vehicle availability, here are the inconsistencies:
 
-## What's Missing
+### Gap 1: `pending` bookings DO block vehicles — but inconsistently
 
-There are no time inputs in the booking dialog. When a 3hr/6hr tier is selected, the user picks dates but has no way to specify start/end times. Without times, `start_date` and `end_date` default to midnight, making every same-day booking look like an overlap.
+The conflict detection engine (`conflictDetection.ts` line 42) filters out only `cancelled` bookings:
+```
+b.status !== 'cancelled'
+```
+This means `pending`, `confirmed`, AND `completed` bookings all block a vehicle. A completed booking from last month still blocks the same dates — that's correct. But the real issue is elsewhere.
 
-## Changes
+**FleetStatusWidget** (line 31) only counts `confirmed` bookings when determining "Booked" vehicles:
+```
+b.status === 'confirmed'
+```
+A vehicle with a `pending` booking shows as "Available" in the fleet status widget, even though conflict detection would block it. The dashboard lies about availability.
 
-### 1. Remove the "full calendar day" banner
-In `NewBookingDialog.tsx` (lines 326-333): delete the `Alert` that says "Vehicle reserved for the full calendar day."
+**ChangeVehicleDialog** (line 53) filters out only `cancelled`:
+```
+b.status === "cancelled"
+```
+This is correct — pending bookings block the vehicle here. But it's inconsistent with FleetStatusWidget.
 
-### 2. Add time inputs for hourly bookings
-When `durationType` is `3hr` or `6hr`, show a start time input (e.g., `<input type="time">`). Auto-calculate end time (start + 3 or 6 hours). For `daily`/`multiday`, no time picker — keep current behavior.
+### Gap 2: `completed` bookings still block future dates in conflict detection
 
-### 3. Combine date + time into stored timestamps
-Before submitting, merge the selected date with the selected time:
-- `start_date = selectedDate + startTime` (e.g., `2026-03-21T10:00:00`)
-- `end_date = selectedDate + endTime` (e.g., `2026-03-21T13:00:00`)
+`conflictDetection.ts` only excludes `cancelled`. If a booking was `completed` but its `end_date` is in the future (e.g., returned early), it still blocks. This is an edge case but worth fixing.
 
-This flows naturally into the existing conflict detection which already does proper datetime overlap checks.
+### Gap 3: NewBookingDialog does NOT check availability when listing vehicles
 
-### 4. Replace banner with helpful context
-Instead of the blocking message, show: "Select a pickup time. The vehicle will be available for other bookings outside this window." This communicates the benefit rather than a limitation.
+The vehicle dropdown in `NewBookingDialog` shows ALL vehicles regardless of existing bookings for the selected dates. The only protection is the conflict check AFTER submission. A staff member can select a vehicle, fill out the entire form, and only learn it's unavailable when they try to submit. Bad UX.
+
+### Gap 4: Book.tsx "Available Vehicles" section has no availability check
+
+`Book.tsx` line 41-45 filters vehicles only by search query — not by booking status. It shows all vehicles as "available" regardless of whether they have active bookings.
+
+### Gap 5: LinkVehicleDialog correctly checks — good reference implementation
+
+`LinkVehicleDialog` properly excludes vehicles with overlapping non-cancelled bookings. This is the pattern everything else should follow.
+
+---
+
+## Fix Plan
+
+### 1. Standardize booking status filter as a shared utility
+
+Create a helper in `conflictDetection.ts`:
+```typescript
+export const isBlockingBooking = (status: string) =>
+  status !== 'cancelled' && status !== 'completed';
+```
+Use this everywhere. A `completed` booking should NOT block future availability — the vehicle was returned. Only `pending` and `confirmed` block.
+
+### 2. Fix FleetStatusWidget to count `pending` as booked
+
+Change the filter from `b.status === 'confirmed'` to `isBlockingBooking(b.status)`. A pending booking means the vehicle is committed — it should show as "Booked" in the dashboard.
+
+### 3. Fix conflictDetection.ts to exclude `completed`
+
+Change the filter from `b.status !== 'cancelled'` to `isBlockingBooking(b.status)`. Completed bookings should not conflict with new bookings on the same dates.
+
+### 4. Add availability indicators to NewBookingDialog vehicle list
+
+After the user selects dates, mark vehicles in the dropdown that have conflicting bookings. Show a warning badge "Booked for these dates" next to unavailable vehicles. Don't prevent selection (staff may want to override) but make it visible.
+
+### 5. Fix Book.tsx "Available Vehicles" to check real availability
+
+Filter out vehicles that have blocking bookings spanning today. Show actual available-now count.
+
+### 6. Fix ChangeVehicleDialog to exclude `completed`
+
+Currently excludes only `cancelled`. Should use `isBlockingBooking()` for consistency.
+
+---
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| `src/components/dialogs/NewBookingDialog.tsx` | Remove "full day" alert, add time inputs for hourly tiers, merge date+time on submit |
-
-## What Already Works (No Changes Needed)
-
-- `conflictDetection.ts` — already compares full `Date` objects with time
-- `pricingUtils.ts` — `calculateRentalDays` handles same-day correctly (returns 1)
-- `calculateBookingTotal` — 3hr/6hr use flat rate, no day multiplication
-- Database — `start_date`/`end_date` are already timestamp columns
+| `src/lib/conflictDetection.ts` | Add `isBlockingBooking()` helper, use it in `checkBookingConflicts` |
+| `src/components/dashboard/widgets/FleetStatusWidget.tsx` | Count `pending` bookings as "Booked" |
+| `src/components/dialogs/NewBookingDialog.tsx` | Show availability indicators on vehicle list after dates selected |
+| `src/components/dialogs/ChangeVehicleDialog.tsx` | Use `isBlockingBooking()` instead of `!== 'cancelled'` |
+| `src/components/dashboard/Book.tsx` | Filter "Available Vehicles" by actual booking availability |
 
 ## Risk
 
-Low. The only change is in `NewBookingDialog.tsx`. Conflict detection, pricing, and storage all already support this pattern. The unit tests confirmed same-day double bookings produce correct totals ($200 + $350 = $590 for 3hr morning + 6hr afternoon).
+Low-medium. These are filter logic fixes — no schema changes, no new APIs. The `isBlockingBooking` helper centralizes the logic so future status additions only need one update.
 
