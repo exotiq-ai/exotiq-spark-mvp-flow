@@ -172,13 +172,22 @@ export const NewBookingDialog = ({
     setLoading(true);
 
     try {
+      const effectiveRate = getRateForDuration(
+        durationType,
+        Number(selectedVehicle.current_rate),
+        (selectedVehicle as any).rate_3hr,
+        (selectedVehicle as any).rate_6hr,
+        (selectedVehicle as any).rate_multiday,
+      );
+
       const pricing = calculateBookingTotal({
         startDate: new Date(startDate),
         endDate: new Date(endDate),
-        dailyRate: Number(selectedVehicle.current_rate),
+        dailyRate: effectiveRate,
         discountAmount: Number(discountAmount) || 0,
         gasFee: DEFAULT_GAS_FEE,
         gasFeeWaived,
+        durationType,
       });
 
       await onSubmit({
@@ -192,7 +201,7 @@ export const NewBookingDialog = ({
         pickup_location: pickupLocationName,
         pickup_location_id: effectivePickupLocationId || null,
         dropoff_location: dropoffLocation || null,
-        daily_rate: selectedVehicle.current_rate,
+        daily_rate: effectiveRate,
         total_value: pricing.grandTotal,
         discount_amount: pricing.discountAmount > 0 ? pricing.discountAmount : 0,
         discount_reason: pricing.discountAmount > 0 ? discountReason || null : null,
@@ -200,6 +209,7 @@ export const NewBookingDialog = ({
         gas_fee_waived: gasFeeWaived,
         notes: notes || null,
         status: 'pending',
+        rental_duration_type: durationType,
         mileage_limit: selectedVehicle.default_mileage_limit ?? 250,
         mileage_overage_fee: selectedVehicle.mileage_overage_rate ?? 1.50,
       } as any);
