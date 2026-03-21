@@ -261,8 +261,10 @@ export const NewBookingDialog = ({
       setCustomerName('');
       setCustomerEmail('');
       setCustomerPhone('');
-      setStartDate('');
-      setEndDate('');
+      setStartDate(undefined);
+      setStartTime('09:00');
+      setEndDate(undefined);
+      setEndTime('09:00');
       setPickupLocationId('');
       setPickupLocationText('');
       setDropoffLocation('');
