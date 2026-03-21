@@ -32,11 +32,11 @@ export const bookingSchema = z.object({
   discount_reason: z.string().max(100, "Reason too long").optional().nullable().or(z.literal('')),
   status: z.string().max(50, "Status too long").optional().nullable(),
   notes: z.string().max(2000, "Notes too long").optional().nullable().or(z.literal('')),
+  rental_duration_type: z.enum(['3hr', '6hr', 'daily', 'multiday']).optional().nullable(),
 }).refine(data => new Date(data.end_date) > new Date(data.start_date), {
   message: "End date must be after start date",
   path: ["end_date"]
 });
-
 // Message validation schema
 export const messageSchema = z.object({
   recipient_name: z.string().min(1, "Recipient name required").max(100, "Name too long"),
