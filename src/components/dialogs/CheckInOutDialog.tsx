@@ -104,8 +104,8 @@ export const CheckInOutDialog = ({
       : booking.pickup_fuel_level ?? 100,
   ]);
   const [manualDate, setManualDate] = useState(false);
-  const [dateOverride, setDateOverride] = useState("");
-
+  const [dateOverride, setDateOverride] = useState<Date | undefined>();
+  const [timeOverride, setTimeOverride] = useState('09:00');
   // Step 2: Photos (from inspection widget)
   const initialPhotos: GuidedPhoto[] = useMemo(
     () =>

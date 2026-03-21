@@ -166,15 +166,39 @@ export const ScheduleMaintenanceDialog = ({ open, onOpenChange, vehicles, onSubm
             </Select>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Scheduled Date & Time *</Label>
-              <Input type="datetime-local" value={scheduledDate} onChange={(e) => setScheduledDate(e.target.value)} required />
+          <div className="space-y-2">
+            <Label>Scheduled Date & Time *</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !scheduledDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {scheduledDate ? format(scheduledDate, "MMM d, yyyy") : "Select date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={scheduledDate}
+                    onSelect={setScheduledDate}
+                    className={cn("p-3 pointer-events-auto")}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+              <TimeSelect value={scheduledTime} onValueChange={setScheduledTime} />
             </div>
-            <div className="space-y-2">
-              <Label>Estimated Cost ($)</Label>
-              <Input type="number" placeholder="500" value={estimatedCost} onChange={(e) => setEstimatedCost(e.target.value)} min="0" step="0.01" />
-            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Estimated Cost ($)</Label>
+            <Input type="number" placeholder="500" value={estimatedCost} onChange={(e) => setEstimatedCost(e.target.value)} min="0" step="0.01" />
           </div>
 
           {/* Recurrence Section */}
