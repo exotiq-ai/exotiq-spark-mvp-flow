@@ -180,9 +180,9 @@ export const DashboardBanner = () => {
 
   // Height mapping
   const heightClasses = {
-    compact: 'h-32',      // 128px
-    standard: 'h-48 md:h-56',  // 192px-224px
-    showcase: 'h-64 md:h-72',  // 256px-288px
+    compact: 'h-28 sm:h-32',
+    standard: 'h-32 sm:h-48 md:h-56',
+    showcase: 'h-48 sm:h-64 md:h-72',
   };
 
   return (
