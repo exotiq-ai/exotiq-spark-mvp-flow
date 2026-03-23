@@ -1,53 +1,46 @@
 
 
-# Fix Broken Calendar Layout + Hybrid Time Input
+# UI Pass: Fix Cut-Off Popups and Nested Dialog Layouts
 
-## Root Cause of the Layout Bug
+## Problem
 
-The calendar popover renders behind the dialog form fields because of a **z-index collision**. Both `DialogContent` and `PopoverContent` use `z-50`. When the Popover portals to the body, it sits at the same z-level as the dialog overlay, causing the calendar to appear behind form elements.
+The DamageCaptureModal (screenshot) is cut off at the bottom because its `DialogContent` has `overflow-hidden` but the base `DialogContent` uses CSS `grid` layout — so the inner div's `flex-1 overflow-auto` pattern doesn't work. The content area can't flex-grow to fill remaining space and enable scrolling. The photo preview also consumes too much vertical space.
 
-Additionally, the `DialogContent` base class has `overflow-y-auto` (line 39 of dialog.tsx), AND the NewBookingDialog adds its own `ScrollArea` — double overflow clipping compounds the rendering issue.
+The base `DialogContent` (dialog.tsx line 39) uses `grid` with `max-h-[85vh] overflow-y-auto`. Dialogs that override with `overflow-hidden` and expect internal flex scroll need to also add `flex flex-col` — some do, some don't.
+
+## Audit Results
+
+| Dialog | Issue |
+|--------|-------|
+| **DamageCaptureModal** | `overflow-hidden` + no `flex flex-col` = content cut off. Photo too tall. |
+| **DamageReportDialog** | Fine — uses `overflow-y-auto` on content. Photo text mentions "Supabase Storage" (should say "secure storage"). |
+| **GenerateReportDialog** | Has `max-h-[90vh]` but no overflow → content could clip on small screens. |
+| **InviteUserDialog** | No max-h or overflow — relies on base. Fine for short content. |
+| **ShareWithTeamDialog** | Same as above. Fine. |
+| **DocumentUploadDialog** | No max-h — fine, short content. |
+| **ScheduleMaintenanceDialog** | Needs verification — calendar popover inside dialog. |
 
 ## Changes
 
-### 1. Fix PopoverContent z-index
+### 1. Fix DamageCaptureModal layout
+- Add `flex flex-col` to `DialogContent` so `flex-1 overflow-auto` works on the details step
+- Reduce photo preview height from `aspect-video` to `max-h-32 w-full object-cover` — keeps context without hogging space
+- Ensure buttons ("Add Damage" / "Cancel") are always pinned at bottom via `flex-shrink-0`
 
-In `src/components/ui/popover.tsx`, bump PopoverContent from `z-50` to `z-[60]` so it always renders above dialogs. This is the single-line fix that resolves the calendar-behind-fields bug across every dialog.
+### 2. Fix DamageReportDialog copy
+- Change "SOC2-compliant Supabase Storage" to "secure cloud storage"
 
-### 2. Create hybrid TimeInput component
+### 3. Add missing DialogDescription to suppress console warnings
+- DamageCaptureModal, CheckInOutDialog, and any other dialogs triggering the "Missing Description" warning — add a visually-hidden `DialogDescription`
 
-Replace the current `TimeSelect` (dropdown-only) with a new component that supports **both typing and dropdown selection**:
-
-- An `Input` field where users can type "9:00 AM" or "14:30"
-- A small clock dropdown button that opens a scrollable list of 30-min intervals
-- Fuzzy matching: typing "9" highlights "9:00 AM", typing "930" resolves to "9:30 AM"
-- Built with Popover + Input + scrollable list (not a Select, so keyboard typing works naturally)
-
-File: `src/components/ui/time-input.tsx` — new component replacing `TimeSelect`
-
-### 3. Update all dialogs to use new TimeInput
-
-Swap `TimeSelect` → `TimeInput` in:
-- `NewBookingDialog.tsx` (pickup + return time)
-- `EditBookingDialog.tsx` (pickup + return time)
-- `ScheduleMaintenanceDialog.tsx` (scheduled time)
-- `CheckInOutDialog.tsx` (manual date override time)
-
-No logic changes needed — same `value`/`onValueChange` props contract.
-
-### 4. Clean up the time-select file
-
-Update `time-select.tsx` to re-export from the new `TimeInput` for backward compat, or replace inline.
+### 4. Fix GenerateReportDialog overflow
+- Add `overflow-y-auto` to match its `max-h-[90vh]`
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| `src/components/ui/popover.tsx` | Bump z-index from `z-50` to `z-[60]` |
-| `src/components/ui/time-input.tsx` | New hybrid type+dropdown time picker |
-| `src/components/ui/time-select.tsx` | Replace with re-export or update in-place |
-| `src/components/dialogs/NewBookingDialog.tsx` | Use new TimeInput |
-| `src/components/dialogs/EditBookingDialog.tsx` | Use new TimeInput |
-| `src/components/dialogs/ScheduleMaintenanceDialog.tsx` | Use new TimeInput |
-| `src/components/dialogs/CheckInOutDialog.tsx` | Use new TimeInput |
+| `src/components/inspections/DamageCaptureModal.tsx` | Add `flex flex-col`, shrink photo, pin footer |
+| `src/components/dialogs/DamageReportDialog.tsx` | Fix "Supabase" copy |
+| `src/components/dialogs/GenerateReportDialog.tsx` | Add `overflow-y-auto` |
 
