@@ -125,6 +125,7 @@ export const DamageCaptureModal = ({
                 <DialogTitle className="flex-1 text-center pr-16">
                   Damage Details
                 </DialogTitle>
+                <DialogDescription className="sr-only">Describe the damage type, location, and severity</DialogDescription>
               </div>
             </DialogHeader>
 
