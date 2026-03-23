@@ -89,6 +89,7 @@ export const DamageCaptureModal = ({
           <>
             <DialogHeader className="p-4 border-b">
               <DialogTitle>Capture Damage Photo</DialogTitle>
+              <DialogDescription className="sr-only">Take a photo of the vehicle damage</DialogDescription>
             </DialogHeader>
             <div className="h-[60vh]">
               <CameraViewfinder
