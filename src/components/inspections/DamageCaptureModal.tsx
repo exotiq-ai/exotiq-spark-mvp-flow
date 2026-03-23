@@ -83,7 +83,7 @@ export const DamageCaptureModal = ({
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && handleClose()}>
-      <DialogContent className="max-w-md p-0 gap-0 max-h-[85vh] overflow-hidden">
+      <DialogContent className="max-w-md p-0 gap-0 max-h-[85vh] overflow-hidden flex flex-col">
         {step === 'capture' && (
           <>
             <DialogHeader className="p-4 border-b">
