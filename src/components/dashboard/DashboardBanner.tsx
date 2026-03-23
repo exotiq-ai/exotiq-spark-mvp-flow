@@ -259,13 +259,13 @@ export const DashboardBanner = () => {
       />
 
       {/* Welcome Text / Company Branding - Premium Glass Effect */}
-      <div className={`absolute bottom-6 ${
+      <div className={`absolute bottom-3 left-4 right-4 sm:bottom-6 sm:right-auto ${
         preferences.banner_text_position === 'center' 
-          ? 'left-1/2 -translate-x-1/2 text-center' 
-          : 'left-8'
+          ? 'sm:left-1/2 sm:-translate-x-1/2 text-center' 
+          : 'sm:left-8'
       } max-w-2xl`}>
         {/* Glass Container with Frosted Effect */}
-        <div className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl px-6 py-5 shadow-2xl">
+        <div className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl px-4 py-3 sm:px-6 sm:py-5 shadow-2xl">
           {/* Subtle Inner Glow */}
           <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/5 to-transparent pointer-events-none" />
           
