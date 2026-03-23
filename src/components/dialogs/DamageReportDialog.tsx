@@ -296,7 +296,7 @@ export const DamageReportDialog = ({ open, onOpenChange, vehicles }: DamageRepor
               </div>
             )}
             <p className="text-xs text-muted-foreground">
-              Photos stored securely in SOC2-compliant Supabase Storage
+              Photos stored securely in encrypted cloud storage
             </p>
           </div>
 

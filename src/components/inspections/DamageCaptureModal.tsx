@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -83,11 +84,12 @@ export const DamageCaptureModal = ({
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && handleClose()}>
-      <DialogContent className="max-w-md p-0 gap-0 max-h-[85vh] overflow-hidden">
+      <DialogContent className="max-w-md p-0 gap-0 max-h-[85vh] overflow-hidden flex flex-col">
         {step === 'capture' && (
           <>
             <DialogHeader className="p-4 border-b">
               <DialogTitle>Capture Damage Photo</DialogTitle>
+              <DialogDescription className="sr-only">Take a photo of the vehicle damage</DialogDescription>
             </DialogHeader>
             <div className="h-[60vh]">
               <CameraViewfinder
@@ -123,6 +125,7 @@ export const DamageCaptureModal = ({
                 <DialogTitle className="flex-1 text-center pr-16">
                   Damage Details
                 </DialogTitle>
+                <DialogDescription className="sr-only">Describe the damage type, location, and severity</DialogDescription>
               </div>
             </DialogHeader>
 
@@ -133,7 +136,7 @@ export const DamageCaptureModal = ({
                   <img
                     src={photoUrl}
                     alt="Damage"
-                    className="w-full aspect-video object-cover"
+                    className="w-full max-h-32 object-cover"
                   />
                   <button
                     onClick={() => setStep('capture')}
@@ -209,7 +212,7 @@ export const DamageCaptureModal = ({
               </div>
             </div>
 
-            <div className="p-4 border-t space-y-2">
+            <div className="p-4 border-t space-y-2 flex-shrink-0">
               <Button onClick={handleSubmit} className="w-full btn-premium">
                 <Check className="h-4 w-4 mr-2" />
                 Add Damage
