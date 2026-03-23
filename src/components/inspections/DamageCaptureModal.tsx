@@ -209,7 +209,7 @@ export const DamageCaptureModal = ({
               </div>
             </div>
 
-            <div className="p-4 border-t space-y-2">
+            <div className="p-4 border-t space-y-2 flex-shrink-0">
               <Button onClick={handleSubmit} className="w-full btn-premium">
                 <Check className="h-4 w-4 mr-2" />
                 Add Damage
