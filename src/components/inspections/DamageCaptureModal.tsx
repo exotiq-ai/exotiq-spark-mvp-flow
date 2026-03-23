@@ -133,7 +133,7 @@ export const DamageCaptureModal = ({
                   <img
                     src={photoUrl}
                     alt="Damage"
-                    className="w-full aspect-video object-cover"
+                    className="w-full max-h-32 object-cover"
                   />
                   <button
                     onClick={() => setStep('capture')}
