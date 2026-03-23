@@ -368,7 +368,7 @@ export const BookEnhanced = () => {
         {/* Page-level header with prominent New Booking button */}
         <div className="flex items-center justify-between">
           <h2 className="font-brand text-lg font-semibold text-foreground">Booking Overview</h2>
-          <Button onClick={() => setShowNewBooking(true)} size="lg" className="shadow-md">
+          <Button onClick={() => setShowNewBooking(true)} size="default" className="shadow-md text-xs sm:text-sm">
             <Plus className="h-5 w-5 mr-2" />
             New Booking
           </Button>
@@ -475,7 +475,7 @@ export const BookEnhanced = () => {
               todayBookings.map((booking) => (
               <div
                 key={booking.id}
-                className="p-3 sm:p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors flex items-start gap-3 sm:gap-4"
+                className="p-3 sm:p-4 rounded-xl bg-muted/30 hover:bg-muted/50 active:bg-muted/70 active:scale-[0.99] transition-all flex items-start gap-3 sm:gap-4"
               >
                 <VehicleThumbnail
                   vehicleName={getVehicleDisplay(booking)}

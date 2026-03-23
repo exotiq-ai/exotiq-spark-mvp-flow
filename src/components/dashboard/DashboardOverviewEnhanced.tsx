@@ -507,7 +507,7 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
           <div className="space-y-3" data-tour="revenue-widget">
             <div className="flex items-center gap-2">
               <DollarSign className="h-4 w-4 text-success" />
-              <h2 className="text-lg font-semibold text-foreground">Revenue Analytics</h2>
+              <h2 className="text-sm sm:text-lg font-semibold text-foreground">Revenue Analytics</h2>
             </div>
             <RevenueWidget />
           </div>

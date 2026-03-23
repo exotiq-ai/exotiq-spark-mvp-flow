@@ -87,8 +87,10 @@ export const TeamMessaging = ({
           }
           exit={{ opacity: 0, y: 20, scale: 0.95 }}
           className={cn(
-            "fixed bottom-4 right-4 z-50 shadow-2xl rounded-xl overflow-hidden bg-background border border-border",
-            isMinimized ? "w-64" : "w-[400px] md:w-[700px]"
+            "fixed z-50 shadow-2xl overflow-hidden bg-background border border-border",
+            isMinimized 
+              ? "bottom-4 right-4 w-64 rounded-xl" 
+              : "inset-0 md:inset-auto md:bottom-4 md:right-4 md:rounded-xl md:w-[400px] lg:w-[700px]"
           )}
         >
           {/* Header */}
