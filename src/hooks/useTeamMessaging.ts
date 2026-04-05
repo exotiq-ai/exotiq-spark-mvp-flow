@@ -256,7 +256,7 @@ export const useTeamMessaging = () => {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, currentTeamId, fetchCurrentTeamId]);
 
   // Fetch messages for a conversation
   const fetchMessages = useCallback(async (conversationId: string) => {
