@@ -7,25 +7,18 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Helper logging function for enhanced debugging
 const logStep = (step: string, details?: Record<string, unknown>) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
   console.log(`[CHECK-SUBSCRIPTION] ${step}${detailsStr}`);
 };
 
-// Subscription tier mapping based on Stripe product IDs
-const SUBSCRIPTION_TIERS = {
-  // Monthly prices
-  'price_1RZXPjFGjqTt8mxeLHhgC4JV': { tier: 'starter', name: 'Starter', interval: 'monthly' },
-  'price_1RZXQXFGjqTt8mxeppmTRyLl': { tier: 'growth', name: 'Growth', interval: 'monthly' },
-  'price_1RZXRLFGjqTt8mxeJTK7YtDf': { tier: 'professional', name: 'Professional', interval: 'monthly' },
-  'price_1RZXS9FGjqTt8mxeFVH17FAp': { tier: 'enterprise', name: 'Enterprise', interval: 'monthly' },
-  // Annual prices
-  'price_1RZXPjFGjqTt8mxemOxvowzK': { tier: 'starter', name: 'Starter', interval: 'annual' },
-  'price_1RZXQXFGjqTt8mxePoIR4cTn': { tier: 'growth', name: 'Growth', interval: 'annual' },
-  'price_1RZXRLFGjqTt8mxe9wgvjSsf': { tier: 'professional', name: 'Professional', interval: 'annual' },
-  'price_1RZXS9FGjqTt8mxetQfIYEQe': { tier: 'enterprise', name: 'Enterprise', interval: 'annual' },
-} as const;
+// Map by PRODUCT ID (stable across price changes / billing intervals)
+const PRODUCT_TIERS: Record<string, { tier: string; name: string }> = {
+  'prod_Tf6ZIe5FJJRq4f': { tier: 'starter', name: 'Starter' },
+  'prod_Tf6ZJrXCE8rqBU': { tier: 'professional', name: 'Professional' },
+  'prod_Tf6ZPadpmCqJl2': { tier: 'business', name: 'Business' },
+  'prod_Tf6rFVSylQOnHt': { tier: 'enterprise', name: 'Enterprise' },
+};
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -43,16 +36,13 @@ serve(async (req) => {
 
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
-    logStep("Stripe key verified");
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("No authorization header provided");
-    logStep("Authorization header found");
 
     const token = authHeader.replace("Bearer ", "");
-    logStep("Authenticating user with token");
-    
-    // Retry auth up to 2 times with delay for cold start race condition
+
+    // Retry auth up to 2 times for cold start race condition
     let userData = null;
     let userError = null;
     for (let attempt = 0; attempt < 2; attempt++) {
@@ -63,55 +53,37 @@ serve(async (req) => {
       logStep(`Auth attempt ${attempt + 1} failed, retrying...`, { error: userError.message });
       await new Promise(r => setTimeout(r, 100 * (attempt + 1)));
     }
-    
-    // On transient auth errors, return unsubscribed instead of 500
+
     if (userError) {
-      logStep("Auth failed after retries, returning unsubscribed state", { error: userError.message });
-      return new Response(JSON.stringify({ 
-        subscribed: false,
-        tier: null,
-        tierName: null,
-        interval: null,
-        subscriptionEnd: null,
-        customerId: null,
-        authError: true
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      });
+      logStep("Auth failed after retries, returning unsubscribed state");
+      return new Response(JSON.stringify({
+        subscribed: false, tier: null, tierName: null, interval: null,
+        subscriptionEnd: null, customerId: null, authError: true
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
     }
-    
+
     const user = userData?.user;
     if (!user?.email) throw new Error("User not authenticated or email not available");
     logStep("User authenticated", { userId: user.id, email: user.email });
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-    
+
     if (customers.data.length === 0) {
-      logStep("No customer found, returning unsubscribed state");
-      return new Response(JSON.stringify({ 
-        subscribed: false,
-        tier: null,
-        tierName: null,
-        interval: null,
-        subscriptionEnd: null,
-        customerId: null
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      });
+      logStep("No customer found");
+      return new Response(JSON.stringify({
+        subscribed: false, tier: null, tierName: null, interval: null,
+        subscriptionEnd: null, customerId: null
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
     }
 
     const customerId = customers.data[0].id;
     logStep("Found Stripe customer", { customerId });
 
     const subscriptions = await stripe.subscriptions.list({
-      customer: customerId,
-      status: "active",
-      limit: 1,
+      customer: customerId, status: "active", limit: 1,
     });
-    
+
     const hasActiveSub = subscriptions.data.length > 0;
     let tier = null;
     let tierName = null;
@@ -123,45 +95,32 @@ serve(async (req) => {
       const subscription = subscriptions.data[0];
       subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
       priceId = subscription.items.data[0].price.id;
-      
-      logStep("Active subscription found", { 
-        subscriptionId: subscription.id, 
-        endDate: subscriptionEnd,
-        priceId 
-      });
+      const productId = subscription.items.data[0].price.product as string;
+      interval = subscription.items.data[0].price.recurring?.interval || null;
 
-      // Map price ID to tier info
-      const tierInfo = SUBSCRIPTION_TIERS[priceId as keyof typeof SUBSCRIPTION_TIERS];
+      logStep("Active subscription found", { subscriptionId: subscription.id, productId, priceId });
+
+      const tierInfo = PRODUCT_TIERS[productId];
       if (tierInfo) {
         tier = tierInfo.tier;
         tierName = tierInfo.name;
-        interval = tierInfo.interval;
-        logStep("Determined subscription tier", { tier, tierName, interval });
+        logStep("Determined tier from product ID", { tier, tierName, interval });
       } else {
-        logStep("Unknown price ID, defaulting to subscribed without tier", { priceId });
+        logStep("Unknown product ID, subscribed but no tier match", { productId });
       }
     } else {
       logStep("No active subscription found");
     }
 
     return new Response(JSON.stringify({
-      subscribed: hasActiveSub,
-      tier,
-      tierName,
-      interval,
-      subscriptionEnd,
-      customerId,
-      priceId
-    }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
-    });
+      subscribed: hasActiveSub, tier, tierName, interval,
+      subscriptionEnd, customerId, priceId
+    }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logStep("ERROR in check-subscription", { message: errorMessage });
+    logStep("ERROR", { message: errorMessage });
     return new Response(JSON.stringify({ error: errorMessage }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500,
     });
   }
 });

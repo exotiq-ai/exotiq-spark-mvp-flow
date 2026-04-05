@@ -94,6 +94,7 @@ export type Database = {
         Row: {
           balance_due: number | null
           booking_ref: string | null
+          booking_source: string
           cancellation_reason: string | null
           cancelled_at: string | null
           confirmed_at: string | null
@@ -141,6 +142,7 @@ export type Database = {
         Insert: {
           balance_due?: number | null
           booking_ref?: string | null
+          booking_source?: string
           cancellation_reason?: string | null
           cancelled_at?: string | null
           confirmed_at?: string | null
@@ -188,6 +190,7 @@ export type Database = {
         Update: {
           balance_due?: number | null
           booking_ref?: string | null
+          booking_source?: string
           cancellation_reason?: string | null
           cancelled_at?: string | null
           confirmed_at?: string | null
@@ -1616,12 +1619,20 @@ export type Database = {
           booking_id: string
           created_at: string | null
           customer_id: string | null
+          hold_expires_at: string | null
+          hold_status: string | null
           id: string
           notes: string | null
+          original_amount: number | null
           payment_method: string | null
           payment_status: string | null
           payment_type: string
+          platform_fee: number | null
+          refund_amount: number | null
+          refund_reason: string | null
+          stripe_charge_id: string | null
           stripe_payment_intent_id: string | null
+          stripe_refund_id: string | null
           team_id: string | null
           transaction_date: string | null
           updated_at: string | null
@@ -1632,12 +1643,20 @@ export type Database = {
           booking_id: string
           created_at?: string | null
           customer_id?: string | null
+          hold_expires_at?: string | null
+          hold_status?: string | null
           id?: string
           notes?: string | null
+          original_amount?: number | null
           payment_method?: string | null
           payment_status?: string | null
           payment_type: string
+          platform_fee?: number | null
+          refund_amount?: number | null
+          refund_reason?: string | null
+          stripe_charge_id?: string | null
           stripe_payment_intent_id?: string | null
+          stripe_refund_id?: string | null
           team_id?: string | null
           transaction_date?: string | null
           updated_at?: string | null
@@ -1648,12 +1667,20 @@ export type Database = {
           booking_id?: string
           created_at?: string | null
           customer_id?: string | null
+          hold_expires_at?: string | null
+          hold_status?: string | null
           id?: string
           notes?: string | null
+          original_amount?: number | null
           payment_method?: string | null
           payment_status?: string | null
           payment_type?: string
+          platform_fee?: number | null
+          refund_amount?: number | null
+          refund_reason?: string | null
+          stripe_charge_id?: string | null
           stripe_payment_intent_id?: string | null
+          stripe_refund_id?: string | null
           team_id?: string | null
           transaction_date?: string | null
           updated_at?: string | null
@@ -1700,6 +1727,7 @@ export type Database = {
           id: string
           status: string | null
           stripe_payout_id: string | null
+          team_id: string | null
           updated_at: string | null
           user_id: string
         }
@@ -1712,6 +1740,7 @@ export type Database = {
           id?: string
           status?: string | null
           stripe_payout_id?: string | null
+          team_id?: string | null
           updated_at?: string | null
           user_id: string
         }
@@ -1724,10 +1753,19 @@ export type Database = {
           id?: string
           status?: string | null
           stripe_payout_id?: string | null
+          team_id?: string | null
           updated_at?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "payouts_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       photo_upload_batches: {
         Row: {
@@ -2098,6 +2136,30 @@ export type Database = {
         }
         Relationships: []
       }
+      stripe_webhook_events: {
+        Row: {
+          event_type: string
+          id: string
+          payload: Json | null
+          processed_at: string
+          stripe_event_id: string
+        }
+        Insert: {
+          event_type: string
+          id?: string
+          payload?: Json | null
+          processed_at?: string
+          stripe_event_id: string
+        }
+        Update: {
+          event_type?: string
+          id?: string
+          payload?: Json | null
+          processed_at?: string
+          stripe_event_id?: string
+        }
+        Relationships: []
+      }
       super_admins: {
         Row: {
           created_at: string | null
@@ -2321,9 +2383,14 @@ export type Database = {
           min_rate: number | null
           name: string
           owner_id: string
+          platform_fee_percent: number
           rental_buffer_minutes: number | null
           settings: Json | null
           slug: string | null
+          stripe_account_id: string | null
+          stripe_charges_enabled: boolean
+          stripe_onboarding_complete: boolean
+          stripe_payouts_enabled: boolean
           timezone: string | null
           updated_at: string | null
         }
@@ -2339,9 +2406,14 @@ export type Database = {
           min_rate?: number | null
           name: string
           owner_id: string
+          platform_fee_percent?: number
           rental_buffer_minutes?: number | null
           settings?: Json | null
           slug?: string | null
+          stripe_account_id?: string | null
+          stripe_charges_enabled?: boolean
+          stripe_onboarding_complete?: boolean
+          stripe_payouts_enabled?: boolean
           timezone?: string | null
           updated_at?: string | null
         }
@@ -2357,9 +2429,14 @@ export type Database = {
           min_rate?: number | null
           name?: string
           owner_id?: string
+          platform_fee_percent?: number
           rental_buffer_minutes?: number | null
           settings?: Json | null
           slug?: string | null
+          stripe_account_id?: string | null
+          stripe_charges_enabled?: boolean
+          stripe_onboarding_complete?: boolean
+          stripe_payouts_enabled?: boolean
           timezone?: string | null
           updated_at?: string | null
         }

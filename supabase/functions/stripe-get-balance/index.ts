@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@14.21.0";
+import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
 const corsHeaders = {
@@ -8,8 +8,7 @@ const corsHeaders = {
 };
 
 const logStep = (step: string, details?: Record<string, unknown>) => {
-  const detailsStr = details ? ` - ${JSON.stringify(details)}` : "";
-  console.log(`[STRIPE-GET-BALANCE] ${step}${detailsStr}`);
+  console.log(`[STRIPE-GET-BALANCE] ${step}${details ? ` - ${JSON.stringify(details)}` : ''}`);
 };
 
 serve(async (req) => {
@@ -31,74 +30,98 @@ serve(async (req) => {
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("No authorization header provided");
-
     const token = authHeader.replace("Bearer ", "");
     const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
     if (userError) throw new Error(`Authentication error: ${userError.message}`);
-    
     const user = userData.user;
-    if (!user?.email) throw new Error("User not authenticated");
+    if (!user) throw new Error("User not authenticated");
     logStep("User authenticated", { userId: user.id });
 
-    const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
+    // Get team and check for connected Stripe account
+    const { data: teamMember } = await supabaseClient
+      .from("team_members")
+      .select("team_id")
+      .eq("user_id", user.id)
+      .eq("is_active", true)
+      .limit(1)
+      .single();
+
+    let stripeAccountId: string | null = null;
+    let teamId: string | null = null;
+
+    if (teamMember) {
+      teamId = teamMember.team_id;
+      const { data: team } = await supabaseClient
+        .from("teams")
+        .select("stripe_account_id, stripe_charges_enabled")
+        .eq("id", teamMember.team_id)
+        .single();
+      if (team?.stripe_account_id && team?.stripe_charges_enabled) {
+        stripeAccountId = team.stripe_account_id;
+      }
+    }
+
+    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
     let availableBalance = 0;
     let pendingBalance = 0;
     let formattedPayouts: Array<{
-      id: string;
-      amount: number;
-      currency: string;
-      status: string;
-      arrival_date: string;
-      created: string;
-      description: string;
-      method: string;
+      id: string; amount: number; currency: string; status: string;
+      arrival_date: string; created: string; description: string; method: string;
     }> = [];
     let stripeError: string | null = null;
 
     try {
-      // Get account balance
-      const balance = await stripe.balance.retrieve();
-      logStep("Retrieved balance", { 
-        available: balance.available,
-        pending: balance.pending 
-      });
+      if (stripeAccountId) {
+        // Query CONNECTED account balance
+        const balance = await stripe.balance.retrieve({ stripeAccount: stripeAccountId });
+        const payouts = await stripe.payouts.list({ limit: 10 }, { stripeAccount: stripeAccountId });
 
-      // Get upcoming payouts
-      const payouts = await stripe.payouts.list({ limit: 10 });
-      logStep("Retrieved payouts", { count: payouts.data.length });
+        availableBalance = balance.available.reduce((sum, b) => b.currency === "usd" ? sum + b.amount : sum, 0) / 100;
+        pendingBalance = balance.pending.reduce((sum, b) => b.currency === "usd" ? sum + b.amount : sum, 0) / 100;
 
-      // Format balance data
-      availableBalance = balance.available.reduce((sum, b) => {
-        if (b.currency === "usd") return sum + b.amount;
-        return sum;
-      }, 0) / 100;
+        formattedPayouts = payouts.data.map((payout) => ({
+          id: payout.id,
+          amount: payout.amount / 100,
+          currency: payout.currency.toUpperCase(),
+          status: payout.status,
+          arrival_date: new Date(payout.arrival_date * 1000).toISOString(),
+          created: new Date(payout.created * 1000).toISOString(),
+          description: payout.description || "Payout",
+          method: payout.method,
+        }));
 
-      pendingBalance = balance.pending.reduce((sum, b) => {
-        if (b.currency === "usd") return sum + b.amount;
-        return sum;
-      }, 0) / 100;
+        logStep("Connected account balance retrieved", { stripeAccountId });
+      } else {
+        // No connected account — try platform balance (for platform admins)
+        try {
+          const balance = await stripe.balance.retrieve();
+          const payouts = await stripe.payouts.list({ limit: 10 });
 
-      // Format payouts
-      formattedPayouts = payouts.data.map((payout) => ({
-        id: payout.id,
-        amount: payout.amount / 100,
-        currency: payout.currency.toUpperCase(),
-        status: payout.status,
-        arrival_date: new Date(payout.arrival_date * 1000).toISOString(),
-        created: new Date(payout.created * 1000).toISOString(),
-        description: payout.description || "Payout",
-        method: payout.method,
-      }));
+          availableBalance = balance.available.reduce((sum, b) => b.currency === "usd" ? sum + b.amount : sum, 0) / 100;
+          pendingBalance = balance.pending.reduce((sum, b) => b.currency === "usd" ? sum + b.amount : sum, 0) / 100;
+
+          formattedPayouts = payouts.data.map((payout) => ({
+            id: payout.id,
+            amount: payout.amount / 100,
+            currency: payout.currency.toUpperCase(),
+            status: payout.status,
+            arrival_date: new Date(payout.arrival_date * 1000).toISOString(),
+            created: new Date(payout.created * 1000).toISOString(),
+            description: payout.description || "Payout",
+            method: payout.method,
+          }));
+        } catch (e) {
+          stripeError = e instanceof Error ? e.message : String(e);
+          logStep("Platform balance unavailable", { error: stripeError });
+        }
+      }
     } catch (stripeErr) {
-      // Handle Stripe API permission errors gracefully
-      const errMsg = stripeErr instanceof Error ? stripeErr.message : String(stripeErr);
-      logStep("Stripe API error (using fallback data)", { error: errMsg });
-      stripeError = errMsg;
-      // Continue with fallback data from database
+      stripeError = stripeErr instanceof Error ? stripeErr.message : String(stripeErr);
+      logStep("Stripe API error", { error: stripeError });
     }
 
-    // Calculate totals from local database
+    // Local DB data
     const { data: totalRevenue } = await supabaseClient
       .from("payments")
       .select("amount")
@@ -107,15 +130,6 @@ serve(async (req) => {
 
     const totalCollected = totalRevenue?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0;
 
-    // Get pending deposits (security deposits held)
-    const { data: pendingDeposits } = await supabaseClient
-      .from("payments")
-      .select("amount, booking_id, bookings(customer_name)")
-      .eq("user_id", user.id)
-      .eq("payment_type", "deposit")
-      .eq("payment_status", "completed");
-
-    // Get bookings with pending security deposits
     const { data: activeBookingsWithDeposits } = await supabaseClient
       .from("bookings")
       .select("id, customer_name, security_deposit_amount, security_deposit_status")
@@ -123,34 +137,37 @@ serve(async (req) => {
       .eq("security_deposit_status", "held")
       .not("security_deposit_amount", "is", null);
 
-    // If Stripe failed, estimate balance from local payments
+    // Get active holds from payments
+    const { data: activeHolds } = await supabaseClient
+      .from("payments")
+      .select("id, amount, hold_status, hold_expires_at, stripe_payment_intent_id, booking_id")
+      .eq("user_id", user.id)
+      .eq("hold_status", "authorized");
+
     if (stripeError && totalCollected > 0) {
-      // Estimate ~85% of collected is available (after fees and processing)
       availableBalance = Math.round(totalCollected * 0.85);
       pendingBalance = Math.round(totalCollected * 0.10);
     }
 
-    return new Response(
-      JSON.stringify({
-        balance: {
-          available: availableBalance,
-          pending: pendingBalance,
-          currency: "USD",
-          using_fallback: !!stripeError,
-        },
-        payouts: formattedPayouts,
-        summary: {
-          total_collected: totalCollected,
-          pending_deposits_count: pendingDeposits?.length || 0,
-          held_security_deposits: activeBookingsWithDeposits || [],
-        },
-        stripe_error: stripeError,
-      }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      }
-    );
+    return new Response(JSON.stringify({
+      balance: {
+        available: availableBalance,
+        pending: pendingBalance,
+        currency: "USD",
+        using_fallback: !!stripeError,
+        connected_account: !!stripeAccountId,
+      },
+      payouts: formattedPayouts,
+      summary: {
+        total_collected: totalCollected,
+        held_security_deposits: activeBookingsWithDeposits || [],
+        active_holds: activeHolds || [],
+      },
+      stripe_error: stripeError,
+    }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 200,
+    });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logStep("ERROR", { message: errorMessage });

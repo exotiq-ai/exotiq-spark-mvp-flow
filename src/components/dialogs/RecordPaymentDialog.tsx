@@ -563,10 +563,17 @@ export const RecordPaymentDialog = ({
                   <SelectItem value="deposit">Deposit</SelectItem>
                   <SelectItem value="balance">Balance</SelectItem>
                   <SelectItem value="security_deposit">Security Deposit</SelectItem>
+                  <SelectItem value="security_deposit_hold">Place Authorization Hold</SelectItem>
                   <SelectItem value="overage_fee">Overage Fee</SelectItem>
                   <SelectItem value="damage_fee">Damage Fee</SelectItem>
                 </SelectContent>
               </Select>
+              {formData.payment_type === "security_deposit_hold" && (
+                <p className="text-xs text-muted-foreground">
+                  Places a temporary hold on the customer's card without charging. Hold expires after 7 days. 
+                  You can capture (charge) or release it later.
+                </p>
+              )}
             </div>
 
             {/* Amount */}

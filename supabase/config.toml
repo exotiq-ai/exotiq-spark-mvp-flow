@@ -125,3 +125,27 @@ verify_jwt = false
 
 [functions.gcal-sync]
 verify_jwt = false
+
+[functions.stripe-connect-onboard]
+verify_jwt = false
+
+[functions.stripe-connect-refresh]
+verify_jwt = false
+
+[functions.stripe-connect-dashboard]
+verify_jwt = false
+
+[functions.stripe-webhook]
+verify_jwt = false
+
+[functions.stripe-create-hold]
+verify_jwt = false
+
+[functions.stripe-capture-hold]
+verify_jwt = false
+
+[functions.stripe-release-hold]
+verify_jwt = false
+
+[functions.stripe-create-refund]
+verify_jwt = false
