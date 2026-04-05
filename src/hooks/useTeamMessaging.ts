@@ -413,7 +413,7 @@ export const useTeamMessaging = () => {
         }
       }
 
-      // Create conversation
+      // Create conversation with team_id for tenant isolation
       const { data: conv, error: convError } = await supabase
         .from('team_conversations')
         .insert({
@@ -422,6 +422,7 @@ export const useTeamMessaging = () => {
           type,
           is_company_wide: isCompanyWide,
           created_by: user.id,
+          team_id: currentTeamId,
         })
         .select()
         .single();
