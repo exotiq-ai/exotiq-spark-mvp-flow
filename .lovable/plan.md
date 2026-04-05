@@ -1,63 +1,89 @@
 
 
-# Mobile UI/UX Audit — Findings & Improvement Plan
+# Team Messaging Multi-Tenant Leak + Smoke Test
 
-## Issues Found
+## Critical Finding: Cross-Tenant User Leakage
 
-### 1. Team Chat panel overflows on mobile
-`TeamMessaging.tsx` line 90-91: Fixed at `bottom-4 right-4` with `w-[400px]` — this exceeds mobile viewport width (typically 375px). The `md:w-[700px]` is fine for desktop but the base `w-[400px]` clips off-screen on phones.
+**Root cause**: `useTeamMessaging.ts` line 80-91 — `fetchTeamMembers()` queries `profiles` with **no team filter**:
 
-**Fix**: Change to `w-[calc(100vw-2rem)] md:w-[400px] lg:w-[700px]` so it fills available width on mobile with gutters.
+```typescript
+const { data } = await supabase
+  .from('profiles')
+  .select('id, full_name, email, avatar_url');
+// Returns ALL 15 users across ALL 15 teams
+```
 
-### 2. Team Chat overlaps bottom nav bar
-The chat panel sits at `bottom-4 right-4` (line 90) but the mobile bottom nav is `fixed bottom-0` with ~80px height. The chat panel hides behind or collides with the nav bar on mobile.
+This means when a user opens "New Conversation" → Direct/Group/Channel, they see users from other tenants. They can start conversations with people outside their team.
 
-**Fix**: On mobile, make the chat panel full-screen (`inset-0`) instead of a floating card. This matches the iOS/Android messaging pattern and avoids nav overlap entirely.
+**Why RLS doesn't save us here**: The `profiles` SELECT policy allows admins to see all profiles (`has_role(auth.uid(), 'admin')`). So admin users see every profile in the system. Non-admins only see their own profile, which means the member list shows nobody — also broken.
 
-### 3. Dashboard Banner too tall on mobile
-`DashboardBanner.tsx` uses `h-48 md:h-56` for `standard` height. On a 667px-tall phone, 192px is 29% of the viewport — excessive. The glass text box with `px-6 py-5` and `bottom-6 left-8` also clips on narrow screens.
+### Secondary issue: `team_conversations` has no team scoping
 
-**Fix**: Add `h-32 sm:h-48 md:h-56` and adjust glass text position to `bottom-3 left-4 right-4 sm:bottom-6 sm:left-8`.
+The `team_conversations` table has a `team_id` column, but:
+- The INSERT policy doesn't set it (`WITH CHECK (auth.uid() = created_by)`)
+- The `createConversation` function never passes `team_id`
+- The SELECT policy checks membership/creator — not team — so conversations aren't isolated by tenant
 
-### 4. FloatingActionMenu position conflicts with bottom nav
-`FloatingActionMenu.tsx` line 37: `bottom: calc(6rem + env(safe-area-inset-bottom))` — This works but is fragile. On shorter phones the FAB + expanded actions can overlap content or the top nav.
+### Smoke Test Results (All Functions)
 
-**Fix**: Minor — acceptable as-is, but add `max-h-[60vh] overflow-y-auto` to the expanded action list to prevent it from going off-screen on short devices.
+| Function | Status | Issue |
+|----------|--------|-------|
+| `fetchTeamMembers()` | **BROKEN** | Returns all users across all tenants, no team filter |
+| `fetchConversations()` | **PARTIAL** | RLS scopes by membership but not by team. Company-wide convs from other teams could leak via `is_company_wide = true` |
+| `createConversation()` | **BROKEN** | Never sets `team_id`. Cross-tenant conversations possible |
+| `sendMessage()` | OK | Scoped to active conversation |
+| `addReaction()` | OK | Scoped to message in active conversation |
+| `uploadAttachment()` | OK | Scoped to user's storage path |
+| `fetchMessages()` | OK | Scoped to conversation_id (but conversation itself may be cross-tenant) |
+| Mention autocomplete | **BROKEN** | Uses same unfiltered `teamMembers` list |
+| Presence/typing | OK | Scoped to conversation_id |
+| Read receipts | OK | Scoped to conversation_id |
+| Pinned messages | OK | Scoped to conversation_id |
+| Message search | OK | Scoped to conversation_id |
+| Edit/Delete messages | OK | RLS checks `sender_id = auth.uid()` |
 
-### 5. Booking cards lack tap affordance on mobile
-`BookEnhanced.tsx` line 476-529: Today's Schedule booking rows use `hover:bg-muted/50` but no `active:` state. On touch devices, there's no visual feedback when tapping a booking card.
+## Fix Plan
 
-**Fix**: Add `active:bg-muted/70 active:scale-[0.99]` for press feedback on the booking row divs.
+### 1. Filter `fetchTeamMembers()` by current team
 
-### 6. "New Booking" button forces `size="lg"` on mobile
-`BookEnhanced.tsx` line 371: The "New Booking" button uses `size="lg"` unconditionally. On mobile this takes up too much horizontal space next to the "Booking Overview" heading.
+Replace the profiles query with a `team_members` join so only same-team users appear:
 
-**Fix**: Change to `size="default"` or `size="sm"` with responsive sizing: `className="shadow-md text-xs sm:text-sm"`.
+```typescript
+// Get team members for current user's team
+const { data: myTeam } = await supabase
+  .from('team_members')
+  .select('team_id')
+  .eq('user_id', user.id)
+  .eq('is_active', true)
+  .limit(1)
+  .single();
 
-### 7. Module Navigation Cards grid cramped on small phones
-`DashboardOverviewEnhanced.tsx` line 564: `grid-cols-2 gap-3` with `p-4` works but the text `text-xs` can truncate on 320px-wide devices.
+const { data: members } = await supabase
+  .from('team_members')
+  .select('user_id, profiles(id, full_name, email, avatar_url)')
+  .eq('team_id', myTeam.team_id)
+  .eq('is_active', true);
+```
 
-**Fix**: Acceptable. No change needed — already has `sm:p-6` and `sm:text-sm`.
+### 2. Set `team_id` on conversation creation
 
-### 8. Revenue Analytics heading oversized on mobile
-Line 510: `text-lg font-semibold` — this is fine but the section heading hierarchy is inconsistent (Quick Stats uses `text-sm`, Revenue uses `text-lg`, Fleet Status uses `text-sm`).
+When creating a conversation, pass the current team's ID so conversations are tenant-scoped.
 
-**Fix**: Normalize to `text-sm sm:text-lg` for Revenue heading to match the compact mobile style.
+### 3. Scope company-wide conversations by team
 
-## Implementation Plan
+Change `fetchConversations()` to filter company-wide convs by team_id, not just `is_company_wide = true` globally.
 
-### Files Changed
+### 4. Add team_id filter to `tc_select` RLS policy (defense in depth)
+
+Update the SELECT policy on `team_conversations` to include a team membership check for company-wide conversations, so even if application code misses it, the DB enforces isolation.
+
+## Files Changed
 
 | File | Change |
 |------|--------|
-| `src/components/messaging/TeamMessaging.tsx` | Full-screen on mobile, proper sizing |
-| `src/components/dashboard/DashboardBanner.tsx` | Shorter on mobile, responsive text position |
-| `src/components/dashboard/BookEnhanced.tsx` | Active states on booking rows, smaller CTA on mobile |
-| `src/components/dashboard/DashboardOverviewEnhanced.tsx` | Consistent heading sizes |
+| `src/hooks/useTeamMessaging.ts` | Filter `fetchTeamMembers` by team, set `team_id` on conversation creation, scope company-wide query by team |
+| Database migration | Update `tc_select` RLS policy to scope `is_company_wide` by team_id |
 
-### Not Changing
-- Bottom nav (already well-built with safe-area support)
-- ModuleTabs (already has responsive `shortLabel` + icon stacking)
-- FloatingActionMenu (positioning is acceptable)
-- RariSidebar (already full-width on mobile with swipe-to-dismiss)
+## Risk
+Low-medium. The fixes are filter additions — no structural changes. The `team_id` on conversations is already a column, just unused.
 
