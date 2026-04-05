@@ -459,7 +459,7 @@ export const useTeamMessaging = () => {
       toast.error('Failed to create conversation');
       return null;
     }
-  }, [user, conversations, fetchConversations]);
+  }, [user, conversations, fetchConversations, currentTeamId]);
 
   // Add reaction
   const addReaction = useCallback(async (messageId: string, emoji: string) => {
