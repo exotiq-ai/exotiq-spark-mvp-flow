@@ -127,6 +127,11 @@ export const useTeamMessaging = () => {
   const fetchConversations = useCallback(async () => {
     if (!user) return;
 
+    let teamId = currentTeamId;
+    if (!teamId) {
+      teamId = await fetchCurrentTeamId();
+    }
+
     try {
       // Get conversations where user is a member
       const { data: memberConvs, error: memberError } = await supabase
@@ -138,11 +143,17 @@ export const useTeamMessaging = () => {
 
       const convIds = memberConvs?.map(m => m.conversation_id) || [];
 
-      // Also get company-wide conversations
-      const { data: companyConvs, error: companyError } = await supabase
+      // Also get company-wide conversations SCOPED TO CURRENT TEAM
+      const companyQuery = supabase
         .from('team_conversations')
         .select('*')
         .eq('is_company_wide', true);
+      
+      if (teamId) {
+        companyQuery.eq('team_id', teamId);
+      }
+      
+      const { data: companyConvs, error: companyError } = await companyQuery;
 
       if (companyError) throw companyError;
 
