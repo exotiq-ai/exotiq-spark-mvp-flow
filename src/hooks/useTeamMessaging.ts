@@ -72,24 +72,56 @@ export const useTeamMessaging = () => {
   const [loading, setLoading] = useState(true);
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [teamMembers, setTeamMembers] = useState<{ id: string; name: string; email: string; avatar_url: string | null }[]>([]);
+  const [currentTeamId, setCurrentTeamId] = useState<string | null>(null);
   const { user } = useAuth();
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
-  // Fetch all team members for mentions and new conversations
+  // Fetch current user's team ID
+  const fetchCurrentTeamId = useCallback(async () => {
+    if (!user) return null;
+    const { data } = await supabase
+      .from('team_members')
+      .select('team_id')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+      .limit(1)
+      .single();
+    const teamId = data?.team_id || null;
+    setCurrentTeamId(teamId);
+    return teamId;
+  }, [user]);
+
+  // Fetch team members scoped to current user's team only
   const fetchTeamMembers = useCallback(async () => {
+    if (!user) return;
+    
+    let teamId = currentTeamId;
+    if (!teamId) {
+      teamId = await fetchCurrentTeamId();
+    }
+    if (!teamId) return;
+
     const { data, error } = await supabase
-      .from('profiles')
-      .select('id, full_name, email, avatar_url');
+      .from('team_members')
+      .select('user_id, profiles(id, full_name, email, avatar_url)')
+      .eq('team_id', teamId)
+      .eq('is_active', true);
 
     if (!error && data) {
-      setTeamMembers(data.map(p => ({
-        id: p.id,
-        name: p.full_name || p.email,
-        email: p.email,
-        avatar_url: p.avatar_url
-      })));
+      setTeamMembers(data
+        .filter(tm => tm.profiles)
+        .map(tm => {
+          const p = tm.profiles as unknown as { id: string; full_name: string | null; email: string; avatar_url: string | null };
+          return {
+            id: p.id,
+            name: p.full_name || p.email,
+            email: p.email,
+            avatar_url: p.avatar_url,
+          };
+        })
+      );
     }
-  }, []);
+  }, [user, currentTeamId, fetchCurrentTeamId]);
 
   // Fetch all conversations for current user
   const fetchConversations = useCallback(async () => {
