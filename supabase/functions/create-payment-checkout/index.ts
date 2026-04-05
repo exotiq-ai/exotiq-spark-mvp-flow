@@ -19,7 +19,8 @@ serve(async (req) => {
 
   const supabaseClient = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_ANON_KEY") ?? ""
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+    { auth: { persistSession: false } }
   );
 
   try {
@@ -27,29 +28,19 @@ serve(async (req) => {
 
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
-    logStep("Stripe key verified");
 
-    // Get request body
     const { 
-      booking_id, 
-      customer_id,
-      customer_email, 
-      customer_name,
-      amount, 
-      payment_type,
-      description 
+      booking_id, customer_id, customer_email, customer_name,
+      amount, payment_type, description 
     } = await req.json();
     
     logStep("Request body parsed", { booking_id, amount, payment_type, customer_email });
 
-    if (!amount || amount <= 0) {
-      throw new Error("Invalid payment amount");
-    }
+    if (!amount || amount <= 0) throw new Error("Invalid payment amount");
 
     // Authenticate user
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("No authorization header provided");
-    
     const token = authHeader.replace("Bearer ", "");
     const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
     if (userError) throw new Error(`Authentication error: ${userError.message}`);
@@ -57,49 +48,86 @@ serve(async (req) => {
     if (!user) throw new Error("User not authenticated");
     logStep("User authenticated", { userId: user.id });
 
-    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
+    // Get team and connected Stripe account
+    const { data: teamMember } = await supabaseClient
+      .from("team_members")
+      .select("team_id")
+      .eq("user_id", user.id)
+      .eq("is_active", true)
+      .limit(1)
+      .single();
 
-    // Check if customer exists in Stripe
+    let stripeAccountId: string | null = null;
+    let teamId: string | null = null;
+
+    if (teamMember) {
+      teamId = teamMember.team_id;
+      const { data: team } = await supabaseClient
+        .from("teams")
+        .select("stripe_account_id, stripe_charges_enabled")
+        .eq("id", teamMember.team_id)
+        .single();
+      
+      if (team?.stripe_account_id) {
+        if (!team.stripe_charges_enabled) {
+          throw new Error("Your Stripe account is not yet enabled for charges. Please complete onboarding in Settings > Payments.");
+        }
+        stripeAccountId = team.stripe_account_id;
+      }
+    }
+
+    // Check booking source for marketplace fee
+    let platformFee = 0;
+    if (booking_id) {
+      const { data: booking } = await supabaseClient
+        .from("bookings")
+        .select("booking_source")
+        .eq("id", booking_id)
+        .single();
+      
+      if (booking?.booking_source === 'marketplace') {
+        platformFee = Math.round(amount * 100 * 0.20); // 20% for marketplace bookings
+        logStep("Marketplace booking — applying 20% platform fee", { platformFee: platformFee / 100 });
+      }
+    }
+
+    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
+    const stripeOpts = stripeAccountId ? { stripeAccount: stripeAccountId } : undefined;
+
+    // Find or create customer
     let stripeCustomerId: string | undefined;
     if (customer_email) {
-      const customers = await stripe.customers.list({ email: customer_email, limit: 1 });
+      const customers = await stripe.customers.list({ email: customer_email, limit: 1 }, stripeOpts);
       if (customers.data.length > 0) {
         stripeCustomerId = customers.data[0].id;
         logStep("Found existing Stripe customer", { stripeCustomerId });
       } else {
-        // Create a new customer
         const newCustomer = await stripe.customers.create({
           email: customer_email,
           name: customer_name,
-          metadata: {
-            supabase_customer_id: customer_id || '',
-            booking_id: booking_id || ''
-          }
-        });
+          metadata: { supabase_customer_id: customer_id || '', booking_id: booking_id || '' }
+        }, stripeOpts);
         stripeCustomerId = newCustomer.id;
         logStep("Created new Stripe customer", { stripeCustomerId });
       }
     }
 
-    // Create a one-time payment session using price_data for dynamic amounts
     const origin = req.headers.get("origin") || "https://exotiq.lovable.app";
-    
-    const session = await stripe.checkout.sessions.create({
+
+    const sessionParams: Stripe.Checkout.SessionCreateParams = {
       customer: stripeCustomerId,
       customer_email: stripeCustomerId ? undefined : customer_email,
-      line_items: [
-        {
-          price_data: {
-            currency: "usd",
-            product_data: {
-              name: `${payment_type.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())} - Booking`,
-              description: description || `Payment for booking ${booking_id?.substring(0, 8) || 'N/A'}`,
-            },
-            unit_amount: Math.round(amount * 100), // Convert to cents
+      line_items: [{
+        price_data: {
+          currency: "usd",
+          product_data: {
+            name: `${payment_type.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())} - Booking`,
+            description: description || `Payment for booking ${booking_id?.substring(0, 8) || 'N/A'}`,
           },
-          quantity: 1,
+          unit_amount: Math.round(amount * 100),
         },
-      ],
+        quantity: 1,
+      }],
       mode: "payment",
       success_url: `${origin}/dashboard?payment=success&booking_id=${booking_id}&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/dashboard?payment=cancelled&booking_id=${booking_id}`,
@@ -107,24 +135,25 @@ serve(async (req) => {
         booking_id: booking_id || '',
         customer_id: customer_id || '',
         payment_type: payment_type,
-        user_id: user.id
+        user_id: user.id,
+        team_id: teamId || '',
+        platform_fee: String(platformFee / 100),
       },
       payment_intent_data: {
         metadata: {
           booking_id: booking_id || '',
           customer_id: customer_id || '',
           payment_type: payment_type,
-          user_id: user.id
-        }
-      }
-    });
+          user_id: user.id,
+        },
+        ...(platformFee > 0 ? { application_fee_amount: platformFee } : {}),
+      },
+    };
 
-    logStep("Checkout session created", { sessionId: session.id, url: session.url });
+    const session = await stripe.checkout.sessions.create(sessionParams, stripeOpts);
+    logStep("Checkout session created", { sessionId: session.id, connected: !!stripeAccountId });
 
-    return new Response(JSON.stringify({ 
-      url: session.url,
-      session_id: session.id 
-    }), {
+    return new Response(JSON.stringify({ url: session.url, session_id: session.id }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
