@@ -335,11 +335,15 @@ export const useTeamMessaging = () => {
     };
   }, [activeConversation, fetchMessages]);
 
-  // Initial load
+  // Initial load - fetch team ID first, then conversations and members
   useEffect(() => {
-    fetchConversations();
-    fetchTeamMembers();
-  }, [fetchConversations, fetchTeamMembers]);
+    const init = async () => {
+      await fetchCurrentTeamId();
+      fetchConversations();
+      fetchTeamMembers();
+    };
+    init();
+  }, [fetchCurrentTeamId, fetchConversations, fetchTeamMembers]);
 
   // Send message
   const sendMessage = useCallback(async (
