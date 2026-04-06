@@ -1,4 +1,5 @@
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
+import { moduleIdToPath, pathToModuleId } from '@/lib/moduleRoutes';
 
 // Helper to scroll to top of page smoothly
 const scrollToTop = () => {
@@ -6,86 +7,63 @@ const scrollToTop = () => {
 };
 
 export const useModuleNavigation = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const goToCustomerProfile = (customerId: string) => {
-    setSearchParams({ 
-      module: 'core', 
-      view: 'crm', 
-      customerId 
-    });
+    navigate(moduleIdToPath('core', { view: 'crm', customerId }));
     scrollToTop();
   };
 
   const goToBookingDetails = (bookingId: string) => {
-    setSearchParams({ 
-      module: 'book', 
-      bookingId 
-    });
+    navigate(moduleIdToPath('book', { bookingId }));
     scrollToTop();
   };
 
   const goToVehicleDetails = (vehicleId: string) => {
-    setSearchParams({ 
-      module: 'core', 
-      vehicleId 
-    });
+    navigate(moduleIdToPath('core', { vehicleId }));
     scrollToTop();
   };
 
   const goToDamageReport = (damageClaimId: string) => {
-    setSearchParams({ 
-      module: 'vault', 
-      view: 'damage', 
-      damageClaimId 
-    });
+    navigate(moduleIdToPath('vault', { view: 'damage', damageClaimId }));
     scrollToTop();
   };
 
   const goToInspection = (inspectionId: string) => {
-    setSearchParams({ 
-      module: 'vault', 
-      view: 'inspections', 
-      inspectionId 
-    });
+    navigate(moduleIdToPath('vault', { view: 'inspections', inspectionId }));
     scrollToTop();
   };
 
   const goToPayments = (bookingId?: string) => {
-    setSearchParams({ 
-      module: 'book', 
-      view: 'payments',
-      ...(bookingId && { bookingId })
-    });
+    navigate(moduleIdToPath('book', { view: 'payments', ...(bookingId && { bookingId }) }));
     scrollToTop();
   };
 
   const goToCustomerBookings = (customerId: string) => {
-    setSearchParams({ 
-      module: 'book', 
-      customerId 
-    });
+    navigate(moduleIdToPath('book', { customerId }));
     scrollToTop();
   };
 
   const goToTask = (taskId: string) => {
-    setSearchParams({ module: 'fleet', taskId });
+    navigate(moduleIdToPath('fleet', { taskId }));
     scrollToTop();
   };
 
   const goToWorkOrder = (workOrderId: string) => {
-    setSearchParams({ module: 'fleet', tab: 'maintenance', workOrderId });
+    navigate(moduleIdToPath('fleet', { tab: 'maintenance', workOrderId }));
     scrollToTop();
   };
 
   const goToMaintenance = (maintenanceId?: string) => {
-    const params: Record<string, string> = { module: 'fleet', tab: 'maintenance' };
+    const params: Record<string, string> = { tab: 'maintenance' };
     if (maintenanceId) params.maintenanceId = maintenanceId;
-    setSearchParams(params);
+    navigate(moduleIdToPath('fleet', params));
     scrollToTop();
   };
 
-  const getCurrentModule = () => searchParams.get('module') || 'core';
+  const getCurrentModule = () => pathToModuleId(location.pathname);
   const getCurrentView = () => searchParams.get('view');
   const getCurrentCustomerId = () => searchParams.get('customerId');
   const getCurrentBookingId = () => searchParams.get('bookingId');
