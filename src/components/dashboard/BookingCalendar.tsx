@@ -57,7 +57,7 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth, startOfDay, addDays } from "date-fns";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth, startOfDay, addDays, differenceInHours } from "date-fns";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface BookingCalendarProps {
