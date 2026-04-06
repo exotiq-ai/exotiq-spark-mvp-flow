@@ -52,7 +52,7 @@ export const TodaySnapshot = () => {
       subtext: `of ${totalVehicles}`,
       icon: Car,
       color: "text-primary",
-      onClick: () => navigate('/dashboard?module=pulse')
+      onClick: () => navigate(moduleIdToPath("pulse"))
     },
     { 
       label: "Pickups Today", 
