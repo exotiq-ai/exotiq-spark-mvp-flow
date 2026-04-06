@@ -620,7 +620,76 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
               )}
             </div>
 
-            {/* Row 2: Month summary stats */}
+            {/* Row 3: Status filter chips */}
+            <div className="flex flex-wrap items-center gap-1.5 mb-3">
+              <button
+                onClick={() => toggleStatusFilter('pending')}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                  statusFilters.has('pending')
+                    ? 'bg-warning/20 text-warning border-warning/40'
+                    : 'bg-muted/30 text-muted-foreground border-border hover:bg-warning/10 hover:text-warning hover:border-warning/30'
+                }`}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-warning" />
+                Pending
+                {filterCounts.pending > 0 && (
+                  <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-background text-[10px] font-bold leading-none">{filterCounts.pending}</span>
+                )}
+              </button>
+              <button
+                onClick={() => toggleStatusFilter('confirmed')}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                  statusFilters.has('confirmed')
+                    ? 'bg-success/20 text-success border-success/40'
+                    : 'bg-muted/30 text-muted-foreground border-border hover:bg-success/10 hover:text-success hover:border-success/30'
+                }`}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-success" />
+                Confirmed
+                {filterCounts.confirmed > 0 && (
+                  <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-background text-[10px] font-bold leading-none">{filterCounts.confirmed}</span>
+                )}
+              </button>
+              <button
+                onClick={() => toggleStatusFilter('conflicts')}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                  statusFilters.has('conflicts')
+                    ? 'bg-destructive/20 text-destructive border-destructive/40'
+                    : 'bg-muted/30 text-muted-foreground border-border hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30'
+                }`}
+              >
+                <AlertTriangle className="h-3 w-3" />
+                Conflicts
+                {filterCounts.conflicts > 0 && (
+                  <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-background text-[10px] font-bold leading-none">{filterCounts.conflicts}</span>
+                )}
+              </button>
+              <button
+                onClick={() => toggleStatusFilter('returns')}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                  statusFilters.has('returns')
+                    ? 'bg-primary/20 text-primary border-primary/40'
+                    : 'bg-muted/30 text-muted-foreground border-border hover:bg-primary/10 hover:text-primary hover:border-primary/30'
+                }`}
+              >
+                <Clock className="h-3 w-3" />
+                Returns Soon
+                {filterCounts.returns > 0 && (
+                  <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-background text-[10px] font-bold leading-none">{filterCounts.returns}</span>
+                )}
+              </button>
+              {isFilterActive && (
+                <button
+                  onClick={() => setStatusFilters(new Set())}
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <X className="h-3 w-3" />
+                  Clear
+                </button>
+              )}
+            </div>
+
+            {/* Row 4: Month summary stats */}
             <div className="flex flex-wrap items-center gap-2 mb-4">
               <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/50 text-xs">
                 <CalendarIcon className="h-3 w-3 text-muted-foreground" />
