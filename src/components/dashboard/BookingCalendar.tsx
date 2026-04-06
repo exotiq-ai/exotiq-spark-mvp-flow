@@ -613,7 +613,7 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
                   </Button>
                 )}
               </div>
-              {isSearchActive && (
+              {(isSearchActive || isFilterActive) && (
                 <Badge variant="secondary" className="text-xs whitespace-nowrap">
                   {filteredBookings.length} of {allFilteredBookings.length} bookings
                 </Badge>
