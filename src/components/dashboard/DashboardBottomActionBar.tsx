@@ -257,7 +257,7 @@ export const DashboardBottomActionBar = ({
               {filteredBookings.map(booking => (
                 <CommandItem
                   key={booking.id}
-                  onSelect={() => handleSelect(() => navigate(`/dashboard?module=book&bookingId=${booking.id}`))}
+                  onSelect={() => handleSelect(() => navigate(moduleIdToPath("book", { bookingId: booking.id })))}
                 >
                   <Calendar className="mr-2 h-4 w-4 text-muted-foreground" />
                   <span className="font-medium">{booking.customer_name}</span>
