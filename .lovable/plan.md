@@ -1,44 +1,30 @@
 
 
-# Seed Data Cleanup — Inspections
+# Fix Search Bar Navigation — Revised Plan
 
-## Findings
+## Changes from original plan
 
-| Issue | Count | Tenant Risk |
-|-------|-------|-------------|
-| Stale seed inspections (draft, no direction, same timestamp) | 24 | None — all belong to demo team `c1de6533...` |
-| Orphaned inspections (NULL team_id) | 3 | None — UI filters by `team_id`, so these never render |
-| Linked photos/damage items on stale rows | 0 | Safe to delete |
+- **Add Team Hub** to EnhancedGlobalSearch module list (was missing alongside Fleet)
+- **Audit "New Booking"** action — verify BookEnhanced reads `action=new`, fix if not
+- **CommandPalette Fleet** is already correct — only "Customers" line 162 needs fixing
 
-**No data leaks to other tenants.** The `InspectionsTab` query filters by `currentTeam.id`, and RLS policies enforce `user_id` or `team_id` scoping. A new tenant signing up gets a clean empty state — zero inspections.
+## Files & Changes
 
-## Plan
+### 1. `src/components/common/EnhancedGlobalSearch.tsx`
+- Line 116: "Add Vehicle" → `moduleIdToPath("fleet", { action: "add-vehicle" })`
+- Line 124: "Add Customer" → `moduleIdToPath("book", { tab: "crm", action: "add-customer" })`
+- Line 279: Vehicle results → `moduleIdToPath("fleet", { vehicleId: v.id })`
+- Lines 183-240: Add "Fleet" (`Car` icon) and "Team Hub" (`Users` icon) to modules list
 
-### 1. Migration: Delete stale seed inspections
+### 2. `src/components/common/CommandPalette.tsx`
+- Line 162: "Customers" → `moduleIdToPath('book', { tab: 'crm' })`
 
-```sql
--- Remove 24 identical draft seed rows (no direction, no photos, no damage)
-DELETE FROM vehicle_inspections
-WHERE status = 'draft'
-  AND inspection_direction IS NULL
-  AND created_at = '2025-11-09 21:41:10.72848+00';
+### 3. `src/components/dashboard/CRMSection.tsx`
+- Add `useEffect` reading `action=add-customer` from searchParams → `setShowAddCustomer(true)` + clear param (mirrors existing `customerId` pattern on lines 58-72)
 
--- Backfill team_id on 3 orphaned inspections so they appear in the demo account UI
-UPDATE vehicle_inspections
-SET team_id = 'c1de6533-ab44-4973-a123-007a8007b5ba'
-WHERE team_id IS NULL
-  AND user_id = '99d902d4-5878-4b59-a108-142bafb1c862';
-```
+### 4. `src/components/fleet/FleetPageEnhanced.tsx`
+- Add `useEffect` reading `action=add-vehicle` from searchParams → `setShowAddDialog(true)` + clear param
 
-Single migration, no app code changes. The 3 real inspections (with actual directions and `completed` status) are preserved and assigned to the demo team so they show up properly.
-
-### 2. No UI changes needed
-
-The `InspectionsTab` already filters by `team_id` correctly. Once the junk rows are gone and the orphaned rows have a `team_id`, the demo account will show 3 meaningful inspections instead of 24 broken ones.
-
-## Files Changed
-
-| File | Change |
-|------|--------|
-| Database migration | DELETE stale seeds + UPDATE orphaned `team_id` |
+### 5. Audit: `src/components/dashboard/BookEnhanced.tsx`
+- Verify `action=new` opens NewBookingDialog — fix if missing
 
