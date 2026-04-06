@@ -140,7 +140,7 @@ const DashboardInner = () => {
 
     setIsModuleTransitioning(true);
     track('module_switch', { from: activeModule, to: moduleId });
-    setActiveModule(moduleId);
+    nav(moduleIdToPath(moduleId));
 
     // Scroll to top of page smoothly
     window.scrollTo({ top: 0, behavior: 'smooth' });
