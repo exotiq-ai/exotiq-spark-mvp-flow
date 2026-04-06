@@ -513,3 +513,5 @@ export const MotorIQEnhanced = () => {
     </>
   );
 };
+
+export default MotorIQEnhanced;

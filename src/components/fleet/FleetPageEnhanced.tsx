@@ -636,3 +636,5 @@ export const FleetPageEnhanced = () => {
     </div>
   );
 };
+
+export default FleetPageEnhanced;

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { useProfile } from "@/hooks/useProfile";
 import { useSearchParams, useLocation, useNavigate } from "react-router-dom";
 import { pathToModuleId, moduleIdToPath, MODULE_TITLES } from "@/lib/moduleRoutes";
@@ -31,21 +31,23 @@ import {
   Eye,
   MessageSquare
 } from "lucide-react";
-import { MotorIQEnhanced } from "@/components/dashboard/MotorIQEnhanced";
-import { PulseEnhanced } from "@/components/dashboard/PulseEnhanced";
-import { BookEnhanced } from "@/components/dashboard/BookEnhanced";
-import { VaultEnhanced } from "@/components/dashboard/VaultEnhanced";
-import { CoreEnhanced } from "@/components/dashboard/CoreEnhanced";
-import { FleetPageEnhanced } from "@/components/fleet/FleetPageEnhanced";
-import { DashboardOverviewEnhanced } from "@/components/dashboard/DashboardOverviewEnhanced";
+// Lazy-loaded dashboard modules for code splitting
+const MotorIQEnhanced = lazy(() => import('@/components/dashboard/MotorIQEnhanced'));
+const PulseEnhanced = lazy(() => import('@/components/dashboard/PulseEnhanced'));
+const BookEnhanced = lazy(() => import('@/components/dashboard/BookEnhanced'));
+const VaultEnhanced = lazy(() => import('@/components/dashboard/VaultEnhanced'));
+const CoreEnhanced = lazy(() => import('@/components/dashboard/CoreEnhanced'));
+const FleetPageEnhanced = lazy(() => import('@/components/fleet/FleetPageEnhanced'));
+const DashboardOverviewEnhanced = lazy(() => import('@/components/dashboard/DashboardOverviewEnhanced'));
+const SettingsLayout = lazy(() => import('@/components/dashboard/settings/SettingsLayout'));
+const TeamHub = lazy(() => import('@/components/dashboard/TeamHub'));
+const TeamMessaging = lazy(() => import('@/components/messaging/TeamMessaging'));
+
 import { DashboardSidebarEnhanced } from "@/components/dashboard/DashboardSidebarEnhanced";
-import { SettingsLayout } from "@/components/dashboard/settings/SettingsLayout";
 import { KeyboardShortcutsHelp } from "@/components/common/KeyboardShortcutsHelp";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { MobileMoreMenu } from "@/components/mobile/MobileMoreMenu";
 import { FloatingActionMenu } from "@/components/mobile/FloatingActionMenu";
-import { TeamHub } from "@/components/dashboard/TeamHub";
-import { TeamMessaging } from "@/components/messaging/TeamMessaging";
 import { useTeamMessaging } from "@/hooks/useTeamMessaging";
 import { useTeam } from "@/contexts/TeamContext";
 import { Calendar as CalendarIcon, DollarSign, UserPlus, FileText, Sparkles } from "lucide-react";
@@ -237,33 +239,28 @@ const DashboardInner = () => {
 
     return (
       <div className="relative">
-        {/* Subtle loading overlay during module transition */}
-        <AnimatePresence>
-          {isModuleTransitioning && (
+        <Suspense fallback={
+          <div className="space-y-4 p-4 animate-pulse">
+            <div className="h-8 bg-muted rounded w-1/3" />
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {[1,2,3,4].map(i => <div key={i} className="h-24 bg-muted rounded-lg" />)}
+            </div>
+            <div className="h-64 bg-muted rounded-lg" />
+          </div>
+        }>
+          <AnimatePresence mode="popLayout">
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.1 }}
-              className="absolute inset-0 bg-background/50 z-10 flex items-center justify-center"
+              key={activeModule}
+              initial="initial"
+              animate="in"
+              exit="out"
+              variants={pageVariants}
+              transition={pageTransition}
             >
-              <div className="h-6 w-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              {content}
             </motion.div>
-          )}
-        </AnimatePresence>
-        
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeModule}
-            initial="initial"
-            animate="in"
-            exit="out"
-            variants={pageVariants}
-            transition={pageTransition}
-          >
-            {content}
-          </motion.div>
-        </AnimatePresence>
+          </AnimatePresence>
+        </Suspense>
       </div>
     );
   };

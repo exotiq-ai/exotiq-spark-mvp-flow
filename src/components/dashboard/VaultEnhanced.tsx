@@ -502,3 +502,5 @@ export const VaultEnhanced = () => {
     </>
   );
 };
+
+export default VaultEnhanced;

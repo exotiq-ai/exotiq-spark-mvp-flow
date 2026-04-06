@@ -182,69 +182,53 @@ export const TeamProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       setUserRole(teamMember.role as AppRole);
 
-      // Fetch team details
-      const { data: team, error: teamError } = await supabase
-        .from('teams')
-        .select('*')
-        .eq('id', teamMember.team_id)
-        .maybeSingle();
+      // Parallel fetch: team details + locations + staff assignments
+      const [teamResult, locationsResult, staffResult] = await Promise.all([
+        supabase
+          .from('teams')
+          .select('*')
+          .eq('id', teamMember.team_id)
+          .maybeSingle(),
+        supabase
+          .from('locations')
+          .select('*')
+          .eq('team_id', teamMember.team_id)
+          .eq('is_active', true)
+          .order('is_default', { ascending: false })
+          .order('name')
+          .then(res => ({ data: res.data, error: res.error })),
+        supabase
+          .from('location_staff')
+          .select('location_id')
+          .eq('user_id', user.id)
+          .then(res => ({ data: res.data, error: res.error })),
+      ]);
 
       if (seq !== fetchSeqRef.current) return;
 
-      if (teamError) {
-        devError('[TeamContext] Error fetching team:', teamError);
-        setError(`Team fetch error: ${teamError.message}`);
+      if (teamResult.error) {
+        devError('[TeamContext] Error fetching team:', teamResult.error);
+        setError(`Team fetch error: ${teamResult.error.message}`);
         setLoading(false);
         return;
       }
       
-      if (!team) {
+      if (!teamResult.data) {
         devLog('[TeamContext] Team not found for id:', teamMember.team_id);
         setError(`Team not found for membership`);
         setLoading(false);
         return;
       }
       
-      setCurrentTeam(team);
-      devLog('[TeamContext] Team loaded:', team.name, team.id);
+      setCurrentTeam(teamResult.data);
+      devLog('[TeamContext] Team loaded:', teamResult.data.name, teamResult.data.id);
 
-      // Fetch locations (graceful failure)
-      let teamLocations: Location[] = [];
-      try {
-        const { data: locData, error: locationsError } = await supabase
-          .from('locations')
-          .select('*')
-          .eq('team_id', teamMember.team_id)
-          .eq('is_active', true)
-          .order('is_default', { ascending: false })
-          .order('name');
-
-        if (!locationsError && locData) {
-          teamLocations = locData;
-        }
-      } catch (e) {
-        devLog('[TeamContext] Locations table not available');
-      }
-      
-      if (seq !== fetchSeqRef.current) return;
+      // Set locations (graceful — empty array on failure)
+      const teamLocations: Location[] = locationsResult.data || [];
       setLocations(teamLocations);
 
-      // Fetch assigned locations (graceful failure)
-      let staffLocationIds: string[] = [];
-      try {
-        const { data: staffLocations, error: staffError } = await supabase
-          .from('location_staff')
-          .select('location_id')
-          .eq('user_id', user.id);
-
-        if (!staffError && staffLocations) {
-          staffLocationIds = staffLocations.map(s => s.location_id);
-        }
-      } catch (e) {
-        devLog('[TeamContext] location_staff table not available');
-      }
-      
-      if (seq !== fetchSeqRef.current) return;
+      // Set staff location assignments (graceful)
+      const staffLocationIds: string[] = staffResult.data?.map(s => s.location_id) || [];
       setAssignedLocationIds(staffLocationIds);
 
       // Default to 'all' for owners/admins
@@ -252,7 +236,7 @@ export const TeamProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSelectedLocationId('all');
       }
       
-      devLog('[TeamContext] Fetch complete, seq:', seq, 'team:', team.name);
+      devLog('[TeamContext] Fetch complete, seq:', seq, 'team:', teamResult.data.name);
 
     } catch (err) {
       if (seq === fetchSeqRef.current) {

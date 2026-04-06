@@ -412,3 +412,4 @@ export const CoreEnhanced = () => {
     </>
   );
 };
+export default CoreEnhanced;
