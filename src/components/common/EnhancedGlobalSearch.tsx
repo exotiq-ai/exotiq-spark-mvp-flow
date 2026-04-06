@@ -129,7 +129,7 @@ export const EnhancedGlobalSearch = ({ onOpenRari }: EnhancedGlobalSearchProps) 
       title: "Generate Report",
       subtitle: "Create analytics report",
       icon: FileText,
-      action: () => navigate("/dashboard?module=pulse&action=report")
+      action: () => navigate(moduleIdToPath("pulse", { action: "report" }))
     }
   ];
 
