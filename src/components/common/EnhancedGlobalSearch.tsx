@@ -227,7 +227,7 @@ export const EnhancedGlobalSearch = ({ onOpenRari }: EnhancedGlobalSearchProps) 
       title: "Team Messages",
       subtitle: "Internal communications",
       icon: MessageSquare,
-      action: () => navigate("/dashboard?module=messages")
+      action: () => navigate(moduleIdToPath("messages"))
     },
     {
       id: "settings",
