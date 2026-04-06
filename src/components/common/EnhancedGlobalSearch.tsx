@@ -121,7 +121,7 @@ export const EnhancedGlobalSearch = ({ onOpenRari }: EnhancedGlobalSearchProps) 
       title: "Add Customer",
       subtitle: "Register a new customer",
       icon: Users,
-      action: () => navigate("/dashboard?module=core&action=add-customer")
+      action: () => navigate(moduleIdToPath("core", { action: "add-customer" }))
     },
     {
       id: "generate-report",
