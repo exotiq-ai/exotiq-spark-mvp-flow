@@ -797,6 +797,15 @@ export const CheckInOutDialog = ({
                   <Wrench className="h-4 w-4 mr-2" />
                   Create Work Order
                 </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowDamageClaimDialog(true)}
+                  className="border-amber-500/30 text-amber-700 dark:text-amber-400"
+                >
+                  <AlertTriangle className="h-4 w-4 mr-2" />
+                  File Damage Claim
+                </Button>
               </div>
             )}
             <Button
@@ -811,6 +820,20 @@ export const CheckInOutDialog = ({
           </div>
         )}
       </DialogContent>
+
+      {/* Damage Claim Dialog pre-filled from inspection */}
+      <DamageReportDialog
+        open={showDamageClaimDialog}
+        onOpenChange={setShowDamageClaimDialog}
+        vehicles={vehicles}
+        prefill={{
+          vehicle_id: resolvedVehicleId,
+          description: damageItems.length > 0
+            ? damageItems.map(d => `${d.severity} ${d.damageType} at ${d.location}${d.notes ? ': ' + d.notes : ''}`).join('\n')
+            : '',
+          photo_urls: damageItems.map(d => d.photoUrl).filter(Boolean),
+        }}
+      />
     </Dialog>
   );
 };
