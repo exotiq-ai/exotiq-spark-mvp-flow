@@ -195,7 +195,7 @@ export const CommandPalette = ({ open, onOpenChange }: CommandPaletteProps) => {
       icon: <Settings className="h-4 w-4" />,
       keywords: ['settings', 'preferences', 'account', 'configuration'],
       onSelect: () => {
-        navigate('/dashboard?module=settings');
+        navigate(moduleIdToPath('settings'));
         onOpenChange(false);
       },
       category: 'navigation',
