@@ -8,6 +8,11 @@ import { Logo } from "@/components/ui/logo";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { SkipNavigation } from "@/components/common/SkipNavigation";
 import { SEOHead } from "@/components/common/SEOHead";
+import {
+  SkeletonBanner, SkeletonStatsRow, SkeletonModuleNav, SkeletonQuickActions,
+  SkeletonScheduleItem, SkeletonVehicleCard, SkeletonSection, SkeletonAIInsight,
+  SkeletonDocumentRow
+} from "@/components/ui/skeleton-specialized";
 import { UnifiedNotificationCenter } from "@/components/common/UnifiedNotificationCenter";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { LocationContextBanner } from "@/components/common/LocationBadge";
@@ -172,6 +177,76 @@ const DashboardInner = () => {
     !action.minRole || hasRoleOrHigher(action.minRole)
   );
 
+  const getModuleSkeleton = (moduleId: string) => {
+    switch (moduleId) {
+      case "dashboard":
+        return (
+          <div className="space-y-4 p-4">
+            <SkeletonBanner />
+            <SkeletonStatsRow count={4} />
+            <SkeletonModuleNav count={4} />
+          </div>
+        );
+      case "book":
+        return (
+          <div className="space-y-4 p-4">
+            <SkeletonQuickActions count={4} />
+            <SkeletonScheduleItem />
+            <SkeletonScheduleItem />
+            <SkeletonScheduleItem />
+          </div>
+        );
+      case "fleet":
+        return (
+          <div className="space-y-4 p-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[1,2,3,4].map(i => <SkeletonVehicleCard key={i} />)}
+            </div>
+          </div>
+        );
+      case "pulse":
+        return (
+          <div className="space-y-4 p-4">
+            <SkeletonStatsRow count={4} />
+            <SkeletonSection contentHeight={280} />
+          </div>
+        );
+      case "motoriq":
+      case "optimize":
+        return (
+          <div className="space-y-4 p-4">
+            <SkeletonAIInsight />
+            <SkeletonStatsRow count={3} />
+          </div>
+        );
+      case "vault":
+        return (
+          <div className="space-y-4 p-4">
+            <SkeletonQuickActions count={3} />
+            <SkeletonDocumentRow />
+            <SkeletonDocumentRow />
+            <SkeletonDocumentRow />
+          </div>
+        );
+      case "core":
+        return (
+          <div className="space-y-4 p-4">
+            <SkeletonAIInsight />
+          </div>
+        );
+      default:
+        return (
+          <div className="space-y-4 p-4 animate-pulse">
+            <div className="h-8 bg-muted rounded w-1/3" />
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {[1,2,3,4].map(i => <div key={i} className="h-24 bg-muted rounded-lg" />)}
+            </div>
+            <div className="h-64 bg-muted rounded-lg" />
+          </div>
+        );
+    }
+  };
+
   const renderModuleContent = () => {
     let content;
     switch (activeModule) {
@@ -206,16 +281,8 @@ const DashboardInner = () => {
     }
 
     return (
-      <Suspense fallback={
-        <div className="space-y-4 p-4 animate-pulse">
-          <div className="h-8 bg-muted rounded w-1/3" />
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {[1,2,3,4].map(i => <div key={i} className="h-24 bg-muted rounded-lg" />)}
-          </div>
-          <div className="h-64 bg-muted rounded-lg" />
-        </div>
-      }>
-        <div key={activeModule} className="animate-fade-in">
+      <Suspense fallback={getModuleSkeleton(activeModule)}>
+        <div key={activeModule} className="animate-fade-in-up">
           {content}
         </div>
       </Suspense>
