@@ -56,7 +56,10 @@ import { supabase } from "@/integrations/supabase/client";
 
 const DashboardInner = () => {
   const [searchParams] = useSearchParams();
-  const [activeModule, setActiveModule] = useLocalStorage("activeModule", "dashboard");
+  const location = useLocation();
+  const nav = useNavigate();
+  const activeModule = pathToModuleId(location.pathname);
+  const [, setStoredModule] = useLocalStorage("activeModule", "dashboard");
   const [chatOpen, setChatOpen] = useState(false);
   const [chatMinimized, setChatMinimized] = useState(false);
   const [mobileAddLocationOpen, setMobileAddLocationOpen] = useState(false);
