@@ -182,6 +182,14 @@ export const EnhancedGlobalSearch = ({ onOpenRari }: EnhancedGlobalSearchProps) 
   // Module navigation
   const modules: SearchResult[] = [
     {
+      id: "fleet",
+      type: "module",
+      title: "Fleet",
+      subtitle: "Vehicle Management",
+      icon: Car,
+      action: () => navigate(moduleIdToPath("fleet"))
+    },
+    {
       id: "motoriq",
       type: "module",
       title: "MotorIQ",
@@ -220,6 +228,14 @@ export const EnhancedGlobalSearch = ({ onOpenRari }: EnhancedGlobalSearchProps) 
       subtitle: "AI Control Center",
       icon: Brain,
       action: () => navigate(moduleIdToPath("core"))
+    },
+    {
+      id: "team-hub-nav",
+      type: "module",
+      title: "Team Hub",
+      subtitle: "Team management & activity",
+      icon: Users,
+      action: () => navigate(moduleIdToPath("team-hub"))
     },
     {
       id: "messages-nav",

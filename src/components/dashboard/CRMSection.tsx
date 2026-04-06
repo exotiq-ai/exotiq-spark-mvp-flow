@@ -56,6 +56,7 @@ export const CRMSection = () => {
   const [prefillCustomer, setPrefillCustomer] = useState<Customer | null>(null);
 
   // Deep-link: auto-open customer profile from URL params
+  // Deep-link: auto-open customer profile from URL params
   useEffect(() => {
     const customerId = searchParams.get('customerId');
     if (customerId && customers.length > 0) {
@@ -63,13 +64,23 @@ export const CRMSection = () => {
       if (exists) {
         setSelectedCustomerId(customerId);
         setShowCustomerProfile(true);
-        // Clear the param after consuming
         const newParams = new URLSearchParams(searchParams);
         newParams.delete('customerId');
         setSearchParams(newParams, { replace: true });
       }
     }
   }, [searchParams, customers]);
+
+  // Deep-link: auto-open add customer dialog from action param
+  useEffect(() => {
+    const action = searchParams.get('action');
+    if (action === 'add-customer') {
+      setShowAddCustomer(true);
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('action');
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const filteredCustomers = customers.filter(customer => {
     const matchesSearch = 
