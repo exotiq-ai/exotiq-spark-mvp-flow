@@ -1,54 +1,66 @@
 
 
-# Calendar Improvements — Review & Pushback
+# Fix Module Navigation Mismatch
 
-## Concerns with the Prompt
+## Root Cause
 
-### 1. Multi-view layouts are a major scope expansion, not an "enhancement"
+The bug is a conflict between `AnimatePresence mode="popLayout"` and `Suspense` around lazy-loaded modules (lines 251-262 of Dashboard.tsx).
 
-The prompt asks for 3-day columns, 7-day columns, and 3-month mini-calendars. This is essentially building **three new calendar views** on top of the existing month grid — each with its own layout, booking rendering, day-click behavior, and mobile responsiveness. The current component is already 737 lines. Adding three layout variants would likely double it.
+When you click a sidebar item:
+1. URL updates → `activeModule` changes → `key` on `motion.div` changes
+2. AnimatePresence (popLayout mode) starts **exit animation** on old content while mounting the new component
+3. The new component is `React.lazy` — it **suspends** during chunk download
+4. React shows the Suspense fallback skeleton, but AnimatePresence keeps the **old exiting component in the layout** (that's what `popLayout` does — it uses `position: absolute` to keep exiting elements visible)
+5. Result: the old module's content stays visible on screen even though the URL and sidebar already show the new module
 
-**Recommendation**: Start with just **search/filter** (high value, low risk) and a single new view: **"Week" (7-day list)**. Skip the 3-day and 3-month views for now — they can be added later once the week view pattern is proven. A week list view is the simplest to build (vertical list of day sections) and most useful for operators checking upcoming bookings.
+The **no-op guard** on line 135 (`if (moduleId === activeModule) return`) then prevents recovery — clicking the same sidebar item again does nothing because the URL already matches.
 
-### 2. "Dimming" non-matching bookings is worse UX than filtering
+Screenshot 3 confirms this exactly: URL says `/dashboard/pulse`, sidebar highlights Pulse, but Fleet Management content is still rendered.
 
-The prompt says to dim non-matching bookings when searching. On a month grid where pills are already 10px text, dimming creates visual noise — users would see a grid full of semi-transparent pills they can't read. Better to **hide** non-matching bookings entirely and show a "Showing X of Y bookings" indicator, with a clear button to reset.
+## Fix
 
-### 3. The 3-month view adds complexity with unclear value
+### 1. `src/pages/Dashboard.tsx` — Remove AnimatePresence around lazy modules
 
-A compact 3-month mini-calendar can't show booking pills — cells would be too small. It becomes a heatmap at best. If the goal is "see the bigger picture," the existing month navigation (prev/next) plus the month summary stats already cover this. A quarter overview is a separate feature (closer to a reporting/analytics view).
+Replace the `AnimatePresence` + `motion.div` wrapper with just `Suspense`. Lazy-loaded components and exit animations don't mix well — the animation framework can't coordinate with React's suspension mechanism. A simple opacity fade via CSS transition on mount is sufficient and avoids the conflict entirely.
 
-### 4. Date range presets conflict with month navigation
+```
+// Before (broken)
+<Suspense fallback={...}>
+  <AnimatePresence mode="popLayout">
+    <motion.div key={activeModule} ...>
+      {content}
+    </motion.div>
+  </AnimatePresence>
+</Suspense>
 
-The prompt keeps the prev/today/next month buttons but adds range presets. If a user clicks "7 Days," what happens to prev/next? Do they shift by 7 days? By month? The interaction model gets confusing. Better to treat the presets as a **view mode toggle** where prev/next adapt to the active mode (shift by 1 day in week view, by 1 month in month view).
+// After (reliable)
+<Suspense fallback={...}>
+  <div key={activeModule} className="animate-fade-in">
+    {content}
+  </div>
+</Suspense>
+```
 
-## Revised Plan
+### 2. `src/pages/Dashboard.tsx` — Remove the no-op guard
 
-### Phase 1 (this ticket): Search filter + Week view toggle
+Remove `if (moduleId === activeModule) return;` on line 135. This guard prevents users from recovering from stuck states. If the user clicks the same module, let `nav()` fire — React Router will recognize it as the same path and won't cause unnecessary re-renders, but it ensures the component tree is in sync.
 
-#### 1. Search bar
-Add a search `Input` above the calendar (next to the vehicle `Select`). Live-filters bookings by `customer_name`, `vehicle.name`, `vehicle.make`, `vehicle.model`. Matching is case-insensitive substring. Non-matching bookings are **hidden** (not dimmed). A pill shows "Showing X of Y" when search is active.
+### 3. `src/pages/Dashboard.tsx` — Remove transition state
 
-#### 2. View mode toggle: Month | Week
-Add a two-button `ToggleGroup` next to the month title. 
-- **Month** (default): existing grid, unchanged
-- **Week**: 7-day vertical list starting from the current date. Each day is a section header with booking cards below (reusing `DayDetailContent` layout). Prev/next shift by 7 days in week mode.
+Remove `isModuleTransitioning` state and the timeout logic (lines 124, 138-155) since there's no animation to coordinate with anymore. The Suspense fallback skeleton handles the loading state naturally.
 
-#### 3. Adapt navigation
-- Month mode: prev/next shift by month (existing behavior)
-- Week mode: prev/next shift by 7 days, "Today" resets to current week
+### 4. Verify `animate-fade-in` exists in Tailwind config
 
-### Files Changed
+Check that the CSS keyframe class `animate-fade-in` is defined. If not, add a simple one or use Tailwind's built-in `animate-in` from the animation plugin. This gives a subtle entrance without the exit animation that causes the conflict.
+
+## Files Changed
 
 | File | Change |
 |------|--------|
-| `src/components/dashboard/BookingCalendar.tsx` | Add search state, view mode toggle, week view renderer, adapt nav buttons |
+| `src/pages/Dashboard.tsx` | Remove AnimatePresence/motion.div, remove no-op guard, remove transition state |
+| `tailwind.config.ts` (if needed) | Ensure `animate-fade-in` keyframe exists |
 
-### What's deferred
+## Risk
 
-| Feature | Why |
-|---------|-----|
-| 3-day view | Low value vs week view; can add later as a third toggle option |
-| 3-month view | Different use case (planning/reporting); better as a separate component |
-| Dimming behavior | Replaced with hide + count indicator (cleaner UX) |
+**Very low**. This removes complexity (AnimatePresence + transition state) rather than adding it. The visual change is minor — modules appear instantly with a subtle fade instead of a slide animation. The tradeoff is worth it: reliable navigation > fancy transitions.
 
