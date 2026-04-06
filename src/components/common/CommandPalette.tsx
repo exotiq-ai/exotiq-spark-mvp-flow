@@ -80,7 +80,7 @@ export const CommandPalette = ({ open, onOpenChange }: CommandPaletteProps) => {
       keywords: ['pulse', 'analytics', 'performance', 'metrics', 'reports'],
       onSelect: () => {
         trackItemUsage('pulse');
-        navigate('/dashboard?module=pulse');
+        navigate(moduleIdToPath('pulse'));
         onOpenChange(false);
       },
       category: 'actions',
