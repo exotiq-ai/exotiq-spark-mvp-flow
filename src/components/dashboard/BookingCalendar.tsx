@@ -350,21 +350,89 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
     });
   }, [bookings, selectedVehicle, viewStart.getTime(), viewEnd.getTime()]);
 
-  const filteredBookings = useMemo(() => {
-    if (!debouncedSearch.trim()) return allFilteredBookings;
-    const q = debouncedSearch.toLowerCase();
-    return allFilteredBookings.filter(booking => {
-      const vehicle = vehicles.find(v => v.id === booking.vehicle_id);
-      return (
-        booking.customer_name?.toLowerCase().includes(q) ||
-        vehicle?.name?.toLowerCase().includes(q) ||
-        vehicle?.make?.toLowerCase().includes(q) ||
-        vehicle?.model?.toLowerCase().includes(q)
-      );
+  // Helper: detect conflict bookings (same vehicle, overlapping dates)
+  const conflictBookingIds = useMemo(() => {
+    const ids = new Set<string>();
+    const byVehicle: Record<string, any[]> = {};
+    allFilteredBookings.forEach(b => {
+      if (!b.vehicle_id) return;
+      (byVehicle[b.vehicle_id] ||= []).push(b);
     });
-  }, [allFilteredBookings, debouncedSearch, vehicles]);
+    Object.values(byVehicle).forEach(vBookings => {
+      for (let i = 0; i < vBookings.length; i++) {
+        for (let j = i + 1; j < vBookings.length; j++) {
+          const a = vBookings[i], b = vBookings[j];
+          if (new Date(a.start_date) < new Date(b.end_date) && new Date(b.start_date) < new Date(a.end_date)) {
+            ids.add(a.id); ids.add(b.id);
+          }
+        }
+      }
+    });
+    return ids;
+  }, [allFilteredBookings]);
+
+  // Helper: "returns soon" = end_date within 48h from now
+  const returnsSoonIds = useMemo(() => {
+    const now = new Date();
+    const ids = new Set<string>();
+    allFilteredBookings.forEach(b => {
+      const hoursUntilEnd = differenceInHours(new Date(b.end_date), now);
+      if (hoursUntilEnd >= 0 && hoursUntilEnd <= 48 && b.status !== 'completed' && b.status !== 'cancelled') {
+        ids.add(b.id);
+      }
+    });
+    return ids;
+  }, [allFilteredBookings]);
+
+  // Status filter counts
+  const filterCounts = useMemo(() => ({
+    pending: allFilteredBookings.filter(b => b.status === 'pending').length,
+    confirmed: allFilteredBookings.filter(b => b.status === 'confirmed' || b.status === 'active').length,
+    conflicts: conflictBookingIds.size,
+    returns: returnsSoonIds.size,
+  }), [allFilteredBookings, conflictBookingIds, returnsSoonIds]);
+
+  const toggleStatusFilter = (filter: string) => {
+    setStatusFilters(prev => {
+      const next = new Set(prev);
+      if (next.has(filter)) next.delete(filter); else next.add(filter);
+      return next;
+    });
+  };
+
+  const filteredBookings = useMemo(() => {
+    let result = allFilteredBookings;
+
+    // Apply search filter
+    if (debouncedSearch.trim()) {
+      const q = debouncedSearch.toLowerCase();
+      result = result.filter(booking => {
+        const vehicle = vehicles.find(v => v.id === booking.vehicle_id);
+        return (
+          booking.customer_name?.toLowerCase().includes(q) ||
+          vehicle?.name?.toLowerCase().includes(q) ||
+          vehicle?.make?.toLowerCase().includes(q) ||
+          vehicle?.model?.toLowerCase().includes(q)
+        );
+      });
+    }
+
+    // Apply status filters (union)
+    if (statusFilters.size > 0) {
+      result = result.filter(booking => {
+        if (statusFilters.has('pending') && booking.status === 'pending') return true;
+        if (statusFilters.has('confirmed') && (booking.status === 'confirmed' || booking.status === 'active')) return true;
+        if (statusFilters.has('conflicts') && conflictBookingIds.has(booking.id)) return true;
+        if (statusFilters.has('returns') && returnsSoonIds.has(booking.id)) return true;
+        return false;
+      });
+    }
+
+    return result;
+  }, [allFilteredBookings, debouncedSearch, vehicles, statusFilters, conflictBookingIds, returnsSoonIds]);
 
   const isSearchActive = debouncedSearch.trim().length > 0;
+  const isFilterActive = statusFilters.size > 0;
 
   // Month summary stats
   const monthStats = useMemo(() => ({
