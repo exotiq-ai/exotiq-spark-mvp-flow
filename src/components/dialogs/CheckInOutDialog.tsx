@@ -829,7 +829,7 @@ export const CheckInOutDialog = ({
         prefill={{
           vehicle_id: resolvedVehicleId,
           description: damageItems.length > 0
-            ? damageItems.map(d => `${d.severity} ${d.damageType} at ${d.location}${d.notes ? ': ' + d.notes : ''}`).join('\n')
+            ? damageItems.map(d => `${d.severity} ${d.damageType} at ${d.vehicleLocation}${d.notes ? ': ' + d.notes : ''}`).join('\n')
             : '',
           photo_urls: damageItems.map(d => d.photoUrl).filter(Boolean),
         }}
