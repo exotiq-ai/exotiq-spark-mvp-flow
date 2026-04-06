@@ -300,7 +300,7 @@ export const EnhancedGlobalSearch = ({ onOpenRari }: EnhancedGlobalSearchProps) 
           title: c.full_name,
           subtitle,
           icon: Users,
-          action: () => navigate(`/dashboard?module=book&tab=crm&customerId=${c.id}`)
+          action: () => navigate(moduleIdToPath("book", { tab: "crm", customerId: c.id }))
         });
       });
 
