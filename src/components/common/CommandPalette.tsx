@@ -111,7 +111,7 @@ export const CommandPalette = ({ open, onOpenChange }: CommandPaletteProps) => {
       icon: <BarChart3 className="h-4 w-4" />,
       keywords: ['dashboard', 'home', 'overview', 'command center'],
       onSelect: () => {
-        navigate('/dashboard');
+        navigate(moduleIdToPath('dashboard'));
         onOpenChange(false);
       },
       category: 'navigation',
