@@ -473,7 +473,7 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
             {/* Row 1: Month nav + actions */}
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-1 sm:gap-2">
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={previousMonth} aria-label="Previous month">
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={navigatePrev} aria-label="Previous month">
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
                 <motion.h3 
@@ -485,7 +485,7 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
                 >
                   {format(currentDate, 'MMMM yyyy')}
                 </motion.h3>
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={nextMonth} aria-label="Next month">
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={navigateNext} aria-label="Next month">
                   <ChevronRight className="h-4 w-4" />
                 </Button>
                 {!isCurrentMonth && (
@@ -552,8 +552,8 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
               dragConstraints={{ left: 0, right: 0 }}
               dragElastic={0.1}
               onDragEnd={(_, info) => {
-                if (info.offset.x > 80) previousMonth();
-                else if (info.offset.x < -80) nextMonth();
+                if (info.offset.x > 80) navigatePrev();
+                else if (info.offset.x < -80) navigateNext();
               }}
             >
               {/* Day headers */}
