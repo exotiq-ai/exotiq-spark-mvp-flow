@@ -57,7 +57,7 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth, startOfDay, addDays } from "date-fns";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth, startOfDay, addDays, differenceInHours } from "date-fns";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface BookingCalendarProps {
@@ -288,6 +288,7 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebounce(searchQuery, 250);
+  const [statusFilters, setStatusFilters] = useState<Set<string>>(new Set());
   const [selectedVehicleDetails, setSelectedVehicleDetails] = useState<{
     name: string; make: string; model: string; year: number; status: string; dailyRate: number;
   } | null>(null);
@@ -349,21 +350,89 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
     });
   }, [bookings, selectedVehicle, viewStart.getTime(), viewEnd.getTime()]);
 
-  const filteredBookings = useMemo(() => {
-    if (!debouncedSearch.trim()) return allFilteredBookings;
-    const q = debouncedSearch.toLowerCase();
-    return allFilteredBookings.filter(booking => {
-      const vehicle = vehicles.find(v => v.id === booking.vehicle_id);
-      return (
-        booking.customer_name?.toLowerCase().includes(q) ||
-        vehicle?.name?.toLowerCase().includes(q) ||
-        vehicle?.make?.toLowerCase().includes(q) ||
-        vehicle?.model?.toLowerCase().includes(q)
-      );
+  // Helper: detect conflict bookings (same vehicle, overlapping dates)
+  const conflictBookingIds = useMemo(() => {
+    const ids = new Set<string>();
+    const byVehicle: Record<string, any[]> = {};
+    allFilteredBookings.forEach(b => {
+      if (!b.vehicle_id) return;
+      (byVehicle[b.vehicle_id] ||= []).push(b);
     });
-  }, [allFilteredBookings, debouncedSearch, vehicles]);
+    Object.values(byVehicle).forEach(vBookings => {
+      for (let i = 0; i < vBookings.length; i++) {
+        for (let j = i + 1; j < vBookings.length; j++) {
+          const a = vBookings[i], b = vBookings[j];
+          if (new Date(a.start_date) < new Date(b.end_date) && new Date(b.start_date) < new Date(a.end_date)) {
+            ids.add(a.id); ids.add(b.id);
+          }
+        }
+      }
+    });
+    return ids;
+  }, [allFilteredBookings]);
+
+  // Helper: "returns soon" = end_date within 48h from now
+  const returnsSoonIds = useMemo(() => {
+    const now = new Date();
+    const ids = new Set<string>();
+    allFilteredBookings.forEach(b => {
+      const hoursUntilEnd = differenceInHours(new Date(b.end_date), now);
+      if (hoursUntilEnd >= 0 && hoursUntilEnd <= 48 && b.status !== 'completed' && b.status !== 'cancelled') {
+        ids.add(b.id);
+      }
+    });
+    return ids;
+  }, [allFilteredBookings]);
+
+  // Status filter counts
+  const filterCounts = useMemo(() => ({
+    pending: allFilteredBookings.filter(b => b.status === 'pending').length,
+    confirmed: allFilteredBookings.filter(b => b.status === 'confirmed' || b.status === 'active').length,
+    conflicts: conflictBookingIds.size,
+    returns: returnsSoonIds.size,
+  }), [allFilteredBookings, conflictBookingIds, returnsSoonIds]);
+
+  const toggleStatusFilter = (filter: string) => {
+    setStatusFilters(prev => {
+      const next = new Set(prev);
+      if (next.has(filter)) next.delete(filter); else next.add(filter);
+      return next;
+    });
+  };
+
+  const filteredBookings = useMemo(() => {
+    let result = allFilteredBookings;
+
+    // Apply search filter
+    if (debouncedSearch.trim()) {
+      const q = debouncedSearch.toLowerCase();
+      result = result.filter(booking => {
+        const vehicle = vehicles.find(v => v.id === booking.vehicle_id);
+        return (
+          booking.customer_name?.toLowerCase().includes(q) ||
+          vehicle?.name?.toLowerCase().includes(q) ||
+          vehicle?.make?.toLowerCase().includes(q) ||
+          vehicle?.model?.toLowerCase().includes(q)
+        );
+      });
+    }
+
+    // Apply status filters (union)
+    if (statusFilters.size > 0) {
+      result = result.filter(booking => {
+        if (statusFilters.has('pending') && booking.status === 'pending') return true;
+        if (statusFilters.has('confirmed') && (booking.status === 'confirmed' || booking.status === 'active')) return true;
+        if (statusFilters.has('conflicts') && conflictBookingIds.has(booking.id)) return true;
+        if (statusFilters.has('returns') && returnsSoonIds.has(booking.id)) return true;
+        return false;
+      });
+    }
+
+    return result;
+  }, [allFilteredBookings, debouncedSearch, vehicles, statusFilters, conflictBookingIds, returnsSoonIds]);
 
   const isSearchActive = debouncedSearch.trim().length > 0;
+  const isFilterActive = statusFilters.size > 0;
 
   // Month summary stats
   const monthStats = useMemo(() => ({
@@ -544,14 +613,83 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
                   </Button>
                 )}
               </div>
-              {isSearchActive && (
+              {(isSearchActive || isFilterActive) && (
                 <Badge variant="secondary" className="text-xs whitespace-nowrap">
                   {filteredBookings.length} of {allFilteredBookings.length} bookings
                 </Badge>
               )}
             </div>
 
-            {/* Row 2: Month summary stats */}
+            {/* Row 3: Status filter chips */}
+            <div className="flex flex-wrap items-center gap-1.5 mb-3">
+              <button
+                onClick={() => toggleStatusFilter('pending')}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                  statusFilters.has('pending')
+                    ? 'bg-warning/20 text-warning border-warning/40'
+                    : 'bg-muted/30 text-muted-foreground border-border hover:bg-warning/10 hover:text-warning hover:border-warning/30'
+                }`}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-warning" />
+                Pending
+                {filterCounts.pending > 0 && (
+                  <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-background text-[10px] font-bold leading-none">{filterCounts.pending}</span>
+                )}
+              </button>
+              <button
+                onClick={() => toggleStatusFilter('confirmed')}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                  statusFilters.has('confirmed')
+                    ? 'bg-success/20 text-success border-success/40'
+                    : 'bg-muted/30 text-muted-foreground border-border hover:bg-success/10 hover:text-success hover:border-success/30'
+                }`}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-success" />
+                Confirmed
+                {filterCounts.confirmed > 0 && (
+                  <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-background text-[10px] font-bold leading-none">{filterCounts.confirmed}</span>
+                )}
+              </button>
+              <button
+                onClick={() => toggleStatusFilter('conflicts')}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                  statusFilters.has('conflicts')
+                    ? 'bg-destructive/20 text-destructive border-destructive/40'
+                    : 'bg-muted/30 text-muted-foreground border-border hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30'
+                }`}
+              >
+                <AlertTriangle className="h-3 w-3" />
+                Conflicts
+                {filterCounts.conflicts > 0 && (
+                  <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-background text-[10px] font-bold leading-none">{filterCounts.conflicts}</span>
+                )}
+              </button>
+              <button
+                onClick={() => toggleStatusFilter('returns')}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                  statusFilters.has('returns')
+                    ? 'bg-primary/20 text-primary border-primary/40'
+                    : 'bg-muted/30 text-muted-foreground border-border hover:bg-primary/10 hover:text-primary hover:border-primary/30'
+                }`}
+              >
+                <Clock className="h-3 w-3" />
+                Returns Soon
+                {filterCounts.returns > 0 && (
+                  <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-background text-[10px] font-bold leading-none">{filterCounts.returns}</span>
+                )}
+              </button>
+              {isFilterActive && (
+                <button
+                  onClick={() => setStatusFilters(new Set())}
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <X className="h-3 w-3" />
+                  Clear
+                </button>
+              )}
+            </div>
+
+            {/* Row 4: Month summary stats */}
             <div className="flex flex-wrap items-center gap-2 mb-4">
               <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/50 text-xs">
                 <CalendarIcon className="h-3 w-3 text-muted-foreground" />
