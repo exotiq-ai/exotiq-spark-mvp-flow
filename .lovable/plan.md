@@ -1,54 +1,53 @@
 
 
-# Fix Team Directory — Missing Foreign Key
+# Calendar Status Filters
 
-## Problem
+## Operator Journey Analysis
 
-The console error says it all:
+The calendar serves three daily workflows:
+1. **Approval queue** — "What needs my attention?" → Pending bookings
+2. **Operations planning** — "What's happening today/this week?" → Confirmed + active bookings
+3. **Conflict resolution** — "Are there double-bookings?" → Conflict days
 
-```
-PGRST200: Could not find a relationship between 'team_members' and 'profiles' in the schema cache
-```
+Filters should map directly to these workflows, not just mirror database statuses.
 
-Four files use PostgREST embedded joins like `.select('user_id, role, profiles(id, full_name, email)')` — but there is **no foreign key** from `team_members.user_id` to `profiles.id`. PostgREST requires an explicit FK to resolve embedded resource syntax. This affects:
+## Design
 
-- `TeamDirectorySection.tsx` (Team Hub directory tab — the screenshot error)
-- `MyTeamSection.tsx` (My Team section)
-- `UserManagementSection.tsx` (user management)
-- `useTeamMessaging.ts` (messaging member list)
+A row of toggle chips below the search bar, matching the existing `ToggleGroup` style. Multi-select enabled — clicking multiple chips combines them (union). Each chip shows a live count badge.
 
-## Fix
-
-### 1. Database migration — Add FK constraint
-
-```sql
-ALTER TABLE public.team_members
-  ADD CONSTRAINT team_members_user_id_profiles_fkey
-  FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
+```text
+[🟡 Pending (3)] [🟢 Confirmed (12)] [🔴 Conflicts (1)] [📥 Returns Soon (4)]
 ```
 
-This is safe because:
-- `profiles.id` mirrors `auth.users.id` (created by the `on_auth_user_created` trigger)
-- Every `team_members.user_id` should already exist in `profiles`
-- If any orphaned rows exist, we clean them first
+### Filter definitions
 
-Pre-check (run before the ALTER):
-```sql
-DELETE FROM public.team_members
-WHERE user_id NOT IN (SELECT id FROM public.profiles);
-```
+| Chip | Logic | Why |
+|------|-------|-----|
+| Pending | `status === 'pending'` | #1 action trigger — approve/reject |
+| Confirmed | `status === 'confirmed' \|\| status === 'active'` | What's locked in |
+| Conflicts | Days where same vehicle has overlapping bookings | Already computed in `monthStats` |
+| Returns Soon | `end_date` is today or tomorrow | Prep for inspections, cleaning, re-listing |
 
-### 2. No application code changes needed
+"Returns Soon" is a time-based filter, not a status — it highlights bookings ending within 48 hours regardless of status. This is the operator's "get ready" signal.
 
-All four files already use the correct PostgREST syntax (`profiles(...)`). Once the FK exists, the joins will work automatically.
+### Behavior
 
-## Files Changed
+- **No chips selected** = show all bookings (current default)
+- **One or more selected** = show only matching bookings; non-matching are hidden from the grid
+- Chips are **additive** (union): Pending + Conflicts shows both
+- Counts update live as you change vehicle filter or date range
+- "Conflicts" chip highlights conflict days on the month grid with a subtle red ring (already partially implemented via `hasConflicts()`)
+
+## File Changed
 
 | File | Change |
 |------|--------|
-| Database migration | Clean orphans + add FK from `team_members.user_id` → `profiles.id` |
+| `src/components/dashboard/BookingCalendar.tsx` | Add `statusFilters` state (Set), filter chip row below search, extend `filteredBookings` memo to apply status/time filters, add "Returns Soon" time check |
 
-## Risk
+## What this does NOT include
 
-**Low.** This is a standard FK addition. The data relationship already exists logically — we're just making it explicit for PostgREST. The `ON DELETE CASCADE` ensures if a profile is deleted, the team membership is cleaned up too.
+- No new components or files — everything fits in the existing calendar
+- No database changes
+- No changes to booking statuses or lifecycle
+- Completed/cancelled bookings are intentionally excluded from filter chips (low calendar value)
 
