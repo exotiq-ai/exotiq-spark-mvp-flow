@@ -470,22 +470,25 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
         >
           <Card className="p-3 sm:p-5 border shadow-sm" role="region" aria-label="Booking calendar">
-            {/* Row 1: Month nav + actions */}
+            {/* Row 1: Nav + view toggle + actions */}
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-1 sm:gap-2">
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={navigatePrev} aria-label="Previous month">
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={navigatePrev} aria-label={viewMode === 'month' ? 'Previous month' : 'Previous week'}>
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
                 <motion.h3 
-                  key={format(currentDate, 'MMMM yyyy')}
+                  key={viewMode === 'month' ? format(currentDate, 'MMMM yyyy') : `week-${format(weekStart, 'MMM d')}`}
                   initial={{ opacity: 0, y: -8 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="text-base sm:text-xl font-bold min-w-[140px] sm:min-w-[180px] text-center" 
                   aria-live="polite"
                 >
-                  {format(currentDate, 'MMMM yyyy')}
+                  {viewMode === 'month' 
+                    ? format(currentDate, 'MMMM yyyy')
+                    : `${format(weekStart, 'MMM d')} – ${format(addDays(weekStart, 6), 'MMM d, yyyy')}`
+                  }
                 </motion.h3>
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={navigateNext} aria-label="Next month">
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={navigateNext} aria-label={viewMode === 'month' ? 'Next month' : 'Next week'}>
                   <ChevronRight className="h-4 w-4" />
                 </Button>
                 {!isCurrentMonth && (
@@ -501,6 +504,14 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
               </div>
 
               <div className="flex items-center gap-1.5">
+                <ToggleGroup type="single" value={viewMode} onValueChange={(v) => v && setViewMode(v as 'month' | 'week')} className="hidden sm:flex">
+                  <ToggleGroupItem value="month" aria-label="Month view" className="h-8 w-8 p-0">
+                    <LayoutGrid className="h-4 w-4" />
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="week" aria-label="Week view" className="h-8 w-8 p-0">
+                    <List className="h-4 w-4" />
+                  </ToggleGroupItem>
+                </ToggleGroup>
                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleExportCalendar} title="Export .ics">
                   <Download className="h-4 w-4" />
                 </Button>
@@ -515,6 +526,29 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            {/* Row 2: Search bar */}
+            <div className="flex items-center gap-2 mb-3">
+              <div className="relative flex-1 max-w-sm">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search customer, vehicle..."
+                  className="h-8 pl-8 text-xs sm:text-sm"
+                />
+                {searchQuery && (
+                  <Button variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6" onClick={() => setSearchQuery('')}>
+                    <X className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
+              {isSearchActive && (
+                <Badge variant="secondary" className="text-xs whitespace-nowrap">
+                  {filteredBookings.length} of {allFilteredBookings.length} bookings
+                </Badge>
+              )}
             </div>
 
             {/* Row 2: Month summary stats */}
