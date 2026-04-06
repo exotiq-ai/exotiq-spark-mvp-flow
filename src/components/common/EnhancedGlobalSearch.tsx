@@ -321,7 +321,7 @@ export const EnhancedGlobalSearch = ({ onOpenRari }: EnhancedGlobalSearchProps) 
           title: `${(b as any).booking_ref ? (b as any).booking_ref + ' — ' : ''}${b.customer_name || "Unknown Customer"}`,
           subtitle: `${new Date(b.start_date).toLocaleDateString()} · ${b.vehicle_name || 'No vehicle'} · ${b.status}`,
           icon: Calendar,
-          action: () => navigate(`/dashboard?module=book&bookingId=${b.id}`),
+          action: () => navigate(moduleIdToPath("book", { bookingId: b.id })),
           badge: b.status
         });
       });
