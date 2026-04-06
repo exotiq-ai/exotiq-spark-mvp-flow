@@ -147,7 +147,7 @@ export const CommandPalette = ({ open, onOpenChange }: CommandPaletteProps) => {
       icon: <Car className="h-4 w-4" />,
       keywords: ['fleet', 'vehicles', 'cars'],
       onSelect: () => {
-        navigate('/dashboard?module=motoriq');
+        navigate(moduleIdToPath('fleet'));
         onOpenChange(false);
       },
       category: 'navigation',
