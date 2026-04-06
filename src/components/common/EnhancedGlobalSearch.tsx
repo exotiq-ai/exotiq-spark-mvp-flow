@@ -113,7 +113,7 @@ export const EnhancedGlobalSearch = ({ onOpenRari }: EnhancedGlobalSearchProps) 
       title: "Add Vehicle",
       subtitle: "Add a new vehicle to fleet",
       icon: Car,
-      action: () => navigate(moduleIdToPath("core", { action: "add-vehicle" }))
+      action: () => navigate(moduleIdToPath("fleet", { action: "add-vehicle" }))
     },
     {
       id: "add-customer",
