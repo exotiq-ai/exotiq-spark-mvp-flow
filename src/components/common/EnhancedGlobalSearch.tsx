@@ -211,7 +211,7 @@ export const EnhancedGlobalSearch = ({ onOpenRari }: EnhancedGlobalSearchProps) 
       title: "Vault",
       subtitle: "Compliance & Documents",
       icon: Shield,
-      action: () => navigate("/dashboard?module=vault")
+      action: () => navigate(moduleIdToPath("vault"))
     },
     {
       id: "core",
