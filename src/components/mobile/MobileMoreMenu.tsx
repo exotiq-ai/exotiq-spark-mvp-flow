@@ -1,6 +1,8 @@
 import { useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { moduleIdToPath, pathToModuleId } from "@/lib/moduleRoutes";
 import { 
   MoreHorizontal, 
   Shield, 
