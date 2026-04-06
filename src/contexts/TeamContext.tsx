@@ -196,14 +196,12 @@ export const TeamProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .eq('is_active', true)
           .order('is_default', { ascending: false })
           .order('name')
-          .then(res => ({ data: res.data, error: res.error }))
-          .catch(() => ({ data: null, error: null })),
+          .then(res => ({ data: res.data, error: res.error })),
         supabase
           .from('location_staff')
           .select('location_id')
           .eq('user_id', user.id)
-          .then(res => ({ data: res.data, error: res.error }))
-          .catch(() => ({ data: null, error: null })),
+          .then(res => ({ data: res.data, error: res.error })),
       ]);
 
       if (seq !== fetchSeqRef.current) return;
