@@ -1,6 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { useNavigate } from "react-router-dom";
+import { moduleIdToPath } from "@/lib/moduleRoutes";
 import { 
   Car, 
   ArrowUpRight, 
