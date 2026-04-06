@@ -81,7 +81,6 @@ const DashboardInner = () => {
   const { conversations } = useTeamMessaging();
   const { refreshTeam } = useTeam();
   const containerRef = useRef<HTMLDivElement>(null);
-  const moduleTransitionTimeoutRef = useRef<number | null>(null);
 
   // Backwards compat: redirect legacy ?module= URLs to path-based
   useEffect(() => {
