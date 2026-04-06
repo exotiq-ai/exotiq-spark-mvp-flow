@@ -206,16 +206,8 @@ const DashboardInner = () => {
     }
 
     return (
-      <Suspense fallback={
-        <div className="space-y-4 p-4 animate-pulse">
-          <div className="h-8 bg-muted rounded w-1/3" />
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {[1,2,3,4].map(i => <div key={i} className="h-24 bg-muted rounded-lg" />)}
-          </div>
-          <div className="h-64 bg-muted rounded-lg" />
-        </div>
-      }>
-        <div key={activeModule} className="animate-fade-in">
+      <Suspense fallback={getModuleSkeleton(activeModule)}>
+        <div key={activeModule} className="animate-fade-in-up">
           {content}
         </div>
       </Suspense>
