@@ -1,57 +1,54 @@
 
 
-# Subtle Module Loading Animations — Safe Improvements
+# Fix Team Directory — Missing Foreign Key
 
-## Current State
+## Problem
 
-The Suspense fallback in `Dashboard.tsx` (lines 209-216) is a plain `animate-pulse` skeleton — generic gray blocks that just throb. You already have a rich library of specialized skeletons (`skeleton-specialized.tsx`) with shimmer gradients, staggered delays, and thinking-dot animations, but **none of them are used** during module transitions. Meanwhile, the existing `animate-shimmer` and `animate-pulse-soft` keyframes are already defined and safe (pure CSS, no framer-motion, no conflict with Suspense).
+The console error says it all:
 
-## Plan
+```
+PGRST200: Could not find a relationship between 'team_members' and 'profiles' in the schema cache
+```
 
-### 1. Module-specific Suspense fallbacks
+Four files use PostgREST embedded joins like `.select('user_id, role, profiles(id, full_name, email)')` — but there is **no foreign key** from `team_members.user_id` to `profiles.id`. PostgREST requires an explicit FK to resolve embedded resource syntax. This affects:
 
-Replace the single generic skeleton with a mapping of module → specialized skeleton. Each module gets a fallback that matches its actual layout shape, so the transition feels intentional rather than jarring.
+- `TeamDirectorySection.tsx` (Team Hub directory tab — the screenshot error)
+- `MyTeamSection.tsx` (My Team section)
+- `UserManagementSection.tsx` (user management)
+- `useTeamMessaging.ts` (messaging member list)
 
-**`src/pages/Dashboard.tsx`** — new `getModuleSkeleton(moduleId)` function:
+## Fix
 
-| Module | Skeleton |
-|--------|----------|
-| `dashboard` | `SkeletonBanner` + `SkeletonStatsRow` + `SkeletonModuleNav` |
-| `book` | `SkeletonQuickActions` + 3× `SkeletonScheduleItem` |
-| `fleet` | 4× `SkeletonVehicleCard` in a grid |
-| `pulse` | `SkeletonStatsRow` + `SkeletonSection` (chart height) |
-| `motoriq` | `SkeletonAIInsight` + `SkeletonStatsRow` |
-| `vault` | `SkeletonQuickActions` + 3× `SkeletonDocumentRow` |
-| `core` | `SkeletonAIInsight` |
-| `settings`, `team-hub` | Current generic skeleton (fine for simple layouts) |
+### 1. Database migration — Add FK constraint
 
-These all use **CSS-only** animations (`animate-shimmer`, `animate-pulse-soft`, staggered `animationDelay`) — zero framer-motion in the loading path, so no conflict with Suspense.
+```sql
+ALTER TABLE public.team_members
+  ADD CONSTRAINT team_members_user_id_profiles_fkey
+  FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
+```
 
-### 2. Staggered reveal on the loaded content
+This is safe because:
+- `profiles.id` mirrors `auth.users.id` (created by the `on_auth_user_created` trigger)
+- Every `team_members.user_id` should already exist in `profiles`
+- If any orphaned rows exist, we clean them first
 
-After the chunk loads and the real content mounts, the current `animate-fade-in` is a single 300ms opacity+translateY. Enhance this slightly:
+Pre-check (run before the ALTER):
+```sql
+DELETE FROM public.team_members
+WHERE user_id NOT IN (SELECT id FROM public.profiles);
+```
 
-- Add a new `animate-fade-in-up` keyframe (200ms, translateY(8px) → 0, ease-out) — snappier than the current 300ms with 10px travel
-- This keeps the CSS-only approach (no framer-motion wrapping lazy components)
+### 2. No application code changes needed
 
-### 3. Fix missing `animate-shimmer` usage
-
-The specialized skeletons reference `animate-shimmer` via inline classes — this already works via Tailwind config. But `animate-pulse-soft` is only defined in `index.css` as a raw class. Both are CSS-only and safe. No changes needed, just confirming they don't conflict.
-
-## What NOT to do
-
-- No `AnimatePresence` or `motion.div` around lazy-loaded content (lesson learned)
-- No `useTransition` / `startTransition` — adds complexity for marginal gain here
-- No preloading on sidebar hover (premature optimization; chunks are small after code-split)
+All four files already use the correct PostgREST syntax (`profiles(...)`). Once the FK exists, the joins will work automatically.
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| `src/pages/Dashboard.tsx` | Add `getModuleSkeleton()`, use it in Suspense fallback, tweak fade class |
-| `tailwind.config.ts` | Add `fade-in-up` keyframe (snappier variant) |
+| Database migration | Clean orphans + add FK from `team_members.user_id` → `profiles.id` |
 
 ## Risk
 
-**Very low.** All animations are CSS-only. No interaction with React's Suspense lifecycle. The specialized skeletons are already built and tested — we're just wiring them into the right place.
+**Low.** This is a standard FK addition. The data relationship already exists logically — we're just making it explicit for PostgREST. The `ON DELETE CASCADE` ensures if a profile is deleted, the team membership is cleaned up too.
 
