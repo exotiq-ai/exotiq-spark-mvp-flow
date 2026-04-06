@@ -174,18 +174,6 @@ const DashboardInner = () => {
   );
 
   const renderModuleContent = () => {
-    const pageVariants = {
-      initial: { opacity: 0, x: 50 },
-      in: { opacity: 1, x: 0 },
-      out: { opacity: 0, x: -50 }
-    };
-
-    const pageTransition = {
-      type: "tween" as const,
-      ease: "anticipate" as const,
-      duration: 0.3
-    };
-
     let content;
     switch (activeModule) {
       case "motoriq":
@@ -219,30 +207,19 @@ const DashboardInner = () => {
     }
 
     return (
-      <div className="relative">
-        <Suspense fallback={
-          <div className="space-y-4 p-4 animate-pulse">
-            <div className="h-8 bg-muted rounded w-1/3" />
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {[1,2,3,4].map(i => <div key={i} className="h-24 bg-muted rounded-lg" />)}
-            </div>
-            <div className="h-64 bg-muted rounded-lg" />
+      <Suspense fallback={
+        <div className="space-y-4 p-4 animate-pulse">
+          <div className="h-8 bg-muted rounded w-1/3" />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[1,2,3,4].map(i => <div key={i} className="h-24 bg-muted rounded-lg" />)}
           </div>
-        }>
-          <AnimatePresence mode="popLayout">
-            <motion.div
-              key={activeModule}
-              initial="initial"
-              animate="in"
-              exit="out"
-              variants={pageVariants}
-              transition={pageTransition}
-            >
-              {content}
-            </motion.div>
-          </AnimatePresence>
-        </Suspense>
-      </div>
+          <div className="h-64 bg-muted rounded-lg" />
+        </div>
+      }>
+        <div key={activeModule} className="animate-fade-in">
+          {content}
+        </div>
+      </Suspense>
     );
   };
 
