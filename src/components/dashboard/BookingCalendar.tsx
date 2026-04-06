@@ -763,7 +763,7 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
                           ${isSelected 
                             ? 'bg-primary text-primary-foreground ring-2 ring-inset ring-primary' 
                             : `${getDensityClass()}`}
-                          ${hasConflict && !isSelected ? 'bg-destructive/5' : ''}
+                          ${hasConflict && !isSelected ? `bg-destructive/5 ${statusFilters.has('conflicts') ? 'ring-2 ring-inset ring-destructive/50' : ''}` : ''}
                           ${isToday && !isSelected ? 'border-b-2 border-b-primary' : ''}
                           focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset`}
                       >
