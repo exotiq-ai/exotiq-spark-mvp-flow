@@ -67,9 +67,9 @@ const DashboardInner = () => {
   const { showPostTourModal, setShowPostTourModal } = useTourData();
   const { displayName } = useProfile();
 
-  // Ensure module transition overlay never gets stuck
+  // Sync localStorage for backwards compat (tours read it)
   useEffect(() => {
-    setIsModuleTransitioning(false);
+    setStoredModule(activeModule);
   }, [activeModule]);
   
   // Keyboard shortcuts with Rari toggle
