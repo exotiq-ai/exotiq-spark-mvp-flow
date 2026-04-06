@@ -183,7 +183,7 @@ export const CommandPalette = ({ open, onOpenChange }: CommandPaletteProps) => {
       icon: <MessageSquare className="h-4 w-4" />,
       keywords: ['messages', 'chat', 'team', 'communication'],
       onSelect: () => {
-        navigate('/dashboard?module=messages');
+        navigate(moduleIdToPath('messages'));
         onOpenChange(false);
       },
       category: 'navigation',
