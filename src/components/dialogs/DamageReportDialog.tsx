@@ -59,12 +59,19 @@ export const DamageReportDialog = ({ open, onOpenChange, vehicles, prefill }: Da
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [formData, setFormData] = useState({
-    vehicle_id: "",
+    vehicle_id: prefill?.vehicle_id || "",
     claim_type: "",
     severity: "",
-    description: "",
+    description: prefill?.description || "",
     estimated_cost: "",
     insurance_claim_number: ""
+  });
+
+  // Apply prefill photos
+  useState(() => {
+    if (prefill?.photo_urls?.length) {
+      setUploadedPhotos(prefill.photo_urls.map((url, i) => ({ url, name: `Inspection photo ${i + 1}` })));
+    }
   });
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
