@@ -135,7 +135,7 @@ export const CommandPalette = ({ open, onOpenChange }: CommandPaletteProps) => {
       icon: <Calendar className="h-4 w-4" />,
       keywords: ['bookings', 'reservations', 'calendar', 'schedule'],
       onSelect: () => {
-        navigate('/dashboard?module=book');
+        navigate(moduleIdToPath('book'));
         onOpenChange(false);
       },
       category: 'navigation',
