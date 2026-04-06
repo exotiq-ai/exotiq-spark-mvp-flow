@@ -68,7 +68,7 @@ export const TodaySnapshot = () => {
       subtext: `${returnsCompleted} completed`,
       icon: ArrowDownLeft,
       color: "text-warning",
-      onClick: () => navigate('/dashboard?module=book&filter=returns-today')
+      onClick: () => navigate(moduleIdToPath("book", { filter: "returns-today" }))
     },
     { 
       label: "Collected Today", 
