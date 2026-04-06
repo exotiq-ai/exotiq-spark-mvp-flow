@@ -276,7 +276,7 @@ export const EnhancedGlobalSearch = ({ onOpenRari }: EnhancedGlobalSearchProps) 
           title: `${v.make} ${v.model}`,
           subtitle: `${plate}${v.status || 'Unknown'}`,
           icon: Car,
-          action: () => navigate(`/dashboard?module=motoriq&vehicleId=${v.id}`),
+          action: () => navigate(moduleIdToPath("motoriq", { vehicleId: v.id })),
           badge: v.status
         });
       });
