@@ -288,6 +288,7 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebounce(searchQuery, 250);
+  const [statusFilters, setStatusFilters] = useState<Set<string>>(new Set());
   const [selectedVehicleDetails, setSelectedVehicleDetails] = useState<{
     name: string; make: string; model: string; year: number; status: string; dailyRate: number;
   } | null>(null);
