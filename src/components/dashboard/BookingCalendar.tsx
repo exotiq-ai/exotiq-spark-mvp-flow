@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { useModuleNavigation } from "@/hooks/useModuleNavigation";
 import { generateVehicleColors } from "@/lib/conflictDetection";
@@ -12,6 +14,7 @@ import { downloadICS, bookingsToCalendarEvents } from "@/lib/calendarExport";
 import { getVehicleImage } from "@/lib/vehicleImageMapping";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useDebounce } from "@/hooks/useDebounce";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Drawer, 
@@ -38,6 +41,9 @@ import {
   DollarSign,
   User,
   TrendingUp,
+  Search,
+  LayoutGrid,
+  List,
 } from "lucide-react";
 import {
   Select,
@@ -51,7 +57,7 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth, startOfDay } from "date-fns";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth, startOfDay, addDays } from "date-fns";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface BookingCalendarProps {
@@ -279,6 +285,9 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
   const [showRealtimeUpdate, setShowRealtimeUpdate] = useState(false);
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
+  const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebounce(searchQuery, 250);
   const [selectedVehicleDetails, setSelectedVehicleDetails] = useState<{
     name: string; make: string; model: string; year: number; status: string; dailyRate: number;
   } | null>(null);
@@ -319,12 +328,42 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
   const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
   const vehicleColors = generateVehicleColors(vehicles.map(v => v.id));
 
-  const filteredBookings = bookings.filter(booking => {
-    if (selectedVehicle !== "all" && booking.vehicle_id !== selectedVehicle) return false;
-    const bookingStart = new Date(booking.start_date);
-    const bookingEnd = new Date(booking.end_date);
-    return bookingStart <= monthEnd && bookingEnd >= monthStart;
-  });
+  // Week view date range
+  const weekStart = startOfDay(currentDate);
+  const weekDays = useMemo(() => 
+    eachDayOfInterval({ start: weekStart, end: addDays(weekStart, 6) }),
+    [weekStart.getTime()]
+  );
+
+  // Determine the date range based on view mode
+  const viewStart = viewMode === 'month' ? monthStart : weekStart;
+  const viewEnd = viewMode === 'month' ? monthEnd : addDays(weekStart, 6);
+
+  // Filter bookings by vehicle, date range, and search query
+  const allFilteredBookings = useMemo(() => {
+    return bookings.filter(booking => {
+      if (selectedVehicle !== "all" && booking.vehicle_id !== selectedVehicle) return false;
+      const bookingStart = new Date(booking.start_date);
+      const bookingEnd = new Date(booking.end_date);
+      return bookingStart <= viewEnd && bookingEnd >= viewStart;
+    });
+  }, [bookings, selectedVehicle, viewStart.getTime(), viewEnd.getTime()]);
+
+  const filteredBookings = useMemo(() => {
+    if (!debouncedSearch.trim()) return allFilteredBookings;
+    const q = debouncedSearch.toLowerCase();
+    return allFilteredBookings.filter(booking => {
+      const vehicle = vehicles.find(v => v.id === booking.vehicle_id);
+      return (
+        booking.customer_name?.toLowerCase().includes(q) ||
+        vehicle?.name?.toLowerCase().includes(q) ||
+        vehicle?.make?.toLowerCase().includes(q) ||
+        vehicle?.model?.toLowerCase().includes(q)
+      );
+    });
+  }, [allFilteredBookings, debouncedSearch, vehicles]);
+
+  const isSearchActive = debouncedSearch.trim().length > 0;
 
   // Month summary stats
   const monthStats = useMemo(() => ({
@@ -345,8 +384,22 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
     return dayBookings.length > vehicleIds.size;
   };
 
-  const previousMonth = () => { setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1)); setSelectedDate(undefined); setDrawerOpen(false); };
-  const nextMonth = () => { setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1)); setSelectedDate(undefined); setDrawerOpen(false); };
+  const navigatePrev = () => {
+    if (viewMode === 'month') {
+      setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1));
+    } else {
+      setCurrentDate(addDays(currentDate, -7));
+    }
+    setSelectedDate(undefined); setDrawerOpen(false);
+  };
+  const navigateNext = () => {
+    if (viewMode === 'month') {
+      setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1));
+    } else {
+      setCurrentDate(addDays(currentDate, 7));
+    }
+    setSelectedDate(undefined); setDrawerOpen(false);
+  };
   const goToToday = () => { setCurrentDate(new Date()); setSelectedDate(undefined); setDrawerOpen(false); };
   const clearSelection = () => { setSelectedDate(undefined); setDrawerOpen(false); };
 
@@ -417,22 +470,25 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
         >
           <Card className="p-3 sm:p-5 border shadow-sm" role="region" aria-label="Booking calendar">
-            {/* Row 1: Month nav + actions */}
+            {/* Row 1: Nav + view toggle + actions */}
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-1 sm:gap-2">
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={previousMonth} aria-label="Previous month">
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={navigatePrev} aria-label={viewMode === 'month' ? 'Previous month' : 'Previous week'}>
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
                 <motion.h3 
-                  key={format(currentDate, 'MMMM yyyy')}
+                  key={viewMode === 'month' ? format(currentDate, 'MMMM yyyy') : `week-${format(weekStart, 'MMM d')}`}
                   initial={{ opacity: 0, y: -8 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="text-base sm:text-xl font-bold min-w-[140px] sm:min-w-[180px] text-center" 
                   aria-live="polite"
                 >
-                  {format(currentDate, 'MMMM yyyy')}
+                  {viewMode === 'month' 
+                    ? format(currentDate, 'MMMM yyyy')
+                    : `${format(weekStart, 'MMM d')} – ${format(addDays(weekStart, 6), 'MMM d, yyyy')}`
+                  }
                 </motion.h3>
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={nextMonth} aria-label="Next month">
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={navigateNext} aria-label={viewMode === 'month' ? 'Next month' : 'Next week'}>
                   <ChevronRight className="h-4 w-4" />
                 </Button>
                 {!isCurrentMonth && (
@@ -448,6 +504,14 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
               </div>
 
               <div className="flex items-center gap-1.5">
+                <ToggleGroup type="single" value={viewMode} onValueChange={(v) => v && setViewMode(v as 'month' | 'week')} className="hidden sm:flex">
+                  <ToggleGroupItem value="month" aria-label="Month view" className="h-8 w-8 p-0">
+                    <LayoutGrid className="h-4 w-4" />
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="week" aria-label="Week view" className="h-8 w-8 p-0">
+                    <List className="h-4 w-4" />
+                  </ToggleGroupItem>
+                </ToggleGroup>
                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleExportCalendar} title="Export .ics">
                   <Download className="h-4 w-4" />
                 </Button>
@@ -462,6 +526,29 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            {/* Row 2: Search bar */}
+            <div className="flex items-center gap-2 mb-3">
+              <div className="relative flex-1 max-w-sm">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search customer, vehicle..."
+                  className="h-8 pl-8 text-xs sm:text-sm"
+                />
+                {searchQuery && (
+                  <Button variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6" onClick={() => setSearchQuery('')}>
+                    <X className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
+              {isSearchActive && (
+                <Badge variant="secondary" className="text-xs whitespace-nowrap">
+                  {filteredBookings.length} of {allFilteredBookings.length} bookings
+                </Badge>
+              )}
             </div>
 
             {/* Row 2: Month summary stats */}
@@ -489,174 +576,265 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
               )}
             </div>
 
-            {/* Calendar Grid */}
-            <motion.div 
-              layout
-              className="grid grid-cols-7 border-t border-l border-border/40 rounded-lg overflow-hidden" 
-              role="grid" 
-              aria-label="Calendar grid"
-              drag={isMobile ? "x" : false}
-              dragConstraints={{ left: 0, right: 0 }}
-              dragElastic={0.1}
-              onDragEnd={(_, info) => {
-                if (info.offset.x > 80) previousMonth();
-                else if (info.offset.x < -80) nextMonth();
-              }}
-            >
-              {/* Day headers */}
-              {dayHeaders.map((day, i) => (
-                <div key={i} className="text-center font-medium text-[10px] sm:text-xs text-muted-foreground py-1.5 sm:py-2 border-r border-b border-border/40 bg-muted/20">
-                  {day}
-                </div>
-              ))}
-
-              {/* Empty padding cells */}
-              {Array.from({ length: monthStart.getDay() }).map((_, i) => <div key={`empty-${i}`} className="border-r border-b border-border/40" />)}
-              
-              {/* Day cells */}
-              {daysInMonth.map((day, dayIndex) => {
-                const dayBookings = getBookingsForDay(day);
-                const bookingsCount = dayBookings.length;
-                const hasConflict = hasConflicts(day);
-                const isSelected = selectedDate && isSameDay(day, selectedDate);
-                const isToday = isSameDay(day, new Date());
-                
-                const getDensityClass = () => {
-                  if (bookingsCount === 0) return 'hover:bg-muted/30';
-                  if (bookingsCount >= 5) return 'bg-success/10 hover:bg-success/15';
-                  if (bookingsCount >= 3) return 'bg-warning/8 hover:bg-warning/12';
-                  return 'bg-primary/5 hover:bg-primary/8';
-                };
-
-                return (
-                  <div 
-                    key={day.toISOString()} 
-                    data-calendar-day 
-                    role="gridcell" 
-                    tabIndex={dayIndex === focusedDateIndex ? 0 : -1}
-                    onClick={() => handleDayClick(day)} 
-                    onKeyDown={(e) => handleKeyDown(e, dayIndex, day)}
-                    aria-selected={isSelected}
-                    className={`relative p-1 sm:p-1.5 min-h-[56px] sm:min-h-[72px] lg:min-h-[84px] border-r border-b border-border/40 cursor-pointer transition-colors
-                      ${isSelected 
-                        ? 'bg-primary text-primary-foreground ring-2 ring-inset ring-primary' 
-                        : `${getDensityClass()}`}
-                      ${hasConflict && !isSelected ? 'bg-destructive/5' : ''}
-                      ${isToday && !isSelected ? 'border-b-2 border-b-primary' : ''}
-                      focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset`}
-                  >
-                    {/* Date number */}
-                    <div className="flex items-center justify-between mb-0.5">
-                      {isToday && !isSelected ? (
-                        <span className="inline-flex items-center justify-center w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-primary text-primary-foreground text-xs sm:text-sm font-bold">
-                          {format(day, 'd')}
-                        </span>
-                      ) : (
-                        <span className={`text-xs sm:text-sm ${isToday ? 'font-bold' : 'font-semibold'} ${isSelected ? 'text-primary-foreground' : ''}`}>
-                          {format(day, 'd')}
-                        </span>
-                      )}
-                      {hasConflict && (
-                        <AlertTriangle className={`h-3 w-3 flex-shrink-0 ${isSelected ? 'text-primary-foreground' : 'text-destructive'}`} />
-                      )}
-                      {bookingsCount > 0 && !isMobile && (
-                        <span className={`text-[9px] font-medium px-1 rounded-full ${
-                          isSelected ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-muted text-muted-foreground'
-                        }`}>
-                          {bookingsCount}
-                        </span>
-                      )}
+            {viewMode === 'month' ? (
+              <>
+                {/* Calendar Grid */}
+                <motion.div 
+                  layout
+                  className="grid grid-cols-7 border-t border-l border-border/40 rounded-lg overflow-hidden" 
+                  role="grid" 
+                  aria-label="Calendar grid"
+                  drag={isMobile ? "x" : false}
+                  dragConstraints={{ left: 0, right: 0 }}
+                  dragElastic={0.1}
+                  onDragEnd={(_, info) => {
+                    if (info.offset.x > 80) navigatePrev();
+                    else if (info.offset.x < -80) navigateNext();
+                  }}
+                >
+                  {dayHeaders.map((day, i) => (
+                    <div key={i} className="text-center font-medium text-[10px] sm:text-xs text-muted-foreground py-1.5 sm:py-2 border-r border-b border-border/40 bg-muted/20">
+                      {day}
                     </div>
+                  ))}
+                  {Array.from({ length: monthStart.getDay() }).map((_, i) => <div key={`empty-${i}`} className="border-r border-b border-border/40" />)}
+                  {daysInMonth.map((day, dayIndex) => {
+                    const dayBookings = getBookingsForDay(day);
+                    const bookingsCount = dayBookings.length;
+                    const hasConflict = hasConflicts(day);
+                    const isSelected = selectedDate && isSameDay(day, selectedDate);
+                    const isToday = isSameDay(day, new Date());
                     
-                    {/* Mobile: dots only */}
-                    {isMobile && bookingsCount > 0 && (
-                      <div className="flex items-center gap-0.5 mt-0.5">
-                        {dayBookings.slice(0, 3).map(b => (
-                          <div 
-                            key={b.id} 
-                            className="w-1.5 h-1.5 rounded-full" 
-                            style={{ backgroundColor: isSelected ? 'currentColor' : vehicleColors[b.vehicle_id] || '#888' }} 
-                          />
-                        ))}
-                        {bookingsCount > 3 && (
-                          <span className={`text-[8px] ${isSelected ? 'text-primary-foreground' : 'text-muted-foreground'}`}>
-                            +{bookingsCount - 3}
-                          </span>
-                        )}
-                      </div>
-                    )}
+                    const getDensityClass = () => {
+                      if (bookingsCount === 0) return 'hover:bg-muted/30';
+                      if (bookingsCount >= 5) return 'bg-success/10 hover:bg-success/15';
+                      if (bookingsCount >= 3) return 'bg-warning/8 hover:bg-warning/12';
+                      return 'bg-primary/5 hover:bg-primary/8';
+                    };
 
-                    {/* Desktop/Tablet: booking pills */}
-                    {!isMobile && bookingsCount > 0 && (
-                      <div className="space-y-0.5 mt-0.5">
-                        {dayBookings.slice(0, 2).map((booking) => {
-                          const vehicle = vehicles.find(v => v.id === booking.vehicle_id);
-                          const vehicleColor = vehicleColors[booking.vehicle_id];
-                          const customerFirst = booking.customer_name?.split(' ')[0] || '';
-                          const vehicleModel = vehicle?.model || vehicle?.name?.split(' ').slice(-1)[0] || booking.vehicle_name?.split(' ').slice(-1)[0] || '';
-                          const pillText = customerFirst && vehicleModel 
-                            ? `${customerFirst} - ${vehicleModel}` 
-                            : customerFirst || vehicleModel || 'Booking';
-                          
-                          return (
-                            <HoverCard key={booking.id} openDelay={300} closeDelay={100}>
-                              <HoverCardTrigger asChild>
-                                <div 
-                                  className={`text-[10px] lg:text-[11px] px-1 py-0.5 rounded truncate cursor-pointer transition-all leading-tight ${
-                                    isSelected ? 'bg-primary-foreground/20 text-primary-foreground' : ''
-                                  }`}
-                                  style={!isSelected ? { 
-                                    backgroundColor: `${vehicleColor || '#888'}15`, 
-                                    color: vehicleColor || '#888', 
-                                    borderLeft: `3px solid ${vehicleColor || '#888'}` 
-                                  } : { borderLeft: '3px solid currentColor' }}
-                                  onClick={(e) => { e.stopPropagation(); handleBookingClick(booking.id); }}
-                                >
-                                  {pillText}
-                                </div>
-                              </HoverCardTrigger>
-                              <HoverCardContent side="right" align="start" className="p-4 z-50 bg-popover border border-border shadow-lg"
-                                onClick={(e) => e.stopPropagation()}>
-                                <BookingPreviewCard 
-                                  booking={booking} vehicle={vehicle}
-                                  onViewDetails={() => handleBookingClick(booking.id)}
-                                  onCustomerClick={goToCustomerProfile}
-                                />
-                              </HoverCardContent>
-                            </HoverCard>
-                          );
-                        })}
-                        {bookingsCount > 2 && (
-                          <div className={`text-[9px] text-center ${isSelected ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
-                            +{bookingsCount - 2} more
+                    return (
+                      <div 
+                        key={day.toISOString()} 
+                        data-calendar-day 
+                        role="gridcell" 
+                        tabIndex={dayIndex === focusedDateIndex ? 0 : -1}
+                        onClick={() => handleDayClick(day)} 
+                        onKeyDown={(e) => handleKeyDown(e, dayIndex, day)}
+                        aria-selected={isSelected}
+                        className={`relative p-1 sm:p-1.5 min-h-[56px] sm:min-h-[72px] lg:min-h-[84px] border-r border-b border-border/40 cursor-pointer transition-colors
+                          ${isSelected 
+                            ? 'bg-primary text-primary-foreground ring-2 ring-inset ring-primary' 
+                            : `${getDensityClass()}`}
+                          ${hasConflict && !isSelected ? 'bg-destructive/5' : ''}
+                          ${isToday && !isSelected ? 'border-b-2 border-b-primary' : ''}
+                          focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset`}
+                      >
+                        <div className="flex items-center justify-between mb-0.5">
+                          {isToday && !isSelected ? (
+                            <span className="inline-flex items-center justify-center w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-primary text-primary-foreground text-xs sm:text-sm font-bold">
+                              {format(day, 'd')}
+                            </span>
+                          ) : (
+                            <span className={`text-xs sm:text-sm ${isToday ? 'font-bold' : 'font-semibold'} ${isSelected ? 'text-primary-foreground' : ''}`}>
+                              {format(day, 'd')}
+                            </span>
+                          )}
+                          {hasConflict && (
+                            <AlertTriangle className={`h-3 w-3 flex-shrink-0 ${isSelected ? 'text-primary-foreground' : 'text-destructive'}`} />
+                          )}
+                          {bookingsCount > 0 && !isMobile && (
+                            <span className={`text-[9px] font-medium px-1 rounded-full ${
+                              isSelected ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-muted text-muted-foreground'
+                            }`}>
+                              {bookingsCount}
+                            </span>
+                          )}
+                        </div>
+                        
+                        {isMobile && bookingsCount > 0 && (
+                          <div className="flex items-center gap-0.5 mt-0.5">
+                            {dayBookings.slice(0, 3).map(b => (
+                              <div 
+                                key={b.id} 
+                                className="w-1.5 h-1.5 rounded-full" 
+                                style={{ backgroundColor: isSelected ? 'currentColor' : vehicleColors[b.vehicle_id] || '#888' }} 
+                              />
+                            ))}
+                            {bookingsCount > 3 && (
+                              <span className={`text-[8px] ${isSelected ? 'text-primary-foreground' : 'text-muted-foreground'}`}>
+                                +{bookingsCount - 3}
+                              </span>
+                            )}
+                          </div>
+                        )}
+
+                        {!isMobile && bookingsCount > 0 && (
+                          <div className="space-y-0.5 mt-0.5">
+                            {dayBookings.slice(0, 2).map((booking) => {
+                              const vehicle = vehicles.find(v => v.id === booking.vehicle_id);
+                              const vehicleColor = vehicleColors[booking.vehicle_id];
+                              const customerFirst = booking.customer_name?.split(' ')[0] || '';
+                              const vehicleModel = vehicle?.model || vehicle?.name?.split(' ').slice(-1)[0] || booking.vehicle_name?.split(' ').slice(-1)[0] || '';
+                              const pillText = customerFirst && vehicleModel 
+                                ? `${customerFirst} - ${vehicleModel}` 
+                                : customerFirst || vehicleModel || 'Booking';
+                              
+                              return (
+                                <HoverCard key={booking.id} openDelay={300} closeDelay={100}>
+                                  <HoverCardTrigger asChild>
+                                    <div 
+                                      className={`text-[10px] lg:text-[11px] px-1 py-0.5 rounded truncate cursor-pointer transition-all leading-tight ${
+                                        isSelected ? 'bg-primary-foreground/20 text-primary-foreground' : ''
+                                      }`}
+                                      style={!isSelected ? { 
+                                        backgroundColor: `${vehicleColor || '#888'}15`, 
+                                        color: vehicleColor || '#888', 
+                                        borderLeft: `3px solid ${vehicleColor || '#888'}` 
+                                      } : { borderLeft: '3px solid currentColor' }}
+                                      onClick={(e) => { e.stopPropagation(); handleBookingClick(booking.id); }}
+                                    >
+                                      {pillText}
+                                    </div>
+                                  </HoverCardTrigger>
+                                  <HoverCardContent side="right" align="start" className="p-4 z-50 bg-popover border border-border shadow-lg"
+                                    onClick={(e) => e.stopPropagation()}>
+                                    <BookingPreviewCard 
+                                      booking={booking} vehicle={vehicle}
+                                      onViewDetails={() => handleBookingClick(booking.id)}
+                                      onCustomerClick={goToCustomerProfile}
+                                    />
+                                  </HoverCardContent>
+                                </HoverCard>
+                              );
+                            })}
+                            {bookingsCount > 2 && (
+                              <div className={`text-[9px] text-center ${isSelected ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+                                +{bookingsCount - 2} more
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
-                    )}
-                  </div>
-                );
-              })}
-            </motion.div>
+                    );
+                  })}
+                </motion.div>
 
-            {/* Legend */}
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-3 pt-3 border-t text-[10px] sm:text-xs">
-              <div className="flex items-center gap-1.5">
-                <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-primary text-primary-foreground text-[8px] font-bold">1</span>
-                <span className="text-muted-foreground">Today</span>
+                {/* Legend */}
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-3 pt-3 border-t text-[10px] sm:text-xs">
+                  <div className="flex items-center gap-1.5">
+                    <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-primary text-primary-foreground text-[8px] font-bold">1</span>
+                    <span className="text-muted-foreground">Today</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3.5 h-3.5 rounded-lg bg-primary border border-primary" />
+                    <span className="text-muted-foreground">Selected</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3.5 h-3.5 rounded-lg border border-success/40 bg-success/20" />
+                    <span className="text-muted-foreground">5+ bookings</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <AlertTriangle className="h-3 w-3 text-destructive" />
+                    <span className="text-muted-foreground">Conflict</span>
+                  </div>
+                </div>
+              </>
+            ) : (
+              /* Week View — 7-day vertical list */
+              <div className="space-y-3">
+                {weekDays.map((day, dayIdx) => {
+                  const dayBookings = getBookingsForDay(day);
+                  const isToday = isSameDay(day, new Date());
+                  
+                  return (
+                    <div key={day.toISOString()} className={`rounded-xl border ${isToday ? 'border-primary/50 bg-primary/5' : 'border-border/40'}`}>
+                      <div className={`flex items-center justify-between px-4 py-2.5 ${isToday ? 'bg-primary/10' : 'bg-muted/20'} rounded-t-xl`}>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-sm font-bold ${isToday ? 'text-primary' : ''}`}>
+                            {format(day, 'EEEE')}
+                          </span>
+                          <span className="text-xs text-muted-foreground">{format(day, 'MMM d')}</span>
+                          {isToday && <Badge variant="default" className="text-[10px] h-5 px-1.5">Today</Badge>}
+                        </div>
+                        <div className="flex items-center gap-2 text-xs">
+                          <span className="font-medium">{dayBookings.length} booking{dayBookings.length !== 1 ? 's' : ''}</span>
+                          {dayBookings.length > 0 && (
+                            <span className="text-success font-semibold">
+                              ${dayBookings.reduce((sum, b) => sum + Number(b.total_value || 0), 0).toLocaleString()}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="p-3">
+                        {dayBookings.length === 0 ? (
+                          <p className="text-xs text-muted-foreground text-center py-3">No bookings</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {dayBookings.map((booking, index) => {
+                              const vehicle = vehicles.find(v => v.id === booking.vehicle_id);
+                              const vehicleColor = vehicleColors[booking.vehicle_id];
+                              const vehicleImage = vehicle ? getVehicleImage(vehicle.name) : null;
+
+                              return (
+                                <motion.div
+                                  key={booking.id}
+                                  initial={{ opacity: 0, y: 8 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  transition={{ delay: dayIdx * 0.02 + index * 0.03 }}
+                                  onClick={() => handleBookingClick(booking.id)}
+                                  className="relative p-3 rounded-xl border cursor-pointer hover:shadow-md hover:border-primary/40 transition-all group overflow-hidden"
+                                  style={{ borderLeftWidth: '3px', borderLeftColor: vehicleColor }}
+                                >
+                                  {vehicleImage && (
+                                    <div className="absolute right-0 top-0 w-20 h-full opacity-[0.07] group-hover:opacity-[0.14] transition-opacity">
+                                      <img src={vehicleImage} alt="" className="w-full h-full object-cover" />
+                                    </div>
+                                  )}
+                                  <div className="relative flex items-start justify-between gap-3">
+                                    <div className="flex items-center gap-2.5 min-w-0">
+                                      {vehicleImage && (
+                                        <div className="w-9 h-9 rounded-lg overflow-hidden flex-shrink-0 shadow-sm">
+                                          <img src={vehicleImage} alt={vehicle?.name} className="w-full h-full object-cover" />
+                                        </div>
+                                      )}
+                                      <div className="min-w-0">
+                                        <h5 className="font-semibold text-sm group-hover:text-primary transition-colors truncate">
+                                          {vehicle?.name || booking.vehicle_name || 'Unknown'}
+                                        </h5>
+                                        <p className="text-xs text-muted-foreground truncate">{booking.customer_name}</p>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                      <span className="font-bold text-success text-sm">${Number(booking.total_value).toLocaleString()}</span>
+                                      <Badge variant="outline" className={`text-[10px] ${
+                                        booking.status === 'confirmed' ? 'bg-success/10 text-success border-success/30' :
+                                        booking.status === 'completed' ? 'bg-primary/10 text-primary border-primary/30' :
+                                        booking.status === 'cancelled' ? 'bg-destructive/10 text-destructive border-destructive/30' :
+                                        'bg-warning/10 text-warning border-warning/30'
+                                      }`}>{booking.status}</Badge>
+                                    </div>
+                                  </div>
+                                  <div className="relative flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                                    <div className="flex items-center gap-1">
+                                      <Clock className="h-3 w-3" />
+                                      {format(new Date(booking.start_date), 'h:mm a')} – {format(new Date(booking.end_date), 'h:mm a')}
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      <MapPin className="h-3 w-3" />
+                                      <span className="truncate max-w-[150px]">{booking.pickup_location}</span>
+                                    </div>
+                                  </div>
+                                </motion.div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-3.5 h-3.5 rounded-lg bg-primary border border-primary" />
-                <span className="text-muted-foreground">Selected</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-3.5 h-3.5 rounded-lg border border-success/40 bg-success/20" />
-                <span className="text-muted-foreground">5+ bookings</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <AlertTriangle className="h-3 w-3 text-destructive" />
-                <span className="text-muted-foreground">Conflict</span>
-              </div>
-            </div>
+            )}
           </Card>
         </motion.div>
 
