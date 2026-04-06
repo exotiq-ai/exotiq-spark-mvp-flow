@@ -214,7 +214,7 @@ export const DashboardBottomActionBar = ({
               {filteredVehicles.map(vehicle => (
                 <CommandItem
                   key={vehicle.id}
-                  onSelect={() => handleSelect(() => navigate(`/dashboard?module=motoriq&vehicleId=${vehicle.id}`))}
+                  onSelect={() => handleSelect(() => navigate(moduleIdToPath("motoriq", { vehicleId: vehicle.id })))}
                 >
                   <Car className="mr-2 h-4 w-4 text-muted-foreground" />
                   <span className="font-medium">{vehicle.make} {vehicle.model}</span>
