@@ -109,7 +109,7 @@ export const FleetPageEnhanced = () => {
   }, [currentTeam?.id]);
 
   // Deep-link routing
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   // Tab state
   const [activeTab, setActiveTab] = useState('fleet');
