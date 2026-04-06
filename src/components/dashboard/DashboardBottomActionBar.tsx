@@ -239,7 +239,7 @@ export const DashboardBottomActionBar = ({
               {filteredCustomers.map(customer => (
                 <CommandItem
                   key={customer.id}
-                  onSelect={() => handleSelect(() => navigate(`/dashboard?module=core&customerId=${customer.id}`))}
+                  onSelect={() => handleSelect(() => navigate(moduleIdToPath("core", { customerId: customer.id })))}
                 >
                   <Users className="mr-2 h-4 w-4 text-muted-foreground" />
                   <span className="font-medium">{customer.full_name}</span>
