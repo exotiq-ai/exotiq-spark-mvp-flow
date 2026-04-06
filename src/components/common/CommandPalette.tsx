@@ -66,7 +66,7 @@ export const CommandPalette = ({ open, onOpenChange }: CommandPaletteProps) => {
       keywords: ['motoriq', 'pricing', 'dynamic', 'optimization', 'ai', 'revenue', 'predict'],
       onSelect: () => {
         trackItemUsage('motoriq');
-        navigate('/dashboard?module=motoriq');
+        navigate(moduleIdToPath('motoriq'));
         onOpenChange(false);
       },
       category: 'actions',
