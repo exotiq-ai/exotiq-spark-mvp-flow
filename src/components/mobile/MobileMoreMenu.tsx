@@ -67,7 +67,11 @@ export const MobileMoreMenu = ({ onAddLocation, activeModule, onModuleChange }: 
 
   const handleItemClick = (itemId: string) => {
     if (navigator.vibrate) navigator.vibrate(10);
-    onModuleChange(itemId);
+    if (onModuleChange) {
+      onModuleChange(itemId);
+    } else {
+      navigate(moduleIdToPath(itemId));
+    }
     setOpen(false);
   };
 
