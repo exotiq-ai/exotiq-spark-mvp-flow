@@ -285,6 +285,9 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
   const [showRealtimeUpdate, setShowRealtimeUpdate] = useState(false);
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
+  const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebounce(searchQuery, 250);
   const [selectedVehicleDetails, setSelectedVehicleDetails] = useState<{
     name: string; make: string; model: string; year: number; status: string; dailyRate: number;
   } | null>(null);
@@ -325,12 +328,42 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
   const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
   const vehicleColors = generateVehicleColors(vehicles.map(v => v.id));
 
-  const filteredBookings = bookings.filter(booking => {
-    if (selectedVehicle !== "all" && booking.vehicle_id !== selectedVehicle) return false;
-    const bookingStart = new Date(booking.start_date);
-    const bookingEnd = new Date(booking.end_date);
-    return bookingStart <= monthEnd && bookingEnd >= monthStart;
-  });
+  // Week view date range
+  const weekStart = startOfDay(currentDate);
+  const weekDays = useMemo(() => 
+    eachDayOfInterval({ start: weekStart, end: addDays(weekStart, 6) }),
+    [weekStart.getTime()]
+  );
+
+  // Determine the date range based on view mode
+  const viewStart = viewMode === 'month' ? monthStart : weekStart;
+  const viewEnd = viewMode === 'month' ? monthEnd : addDays(weekStart, 6);
+
+  // Filter bookings by vehicle, date range, and search query
+  const allFilteredBookings = useMemo(() => {
+    return bookings.filter(booking => {
+      if (selectedVehicle !== "all" && booking.vehicle_id !== selectedVehicle) return false;
+      const bookingStart = new Date(booking.start_date);
+      const bookingEnd = new Date(booking.end_date);
+      return bookingStart <= viewEnd && bookingEnd >= viewStart;
+    });
+  }, [bookings, selectedVehicle, viewStart.getTime(), viewEnd.getTime()]);
+
+  const filteredBookings = useMemo(() => {
+    if (!debouncedSearch.trim()) return allFilteredBookings;
+    const q = debouncedSearch.toLowerCase();
+    return allFilteredBookings.filter(booking => {
+      const vehicle = vehicles.find(v => v.id === booking.vehicle_id);
+      return (
+        booking.customer_name?.toLowerCase().includes(q) ||
+        vehicle?.name?.toLowerCase().includes(q) ||
+        vehicle?.make?.toLowerCase().includes(q) ||
+        vehicle?.model?.toLowerCase().includes(q)
+      );
+    });
+  }, [allFilteredBookings, debouncedSearch, vehicles]);
+
+  const isSearchActive = debouncedSearch.trim().length > 0;
 
   // Month summary stats
   const monthStats = useMemo(() => ({
@@ -351,8 +384,22 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
     return dayBookings.length > vehicleIds.size;
   };
 
-  const previousMonth = () => { setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1)); setSelectedDate(undefined); setDrawerOpen(false); };
-  const nextMonth = () => { setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1)); setSelectedDate(undefined); setDrawerOpen(false); };
+  const navigatePrev = () => {
+    if (viewMode === 'month') {
+      setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1));
+    } else {
+      setCurrentDate(addDays(currentDate, -7));
+    }
+    setSelectedDate(undefined); setDrawerOpen(false);
+  };
+  const navigateNext = () => {
+    if (viewMode === 'month') {
+      setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1));
+    } else {
+      setCurrentDate(addDays(currentDate, 7));
+    }
+    setSelectedDate(undefined); setDrawerOpen(false);
+  };
   const goToToday = () => { setCurrentDate(new Date()); setSelectedDate(undefined); setDrawerOpen(false); };
   const clearSelection = () => { setSelectedDate(undefined); setDrawerOpen(false); };
 
