@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { moduleIdToPath } from "@/lib/moduleRoutes";
 import {
   CommandDialog,
   CommandEmpty,
