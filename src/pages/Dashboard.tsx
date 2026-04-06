@@ -120,9 +120,6 @@ const DashboardInner = () => {
     };
   }, [page]);
 
-  // Module transition state for loading feedback
-  const [isModuleTransitioning, setIsModuleTransitioning] = useState(false);
-  
   // Handle module change - special case for messages opens chat instead
   const handleModuleChange = (moduleId: string) => {
     if (moduleId === 'messages') {
@@ -131,28 +128,12 @@ const DashboardInner = () => {
       return;
     }
 
-    // No-op if already on this module (prevents stuck overlays)
-    if (moduleId === activeModule) return;
-
-    // Clear any pending transition timer
-    if (moduleTransitionTimeoutRef.current) {
-      window.clearTimeout(moduleTransitionTimeoutRef.current);
-      moduleTransitionTimeoutRef.current = null;
-    }
-
-    setIsModuleTransitioning(true);
     track('module_switch', { from: activeModule, to: moduleId });
     nav(moduleIdToPath(moduleId));
 
     // Scroll to top of page smoothly
     window.scrollTo({ top: 0, behavior: 'smooth' });
     containerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-
-    // Clear transition state after brief delay
-    moduleTransitionTimeoutRef.current = window.setTimeout(() => {
-      setIsModuleTransitioning(false);
-      moduleTransitionTimeoutRef.current = null;
-    }, 200);
   };
 
   const moduleNames: Record<string, string> = {
