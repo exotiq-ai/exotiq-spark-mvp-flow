@@ -81,24 +81,19 @@ const DashboardInner = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const moduleTransitionTimeoutRef = useRef<number | null>(null);
 
-  // Always start at dashboard module on new browser session
+  // Backwards compat: redirect legacy ?module= URLs to path-based
   useEffect(() => {
-    const isInitialLoad = !sessionStorage.getItem('dashboard_initialized');
-    if (isInitialLoad) {
-      setActiveModule('dashboard');
-      sessionStorage.setItem('dashboard_initialized', 'true');
+    const moduleFromUrl = searchParams.get('module');
+    if (moduleFromUrl) {
+      const newPath = moduleIdToPath(moduleFromUrl);
+      // Preserve other query params (bookingId, customerId, etc.)
+      const params = new URLSearchParams(searchParams);
+      params.delete('module');
+      const qs = params.toString();
+      nav(qs ? `${newPath}?${qs}` : newPath, { replace: true });
     }
-  }, []);
+  }, [searchParams, nav]);
 
-  // Clean up session flag on browser/tab close
-  useEffect(() => {
-    const handleBeforeUnload = () => {
-      sessionStorage.removeItem('dashboard_initialized');
-    };
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, []);
-  
   // Get user ID for welcome video
   const [userId, setUserId] = useState<string | null>(null);
   
