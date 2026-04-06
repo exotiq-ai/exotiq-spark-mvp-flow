@@ -106,13 +106,7 @@ const DashboardInner = () => {
   // Calculate total unread messages
   const totalUnread = conversations.reduce((acc, c) => acc + (c.unread_count || 0), 0);
 
-  // Read module from URL query params (reliable, no race conditions)
-  useEffect(() => {
-    const moduleFromUrl = searchParams.get('module');
-    if (moduleFromUrl) {
-      handleModuleChange(moduleFromUrl);
-    }
-  }, [searchParams]);
+  // Legacy ?module= redirect is handled above
 
   useEffect(() => {
     performance.mark('dashboard-load-start');
