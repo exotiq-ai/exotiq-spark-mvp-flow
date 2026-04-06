@@ -17,7 +17,7 @@ const damageClaimSchema = z.object({
   claim_type: z.enum(["accident", "vandalism", "theft", "mechanical", "weather", "other"], {
     errorMap: () => ({ message: "Please select a valid claim type" })
   }),
-  severity: z.enum(["minor", "moderate", "major"], {
+  severity: z.enum(["minor", "moderate", "severe", "total_loss"], {
     errorMap: () => ({ message: "Please select a valid severity level" })
   }),
   description: z.string()
@@ -34,7 +34,8 @@ const damageClaimSchema = z.object({
   insurance_claim_number: z.string()
     .trim()
     .max(100, { message: "Insurance claim number must be less than 100 characters" })
-    .optional()
+    .optional(),
+  photo_urls: z.array(z.string()).max(10, "Too many photos").optional(),
 });
 
 type Vehicle = Tables<"vehicles">;
