@@ -69,7 +69,7 @@ export const NextFourHours = () => {
 
   // Navigate to specific booking
   const handleEventClick = (bookingId: string) => {
-    navigate(`/dashboard?module=book&bookingId=${bookingId}`);
+    navigate(moduleIdToPath("book", { bookingId }));
   };
 
   return (
