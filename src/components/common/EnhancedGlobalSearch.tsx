@@ -113,7 +113,7 @@ export const EnhancedGlobalSearch = ({ onOpenRari }: EnhancedGlobalSearchProps) 
       title: "Add Vehicle",
       subtitle: "Add a new vehicle to fleet",
       icon: Car,
-      action: () => navigate(moduleIdToPath("core", { action: "add-vehicle" }))
+      action: () => navigate(moduleIdToPath("fleet", { action: "add-vehicle" }))
     },
     {
       id: "add-customer",
@@ -121,7 +121,7 @@ export const EnhancedGlobalSearch = ({ onOpenRari }: EnhancedGlobalSearchProps) 
       title: "Add Customer",
       subtitle: "Register a new customer",
       icon: Users,
-      action: () => navigate(moduleIdToPath("core", { action: "add-customer" }))
+      action: () => navigate(moduleIdToPath("book", { tab: "crm", action: "add-customer" }))
     },
     {
       id: "generate-report",
@@ -182,6 +182,14 @@ export const EnhancedGlobalSearch = ({ onOpenRari }: EnhancedGlobalSearchProps) 
   // Module navigation
   const modules: SearchResult[] = [
     {
+      id: "fleet",
+      type: "module",
+      title: "Fleet",
+      subtitle: "Vehicle Management",
+      icon: Car,
+      action: () => navigate(moduleIdToPath("fleet"))
+    },
+    {
       id: "motoriq",
       type: "module",
       title: "MotorIQ",
@@ -220,6 +228,14 @@ export const EnhancedGlobalSearch = ({ onOpenRari }: EnhancedGlobalSearchProps) 
       subtitle: "AI Control Center",
       icon: Brain,
       action: () => navigate(moduleIdToPath("core"))
+    },
+    {
+      id: "team-hub-nav",
+      type: "module",
+      title: "Team Hub",
+      subtitle: "Team management & activity",
+      icon: Users,
+      action: () => navigate(moduleIdToPath("team-hub"))
     },
     {
       id: "messages-nav",
@@ -276,7 +292,7 @@ export const EnhancedGlobalSearch = ({ onOpenRari }: EnhancedGlobalSearchProps) 
           title: `${v.make} ${v.model}`,
           subtitle: `${plate}${v.status || 'Unknown'}`,
           icon: Car,
-          action: () => navigate(moduleIdToPath("motoriq", { vehicleId: v.id })),
+          action: () => navigate(moduleIdToPath("fleet", { vehicleId: v.id })),
           badge: v.status
         });
       });

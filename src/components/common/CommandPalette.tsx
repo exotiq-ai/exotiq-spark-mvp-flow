@@ -159,7 +159,7 @@ export const CommandPalette = ({ open, onOpenChange }: CommandPaletteProps) => {
       icon: <Users className="h-4 w-4" />,
       keywords: ['customers', 'clients', 'users', 'people'],
       onSelect: () => {
-        navigate(moduleIdToPath('core'));
+        navigate(moduleIdToPath('book', { tab: 'crm' }));
         onOpenChange(false);
       },
       category: 'navigation',

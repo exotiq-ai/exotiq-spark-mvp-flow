@@ -109,7 +109,7 @@ export const FleetPageEnhanced = () => {
   }, [currentTeam?.id]);
 
   // Deep-link routing
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   // Tab state
   const [activeTab, setActiveTab] = useState('fleet');
@@ -126,6 +126,17 @@ export const FleetPageEnhanced = () => {
       if (task) setSelectedTask(task);
     }
   }, [searchParams, tasks]);
+
+  // Deep-link: auto-open add vehicle dialog from action param
+  useEffect(() => {
+    const action = searchParams.get('action');
+    if (action === 'add-vehicle') {
+      setShowAddVehicle(true);
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('action');
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [searchParams]);
 
   // Listen for work order creation from other modules (e.g., CheckInOutDialog)
   useEffect(() => {

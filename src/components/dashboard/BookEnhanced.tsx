@@ -175,6 +175,17 @@ export const BookEnhanced = () => {
     }
   }, [searchParams, bookings, loading, setSearchParams]);
 
+  // Deep-link: auto-open new booking dialog from action param
+  useEffect(() => {
+    const action = searchParams.get('action');
+    if (action === 'new') {
+      setShowNewBooking(true);
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('action');
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
   // Show empty state if no bookings
   const hasNoBookings = !loading && bookings.length === 0;
 
