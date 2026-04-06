@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
+import { moduleIdToPath } from '@/lib/moduleRoutes';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { supabase } from '@/integrations/supabase/client';
 import { exportToCSV } from '@/lib/exportUtils';
@@ -65,7 +66,7 @@ export const CommandPalette = ({ open, onOpenChange }: CommandPaletteProps) => {
       keywords: ['motoriq', 'pricing', 'dynamic', 'optimization', 'ai', 'revenue', 'predict'],
       onSelect: () => {
         trackItemUsage('motoriq');
-        navigate('/dashboard?module=motoriq');
+        navigate(moduleIdToPath('motoriq'));
         onOpenChange(false);
       },
       category: 'actions',
@@ -79,7 +80,7 @@ export const CommandPalette = ({ open, onOpenChange }: CommandPaletteProps) => {
       keywords: ['pulse', 'analytics', 'performance', 'metrics', 'reports'],
       onSelect: () => {
         trackItemUsage('pulse');
-        navigate('/dashboard?module=pulse');
+        navigate(moduleIdToPath('pulse'));
         onOpenChange(false);
       },
       category: 'actions',
@@ -93,7 +94,7 @@ export const CommandPalette = ({ open, onOpenChange }: CommandPaletteProps) => {
       keywords: ['book', 'bookings', 'reservations', 'calendar', 'schedule'],
       onSelect: () => {
         trackItemUsage('book');
-        navigate('/dashboard?module=book');
+        navigate(moduleIdToPath('book'));
         onOpenChange(false);
       },
       category: 'actions',
@@ -110,7 +111,7 @@ export const CommandPalette = ({ open, onOpenChange }: CommandPaletteProps) => {
       icon: <BarChart3 className="h-4 w-4" />,
       keywords: ['dashboard', 'home', 'overview', 'command center'],
       onSelect: () => {
-        navigate('/dashboard');
+        navigate(moduleIdToPath('dashboard'));
         onOpenChange(false);
       },
       category: 'navigation',
@@ -122,7 +123,7 @@ export const CommandPalette = ({ open, onOpenChange }: CommandPaletteProps) => {
       icon: <TrendingUp className="h-4 w-4" />,
       keywords: ['motoriq', 'optimization', 'pricing', 'revenue', 'analytics'],
       onSelect: () => {
-        navigate('/dashboard?module=motoriq');
+        navigate(moduleIdToPath('motoriq'));
         onOpenChange(false);
       },
       category: 'navigation',
@@ -134,7 +135,7 @@ export const CommandPalette = ({ open, onOpenChange }: CommandPaletteProps) => {
       icon: <Calendar className="h-4 w-4" />,
       keywords: ['bookings', 'reservations', 'calendar', 'schedule'],
       onSelect: () => {
-        navigate('/dashboard?module=book');
+        navigate(moduleIdToPath('book'));
         onOpenChange(false);
       },
       category: 'navigation',
@@ -146,7 +147,7 @@ export const CommandPalette = ({ open, onOpenChange }: CommandPaletteProps) => {
       icon: <Car className="h-4 w-4" />,
       keywords: ['fleet', 'vehicles', 'cars'],
       onSelect: () => {
-        navigate('/dashboard?module=motoriq');
+        navigate(moduleIdToPath('fleet'));
         onOpenChange(false);
       },
       category: 'navigation',
@@ -158,7 +159,7 @@ export const CommandPalette = ({ open, onOpenChange }: CommandPaletteProps) => {
       icon: <Users className="h-4 w-4" />,
       keywords: ['customers', 'clients', 'users', 'people'],
       onSelect: () => {
-        navigate('/dashboard?module=core');
+        navigate(moduleIdToPath('core'));
         onOpenChange(false);
       },
       category: 'navigation',
@@ -170,7 +171,7 @@ export const CommandPalette = ({ open, onOpenChange }: CommandPaletteProps) => {
       icon: <FileText className="h-4 w-4" />,
       keywords: ['documents', 'compliance', 'vault', 'files'],
       onSelect: () => {
-        navigate('/dashboard?module=vault');
+        navigate(moduleIdToPath('vault'));
         onOpenChange(false);
       },
       category: 'navigation',
@@ -182,7 +183,7 @@ export const CommandPalette = ({ open, onOpenChange }: CommandPaletteProps) => {
       icon: <MessageSquare className="h-4 w-4" />,
       keywords: ['messages', 'chat', 'team', 'communication'],
       onSelect: () => {
-        navigate('/dashboard?module=messages');
+        navigate(moduleIdToPath('messages'));
         onOpenChange(false);
       },
       category: 'navigation',
@@ -194,7 +195,7 @@ export const CommandPalette = ({ open, onOpenChange }: CommandPaletteProps) => {
       icon: <Settings className="h-4 w-4" />,
       keywords: ['settings', 'preferences', 'account', 'configuration'],
       onSelect: () => {
-        navigate('/dashboard?module=settings');
+        navigate(moduleIdToPath('settings'));
         onOpenChange(false);
       },
       category: 'navigation',

@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { CollapsibleSection } from "./CollapsibleSection";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { useNavigate } from "react-router-dom";
+import { moduleIdToPath } from "@/lib/moduleRoutes";
 import { 
   Clock, 
   ArrowUpRight, 
@@ -68,7 +69,7 @@ export const NextFourHours = () => {
 
   // Navigate to specific booking
   const handleEventClick = (bookingId: string) => {
-    navigate(`/dashboard?module=book&bookingId=${bookingId}`);
+    navigate(moduleIdToPath("book", { bookingId }));
   };
 
   return (
@@ -126,7 +127,7 @@ export const NextFourHours = () => {
               variant="ghost" 
               size="sm"
               className="w-full"
-              onClick={() => navigate('/dashboard?module=book&tab=calendar')}
+              onClick={() => navigate(moduleIdToPath("book", { tab: "calendar" }))}
             >
               +{events.length - 4} more
             </Button>

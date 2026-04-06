@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { moduleIdToPath } from "@/lib/moduleRoutes";
 import {
   CommandDialog,
   CommandEmpty,
@@ -103,7 +104,7 @@ export const EnhancedGlobalSearch = ({ onOpenRari }: EnhancedGlobalSearchProps) 
       title: "New Booking",
       subtitle: "Create a new rental booking",
       icon: Plus,
-      action: () => navigate("/dashboard?module=book&action=new"),
+      action: () => navigate(moduleIdToPath("book", { action: "new" })),
       badge: "⌘N"
     },
     {
@@ -112,7 +113,7 @@ export const EnhancedGlobalSearch = ({ onOpenRari }: EnhancedGlobalSearchProps) 
       title: "Add Vehicle",
       subtitle: "Add a new vehicle to fleet",
       icon: Car,
-      action: () => navigate("/dashboard?module=core&action=add-vehicle")
+      action: () => navigate(moduleIdToPath("core", { action: "add-vehicle" }))
     },
     {
       id: "add-customer",
@@ -120,7 +121,7 @@ export const EnhancedGlobalSearch = ({ onOpenRari }: EnhancedGlobalSearchProps) 
       title: "Add Customer",
       subtitle: "Register a new customer",
       icon: Users,
-      action: () => navigate("/dashboard?module=core&action=add-customer")
+      action: () => navigate(moduleIdToPath("core", { action: "add-customer" }))
     },
     {
       id: "generate-report",
@@ -128,7 +129,7 @@ export const EnhancedGlobalSearch = ({ onOpenRari }: EnhancedGlobalSearchProps) 
       title: "Generate Report",
       subtitle: "Create analytics report",
       icon: FileText,
-      action: () => navigate("/dashboard?module=pulse&action=report")
+      action: () => navigate(moduleIdToPath("pulse", { action: "report" }))
     }
   ];
 
@@ -186,7 +187,7 @@ export const EnhancedGlobalSearch = ({ onOpenRari }: EnhancedGlobalSearchProps) 
       title: "MotorIQ",
       subtitle: "AI Pricing Optimization",
       icon: TrendingUp,
-      action: () => navigate("/dashboard?module=motoriq")
+      action: () => navigate(moduleIdToPath("motoriq"))
     },
     {
       id: "pulse",
@@ -194,7 +195,7 @@ export const EnhancedGlobalSearch = ({ onOpenRari }: EnhancedGlobalSearchProps) 
       title: "Pulse",
       subtitle: "Live Analytics & Telematics",
       icon: BarChart3,
-      action: () => navigate("/dashboard?module=pulse")
+      action: () => navigate(moduleIdToPath("pulse"))
     },
     {
       id: "book",
@@ -202,7 +203,7 @@ export const EnhancedGlobalSearch = ({ onOpenRari }: EnhancedGlobalSearchProps) 
       title: "Book",
       subtitle: "Booking Management",
       icon: Calendar,
-      action: () => navigate("/dashboard?module=book")
+      action: () => navigate(moduleIdToPath("book"))
     },
     {
       id: "vault",
@@ -210,7 +211,7 @@ export const EnhancedGlobalSearch = ({ onOpenRari }: EnhancedGlobalSearchProps) 
       title: "Vault",
       subtitle: "Compliance & Documents",
       icon: Shield,
-      action: () => navigate("/dashboard?module=vault")
+      action: () => navigate(moduleIdToPath("vault"))
     },
     {
       id: "core",
@@ -218,7 +219,7 @@ export const EnhancedGlobalSearch = ({ onOpenRari }: EnhancedGlobalSearchProps) 
       title: "FleetCopilot™",
       subtitle: "AI Control Center",
       icon: Brain,
-      action: () => navigate("/dashboard?module=core")
+      action: () => navigate(moduleIdToPath("core"))
     },
     {
       id: "messages-nav",
@@ -226,7 +227,7 @@ export const EnhancedGlobalSearch = ({ onOpenRari }: EnhancedGlobalSearchProps) 
       title: "Team Messages",
       subtitle: "Internal communications",
       icon: MessageSquare,
-      action: () => navigate("/dashboard?module=messages")
+      action: () => navigate(moduleIdToPath("messages"))
     },
     {
       id: "settings",
@@ -234,7 +235,7 @@ export const EnhancedGlobalSearch = ({ onOpenRari }: EnhancedGlobalSearchProps) 
       title: "Settings",
       subtitle: "System configuration",
       icon: Settings,
-      action: () => navigate("/dashboard?module=settings")
+      action: () => navigate(moduleIdToPath("settings"))
     }
   ];
 
@@ -275,7 +276,7 @@ export const EnhancedGlobalSearch = ({ onOpenRari }: EnhancedGlobalSearchProps) 
           title: `${v.make} ${v.model}`,
           subtitle: `${plate}${v.status || 'Unknown'}`,
           icon: Car,
-          action: () => navigate(`/dashboard?module=motoriq&vehicleId=${v.id}`),
+          action: () => navigate(moduleIdToPath("motoriq", { vehicleId: v.id })),
           badge: v.status
         });
       });
@@ -299,7 +300,7 @@ export const EnhancedGlobalSearch = ({ onOpenRari }: EnhancedGlobalSearchProps) 
           title: c.full_name,
           subtitle,
           icon: Users,
-          action: () => navigate(`/dashboard?module=book&tab=crm&customerId=${c.id}`)
+          action: () => navigate(moduleIdToPath("book", { tab: "crm", customerId: c.id }))
         });
       });
 
@@ -320,7 +321,7 @@ export const EnhancedGlobalSearch = ({ onOpenRari }: EnhancedGlobalSearchProps) 
           title: `${(b as any).booking_ref ? (b as any).booking_ref + ' — ' : ''}${b.customer_name || "Unknown Customer"}`,
           subtitle: `${new Date(b.start_date).toLocaleDateString()} · ${b.vehicle_name || 'No vehicle'} · ${b.status}`,
           icon: Calendar,
-          action: () => navigate(`/dashboard?module=book&bookingId=${b.id}`),
+          action: () => navigate(moduleIdToPath("book", { bookingId: b.id })),
           badge: b.status
         });
       });
@@ -505,7 +506,7 @@ export const EnhancedGlobalSearch = ({ onOpenRari }: EnhancedGlobalSearchProps) 
                     if (onOpenRari) {
                       onOpenRari(searchQuery);
                     } else {
-                      navigate("/dashboard?module=core");
+                      navigate(moduleIdToPath("core"));
                     }
                   }, searchQuery)}
                   className="flex items-center gap-3 bg-primary/5"

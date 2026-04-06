@@ -28,6 +28,7 @@ import {
 import { CommandDialog, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
+import { moduleIdToPath } from "@/lib/moduleRoutes";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 
 interface ActionItem {
@@ -213,7 +214,7 @@ export const DashboardBottomActionBar = ({
               {filteredVehicles.map(vehicle => (
                 <CommandItem
                   key={vehicle.id}
-                  onSelect={() => handleSelect(() => navigate(`/dashboard?module=motoriq&vehicleId=${vehicle.id}`))}
+                  onSelect={() => handleSelect(() => navigate(moduleIdToPath("motoriq", { vehicleId: vehicle.id })))}
                 >
                   <Car className="mr-2 h-4 w-4 text-muted-foreground" />
                   <span className="font-medium">{vehicle.make} {vehicle.model}</span>
@@ -238,7 +239,7 @@ export const DashboardBottomActionBar = ({
               {filteredCustomers.map(customer => (
                 <CommandItem
                   key={customer.id}
-                  onSelect={() => handleSelect(() => navigate(`/dashboard?module=core&customerId=${customer.id}`))}
+                  onSelect={() => handleSelect(() => navigate(moduleIdToPath("core", { customerId: customer.id })))}
                 >
                   <Users className="mr-2 h-4 w-4 text-muted-foreground" />
                   <span className="font-medium">{customer.full_name}</span>
@@ -256,7 +257,7 @@ export const DashboardBottomActionBar = ({
               {filteredBookings.map(booking => (
                 <CommandItem
                   key={booking.id}
-                  onSelect={() => handleSelect(() => navigate(`/dashboard?module=book&bookingId=${booking.id}`))}
+                  onSelect={() => handleSelect(() => navigate(moduleIdToPath("book", { bookingId: booking.id })))}
                 >
                   <Calendar className="mr-2 h-4 w-4 text-muted-foreground" />
                   <span className="font-medium">{booking.customer_name}</span>

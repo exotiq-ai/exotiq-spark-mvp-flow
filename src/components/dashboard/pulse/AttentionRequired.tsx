@@ -7,6 +7,7 @@ import { useRealtimeTable } from "@/hooks/useRealtimeTable";
 import { useFleet } from "@/contexts/FleetContext";
 import { useTeam } from "@/contexts/TeamContext";
 import { useNavigate } from "react-router-dom";
+import { moduleIdToPath } from "@/lib/moduleRoutes";
 import { 
   AlertTriangle, 
   Clock, 
@@ -92,14 +93,14 @@ export const AttentionRequired = () => {
       count: lateReturns.length, 
       color: 'text-destructive',
       bgColor: 'bg-destructive/10',
-      action: () => navigate('/dashboard?module=book&filter=overdue'),
+      action: () => navigate(moduleIdToPath("book", { filter: "overdue" })),
       items: lateReturns.slice(0, 5).map(b => {
         const vehicle = vehicles.find(v => v.id === b.vehicle_id);
         return {
           id: b.id,
           label: vehicle ? `${vehicle.make} ${vehicle.model}` : 'Unknown Vehicle',
           sublabel: `${b.customer_name} • Due ${format(new Date(b.end_date), 'MMM d')}`,
-          onClick: () => navigate(`/dashboard?module=book&bookingId=${b.id}`)
+          onClick: () => navigate(moduleIdToPath("book", { bookingId: b.id }))
         };
       })
     },
@@ -110,14 +111,14 @@ export const AttentionRequired = () => {
       count: pendingPickups.length, 
       color: 'text-warning',
       bgColor: 'bg-warning/10',
-      action: () => navigate('/dashboard?module=book&filter=pending-pickup'),
+      action: () => navigate(moduleIdToPath("book", { filter: "pending-pickup" })),
       items: pendingPickups.slice(0, 5).map(b => {
         const vehicle = vehicles.find(v => v.id === b.vehicle_id);
         return {
           id: b.id,
           label: vehicle ? `${vehicle.make} ${vehicle.model}` : 'Unknown Vehicle',
           sublabel: `${b.customer_name} • ${format(new Date(b.start_date), 'h:mm a')}`,
-          onClick: () => navigate(`/dashboard?module=book&bookingId=${b.id}`)
+          onClick: () => navigate(moduleIdToPath("book", { bookingId: b.id }))
         };
       })
     },
@@ -128,14 +129,14 @@ export const AttentionRequired = () => {
       count: overduePayments.length, 
       color: 'text-warning',
       bgColor: 'bg-warning/10',
-      action: () => navigate('/dashboard?module=vault&tab=payments&filter=overdue'),
+      action: () => navigate(moduleIdToPath("vault", { tab: "payments", filter: "overdue" })),
       items: overduePayments.slice(0, 5).map(p => {
         const booking = bookings.find(b => b.id === p.booking_id);
         return {
           id: p.id,
           label: `$${p.amount?.toLocaleString() || 0}`,
           sublabel: booking?.customer_name || 'Unknown Customer',
-          onClick: () => navigate(`/dashboard?module=vault&tab=payments&paymentId=${p.id}`)
+          onClick: () => navigate(moduleIdToPath("vault", { tab: "payments", paymentId: p.id }))
         };
       })
     },
@@ -146,12 +147,12 @@ export const AttentionRequired = () => {
       count: expiringDocs.length, 
       color: 'text-muted-foreground',
       bgColor: 'bg-muted/50',
-      action: () => navigate('/dashboard?module=book&tab=customers&filter=expiring'),
+      action: () => navigate(moduleIdToPath("book", { tab: "customers", filter: "expiring" })),
       items: expiringDocs.slice(0, 5).map(c => ({
         id: c.id,
         label: c.full_name,
         sublabel: c.license_expiry ? `License expires ${format(new Date(c.license_expiry), 'MMM d')}` : 'Insurance expiring',
-        onClick: () => navigate(`/dashboard?module=book&tab=customers&customerId=${c.id}`)
+        onClick: () => navigate(moduleIdToPath("book", { tab: "customers", customerId: c.id }))
       }))
     },
     { 
@@ -161,14 +162,14 @@ export const AttentionRequired = () => {
       count: maintenanceDue.length, 
       color: 'text-muted-foreground',
       bgColor: 'bg-muted/50',
-      action: () => navigate('/dashboard?module=motoriq&filter=due'),
+      action: () => navigate(moduleIdToPath("motoriq", { filter: "due" })),
       items: maintenanceDue.slice(0, 5).map(m => {
         const vehicle = vehicles.find(v => v.id === m.vehicle_id);
         return {
           id: m.id,
           label: vehicle ? `${vehicle.make} ${vehicle.model}` : 'Unknown Vehicle',
           sublabel: `${m.maintenance_type} • ${format(new Date(m.scheduled_date), 'MMM d')}`,
-          onClick: () => navigate(`/dashboard?module=motoriq&maintenanceId=${m.id}`)
+          onClick: () => navigate(moduleIdToPath("motoriq", { maintenanceId: m.id }))
         };
       })
     },

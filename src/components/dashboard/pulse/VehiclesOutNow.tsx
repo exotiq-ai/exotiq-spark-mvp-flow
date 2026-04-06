@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { CollapsibleSection } from "./CollapsibleSection";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { useNavigate } from "react-router-dom";
+import { moduleIdToPath } from "@/lib/moduleRoutes";
 import { 
   Car, 
   Clock, 
@@ -125,7 +126,7 @@ export const VehiclesOutNow = () => {
 
   // Navigate to specific booking
   const handleCardClick = (bookingId: string) => {
-    navigate(`/dashboard?module=book&bookingId=${bookingId}`);
+    navigate(moduleIdToPath("book", { bookingId }));
   };
 
   if (rentals.length === 0) {
@@ -196,7 +197,7 @@ export const VehiclesOutNow = () => {
           variant="ghost" 
           size="sm"
           className="w-full mt-2"
-          onClick={() => navigate('/dashboard?module=book&filter=active')}
+          onClick={() => navigate(moduleIdToPath("book", { filter: "active" }))}
         >
           +{rentals.length - 8} more
         </Button>

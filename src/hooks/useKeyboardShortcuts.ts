@@ -1,6 +1,7 @@
 import { useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { moduleIdToPath } from "@/lib/moduleRoutes";
 
 interface UseKeyboardShortcutsOptions {
   onToggleRari?: () => void;
@@ -25,27 +26,27 @@ export const useKeyboardShortcuts = (options?: UseKeyboardShortcutsOptions) => {
       const shortcuts: Record<string, () => void> = {
         "1": () => {
           e.preventDefault();
-          navigate("/dashboard?module=motoriq");
+          navigate(moduleIdToPath("motoriq"));
           toast({ title: "Navigated to MotorIQ" });
         },
         "2": () => {
           e.preventDefault();
-          navigate("/dashboard?module=pulse");
+          navigate(moduleIdToPath("pulse"));
           toast({ title: "Navigated to Pulse" });
         },
         "3": () => {
           e.preventDefault();
-          navigate("/dashboard?module=book");
+          navigate(moduleIdToPath("book"));
           toast({ title: "Navigated to Book" });
         },
         "4": () => {
           e.preventDefault();
-          navigate("/dashboard?module=vault");
+          navigate(moduleIdToPath("vault"));
           toast({ title: "Navigated to Vault" });
         },
         "5": () => {
           e.preventDefault();
-          navigate("/dashboard?module=core");
+          navigate(moduleIdToPath("core"));
           toast({ title: "Navigated to Core" });
         },
         "h": () => {

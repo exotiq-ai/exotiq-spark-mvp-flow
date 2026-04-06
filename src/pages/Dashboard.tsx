@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useProfile } from "@/hooks/useProfile";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useLocation, useNavigate } from "react-router-dom";
+import { pathToModuleId, moduleIdToPath, MODULE_TITLES } from "@/lib/moduleRoutes";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Logo } from "@/components/ui/logo";
@@ -55,7 +56,10 @@ import { supabase } from "@/integrations/supabase/client";
 
 const DashboardInner = () => {
   const [searchParams] = useSearchParams();
-  const [activeModule, setActiveModule] = useLocalStorage("activeModule", "dashboard");
+  const location = useLocation();
+  const nav = useNavigate();
+  const activeModule = pathToModuleId(location.pathname);
+  const [, setStoredModule] = useLocalStorage("activeModule", "dashboard");
   const [chatOpen, setChatOpen] = useState(false);
   const [chatMinimized, setChatMinimized] = useState(false);
   const [mobileAddLocationOpen, setMobileAddLocationOpen] = useState(false);
@@ -63,9 +67,9 @@ const DashboardInner = () => {
   const { showPostTourModal, setShowPostTourModal } = useTourData();
   const { displayName } = useProfile();
 
-  // Ensure module transition overlay never gets stuck
+  // Sync localStorage for backwards compat (tours read it)
   useEffect(() => {
-    setIsModuleTransitioning(false);
+    setStoredModule(activeModule);
   }, [activeModule]);
   
   // Keyboard shortcuts with Rari toggle
@@ -77,24 +81,19 @@ const DashboardInner = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const moduleTransitionTimeoutRef = useRef<number | null>(null);
 
-  // Always start at dashboard module on new browser session
+  // Backwards compat: redirect legacy ?module= URLs to path-based
   useEffect(() => {
-    const isInitialLoad = !sessionStorage.getItem('dashboard_initialized');
-    if (isInitialLoad) {
-      setActiveModule('dashboard');
-      sessionStorage.setItem('dashboard_initialized', 'true');
+    const moduleFromUrl = searchParams.get('module');
+    if (moduleFromUrl) {
+      const newPath = moduleIdToPath(moduleFromUrl);
+      // Preserve other query params (bookingId, customerId, etc.)
+      const params = new URLSearchParams(searchParams);
+      params.delete('module');
+      const qs = params.toString();
+      nav(qs ? `${newPath}?${qs}` : newPath, { replace: true });
     }
-  }, []);
+  }, [searchParams, nav]);
 
-  // Clean up session flag on browser/tab close
-  useEffect(() => {
-    const handleBeforeUnload = () => {
-      sessionStorage.removeItem('dashboard_initialized');
-    };
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, []);
-  
   // Get user ID for welcome video
   const [userId, setUserId] = useState<string | null>(null);
   
@@ -107,13 +106,7 @@ const DashboardInner = () => {
   // Calculate total unread messages
   const totalUnread = conversations.reduce((acc, c) => acc + (c.unread_count || 0), 0);
 
-  // Read module from URL query params (reliable, no race conditions)
-  useEffect(() => {
-    const moduleFromUrl = searchParams.get('module');
-    if (moduleFromUrl) {
-      handleModuleChange(moduleFromUrl);
-    }
-  }, [searchParams]);
+  // Legacy ?module= redirect is handled above
 
   useEffect(() => {
     performance.mark('dashboard-load-start');
@@ -147,7 +140,7 @@ const DashboardInner = () => {
 
     setIsModuleTransitioning(true);
     track('module_switch', { from: activeModule, to: moduleId });
-    setActiveModule(moduleId);
+    nav(moduleIdToPath(moduleId));
 
     // Scroll to top of page smoothly
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -306,7 +299,7 @@ const DashboardInner = () => {
         }}
       />
       <SEOHead
-        title="Fleet Management Dashboard"
+        title={MODULE_TITLES[activeModule] ? MODULE_TITLES[activeModule].replace(' | Exotiq.ai', '') : 'Dashboard'}
         description="Manage your luxury fleet with comprehensive analytics, AI-powered insights, and real-time monitoring."
         noIndex={true}
       />

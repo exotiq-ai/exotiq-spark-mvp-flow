@@ -1,6 +1,8 @@
 import { useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { moduleIdToPath, pathToModuleId } from "@/lib/moduleRoutes";
 import { 
   MoreHorizontal, 
   Shield, 
@@ -17,12 +19,17 @@ import { MobileLocationSelector } from "./MobileLocationSelector";
 
 interface MobileMoreMenuProps {
   onAddLocation?: () => void;
-  activeModule: string;
-  onModuleChange: (moduleId: string) => void;
+  activeModule?: string;
+  onModuleChange?: (moduleId: string) => void;
 }
 
-export const MobileMoreMenu = ({ onAddLocation, activeModule, onModuleChange }: MobileMoreMenuProps) => {
+export const MobileMoreMenu = ({ onAddLocation, activeModule: activeModuleProp, onModuleChange }: MobileMoreMenuProps) => {
   const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const activeModule = activeModuleProp ?? pathToModuleId(location.pathname);
+
+
 
   // Intelligence group items
   const intelligenceItems = [
@@ -56,7 +63,11 @@ export const MobileMoreMenu = ({ onAddLocation, activeModule, onModuleChange }: 
 
   const handleItemClick = (itemId: string) => {
     if (navigator.vibrate) navigator.vibrate(10);
-    onModuleChange(itemId);
+    if (onModuleChange) {
+      onModuleChange(itemId);
+    } else {
+      navigate(moduleIdToPath(itemId));
+    }
     setOpen(false);
   };
 

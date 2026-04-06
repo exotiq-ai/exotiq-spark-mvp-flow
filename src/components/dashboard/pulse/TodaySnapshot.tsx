@@ -1,6 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { useNavigate } from "react-router-dom";
+import { moduleIdToPath } from "@/lib/moduleRoutes";
 import { 
   Car, 
   ArrowUpRight, 
@@ -51,7 +52,7 @@ export const TodaySnapshot = () => {
       subtext: `of ${totalVehicles}`,
       icon: Car,
       color: "text-primary",
-      onClick: () => navigate('/dashboard?module=pulse')
+      onClick: () => navigate(moduleIdToPath("pulse"))
     },
     { 
       label: "Pickups Today", 
@@ -59,7 +60,7 @@ export const TodaySnapshot = () => {
       subtext: `${pickupsCompleted} scheduled`,
       icon: ArrowUpRight,
       color: "text-success",
-      onClick: () => navigate('/dashboard?module=book&filter=pickups-today')
+      onClick: () => navigate(moduleIdToPath("book", { filter: "pickups-today" }))
     },
     { 
       label: "Returns Today", 
@@ -67,7 +68,7 @@ export const TodaySnapshot = () => {
       subtext: `${returnsCompleted} completed`,
       icon: ArrowDownLeft,
       color: "text-warning",
-      onClick: () => navigate('/dashboard?module=book&filter=returns-today')
+      onClick: () => navigate(moduleIdToPath("book", { filter: "returns-today" }))
     },
     { 
       label: "Collected Today", 
@@ -75,7 +76,7 @@ export const TodaySnapshot = () => {
       subtext: format(new Date(), 'MMM d'),
       icon: DollarSign,
       color: "text-success",
-      onClick: () => navigate('/dashboard?module=vault&tab=payments')
+      onClick: () => navigate(moduleIdToPath("vault", { tab: "payments" }))
     }
   ];
 
