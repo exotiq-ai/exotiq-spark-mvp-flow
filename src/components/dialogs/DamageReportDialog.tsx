@@ -51,7 +51,7 @@ interface DamageReportDialogProps {
   };
 }
 
-export const DamageReportDialog = ({ open, onOpenChange, vehicles }: DamageReportDialogProps) => {
+export const DamageReportDialog = ({ open, onOpenChange, vehicles, prefill }: DamageReportDialogProps) => {
   const { createDamageClaim } = useFleet();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
