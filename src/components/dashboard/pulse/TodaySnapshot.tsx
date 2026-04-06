@@ -76,7 +76,7 @@ export const TodaySnapshot = () => {
       subtext: format(new Date(), 'MMM d'),
       icon: DollarSign,
       color: "text-success",
-      onClick: () => navigate('/dashboard?module=vault&tab=payments')
+      onClick: () => navigate(moduleIdToPath("vault", { tab: "payments" }))
     }
   ];
 

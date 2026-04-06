@@ -9,6 +9,7 @@ import { useTeam } from "@/contexts/TeamContext";
 import { useFleetTasks } from "@/hooks/useFleetTasks";
 import { useWorkOrders } from "@/hooks/useWorkOrders";
 import { useNavigate } from "react-router-dom";
+import { moduleIdToPath } from "@/lib/moduleRoutes";
 import { 
   AlertTriangle, 
   Clock, 
