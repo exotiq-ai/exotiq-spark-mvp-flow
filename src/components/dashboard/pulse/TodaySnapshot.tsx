@@ -60,7 +60,7 @@ export const TodaySnapshot = () => {
       subtext: `${pickupsCompleted} scheduled`,
       icon: ArrowUpRight,
       color: "text-success",
-      onClick: () => navigate('/dashboard?module=book&filter=pickups-today')
+      onClick: () => navigate(moduleIdToPath("book", { filter: "pickups-today" }))
     },
     { 
       label: "Returns Today", 
