@@ -299,7 +299,7 @@ const DashboardInner = () => {
         }}
       />
       <SEOHead
-        title="Fleet Management Dashboard"
+        title={MODULE_TITLES[activeModule] ? MODULE_TITLES[activeModule].replace(' | Exotiq.ai', '') : 'Dashboard'}
         description="Manage your luxury fleet with comprehensive analytics, AI-powered insights, and real-time monitoring."
         noIndex={true}
       />
