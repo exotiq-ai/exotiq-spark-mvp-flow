@@ -126,7 +126,7 @@ export const VehiclesOutNow = () => {
 
   // Navigate to specific booking
   const handleCardClick = (bookingId: string) => {
-    navigate(`/dashboard?module=book&bookingId=${bookingId}`);
+    navigate(moduleIdToPath("book", { bookingId }));
   };
 
   if (rentals.length === 0) {
