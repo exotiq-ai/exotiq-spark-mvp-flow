@@ -20,7 +20,7 @@ import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useRariSidebar } from "@/hooks/useRariSidebar";
 import { performance } from "@/lib/performance";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import {
   Calendar, 
@@ -81,7 +81,6 @@ const DashboardInner = () => {
   const { conversations } = useTeamMessaging();
   const { refreshTeam } = useTeam();
   const containerRef = useRef<HTMLDivElement>(null);
-  const moduleTransitionTimeoutRef = useRef<number | null>(null);
 
   // Backwards compat: redirect legacy ?module= URLs to path-based
   useEffect(() => {
@@ -120,9 +119,6 @@ const DashboardInner = () => {
     };
   }, [page]);
 
-  // Module transition state for loading feedback
-  const [isModuleTransitioning, setIsModuleTransitioning] = useState(false);
-  
   // Handle module change - special case for messages opens chat instead
   const handleModuleChange = (moduleId: string) => {
     if (moduleId === 'messages') {
@@ -131,28 +127,12 @@ const DashboardInner = () => {
       return;
     }
 
-    // No-op if already on this module (prevents stuck overlays)
-    if (moduleId === activeModule) return;
-
-    // Clear any pending transition timer
-    if (moduleTransitionTimeoutRef.current) {
-      window.clearTimeout(moduleTransitionTimeoutRef.current);
-      moduleTransitionTimeoutRef.current = null;
-    }
-
-    setIsModuleTransitioning(true);
     track('module_switch', { from: activeModule, to: moduleId });
     nav(moduleIdToPath(moduleId));
 
     // Scroll to top of page smoothly
     window.scrollTo({ top: 0, behavior: 'smooth' });
     containerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-
-    // Clear transition state after brief delay
-    moduleTransitionTimeoutRef.current = window.setTimeout(() => {
-      setIsModuleTransitioning(false);
-      moduleTransitionTimeoutRef.current = null;
-    }, 200);
   };
 
   const moduleNames: Record<string, string> = {
@@ -193,18 +173,6 @@ const DashboardInner = () => {
   );
 
   const renderModuleContent = () => {
-    const pageVariants = {
-      initial: { opacity: 0, x: 50 },
-      in: { opacity: 1, x: 0 },
-      out: { opacity: 0, x: -50 }
-    };
-
-    const pageTransition = {
-      type: "tween" as const,
-      ease: "anticipate" as const,
-      duration: 0.3
-    };
-
     let content;
     switch (activeModule) {
       case "motoriq":
@@ -238,30 +206,19 @@ const DashboardInner = () => {
     }
 
     return (
-      <div className="relative">
-        <Suspense fallback={
-          <div className="space-y-4 p-4 animate-pulse">
-            <div className="h-8 bg-muted rounded w-1/3" />
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {[1,2,3,4].map(i => <div key={i} className="h-24 bg-muted rounded-lg" />)}
-            </div>
-            <div className="h-64 bg-muted rounded-lg" />
+      <Suspense fallback={
+        <div className="space-y-4 p-4 animate-pulse">
+          <div className="h-8 bg-muted rounded w-1/3" />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[1,2,3,4].map(i => <div key={i} className="h-24 bg-muted rounded-lg" />)}
           </div>
-        }>
-          <AnimatePresence mode="popLayout">
-            <motion.div
-              key={activeModule}
-              initial="initial"
-              animate="in"
-              exit="out"
-              variants={pageVariants}
-              transition={pageTransition}
-            >
-              {content}
-            </motion.div>
-          </AnimatePresence>
-        </Suspense>
-      </div>
+          <div className="h-64 bg-muted rounded-lg" />
+        </div>
+      }>
+        <div key={activeModule} className="animate-fade-in">
+          {content}
+        </div>
+      </Suspense>
     );
   };
 
