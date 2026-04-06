@@ -1,6 +1,7 @@
 import { useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { moduleIdToPath } from "@/lib/moduleRoutes";
 
 interface UseKeyboardShortcutsOptions {
   onToggleRari?: () => void;
