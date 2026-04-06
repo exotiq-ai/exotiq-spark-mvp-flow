@@ -28,6 +28,7 @@ import {
 import { CommandDialog, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
+import { moduleIdToPath } from "@/lib/moduleRoutes";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 
 interface ActionItem {
