@@ -219,7 +219,7 @@ export const EnhancedGlobalSearch = ({ onOpenRari }: EnhancedGlobalSearchProps) 
       title: "FleetCopilot™",
       subtitle: "AI Control Center",
       icon: Brain,
-      action: () => navigate("/dashboard?module=core")
+      action: () => navigate(moduleIdToPath("core"))
     },
     {
       id: "messages-nav",
