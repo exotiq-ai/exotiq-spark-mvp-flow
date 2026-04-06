@@ -1,66 +1,57 @@
 
 
-# Fix Module Navigation Mismatch
+# Subtle Module Loading Animations — Safe Improvements
 
-## Root Cause
+## Current State
 
-The bug is a conflict between `AnimatePresence mode="popLayout"` and `Suspense` around lazy-loaded modules (lines 251-262 of Dashboard.tsx).
+The Suspense fallback in `Dashboard.tsx` (lines 209-216) is a plain `animate-pulse` skeleton — generic gray blocks that just throb. You already have a rich library of specialized skeletons (`skeleton-specialized.tsx`) with shimmer gradients, staggered delays, and thinking-dot animations, but **none of them are used** during module transitions. Meanwhile, the existing `animate-shimmer` and `animate-pulse-soft` keyframes are already defined and safe (pure CSS, no framer-motion, no conflict with Suspense).
 
-When you click a sidebar item:
-1. URL updates → `activeModule` changes → `key` on `motion.div` changes
-2. AnimatePresence (popLayout mode) starts **exit animation** on old content while mounting the new component
-3. The new component is `React.lazy` — it **suspends** during chunk download
-4. React shows the Suspense fallback skeleton, but AnimatePresence keeps the **old exiting component in the layout** (that's what `popLayout` does — it uses `position: absolute` to keep exiting elements visible)
-5. Result: the old module's content stays visible on screen even though the URL and sidebar already show the new module
+## Plan
 
-The **no-op guard** on line 135 (`if (moduleId === activeModule) return`) then prevents recovery — clicking the same sidebar item again does nothing because the URL already matches.
+### 1. Module-specific Suspense fallbacks
 
-Screenshot 3 confirms this exactly: URL says `/dashboard/pulse`, sidebar highlights Pulse, but Fleet Management content is still rendered.
+Replace the single generic skeleton with a mapping of module → specialized skeleton. Each module gets a fallback that matches its actual layout shape, so the transition feels intentional rather than jarring.
 
-## Fix
+**`src/pages/Dashboard.tsx`** — new `getModuleSkeleton(moduleId)` function:
 
-### 1. `src/pages/Dashboard.tsx` — Remove AnimatePresence around lazy modules
+| Module | Skeleton |
+|--------|----------|
+| `dashboard` | `SkeletonBanner` + `SkeletonStatsRow` + `SkeletonModuleNav` |
+| `book` | `SkeletonQuickActions` + 3× `SkeletonScheduleItem` |
+| `fleet` | 4× `SkeletonVehicleCard` in a grid |
+| `pulse` | `SkeletonStatsRow` + `SkeletonSection` (chart height) |
+| `motoriq` | `SkeletonAIInsight` + `SkeletonStatsRow` |
+| `vault` | `SkeletonQuickActions` + 3× `SkeletonDocumentRow` |
+| `core` | `SkeletonAIInsight` |
+| `settings`, `team-hub` | Current generic skeleton (fine for simple layouts) |
 
-Replace the `AnimatePresence` + `motion.div` wrapper with just `Suspense`. Lazy-loaded components and exit animations don't mix well — the animation framework can't coordinate with React's suspension mechanism. A simple opacity fade via CSS transition on mount is sufficient and avoids the conflict entirely.
+These all use **CSS-only** animations (`animate-shimmer`, `animate-pulse-soft`, staggered `animationDelay`) — zero framer-motion in the loading path, so no conflict with Suspense.
 
-```
-// Before (broken)
-<Suspense fallback={...}>
-  <AnimatePresence mode="popLayout">
-    <motion.div key={activeModule} ...>
-      {content}
-    </motion.div>
-  </AnimatePresence>
-</Suspense>
+### 2. Staggered reveal on the loaded content
 
-// After (reliable)
-<Suspense fallback={...}>
-  <div key={activeModule} className="animate-fade-in">
-    {content}
-  </div>
-</Suspense>
-```
+After the chunk loads and the real content mounts, the current `animate-fade-in` is a single 300ms opacity+translateY. Enhance this slightly:
 
-### 2. `src/pages/Dashboard.tsx` — Remove the no-op guard
+- Add a new `animate-fade-in-up` keyframe (200ms, translateY(8px) → 0, ease-out) — snappier than the current 300ms with 10px travel
+- This keeps the CSS-only approach (no framer-motion wrapping lazy components)
 
-Remove `if (moduleId === activeModule) return;` on line 135. This guard prevents users from recovering from stuck states. If the user clicks the same module, let `nav()` fire — React Router will recognize it as the same path and won't cause unnecessary re-renders, but it ensures the component tree is in sync.
+### 3. Fix missing `animate-shimmer` usage
 
-### 3. `src/pages/Dashboard.tsx` — Remove transition state
+The specialized skeletons reference `animate-shimmer` via inline classes — this already works via Tailwind config. But `animate-pulse-soft` is only defined in `index.css` as a raw class. Both are CSS-only and safe. No changes needed, just confirming they don't conflict.
 
-Remove `isModuleTransitioning` state and the timeout logic (lines 124, 138-155) since there's no animation to coordinate with anymore. The Suspense fallback skeleton handles the loading state naturally.
+## What NOT to do
 
-### 4. Verify `animate-fade-in` exists in Tailwind config
-
-Check that the CSS keyframe class `animate-fade-in` is defined. If not, add a simple one or use Tailwind's built-in `animate-in` from the animation plugin. This gives a subtle entrance without the exit animation that causes the conflict.
+- No `AnimatePresence` or `motion.div` around lazy-loaded content (lesson learned)
+- No `useTransition` / `startTransition` — adds complexity for marginal gain here
+- No preloading on sidebar hover (premature optimization; chunks are small after code-split)
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| `src/pages/Dashboard.tsx` | Remove AnimatePresence/motion.div, remove no-op guard, remove transition state |
-| `tailwind.config.ts` (if needed) | Ensure `animate-fade-in` keyframe exists |
+| `src/pages/Dashboard.tsx` | Add `getModuleSkeleton()`, use it in Suspense fallback, tweak fade class |
+| `tailwind.config.ts` | Add `fade-in-up` keyframe (snappier variant) |
 
 ## Risk
 
-**Very low**. This removes complexity (AnimatePresence + transition state) rather than adding it. The visual change is minor — modules appear instantly with a subtle fade instead of a slide animation. The tradeoff is worth it: reliable navigation > fancy transitions.
+**Very low.** All animations are CSS-only. No interaction with React's Suspense lifecycle. The specialized skeletons are already built and tested — we're just wiring them into the right place.
 
