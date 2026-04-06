@@ -239,33 +239,28 @@ const DashboardInner = () => {
 
     return (
       <div className="relative">
-        {/* Subtle loading overlay during module transition */}
-        <AnimatePresence>
-          {isModuleTransitioning && (
+        <Suspense fallback={
+          <div className="space-y-4 p-4 animate-pulse">
+            <div className="h-8 bg-muted rounded w-1/3" />
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {[1,2,3,4].map(i => <div key={i} className="h-24 bg-muted rounded-lg" />)}
+            </div>
+            <div className="h-64 bg-muted rounded-lg" />
+          </div>
+        }>
+          <AnimatePresence mode="popLayout">
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.1 }}
-              className="absolute inset-0 bg-background/50 z-10 flex items-center justify-center"
+              key={activeModule}
+              initial="initial"
+              animate="in"
+              exit="out"
+              variants={pageVariants}
+              transition={pageTransition}
             >
-              <div className="h-6 w-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              {content}
             </motion.div>
-          )}
-        </AnimatePresence>
-        
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeModule}
-            initial="initial"
-            animate="in"
-            exit="out"
-            variants={pageVariants}
-            transition={pageTransition}
-          >
-            {content}
-          </motion.div>
-        </AnimatePresence>
+          </AnimatePresence>
+        </Suspense>
       </div>
     );
   };
