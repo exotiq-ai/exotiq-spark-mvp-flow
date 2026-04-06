@@ -28,12 +28,8 @@ export const MobileMoreMenu = ({ onAddLocation, activeModule: activeModuleProp, 
   const navigate = useNavigate();
   const location = useLocation();
   const activeModule = activeModuleProp ?? pathToModuleId(location.pathname);
-  activeModule: string;
-  onModuleChange: (moduleId: string) => void;
-}
 
-export const MobileMoreMenu = ({ onAddLocation, activeModule, onModuleChange }: MobileMoreMenuProps) => {
-  const [open, setOpen] = useState(false);
+
 
   // Intelligence group items
   const intelligenceItems = [
