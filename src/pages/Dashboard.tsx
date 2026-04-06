@@ -8,6 +8,11 @@ import { Logo } from "@/components/ui/logo";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { SkipNavigation } from "@/components/common/SkipNavigation";
 import { SEOHead } from "@/components/common/SEOHead";
+import {
+  SkeletonBanner, SkeletonStatsRow, SkeletonModuleNav, SkeletonQuickActions,
+  SkeletonScheduleItem, SkeletonVehicleCard, SkeletonSection, SkeletonAIInsight,
+  SkeletonDocumentRow
+} from "@/components/ui/skeleton-specialized";
 import { UnifiedNotificationCenter } from "@/components/common/UnifiedNotificationCenter";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { LocationContextBanner } from "@/components/common/LocationBadge";
