@@ -203,7 +203,7 @@ export const EnhancedGlobalSearch = ({ onOpenRari }: EnhancedGlobalSearchProps) 
       title: "Book",
       subtitle: "Booking Management",
       icon: Calendar,
-      action: () => navigate("/dashboard?module=book")
+      action: () => navigate(moduleIdToPath("book"))
     },
     {
       id: "vault",
