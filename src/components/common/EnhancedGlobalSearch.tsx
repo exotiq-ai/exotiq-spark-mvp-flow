@@ -104,7 +104,7 @@ export const EnhancedGlobalSearch = ({ onOpenRari }: EnhancedGlobalSearchProps) 
       title: "New Booking",
       subtitle: "Create a new rental booking",
       icon: Plus,
-      action: () => navigate("/dashboard?module=book&action=new"),
+      action: () => navigate(moduleIdToPath("book", { action: "new" })),
       badge: "⌘N"
     },
     {
