@@ -235,7 +235,7 @@ export const EnhancedGlobalSearch = ({ onOpenRari }: EnhancedGlobalSearchProps) 
       title: "Settings",
       subtitle: "System configuration",
       icon: Settings,
-      action: () => navigate("/dashboard?module=settings")
+      action: () => navigate(moduleIdToPath("settings"))
     }
   ];
 
