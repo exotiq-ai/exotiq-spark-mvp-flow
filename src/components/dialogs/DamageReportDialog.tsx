@@ -234,7 +234,8 @@ export const DamageReportDialog = ({ open, onOpenChange, vehicles, prefill }: Da
               <SelectContent>
                 <SelectItem value="minor">Minor - Cosmetic only</SelectItem>
                 <SelectItem value="moderate">Moderate - Requires repair</SelectItem>
-                <SelectItem value="major">Major - Vehicle out of service</SelectItem>
+                <SelectItem value="severe">Severe - Vehicle out of service</SelectItem>
+                <SelectItem value="total_loss">Total Loss - Unrepairable</SelectItem>
               </SelectContent>
             </Select>
           </div>
