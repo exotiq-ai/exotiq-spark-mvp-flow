@@ -19,6 +19,15 @@ import { MobileLocationSelector } from "./MobileLocationSelector";
 
 interface MobileMoreMenuProps {
   onAddLocation?: () => void;
+  activeModule?: string;
+  onModuleChange?: (moduleId: string) => void;
+}
+
+export const MobileMoreMenu = ({ onAddLocation, activeModule: activeModuleProp, onModuleChange }: MobileMoreMenuProps) => {
+  const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const activeModule = activeModuleProp ?? pathToModuleId(location.pathname);
   activeModule: string;
   onModuleChange: (moduleId: string) => void;
 }
