@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -53,11 +54,34 @@ export const VaultEnhanced = () => {
     enabled: !loading,
   });
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState("documents");
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [alertDismissed, setAlertDismissed] = useState(false);
   const [alertExpanded, setAlertExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [previewDoc, setPreviewDoc] = useState<{ url: string; name: string } | null>(null);
+
+  // Deep-link: read view param to auto-select tab
+  useEffect(() => {
+    const view = searchParams.get('view');
+    if (view === 'claims' || view === 'damage') {
+      setActiveTab('claims');
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('view');
+      setSearchParams(newParams, { replace: true });
+    } else if (view === 'payments') {
+      setActiveTab('payments');
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('view');
+      setSearchParams(newParams, { replace: true });
+    } else if (view === 'verification') {
+      setActiveTab('verification');
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('view');
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   // Calculate urgent alert from real documents
   const urgentAlert = useMemo(() => {
@@ -246,6 +270,8 @@ export const VaultEnhanced = () => {
           { id: "claims", label: "Claims", shortLabel: "Claims", icon: AlertTriangle },
         ]}
         defaultValue="documents"
+        value={activeTab}
+        onValueChange={setActiveTab}
         data-tour="vault-tabs"
       >
         <TabsContent value="documents" className="space-y-4 sm:space-y-6">

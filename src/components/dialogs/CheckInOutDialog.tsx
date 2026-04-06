@@ -44,6 +44,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { TimeInput } from "@/components/ui/time-input";
 import { GuidedCaptureWizard } from "@/components/inspections/GuidedCaptureWizard";
 import { InspectionChecklistForm } from "@/components/inspections/InspectionChecklistForm";
+import { DamageReportDialog } from "@/components/dialogs/DamageReportDialog";
 import {
   GuidedPhoto,
   DamageItem,
@@ -89,6 +90,7 @@ export const CheckInOutDialog = ({
 
   // Wizard step state
   const [step, setStep] = useState<WizardStep>("basics");
+  const [showDamageClaimDialog, setShowDamageClaimDialog] = useState(false);
 
   // Step 1: Basics
   const [odometer, setOdometer] = useState<string>(
@@ -795,6 +797,15 @@ export const CheckInOutDialog = ({
                   <Wrench className="h-4 w-4 mr-2" />
                   Create Work Order
                 </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowDamageClaimDialog(true)}
+                  className="border-amber-500/30 text-amber-700 dark:text-amber-400"
+                >
+                  <AlertTriangle className="h-4 w-4 mr-2" />
+                  File Damage Claim
+                </Button>
               </div>
             )}
             <Button
@@ -809,6 +820,20 @@ export const CheckInOutDialog = ({
           </div>
         )}
       </DialogContent>
+
+      {/* Damage Claim Dialog pre-filled from inspection */}
+      <DamageReportDialog
+        open={showDamageClaimDialog}
+        onOpenChange={setShowDamageClaimDialog}
+        vehicles={vehicles}
+        prefill={{
+          vehicle_id: resolvedVehicleId,
+          description: damageItems.length > 0
+            ? damageItems.map(d => `${d.severity} ${d.damageType} at ${d.vehicleLocation}${d.notes ? ': ' + d.notes : ''}`).join('\n')
+            : '',
+          photo_urls: damageItems.map(d => d.photoUrl).filter(Boolean),
+        }}
+      />
     </Dialog>
   );
 };

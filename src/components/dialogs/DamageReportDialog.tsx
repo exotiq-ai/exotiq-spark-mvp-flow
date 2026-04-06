@@ -17,7 +17,7 @@ const damageClaimSchema = z.object({
   claim_type: z.enum(["accident", "vandalism", "theft", "mechanical", "weather", "other"], {
     errorMap: () => ({ message: "Please select a valid claim type" })
   }),
-  severity: z.enum(["minor", "moderate", "major"], {
+  severity: z.enum(["minor", "moderate", "severe", "total_loss"], {
     errorMap: () => ({ message: "Please select a valid severity level" })
   }),
   description: z.string()
@@ -34,7 +34,8 @@ const damageClaimSchema = z.object({
   insurance_claim_number: z.string()
     .trim()
     .max(100, { message: "Insurance claim number must be less than 100 characters" })
-    .optional()
+    .optional(),
+  photo_urls: z.array(z.string()).max(10, "Too many photos").optional(),
 });
 
 type Vehicle = Tables<"vehicles">;
@@ -43,20 +44,29 @@ interface DamageReportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   vehicles: Vehicle[];
+  prefill?: {
+    vehicle_id?: string;
+    description?: string;
+    photo_urls?: string[];
+  };
 }
 
-export const DamageReportDialog = ({ open, onOpenChange, vehicles }: DamageReportDialogProps) => {
+export const DamageReportDialog = ({ open, onOpenChange, vehicles, prefill }: DamageReportDialogProps) => {
   const { createDamageClaim } = useFleet();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadedPhotos, setUploadedPhotos] = useState<{ url: string; name: string }[]>([]);
+  const [uploadedPhotos, setUploadedPhotos] = useState<{ url: string; name: string }[]>(
+    () => prefill?.photo_urls?.length
+      ? prefill.photo_urls.map((url, i) => ({ url, name: `Inspection photo ${i + 1}` }))
+      : []
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [formData, setFormData] = useState({
-    vehicle_id: "",
+    vehicle_id: prefill?.vehicle_id || "",
     claim_type: "",
     severity: "",
-    description: "",
+    description: prefill?.description || "",
     estimated_cost: "",
     insurance_claim_number: ""
   });
@@ -221,7 +231,8 @@ export const DamageReportDialog = ({ open, onOpenChange, vehicles }: DamageRepor
               <SelectContent>
                 <SelectItem value="minor">Minor - Cosmetic only</SelectItem>
                 <SelectItem value="moderate">Moderate - Requires repair</SelectItem>
-                <SelectItem value="major">Major - Vehicle out of service</SelectItem>
+                <SelectItem value="severe">Severe - Vehicle out of service</SelectItem>
+                <SelectItem value="total_loss">Total Loss - Unrepairable</SelectItem>
               </SelectContent>
             </Select>
           </div>
