@@ -171,7 +171,7 @@ export const CommandPalette = ({ open, onOpenChange }: CommandPaletteProps) => {
       icon: <FileText className="h-4 w-4" />,
       keywords: ['documents', 'compliance', 'vault', 'files'],
       onSelect: () => {
-        navigate('/dashboard?module=vault');
+        navigate(moduleIdToPath('vault'));
         onOpenChange(false);
       },
       category: 'navigation',
