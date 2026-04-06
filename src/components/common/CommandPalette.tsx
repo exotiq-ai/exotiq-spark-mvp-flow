@@ -94,7 +94,7 @@ export const CommandPalette = ({ open, onOpenChange }: CommandPaletteProps) => {
       keywords: ['book', 'bookings', 'reservations', 'calendar', 'schedule'],
       onSelect: () => {
         trackItemUsage('book');
-        navigate('/dashboard?module=book');
+        navigate(moduleIdToPath('book'));
         onOpenChange(false);
       },
       category: 'actions',
