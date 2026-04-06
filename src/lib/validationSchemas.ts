@@ -65,6 +65,7 @@ export const damageClaimSchema = z.object({
   description: z.string().min(10, "Description too short").max(5000, "Description too long"),
   estimated_cost: z.number().min(0, "Cost cannot be negative").max(1000000, "Cost too high").optional(),
   insurance_claim_number: z.string().max(50, "Claim number too long").optional().or(z.literal('')),
+  photo_urls: z.array(z.string()).max(10, "Too many photos").optional(),
 });
 
 // Payment validation schema

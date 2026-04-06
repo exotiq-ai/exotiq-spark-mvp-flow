@@ -297,7 +297,7 @@ export const UnifiedNotificationCenter = ({ onNavigate }: { onNavigate?: (module
       if (data.booking_id) params.bookingId = data.booking_id;
     } else if (nType === 'damage' || nType === 'damage_claim') {
       params.module = 'vault';
-      params.view = 'damage';
+      params.view = 'claims';
       if (data.claim_id) params.damageClaimId = data.claim_id;
     } else if (nType === 'maintenance') {
       params.module = 'fleet';
