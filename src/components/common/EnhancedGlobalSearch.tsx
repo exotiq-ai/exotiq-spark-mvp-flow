@@ -195,7 +195,7 @@ export const EnhancedGlobalSearch = ({ onOpenRari }: EnhancedGlobalSearchProps) 
       title: "Pulse",
       subtitle: "Live Analytics & Telematics",
       icon: BarChart3,
-      action: () => navigate("/dashboard?module=pulse")
+      action: () => navigate(moduleIdToPath("pulse"))
     },
     {
       id: "book",
