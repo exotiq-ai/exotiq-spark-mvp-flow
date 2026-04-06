@@ -86,3 +86,5 @@ export const PulseEnhanced = () => {
     </div>
   );
 };
+
+export default PulseEnhanced;

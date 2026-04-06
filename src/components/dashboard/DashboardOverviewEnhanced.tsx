@@ -591,3 +591,5 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
     </>
   );
 };
+
+export default DashboardOverviewEnhanced;

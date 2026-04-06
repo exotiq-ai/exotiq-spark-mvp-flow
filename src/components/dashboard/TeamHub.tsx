@@ -95,3 +95,5 @@ export const TeamHub = () => {
     </div>
   );
 };
+
+export default TeamHub;

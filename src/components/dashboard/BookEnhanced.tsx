@@ -586,3 +586,5 @@ export const BookEnhanced = () => {
     </>
   );
 };
+
+export default BookEnhanced;

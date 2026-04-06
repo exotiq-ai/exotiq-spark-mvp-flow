@@ -96,13 +96,30 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     );
   }
 
-  // Show loading while auth context is initializing or an auth redirect is being processed
+  // Dashboard-shaped skeleton while auth loads
   if (loading || authRedirectProcessing) {
     return (
-      <LoadingSpinner 
-        fullScreen 
-        text={waitingDuration > 3 ? "Still signing you in..." : "Signing you in..."} 
-      />
+      <div className="min-h-screen bg-background flex">
+        {/* Sidebar skeleton */}
+        <div className="hidden md:flex w-16 flex-col items-center py-4 gap-4 border-r border-border bg-muted/30 animate-pulse">
+          <div className="h-8 w-8 rounded-lg bg-muted" />
+          <div className="flex-1 flex flex-col gap-3 mt-4">
+            {[1,2,3,4,5,6].map(i => <div key={i} className="h-8 w-8 rounded-lg bg-muted" />)}
+          </div>
+        </div>
+        {/* Content skeleton */}
+        <div className="flex-1 p-4 md:p-6 space-y-4 animate-pulse">
+          <div className="h-10 bg-muted rounded w-1/3" />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[1,2,3,4].map(i => <div key={i} className="h-24 bg-muted rounded-lg" />)}
+          </div>
+          <div className="h-64 bg-muted rounded-lg" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="h-48 bg-muted rounded-lg" />
+            <div className="h-48 bg-muted rounded-lg" />
+          </div>
+        </div>
+      </div>
     );
   }
 

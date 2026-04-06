@@ -218,3 +218,5 @@ export const TeamMessagingTrigger = ({
     )}
   </motion.button>
 );
+
+export default TeamMessaging;
