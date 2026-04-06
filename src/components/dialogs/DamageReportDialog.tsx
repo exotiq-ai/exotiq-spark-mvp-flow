@@ -55,7 +55,11 @@ export const DamageReportDialog = ({ open, onOpenChange, vehicles, prefill }: Da
   const { createDamageClaim } = useFleet();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadedPhotos, setUploadedPhotos] = useState<{ url: string; name: string }[]>([]);
+  const [uploadedPhotos, setUploadedPhotos] = useState<{ url: string; name: string }[]>(
+    () => prefill?.photo_urls?.length
+      ? prefill.photo_urls.map((url, i) => ({ url, name: `Inspection photo ${i + 1}` }))
+      : []
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [formData, setFormData] = useState({
@@ -65,13 +69,6 @@ export const DamageReportDialog = ({ open, onOpenChange, vehicles, prefill }: Da
     description: prefill?.description || "",
     estimated_cost: "",
     insurance_claim_number: ""
-  });
-
-  // Apply prefill photos
-  useState(() => {
-    if (prefill?.photo_urls?.length) {
-      setUploadedPhotos(prefill.photo_urls.map((url, i) => ({ url, name: `Inspection photo ${i + 1}` })));
-    }
   });
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
