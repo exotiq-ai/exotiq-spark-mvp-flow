@@ -44,6 +44,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { TimeInput } from "@/components/ui/time-input";
 import { GuidedCaptureWizard } from "@/components/inspections/GuidedCaptureWizard";
 import { InspectionChecklistForm } from "@/components/inspections/InspectionChecklistForm";
+import { DamageReportDialog } from "@/components/dialogs/DamageReportDialog";
 import {
   GuidedPhoto,
   DamageItem,
