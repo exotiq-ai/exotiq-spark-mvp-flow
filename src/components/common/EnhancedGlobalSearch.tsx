@@ -187,7 +187,7 @@ export const EnhancedGlobalSearch = ({ onOpenRari }: EnhancedGlobalSearchProps) 
       title: "MotorIQ",
       subtitle: "AI Pricing Optimization",
       icon: TrendingUp,
-      action: () => navigate("/dashboard?module=motoriq")
+      action: () => navigate(moduleIdToPath("motoriq"))
     },
     {
       id: "pulse",
