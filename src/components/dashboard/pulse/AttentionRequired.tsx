@@ -7,6 +7,7 @@ import { useRealtimeTable } from "@/hooks/useRealtimeTable";
 import { useFleet } from "@/contexts/FleetContext";
 import { useTeam } from "@/contexts/TeamContext";
 import { useNavigate } from "react-router-dom";
+import { moduleIdToPath } from "@/lib/moduleRoutes";
 import { 
   AlertTriangle, 
   Clock, 

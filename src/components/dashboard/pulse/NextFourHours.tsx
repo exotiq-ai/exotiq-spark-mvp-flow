@@ -127,7 +127,7 @@ export const NextFourHours = () => {
               variant="ghost" 
               size="sm"
               className="w-full"
-              onClick={() => navigate('/dashboard?module=book&tab=calendar')}
+              onClick={() => navigate(moduleIdToPath("book", { tab: "calendar" }))}
             >
               +{events.length - 4} more
             </Button>

@@ -197,7 +197,7 @@ export const VehiclesOutNow = () => {
           variant="ghost" 
           size="sm"
           className="w-full mt-2"
-          onClick={() => navigate('/dashboard?module=book&filter=active')}
+          onClick={() => navigate(moduleIdToPath("book", { filter: "active" }))}
         >
           +{rentals.length - 8} more
         </Button>

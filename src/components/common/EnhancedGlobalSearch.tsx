@@ -506,7 +506,7 @@ export const EnhancedGlobalSearch = ({ onOpenRari }: EnhancedGlobalSearchProps) 
                     if (onOpenRari) {
                       onOpenRari(searchQuery);
                     } else {
-                      navigate("/dashboard?module=core");
+                      navigate(moduleIdToPath("core"));
                     }
                   }, searchQuery)}
                   className="flex items-center gap-3 bg-primary/5"
