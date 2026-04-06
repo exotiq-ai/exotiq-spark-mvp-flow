@@ -123,7 +123,7 @@ export const CommandPalette = ({ open, onOpenChange }: CommandPaletteProps) => {
       icon: <TrendingUp className="h-4 w-4" />,
       keywords: ['motoriq', 'optimization', 'pricing', 'revenue', 'analytics'],
       onSelect: () => {
-        navigate('/dashboard?module=motoriq');
+        navigate(moduleIdToPath('motoriq'));
         onOpenChange(false);
       },
       category: 'navigation',
