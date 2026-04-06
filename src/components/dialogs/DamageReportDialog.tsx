@@ -44,6 +44,11 @@ interface DamageReportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   vehicles: Vehicle[];
+  prefill?: {
+    vehicle_id?: string;
+    description?: string;
+    photo_urls?: string[];
+  };
 }
 
 export const DamageReportDialog = ({ open, onOpenChange, vehicles }: DamageReportDialogProps) => {
