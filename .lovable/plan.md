@@ -1,144 +1,83 @@
 
 
-# SPA Routing for Dashboard Modules — Comprehensive Fix Plan
+# Dashboard Module Loading Performance — Fix Plan
 
-## Prompt Accuracy Assessment
+## Opus Prompt Accuracy Check
 
-The Opus 4.6 prompt is **mostly accurate** but has these gaps:
+| Claim | Actual | Verdict |
+|-------|--------|---------|
+| All modules eagerly imported | ✅ Lines 34-48: 10 heavy components imported at top | Correct |
+| No code splitting | ✅ Confirmed — no `React.lazy` anywhere | Correct |
+| `AnimatePresence mode="wait"` causes blank gap | ✅ Line 255: `mode="wait"` + exit animation delays new content | Correct |
+| TeamContext fetches sequentially | **Partially** — `team_members` must run first (needs `team_id`), but `teams`, `locations`, `location_staff` can run in parallel after that | Prompt overstates — can't fully parallelize |
+| ProtectedRoute shows plain spinner | ✅ Line 100-105: `<LoadingSpinner fullScreen>` | Correct |
+| FleetContext already parallel | ✅ Uses `Promise.all` | Correct — leave alone |
 
-| Area | Prompt Says | Reality | Action |
-|------|------------|---------|--------|
-| Route mapping | Lists 9 modules | `fleet` module missing from map | Add `/dashboard/fleet` |
-| Files to change | 6 files | Misses 8 additional files | Include all below |
-| `useModuleNavigation.ts` | Switch to path-based | Uses query params for entity deep-links (`?customerId=`, `?bookingId=`) | Keep query params for entities, only change module routing to path |
-| `DashboardSidebar.tsx` | Not mentioned | Legacy sidebar also uses `onModuleChange` | Update it too |
-| `DashboardOverviewEnhanced.tsx` | Not mentioned | Calls `onModuleClick('motoriq')`, `onModuleClick('book')` etc. | Must use navigate |
-| `DashboardOverview.tsx` | Not mentioned | Same pattern | Update |
-| `CustomizableDashboard.tsx` | Not mentioned | Same pattern | Update |
-| Tour hooks | Not mentioned | `useTourNavigation.ts`, `useDemoOrchestrator.ts` call `onModuleChange` | These can stay — they receive the callback from Dashboard which will now navigate |
-| Session init logic | Not mentioned | Dashboard line 81-87 resets to `dashboard` on new session | Remove — URL becomes the source of truth |
+**Key correction**: TeamContext can't use a single `Promise.all` for everything because `team_id` comes from the first query. The fix is: query `team_members` first, then `Promise.all` the remaining three queries that depend on `team_id`.
 
-## Architecture
+## Changes
 
-```text
-Current:  /dashboard + localStorage("activeModule") + ?module= query param
-Proposed: /dashboard/:module + query params for entity deep-links only
+### 1. Lazy-load dashboard modules (`src/pages/Dashboard.tsx`)
 
-/dashboard           → Dashboard overview
-/dashboard/bookings  → BookEnhanced
-/dashboard/fleet     → FleetPageEnhanced
-/dashboard/pulse     → PulseEnhanced
-/dashboard/motoriq   → MotorIQEnhanced
-/dashboard/fleetcopilot → CoreEnhanced
-/dashboard/vault     → VaultEnhanced
-/dashboard/settings  → SettingsLayout
-/dashboard/team-hub  → TeamHub
+Replace lines 34-48 (10 eager imports) with `React.lazy()`:
+
+```typescript
+const MotorIQEnhanced = lazy(() => import('@/components/dashboard/MotorIQEnhanced'));
+const PulseEnhanced = lazy(() => import('@/components/dashboard/PulseEnhanced'));
+const BookEnhanced = lazy(() => import('@/components/dashboard/BookEnhanced'));
+const VaultEnhanced = lazy(() => import('@/components/dashboard/VaultEnhanced'));
+const CoreEnhanced = lazy(() => import('@/components/dashboard/CoreEnhanced'));
+const FleetPageEnhanced = lazy(() => import('@/components/fleet/FleetPageEnhanced'));
+const DashboardOverviewEnhanced = lazy(() => import('@/components/dashboard/DashboardOverviewEnhanced'));
+const SettingsLayout = lazy(() => import('@/components/dashboard/settings/SettingsLayout'));
+const TeamHub = lazy(() => import('@/components/dashboard/TeamHub'));
+const TeamMessaging = lazy(() => import('@/components/messaging/TeamMessaging'));
 ```
 
-## Route-to-Module ID Mapping
+Each of these files must add `export default` alongside their named export (one-liner per file).
 
-```text
-URL segment  →  internal moduleId (used by localStorage fallback, tours, etc.)
-(none)       →  "dashboard"
-bookings     →  "book"
-fleet        →  "fleet"
-pulse        →  "pulse"
-motoriq      →  "motoriq"
-fleetcopilot →  "core"
-vault        →  "vault"
-settings     →  "settings"
-team-hub     →  "team-hub"
+### 2. Add Suspense fallback + fix animation mode (`src/pages/Dashboard.tsx`)
+
+- Wrap `renderModuleContent` return in `<Suspense fallback={<ModuleSkeleton />}>` using existing skeleton components
+- Change `AnimatePresence mode="wait"` → `mode="popLayout"` to eliminate the blank gap (old content stays visible while new fades in)
+- Remove the manual `isModuleTransitioning` overlay (lines 241-253) — Suspense handles the loading state now
+
+### 3. Parallelize TeamContext queries (`src/contexts/TeamContext.tsx`)
+
+After the first `team_members` query (must be sequential — provides `team_id` and `role`), run the remaining 3 queries in parallel:
+
+```typescript
+const [teamResult, locationsResult, staffResult] = await Promise.all([
+  supabase.from('teams').select('*').eq('id', teamMember.team_id).maybeSingle(),
+  supabase.from('locations').select('*').eq('team_id', teamMember.team_id).eq('is_active', true).order('is_default', { ascending: false }).order('name'),
+  supabase.from('location_staff').select('location_id').eq('user_id', user.id),
+]);
 ```
 
-## Implementation Steps
+This cuts ~2 round trips from the initial load.
 
-### 1. Create route mapping utility (`src/lib/moduleRoutes.ts`)
+### 4. Dashboard-shaped skeleton in ProtectedRoute (`src/components/common/ProtectedRoute.tsx`)
 
-Central mapping between module IDs and URL segments. Two functions:
-- `moduleIdToPath(moduleId: string): string` — e.g. `"book"` → `"/dashboard/bookings"`
-- `pathToModuleId(segment: string): string` — e.g. `"bookings"` → `"book"`
-- `MODULE_TITLES: Record<string, string>` — e.g. `"book"` → `"Bookings | Exotiq.ai"`
+Replace the `<LoadingSpinner fullScreen>` (line 100-105) with a layout skeleton showing a sidebar placeholder + content area, so users see the app shell immediately instead of a centered spinner.
 
-### 2. Update `src/App.tsx`
+### 5. Add default exports to lazy-loaded modules
 
-Change `/dashboard` route to `/dashboard/*` to allow nested path matching:
-```tsx
-<Route path="/dashboard/*" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-```
-
-### 3. Rewrite `src/pages/Dashboard.tsx`
-
-- Replace `useLocalStorage("activeModule")` as primary nav state with `useLocation()` + `pathToModuleId()`
-- Keep `useLocalStorage` as write-only for backwards compat (tour system reads it)
-- Remove the session init logic (lines 81-96) — URL is source of truth
-- `handleModuleChange` now calls `navigate(moduleIdToPath(moduleId))` instead of `setActiveModule`
-- Remove `searchParams.get('module')` effect (lines 111-116) — add a one-time redirect: if `?module=X` is present, redirect to the path equivalent and strip the param (backwards compat for bookmarks)
-- Update `SEOHead` to use `MODULE_TITLES[activeModule]`
-- `renderModuleContent()` stays as-is (switch on derived `activeModule`)
-
-### 4. Update `src/components/dashboard/DashboardSidebarEnhanced.tsx`
-
-- Import `useNavigate` from react-router-dom
-- Change `onModuleChange` prop to optional (keep for tour compat) OR have sidebar call `navigate()` directly
-- Sidebar buttons: `onClick={() => navigate(moduleIdToPath(item.id))}` instead of `onModuleChange(item.id)`
-- Active state: derive from `useLocation().pathname` instead of `activeModule` prop
-
-### 5. Update `src/components/mobile/MobileMoreMenu.tsx`
-
-Same pattern — use `navigate()` + `moduleIdToPath()` in `handleItemClick`. Keep `activeModule` derived from URL.
-
-### 6. Update `src/hooks/useKeyboardShortcuts.ts`
-
-Replace all `navigate("/dashboard?module=X")` with `navigate(moduleIdToPath("X"))`.
-
-### 7. Update `src/components/common/CommandPalette.tsx`
-
-Replace all `navigate('/dashboard?module=X')` calls (roughly 10 occurrences) with `navigate(moduleIdToPath('X'))`.
-
-### 8. Update `src/components/common/EnhancedGlobalSearch.tsx`
-
-Replace all `navigate("/dashboard?module=X")` calls (roughly 12 occurrences) with path-based equivalents.
-
-### 9. Update `src/hooks/useModuleNavigation.ts`
-
-Change `setSearchParams({ module: 'book', ... })` to `navigate('/dashboard/bookings?bookingId=...')`. The entity query params (`customerId`, `bookingId`, `vehicleId`, `tab`, `view`) stay as query params — only the module selection moves to the path.
-
-### 10. Update `src/components/dashboard/DashboardSidebar.tsx` (legacy)
-
-Same pattern as Enhanced sidebar — use `navigate()`.
-
-### 11. Update overview components
-
-`DashboardOverviewEnhanced.tsx`, `DashboardOverview.tsx`, `CustomizableDashboard.tsx` — their `onModuleClick` callbacks will automatically work because Dashboard's `handleModuleChange` will now navigate. No changes needed in these files — they just call the callback.
-
-### 12. Mobile bottom nav in Dashboard.tsx (lines 392-428)
-
-The inline buttons that call `handleModuleChange(item.id)` — these will work automatically since `handleModuleChange` will navigate.
-
-## What Stays Unchanged
-
-- Provider tree (Auth, Team, Fleet contexts) — untouched
-- `ProtectedRoute` wrapper — untouched
-- Tour system — receives `handleModuleChange` callback which now navigates
-- Entity deep-links — remain as query params on the new paths
-- All module components (BookEnhanced, PulseEnhanced, etc.) — untouched
+Add `export default ComponentName;` at the bottom of each of these 10 files (no other changes):
+- `MotorIQEnhanced.tsx`, `PulseEnhanced.tsx`, `BookEnhanced.tsx`, `VaultEnhanced.tsx`, `CoreEnhanced.tsx`, `FleetPageEnhanced.tsx`, `DashboardOverviewEnhanced.tsx`, `SettingsLayout.tsx`, `TeamHub.tsx`, `TeamMessaging.tsx`
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| **NEW** `src/lib/moduleRoutes.ts` | Central route mapping + titles |
-| `src/App.tsx` | `/dashboard` → `/dashboard/*` |
-| `src/pages/Dashboard.tsx` | URL-driven module state, dynamic SEO title, backwards-compat redirect |
-| `src/components/dashboard/DashboardSidebarEnhanced.tsx` | `navigate()` instead of callback |
-| `src/components/dashboard/DashboardSidebar.tsx` | Same |
-| `src/components/mobile/MobileMoreMenu.tsx` | `navigate()` instead of callback |
-| `src/hooks/useKeyboardShortcuts.ts` | Path-based navigation |
-| `src/hooks/useModuleNavigation.ts` | Path-based module + query params for entities |
-| `src/components/common/CommandPalette.tsx` | Path-based navigation |
-| `src/components/common/EnhancedGlobalSearch.tsx` | Path-based navigation |
+| `src/pages/Dashboard.tsx` | `React.lazy` imports, `Suspense` wrapper, `AnimatePresence mode="popLayout"`, remove transition overlay |
+| `src/contexts/TeamContext.tsx` | `Promise.all` for team + locations + staff queries |
+| `src/components/common/ProtectedRoute.tsx` | Dashboard-shaped skeleton instead of spinner |
+| 10 module component files | Add `export default` one-liner each |
 
-## Risk
+## Not Changing
 
-**Low**. This is a navigation refactor — no data model, RLS, or provider changes. The central mapping utility makes it easy to adjust paths. Backwards compat redirect handles old bookmarked URLs with `?module=` params.
+- FleetContext `Promise.all` batch (already optimal)
+- QueryClient config (staleTime is fine)
+- Provider hierarchy (Auth → Demo → Team → Fleet)
+- Route structure (just refactored to path-based)
 
