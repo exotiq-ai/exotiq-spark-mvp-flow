@@ -326,14 +326,16 @@ export const MotorIQEnhanced = () => {
                       </div>
                     </div>
                   </div>
-                  <Button 
-                    onClick={() => setShowOptimizationDialog(true)}
-                    className="btn-premium group"
-                  >
-                    <Zap className="h-4 w-4 mr-2 group-hover:rotate-12 transition-transform" />
-                    Apply Now
-                    <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                  </Button>
+                  <PermissionGuard minRole="manager">
+                    <Button 
+                      onClick={() => setShowOptimizationDialog(true)}
+                      className="btn-premium group"
+                    >
+                      <Zap className="h-4 w-4 mr-2 group-hover:rotate-12 transition-transform" />
+                      Apply Now
+                      <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                    </Button>
+                  </PermissionGuard>
                 </div>
               </Card>
             </motion.div>
