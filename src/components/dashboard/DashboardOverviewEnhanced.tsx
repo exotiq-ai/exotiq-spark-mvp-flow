@@ -38,6 +38,7 @@ import {
   SkeletonModuleNav 
 } from "@/components/ui/skeleton-specialized";
 import { SkeletonLineChart, SkeletonDonutChart, SkeletonTable } from "@/components/ui/skeleton-card";
+import { useUserRole } from "@/hooks/useUserRole";
 import { performHardReload, isInRecoveryMode } from "@/lib/staleBuildRecovery";
 import { supabase } from "@/integrations/supabase/client";
 import { 
@@ -80,6 +81,7 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
   const { currentTeam, loading: teamLoading, error: teamError } = useTeam();
   const { toast } = useToast();
   const rariSidebar = useRariSidebar();
+  const { hasRoleOrHigher: isManagerOrHigher } = useUserRole();
   const navigate = useNavigate();
   const [isRetrying, setIsRetrying] = useState(false);
   const [skippedTour, setSkippedTour] = useState(false);
@@ -518,7 +520,7 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
               vehicleName={aiInsight.vehicleName}
               suggestedIncrease={aiInsight.suggestedIncreasePercent}
               potentialRevenue={aiInsight.potentialMonthlyRevenue}
-              onApply={() => setShowOptimizationDialog(true)}
+              onApply={isManagerOrHigher('manager') ? () => setShowOptimizationDialog(true) : undefined}
               onViewAnalysis={() => onModuleClick('motoriq')}
               hasFleetData={vehicles.length > 0}
             />

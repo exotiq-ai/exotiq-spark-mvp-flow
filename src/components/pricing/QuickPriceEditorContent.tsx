@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
+import { useUserRole } from "@/hooks/useUserRole";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,6 +52,7 @@ export const QuickPriceEditorContent = ({
 }: QuickPriceEditorContentProps) => {
   const [newRate, setNewRate] = useState<number>(0);
   const [isSaving, setIsSaving] = useState(false);
+  const { hasRoleOrHigher } = useUserRole();
 
   useEffect(() => {
     const suggestedRate = pricingContext
@@ -71,6 +74,10 @@ export const QuickPriceEditorContent = ({
   };
 
   const handleSave = async () => {
+    if (!hasRoleOrHigher('manager')) {
+      toast.error("You don't have permission to change pricing. Please contact your manager.");
+      return;
+    }
     setIsSaving(true);
     try {
       await onApplyRate(vehicle.id, newRate);

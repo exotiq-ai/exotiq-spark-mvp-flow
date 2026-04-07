@@ -3,7 +3,10 @@ import { supabase } from '@/integrations/supabase/client';
 // Client-side tools for Rari voice assistant
 // These execute in the browser with user's auth context
 
-export function createRariClientTools(userId: string, teamId?: string) {
+export function createRariClientTools(userId: string, teamId?: string, userRole?: string) {
+  const isRestrictedRole = userRole === 'operator' || userRole === 'viewer';
+  const REVENUE_DENIED = "Revenue analytics require manager-level access. Please ask your fleet manager or admin for this information.";
+  const PAYMENT_DENIED = "Payment data requires manager-level access. Please ask your fleet manager or admin for this information.";
   return {
     // Fleet Metrics
     getFleetMetrics: async (params: { timeframe?: string; location?: string }) => {
@@ -109,6 +112,9 @@ export function createRariClientTools(userId: string, teamId?: string) {
 
     // Revenue Analysis
     getRevenueAnalysis: async (params: { timeframe?: string; location?: string; vehicleName?: string }) => {
+      if (isRestrictedRole) {
+        return JSON.stringify({ message: REVENUE_DENIED, status: 'permission_denied' });
+      }
       try {
         let paymentsQuery = supabase
           .from('payments')
@@ -306,6 +312,9 @@ export function createRariClientTools(userId: string, teamId?: string) {
 
     // Payment Summary
     getPaymentSummary: async (params: { status?: string; timeframe?: string }) => {
+      if (isRestrictedRole) {
+        return JSON.stringify({ message: PAYMENT_DENIED, status: 'permission_denied' });
+      }
       try {
         let paymentsQuery = supabase
           .from('payments')

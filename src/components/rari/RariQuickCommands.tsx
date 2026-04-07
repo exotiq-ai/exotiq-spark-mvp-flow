@@ -1,9 +1,10 @@
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useMemo } from 'react';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
+import { useUserRole } from '@/hooks/useUserRole';
 import {
   LayoutDashboard,
   DollarSign,
@@ -97,6 +98,15 @@ export const RariQuickCommands = ({
   className,
 }: RariQuickCommandsProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { role: userRole } = useUserRole();
+
+  // Filter out revenue/pricing commands for operators and viewers
+  const RESTRICTED_COMMANDS = ['revenue', 'payments', 'forecast'];
+  const isRestrictedRole = userRole === 'operator' || userRole === 'viewer';
+  const visibleCommands = useMemo(() => {
+    if (!isRestrictedRole) return QUICK_COMMANDS;
+    return QUICK_COMMANDS.filter(cmd => !RESTRICTED_COMMANDS.includes(cmd.id));
+  }, [isRestrictedRole]);
 
   const handleClick = useCallback((cmd: QuickCommand) => {
     // Haptic feedback
@@ -137,7 +147,7 @@ export const RariQuickCommands = ({
           role="group"
           aria-label="Quick commands"
         >
-          {QUICK_COMMANDS.map((cmd, index) => {
+          {visibleCommands.map((cmd, index) => {
             const Icon = cmd.icon;
             const isActive = activeCommandId === cmd.id;
             

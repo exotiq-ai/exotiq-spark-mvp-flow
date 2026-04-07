@@ -13,6 +13,7 @@ import { RariVoiceWaveform } from './RariVoiceWaveform';
 import { RariTranscript } from './RariTranscript';
 import { useRariConversationPersistence } from '@/hooks/useRariConversationPersistence';
 import { createRariClientTools } from '@/hooks/useRariClientTools';
+import { useUserRole } from '@/hooks/useUserRole';
 import { cn } from '@/lib/utils';
 import type { RariInterfaceVariant, RecentEntity } from '@/types/rari';
 interface Message {
@@ -37,6 +38,7 @@ export const RariVoiceInterface = ({
   const { toast } = useToast();
   const { user } = useAuth();
   const { currentTeam } = useTeam();
+  const { role: userRole } = useUserRole();
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [conversationDbId, setConversationDbId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -120,8 +122,8 @@ export const RariVoiceInterface = ({
   // Create client tools with user's auth context and team_id
   const clientTools = useMemo(() => {
     if (!user?.id) return {};
-    return createRariClientTools(user.id, currentTeam?.id);
-  }, [user?.id, currentTeam?.id]);
+    return createRariClientTools(user.id, currentTeam?.id, userRole ?? undefined);
+  }, [user?.id, currentTeam?.id, userRole]);
   
   const conversation = useConversation({
     clientTools,

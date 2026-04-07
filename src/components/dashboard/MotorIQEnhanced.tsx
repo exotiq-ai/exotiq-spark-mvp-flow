@@ -23,6 +23,7 @@ import { useSwipeGesture } from "@/hooks/useSwipeGesture";
 import { SkeletonMetric, SkeletonCard, SkeletonBarChart, SkeletonTable } from "@/components/ui/skeleton-card";
 import { SkeletonAIInsight, SkeletonVehicleCard, SkeletonStatsRow } from "@/components/ui/skeleton-specialized";
 import { EmptyState, NoVehiclesState } from "@/components/common/EmptyState";
+import { PermissionGuard } from "@/components/common/PermissionGuard";
 import { AddVehicleDialog } from "@/components/dialogs/AddVehicleDialog";
 import { 
   TrendingUp,
@@ -325,14 +326,16 @@ export const MotorIQEnhanced = () => {
                       </div>
                     </div>
                   </div>
-                  <Button 
-                    onClick={() => setShowOptimizationDialog(true)}
-                    className="btn-premium group"
-                  >
-                    <Zap className="h-4 w-4 mr-2 group-hover:rotate-12 transition-transform" />
-                    Apply Now
-                    <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                  </Button>
+                  <PermissionGuard minRole="manager">
+                    <Button 
+                      onClick={() => setShowOptimizationDialog(true)}
+                      className="btn-premium group"
+                    >
+                      <Zap className="h-4 w-4 mr-2 group-hover:rotate-12 transition-transform" />
+                      Apply Now
+                      <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                    </Button>
+                  </PermissionGuard>
                 </div>
               </Card>
             </motion.div>
@@ -416,14 +419,16 @@ export const MotorIQEnhanced = () => {
               <p className="text-sm text-muted-foreground">Individual vehicle insights</p>
             </div>
             {validOptimizations.length > 0 && (
-              <Button 
-                onClick={() => setShowOptimizationDialog(true)}
-                variant="outline"
-                className="hidden md:flex"
-              >
-                <Zap className="h-4 w-4 mr-2" />
-                Optimize All
-              </Button>
+              <PermissionGuard minRole="manager">
+                <Button 
+                  onClick={() => setShowOptimizationDialog(true)}
+                  variant="outline"
+                  className="hidden md:flex"
+                >
+                  <Zap className="h-4 w-4 mr-2" />
+                  Optimize All
+                </Button>
+              </PermissionGuard>
             )}
           </div>
 
