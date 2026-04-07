@@ -38,6 +38,7 @@ export const RariVoiceInterface = ({
   const { toast } = useToast();
   const { user } = useAuth();
   const { currentTeam } = useTeam();
+  const { role: userRole } = useUserRole();
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [conversationDbId, setConversationDbId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
