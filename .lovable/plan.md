@@ -1,77 +1,43 @@
 
 
-# RBAC for Rari & Pricing — What Needs to Change Where
+# Damage Claim Chain of Custody — Plan Review
 
-## Architecture Answer: It's ALL Client-Side
+## The plan is good. Two refinements worth making:
 
-Rari's data tools (`useRariClientTools.ts`) execute **in the browser** as client tools via the ElevenLabs React SDK. The flow is:
+### 1. `inspection_id` is already missing from the shared schema — but it's also missing from the DB insert type
 
-1. User speaks to Rari → ElevenLabs agent decides to call a tool (e.g. `getRevenueAnalysis`)
-2. ElevenLabs sends a `client_tool_call` event back to the browser
-3. The `useConversation` hook runs the matching function from `clientTools` (line 121-124 of RariVoiceInterface.tsx)
-4. The function queries Supabase using the user's auth session and returns a string
-5. ElevenLabs reads the response and speaks it
+The shared `damageClaimSchema` in `validationSchemas.ts` (line 59-69) already has `booking_id` and `customer_id` but **not** `inspection_id`. The plan correctly identifies this gap. However, since `createDamageClaim` spreads `validated` data and the `damage_claims` table already has an `inspection_id` column, we just need to add it to the Zod schema. No DB migration needed — confirmed.
 
-**Nothing needs to change in ElevenLabs.** The agent still "offers" all tools — but when an operator triggers a restricted one, our client-side code returns a permission-denied message instead of data. Rari then speaks that message back naturally (e.g. "Revenue data requires manager access — ask your admin for a report").
+The internal Zod schema in `DamageReportDialog.tsx` (lines 16-40) is a **duplicate** that also lacks these fields. The plan should update both schemas, or better, have the dialog import the shared one. Given scope, updating both in parallel is the pragmatic call.
 
-## Changes Required
+### 2. One small gap: `createDamageClaim` strips empty strings
 
-### 1. `src/hooks/useRariClientTools.ts`
-- Add a third parameter: `userRole?: string`
-- In `getRevenueAnalysis` and `getPaymentSummary`: if role is `operator` or `viewer`, return a friendly denial string instead of querying
-- All other tools (fleet status, bookings, availability) remain unrestricted
+The function does `damageClaimSchema.parse(claim)` then spreads. The schema uses `.optional().or(z.literal(''))` for `booking_id` and `customer_id` — meaning empty strings pass validation but get inserted as `''` into UUID columns, which will cause a Postgres type error. The prefill should pass `undefined` (not `''`) when IDs are absent. The plan should note this explicitly to avoid a subtle runtime bug.
 
-### 2. `src/components/rari/RariVoiceInterface.tsx`
-- Import `useUserRole` hook
-- Pass `role` to `createRariClientTools(user.id, currentTeam?.id, role)`
+### 3. Everything else checks out
 
-### 3. `src/components/rari/RariQuickCommands.tsx`
-- Import `useUserRole`
-- Filter out "Revenue Report" and "Demand Forecast" commands when role is below manager
+- `inspectionId` is indeed scoped to `submitAll` (line 295) — lifting to state is correct
+- The "File Damage Claim" button is `variant="outline" size="sm"` (line 800-804) — upgrading visual weight is correct
+- `createDamageClaim` spreads validated data (line 1221) — adding `inspection_id` to the schema is sufficient, no FleetContext changes needed
+- Severity mapping (`major` → `severe`) is needed since damage items use `major` but the DB enum is `minor|moderate|severe|total_loss`
 
-### 4. `src/components/dashboard/MotorIQEnhanced.tsx`
-- Wrap pricing action buttons in `PermissionGuard minRole="manager"`
-- Operators see MotorIQ data read-only (no edit pricing, no apply rate)
+## Updated Plan (with refinements)
 
-### 5. `src/components/fleet/FleetPageEnhanced.tsx`
-- Gate "Edit Price" button behind `PermissionGuard minRole="manager"`
-
-### 6. `src/components/dashboard/DashboardOverviewEnhanced.tsx`
-- Gate PriceOptimizationDialog trigger behind `PermissionGuard minRole="manager"`
-
-### 7. `src/components/pricing/QuickPriceEditorContent.tsx`
-- Add role check before `onApplyRate` — toast warning for non-managers
-
-## What Does NOT Need to Change
-
-| Thing | Why |
-|-------|-----|
-| ElevenLabs agent config | Tools are client-side; agent still lists them but our code gates execution |
-| ElevenLabs system prompt | Rari doesn't need to know about roles — the denial message speaks for itself |
-| Edge functions | They use service role, unaffected by RLS or client-side checks |
-| Database / RLS | The `rari_insights` policy already scopes by user; vehicle UPDATE RLS is a future hardening task |
-| Webhook tools config | Only applies to server-side tool calls, not client tools |
-
-## How Rari Handles Denial Gracefully
-
-When an operator asks "What's my revenue this week?":
-1. ElevenLabs calls `getRevenueAnalysis` client tool
-2. Our code checks role → returns `"Revenue analytics require manager-level access. Please ask your fleet manager or admin for this information."`
-3. Rari speaks this naturally — no error, no crash, just a polite redirect
-
-## Files Changed
+### Files Changed
 
 | File | Change |
 |------|--------|
-| `src/hooks/useRariClientTools.ts` | Add role param, gate revenue/payment tools |
-| `src/components/rari/RariVoiceInterface.tsx` | Pass user role to client tools |
-| `src/components/rari/RariQuickCommands.tsx` | Filter revenue/pricing commands by role |
-| `src/components/dashboard/MotorIQEnhanced.tsx` | PermissionGuard on pricing actions |
-| `src/components/fleet/FleetPageEnhanced.tsx` | PermissionGuard on price edit button |
-| `src/components/dashboard/DashboardOverviewEnhanced.tsx` | PermissionGuard on PriceOptimizationDialog |
-| `src/components/pricing/QuickPriceEditorContent.tsx` | Role check before rate save |
+| `src/components/dialogs/CheckInOutDialog.tsx` | Lift `inspectionId` to state via `completedInspectionId`, enhance prefill with `booking_id`, `customer_id`, `inspection_id`, computed `severity`, make "File Damage Claim" button primary/destructive with damage count message |
+| `src/components/dialogs/DamageReportDialog.tsx` | Extend prefill interface with `booking_id`, `customer_id`, `inspection_id`, `severity`; auto-select severity; show booking link banner; add fields to internal Zod schema; pass through to `createDamageClaim` — ensure `undefined` not `''` for empty optional UUIDs |
+| `src/lib/validationSchemas.ts` | Add `inspection_id: z.string().uuid().optional().or(z.literal(''))` to shared `damageClaimSchema` |
 
-## Risk
+### No changes needed
 
-**Low.** All changes are additive guards using existing `useUserRole` and `PermissionGuard`. Rari continues to work for all roles — operators just get polite "ask your manager" responses for revenue/pricing tools instead of data.
+- **FleetContext.tsx** — `createDamageClaim` spreads validated data, works automatically
+- **Database** — `damage_claims` table already has `booking_id`, `customer_id`, `inspection_id` columns
+- **RLS** — existing policies are correct for this flow
+
+### Risk
+
+**Very low.** Three files, additive changes only. The main gotcha (empty string → UUID column error) is called out and handled.
 
