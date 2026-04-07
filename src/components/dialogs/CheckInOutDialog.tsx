@@ -840,6 +840,20 @@ export const CheckInOutDialog = ({
         vehicles={vehicles}
         prefill={{
           vehicle_id: resolvedVehicleId,
+          booking_id: booking.id || undefined,
+          customer_id: booking.customer_id || undefined,
+          inspection_id: completedInspectionId || undefined,
+          booking_ref: booking.booking_ref || undefined,
+          severity: (() => {
+            if (damageItems.length === 0) return undefined;
+            const severityWeight: Record<string, number> = { minor: 1, moderate: 2, major: 3, severe: 3 };
+            const highest = damageItems.reduce((max, d) => {
+              const w = severityWeight[d.severity] || 1;
+              return w > max.w ? { w, s: d.severity } : max;
+            }, { w: 0, s: '' });
+            // Map 'major' (inspection term) to 'severe' (DB enum)
+            return highest.s === 'major' ? 'severe' : highest.s;
+          })(),
           description: damageItems.length > 0
             ? damageItems.map(d => `${d.severity} ${d.damageType} at ${d.vehicleLocation}${d.notes ? ': ' + d.notes : ''}`).join('\n')
             : '',
