@@ -349,6 +349,7 @@ export const CheckInOutDialog = ({
           });
 
         if (inspectionError) console.error("Inspection error:", inspectionError);
+        else setCompletedInspectionId(inspectionId);
 
         // Insert photo records
         const photoRecords = uploadedPhotos
