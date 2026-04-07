@@ -91,6 +91,7 @@ export const CheckInOutDialog = ({
   // Wizard step state
   const [step, setStep] = useState<WizardStep>("basics");
   const [showDamageClaimDialog, setShowDamageClaimDialog] = useState(false);
+  const [completedInspectionId, setCompletedInspectionId] = useState<string | null>(null);
 
   // Step 1: Basics
   const [odometer, setOdometer] = useState<string>(
@@ -348,6 +349,7 @@ export const CheckInOutDialog = ({
           });
 
         if (inspectionError) console.error("Inspection error:", inspectionError);
+        else setCompletedInspectionId(inspectionId);
 
         // Insert photo records
         const photoRecords = uploadedPhotos
@@ -767,45 +769,55 @@ export const CheckInOutDialog = ({
               )}
             </div>
             {(damageItems.length > 0 || checklist.exteriorCondition === 'poor' || checklist.interiorCondition === 'poor' || checklist.tireCondition === 'poor') && (
-              <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-center">
-                <p className="text-sm text-amber-700 dark:text-amber-400 mb-2">Issues found during inspection</p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    onComplete?.();
-                    handleOpenChange(false);
-                    window.dispatchEvent(new CustomEvent('create-work-order', {
-                      detail: {
-                        vehicle_id: resolvedVehicleId,
-                        title: `${isCheckIn ? 'Check-in' : 'Check-out'} issue: ${resolvedVehicleName}`,
-                        source: 'check_in_out',
-                        notes: [
-                          damageItems.length > 0 ? `${damageItems.length} damage item(s) found` : '',
-                          checklist.exteriorCondition === 'poor' ? 'Poor exterior condition' : '',
-                          checklist.interiorCondition === 'poor' ? 'Poor interior condition' : '',
-                          checklist.tireCondition === 'poor' ? 'Poor tire condition' : '',
-                          conditionNotes || '',
-                        ].filter(Boolean).join('\n'),
-                        issue_type: damageItems.length > 0 ? 'body' : 'general',
-                        priority: damageItems.some(d => d.severity === 'major') ? 'urgent' : 'normal',
-                      }
-                    }));
-                  }}
-                  className="border-amber-500/30 text-amber-700 dark:text-amber-400"
-                >
-                  <Wrench className="h-4 w-4 mr-2" />
-                  Create Work Order
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowDamageClaimDialog(true)}
-                  className="border-amber-500/30 text-amber-700 dark:text-amber-400"
-                >
-                  <AlertTriangle className="h-4 w-4 mr-2" />
-                  File Damage Claim
-                </Button>
+              <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-center space-y-2">
+                {damageItems.length > 0 ? (
+                  <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
+                    {damageItems.length} damage item{damageItems.length > 1 ? 's' : ''} documented — file a claim to link to this reservation
+                  </p>
+                ) : (
+                  <p className="text-sm text-amber-700 dark:text-amber-400">Issues found during inspection</p>
+                )}
+                <div className="flex gap-2 justify-center flex-wrap">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      onComplete?.();
+                      handleOpenChange(false);
+                      window.dispatchEvent(new CustomEvent('create-work-order', {
+                        detail: {
+                          vehicle_id: resolvedVehicleId,
+                          title: `${isCheckIn ? 'Check-in' : 'Check-out'} issue: ${resolvedVehicleName}`,
+                          source: 'check_in_out',
+                          notes: [
+                            damageItems.length > 0 ? `${damageItems.length} damage item(s) found` : '',
+                            checklist.exteriorCondition === 'poor' ? 'Poor exterior condition' : '',
+                            checklist.interiorCondition === 'poor' ? 'Poor interior condition' : '',
+                            checklist.tireCondition === 'poor' ? 'Poor tire condition' : '',
+                            conditionNotes || '',
+                          ].filter(Boolean).join('\n'),
+                          issue_type: damageItems.length > 0 ? 'body' : 'general',
+                          priority: damageItems.some(d => d.severity === 'major') ? 'urgent' : 'normal',
+                        }
+                      }));
+                    }}
+                    className="border-amber-500/30 text-amber-700 dark:text-amber-400"
+                  >
+                    <Wrench className="h-4 w-4 mr-2" />
+                    Create Work Order
+                  </Button>
+                  {damageItems.length > 0 && (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => setShowDamageClaimDialog(true)}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      <AlertTriangle className="h-4 w-4 mr-2" />
+                      File Damage Claim
+                    </Button>
+                  )}
+                </div>
               </div>
             )}
             <Button
@@ -828,6 +840,20 @@ export const CheckInOutDialog = ({
         vehicles={vehicles}
         prefill={{
           vehicle_id: resolvedVehicleId,
+          booking_id: booking.id || undefined,
+          customer_id: booking.customer_id || undefined,
+          inspection_id: completedInspectionId || undefined,
+          booking_ref: booking.booking_ref || undefined,
+          severity: (() => {
+            if (damageItems.length === 0) return undefined;
+            const severityWeight: Record<string, number> = { minor: 1, moderate: 2, major: 3, severe: 3 };
+            const highest = damageItems.reduce((max, d) => {
+              const w = severityWeight[d.severity] || 1;
+              return w > max.w ? { w, s: d.severity } : max;
+            }, { w: 0, s: '' });
+            // Map 'major' (inspection term) to 'severe' (DB enum)
+            return highest.s === 'major' ? 'severe' : highest.s;
+          })(),
           description: damageItems.length > 0
             ? damageItems.map(d => `${d.severity} ${d.damageType} at ${d.vehicleLocation}${d.notes ? ': ' + d.notes : ''}`).join('\n')
             : '',
