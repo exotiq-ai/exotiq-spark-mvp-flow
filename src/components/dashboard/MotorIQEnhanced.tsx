@@ -23,6 +23,7 @@ import { useSwipeGesture } from "@/hooks/useSwipeGesture";
 import { SkeletonMetric, SkeletonCard, SkeletonBarChart, SkeletonTable } from "@/components/ui/skeleton-card";
 import { SkeletonAIInsight, SkeletonVehicleCard, SkeletonStatsRow } from "@/components/ui/skeleton-specialized";
 import { EmptyState, NoVehiclesState } from "@/components/common/EmptyState";
+import { PermissionGuard } from "@/components/common/PermissionGuard";
 import { AddVehicleDialog } from "@/components/dialogs/AddVehicleDialog";
 import { 
   TrendingUp,
