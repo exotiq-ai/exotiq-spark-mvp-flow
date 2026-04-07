@@ -112,6 +112,9 @@ export function createRariClientTools(userId: string, teamId?: string, userRole?
 
     // Revenue Analysis
     getRevenueAnalysis: async (params: { timeframe?: string; location?: string; vehicleName?: string }) => {
+      if (isRestrictedRole) {
+        return JSON.stringify({ message: REVENUE_DENIED, status: 'permission_denied' });
+      }
       try {
         let paymentsQuery = supabase
           .from('payments')
