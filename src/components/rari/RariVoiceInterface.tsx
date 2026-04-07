@@ -122,8 +122,8 @@ export const RariVoiceInterface = ({
   // Create client tools with user's auth context and team_id
   const clientTools = useMemo(() => {
     if (!user?.id) return {};
-    return createRariClientTools(user.id, currentTeam?.id);
-  }, [user?.id, currentTeam?.id]);
+    return createRariClientTools(user.id, currentTeam?.id, userRole ?? undefined);
+  }, [user?.id, currentTeam?.id, userRole]);
   
   const conversation = useConversation({
     clientTools,

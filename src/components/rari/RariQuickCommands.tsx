@@ -147,7 +147,7 @@ export const RariQuickCommands = ({
           role="group"
           aria-label="Quick commands"
         >
-          {QUICK_COMMANDS.map((cmd, index) => {
+          {visibleCommands.map((cmd, index) => {
             const Icon = cmd.icon;
             const isActive = activeCommandId === cmd.id;
             

@@ -312,6 +312,9 @@ export function createRariClientTools(userId: string, teamId?: string, userRole?
 
     // Payment Summary
     getPaymentSummary: async (params: { status?: string; timeframe?: string }) => {
+      if (isRestrictedRole) {
+        return JSON.stringify({ message: PAYMENT_DENIED, status: 'permission_denied' });
+      }
       try {
         let paymentsQuery = supabase
           .from('payments')
