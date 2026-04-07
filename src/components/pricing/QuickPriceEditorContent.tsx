@@ -52,6 +52,7 @@ export const QuickPriceEditorContent = ({
 }: QuickPriceEditorContentProps) => {
   const [newRate, setNewRate] = useState<number>(0);
   const [isSaving, setIsSaving] = useState(false);
+  const { hasRoleOrHigher } = useUserRole();
 
   useEffect(() => {
     const suggestedRate = pricingContext
