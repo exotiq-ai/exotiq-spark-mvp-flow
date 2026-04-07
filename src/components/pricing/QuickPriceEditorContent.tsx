@@ -74,6 +74,10 @@ export const QuickPriceEditorContent = ({
   };
 
   const handleSave = async () => {
+    if (!hasRoleOrHigher('manager')) {
+      toast.error("You don't have permission to change pricing. Please contact your manager.");
+      return;
+    }
     setIsSaving(true);
     try {
       await onApplyRate(vehicle.id, newRate);

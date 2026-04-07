@@ -486,7 +486,7 @@ export const FleetPageEnhanced = () => {
                     nextBooking={getNextBooking(vehicle.id) as any}
                     taskCount={taskCountMap[vehicle.id] || 0}
                     photoCount={photoCountByVehicle[vehicle.id]}
-                    onEditPrice={(v) => setPriceEditVehicle(v)}
+                    onEditPrice={undefined} // Price editing gated via QuickPriceEditorDialog role check
                     onEdit={(v) => setEditVehicle(v)}
                     onCreateTask={(v) => setTaskVehicle(v)}
                     onViewDetails={(v) => setDetailsVehicle(v)}

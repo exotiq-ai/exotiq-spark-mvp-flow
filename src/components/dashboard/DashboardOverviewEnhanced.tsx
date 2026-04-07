@@ -38,6 +38,7 @@ import {
   SkeletonModuleNav 
 } from "@/components/ui/skeleton-specialized";
 import { SkeletonLineChart, SkeletonDonutChart, SkeletonTable } from "@/components/ui/skeleton-card";
+import { useUserRole } from "@/hooks/useUserRole";
 import { performHardReload, isInRecoveryMode } from "@/lib/staleBuildRecovery";
 import { supabase } from "@/integrations/supabase/client";
 import { 

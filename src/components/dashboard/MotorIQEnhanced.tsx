@@ -419,14 +419,16 @@ export const MotorIQEnhanced = () => {
               <p className="text-sm text-muted-foreground">Individual vehicle insights</p>
             </div>
             {validOptimizations.length > 0 && (
-              <Button 
-                onClick={() => setShowOptimizationDialog(true)}
-                variant="outline"
-                className="hidden md:flex"
-              >
-                <Zap className="h-4 w-4 mr-2" />
-                Optimize All
-              </Button>
+              <PermissionGuard minRole="manager">
+                <Button 
+                  onClick={() => setShowOptimizationDialog(true)}
+                  variant="outline"
+                  className="hidden md:flex"
+                >
+                  <Zap className="h-4 w-4 mr-2" />
+                  Optimize All
+                </Button>
+              </PermissionGuard>
             )}
           </div>
 
