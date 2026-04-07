@@ -81,6 +81,7 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
   const { currentTeam, loading: teamLoading, error: teamError } = useTeam();
   const { toast } = useToast();
   const rariSidebar = useRariSidebar();
+  const { hasRoleOrHigher: isManagerOrHigher } = useUserRole();
   const navigate = useNavigate();
   const [isRetrying, setIsRetrying] = useState(false);
   const [skippedTour, setSkippedTour] = useState(false);
