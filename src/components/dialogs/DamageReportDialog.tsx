@@ -10,10 +10,13 @@ import { toast } from "sonner";
 import { Tables } from "@/integrations/supabase/types";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
-import { Upload, X, Image, Loader2 } from "lucide-react";
+import { Upload, X, Image, Loader2, Link2 } from "lucide-react";
 
 const damageClaimSchema = z.object({
   vehicle_id: z.string().uuid({ message: "Valid vehicle selection required" }),
+  booking_id: z.string().uuid().optional(),
+  customer_id: z.string().uuid().optional(),
+  inspection_id: z.string().uuid().optional(),
   claim_type: z.enum(["accident", "vandalism", "theft", "mechanical", "weather", "other"], {
     errorMap: () => ({ message: "Please select a valid claim type" })
   }),
@@ -48,6 +51,11 @@ interface DamageReportDialogProps {
     vehicle_id?: string;
     description?: string;
     photo_urls?: string[];
+    booking_id?: string;
+    customer_id?: string;
+    inspection_id?: string;
+    severity?: string;
+    booking_ref?: string;
   };
 }
 
@@ -65,7 +73,7 @@ export const DamageReportDialog = ({ open, onOpenChange, vehicles, prefill }: Da
   const [formData, setFormData] = useState({
     vehicle_id: prefill?.vehicle_id || "",
     claim_type: "",
-    severity: "",
+    severity: prefill?.severity || "",
     description: prefill?.description || "",
     estimated_cost: "",
     insurance_claim_number: ""
@@ -135,7 +143,15 @@ export const DamageReportDialog = ({ open, onOpenChange, vehicles, prefill }: Da
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const validation = damageClaimSchema.safeParse(formData);
+    // Build submission data, passing undefined (not '') for empty optional UUIDs
+    const submissionData = {
+      ...formData,
+      booking_id: prefill?.booking_id || undefined,
+      customer_id: prefill?.customer_id || undefined,
+      inspection_id: prefill?.inspection_id || undefined,
+    };
+
+    const validation = damageClaimSchema.safeParse(submissionData);
     
     if (!validation.success) {
       const errors = validation.error.errors;
@@ -152,7 +168,10 @@ export const DamageReportDialog = ({ open, onOpenChange, vehicles, prefill }: Da
         description: validation.data.description,
         estimated_cost: validation.data.estimated_cost ? parseFloat(validation.data.estimated_cost) : undefined,
         insurance_claim_number: validation.data.insurance_claim_number || undefined,
-        photo_urls: uploadedPhotos.map(p => p.url)
+        photo_urls: uploadedPhotos.map(p => p.url),
+        booking_id: validation.data.booking_id || undefined,
+        customer_id: validation.data.customer_id || undefined,
+        inspection_id: validation.data.inspection_id || undefined,
       });
 
       // Reset form
@@ -184,6 +203,20 @@ export const DamageReportDialog = ({ open, onOpenChange, vehicles, prefill }: Da
             Create a new damage claim report for a vehicle
           </DialogDescription>
         </DialogHeader>
+
+        {/* Chain of custody banner */}
+        {prefill?.booking_id && (
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-primary/5 border border-primary/20 text-sm">
+            <Link2 className="h-4 w-4 text-primary shrink-0" />
+            <span className="text-muted-foreground">
+              This claim will be linked to reservation{' '}
+              <span className="font-medium text-foreground">
+                {prefill.booking_ref ? `#${prefill.booking_ref}` : `#${prefill.booking_id.slice(0, 8)}`}
+              </span>
+              {prefill.inspection_id && ' and its inspection record'}
+            </span>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Vehicle Selection */}

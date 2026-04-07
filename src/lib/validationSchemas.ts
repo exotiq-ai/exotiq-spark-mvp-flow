@@ -60,6 +60,7 @@ export const damageClaimSchema = z.object({
   vehicle_id: z.string().uuid("Invalid vehicle ID"),
   booking_id: z.string().uuid("Invalid booking ID").optional().or(z.literal('')),
   customer_id: z.string().uuid("Invalid customer ID").optional().or(z.literal('')),
+  inspection_id: z.string().uuid("Invalid inspection ID").optional().or(z.literal('')),
   claim_type: z.string().min(1, "Claim type required").max(50, "Type too long"),
   severity: z.enum(['minor', 'moderate', 'severe', 'total_loss']),
   description: z.string().min(10, "Description too short").max(5000, "Description too long"),

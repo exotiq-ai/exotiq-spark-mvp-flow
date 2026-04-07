@@ -91,6 +91,7 @@ export const CheckInOutDialog = ({
   // Wizard step state
   const [step, setStep] = useState<WizardStep>("basics");
   const [showDamageClaimDialog, setShowDamageClaimDialog] = useState(false);
+  const [completedInspectionId, setCompletedInspectionId] = useState<string | null>(null);
 
   // Step 1: Basics
   const [odometer, setOdometer] = useState<string>(
