@@ -520,7 +520,7 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
               vehicleName={aiInsight.vehicleName}
               suggestedIncrease={aiInsight.suggestedIncreasePercent}
               potentialRevenue={aiInsight.potentialMonthlyRevenue}
-              onApply={() => setShowOptimizationDialog(true)}
+              onApply={isManagerOrHigher('manager') ? () => setShowOptimizationDialog(true) : undefined}
               onViewAnalysis={() => onModuleClick('motoriq')}
               hasFleetData={vehicles.length > 0}
             />
