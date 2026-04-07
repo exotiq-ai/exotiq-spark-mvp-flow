@@ -98,6 +98,15 @@ export const RariQuickCommands = ({
   className,
 }: RariQuickCommandsProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { role: userRole } = useUserRole();
+
+  // Filter out revenue/pricing commands for operators and viewers
+  const RESTRICTED_COMMANDS = ['revenue', 'payments', 'forecast'];
+  const isRestrictedRole = userRole === 'operator' || userRole === 'viewer';
+  const visibleCommands = useMemo(() => {
+    if (!isRestrictedRole) return QUICK_COMMANDS;
+    return QUICK_COMMANDS.filter(cmd => !RESTRICTED_COMMANDS.includes(cmd.id));
+  }, [isRestrictedRole]);
 
   const handleClick = useCallback((cmd: QuickCommand) => {
     // Haptic feedback
