@@ -13,6 +13,7 @@ import { RariVoiceWaveform } from './RariVoiceWaveform';
 import { RariTranscript } from './RariTranscript';
 import { useRariConversationPersistence } from '@/hooks/useRariConversationPersistence';
 import { createRariClientTools } from '@/hooks/useRariClientTools';
+import { useUserRole } from '@/hooks/useUserRole';
 import { cn } from '@/lib/utils';
 import type { RariInterfaceVariant, RecentEntity } from '@/types/rari';
 interface Message {
