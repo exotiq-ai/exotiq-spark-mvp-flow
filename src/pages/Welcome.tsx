@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
@@ -12,10 +13,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { CheckCircle2, ArrowRight, Calendar, Loader2 } from 'lucide-react';
+import { CheckCircle2, ArrowRight, Calendar, Loader2, Sparkles } from 'lucide-react';
 import { SEOHead } from '@/components/common/SEOHead';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { Celebration } from '@/components/common/MicroInteractions';
+import { motion } from 'framer-motion';
 
 const Welcome = () => {
   const [searchParams] = useSearchParams();
@@ -23,6 +26,8 @@ const Welcome = () => {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCalendlyLoaded, setIsCalendlyLoaded] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const isPaymentSuccess = searchParams.get('subscription') === 'success' || !!searchParams.get('session_id');
 
   const [formData, setFormData] = useState({
     businessName: '',
@@ -34,6 +39,13 @@ const Welcome = () => {
     referralSource: '',
     phone: '',
   });
+
+  // Trigger celebration on payment success
+  useEffect(() => {
+    if (isPaymentSuccess) {
+      setShowCelebration(true);
+    }
+  }, []);
 
   // Load Calendly script
   useEffect(() => {
@@ -102,11 +114,36 @@ const Welcome = () => {
       />
 
       <div className="container mx-auto py-12 px-4 max-w-4xl">
+        {/* Celebration confetti */}
+        <Celebration 
+          trigger={showCelebration} 
+          message="Welcome to Exotiq! 🎉" 
+          variant="milestone"
+          onComplete={() => setShowCelebration(false)}
+        />
+
         {/* Success Header */}
         <div className="text-center mb-12">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-success/10 mb-6">
+          {isPaymentSuccess && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+            >
+              <Badge className="mb-4 bg-success/20 text-success border-success/30 px-4 py-1.5 text-sm">
+                <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+                Payment Confirmed
+              </Badge>
+            </motion.div>
+          )}
+          <motion.div
+            initial={isPaymentSuccess ? { scale: 0 } : false}
+            animate={isPaymentSuccess ? { scale: [0, 1.2, 1] } : {}}
+            transition={{ duration: 0.6, times: [0, 0.6, 1] }}
+            className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-success/10 mb-6"
+          >
             <CheckCircle2 className="h-10 w-10 text-success" />
-          </div>
+          </motion.div>
           <h1 className="text-4xl font-bold mb-4">Welcome to Exotiq, Founding Member!</h1>
           <p className="text-xl text-muted-foreground">
             Your founder pricing is locked in forever. Let us get you started.
