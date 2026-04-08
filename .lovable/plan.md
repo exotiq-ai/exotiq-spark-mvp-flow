@@ -1,43 +1,96 @@
 
 
-# Damage Claim Chain of Custody — Plan Review
+# Stripe Sync & Pricing Fix — Full Plan
 
-## The plan is good. Two refinements worth making:
+## Current State
 
-### 1. `inspection_id` is already missing from the shared schema — but it's also missing from the DB insert type
+**What's working:**
+- Price IDs in code match Stripe (all 8 prices confirmed)
+- Product IDs in `check-subscription` match Stripe (4 products confirmed)
+- Webhook handles `checkout.session.completed`, subscription updates, payment intents, refunds, disputes, payouts
+- `check-subscription` polls Stripe on login + periodically and feeds `AuthContext`
+- `payment_method_collection: 'always'` is set for trial pre-auth
 
-The shared `damageClaimSchema` in `validationSchemas.ts` (line 59-69) already has `booking_id` and `customer_id` but **not** `inspection_id`. The plan correctly identifies this gap. However, since `createDamageClaim` spreads `validated` data and the `damage_claims` table already has an `inspection_id` column, we just need to add it to the Zod schema. No DB migration needed — confirmed.
+**What's broken or missing:**
 
-The internal Zod schema in `DamageReportDialog.tsx` (lines 16-40) is a **duplicate** that also lacks these fields. The plan should update both schemas, or better, have the dialog import the shared one. Given scope, updating both in parallel is the pragmatic call.
+### 1. Checkout quantity bug (critical)
+`create-checkout-session` sends `quantity: fleetSize` for ALL tiers. For flat-rate tiers this multiplies the base price (e.g. Enterprise $1,799 × 150 = $269,850/mo). Flat tiers should send `quantity: 1` with a separate overage line item only when fleet exceeds the tier max.
 
-### 2. One small gap: `createDamageClaim` strips empty strings
+### 2. Fleet size default bug
+`PlanSelectionModal` defaults `fleetSize` to `selectedTier.maxVehicles` for ALL tiers. Flat tiers should default to their `maxVehicles` (included capacity) but quantity sent to Stripe must be 1. Per-vehicle (Starter) correctly uses fleetSize as quantity.
 
-The function does `damageClaimSchema.parse(claim)` then spreads. The schema uses `.optional().or(z.literal(''))` for `booking_id` and `customer_id` — meaning empty strings pass validation but get inserted as `''` into UUID columns, which will cause a Postgres type error. The prefill should pass `undefined` (not `''`) when IDs are absent. The plan should note this explicitly to avoid a subtle runtime bug.
+### 3. Overage pricing has no Stripe prices
+Professional ($22/vehicle), Business ($18/vehicle), Enterprise ($15/vehicle) overage rates exist in `PricingData.ts` but have no corresponding Stripe recurring prices. Need to create 3 overage products+prices in Stripe.
 
-### 3. Everything else checks out
+### 4. Webhook doesn't sync subscription lifecycle to DB
+`customer.subscription.updated` and `customer.subscription.deleted` just log — they don't update any local state. If a user upgrades, downgrades, or cancels via the Stripe portal, the app won't know until the next `check-subscription` poll. We should write subscription status to a local table or at minimum ensure the webhook updates something queryable.
 
-- `inspectionId` is indeed scoped to `submitAll` (line 295) — lifting to state is correct
-- The "File Damage Claim" button is `variant="outline" size="sm"` (line 800-804) — upgrading visual weight is correct
-- `createDamageClaim` spreads validated data (line 1221) — adding `inspection_id` to the schema is sufficient, no FleetContext changes needed
-- Severity mapping (`major` → `severe`) is needed since damage items use `major` but the DB enum is `minor|moderate|severe|total_loss`
+### 5. 406 errors from useTeamMessaging
+Two `.single()` calls return 406 when no rows match. Change to `.maybeSingle()`.
 
-## Updated Plan (with refinements)
+---
 
-### Files Changed
+## Plan
+
+### Step 1 — Create 3 overage prices in Stripe
+Use the Stripe tool to create:
+- "Professional Overage" — $22/vehicle/month recurring
+- "Business Overage" — $18/vehicle/month recurring  
+- "Enterprise Overage" — $15/vehicle/month recurring
+
+### Step 2 — Fix `create-checkout-session` edge function
+- For **Starter** (per-vehicle): keep `quantity: fleetSize`
+- For **flat tiers**: always `quantity: 1` for the base price
+- If `fleetSize > maxVehicles` for a flat tier, add a **second line item** using the overage price with `quantity: fleetSize - maxVehicles`
+- Add validation: reject if total exceeds Stripe's $999,999 limit
+- Store `maxVehicles` per tier in the function so it knows the threshold
+
+### Step 3 — Fix `PlanSelectionModal.tsx` default fleet size
+- Per-vehicle tiers: default to `maxVehicles` (user scales down)
+- Flat tiers: default to `maxVehicles` (shows included capacity), but make clear the input is "Total vehicles" and overage kicks in above the limit
+
+### Step 4 — Add `PricingData.ts` overage price IDs
+Add overage Stripe price IDs to `STRIPE_PRICES` so the edge function can reference them:
+```typescript
+overage: {
+  professional: 'price_xxx',
+  business: 'price_yyy',
+  enterprise: 'price_zzz',
+}
+```
+
+### Step 5 — Wire webhook subscription lifecycle events
+Update `stripe-webhook` to handle:
+- `customer.subscription.updated` → log tier change, could update a `subscriptions` field on teams or trigger a notification
+- `customer.subscription.deleted` → log cancellation, create notification for the user
+- `invoice.payment_failed` → create notification warning the user their payment failed
+
+This ensures the app stays in sync even when changes happen in Stripe's portal or via Stripe's retry logic.
+
+### Step 6 — Fix 406 errors in `useTeamMessaging.ts`
+- Line 88: `.single()` → `.maybeSingle()`
+- Line 184: `.single()` → `.maybeSingle()`
+
+### Step 7 — Deploy and test
+- Deploy `create-checkout-session` and `stripe-webhook`
+- Test: Starter with 5 vehicles → $145/mo
+- Test: Professional with 25 vehicles → $399/mo (no overage)
+- Test: Professional with 30 vehicles → $399 + 5×$22 = $509/mo
+- Test: Enterprise with 150 → $1,799/mo (no overage, quantity 1)
+
+---
+
+## Files Changed
 
 | File | Change |
 |------|--------|
-| `src/components/dialogs/CheckInOutDialog.tsx` | Lift `inspectionId` to state via `completedInspectionId`, enhance prefill with `booking_id`, `customer_id`, `inspection_id`, computed `severity`, make "File Damage Claim" button primary/destructive with damage count message |
-| `src/components/dialogs/DamageReportDialog.tsx` | Extend prefill interface with `booking_id`, `customer_id`, `inspection_id`, `severity`; auto-select severity; show booking link banner; add fields to internal Zod schema; pass through to `createDamageClaim` — ensure `undefined` not `''` for empty optional UUIDs |
-| `src/lib/validationSchemas.ts` | Add `inspection_id: z.string().uuid().optional().or(z.literal(''))` to shared `damageClaimSchema` |
+| Stripe (via tool) | Create 3 overage recurring prices |
+| `src/components/landing/pricing/PricingData.ts` | Add overage price IDs |
+| `supabase/functions/create-checkout-session/index.ts` | Fix quantity logic: base qty=1 for flat + overage line item |
+| `src/components/landing/pricing/PlanSelectionModal.tsx` | Minor: keep defaults, pass overage info to edge function |
+| `supabase/functions/stripe-webhook/index.ts` | Wire `subscription.updated/deleted` + `invoice.payment_failed` to notifications |
+| `src/hooks/useTeamMessaging.ts` | `.single()` → `.maybeSingle()` in 2 places |
 
-### No changes needed
-
-- **FleetContext.tsx** — `createDamageClaim` spreads validated data, works automatically
-- **Database** — `damage_claims` table already has `booking_id`, `customer_id`, `inspection_id` columns
-- **RLS** — existing policies are correct for this flow
-
-### Risk
-
-**Very low.** Three files, additive changes only. The main gotcha (empty string → UUID column error) is called out and handled.
+## Risk
+**Low-medium.** The checkout quantity fix is critical but straightforward. Overage line items use standard Stripe multi-item subscriptions. Webhook additions are additive.
 
