@@ -1,47 +1,42 @@
 
 
-# Fix Checkout Flow — Two Remaining Issues
+# Clean Up Billing Toggle & Add to Modal
 
-## Problem Summary
-The backend works. Checkout sessions create successfully. Two issues remain:
-
-1. **Redirect blocked in preview** — `window.location.href` to Stripe gets blocked in the Lovable preview iframe. Need `window.open()` fallback.
-2. **`check-subscription` ignores trial subscriptions** — After checkout with 14-day trial, Stripe sets status to `trialing`. Current code only queries `status: "active"`, so the app will report "no subscription" even after successful payment.
+## What's Wrong Now
+The "Monthly / Switch to Annual / Annual" toggle on the SubscriptionSection looks clunky — it's a button squeezed between two text labels. The modal shows billing as a static read-only line, so users can't switch billing frequency once they've opened the plan details.
 
 ## Changes
 
-### 1. `PlanSelectionModal.tsx` — Add `window.open` fallback
-```typescript
-if (data?.url) {
-  // Try redirect first, fall back to new tab for iframe environments
-  try {
-    window.location.href = data.url;
-  } catch {
-    window.open(data.url, '_blank');
-  }
-}
-```
+### 1. SubscriptionSection — Replace toggle with a proper switch-style UI
+**File:** `src/components/dashboard/settings/SubscriptionSection.tsx`
 
-### 2. `check-subscription/index.ts` — Query both `active` and `trialing`
-Change the subscription list call from:
-```typescript
-status: "active"
-```
-to:
-```typescript
-status: "all"  // then filter in code for active OR trialing
-```
-Add `trialing` as a valid subscribed state. Return `status` field so the frontend knows if it's a trial.
+Replace the current awkward "Monthly [Button] Annual" layout (lines 140-151) with a clean segmented toggle using two side-by-side buttons (pill style):
+- Two buttons: "Monthly" and "Annual" in a rounded container
+- Active state gets filled background, inactive gets ghost
+- "Save 2 months" badge next to the Annual option
+- Apply the same toggle in both the "no subscription" and "has subscription" plan grids
 
-### 3. `customer-portal/index.ts` — Fix fallback origin
-Change fallback from `https://exotiq.ai` to `https://app.exotiq.ai` and return URL to `/dashboard/settings`.
+### 2. PlanSelectionModal — Add interactive billing toggle
+**File:** `src/components/landing/pricing/PlanSelectionModal.tsx`
+
+- Make `isAnnual` internal state (initialize from the prop, but let users toggle it inside the modal)
+- Replace the static "Billing: Annual/Monthly" display (lines 164-170) with the same segmented toggle component
+- Price calculation already reacts to `isAnnual`, so toggling will live-update the total
+- Pass the current `billingIsAnnual` state to the checkout call
+
+### 3. Extract a shared BillingToggle component
+**File:** `src/components/landing/pricing/BillingToggle.tsx` (new)
+
+Small reusable component:
+- Props: `isAnnual: boolean`, `onChange: (annual: boolean) => void`, `size?: 'sm' | 'default'`
+- Renders two side-by-side pill buttons with a "Save 2 months" badge on Annual
+- Used in both SubscriptionSection and PlanSelectionModal
 
 ## Files Changed
+
 | File | Change |
 |------|--------|
-| `src/components/landing/pricing/PlanSelectionModal.tsx` | `window.open` fallback for iframe |
-| `supabase/functions/check-subscription/index.ts` | Add `trialing` status support |
-| `supabase/functions/customer-portal/index.ts` | Fix return URL origin |
+| `src/components/landing/pricing/BillingToggle.tsx` | New shared toggle component |
+| `src/components/landing/pricing/PlanSelectionModal.tsx` | Replace static billing display with interactive toggle, make `isAnnual` local state |
+| `src/components/dashboard/settings/SubscriptionSection.tsx` | Use new BillingToggle in both plan grid sections |
 
-## Testing
-After these changes, go to `app.exotiq.ai`, log in, navigate to Settings > Subscription, pick a plan, and complete checkout with Stripe test card `4242 4242 4242 4242`. The redirect should work and subscription should be detected immediately.
