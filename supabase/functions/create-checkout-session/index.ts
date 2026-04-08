@@ -160,8 +160,8 @@ serve(async (req) => {
         fleetSize: String(fleetSize),
         isFounderPricing: 'true',
       },
-      success_url: `${req.headers.get("origin") || "https://exotiq.ai"}/welcome?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${req.headers.get("origin") || "https://exotiq.ai"}/?canceled=true#pricing`,
+      success_url: `${req.headers.get("origin") || "https://app.exotiq.ai"}/welcome?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${req.headers.get("origin") || "https://app.exotiq.ai"}/?canceled=true#pricing`,
       allow_promotion_codes: true,
     });
 
