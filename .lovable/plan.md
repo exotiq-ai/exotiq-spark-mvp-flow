@@ -1,57 +1,47 @@
 
 
-# Post-Checkout Redirect Logic
+# Fix Checkout Flow — Two Remaining Issues
 
-## The Two Flows
+## Problem Summary
+The backend works. Checkout sessions create successfully. Two issues remain:
 
-### Flow A — Logged-in user (from Dashboard Settings)
-1. User is on `/dashboard/settings` → clicks upgrade → Stripe checkout
-2. After payment → redirect to `/dashboard/settings?subscription=success`
-3. Settings page detects the query param → fires celebration animation + refreshes subscription status
-4. User stays in their dashboard — no disruption
+1. **Redirect blocked in preview** — `window.location.href` to Stripe gets blocked in the Lovable preview iframe. Need `window.open()` fallback.
+2. **`check-subscription` ignores trial subscriptions** — After checkout with 14-day trial, Stripe sets status to `trialing`. Current code only queries `status: "active"`, so the app will report "no subscription" even after successful payment.
 
-### Flow B — Landing page visitor (from pricing section, may not be logged in)
-1. Visitor on `/` → clicks "Start Trial" → Stripe checkout (may or may not have auth token)
-2. After payment → redirect to `/welcome?session_id={CHECKOUT_SESSION_ID}`
-3. Welcome page collects business info → redirects to `/auth` to sign up/log in
-4. First dashboard load → celebration
+## Changes
 
-## What Changes
-
-### Step 1 — Pass `returnPath` from frontend to edge function
-`PlanSelectionModal` already knows where it's being rendered. Add a `returnPath` prop:
-- From `SubscriptionSection` (dashboard): pass `returnPath: '/dashboard/settings?subscription=success'`
-- From `PricingSectionNew` (landing): pass `returnPath: '/welcome'` (current behavior)
-
-The edge function uses this to set `success_url`.
-
-### Step 2 — Update `create-checkout-session` edge function
-Accept optional `returnPath` in the request body. Use it to build `success_url`:
+### 1. `PlanSelectionModal.tsx` — Add `window.open` fallback
+```typescript
+if (data?.url) {
+  // Try redirect first, fall back to new tab for iframe environments
+  try {
+    window.location.href = data.url;
+  } catch {
+    window.open(data.url, '_blank');
+  }
+}
 ```
-success_url = origin + returnPath + (includes ? already ? '&' : '?') + 'session_id={CHECKOUT_SESSION_ID}'
+
+### 2. `check-subscription/index.ts` — Query both `active` and `trialing`
+Change the subscription list call from:
+```typescript
+status: "active"
 ```
-Fall back to `/welcome?session_id={CHECKOUT_SESSION_ID}` if not provided.
+to:
+```typescript
+status: "all"  // then filter in code for active OR trialing
+```
+Add `trialing` as a valid subscribed state. Return `status` field so the frontend knows if it's a trial.
 
-### Step 3 — Update `cancel_url` similarly
-- From dashboard: cancel returns to `/dashboard/settings`
-- From landing: cancel returns to `/#pricing`
-
-### Step 4 — Add celebration trigger on Settings page
-Detect `?subscription=success` query param in `SubscriptionSection`. When present:
-- Fire confetti/celebration animation (reuse existing `Celebration` component)
-- Show success toast
-- Clear the param from URL
-- Auto-refresh subscription status via `check-subscription`
+### 3. `customer-portal/index.ts` — Fix fallback origin
+Change fallback from `https://exotiq.ai` to `https://app.exotiq.ai` and return URL to `/dashboard/settings`.
 
 ## Files Changed
-
 | File | Change |
 |------|--------|
-| `PlanSelectionModal.tsx` | Add `returnPath` and `cancelPath` props, pass to edge function |
-| `PricingSectionNew.tsx` | Pass landing-page return paths |
-| `SubscriptionSection.tsx` | Pass dashboard return paths + add celebration on `?subscription=success` |
-| `create-checkout-session/index.ts` | Accept `returnPath`/`cancelPath` from body, use for URLs |
+| `src/components/landing/pricing/PlanSelectionModal.tsx` | `window.open` fallback for iframe |
+| `supabase/functions/check-subscription/index.ts` | Add `trialing` status support |
+| `supabase/functions/customer-portal/index.ts` | Fix return URL origin |
 
-## Risk
-**Low.** Additive changes only. Existing behavior preserved as the default fallback.
-
+## Testing
+After these changes, go to `app.exotiq.ai`, log in, navigate to Settings > Subscription, pick a plan, and complete checkout with Stripe test card `4242 4242 4242 4242`. The redirect should work and subscription should be detected immediately.
