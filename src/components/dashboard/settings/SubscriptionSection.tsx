@@ -23,6 +23,7 @@ import { useFleet } from "@/contexts/FleetContext";
 import { EmptyState } from "@/components/common/EmptyState";
 import { pricingTiers, type PricingTier } from "@/components/landing/pricing/PricingData";
 import { PlanSelectionModal } from "@/components/landing/pricing/PlanSelectionModal";
+import { BillingToggle } from "@/components/landing/pricing/BillingToggle";
 
 // Vehicle limits by subscription tier
 const TIER_LIMITS: Record<string, number> = {
@@ -137,18 +138,7 @@ export const SubscriptionSection = () => {
         <div id="available-plans">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold">Available Plans</h3>
-            <div className="flex items-center gap-2 text-sm">
-              <span className={!isAnnual ? "font-medium" : "text-muted-foreground"}>Monthly</span>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => setIsAnnual(!isAnnual)}
-                className="h-7 px-3"
-              >
-                {isAnnual ? "Annual (2 months free)" : "Switch to Annual"}
-              </Button>
-              <span className={isAnnual ? "font-medium" : "text-muted-foreground"}>Annual</span>
-            </div>
+            <BillingToggle isAnnual={isAnnual} onChange={setIsAnnual} />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {pricingTiers.map((tier) => (
