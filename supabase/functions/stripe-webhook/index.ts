@@ -233,12 +233,82 @@ serve(async (req) => {
       case "customer.subscription.updated": {
         const subscription = event.data.object as Stripe.Subscription;
         logStep("Subscription updated", { subId: subscription.id, status: subscription.status });
+
+        // Find the user by customer email and notify them
+        const updatedCustomer = await stripe.customers.retrieve(subscription.customer as string);
+        if (updatedCustomer && !updatedCustomer.deleted && updatedCustomer.email) {
+          const { data: profile } = await supabaseClient
+            .from("profiles")
+            .select("id")
+            .eq("email", updatedCustomer.email)
+            .limit(1)
+            .maybeSingle();
+
+          if (profile) {
+            const tierName = subscription.metadata?.tierId || 'unknown';
+            await supabaseClient.from("notifications").insert({
+              user_id: profile.id,
+              type: "payment",
+              title: "Subscription Updated",
+              message: `Your subscription (${tierName}) status is now: ${subscription.status}`,
+              data: { subscription_id: subscription.id, status: subscription.status, tier: tierName },
+            });
+          }
+        }
         break;
       }
 
       case "customer.subscription.deleted": {
         const subscription = event.data.object as Stripe.Subscription;
         logStep("Subscription cancelled", { subId: subscription.id });
+
+        const cancelledCustomer = await stripe.customers.retrieve(subscription.customer as string);
+        if (cancelledCustomer && !cancelledCustomer.deleted && cancelledCustomer.email) {
+          const { data: profile } = await supabaseClient
+            .from("profiles")
+            .select("id")
+            .eq("email", cancelledCustomer.email)
+            .limit(1)
+            .maybeSingle();
+
+          if (profile) {
+            await supabaseClient.from("notifications").insert({
+              user_id: profile.id,
+              type: "payment",
+              title: "Subscription Cancelled",
+              message: "Your subscription has been cancelled. You will lose access at the end of the current billing period.",
+              data: { subscription_id: subscription.id },
+            });
+          }
+        }
+        break;
+      }
+
+      case "invoice.payment_failed": {
+        const invoice = event.data.object as Stripe.Invoice;
+        logStep("Invoice payment failed", { invoiceId: invoice.id, customer: invoice.customer });
+
+        if (invoice.customer) {
+          const failedCustomer = await stripe.customers.retrieve(invoice.customer as string);
+          if (failedCustomer && !failedCustomer.deleted && failedCustomer.email) {
+            const { data: profile } = await supabaseClient
+              .from("profiles")
+              .select("id")
+              .eq("email", failedCustomer.email)
+              .limit(1)
+              .maybeSingle();
+
+            if (profile) {
+              await supabaseClient.from("notifications").insert({
+                user_id: profile.id,
+                type: "payment",
+                title: "Payment Failed",
+                message: `Your payment of $${((invoice.amount_due || 0) / 100).toFixed(2)} failed. Please update your payment method to avoid service interruption.`,
+                data: { invoice_id: invoice.id },
+              });
+            }
+          }
+        }
         break;
       }
 

@@ -27,8 +27,22 @@ const STRIPE_PRICES = {
   },
 };
 
+// Overage Price IDs — per-vehicle/month for vehicles above tier max
+const STRIPE_OVERAGE_PRICES: Record<string, string> = {
+  professional: 'price_1TK31qQn5o30XCWdOBxiNpn2', // $22/vehicle/month
+  business: 'price_1TK31rQn5o30XCWdkvhDz8Il',     // $18/vehicle/month
+  enterprise: 'price_1TK31sQn5o30XCWdBIgfRzaf',    // $15/vehicle/month
+};
+
+// Tier configuration — maxVehicles included in the flat rate
+const TIER_CONFIG: Record<string, { priceType: 'per-vehicle' | 'flat'; maxVehicles: number }> = {
+  starter:      { priceType: 'per-vehicle', maxVehicles: 10 },
+  professional: { priceType: 'flat',        maxVehicles: 25 },
+  business:     { priceType: 'flat',        maxVehicles: 75 },
+  enterprise:   { priceType: 'flat',        maxVehicles: 150 },
+};
+
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -43,15 +57,56 @@ serve(async (req) => {
       throw new Error(`Invalid tier: ${tierId}`);
     }
 
+    const tierConfig = TIER_CONFIG[tierId];
+    if (!tierConfig) {
+      throw new Error(`Invalid tier config: ${tierId}`);
+    }
+
+    // Validate fleet size
+    if (!fleetSize || fleetSize < 1 || fleetSize > 500) {
+      throw new Error(`Invalid fleet size: ${fleetSize}`);
+    }
+
     // Initialize Stripe
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
       apiVersion: "2025-08-27.basil",
     });
 
-    // Get the correct price ID
+    // Get the correct base price ID
     const priceId = isAnnual 
       ? STRIPE_PRICES[tierId as keyof typeof STRIPE_PRICES].annual
       : STRIPE_PRICES[tierId as keyof typeof STRIPE_PRICES].monthly;
+
+    // Build line items based on pricing model
+    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
+
+    if (tierConfig.priceType === 'per-vehicle') {
+      // Starter: per-vehicle pricing, quantity = fleet size
+      lineItems.push({
+        price: priceId,
+        quantity: fleetSize,
+      });
+    } else {
+      // Flat-rate tiers: base plan quantity = 1 (always)
+      lineItems.push({
+        price: priceId,
+        quantity: 1,
+      });
+
+      // Add overage line item if fleet exceeds tier max
+      const overageVehicles = fleetSize - tierConfig.maxVehicles;
+      if (overageVehicles > 0) {
+        const overagePriceId = STRIPE_OVERAGE_PRICES[tierId];
+        if (!overagePriceId) {
+          throw new Error(`No overage price configured for tier: ${tierId}`);
+        }
+        lineItems.push({
+          price: overagePriceId,
+          quantity: overageVehicles,
+        });
+        console.log(`Adding ${overageVehicles} overage vehicles for ${tierId}`);
+      }
+    }
 
     // Create Supabase client to check for authenticated user
     const supabaseClient = createClient(
@@ -87,12 +142,7 @@ serve(async (req) => {
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : customerEmail,
-      line_items: [
-        {
-          price: priceId,
-          quantity: fleetSize,
-        },
-      ],
+      line_items: lineItems,
       mode: "subscription",
       payment_method_collection: 'always',
       subscription_data: {
@@ -100,6 +150,8 @@ serve(async (req) => {
         metadata: {
           tierId,
           fleetSize: String(fleetSize),
+          maxVehicles: String(tierConfig.maxVehicles),
+          overageVehicles: String(Math.max(0, fleetSize - tierConfig.maxVehicles)),
           isFounderPricing: 'true',
         },
       },
@@ -113,7 +165,7 @@ serve(async (req) => {
       allow_promotion_codes: true,
     });
 
-    console.log('Checkout session created:', session.id);
+    console.log('Checkout session created:', session.id, 'line_items:', lineItems.length);
 
     return new Response(
       JSON.stringify({ url: session.url, sessionId: session.id }),

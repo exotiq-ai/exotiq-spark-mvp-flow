@@ -85,7 +85,7 @@ export const useTeamMessaging = () => {
       .eq('user_id', user.id)
       .eq('is_active', true)
       .limit(1)
-      .single();
+      .maybeSingle();
     const teamId = data?.team_id || null;
     setCurrentTeamId(teamId);
     return teamId;
@@ -181,7 +181,7 @@ export const useTeamMessaging = () => {
           .eq('conversation_id', conv.id)
           .order('created_at', { ascending: false })
           .limit(1)
-          .single();
+          .maybeSingle();
 
         const lastMessage = lastMsg as unknown as TeamMessage | null;
 
