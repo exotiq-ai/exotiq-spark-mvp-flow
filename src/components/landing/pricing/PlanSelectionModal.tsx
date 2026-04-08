@@ -59,7 +59,7 @@ export const PlanSelectionModal = ({
   const totalPrice = isAnnual ? monthlyPrice * 10 : monthlyPrice; // 10 months for annual (2 free)
   const billingPeriod = isAnnual ? 'year' : 'month';
 
-  const isValidFleetSize = fleetSize >= 1 && fleetSize <= 200;
+  const isValidFleetSize = fleetSize >= 1 && fleetSize <= 500;
 
   const handleCheckout = async () => {
     if (!isValidFleetSize) {
@@ -125,18 +125,27 @@ export const PlanSelectionModal = ({
 
           {/* Fleet Size Input */}
           <div className="space-y-2">
-            <Label htmlFor="fleetSize">Number of Vehicles</Label>
+            <Label htmlFor="fleetSize">
+              {selectedTier.priceType === 'per-vehicle' 
+                ? 'Number of Vehicles' 
+                : `Total Vehicles (${selectedTier.maxVehicles} included)`}
+            </Label>
             <Input
               id="fleetSize"
               type="number"
               min={1}
-              max={200}
+              max={500}
               value={fleetSize}
               onChange={(e) => setFleetSize(parseInt(e.target.value) || 1)}
             />
+            {selectedTier.priceType === 'flat' && fleetSize <= selectedTier.maxVehicles && (
+              <p className="text-xs text-muted-foreground">
+                Up to {selectedTier.maxVehicles} vehicles included in your plan
+              </p>
+            )}
             {selectedTier.priceType === 'flat' && fleetSize > selectedTier.maxVehicles && (
               <p className="text-xs text-amber-600">
-                {fleetSize - selectedTier.maxVehicles} vehicles over limit (${selectedTier.overageRate}/each)
+                {fleetSize - selectedTier.maxVehicles} additional vehicles × ${selectedTier.overageRate}/each added to base rate
               </p>
             )}
           </div>

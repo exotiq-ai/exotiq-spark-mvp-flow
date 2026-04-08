@@ -18,6 +18,13 @@ export const STRIPE_PRICES = {
   },
 } as const;
 
+// Overage Price IDs — per-vehicle/month for vehicles exceeding tier limit
+export const STRIPE_OVERAGE_PRICES = {
+  professional: 'price_1TK31qQn5o30XCWdOBxiNpn2', // $22/vehicle/month
+  business: 'price_1TK31rQn5o30XCWdkvhDz8Il',     // $18/vehicle/month
+  enterprise: 'price_1TK31sQn5o30XCWdBIgfRzaf',    // $15/vehicle/month
+} as const;
+
 export interface PricingTier {
   id: 'starter' | 'professional' | 'business' | 'enterprise';
   name: string;
