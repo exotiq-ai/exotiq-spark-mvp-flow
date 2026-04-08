@@ -1,20 +1,20 @@
 // Stripe Price IDs - Hybrid Pricing Model
 export const STRIPE_PRICES = {
   starter: {
-    monthly: 'price_1ShmMlHO7nC3pJiPxcbd7vlL',
-    annual: 'price_1ShmRHHO7nC3pJiPtU6o3AMC',
+    monthly: 'price_1TK1CDQn5o30XCWdYrdXqWoi',
+    annual: 'price_1TK1CJQn5o30XCWdTRIlTFT9',
   },
   professional: {
-    monthly: 'price_1ShmMmHO7nC3pJiPPYhhXT1o',
-    annual: 'price_1ShmRJHO7nC3pJiP05J4DdvQ',
+    monthly: 'price_1TK1COQn5o30XCWdvm3jVgGX',
+    annual: 'price_1TK1CPQn5o30XCWdIFgGk2oK',
   },
   business: {
-    monthly: 'price_1ShmMoHO7nC3pJiPzUH0wSP3',
-    annual: 'price_1ShmRKHO7nC3pJiPSxuuBWtO',
+    monthly: 'price_1TK1CUQn5o30XCWdubyD6CKp',
+    annual: 'price_1TK1CVQn5o30XCWd8XU5IF0t',
   },
   enterprise: {
-    monthly: 'price_1ShmMqHO7nC3pJiPV04rgXRX',
-    annual: 'price_1ShmRMHO7nC3pJiPYawYJ13O',
+    monthly: 'price_1TK1CaQn5o30XCWdiGFjpsXh',
+    annual: 'price_1TK1CbQn5o30XCWdpyWNFfIg',
   },
 } as const;
 

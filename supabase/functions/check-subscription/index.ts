@@ -14,10 +14,10 @@ const logStep = (step: string, details?: Record<string, unknown>) => {
 
 // Map by PRODUCT ID (stable across price changes / billing intervals)
 const PRODUCT_TIERS: Record<string, { tier: string; name: string }> = {
-  'prod_Tf6ZIe5FJJRq4f': { tier: 'starter', name: 'Starter' },
-  'prod_Tf6ZJrXCE8rqBU': { tier: 'professional', name: 'Professional' },
-  'prod_Tf6ZPadpmCqJl2': { tier: 'business', name: 'Business' },
-  'prod_Tf6rFVSylQOnHt': { tier: 'enterprise', name: 'Enterprise' },
+  'prod_UIcRqJzc9qC0zh': { tier: 'starter', name: 'Starter' },
+  'prod_UIcRHKBhWSyMO6': { tier: 'professional', name: 'Professional' },
+  'prod_UIcR8tFUKCjx7i': { tier: 'business', name: 'Business' },
+  'prod_UIcRnSPmFfcwWH': { tier: 'enterprise', name: 'Enterprise' },
 };
 
 serve(async (req) => {
