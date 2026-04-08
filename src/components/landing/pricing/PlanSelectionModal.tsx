@@ -91,7 +91,12 @@ export const PlanSelectionModal = ({
       if (error) throw error;
 
       if (data?.url) {
-        window.location.href = data.url;
+        // Try redirect first, fall back to new tab for iframe environments
+        try {
+          window.location.href = data.url;
+        } catch {
+          window.open(data.url, '_blank');
+        }
       }
     } catch (error: any) {
       console.error('Checkout error:', error);

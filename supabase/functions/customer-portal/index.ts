@@ -53,10 +53,10 @@ serve(async (req) => {
     const customerId = customers.data[0].id;
     logStep("Found Stripe customer", { customerId });
 
-    const origin = req.headers.get("origin") || "https://exotiq.ai";
+    const origin = req.headers.get("origin") || "https://app.exotiq.ai";
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: customerId,
-      return_url: `${origin}/dashboard`,
+      return_url: `${origin}/dashboard/settings`,
     });
     logStep("Customer portal session created", { sessionId: portalSession.id, url: portalSession.url });
 
