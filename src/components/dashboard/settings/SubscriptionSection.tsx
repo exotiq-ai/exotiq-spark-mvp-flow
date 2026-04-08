@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +40,25 @@ export const SubscriptionSection = () => {
   const [selectedTier, setSelectedTier] = useState<PricingTier | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [isAnnual, setIsAnnual] = useState(true);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [showCelebration, setShowCelebration] = useState(false);
+
+  // Detect subscription=success and trigger celebration
+  useEffect(() => {
+    if (searchParams.get('subscription') === 'success') {
+      setShowCelebration(true);
+      toast({
+        title: "🎉 Subscription Activated!",
+        description: "Welcome to your new plan. Your fleet management just leveled up!",
+      });
+      // Clear the query param
+      searchParams.delete('subscription');
+      searchParams.delete('session_id');
+      setSearchParams(searchParams, { replace: true });
+      // Hide celebration after a few seconds
+      setTimeout(() => setShowCelebration(false), 5000);
+    }
+  }, []);
   
   const vehiclesUsed = vehicles?.length || 0;
   const currentTier = subscription?.tier || null;
@@ -182,6 +202,8 @@ export const SubscriptionSection = () => {
           onOpenChange={setModalOpen}
           selectedTier={selectedTier}
           isAnnual={isAnnual}
+          returnPath="/dashboard/settings?subscription=success"
+          cancelPath="/dashboard/settings"
         />
       </div>
     );
@@ -189,6 +211,13 @@ export const SubscriptionSection = () => {
 
   return (
     <div className="space-y-6">
+      {showCelebration && (
+        <Card className="p-6 bg-gradient-to-r from-primary/10 via-success/10 to-primary/10 border-primary/30 text-center animate-in fade-in slide-in-from-top-4">
+          <div className="text-4xl mb-2">🎉</div>
+          <h3 className="text-xl font-bold">Welcome to your new plan!</h3>
+          <p className="text-muted-foreground">Your subscription is now active. Enjoy your upgraded fleet management experience.</p>
+        </Card>
+      )}
       {/* Current Plan Card */}
       <Card className="card-premium p-6 border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
         <div className="flex items-center justify-between mb-6">
@@ -341,6 +370,8 @@ export const SubscriptionSection = () => {
         onOpenChange={setModalOpen}
         selectedTier={selectedTier}
         isAnnual={isAnnual}
+        returnPath="/dashboard/settings?subscription=success"
+        cancelPath="/dashboard/settings"
       />
     </div>
   );

@@ -97,6 +97,8 @@ export const PricingSectionNew = () => {
         onOpenChange={setIsPlanModalOpen}
         selectedTier={selectedTier}
         isAnnual={isAnnual}
+        returnPath="/welcome"
+        cancelPath="/?canceled=true#pricing"
       />
       <CalendlyModal open={isCalendlyOpen} onOpenChange={setIsCalendlyOpen} />
     </>

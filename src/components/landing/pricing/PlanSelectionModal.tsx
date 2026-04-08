@@ -20,6 +20,8 @@ interface PlanSelectionModalProps {
   onOpenChange: (open: boolean) => void;
   selectedTier: PricingTier | null;
   isAnnual: boolean;
+  returnPath?: string;
+  cancelPath?: string;
 }
 
 export const PlanSelectionModal = ({
@@ -27,6 +29,8 @@ export const PlanSelectionModal = ({
   onOpenChange,
   selectedTier,
   isAnnual,
+  returnPath,
+  cancelPath,
 }: PlanSelectionModalProps) => {
   const [fleetSize, setFleetSize] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
@@ -79,6 +83,8 @@ export const PlanSelectionModal = ({
           tierId: selectedTier.id,
           isAnnual,
           fleetSize,
+          returnPath,
+          cancelPath,
         },
       });
 
