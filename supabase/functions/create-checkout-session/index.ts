@@ -82,9 +82,12 @@ serve(async (req) => {
 
     if (tierConfig.priceType === 'per-vehicle') {
       // Starter: per-vehicle pricing, quantity = fleet size
+      // Enforce minimum: $79 minimum means at least ceil(79/29) = 3 vehicles worth
+      const minQuantity = tierConfig.minPrice ? Math.ceil(tierConfig.minPrice / tierConfig.perVehicleRate) : 1;
+      const effectiveQuantity = Math.max(fleetSize, minQuantity);
       lineItems.push({
         price: priceId,
-        quantity: fleetSize,
+        quantity: effectiveQuantity,
       });
     } else {
       // Flat-rate tiers: base plan quantity = 1 (always)
