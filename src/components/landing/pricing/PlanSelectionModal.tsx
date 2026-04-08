@@ -35,7 +35,7 @@ export const PlanSelectionModal = ({
   // Reset fleet size when tier changes
   useEffect(() => {
     if (selectedTier) {
-      setFleetSize(selectedTier.priceType === 'per-vehicle' ? 3 : 10);
+      setFleetSize(selectedTier.maxVehicles);
     }
   }, [selectedTier]);
 
