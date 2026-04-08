@@ -14,7 +14,8 @@ import {
   Sparkles,
   BarChart3,
   Inbox,
-  Loader2
+  Loader2,
+  Rocket
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -24,6 +25,8 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { pricingTiers, type PricingTier } from "@/components/landing/pricing/PricingData";
 import { PlanSelectionModal } from "@/components/landing/pricing/PlanSelectionModal";
 import { BillingToggle } from "@/components/landing/pricing/BillingToggle";
+import { Celebration } from "@/components/common/MicroInteractions";
+import { motion, AnimatePresence } from "framer-motion";
 
 // Vehicle limits by subscription tier
 const TIER_LIMITS: Record<string, number> = {
@@ -48,16 +51,12 @@ export const SubscriptionSection = () => {
   useEffect(() => {
     if (searchParams.get('subscription') === 'success') {
       setShowCelebration(true);
-      toast({
-        title: "🎉 Subscription Activated!",
-        description: "Welcome to your new plan. Your fleet management just leveled up!",
-      });
       // Clear the query param
       searchParams.delete('subscription');
       searchParams.delete('session_id');
       setSearchParams(searchParams, { replace: true });
-      // Hide celebration after a few seconds
-      setTimeout(() => setShowCelebration(false), 5000);
+      // Auto-refresh subscription status
+      supabase.functions.invoke('check-subscription').catch(() => {});
     }
   }, []);
   
@@ -201,13 +200,43 @@ export const SubscriptionSection = () => {
 
   return (
     <div className="space-y-6">
-      {showCelebration && (
-        <Card className="p-6 bg-gradient-to-r from-primary/10 via-success/10 to-primary/10 border-primary/30 text-center animate-in fade-in slide-in-from-top-4">
-          <div className="text-4xl mb-2">🎉</div>
-          <h3 className="text-xl font-bold">Welcome to your new plan!</h3>
-          <p className="text-muted-foreground">Your subscription is now active. Enjoy your upgraded fleet management experience.</p>
-        </Card>
-      )}
+      {/* Celebration confetti + animated card */}
+      <Celebration 
+        trigger={showCelebration} 
+        message="Subscription Activated! 🚀" 
+        variant="milestone"
+        onComplete={() => setShowCelebration(false)}
+      />
+      <AnimatePresence>
+        {showCelebration && (
+          <motion.div
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.95 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+          >
+            <Card className="p-8 border-primary/30 bg-gradient-to-br from-primary/10 via-success/5 to-primary/5 text-center overflow-hidden relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent animate-pulse" />
+              <div className="relative z-10">
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: [0, 1.3, 1] }}
+                  transition={{ duration: 0.6, times: [0, 0.6, 1] }}
+                  className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-success/20 mb-4"
+                >
+                  <Rocket className="h-8 w-8 text-success" />
+                </motion.div>
+                <h3 className="text-2xl font-bold mb-2">
+                  Welcome to {getPlanDisplayName(currentTier)}!
+                </h3>
+                <p className="text-muted-foreground max-w-md mx-auto">
+                  Your subscription is now active. Your fleet management just leveled up — enjoy your new features!
+                </p>
+              </div>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
       {/* Current Plan Card */}
       <Card className="card-premium p-6 border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
         <div className="flex items-center justify-between mb-6">
