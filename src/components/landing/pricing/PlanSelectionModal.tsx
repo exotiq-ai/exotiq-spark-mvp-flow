@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { type PricingTier } from './PricingData';
+import { BillingToggle } from './BillingToggle';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -28,20 +29,22 @@ export const PlanSelectionModal = ({
   open,
   onOpenChange,
   selectedTier,
-  isAnnual,
+  isAnnual: isAnnualProp,
   returnPath,
   cancelPath,
 }: PlanSelectionModalProps) => {
   const [fleetSize, setFleetSize] = useState(1);
+  const [isAnnual, setIsAnnual] = useState(isAnnualProp);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  // Reset fleet size when tier changes
+  // Reset fleet size and billing when tier changes
   useEffect(() => {
     if (selectedTier) {
       setFleetSize(selectedTier.maxVehicles);
+      setIsAnnual(isAnnualProp);
     }
-  }, [selectedTier]);
+  }, [selectedTier, isAnnualProp]);
 
   if (!selectedTier) return null;
 
@@ -164,9 +167,7 @@ export const PlanSelectionModal = ({
           {/* Billing Toggle */}
           <div className="flex items-center justify-between p-3 rounded-lg border border-border">
             <span className="text-sm">Billing</span>
-            <span className="font-medium">
-              {isAnnual ? 'Annual (2 months free)' : 'Monthly'}
-            </span>
+            <BillingToggle isAnnual={isAnnual} onChange={setIsAnnual} size="sm" />
           </div>
 
           {/* Price Calculation */}
