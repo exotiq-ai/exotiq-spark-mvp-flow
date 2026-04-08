@@ -80,19 +80,24 @@ serve(async (req) => {
     const customerId = customers.data[0].id;
     logStep("Found Stripe customer", { customerId });
 
+    // Query all statuses and filter for active or trialing
     const subscriptions = await stripe.subscriptions.list({
-      customer: customerId, status: "active", limit: 1,
+      customer: customerId, limit: 10,
     });
 
-    const hasActiveSub = subscriptions.data.length > 0;
+    const validStatuses = ['active', 'trialing'];
+    const activeSub = subscriptions.data.find(s => validStatuses.includes(s.status));
+    const hasActiveSub = !!activeSub;
     let tier = null;
     let tierName = null;
     let interval = null;
     let subscriptionEnd = null;
     let priceId = null;
+    let subscriptionStatus = null;
 
-    if (hasActiveSub) {
-      const subscription = subscriptions.data[0];
+    if (hasActiveSub && activeSub) {
+      const subscription = activeSub;
+      subscriptionStatus = subscription.status;
       subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
       priceId = subscription.items.data[0].price.id;
       const productId = subscription.items.data[0].price.product as string;
@@ -114,7 +119,7 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({
       subscribed: hasActiveSub, tier, tierName, interval,
-      subscriptionEnd, customerId, priceId
+      subscriptionEnd, customerId, priceId, subscriptionStatus
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
