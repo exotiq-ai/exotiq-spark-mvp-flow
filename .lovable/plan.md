@@ -1,42 +1,43 @@
 
 
-# Clean Up Billing Toggle & Add to Modal
+# Celebration UI & Post-Checkout Redirect — Both Flows
 
-## What's Wrong Now
-The "Monthly / Switch to Annual / Annual" toggle on the SubscriptionSection looks clunky — it's a button squeezed between two text labels. The modal shows billing as a static read-only line, so users can't switch billing frequency once they've opened the plan details.
+## Two Flows
+
+### Flow A: Dashboard Settings (logged-in user upgrades)
+- Already partially working — detects `?subscription=success`, shows a basic card + toast
+- **Upgrade**: Replace the static card with full confetti celebration using the existing `Celebration` component from `MicroInteractions.tsx`, add a premium animated card with plan name, and auto-refresh subscription status
+
+### Flow B: Landing Page → Welcome (pre-login / new signup)
+- `PricingSectionNew.tsx` already sets `returnPath="/welcome"` — so after Stripe checkout, user lands on `/welcome`
+- **Upgrade**: Detect `?session_id=` on the Welcome page, trigger confetti celebration, show a premium "Payment Successful" hero with animated checkmark, and emphasize next steps (book onboarding, check email for credentials)
 
 ## Changes
 
-### 1. SubscriptionSection — Replace toggle with a proper switch-style UI
-**File:** `src/components/dashboard/settings/SubscriptionSection.tsx`
+### 1. SubscriptionSection.tsx — Full celebration upgrade
+- Import `Celebration` from `MicroInteractions`
+- Replace the static gradient card with `<Celebration trigger={showCelebration} message="Subscription Activated!" variant="milestone" />`
+- Add a premium animated success card with the detected plan name, confetti behind it
+- Auto-refresh subscription data on success detection (call `check-subscription` again)
 
-Replace the current awkward "Monthly [Button] Annual" layout (lines 140-151) with a clean segmented toggle using two side-by-side buttons (pill style):
-- Two buttons: "Monthly" and "Annual" in a rounded container
-- Active state gets filled background, inactive gets ghost
-- "Save 2 months" badge next to the Annual option
-- Apply the same toggle in both the "no subscription" and "has subscription" plan grids
+### 2. Welcome.tsx — Detect payment success + celebrate
+- Check for `?session_id=` query param (Stripe adds this on redirect)
+- If present, set `showCelebration = true`, render `<Celebration>` component with "Welcome to Exotiq!" message
+- Replace the static green checkmark header with an animated `SuccessCheckmark` (from `MicroInteractions`) when payment just completed
+- Show a "Payment Confirmed" badge above the welcome heading
+- Keep the onboarding form and Calendly booking as-is — user fills those out after celebrating
 
-### 2. PlanSelectionModal — Add interactive billing toggle
-**File:** `src/components/landing/pricing/PlanSelectionModal.tsx`
-
-- Make `isAnnual` internal state (initialize from the prop, but let users toggle it inside the modal)
-- Replace the static "Billing: Annual/Monthly" display (lines 164-170) with the same segmented toggle component
-- Price calculation already reacts to `isAnnual`, so toggling will live-update the total
-- Pass the current `billingIsAnnual` state to the checkout call
-
-### 3. Extract a shared BillingToggle component
-**File:** `src/components/landing/pricing/BillingToggle.tsx` (new)
-
-Small reusable component:
-- Props: `isAnnual: boolean`, `onChange: (annual: boolean) => void`, `size?: 'sm' | 'default'`
-- Renders two side-by-side pill buttons with a "Save 2 months" badge on Annual
-- Used in both SubscriptionSection and PlanSelectionModal
+### 3. PricingSectionNew.tsx — Update return path
+- Change `returnPath` from `/welcome` to `/welcome?subscription=success` so the Welcome page can distinguish between a direct visit and a post-payment redirect
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| `src/components/landing/pricing/BillingToggle.tsx` | New shared toggle component |
-| `src/components/landing/pricing/PlanSelectionModal.tsx` | Replace static billing display with interactive toggle, make `isAnnual` local state |
-| `src/components/dashboard/settings/SubscriptionSection.tsx` | Use new BillingToggle in both plan grid sections |
+| `src/components/dashboard/settings/SubscriptionSection.tsx` | Replace static celebration card with `Celebration` component + animated success card |
+| `src/pages/Welcome.tsx` | Add payment success detection, confetti, animated checkmark hero |
+| `src/components/landing/PricingSectionNew.tsx` | Update `returnPath` to include success param |
+
+## Risk
+**Low.** All additive. Uses existing `Celebration` and `SuccessCheckmark` components already in the codebase.
 
