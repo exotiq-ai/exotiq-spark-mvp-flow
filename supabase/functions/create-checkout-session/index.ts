@@ -48,7 +48,7 @@ serve(async (req) => {
   }
 
   try {
-    const { tierId, isAnnual, fleetSize } = await req.json();
+    const { tierId, isAnnual, fleetSize, returnPath, cancelPath } = await req.json();
     
     console.log('Creating checkout session:', { tierId, isAnnual, fleetSize });
 
@@ -160,8 +160,13 @@ serve(async (req) => {
         fleetSize: String(fleetSize),
         isFounderPricing: 'true',
       },
-      success_url: `${req.headers.get("origin") || "https://app.exotiq.ai"}/welcome?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${req.headers.get("origin") || "https://app.exotiq.ai"}/?canceled=true#pricing`,
+      success_url: (() => {
+        const origin = req.headers.get("origin") || "https://app.exotiq.ai";
+        const path = returnPath || "/welcome";
+        const separator = path.includes("?") ? "&" : "?";
+        return `${origin}${path}${separator}session_id={CHECKOUT_SESSION_ID}`;
+      })(),
+      cancel_url: `${req.headers.get("origin") || "https://app.exotiq.ai"}${cancelPath || "/?canceled=true#pricing"}`,
       allow_promotion_codes: true,
     });
 
