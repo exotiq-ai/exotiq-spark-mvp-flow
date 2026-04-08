@@ -7,48 +7,28 @@ import {
   CreditCard, 
   Crown, 
   Check, 
-  Zap,
   Calendar,
   Download,
   ExternalLink,
   Sparkles,
-  Shield,
   BarChart3,
-  Inbox
+  Inbox,
+  Loader2
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFleet } from "@/contexts/FleetContext";
 import { EmptyState } from "@/components/common/EmptyState";
-
-interface PlanFeature {
-  name: string;
-  included: boolean;
-}
-
-interface Plan {
-  name: string;
-  price: number;
-  period: string;
-  features: PlanFeature[];
-  highlighted?: boolean;
-  tier: string;
-}
+import { pricingTiers, type PricingTier } from "@/components/landing/pricing/PricingData";
+import { PlanSelectionModal } from "@/components/landing/pricing/PlanSelectionModal";
 
 // Vehicle limits by subscription tier
 const TIER_LIMITS: Record<string, number> = {
   starter: 10,
-  growth: 25,
-  professional: 50,
-  enterprise: Infinity
-};
-
-const TIER_PRICES: Record<string, number> = {
-  starter: 99,
-  growth: 179,
-  professional: 249,
-  enterprise: 499
+  professional: 25,
+  business: 75,
+  enterprise: 150
 };
 
 export const SubscriptionSection = () => {
@@ -56,62 +36,20 @@ export const SubscriptionSection = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { subscription } = useAuth();
   const { vehicles } = useFleet();
+  const [selectedTier, setSelectedTier] = useState<PricingTier | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [isAnnual, setIsAnnual] = useState(true);
   
-  // Real data from contexts
   const vehiclesUsed = vehicles?.length || 0;
   const currentTier = subscription?.tier || null;
   const vehicleLimit = currentTier ? (TIER_LIMITS[currentTier] || 0) : 0;
   const isSubscribed = subscription?.subscribed || false;
 
-  const plans: Plan[] = [
-    {
-      name: "Starter",
-      tier: "starter",
-      price: 99,
-      period: "month",
-      features: [
-        { name: "Up to 10 vehicles", included: true },
-        { name: "Basic Analytics", included: true },
-        { name: "Email Support", included: true },
-        { name: "AI Dynamic Pricing", included: false },
-        { name: "Custom Branding", included: false }
-      ]
-    },
-    {
-      name: "Professional",
-      tier: "professional",
-      price: 249,
-      period: "month",
-      features: [
-        { name: "Up to 50 vehicles", included: true },
-        { name: "Advanced Analytics", included: true },
-        { name: "Priority Support", included: true },
-        { name: "AI Dynamic Pricing", included: true },
-        { name: "Custom Branding", included: true }
-      ]
-    },
-    {
-      name: "Enterprise",
-      tier: "enterprise",
-      price: 499,
-      period: "month",
-      features: [
-        { name: "Unlimited vehicles", included: true },
-        { name: "Enterprise Analytics", included: true },
-        { name: "24/7 Phone Support", included: true },
-        { name: "AI Dynamic Pricing", included: true },
-        { name: "White-label Solution", included: true }
-      ]
-    }
-  ];
-
   const handleManageBilling = async () => {
     setIsLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('customer-portal');
-      
       if (error) throw error;
-      
       if (data?.url) {
         window.open(data.url, '_blank');
       }
@@ -126,27 +64,37 @@ export const SubscriptionSection = () => {
     }
   };
 
-  const handleUpgrade = async (planName: string) => {
-    toast({
-      title: "Upgrade Request",
-      description: `Contact sales to upgrade to ${planName} plan.`
-    });
+  const handleSelectPlan = (tier: PricingTier) => {
+    setSelectedTier(tier);
+    setModalOpen(true);
   };
 
-  const usagePercentage = vehicleLimit > 0 && vehicleLimit !== Infinity 
+  const usagePercentage = vehicleLimit > 0 
     ? (vehiclesUsed / vehicleLimit) * 100 
     : 0;
 
-  // Get display name for current tier
   const getPlanDisplayName = (tier: string | null) => {
     if (!tier) return "None";
     return tier.charAt(0).toUpperCase() + tier.slice(1);
   };
 
-  // Get features for current tier
   const getCurrentPlanFeatures = () => {
-    const plan = plans.find(p => p.tier === currentTier);
-    return plan?.features.filter(f => f.included).map(f => f.name) || [];
+    const plan = pricingTiers.find(p => p.id === currentTier);
+    return plan?.features || [];
+  };
+
+  const getDisplayPrice = (tier: PricingTier) => {
+    if (tier.priceType === 'per-vehicle') {
+      return `$${tier.perVehicleRate}`;
+    }
+    return `$${tier.price}`;
+  };
+
+  const getPriceLabel = (tier: PricingTier) => {
+    if (tier.priceType === 'per-vehicle') {
+      return '/vehicle/mo';
+    }
+    return '/month';
   };
 
   // No subscription state
@@ -166,42 +114,61 @@ export const SubscriptionSection = () => {
           }}
         />
 
-        {/* Available Plans */}
         <div id="available-plans">
-          <h3 className="text-lg font-semibold mb-4">Available Plans</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {plans.map((plan) => (
-              <Card 
-                key={plan.name}
-                className="p-6 relative card-premium"
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold">Available Plans</h3>
+            <div className="flex items-center gap-2 text-sm">
+              <span className={!isAnnual ? "font-medium" : "text-muted-foreground"}>Monthly</span>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setIsAnnual(!isAnnual)}
+                className="h-7 px-3"
               >
+                {isAnnual ? "Annual (2 months free)" : "Switch to Annual"}
+              </Button>
+              <span className={isAnnual ? "font-medium" : "text-muted-foreground"}>Annual</span>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {pricingTiers.map((tier) => (
+              <Card 
+                key={tier.id}
+                className={`p-6 relative ${tier.popular ? 'border-primary shadow-lg ring-2 ring-primary/20' : 'card-premium'}`}
+              >
+                {tier.popular && (
+                  <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary">
+                    Most Popular
+                  </Badge>
+                )}
                 <div className="text-center mb-6">
-                  <h4 className="text-lg font-semibold">{plan.name}</h4>
+                  <h4 className="text-lg font-semibold">{tier.name}</h4>
+                  <p className="text-xs text-muted-foreground mt-1">{tier.vehicleRange}</p>
                   <div className="mt-2">
-                    <span className="text-3xl font-bold">${plan.price}</span>
-                    <span className="text-muted-foreground">/{plan.period}</span>
+                    <span className="text-3xl font-bold">{getDisplayPrice(tier)}</span>
+                    <span className="text-muted-foreground">{getPriceLabel(tier)}</span>
                   </div>
+                  {tier.priceType === 'per-vehicle' && tier.minPrice && (
+                    <p className="text-xs text-muted-foreground mt-1">${tier.minPrice}/mo minimum</p>
+                  )}
+                  {isAnnual && (
+                    <p className="text-xs text-success mt-1">Save 2 months with annual billing</p>
+                  )}
                 </div>
 
                 <div className="space-y-3">
-                  {plan.features.map((feature, i) => (
+                  {tier.features.slice(0, 5).map((feature, i) => (
                     <div key={i} className="flex items-center gap-2">
-                      {feature.included ? (
-                        <Check className="w-4 h-4 text-success" />
-                      ) : (
-                        <div className="w-4 h-4 rounded-full border-2 border-muted-foreground/30" />
-                      )}
-                      <span className={feature.included ? "" : "text-muted-foreground"}>
-                        {feature.name}
-                      </span>
+                      <Check className="w-4 h-4 text-success shrink-0" />
+                      <span className="text-sm">{feature}</span>
                     </div>
                   ))}
                 </div>
 
                 <Button 
                   className="w-full mt-6"
-                  variant="outline"
-                  onClick={() => handleUpgrade(plan.name)}
+                  variant={tier.popular ? "default" : "outline"}
+                  onClick={() => handleSelectPlan(tier)}
                 >
                   Get Started
                 </Button>
@@ -209,6 +176,13 @@ export const SubscriptionSection = () => {
             ))}
           </div>
         </div>
+
+        <PlanSelectionModal
+          open={modalOpen}
+          onOpenChange={setModalOpen}
+          selectedTier={selectedTier}
+          isAnnual={isAnnual}
+        />
       </div>
     );
   }
@@ -260,14 +234,10 @@ export const SubscriptionSection = () => {
             <p className="text-sm text-muted-foreground">Vehicle Usage</p>
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
-                <span>{vehiclesUsed} of {vehicleLimit === Infinity ? '∞' : vehicleLimit}</span>
-                {vehicleLimit !== Infinity && (
-                  <span className="text-muted-foreground">{Math.round(usagePercentage)}%</span>
-                )}
+                <span>{vehiclesUsed} of {vehicleLimit}</span>
+                <span className="text-muted-foreground">{Math.round(usagePercentage)}%</span>
               </div>
-              {vehicleLimit !== Infinity && (
-                <Progress value={usagePercentage} className="h-2" />
-              )}
+              <Progress value={Math.min(usagePercentage, 100)} className="h-2" />
             </div>
           </div>
         </div>
@@ -283,7 +253,7 @@ export const SubscriptionSection = () => {
 
         <div className="mt-6 flex flex-col sm:flex-row gap-3">
           <Button onClick={handleManageBilling} disabled={isLoading} className="btn-premium w-full sm:w-auto">
-            <CreditCard className="w-4 h-4 mr-2" />
+            {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CreditCard className="w-4 h-4 mr-2" />}
             Manage Billing
           </Button>
           <Button variant="outline" className="w-full sm:w-auto" onClick={handleManageBilling}>
@@ -293,16 +263,16 @@ export const SubscriptionSection = () => {
         </div>
       </Card>
 
-      {/* Available Plans */}
+      {/* Available Plans for upgrade */}
       <div>
         <h3 className="text-lg font-semibold mb-4">Available Plans</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {plans.map((plan) => {
-            const isCurrentPlan = plan.tier === currentTier;
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {pricingTiers.map((tier) => {
+            const isCurrentPlan = tier.id === currentTier;
             
             return (
               <Card 
-                key={plan.name}
+                key={tier.id}
                 className={`p-6 relative ${
                   isCurrentPlan 
                     ? 'border-primary shadow-lg ring-2 ring-primary/20' 
@@ -316,24 +286,19 @@ export const SubscriptionSection = () => {
                 )}
 
                 <div className="text-center mb-6">
-                  <h4 className="text-lg font-semibold">{plan.name}</h4>
+                  <h4 className="text-lg font-semibold">{tier.name}</h4>
+                  <p className="text-xs text-muted-foreground mt-1">{tier.vehicleRange}</p>
                   <div className="mt-2">
-                    <span className="text-3xl font-bold">${plan.price}</span>
-                    <span className="text-muted-foreground">/{plan.period}</span>
+                    <span className="text-3xl font-bold">{getDisplayPrice(tier)}</span>
+                    <span className="text-muted-foreground">{getPriceLabel(tier)}</span>
                   </div>
                 </div>
 
                 <div className="space-y-3">
-                  {plan.features.map((feature, i) => (
+                  {tier.features.slice(0, 5).map((feature, i) => (
                     <div key={i} className="flex items-center gap-2">
-                      {feature.included ? (
-                        <Check className="w-4 h-4 text-success" />
-                      ) : (
-                        <div className="w-4 h-4 rounded-full border-2 border-muted-foreground/30" />
-                      )}
-                      <span className={feature.included ? "" : "text-muted-foreground"}>
-                        {feature.name}
-                      </span>
+                      <Check className="w-4 h-4 text-success shrink-0" />
+                      <span className="text-sm">{feature}</span>
                     </div>
                   ))}
                 </div>
@@ -342,7 +307,7 @@ export const SubscriptionSection = () => {
                   className="w-full mt-6"
                   variant={isCurrentPlan ? "default" : "outline"}
                   disabled={isCurrentPlan}
-                  onClick={() => handleUpgrade(plan.name)}
+                  onClick={() => handleSelectPlan(tier)}
                 >
                   {isCurrentPlan ? "Current Plan" : "Upgrade"}
                 </Button>
@@ -352,7 +317,7 @@ export const SubscriptionSection = () => {
         </div>
       </div>
 
-      {/* Payment History - Empty State */}
+      {/* Payment History */}
       <Card className="card-premium p-6">
         <div className="flex items-center space-x-3 mb-6">
           <BarChart3 className="w-5 h-5 text-primary" />
@@ -370,6 +335,13 @@ export const SubscriptionSection = () => {
           </Button>
         </div>
       </Card>
+
+      <PlanSelectionModal
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        selectedTier={selectedTier}
+        isAnnual={isAnnual}
+      />
     </div>
   );
 };
