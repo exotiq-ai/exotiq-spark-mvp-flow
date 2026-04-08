@@ -59,7 +59,7 @@ export const PlanSelectionModal = ({
   const totalPrice = isAnnual ? monthlyPrice * 10 : monthlyPrice; // 10 months for annual (2 free)
   const billingPeriod = isAnnual ? 'year' : 'month';
 
-  const isValidFleetSize = fleetSize >= 1 && fleetSize <= 200;
+  const isValidFleetSize = fleetSize >= 1 && fleetSize <= 500;
 
   const handleCheckout = async () => {
     if (!isValidFleetSize) {
