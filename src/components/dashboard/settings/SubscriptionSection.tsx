@@ -47,6 +47,8 @@ export const SubscriptionSection = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [showCelebration, setShowCelebration] = useState(false);
 
+  const { checkSubscription } = useAuth();
+
   // Detect subscription=success and trigger celebration
   useEffect(() => {
     if (searchParams.get('subscription') === 'success') {
@@ -55,8 +57,8 @@ export const SubscriptionSection = () => {
       searchParams.delete('subscription');
       searchParams.delete('session_id');
       setSearchParams(searchParams, { replace: true });
-      // Auto-refresh subscription status
-      supabase.functions.invoke('check-subscription').catch(() => {});
+      // Re-use the AuthContext subscription check (no duplicate call)
+      checkSubscription();
     }
   }, []);
   
