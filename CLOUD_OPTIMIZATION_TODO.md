@@ -2,8 +2,9 @@
 
 > **Goal:** Reduce cloud resource consumption while staying on Lovable Cloud. Zero functional regressions.  
 > **Owner:** Admin  
-> **Status:** Planning  
-> **Created:** 2026-03-05
+> **Status:** Phase 1 & 2 Complete  
+> **Created:** 2026-03-05  
+> **Updated:** 2026-04-10
 
 ---
 
@@ -34,24 +35,26 @@
 
 ---
 
-## Priority 2 — Add Global `staleTime` to QueryClient ✅ LOW RISK
+## Priority 2 — Remove Subscription Polling ✅ DONE
 
-**Impact:** Prevents redundant API reads on every page navigation (~50% fewer reads)
+**Impact:** Eliminates ~60 edge function calls/hour (Stripe API hits) per active user
 
 ### Changes
-- [ ] Set `staleTime: 5 * 60 * 1000` (5 minutes) in `QueryClient` default options in `src/App.tsx`
-- [ ] Verify that existing mutation hooks call `queryClient.invalidateQueries()` after writes (they do)
+- [x] Removed 60-second `setInterval` polling of `check-subscription` in `AuthContext.tsx`
+- [x] Subscription now checked only on session change (login) and after checkout success
+- [x] Replaced direct `supabase.functions.invoke('check-subscription')` in SubscriptionSection with `checkSubscription()` from AuthContext (no duplicate call)
 
 ### Risk Flags
-- ✅ **None.** Only 2 hooks currently use React Query (`useOnboardingProgress`, `useImportHistory`). FleetContext manages its own state separately. This is primarily future-proofing.
+- ✅ **None.** Subscription status updates on login and after Stripe checkout redirect. Manual refresh available via Settings page.
 
 ### Files Modified
-- `src/App.tsx` (line 30, QueryClient instantiation)
+- `src/contexts/AuthContext.tsx` (removed 60s interval)
+- `src/components/dashboard/settings/SubscriptionSection.tsx` (use AuthContext's checkSubscription)
 
 ### Admin Testing
-- [ ] Navigate between modules rapidly — confirm no redundant loading spinners
-- [ ] Create a record, navigate away, navigate back — confirm the new record is visible
-- [ ] Verify onboarding flow still works (uses React Query)
+- [ ] Log in — verify subscription badge appears correctly
+- [ ] Navigate between pages — confirm NO subscription API calls in Network tab
+- [ ] Complete a Stripe checkout — confirm subscription status updates immediately after redirect
 
 ---
 
@@ -123,12 +126,13 @@ All remaining 31 functions (voice, AI, fleet tools, reporting, notifications, et
 
 ---
 
-## Priority 5 — Storage Cleanup ✅ LOW RISK
+## Priority 5 — Storage Cleanup ✅ DONE (Cron Scheduled)
 
 **Impact:** Reduces storage footprint, prevents orphan accumulation
 
 ### Changes
-- [ ] Schedule `cleanup-unmatched-photos` edge function to run on a regular basis (e.g., weekly cron or triggered after review queue is emptied)
+- [x] `cleanup-unmatched-photos` edge function scheduled as weekly cron (Sundays 4am UTC)
+- [x] `purge_old_notifications()` scheduled as daily cron (3am UTC)
 - [ ] Audit `vehicle-photos` bucket for duplicate enhanced/original pairs
 - [ ] Consider replacing original storage path on enhancement instead of storing both copies
 - [ ] Review `damage-photos` bucket for claims that have been resolved/deleted
