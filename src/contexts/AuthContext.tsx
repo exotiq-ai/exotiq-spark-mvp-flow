@@ -192,16 +192,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [session, checkSubscription]);
 
-  // Set up periodic subscription check (every 60 seconds)
-  useEffect(() => {
-    if (!session) return;
-
-    const interval = setInterval(() => {
-      checkSubscription();
-    }, 60000);
-
-    return () => clearInterval(interval);
-  }, [session, checkSubscription]);
+  // Periodic subscription check removed — was calling Stripe API every 60s.
+  // Subscription is now checked only on session change and after checkout success.
 
   // Process pending invite after user is created
   const processPendingInvite = useCallback(async (userId: string, token: string) => {
