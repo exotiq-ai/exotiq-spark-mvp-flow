@@ -376,6 +376,7 @@ export const EnhancedGlobalSearch = ({ onOpenRari }: EnhancedGlobalSearchProps) 
     <>
       <button
         onClick={() => setOpen(true)}
+        data-testid="global-search-trigger"
         className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-smooth text-sm text-muted-foreground w-full md:w-64 group"
       >
         <Search className="w-4 h-4" />
@@ -388,6 +389,7 @@ export const EnhancedGlobalSearch = ({ onOpenRari }: EnhancedGlobalSearchProps) 
           placeholder="Search vehicles, customers, bookings, or type a command..."
           value={searchQuery}
           onValueChange={setSearchQuery}
+          data-testid="global-search-input"
         />
         <CommandList className="max-h-[400px]">
           <CommandEmpty>

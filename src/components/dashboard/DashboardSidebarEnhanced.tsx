@@ -121,6 +121,7 @@ const RariQuickAccess = ({
         onClick={onClick}
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
+        data-testid="sidebar-rari-trigger"
         className={cn(
           "w-full flex items-center rounded-xl transition-all duration-200 relative",
           "bg-gradient-to-r from-rari-teal/20 to-success/10",
@@ -317,6 +318,7 @@ export const DashboardSidebarEnhanced = ({
                           key={item.id}
                           onClick={() => onModuleChange(item.id)}
                           data-tour={`nav-${item.id}`}
+                          data-testid={`sidebar-nav-${item.id}`}
                           className={cn(
                             "w-full flex items-center rounded-lg transition-all duration-200 group relative",
                             "min-h-[40px]",

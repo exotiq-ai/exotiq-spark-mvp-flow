@@ -35,6 +35,9 @@ export const featureFlags = {
   vehicleEditDialog: true, // Edit vehicle details dialog
   vehicleChangeLog: true, // Audit trail for vehicle changes
   deleteUndoToast: true, // Undo toast pattern for vehicle deletion
+  
+  // Telematics
+  telematicsIntegration: false, // Telematics tab — not yet implemented
 } as const;
 
 export type FeatureFlag = keyof typeof featureFlags;
