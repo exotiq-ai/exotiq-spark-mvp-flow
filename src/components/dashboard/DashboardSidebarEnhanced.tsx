@@ -317,6 +317,7 @@ export const DashboardSidebarEnhanced = ({
                           key={item.id}
                           onClick={() => onModuleChange(item.id)}
                           data-tour={`nav-${item.id}`}
+                          data-testid={`sidebar-nav-${item.id}`}
                           className={cn(
                             "w-full flex items-center rounded-lg transition-all duration-200 group relative",
                             "min-h-[40px]",
