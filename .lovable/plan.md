@@ -1,58 +1,71 @@
 
 
-# Fix: Invited Users Get Their Own Team Instead of Joining Inviter's Team
+# Fix: Payment Dialog Financial Summary and Math Issues
 
-## Root Cause
+## Problems Identified
 
-Two database triggers fire when a new user's profile is created:
+### 1. Amount field doesn't reflect discount
+- User enters discount of $100 in the Payment Discount section
+- The green text correctly says "Collecting $4,720.00"
+- But the **Amount field still shows $4,820** (the pre-discount value)
+- The **button says "Record $4,720.00 Payment"** (correct, uses `finalPaymentAmount`)
+- This creates a confusing variance — user sees two different numbers
 
-1. **`auto_assign_user_role`** — correctly detects pending invitations and skips role assignment
-2. **`create_team_for_new_user`** — does NOT check for pending invitations. It only checks `IF NOT EXISTS (SELECT 1 FROM team_members WHERE user_id = NEW.id)`, which is always true at this point since `accept-invite` hasn't run yet
+**Root cause**: `formData.amount` is only set when payment type changes (line 166-178). The discount is subtracted separately in `finalPaymentAmount` (line 236) but the Amount input still displays the raw `formData.amount`. The Amount field and the button show different values.
 
-Result: Chantara (invited by Denver) got her own team "Chantara's Fleet" + owner role instead of joining "J Davidson's Fleet" as a manager. The invitation is still stuck as `pending`.
+### 2. No gas fee toggle in the payment dialog
+- The financial summary reads `gas_fee_waived` from the booking record (read-only)
+- If the gas fee was set during booking creation, there's no way to waive/adjust it from the payment window
+- The EditBookingDialog has this toggle, but the RecordPaymentDialog does not
 
-## The Fix
+### 3. Amount field allows manual override that breaks the math
+- User can type any number in the Amount field, which disconnects it from the financial summary above
+- No visual connection between the summary's "Balance Remaining" and what's in the Amount field
 
-### 1. Patch the `create_team_for_new_user` trigger function
+## Plan
 
-Add the same pending-invitation check that `auto_assign_user_role` already uses:
+### File: `src/components/dialogs/RecordPaymentDialog.tsx`
 
-```sql
--- Add at the start of the function, BEFORE the team_members check:
-IF EXISTS (
-  SELECT 1 FROM user_invitations
-  WHERE email = NEW.email AND status = 'pending'
-) THEN
-  RAISE NOTICE 'User % has pending invitation, skipping team creation';
-  RETURN NEW;
-END IF;
-```
+**A. Add gas fee toggle to the financial summary section** (~lines 332-337)
+- Add a Switch component next to the gas fee line item
+- Add local state `gasFeeWaived` initialized from booking
+- When toggled, recalculate `financials` using the local state instead of the booking's stored value
+- Persist the waiver by updating the booking record when payment is submitted (via `updateBookingDetails`)
 
-### 2. Fix Chantara's data (one-time cleanup)
+**B. Fix the discount → amount → button math flow**
+- Remove the separate `discountAmount` state for the payment-level discount
+- Instead, make the Amount field **read-only when auto-calculated** (deposit/balance/security_deposit types) and show the discount-adjusted value directly
+- OR: simpler approach — when `discountAmount` changes, auto-update `formData.amount` to reflect `baseAmount - discountAmount` so the Amount field and button always match
+- Move the discount section **above** the Amount field and make the Amount field show `finalPaymentAmount` directly
+- The button label should match whatever is in the Amount field
 
-- Delete the auto-created team "Chantara's Fleet" (`dc3b263e`)
-- Delete her `team_members` row for that team
-- Delete her `user_roles` row (admin → should be manager per invitation)
-- Delete her auto-created location and location_staff entries
-- Manually run the accept-invite logic:
-  - Insert `team_members` row: team `c71d6655` (Denver's team), role `manager`
-  - Insert `user_roles` row: role `manager` with invitation permissions
-  - Mark invitation `55917188` as `accepted`
-  - Update her profile with Denver's company name
+**C. Reorder the payment form for logical flow**
+Current order: Financial Summary → Adjustments → Discount → Payment Method → Payment Type → Amount → Notes
+Better order:
+1. Financial Summary (with inline gas fee toggle)
+2. Payment Method
+3. Payment Type
+4. Adjustments (collapsible)
+5. Discount
+6. **Calculated Amount** (auto-filled, still editable for manual override)
+7. Notes
+8. Button shows the Amount field value
 
-### 3. Verify the `accept-invite` edge function is deployed
+**D. Auto-sync the Amount field**
+- When payment type changes → set amount (already works)
+- When discount changes → update amount to `baseAmount - discountAmount`
+- When adjustments change → update amount to include adjustments
+- Formula: `amount = baseForType + adjustmentsTotal - discountAmount`
+- The button always shows `formData.amount` (no separate `finalPaymentAmount`)
 
-The logs returned empty — need to confirm it's actually deployed and reachable. If not, deploy it.
+## Summary of changes
 
-## Files Changed
+| Change | Impact |
+|--------|--------|
+| Gas fee toggle in payment dialog | Users can waive gas fee at payment time |
+| Auto-sync Amount with discount/adjustments | No more variance between field and button |
+| Reorder form sections | Logical top-down flow |
+| Remove dual-amount confusion | Single source of truth for payment amount |
 
-| What | Type |
-|------|------|
-| `create_team_for_new_user` function | DB migration |
-| Chantara's data cleanup | DB data fix |
-| Edge function deployment verification | Infrastructure |
-
-## Risk
-
-Low — the trigger fix adds a guard clause identical to the one already working in `auto_assign_user_role`. The data cleanup is scoped to one user.
+Single file changed: `src/components/dialogs/RecordPaymentDialog.tsx`
 
