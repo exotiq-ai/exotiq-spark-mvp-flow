@@ -605,6 +605,7 @@ export const RecordPaymentDialog = ({
                       step="0.01"
                       value={discountAmount || ""}
                       onChange={(e) => handleDiscountChange(parseFloat(e.target.value) || 0)}
+                      onWheel={(e) => e.currentTarget.blur()}
                       className="h-8 pl-7 text-xs"
                       placeholder="0.00"
                     />
@@ -654,8 +655,9 @@ export const RecordPaymentDialog = ({
                   min="0"
                   step="0.01"
                   required
-                  value={formData.amount}
+                  value={formData.amount || ""}
                   onChange={(e) => handleAmountManualChange(parseFloat(e.target.value) || 0)}
+                  onWheel={(e) => e.currentTarget.blur()}
                   className="pl-10"
                 />
               </div>
