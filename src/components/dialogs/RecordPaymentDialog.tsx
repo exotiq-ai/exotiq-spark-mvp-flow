@@ -377,7 +377,8 @@ export const RecordPaymentDialog = ({
                     <span>-${financials.discountAmount.toLocaleString()}</span>
                   </div>
                 )}
-                {/* Gas Fee with toggle */}
+                {/* Gas Fee with toggle — only shown when enabled in team settings */}
+                {gasFeeSettings.gasFeeEnabled && (
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-2">
                     <span className="text-muted-foreground">Gas/Re-fueling Fee</span>
@@ -395,6 +396,7 @@ export const RecordPaymentDialog = ({
                     {gasFeeWaived && <span className="ml-1 text-xs no-underline">(waived)</span>}
                   </span>
                 </div>
+                )}
                 {financials.deliveryFee > 0 && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Delivery Fee</span>
