@@ -98,6 +98,8 @@ export const EnhancedBookingDialog = ({
   const { bookings, vehicles, payments, customers, updateBookingStatus, updateBookingDetails, createPayment, sendMessage, refreshData } = useFleet();
   const { currentTeam } = useTeam();
   const { toast } = useToast();
+  const gasFeeSettings = useTeamGasFeeSettings();
+  const teamGasFee = getGasFeeForTeam(gasFeeSettings.gasFeeAmount);
   
   const [showVehicleImage, setShowVehicleImage] = useState(false);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
@@ -160,7 +162,7 @@ export const EnhancedBookingDialog = ({
       endDate,
       dailyRate: rate,
       discountAmount: Number(booking.discount_amount) || 0,
-      gasFee: Number((booking as any).gas_fee) || DEFAULT_GAS_FEE,
+      gasFee: Number((booking as any).gas_fee) || teamGasFee,
       gasFeeWaived: (booking as any).gas_fee_waived ?? false,
       deliveryFee: Number(booking.delivery_fee) || 0,
       durationType: (booking as any).rental_duration_type || 'daily',

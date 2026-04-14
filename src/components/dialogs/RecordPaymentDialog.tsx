@@ -80,6 +80,8 @@ export const RecordPaymentDialog = ({
 }: RecordPaymentDialogProps) => {
   const { toast } = useToast();
   const { currentTeam } = useTeam();
+  const gasFeeSettings = useTeamGasFeeSettings();
+  const teamGasFee = getGasFeeForTeam(gasFeeSettings.gasFeeAmount);
   const [loading, setLoading] = useState(false);
   const [existingPayments, setExistingPayments] = useState<Payment[]>([]);
   const [adjustmentsOpen, setAdjustmentsOpen] = useState(false);
@@ -121,7 +123,7 @@ export const RecordPaymentDialog = ({
       endDate: booking.end_date,
       dailyRate: Number(booking.daily_rate),
       discountAmount: Number(booking.discount_amount) || 0,
-      gasFee: Number((booking as any).gas_fee) || DEFAULT_GAS_FEE,
+      gasFee: Number((booking as any).gas_fee) || teamGasFee,
       gasFeeWaived: gasFeeWaived,
       deliveryFee: Number(booking.delivery_fee) || 0,
       durationType: (booking as any).rental_duration_type || 'daily',
