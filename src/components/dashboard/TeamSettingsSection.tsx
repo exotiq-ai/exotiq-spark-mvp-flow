@@ -1,4 +1,5 @@
 import { Card } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -7,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useUserSettings } from "@/hooks/useUserSettings";
-import { Save, Building2, Clock, Bell, Loader2, DollarSign } from "lucide-react";
+import { Save, Building2, Clock, Bell, Loader2, DollarSign, Fuel } from "lucide-react";
 
 interface TeamSettings {
   companyName: string;
@@ -17,6 +18,9 @@ interface TeamSettings {
   requireTwoFactor: boolean;
   sessionTimeout: string;
   minRate: string;
+  gasFeeEnabled: boolean;
+  gasFeeAmount: string;
+  gasFeeDefaultOn: boolean;
 }
 
 const defaultSettings: TeamSettings = {
@@ -27,6 +31,9 @@ const defaultSettings: TeamSettings = {
   requireTwoFactor: false,
   sessionTimeout: "30",
   minRate: "100",
+  gasFeeEnabled: true,
+  gasFeeAmount: "20",
+  gasFeeDefaultOn: true,
 };
 
 export const TeamSettingsSection = () => {
@@ -206,6 +213,57 @@ export const TeamSettingsSection = () => {
             onChange={(e) => updateSetting('minRate', e.target.value)}
             className="w-[200px]"
           />
+        </div>
+
+        <Separator className="my-4" />
+
+        {/* Gas Fee Settings */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Fuel className="w-4 h-4 text-muted-foreground" />
+            <h4 className="text-sm font-semibold">Gas / Re-fueling Fee</h4>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <Label>Enable Gas/Re-fueling Fee</Label>
+              <p className="text-sm text-muted-foreground">Show the gas fee line item on bookings and payments</p>
+            </div>
+            <Switch
+              checked={settings.gasFeeEnabled}
+              onCheckedChange={(checked) => updateSetting('gasFeeEnabled', checked)}
+            />
+          </div>
+
+          {settings.gasFeeEnabled && (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="gasFeeAmount">Gas Fee Amount ($)</Label>
+                <Input
+                  id="gasFeeAmount"
+                  type="number"
+                  min="0"
+                  step="1"
+                  placeholder="20"
+                  value={settings.gasFeeAmount}
+                  onChange={(e) => updateSetting('gasFeeAmount', e.target.value)}
+                  onWheel={(e) => e.currentTarget.blur()}
+                  className="w-[200px]"
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Default to ON for new bookings</Label>
+                  <p className="text-sm text-muted-foreground">When off, the fee toggle starts disabled on new bookings (opt-in per booking)</p>
+                </div>
+                <Switch
+                  checked={settings.gasFeeDefaultOn}
+                  onCheckedChange={(checked) => updateSetting('gasFeeDefaultOn', checked)}
+                />
+              </div>
+            </>
+          )}
         </div>
       </Card>
 

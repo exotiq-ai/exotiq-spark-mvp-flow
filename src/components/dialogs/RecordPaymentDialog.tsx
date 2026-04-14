@@ -33,7 +33,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useTeam } from "@/contexts/TeamContext";
 import { DollarSign, CreditCard, Loader2, ExternalLink, ChevronDown, Plus, Trash2, Gauge, Receipt, Tag } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { calculateBookingTotal, DEFAULT_GAS_FEE } from "@/lib/pricingUtils";
+import { calculateBookingTotal, getGasFeeForTeam } from "@/lib/pricingUtils";
+import { useTeamGasFeeSettings } from '@/hooks/useTeamGasFeeSettings';
 
 type Booking = Database['public']['Tables']['bookings']['Row'];
 type Payment = Database['public']['Tables']['payments']['Row'];
@@ -79,6 +80,8 @@ export const RecordPaymentDialog = ({
 }: RecordPaymentDialogProps) => {
   const { toast } = useToast();
   const { currentTeam } = useTeam();
+  const gasFeeSettings = useTeamGasFeeSettings();
+  const teamGasFee = getGasFeeForTeam(gasFeeSettings.gasFeeAmount);
   const [loading, setLoading] = useState(false);
   const [existingPayments, setExistingPayments] = useState<Payment[]>([]);
   const [adjustmentsOpen, setAdjustmentsOpen] = useState(false);
@@ -120,7 +123,7 @@ export const RecordPaymentDialog = ({
       endDate: booking.end_date,
       dailyRate: Number(booking.daily_rate),
       discountAmount: Number(booking.discount_amount) || 0,
-      gasFee: Number((booking as any).gas_fee) || DEFAULT_GAS_FEE,
+      gasFee: Number((booking as any).gas_fee) || teamGasFee,
       gasFeeWaived: gasFeeWaived,
       deliveryFee: Number(booking.delivery_fee) || 0,
       durationType: (booking as any).rental_duration_type || 'daily',
@@ -336,7 +339,7 @@ export const RecordPaymentDialog = ({
     return ["stripe", "card", "cash", "wire"];
   })();
 
-  const rawGasFee = Number((booking as any).gas_fee) || DEFAULT_GAS_FEE;
+  const rawGasFee = Number((booking as any).gas_fee) || teamGasFee;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -374,7 +377,8 @@ export const RecordPaymentDialog = ({
                     <span>-${financials.discountAmount.toLocaleString()}</span>
                   </div>
                 )}
-                {/* Gas Fee with toggle */}
+                {/* Gas Fee with toggle — only shown when enabled in team settings */}
+                {gasFeeSettings.gasFeeEnabled && (
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-2">
                     <span className="text-muted-foreground">Gas/Re-fueling Fee</span>
@@ -392,6 +396,7 @@ export const RecordPaymentDialog = ({
                     {gasFeeWaived && <span className="ml-1 text-xs no-underline">(waived)</span>}
                   </span>
                 </div>
+                )}
                 {financials.deliveryFee > 0 && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Delivery Fee</span>

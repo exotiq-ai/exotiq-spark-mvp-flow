@@ -38,10 +38,11 @@ import { useAIPricing } from '@/hooks/useAIPricing';
 import { useTeam } from '@/contexts/TeamContext';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
-import { calculateBookingTotal, DEFAULT_GAS_FEE, getRateForDuration, getAvailableDurations, getDurationLabel, type RentalDurationType } from '@/lib/pricingUtils';
+import { calculateBookingTotal, getRateForDuration, getAvailableDurations, getDurationLabel, getGasFeeForTeam, type RentalDurationType } from '@/lib/pricingUtils';
 import { isBlockingBooking } from '@/lib/conflictDetection';
 import { useLocationFilteredFleet } from '@/hooks/useLocationFilteredFleet';
 import { Switch } from '@/components/ui/switch';
+import { useTeamGasFeeSettings } from '@/hooks/useTeamGasFeeSettings';
 
 interface NewBookingDialogProps {
   open: boolean;
@@ -60,6 +61,8 @@ export const NewBookingDialog = ({
 }: NewBookingDialogProps) => {
   const { selectedLocationId, currentLocation, locations, currentTeam } = useTeam();
   const { bookings: allBookings } = useLocationFilteredFleet();
+  const gasFeeSettings = useTeamGasFeeSettings();
+  const teamGasFee = getGasFeeForTeam(gasFeeSettings.gasFeeAmount);
   
   const [vehicleId, setVehicleId] = useState('');
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('new');
@@ -83,7 +86,7 @@ export const NewBookingDialog = ({
   const [discountExpanded, setDiscountExpanded] = useState(false);
   const [discountAmount, setDiscountAmount] = useState('');
   const [discountReason, setDiscountReason] = useState('');
-  const [gasFeeWaived, setGasFeeWaived] = useState(false);
+  const [gasFeeWaived, setGasFeeWaived] = useState(!gasFeeSettings.gasFeeDefaultOn);
   const [durationType, setDurationType] = useState<RentalDurationType>('daily');
   // Fetch existing customers when dialog opens
   useEffect(() => {
@@ -226,7 +229,7 @@ export const NewBookingDialog = ({
         endDate: new Date(endDateTimeStr),
         dailyRate: effectiveRate,
         discountAmount: Number(discountAmount) || 0,
-        gasFee: DEFAULT_GAS_FEE,
+        gasFee: gasFeeSettings.gasFeeEnabled ? teamGasFee : 0,
         gasFeeWaived,
         durationType,
       });
@@ -246,8 +249,8 @@ export const NewBookingDialog = ({
         total_value: pricing.grandTotal,
         discount_amount: pricing.discountAmount > 0 ? pricing.discountAmount : 0,
         discount_reason: pricing.discountAmount > 0 ? discountReason || null : null,
-        gas_fee: DEFAULT_GAS_FEE,
-        gas_fee_waived: gasFeeWaived,
+        gas_fee: gasFeeSettings.gasFeeEnabled ? teamGasFee : 0,
+        gas_fee_waived: gasFeeSettings.gasFeeEnabled ? gasFeeWaived : true,
         notes: notes || null,
         status: 'pending',
         rental_duration_type: durationType,
@@ -691,7 +694,7 @@ export const NewBookingDialog = ({
                       endDate: new Date(endDateTimeStr),
                       dailyRate: effectiveRate,
                       discountAmount: Number(discountAmount) || 0,
-                      gasFee: DEFAULT_GAS_FEE,
+                      gasFee: gasFeeSettings.gasFeeEnabled ? teamGasFee : 0,
                       gasFeeWaived,
                       durationType,
                     });
@@ -731,13 +734,14 @@ export const NewBookingDialog = ({
               </CollapsibleContent>
             </Collapsible>
 
-            {/* Gas Fee Toggle */}
+            {/* Gas Fee Toggle — only shown when enabled in team settings */}
+            {gasFeeSettings.gasFeeEnabled && (
             <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border">
               <div className="flex items-center gap-2">
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
                 <div>
                   <span className="text-sm font-medium">Gas/Re-fueling Fee</span>
-                  <p className="text-xs text-muted-foreground">${DEFAULT_GAS_FEE.toFixed(2)} standard fee</p>
+                  <p className="text-xs text-muted-foreground">${teamGasFee.toFixed(2)} standard fee</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -745,6 +749,7 @@ export const NewBookingDialog = ({
                 <Switch checked={!gasFeeWaived} onCheckedChange={(checked) => setGasFeeWaived(!checked)} />
               </div>
             </div>
+            )}
 
             {/* Locations */}
             <div className="space-y-3">
