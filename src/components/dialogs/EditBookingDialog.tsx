@@ -43,6 +43,8 @@ export const EditBookingDialog = ({
   onBookingUpdated,
 }: EditBookingDialogProps) => {
   const { updateBookingDetails } = useFleet();
+  const gasFeeSettings = useTeamGasFeeSettings();
+  const teamGasFee = getGasFeeForTeam(gasFeeSettings.gasFeeAmount);
   
   const [startDate, setStartDate] = useState<Date>(new Date(booking.start_date));
   const [startTime, setStartTime] = useState(() => {
@@ -77,7 +79,7 @@ export const EditBookingDialog = ({
     endDate: effectiveEndDate,
     dailyRate,
     discountAmount: Number(booking.discount_amount) || 0,
-    gasFee: Number((booking as any).gas_fee) || DEFAULT_GAS_FEE,
+    gasFee: Number((booking as any).gas_fee) || teamGasFee,
     gasFeeWaived,
     deliveryFee: Number(booking.delivery_fee) || 0,
     durationType: (booking as any).rental_duration_type || 'daily',
@@ -227,17 +229,19 @@ export const EditBookingDialog = ({
               )}
             </div>
 
-            {/* Gas Fee Toggle */}
+            {/* Gas Fee Toggle — only shown when enabled in team settings */}
+            {gasFeeSettings.gasFeeEnabled && (
             <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border">
               <div>
                 <span className="text-sm font-medium">Gas/Re-fueling Fee</span>
-                <p className="text-xs text-muted-foreground">${DEFAULT_GAS_FEE.toFixed(2)} standard fee</p>
+                <p className="text-xs text-muted-foreground">${teamGasFee.toFixed(2)} standard fee</p>
               </div>
               <div className="flex items-center gap-2">
                 {gasFeeWaived && <span className="text-xs text-warning">Waived</span>}
                 <Switch checked={!gasFeeWaived} onCheckedChange={(checked) => setGasFeeWaived(!checked)} />
               </div>
             </div>
+            )}
 
             {/* Locations */}
             <div className="space-y-2">

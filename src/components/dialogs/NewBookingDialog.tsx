@@ -694,7 +694,7 @@ export const NewBookingDialog = ({
                       endDate: new Date(endDateTimeStr),
                       dailyRate: effectiveRate,
                       discountAmount: Number(discountAmount) || 0,
-                      gasFee: DEFAULT_GAS_FEE,
+                      gasFee: gasFeeSettings.gasFeeEnabled ? teamGasFee : 0,
                       gasFeeWaived,
                       durationType,
                     });
@@ -734,13 +734,14 @@ export const NewBookingDialog = ({
               </CollapsibleContent>
             </Collapsible>
 
-            {/* Gas Fee Toggle */}
+            {/* Gas Fee Toggle — only shown when enabled in team settings */}
+            {gasFeeSettings.gasFeeEnabled && (
             <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border">
               <div className="flex items-center gap-2">
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
                 <div>
                   <span className="text-sm font-medium">Gas/Re-fueling Fee</span>
-                  <p className="text-xs text-muted-foreground">${DEFAULT_GAS_FEE.toFixed(2)} standard fee</p>
+                  <p className="text-xs text-muted-foreground">${teamGasFee.toFixed(2)} standard fee</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -748,6 +749,7 @@ export const NewBookingDialog = ({
                 <Switch checked={!gasFeeWaived} onCheckedChange={(checked) => setGasFeeWaived(!checked)} />
               </div>
             </div>
+            )}
 
             {/* Locations */}
             <div className="space-y-3">
