@@ -33,7 +33,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useTeam } from "@/contexts/TeamContext";
 import { DollarSign, CreditCard, Loader2, ExternalLink, ChevronDown, Plus, Trash2, Gauge, Receipt, Tag } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { calculateBookingTotal, DEFAULT_GAS_FEE } from "@/lib/pricingUtils";
+import { calculateBookingTotal, getGasFeeForTeam } from "@/lib/pricingUtils";
+import { useTeamGasFeeSettings } from '@/hooks/useTeamGasFeeSettings';
 
 type Booking = Database['public']['Tables']['bookings']['Row'];
 type Payment = Database['public']['Tables']['payments']['Row'];

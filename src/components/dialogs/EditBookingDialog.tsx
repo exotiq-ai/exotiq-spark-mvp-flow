@@ -20,9 +20,10 @@ import { useFleet } from "@/contexts/FleetContext";
 import { format } from "date-fns";
 import { Calendar as CalendarIcon, MapPin, Clock, DollarSign } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { calculateBookingTotal, DEFAULT_GAS_FEE } from "@/lib/pricingUtils";
+import { calculateBookingTotal, getGasFeeForTeam } from "@/lib/pricingUtils";
 import { TimeInput } from "@/components/ui/time-input";
 import type { Database } from "@/integrations/supabase/types";
+import { useTeamGasFeeSettings } from '@/hooks/useTeamGasFeeSettings';
 
 type Booking = Database["public"]["Tables"]["bookings"]["Row"];
 

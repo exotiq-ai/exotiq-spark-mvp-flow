@@ -36,7 +36,8 @@ import { format } from "date-fns";
 import { getVehicleImage } from "@/lib/vehicleImageMapping";
 import { openGoogleCalendar } from "@/lib/googleCalendar";
 import { cn } from "@/lib/utils";
-import { calculateBookingTotal, DEFAULT_GAS_FEE } from "@/lib/pricingUtils";
+import { calculateBookingTotal, getGasFeeForTeam } from "@/lib/pricingUtils";
+import { useTeamGasFeeSettings } from '@/hooks/useTeamGasFeeSettings';
 import {
   Calendar as CalendarIcon,
   MapPin,

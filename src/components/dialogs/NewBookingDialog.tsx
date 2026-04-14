@@ -38,10 +38,11 @@ import { useAIPricing } from '@/hooks/useAIPricing';
 import { useTeam } from '@/contexts/TeamContext';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
-import { calculateBookingTotal, DEFAULT_GAS_FEE, getRateForDuration, getAvailableDurations, getDurationLabel, type RentalDurationType } from '@/lib/pricingUtils';
+import { calculateBookingTotal, getRateForDuration, getAvailableDurations, getDurationLabel, getGasFeeForTeam, type RentalDurationType } from '@/lib/pricingUtils';
 import { isBlockingBooking } from '@/lib/conflictDetection';
 import { useLocationFilteredFleet } from '@/hooks/useLocationFilteredFleet';
 import { Switch } from '@/components/ui/switch';
+import { useTeamGasFeeSettings } from '@/hooks/useTeamGasFeeSettings';
 
 interface NewBookingDialogProps {
   open: boolean;
