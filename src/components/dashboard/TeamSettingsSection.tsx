@@ -17,6 +17,9 @@ interface TeamSettings {
   requireTwoFactor: boolean;
   sessionTimeout: string;
   minRate: string;
+  gasFeeEnabled: boolean;
+  gasFeeAmount: string;
+  gasFeeDefaultOn: boolean;
 }
 
 const defaultSettings: TeamSettings = {
@@ -27,6 +30,9 @@ const defaultSettings: TeamSettings = {
   requireTwoFactor: false,
   sessionTimeout: "30",
   minRate: "100",
+  gasFeeEnabled: true,
+  gasFeeAmount: "20",
+  gasFeeDefaultOn: true,
 };
 
 export const TeamSettingsSection = () => {

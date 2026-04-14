@@ -84,8 +84,16 @@ export function calculateBookingTotal(params: BookingPricingParams): BookingPric
   };
 }
 
-/** Default gas/re-fueling fee */
+/** Default gas/re-fueling fee (fallback when no tenant setting exists) */
 export const DEFAULT_GAS_FEE = 20.00;
+
+/**
+ * Resolve the gas fee amount for the current tenant.
+ * Returns the tenant-configured amount, or falls back to DEFAULT_GAS_FEE.
+ */
+export function getGasFeeForTeam(teamGasFeeAmount?: number): number {
+  return teamGasFeeAmount != null && teamGasFeeAmount >= 0 ? teamGasFeeAmount : DEFAULT_GAS_FEE;
+}
 
 /** Standard mileage overage rate tiers */
 export const MILEAGE_RATE_TIERS = [
