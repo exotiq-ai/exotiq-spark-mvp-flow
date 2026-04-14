@@ -61,6 +61,8 @@ export const NewBookingDialog = ({
 }: NewBookingDialogProps) => {
   const { selectedLocationId, currentLocation, locations, currentTeam } = useTeam();
   const { bookings: allBookings } = useLocationFilteredFleet();
+  const gasFeeSettings = useTeamGasFeeSettings();
+  const teamGasFee = getGasFeeForTeam(gasFeeSettings.gasFeeAmount);
   
   const [vehicleId, setVehicleId] = useState('');
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('new');
@@ -84,7 +86,7 @@ export const NewBookingDialog = ({
   const [discountExpanded, setDiscountExpanded] = useState(false);
   const [discountAmount, setDiscountAmount] = useState('');
   const [discountReason, setDiscountReason] = useState('');
-  const [gasFeeWaived, setGasFeeWaived] = useState(false);
+  const [gasFeeWaived, setGasFeeWaived] = useState(!gasFeeSettings.gasFeeDefaultOn);
   const [durationType, setDurationType] = useState<RentalDurationType>('daily');
   // Fetch existing customers when dialog opens
   useEffect(() => {
