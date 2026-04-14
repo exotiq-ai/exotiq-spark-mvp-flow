@@ -339,7 +339,7 @@ export const RecordPaymentDialog = ({
     return ["stripe", "card", "cash", "wire"];
   })();
 
-  const rawGasFee = Number((booking as any).gas_fee) || DEFAULT_GAS_FEE;
+  const rawGasFee = Number((booking as any).gas_fee) || teamGasFee;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
