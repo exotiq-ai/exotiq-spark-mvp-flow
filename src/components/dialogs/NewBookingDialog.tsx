@@ -298,7 +298,7 @@ export const NewBookingDialog = ({
       >
         <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
           <DialogTitle className="flex items-center space-x-2">
-            <Calendar className="h-5 w-5 text-primary" />
+            <CalendarIcon className="h-5 w-5 text-primary" />
             <span>New Booking</span>
           </DialogTitle>
           <DialogDescription>
