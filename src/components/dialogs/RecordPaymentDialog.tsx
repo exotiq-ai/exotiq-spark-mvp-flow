@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -84,12 +85,19 @@ export const RecordPaymentDialog = ({
   const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
   const [discountAmount, setDiscountAmount] = useState(0);
   const [discountReason, setDiscountReason] = useState("");
+  const [gasFeeWaived, setGasFeeWaived] = useState<boolean>((booking as any).gas_fee_waived ?? false);
+  const [manualOverride, setManualOverride] = useState(false);
   const [formData, setFormData] = useState({
     payment_type: "deposit",
     amount: booking.deposit_amount || 0,
     payment_method: "card",
     notes: "",
   });
+
+  // Reset gas fee waived state when booking changes
+  useEffect(() => {
+    setGasFeeWaived((booking as any).gas_fee_waived ?? false);
+  }, [booking]);
 
   // Fetch existing payments for this booking
   useEffect(() => {
@@ -105,7 +113,7 @@ export const RecordPaymentDialog = ({
     fetchPayments();
   }, [open, booking.id]);
 
-  // Financial calculations using centralized pricing
+  // Financial calculations using centralized pricing — uses local gasFeeWaived state
   const financials = useMemo(() => {
     const pricing = calculateBookingTotal({
       startDate: booking.start_date,
@@ -113,7 +121,7 @@ export const RecordPaymentDialog = ({
       dailyRate: Number(booking.daily_rate),
       discountAmount: Number(booking.discount_amount) || 0,
       gasFee: Number((booking as any).gas_fee) || DEFAULT_GAS_FEE,
-      gasFeeWaived: (booking as any).gas_fee_waived ?? false,
+      gasFeeWaived: gasFeeWaived,
       deliveryFee: Number(booking.delivery_fee) || 0,
       durationType: (booking as any).rental_duration_type || 'daily',
     });
@@ -156,28 +164,47 @@ export const RecordPaymentDialog = ({
       mileageCharge,
       balanceRemaining,
     };
-  }, [booking, existingPayments]);
+  }, [booking, existingPayments, gasFeeWaived]);
 
   // Total adjustments
   const adjustmentsTotal = useMemo(() => {
     return adjustments.reduce((sum, a) => sum + a.amount, 0);
   }, [adjustments]);
 
-  const handlePaymentTypeChange = (type: string) => {
-    let amount = 0;
-    if (type === "deposit") {
-      amount = Number(booking.deposit_amount) || 0;
-    } else if (type === "balance") {
-      amount = Math.max(0, financials.balanceRemaining + adjustmentsTotal);
-    } else if (type === "security_deposit") {
-      amount = Number(booking.security_deposit_amount) || 0;
-    } else if (type === "overage_fee" || type === "damage_fee") {
-      amount = adjustmentsTotal;
+  // Compute the auto-calculated amount based on payment type, adjustments, and discount
+  const computedAmount = useMemo(() => {
+    let base = 0;
+    if (formData.payment_type === "deposit") {
+      base = Number(booking.deposit_amount) || 0;
+    } else if (formData.payment_type === "balance") {
+      base = Math.max(0, financials.balanceRemaining + adjustmentsTotal);
+    } else if (formData.payment_type === "security_deposit") {
+      base = Number(booking.security_deposit_amount) || 0;
+    } else if (formData.payment_type === "overage_fee" || formData.payment_type === "damage_fee") {
+      base = adjustmentsTotal;
     }
-    setFormData({ ...formData, payment_type: type, amount });
+    return Math.max(0, base - discountAmount);
+  }, [formData.payment_type, booking, financials.balanceRemaining, adjustmentsTotal, discountAmount]);
+
+  // Auto-sync amount field when computed amount changes (unless manually overridden)
+  useEffect(() => {
+    if (!manualOverride) {
+      setFormData(prev => ({ ...prev, amount: computedAmount }));
+    }
+  }, [computedAmount, manualOverride]);
+
+  const handlePaymentTypeChange = (type: string) => {
+    setManualOverride(false);
+    setFormData(prev => ({ ...prev, payment_type: type }));
+  };
+
+  const handleAmountManualChange = (value: number) => {
+    setManualOverride(true);
+    setFormData(prev => ({ ...prev, amount: value }));
   };
 
   const addAdjustment = () => {
+    setManualOverride(false);
     setAdjustments(prev => [...prev, {
       id: crypto.randomUUID(),
       type: "custom",
@@ -187,10 +214,10 @@ export const RecordPaymentDialog = ({
   };
 
   const updateAdjustment = (id: string, field: keyof Adjustment, value: any) => {
+    setManualOverride(false);
     setAdjustments(prev => prev.map(a => {
       if (a.id !== id) return a;
       const updated = { ...a, [field]: value };
-      // Auto-fill mileage overage
       if (field === "type" && value === "mileage_overage" && financials.mileageCharge > 0) {
         updated.amount = financials.mileageCharge;
         updated.description = `${financials.mileageOverage} miles over limit @ $${financials.mileageRate}/mi`;
@@ -200,7 +227,13 @@ export const RecordPaymentDialog = ({
   };
 
   const removeAdjustment = (id: string) => {
+    setManualOverride(false);
     setAdjustments(prev => prev.filter(a => a.id !== id));
+  };
+
+  const handleDiscountChange = (value: number) => {
+    setManualOverride(false);
+    setDiscountAmount(value);
   };
 
   const handleStripeCheckout = async () => {
@@ -233,12 +266,22 @@ export const RecordPaymentDialog = ({
     }
   };
 
-  const finalPaymentAmount = Math.max(0, formData.amount - discountAmount);
-
   const handleManualPayment = async () => {
-    if (finalPaymentAmount <= 0) return;
+    if (formData.amount <= 0) return;
     setLoading(true);
     try {
+      // Persist gas fee waiver change to booking if it changed
+      const bookingGasFeeWaived = (booking as any).gas_fee_waived ?? false;
+      if (gasFeeWaived !== bookingGasFeeWaived) {
+        await supabase
+          .from("bookings")
+          .update({
+            gas_fee_waived: gasFeeWaived,
+            total_value: financials.grandTotal,
+          })
+          .eq("id", booking.id);
+      }
+
       // Build structured notes with adjustments and discount
       const notesObj: Record<string, any> = {};
       if (formData.notes) notesObj.note = formData.notes;
@@ -253,7 +296,7 @@ export const RecordPaymentDialog = ({
       await onSubmit({
         booking_id: booking.id,
         customer_id: booking.customer_id || null,
-        amount: finalPaymentAmount,
+        amount: formData.amount,
         payment_type: formData.payment_type,
         payment_method: formData.payment_method,
         payment_status: "completed",
@@ -293,6 +336,8 @@ export const RecordPaymentDialog = ({
     return ["stripe", "card", "cash", "wire"];
   })();
 
+  const rawGasFee = Number((booking as any).gas_fee) || DEFAULT_GAS_FEE;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[560px] max-h-[90vh] flex flex-col">
@@ -329,12 +374,24 @@ export const RecordPaymentDialog = ({
                     <span>-${financials.discountAmount.toLocaleString()}</span>
                   </div>
                 )}
-                {financials.gasFee > 0 && (
-                  <div className="flex justify-between">
+                {/* Gas Fee with toggle */}
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
                     <span className="text-muted-foreground">Gas/Re-fueling Fee</span>
-                    <span className="font-medium">${financials.gasFee.toFixed(2)}</span>
+                    <Switch
+                      checked={!gasFeeWaived}
+                      onCheckedChange={(checked) => {
+                        setGasFeeWaived(!checked);
+                        setManualOverride(false);
+                      }}
+                      className="h-4 w-8 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input [&>span]:h-3 [&>span]:w-3 [&>span]:data-[state=checked]:translate-x-4"
+                    />
                   </div>
-                )}
+                  <span className={cn("font-medium", gasFeeWaived && "line-through text-muted-foreground")}>
+                    ${rawGasFee.toFixed(2)}
+                    {gasFeeWaived && <span className="ml-1 text-xs no-underline">(waived)</span>}
+                  </span>
+                </div>
                 {financials.deliveryFee > 0 && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Delivery Fee</span>
@@ -412,6 +469,66 @@ export const RecordPaymentDialog = ({
               </div>
             </div>
 
+            {/* Payment Method */}
+            <div className="space-y-2">
+              <Label>Payment Method *</Label>
+              <Select value={formData.payment_method} onValueChange={(value) => setFormData({ ...formData, payment_method: value })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {acceptedMethods.map(method => (
+                    <SelectItem key={method} value={method}>
+                      {method === "stripe" ? (
+                        <div className="flex items-center gap-2">
+                          <CreditCard className="w-4 h-4 text-primary" />
+                          Stripe Checkout
+                        </div>
+                      ) : (
+                        PAYMENT_METHOD_LABELS[method] || method
+                      )}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {isStripePayment && (
+              <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 text-sm">
+                <div className="flex items-start gap-2">
+                  <CreditCard className="w-4 h-4 text-primary mt-0.5" />
+                  <div>
+                    <p className="font-medium text-primary">Stripe Checkout</p>
+                    <p className="text-muted-foreground text-xs mt-1">Customer will be redirected to Stripe's secure checkout page.</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Payment Type */}
+            <div className="space-y-2">
+              <Label>Payment Type *</Label>
+              <Select value={formData.payment_type} onValueChange={handlePaymentTypeChange}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="deposit">Deposit</SelectItem>
+                  <SelectItem value="balance">Balance</SelectItem>
+                  <SelectItem value="security_deposit">Security Deposit</SelectItem>
+                  <SelectItem value="security_deposit_hold">Place Authorization Hold</SelectItem>
+                  <SelectItem value="overage_fee">Overage Fee</SelectItem>
+                  <SelectItem value="damage_fee">Damage Fee</SelectItem>
+                </SelectContent>
+              </Select>
+              {formData.payment_type === "security_deposit_hold" && (
+                <p className="text-xs text-muted-foreground">
+                  Places a temporary hold on the customer's card without charging. Hold expires after 7 days. 
+                  You can capture (charge) or release it later.
+                </p>
+              )}
+            </div>
+
             {/* Adjustments Section */}
             <Collapsible open={adjustmentsOpen} onOpenChange={setAdjustmentsOpen}>
               <CollapsibleTrigger asChild>
@@ -487,7 +604,7 @@ export const RecordPaymentDialog = ({
                       min="0"
                       step="0.01"
                       value={discountAmount || ""}
-                      onChange={(e) => setDiscountAmount(parseFloat(e.target.value) || 0)}
+                      onChange={(e) => handleDiscountChange(parseFloat(e.target.value) || 0)}
                       className="h-8 pl-7 text-xs"
                       placeholder="0.00"
                     />
@@ -509,76 +626,27 @@ export const RecordPaymentDialog = ({
               </div>
               {discountAmount > 0 && (
                 <p className="text-xs text-success">
-                  -${discountAmount.toFixed(2)} discount applied → Collecting ${finalPaymentAmount.toFixed(2)}
+                  -${discountAmount.toFixed(2)} discount applied
                 </p>
               )}
             </div>
 
             <Separator />
 
-            {/* Payment Method */}
-            <div className="space-y-2">
-              <Label>Payment Method *</Label>
-              <Select value={formData.payment_method} onValueChange={(value) => setFormData({ ...formData, payment_method: value })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {acceptedMethods.map(method => (
-                    <SelectItem key={method} value={method}>
-                      {method === "stripe" ? (
-                        <div className="flex items-center gap-2">
-                          <CreditCard className="w-4 h-4 text-primary" />
-                          Stripe Checkout
-                        </div>
-                      ) : (
-                        PAYMENT_METHOD_LABELS[method] || method
-                      )}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {isStripePayment && (
-              <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 text-sm">
-                <div className="flex items-start gap-2">
-                  <CreditCard className="w-4 h-4 text-primary mt-0.5" />
-                  <div>
-                    <p className="font-medium text-primary">Stripe Checkout</p>
-                    <p className="text-muted-foreground text-xs mt-1">Customer will be redirected to Stripe's secure checkout page.</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Payment Type */}
-            <div className="space-y-2">
-              <Label>Payment Type *</Label>
-              <Select value={formData.payment_type} onValueChange={handlePaymentTypeChange}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="deposit">Deposit</SelectItem>
-                  <SelectItem value="balance">Balance</SelectItem>
-                  <SelectItem value="security_deposit">Security Deposit</SelectItem>
-                  <SelectItem value="security_deposit_hold">Place Authorization Hold</SelectItem>
-                  <SelectItem value="overage_fee">Overage Fee</SelectItem>
-                  <SelectItem value="damage_fee">Damage Fee</SelectItem>
-                </SelectContent>
-              </Select>
-              {formData.payment_type === "security_deposit_hold" && (
-                <p className="text-xs text-muted-foreground">
-                  Places a temporary hold on the customer's card without charging. Hold expires after 7 days. 
-                  You can capture (charge) or release it later.
-                </p>
-              )}
-            </div>
-
             {/* Amount */}
             <div className="space-y-2">
-              <Label>Amount *</Label>
+              <div className="flex items-center justify-between">
+                <Label>Amount *</Label>
+                {manualOverride && (
+                  <button
+                    type="button"
+                    className="text-xs text-primary hover:underline"
+                    onClick={() => setManualOverride(false)}
+                  >
+                    Reset to auto
+                  </button>
+                )}
+              </div>
               <div className="relative">
                 <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -587,14 +655,19 @@ export const RecordPaymentDialog = ({
                   step="0.01"
                   required
                   value={formData.amount}
-                  onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) => handleAmountManualChange(parseFloat(e.target.value) || 0)}
                   className="pl-10"
                 />
               </div>
-              {adjustmentsTotal > 0 && (
+              {!manualOverride && (
                 <p className="text-xs text-muted-foreground">
-                  Includes ${adjustmentsTotal.toFixed(2)} in adjustments
+                  Auto-calculated from {formData.payment_type.replace(/_/g, ' ')}
+                  {adjustmentsTotal > 0 && ` + $${adjustmentsTotal.toFixed(2)} adjustments`}
+                  {discountAmount > 0 && ` - $${discountAmount.toFixed(2)} discount`}
                 </p>
+              )}
+              {manualOverride && (
+                <p className="text-xs text-warning">Manual override — amount won't auto-update</p>
               )}
             </div>
 
@@ -622,11 +695,11 @@ export const RecordPaymentDialog = ({
               )}
             </Button>
           ) : (
-            <Button type="button" disabled={loading || finalPaymentAmount <= 0} className="btn-premium" onClick={handleManualPayment}>
+            <Button type="button" disabled={loading || formData.amount <= 0} className="btn-premium" onClick={handleManualPayment}>
               {loading ? (
                 <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving...</>
               ) : (
-                `Record $${finalPaymentAmount.toFixed(2)} Payment`
+                `Record $${formData.amount.toFixed(2)} Payment`
               )}
             </Button>
           )}
