@@ -573,6 +573,7 @@ export const RecordPaymentDialog = ({
                           step="0.01"
                           value={adj.amount || ""}
                           onChange={(e) => updateAdjustment(adj.id, "amount", parseFloat(e.target.value) || 0)}
+                          onWheel={(e) => e.currentTarget.blur()}
                           className="h-8 w-20 text-xs"
                         />
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeAdjustment(adj.id)}>
