@@ -69,6 +69,7 @@ export function DeleteUserDialog({ open, onOpenChange, user, onSuccess }: Delete
           deleted_user_name: user.name,
           reason: reason || "No reason provided",
         },
+        team_id: user.teamId,
       });
 
       toast({

@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
+import { useTeam } from "@/contexts/TeamContext";
 import { format } from "date-fns";
 import { History, Search, UserPlus, UserMinus, Shield, ChevronRight } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -52,17 +53,22 @@ export function RoleAuditLogSection() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [actionFilter, setActionFilter] = useState<string>("all");
+  const { currentTeam } = useTeam();
 
   useEffect(() => {
-    fetchAuditLogs();
-  }, []);
+    if (currentTeam?.id) {
+      fetchAuditLogs();
+    }
+  }, [currentTeam?.id]);
 
   const fetchAuditLogs = async () => {
+    if (!currentTeam?.id) return;
     setIsLoading(true);
     try {
       const { data: logsData, error } = await supabase
         .from("role_audit_log")
         .select("*")
+        .eq("team_id", currentTeam.id)
         .order("created_at", { ascending: false })
         .limit(100);
 
