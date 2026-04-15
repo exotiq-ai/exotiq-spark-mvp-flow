@@ -1,27 +1,25 @@
 
 
-# Fix: MotorIQ Weekly Revenue — Use Rental Date, Not Record Creation Date
+# Update Tenant Login Credentials
 
-## Problem
-"Total Fleet Revenue — This week" shows $0 because it filters on `created_at` (when the database row was inserted). Your bookings were bulk-created weeks ago, so nothing falls in the current week by that field. Revenue should reflect when the rental actually happens (`start_date`).
+## What We're Doing
+Changing the login email and password for the tenant account `exoticsbythebay@exotiq.ai` while keeping all their team data, fleet, bookings, and profile intact.
 
-## Change
+- **Current email**: `exoticsbythebay@exotiq.ai`
+- **New email**: `info@exoticsbythebay.co`
+- **New password**: `Exoticsbythebay2026!`
+- **User ID**: `05668c86-0a4c-4217-858b-818ca12b94dc`
 
-**File: `src/components/dashboard/MotorIQEnhanced.tsx`**
+## Approach
 
-Update the `bookingsWithDates` mapping (~line 60-65):
-- Pass `start_date` as the date field instead of `created_at`
-- Include `confirmed` bookings (currently only counts `completed` and `active`, but most of your data is `confirmed`)
+1. **Create a temporary backend function** (`admin-update-user`) that uses admin privileges to update the email and password for the specified user ID.
 
-```ts
-// Before
-.filter(b => b.status === 'completed' || b.status === 'active')
-.map(b => ({ created_at: b.created_at, total_value: ... }));
+2. **Run it once** to apply the changes.
 
-// After
-.filter(b => b.status === 'completed' || b.status === 'confirmed' || b.status === 'active')
-.map(b => ({ created_at: b.start_date, total_value: Number(b.total_value) || 0 }));
-```
+3. **Update the `profiles` table** to sync the new email there as well (so the UI displays the correct email).
 
-No other files need changes — the `useRevenueGrowth` hook logic is correct, it just needs the right date fed in.
+4. **Delete the temporary function** immediately after — it's a one-time operation.
+
+## What Stays the Same
+All tenant data is linked by `user_id` (UUID), not by email. So team membership, fleet, bookings, customers, payments, documents — everything remains intact. Only the login credentials change.
 
