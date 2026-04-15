@@ -59,8 +59,8 @@ export const MotorIQEnhanced = () => {
   // Calculate real revenue from bookings
   const bookingsWithDates = useMemo(() => 
     bookings
-      .filter(b => b.status === 'completed' || b.status === 'active')
-      .map(b => ({ created_at: b.created_at, total_value: Number(b.total_value) || 0 })),
+      .filter(b => b.status === 'completed' || b.status === 'confirmed' || b.status === 'active')
+      .map(b => ({ created_at: b.start_date, total_value: Number(b.total_value) || 0 })),
     [bookings]
   );
   const { current: weeklyRevenue, growth: revenueGrowth } = useRevenueGrowth(bookingsWithDates, 7);
