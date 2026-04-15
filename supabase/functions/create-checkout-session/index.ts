@@ -7,31 +7,32 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Stripe Price IDs - Hybrid Pricing Model
+// Stripe Price IDs - Hybrid Pricing Model (LIVE)
 const STRIPE_PRICES = {
   starter: {
-    monthly: 'price_1TK1CDQn5o30XCWdYrdXqWoi',
-    annual: 'price_1TK1CJQn5o30XCWdTRIlTFT9',
+    monthly: 'price_1ShmMlHO7nC3pJiPxcbd7vlL',
+    annual: 'price_1ShmRHHO7nC3pJiPtU6o3AMC',
   },
   professional: {
-    monthly: 'price_1TK1COQn5o30XCWdvm3jVgGX',
-    annual: 'price_1TK1CPQn5o30XCWdIFgGk2oK',
+    monthly: 'price_1ShmMmHO7nC3pJiPPYhhXT1o',
+    annual: 'price_1ShmRJHO7nC3pJiP05J4DdvQ',
   },
   business: {
-    monthly: 'price_1TK1CUQn5o30XCWdubyD6CKp',
-    annual: 'price_1TK1CVQn5o30XCWd8XU5IF0t',
+    monthly: 'price_1ShmMoHO7nC3pJiPzUH0wSP3',
+    annual: 'price_1ShmRKHO7nC3pJiPSxuuBWtO',
   },
   enterprise: {
-    monthly: 'price_1TK1CaQn5o30XCWdiGFjpsXh',
-    annual: 'price_1TK1CbQn5o30XCWdpyWNFfIg',
+    monthly: 'price_1ShmMqHO7nC3pJiPV04rgXRX',
+    annual: 'price_1ShmRMHO7nC3pJiPYawYJ13O',
   },
 };
 
 // Overage Price IDs — per-vehicle/month for vehicles above tier max
+// TODO: Create overage prices in live Stripe account
 const STRIPE_OVERAGE_PRICES: Record<string, string> = {
-  professional: 'price_1TK31qQn5o30XCWdOBxiNpn2', // $22/vehicle/month
-  business: 'price_1TK31rQn5o30XCWdkvhDz8Il',     // $18/vehicle/month
-  enterprise: 'price_1TK31sQn5o30XCWdBIgfRzaf',    // $15/vehicle/month
+  professional: '', // $22/vehicle/month — needs live price ID
+  business: '',     // $18/vehicle/month — needs live price ID
+  enterprise: '',   // $15/vehicle/month — needs live price ID
 };
 
 // Tier configuration — maxVehicles included in the flat rate
