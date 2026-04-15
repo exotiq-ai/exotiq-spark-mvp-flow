@@ -303,6 +303,7 @@ serve(async (req: Request) => {
           invitation_id: invitation.id,
           email: invitation.email,
         },
+        team_id: invitation.team_id,
       });
 
       // Notify all admins about the new user

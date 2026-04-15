@@ -121,6 +121,7 @@ serve(async (req: Request) => {
         invited_email: invitation.email,
         new_expires_at: newExpiresAt.toISOString()
       },
+      team_id: invitation.team_id,
     });
 
     // Get inviter's profile for email

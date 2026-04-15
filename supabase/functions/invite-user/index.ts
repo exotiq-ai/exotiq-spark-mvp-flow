@@ -153,12 +153,13 @@ serve(async (req: Request) => {
 
     // Log to audit
     await supabaseAdmin.from("role_audit_log").insert({
-      user_id: user.id, // The admin who invited
+      user_id: user.id,
       changed_by: user.id,
       action: "user_invited",
       new_role: role || "viewer",
       new_permissions: permissions || [],
       metadata: { invited_email: email, invitation_id: invitation.id },
+      team_id: inviterTeam.team_id,
     });
 
     // Get inviter's profile for email

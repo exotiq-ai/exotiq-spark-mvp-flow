@@ -245,6 +245,7 @@ export const UserManagementSection = () => {
         new_role: role,
         old_permissions: oldPermissions,
         new_permissions: permissions,
+        team_id: currentTeam?.id,
       });
 
       // Send role change notification email if role changed
@@ -401,7 +402,8 @@ export const UserManagementSection = () => {
             action: 'bulk_role_change',
             old_role: oldRole,
             new_role: bulkRole,
-            metadata: { bulk_operation: true, total_users: selectedUserIds.length }
+            metadata: { bulk_operation: true, total_users: selectedUserIds.length },
+            team_id: currentTeam?.id,
           });
 
           successCount++;

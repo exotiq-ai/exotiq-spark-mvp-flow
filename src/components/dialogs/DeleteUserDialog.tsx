@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
+import { useTeam } from "@/contexts/TeamContext";
 import { supabase } from "@/integrations/supabase/client";
 import { AlertTriangle, Loader2, Trash2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -25,6 +26,7 @@ interface DeleteUserDialogProps {
 
 export function DeleteUserDialog({ open, onOpenChange, user, onSuccess }: DeleteUserDialogProps) {
   const { toast } = useToast();
+  const { currentTeam } = useTeam();
   const [reason, setReason] = useState("");
   const [confirmed, setConfirmed] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -69,6 +71,7 @@ export function DeleteUserDialog({ open, onOpenChange, user, onSuccess }: Delete
           deleted_user_name: user.name,
           reason: reason || "No reason provided",
         },
+        team_id: currentTeam?.id,
       });
 
       toast({

@@ -2108,6 +2108,7 @@ export type Database = {
           new_role: string | null
           old_permissions: string[] | null
           old_role: string | null
+          team_id: string | null
           user_id: string
         }
         Insert: {
@@ -2120,6 +2121,7 @@ export type Database = {
           new_role?: string | null
           old_permissions?: string[] | null
           old_role?: string | null
+          team_id?: string | null
           user_id: string
         }
         Update: {
@@ -2132,9 +2134,18 @@ export type Database = {
           new_role?: string | null
           old_permissions?: string[] | null
           old_role?: string | null
+          team_id?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "role_audit_log_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       stripe_webhook_events: {
         Row: {
