@@ -98,7 +98,10 @@ serve(async (req) => {
     if (hasActiveSub && activeSub) {
       const subscription = activeSub;
       subscriptionStatus = subscription.status;
-      subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
+      const endTimestamp = subscription.current_period_end;
+      if (endTimestamp && !isNaN(Number(endTimestamp))) {
+        subscriptionEnd = new Date(Number(endTimestamp) * 1000).toISOString();
+      }
       priceId = subscription.items.data[0].price.id;
       const productId = subscription.items.data[0].price.product as string;
       interval = subscription.items.data[0].price.recurring?.interval || null;

@@ -150,7 +150,6 @@ serve(async (req) => {
       mode: "subscription",
       payment_method_collection: 'always',
       subscription_data: {
-        trial_period_days: 14,
         metadata: {
           tierId,
           fleetSize: String(fleetSize),
