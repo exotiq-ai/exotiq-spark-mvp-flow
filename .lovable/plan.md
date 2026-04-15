@@ -1,25 +1,35 @@
 
 
-# Update Tenant Login Credentials
+# Fix: Scope Audit Log to Current Tenant
 
-## What We're Doing
-Changing the login email and password for the tenant account `exoticsbythebay@exotiq.ai` while keeping all their team data, fleet, bookings, and profile intact.
+## Problem
+The `role_audit_log` table has no `team_id` column. Its RLS policy (`has_role(auth.uid(), 'admin')`) lets any admin see every tenant's audit entries. Your screenshot shows entries from both Exotiq and J Davidson's Fleet mixed together.
 
-- **Current email**: `exoticsbythebay@exotiq.ai`
-- **New email**: `info@exoticsbythebay.co`
-- **New password**: `Exoticsbythebay2026!`
-- **User ID**: `05668c86-0a4c-4217-858b-818ca12b94dc`
+## Changes
 
-## Approach
+### 1. Database Migration
+- Add `team_id UUID REFERENCES teams(id)` column to `role_audit_log`
+- Backfill existing rows by looking up each `changed_by` user's team via `team_members`
+- Drop the old RLS SELECT policy and replace it with one scoped to the user's team:
+  ```sql
+  CREATE POLICY "Team admins can view own audit logs"
+  ON public.role_audit_log FOR SELECT
+  USING (
+    team_id IN (
+      SELECT team_id FROM team_members
+      WHERE user_id = auth.uid() AND is_active = true
+    )
+    AND (public.has_role(auth.uid(), 'admin') OR user_id = auth.uid())
+  );
+  ```
+- Update INSERT policy similarly so `team_id` is enforced on write
 
-1. **Create a temporary backend function** (`admin-update-user`) that uses admin privileges to update the email and password for the specified user ID.
+### 2. Update `RoleAuditLogSection.tsx`
+- Filter the query by `team_id` matching the current team from `useTeam()` context (belt-and-suspenders alongside RLS)
 
-2. **Run it once** to apply the changes.
+### 3. Update Edge Functions that insert audit logs
+- Ensure `invite-user`, `resend-invite`, and the deactivate/delete flows pass `team_id` when inserting into `role_audit_log`
 
-3. **Update the `profiles` table** to sync the new email there as well (so the UI displays the correct email).
-
-4. **Delete the temporary function** immediately after — it's a one-time operation.
-
-## What Stays the Same
-All tenant data is linked by `user_id` (UUID), not by email. So team membership, fleet, bookings, customers, payments, documents — everything remains intact. Only the login credentials change.
+## Result
+Each tenant only sees their own audit trail. No cross-tenant data leakage.
 
