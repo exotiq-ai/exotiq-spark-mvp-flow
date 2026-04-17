@@ -1,44 +1,61 @@
 
 
-## Fix Subscription Date Parsing Bug + Remove Trial Period
+## Why You Saw an 8-Month-Old Version
 
-### Part 1: Fix (immediate code change)
+### Root cause analysis
 
-**File:** `supabase/functions/check-subscription/index.ts`
+Your app uses `vite-plugin-pwa` with `registerType: 'autoUpdate'`. This means **a service worker is installed in every production browser** and serves cached assets from disk before the network is even consulted.
 
-The `"Invalid time value"` error occurs when constructing a `Date` from `subscription.current_period_end`. In the Stripe SDK v18.5.0 with API version `2025-08-27.basil`, this value may arrive as a string or be `null` in trialing subscriptions. The fix wraps the date conversion with a safety check:
+Here's the failure chain that almost certainly happened:
 
-```typescript
-// Before (crashes):
-subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
+1. Months ago, you visited `app.exotiq.ai` and the browser silently registered a service worker + cached the JS/CSS bundles from that day.
+2. **Nothing in `index.html` triggers the SW lifecycle on load** — `vite-plugin-pwa` requires an explicit `registerSW()` call (or the `injectRegister: 'auto'` option) for the *current* page load to ask the SW to update. Your `vite.config.ts` doesn't set `injectRegister`, and `main.tsx` never calls `registerSW()`. So the SW never got told "go check for a new version."
+3. The old SW kept serving its old cached bundle. Workbox's `cleanupOutdatedCaches` only fires *after* a new SW activates — which never happened because nothing registered/updated it.
+4. `ServiceWorkerUpdatePrompt.tsx` listens for `updatefound` events but never *triggers* an update check itself — it's purely reactive. If the SW never updates, this code never runs.
+5. Result: the browser kept loading 8-month-old JS forever. Clearing cache nuked the SW registration, which is why it works now.
 
-// After (safe):
-const endTimestamp = subscription.current_period_end;
-if (endTimestamp && !isNaN(Number(endTimestamp))) {
-  subscriptionEnd = new Date(Number(endTimestamp) * 1000).toISOString();
-}
-```
+The current setup has good *intent* (NetworkOnly for navigation, no HTML caching, skipWaiting) but a critical gap: **the service worker is never actually registered or told to update on page load**, so all the safety nets sit dormant.
 
-This also needs to handle `trialing` status — the function already queries all statuses and checks for `active` or `trialing`, so that part is correct.
+### Secondary risk
 
-### Part 2: Remove 14-day Trial from Checkout (plan)
+Even if the SW *were* registered correctly, browsers only check for SW updates on navigation by default. A long-lived tab or PWA install can stay stuck for weeks. We need an explicit periodic update check too.
 
-**File:** `supabase/functions/create-checkout-session/index.ts`
+---
 
-Remove the `trial_period_days: 14` from the `subscription_data` object in the `stripe.checkout.sessions.create()` call. This means:
+## The Fix (4 small changes)
 
-- New signups will **not** get a trial period
-- The card will still be collected but **charged immediately** on the first billing cycle
-- Existing trialing subscriptions are unaffected
+### 1. Properly register the service worker on every page load
 
-No other files need to change — the `check-subscription` function already handles both `active` and `trialing` statuses, and the frontend subscription gate works off the `subscribed` boolean regardless of status.
+In `src/main.tsx`, import and call `registerSW` from `virtual:pwa-register`. This:
+- Registers the SW on first visit
+- **Calls `registration.update()` on every page load** (forces a check against the server)
+- Wires `onNeedRefresh` to auto-activate the new SW (your existing `ServiceWorkerUpdatePrompt` already handles `controllerchange` → reload)
 
-**What stays the same:** Users can still log in and use the app without a subscription (your existing auth flow doesn't hard-gate on subscription status for all routes). The subscription section in settings will show "no active subscription" and prompt them to subscribe.
+### 2. Add periodic update polling
 
-### Summary
+Inside the `registerSW` config, set up a `setInterval` to call `registration.update()` every 60 minutes. Catches users who keep tabs open for days.
 
-| Step | File | Change |
-|------|------|--------|
-| 1 | `check-subscription/index.ts` | Safe date parsing with `Number()` coercion and null check |
-| 2 | `create-checkout-session/index.ts` | Remove `trial_period_days: 14` from `subscription_data` |
+### 3. Add Vite PWA TypeScript types
+
+Add `vite-plugin-pwa/client` to `tsconfig`'s `types` array (or add a `/// <reference>` in `main.tsx`) so the `virtual:pwa-register` import type-checks cleanly.
+
+### 4. Add a one-time "kill switch" for stuck users
+
+In `src/lib/staleBuildRecovery.ts`, on app boot, check if `navigator.serviceWorker.controller` exists AND no `registerSW` has been previously called against this origin (we'll use a versioned localStorage flag like `sw_v2_initialized`). If found, unregister all old SWs and reload once. This rescues every existing user with the broken old SW currently in their browser — without it, your fix only helps people who clear cache.
+
+### Files to change
+
+| File | Change |
+|------|--------|
+| `src/main.tsx` | Import `registerSW` from `virtual:pwa-register`, call it with `onRegisteredSW` that polls `update()` every 60 min, and `onNeedRefresh` that calls `updateSW(true)` |
+| `src/lib/staleBuildRecovery.ts` | Add `rescueStuckServiceWorker()` helper that detects pre-fix SW (no `sw_v2_initialized` flag + active controller), unregisters it, clears caches, sets the flag, hard-reloads once |
+| `vite.config.ts` | Keep current Workbox config (it's correct); no change needed |
+| `tsconfig.app.json` | Add `"vite-plugin-pwa/client"` to `compilerOptions.types` for the virtual module typing |
+
+### Why this is safe
+
+- The rescue helper runs once per browser (gated by localStorage flag) — no reload loop risk, and `staleBuildRecovery.ts` already has a 30-second cooldown guard.
+- `registerSW` is the official, supported entry point — we're using the plugin as intended, not fighting it.
+- Preview environments are already handled by `ServiceWorkerUpdatePrompt` (it unregisters SWs on `id-preview--*` hosts), so dev workflow is unaffected.
+- After deploy, every existing stuck user gets auto-rescued on their next visit; new users get the proper update flow forever after.
 
