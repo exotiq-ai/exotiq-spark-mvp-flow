@@ -11,6 +11,73 @@ import { devLog, devWarn, devError } from './logger';
 const RELOAD_FLAG = 'exotiq_reload_attempted';
 const RELOAD_TIMESTAMP = 'exotiq_reload_ts';
 const RELOAD_COOLDOWN_MS = 30000; // 30 seconds between auto-reloads
+const SW_RESCUE_FLAG = 'exotiq_sw_v2_initialized'; // Versioned: bump to force re-rescue
+const SW_RESCUE_COMPLETED = 'exotiq_sw_v2_rescued';
+
+/**
+ * One-time rescue for users with a stale/broken pre-fix service worker
+ * stuck in their browser. Detects an active SW controller from before
+ * proper registerSW() was wired up, unregisters it, clears caches, and
+ * forces a single hard reload.
+ *
+ * Gated by localStorage so it only runs once per browser.
+ */
+export const rescueStuckServiceWorker = async (): Promise<void> => {
+  // Skip in preview/iframe environments — those have their own SW handling
+  if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
+
+  const hostname = window.location.hostname;
+  if (hostname.startsWith('id-preview--') || hostname.includes('localhost') || hostname.includes('lovableproject.com')) {
+    return;
+  }
+
+  try {
+    // Already rescued on this browser? Skip.
+    if (localStorage.getItem(SW_RESCUE_COMPLETED) === 'true') {
+      return;
+    }
+
+    // No active SW controller? Nothing to rescue. Mark as done so we don't keep checking.
+    if (!navigator.serviceWorker.controller) {
+      localStorage.setItem(SW_RESCUE_COMPLETED, 'true');
+      return;
+    }
+
+    // Don't rescue if we recently auto-reloaded (avoid loop with chunk-error recovery)
+    if (hasRecentReloadAttempt()) {
+      return;
+    }
+
+    devWarn('[Recovery] Stuck pre-fix service worker detected — rescuing once');
+
+    // Unregister all SWs
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(registrations.map((r) => r.unregister()));
+
+    // Clear all caches
+    const cacheNames = await caches.keys();
+    await Promise.all(cacheNames.map((name) => caches.delete(name)));
+
+    // Mark complete BEFORE reload so we never loop
+    localStorage.setItem(SW_RESCUE_COMPLETED, 'true');
+    localStorage.setItem(SW_RESCUE_FLAG, Date.now().toString());
+
+    markReloadAttempt();
+    devLog('[Recovery] Rescue complete — performing one-time hard reload');
+
+    const url = new URL(window.location.href);
+    url.searchParams.set('_swrescue', Date.now().toString());
+    window.location.replace(url.toString());
+  } catch (err) {
+    devError('[Recovery] SW rescue failed:', err);
+    // Don't block app boot
+    try {
+      localStorage.setItem(SW_RESCUE_COMPLETED, 'true');
+    } catch {
+      // ignore
+    }
+  }
+};
 
 /**
  * Check if we recently attempted an auto-reload (to prevent loops)
