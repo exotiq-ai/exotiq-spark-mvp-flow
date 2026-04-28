@@ -141,43 +141,44 @@ export const SubscriptionSection = () => {
             <h3 className="text-lg font-semibold">Available Plans</h3>
             <BillingToggle isAnnual={isAnnual} onChange={setIsAnnual} />
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
             {pricingTiers.map((tier) => (
-              <Card 
+              <Card
                 key={tier.id}
-                className={`p-6 relative ${tier.popular ? 'border-primary shadow-lg ring-2 ring-primary/20' : 'card-premium'}`}
+                className={`p-5 flex flex-col h-full ${tier.popular ? 'border-primary shadow-lg ring-2 ring-primary/20' : 'card-premium'}`}
               >
-                {tier.popular && (
-                  <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary">
-                    Most Popular
-                  </Badge>
-                )}
-                <div className="text-center mb-6">
-                  <h4 className="text-lg font-semibold">{tier.name}</h4>
-                  <p className="text-xs text-muted-foreground mt-1">{tier.vehicleRange}</p>
-                  <div className="mt-2">
-                    <span className="text-3xl font-bold">{getDisplayPrice(tier)}</span>
-                    <span className="text-muted-foreground">{getPriceLabel(tier)}</span>
+                <div className="flex items-start justify-between gap-2 mb-1">
+                  <h4 className="text-base font-semibold">{tier.name}</h4>
+                  {tier.popular && (
+                    <Badge className="bg-primary text-xs shrink-0">Popular</Badge>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">{tier.vehicleRange}</p>
+
+                <div className="mt-3 mb-4">
+                  <div className="flex items-baseline gap-1 whitespace-nowrap tabular-nums">
+                    <span className="text-2xl font-bold">{getDisplayPrice(tier)}</span>
+                    <span className="text-sm text-muted-foreground">{getPriceLabel(tier)}</span>
                   </div>
                   {tier.priceType === 'per-vehicle' && tier.minPrice && (
                     <p className="text-xs text-muted-foreground mt-1">${tier.minPrice}/mo minimum</p>
                   )}
                   {isAnnual && (
-                    <p className="text-xs text-success mt-1">Save 2 months with annual billing</p>
+                    <p className="text-xs text-success mt-1">Save 2 months annually</p>
                   )}
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-2 flex-1">
                   {tier.features.slice(0, 5).map((feature, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <Check className="w-4 h-4 text-success shrink-0" />
-                      <span className="text-sm">{feature}</span>
+                    <div key={i} className="flex items-center gap-2 min-w-0">
+                      <Check className="w-3.5 h-3.5 text-success shrink-0" />
+                      <span className="text-sm truncate" title={feature}>{feature}</span>
                     </div>
                   ))}
                 </div>
 
-                <Button 
-                  className="w-full mt-6"
+                <Button
+                  className="w-full mt-5"
                   variant={tier.popular ? "default" : "outline"}
                   onClick={() => handleSelectPlan(tier)}
                 >
@@ -316,45 +317,45 @@ export const SubscriptionSection = () => {
       {/* Available Plans for upgrade */}
       <div>
         <h3 className="text-lg font-semibold mb-4">Available Plans</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           {pricingTiers.map((tier) => {
             const isCurrentPlan = tier.id === currentTier;
-            
+
             return (
-              <Card 
+              <Card
                 key={tier.id}
-                className={`p-6 relative ${
-                  isCurrentPlan 
-                    ? 'border-primary shadow-lg ring-2 ring-primary/20' 
+                className={`p-5 flex flex-col h-full ${
+                  isCurrentPlan
+                    ? 'border-primary shadow-lg ring-2 ring-primary/20'
                     : 'card-premium'
                 }`}
               >
-                {isCurrentPlan && (
-                  <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary">
-                    Current Plan
-                  </Badge>
-                )}
+                <div className="flex items-start justify-between gap-2 mb-1">
+                  <h4 className="text-base font-semibold">{tier.name}</h4>
+                  {isCurrentPlan && (
+                    <Badge className="bg-primary text-xs shrink-0">Current</Badge>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">{tier.vehicleRange}</p>
 
-                <div className="text-center mb-6">
-                  <h4 className="text-lg font-semibold">{tier.name}</h4>
-                  <p className="text-xs text-muted-foreground mt-1">{tier.vehicleRange}</p>
-                  <div className="mt-2">
-                    <span className="text-3xl font-bold">{getDisplayPrice(tier)}</span>
-                    <span className="text-muted-foreground">{getPriceLabel(tier)}</span>
+                <div className="mt-3 mb-4">
+                  <div className="flex items-baseline gap-1 whitespace-nowrap tabular-nums">
+                    <span className="text-2xl font-bold">{getDisplayPrice(tier)}</span>
+                    <span className="text-sm text-muted-foreground">{getPriceLabel(tier)}</span>
                   </div>
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-2 flex-1">
                   {tier.features.slice(0, 5).map((feature, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <Check className="w-4 h-4 text-success shrink-0" />
-                      <span className="text-sm">{feature}</span>
+                    <div key={i} className="flex items-center gap-2 min-w-0">
+                      <Check className="w-3.5 h-3.5 text-success shrink-0" />
+                      <span className="text-sm truncate" title={feature}>{feature}</span>
                     </div>
                   ))}
                 </div>
 
-                <Button 
-                  className="w-full mt-6"
+                <Button
+                  className="w-full mt-5"
                   variant={isCurrentPlan ? "default" : "outline"}
                   disabled={isCurrentPlan}
                   onClick={() => handleSelectPlan(tier)}
@@ -366,25 +367,6 @@ export const SubscriptionSection = () => {
           })}
         </div>
       </div>
-
-      {/* Payment History */}
-      <Card className="card-premium p-6">
-        <div className="flex items-center space-x-3 mb-6">
-          <BarChart3 className="w-5 h-5 text-primary" />
-          <h3 className="text-xl font-semibold">Recent Payments</h3>
-        </div>
-
-        <div className="flex flex-col items-center justify-center py-8 text-center">
-          <div className="p-3 rounded-full bg-muted/50 mb-4">
-            <Inbox className="w-8 h-8 text-muted-foreground" />
-          </div>
-          <p className="text-muted-foreground mb-4">Payment history is managed through the billing portal.</p>
-          <Button variant="outline" size="sm" onClick={handleManageBilling} disabled={isLoading}>
-            <ExternalLink className="w-4 h-4 mr-2" />
-            View in Billing Portal
-          </Button>
-        </div>
-      </Card>
 
       <PlanSelectionModal
         open={modalOpen}
