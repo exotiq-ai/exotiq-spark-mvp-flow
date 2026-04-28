@@ -4,16 +4,13 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { 
-  CreditCard, 
-  Crown, 
-  Check, 
+import {
+  CreditCard,
+  Crown,
+  Check,
   Calendar,
   Download,
-  ExternalLink,
   Sparkles,
-  BarChart3,
-  Inbox,
   Loader2,
   Rocket
 } from "lucide-react";
