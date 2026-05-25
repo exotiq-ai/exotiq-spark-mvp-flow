@@ -71,8 +71,22 @@ export type Database = {
             foreignKeyName: "automated_messages_booking_id_fkey"
             columns: ["booking_id"]
             isOneToOne: false
+            referencedRelation: "booking_payment_summary"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "automated_messages_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
             referencedRelation: "bookings"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automated_messages_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "deposit_ledger"
+            referencedColumns: ["booking_id"]
           },
           {
             foreignKeyName: "automated_messages_customer_id_fkey"
@@ -360,8 +374,22 @@ export type Database = {
             foreignKeyName: "customer_notes_booking_id_fkey"
             columns: ["booking_id"]
             isOneToOne: false
+            referencedRelation: "booking_payment_summary"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "customer_notes_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
             referencedRelation: "bookings"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_notes_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "deposit_ledger"
+            referencedColumns: ["booking_id"]
           },
           {
             foreignKeyName: "customer_notes_customer_id_fkey"
@@ -571,8 +599,22 @@ export type Database = {
             foreignKeyName: "damage_claims_booking_id_fkey"
             columns: ["booking_id"]
             isOneToOne: false
+            referencedRelation: "booking_payment_summary"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "damage_claims_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
             referencedRelation: "bookings"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "damage_claims_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "deposit_ledger"
+            referencedColumns: ["booking_id"]
           },
           {
             foreignKeyName: "damage_claims_customer_id_fkey"
@@ -831,8 +873,22 @@ export type Database = {
             foreignKeyName: "documents_booking_id_fkey"
             columns: ["booking_id"]
             isOneToOne: false
+            referencedRelation: "booking_payment_summary"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "documents_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
             referencedRelation: "bookings"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "deposit_ledger"
+            referencedColumns: ["booking_id"]
           },
           {
             foreignKeyName: "documents_customer_id_fkey"
@@ -1381,8 +1437,22 @@ export type Database = {
             foreignKeyName: "messages_booking_id_fkey"
             columns: ["booking_id"]
             isOneToOne: false
+            referencedRelation: "booking_payment_summary"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "messages_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
             referencedRelation: "bookings"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "deposit_ledger"
+            referencedColumns: ["booking_id"]
           },
           {
             foreignKeyName: "messages_team_id_fkey"
@@ -1775,8 +1845,22 @@ export type Database = {
             foreignKeyName: "payments_booking_id_fkey"
             columns: ["booking_id"]
             isOneToOne: false
+            referencedRelation: "booking_payment_summary"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "payments_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
             referencedRelation: "bookings"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "deposit_ledger"
+            referencedColumns: ["booking_id"]
           },
           {
             foreignKeyName: "payments_customer_id_fkey"
@@ -3065,8 +3149,22 @@ export type Database = {
             foreignKeyName: "vehicle_inspections_booking_id_fkey"
             columns: ["booking_id"]
             isOneToOne: false
+            referencedRelation: "booking_payment_summary"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "vehicle_inspections_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
             referencedRelation: "bookings"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_inspections_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "deposit_ledger"
+            referencedColumns: ["booking_id"]
           },
           {
             foreignKeyName: "vehicle_inspections_reviewed_by_fkey"
@@ -3733,6 +3831,87 @@ export type Database = {
       }
     }
     Views: {
+      booking_payment_summary: {
+        Row: {
+          booking_id: string | null
+          collected: number | null
+          gross_value: number | null
+          outstanding: number | null
+          platform_fee_amount: number | null
+          refunded: number | null
+          team_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookings_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deposit_ledger: {
+        Row: {
+          booking_id: string | null
+          booking_status: string | null
+          customer_name: string | null
+          deposit_held: number | null
+          end_date: string | null
+          security_deposit_status: string | null
+          start_date: string | null
+          team_id: string | null
+        }
+        Insert: {
+          booking_id?: string | null
+          booking_status?: string | null
+          customer_name?: string | null
+          deposit_held?: number | null
+          end_date?: string | null
+          security_deposit_status?: string | null
+          start_date?: string | null
+          team_id?: string | null
+        }
+        Update: {
+          booking_id?: string | null
+          booking_status?: string | null
+          customer_name?: string | null
+          deposit_held?: number | null
+          end_date?: string | null
+          security_deposit_status?: string | null
+          start_date?: string | null
+          team_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookings_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      revenue_by_source: {
+        Row: {
+          booking_count: number | null
+          booking_source: string | null
+          gross_revenue: number | null
+          month_bucket: string | null
+          net_revenue: number | null
+          platform_fees: number | null
+          team_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookings_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vehicle_photos_with_vehicle: {
         Row: {
           ai_analysis: Json | null
@@ -3815,6 +3994,21 @@ export type Database = {
             Args: { reason?: string; target_user_id: string }
             Returns: undefined
           }
+      fn_vehicle_pnl: {
+        Args: { p_end: string; p_start: string; p_team_id: string }
+        Returns: {
+          booking_count: number
+          gross_revenue: number
+          margin_pct: number
+          net_revenue: number
+          operator_net: number
+          partner_payouts: number
+          platform_fees: number
+          total_expenses: number
+          vehicle_id: string
+          vehicle_name: string
+        }[]
+      }
       get_my_role: {
         Args: never
         Returns: {
