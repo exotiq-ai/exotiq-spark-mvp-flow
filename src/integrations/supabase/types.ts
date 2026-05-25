@@ -71,8 +71,22 @@ export type Database = {
             foreignKeyName: "automated_messages_booking_id_fkey"
             columns: ["booking_id"]
             isOneToOne: false
+            referencedRelation: "booking_payment_summary"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "automated_messages_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
             referencedRelation: "bookings"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automated_messages_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "deposit_ledger"
+            referencedColumns: ["booking_id"]
           },
           {
             foreignKeyName: "automated_messages_customer_id_fkey"
@@ -124,6 +138,9 @@ export type Database = {
           pickup_location: string
           pickup_location_id: string | null
           pickup_odometer: number | null
+          platform_fee_amount: number
+          platform_fee_base: number
+          platform_fee_percent_snapshot: number
           rental_duration_type: string | null
           requires_delivery: boolean | null
           return_fuel_level: number | null
@@ -172,6 +189,9 @@ export type Database = {
           pickup_location: string
           pickup_location_id?: string | null
           pickup_odometer?: number | null
+          platform_fee_amount?: number
+          platform_fee_base?: number
+          platform_fee_percent_snapshot?: number
           rental_duration_type?: string | null
           requires_delivery?: boolean | null
           return_fuel_level?: number | null
@@ -220,6 +240,9 @@ export type Database = {
           pickup_location?: string
           pickup_location_id?: string | null
           pickup_odometer?: number | null
+          platform_fee_amount?: number
+          platform_fee_base?: number
+          platform_fee_percent_snapshot?: number
           rental_duration_type?: string | null
           requires_delivery?: boolean | null
           return_fuel_level?: number | null
@@ -351,8 +374,22 @@ export type Database = {
             foreignKeyName: "customer_notes_booking_id_fkey"
             columns: ["booking_id"]
             isOneToOne: false
+            referencedRelation: "booking_payment_summary"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "customer_notes_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
             referencedRelation: "bookings"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_notes_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "deposit_ledger"
+            referencedColumns: ["booking_id"]
           },
           {
             foreignKeyName: "customer_notes_customer_id_fkey"
@@ -562,8 +599,22 @@ export type Database = {
             foreignKeyName: "damage_claims_booking_id_fkey"
             columns: ["booking_id"]
             isOneToOne: false
+            referencedRelation: "booking_payment_summary"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "damage_claims_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
             referencedRelation: "bookings"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "damage_claims_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "deposit_ledger"
+            referencedColumns: ["booking_id"]
           },
           {
             foreignKeyName: "damage_claims_customer_id_fkey"
@@ -822,8 +873,22 @@ export type Database = {
             foreignKeyName: "documents_booking_id_fkey"
             columns: ["booking_id"]
             isOneToOne: false
+            referencedRelation: "booking_payment_summary"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "documents_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
             referencedRelation: "bookings"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "deposit_ledger"
+            referencedColumns: ["booking_id"]
           },
           {
             foreignKeyName: "documents_customer_id_fkey"
@@ -1372,8 +1437,22 @@ export type Database = {
             foreignKeyName: "messages_booking_id_fkey"
             columns: ["booking_id"]
             isOneToOne: false
+            referencedRelation: "booking_payment_summary"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "messages_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
             referencedRelation: "bookings"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "deposit_ledger"
+            referencedColumns: ["booking_id"]
           },
           {
             foreignKeyName: "messages_team_id_fkey"
@@ -1575,6 +1654,81 @@ export type Database = {
         }
         Relationships: []
       }
+      partner_payouts: {
+        Row: {
+          booking_id: string
+          created_at: string
+          currency: string
+          gross_rental_base: number
+          id: string
+          net_after_fee: number
+          net_to_partner: number
+          notes: string | null
+          operator_adjustments: number
+          paid_at: string | null
+          partner_id: string
+          payout_method: string | null
+          payout_reference: string | null
+          platform_fee_amount: number
+          split_type: string
+          split_value_snapshot: number
+          status: string
+          team_id: string
+          updated_at: string
+          vehicle_id: string
+          void_reason: string | null
+          voided_at: string | null
+        }
+        Insert: {
+          booking_id: string
+          created_at?: string
+          currency?: string
+          gross_rental_base?: number
+          id?: string
+          net_after_fee?: number
+          net_to_partner?: number
+          notes?: string | null
+          operator_adjustments?: number
+          paid_at?: string | null
+          partner_id: string
+          payout_method?: string | null
+          payout_reference?: string | null
+          platform_fee_amount?: number
+          split_type: string
+          split_value_snapshot: number
+          status?: string
+          team_id: string
+          updated_at?: string
+          vehicle_id: string
+          void_reason?: string | null
+          voided_at?: string | null
+        }
+        Update: {
+          booking_id?: string
+          created_at?: string
+          currency?: string
+          gross_rental_base?: number
+          id?: string
+          net_after_fee?: number
+          net_to_partner?: number
+          notes?: string | null
+          operator_adjustments?: number
+          paid_at?: string | null
+          partner_id?: string
+          payout_method?: string | null
+          payout_reference?: string | null
+          platform_fee_amount?: number
+          split_type?: string
+          split_value_snapshot?: number
+          status?: string
+          team_id?: string
+          updated_at?: string
+          vehicle_id?: string
+          void_reason?: string | null
+          voided_at?: string | null
+        }
+        Relationships: []
+      }
       payment_receipts: {
         Row: {
           created_at: string | null
@@ -1691,8 +1845,22 @@ export type Database = {
             foreignKeyName: "payments_booking_id_fkey"
             columns: ["booking_id"]
             isOneToOne: false
+            referencedRelation: "booking_payment_summary"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "payments_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
             referencedRelation: "bookings"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "deposit_ledger"
+            referencedColumns: ["booking_id"]
           },
           {
             foreignKeyName: "payments_customer_id_fkey"
@@ -2822,6 +2990,66 @@ export type Database = {
         }
         Relationships: []
       }
+      vehicle_expenses: {
+        Row: {
+          amount: number
+          booking_id: string | null
+          created_at: string
+          created_by: string | null
+          currency: string
+          expense_date: string
+          expense_type: string
+          id: string
+          location_id: string | null
+          notes: string | null
+          receipt_url: string | null
+          source_module: string
+          source_record_id: string | null
+          team_id: string
+          updated_at: string
+          vehicle_id: string | null
+          vendor: string | null
+        }
+        Insert: {
+          amount: number
+          booking_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          expense_date?: string
+          expense_type: string
+          id?: string
+          location_id?: string | null
+          notes?: string | null
+          receipt_url?: string | null
+          source_module?: string
+          source_record_id?: string | null
+          team_id: string
+          updated_at?: string
+          vehicle_id?: string | null
+          vendor?: string | null
+        }
+        Update: {
+          amount?: number
+          booking_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          expense_date?: string
+          expense_type?: string
+          id?: string
+          location_id?: string | null
+          notes?: string | null
+          receipt_url?: string | null
+          source_module?: string
+          source_record_id?: string | null
+          team_id?: string
+          updated_at?: string
+          vehicle_id?: string | null
+          vendor?: string | null
+        }
+        Relationships: []
+      }
       vehicle_inspections: {
         Row: {
           booking_id: string | null
@@ -2921,8 +3149,22 @@ export type Database = {
             foreignKeyName: "vehicle_inspections_booking_id_fkey"
             columns: ["booking_id"]
             isOneToOne: false
+            referencedRelation: "booking_payment_summary"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "vehicle_inspections_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
             referencedRelation: "bookings"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_inspections_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "deposit_ledger"
+            referencedColumns: ["booking_id"]
           },
           {
             foreignKeyName: "vehicle_inspections_reviewed_by_fkey"
@@ -2953,6 +3195,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      vehicle_partners: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          is_active: boolean
+          name: string
+          notes: string | null
+          payout_method: string | null
+          phone: string | null
+          stripe_connect_account_id: string | null
+          team_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          notes?: string | null
+          payout_method?: string | null
+          phone?: string | null
+          stripe_connect_account_id?: string | null
+          team_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          notes?: string | null
+          payout_method?: string | null
+          phone?: string | null
+          stripe_connect_account_id?: string | null
+          team_id?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       vehicle_photos: {
         Row: {
@@ -3241,10 +3525,14 @@ export type Database = {
           model: string
           name: string
           ops_status: string | null
+          ownership_type: string
+          partner_id: string | null
           rate_3hr: number | null
           rate_6hr: number | null
           rate_multiday: number | null
           revenue: number | null
+          split_type: string | null
+          split_value: number | null
           status: string | null
           suggested_rate: number | null
           team_id: string | null
@@ -3271,10 +3559,14 @@ export type Database = {
           model: string
           name: string
           ops_status?: string | null
+          ownership_type?: string
+          partner_id?: string | null
           rate_3hr?: number | null
           rate_6hr?: number | null
           rate_multiday?: number | null
           revenue?: number | null
+          split_type?: string | null
+          split_value?: number | null
           status?: string | null
           suggested_rate?: number | null
           team_id?: string | null
@@ -3301,10 +3593,14 @@ export type Database = {
           model?: string
           name?: string
           ops_status?: string | null
+          ownership_type?: string
+          partner_id?: string | null
           rate_3hr?: number | null
           rate_6hr?: number | null
           rate_multiday?: number | null
           revenue?: number | null
+          split_type?: string | null
+          split_value?: number | null
           status?: string | null
           suggested_rate?: number | null
           team_id?: string | null
@@ -3320,6 +3616,13 @@ export type Database = {
             columns: ["location_id"]
             isOneToOne: false
             referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicles_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_partners"
             referencedColumns: ["id"]
           },
           {
@@ -3528,6 +3831,87 @@ export type Database = {
       }
     }
     Views: {
+      booking_payment_summary: {
+        Row: {
+          booking_id: string | null
+          collected: number | null
+          gross_value: number | null
+          outstanding: number | null
+          platform_fee_amount: number | null
+          refunded: number | null
+          team_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookings_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deposit_ledger: {
+        Row: {
+          booking_id: string | null
+          booking_status: string | null
+          customer_name: string | null
+          deposit_held: number | null
+          end_date: string | null
+          security_deposit_status: string | null
+          start_date: string | null
+          team_id: string | null
+        }
+        Insert: {
+          booking_id?: string | null
+          booking_status?: string | null
+          customer_name?: string | null
+          deposit_held?: number | null
+          end_date?: string | null
+          security_deposit_status?: string | null
+          start_date?: string | null
+          team_id?: string | null
+        }
+        Update: {
+          booking_id?: string | null
+          booking_status?: string | null
+          customer_name?: string | null
+          deposit_held?: number | null
+          end_date?: string | null
+          security_deposit_status?: string | null
+          start_date?: string | null
+          team_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookings_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      revenue_by_source: {
+        Row: {
+          booking_count: number | null
+          booking_source: string | null
+          gross_revenue: number | null
+          month_bucket: string | null
+          net_revenue: number | null
+          platform_fees: number | null
+          team_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookings_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vehicle_photos_with_vehicle: {
         Row: {
           ai_analysis: Json | null
@@ -3586,6 +3970,15 @@ export type Database = {
         Args: { _location_id: string; _user_id: string }
         Returns: boolean
       }
+      compute_rental_base: {
+        Args: {
+          p_daily_rate: number
+          p_duration_type: string
+          p_end: string
+          p_start: string
+        }
+        Returns: number
+      }
       count_admins: { Args: never; Returns: number }
       deactivate_team_member:
         | {
@@ -3601,6 +3994,21 @@ export type Database = {
             Args: { reason?: string; target_user_id: string }
             Returns: undefined
           }
+      fn_vehicle_pnl: {
+        Args: { p_end: string; p_start: string; p_team_id: string }
+        Returns: {
+          booking_count: number
+          gross_revenue: number
+          margin_pct: number
+          net_revenue: number
+          operator_net: number
+          partner_payouts: number
+          platform_fees: number
+          total_expenses: number
+          vehicle_id: string
+          vehicle_name: string
+        }[]
+      }
       get_my_role: {
         Args: never
         Returns: {

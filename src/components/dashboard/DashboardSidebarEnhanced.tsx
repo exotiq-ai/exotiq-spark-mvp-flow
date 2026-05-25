@@ -21,10 +21,12 @@ import {
   Sparkles,
   Activity,
   MessageSquare,
-  Car
+  Car,
+  DollarSign
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
+import { featureFlags } from "@/lib/featureFlags";
 
 interface DashboardSidebarEnhancedProps {
   activeModule: string;
@@ -197,6 +199,7 @@ export const DashboardSidebarEnhanced = ({
         { id: "motoriq", name: "MotorIQ", icon: TrendingUp, minRole: 'manager' },
         { id: "core", name: "FleetCopilot™", icon: Brain, minRole: 'operator' },
         { id: "vault", name: "Vault", icon: Shield, minRole: 'operator' },
+        ...(featureFlags.margin ? [{ id: "margin", name: "Margin", icon: DollarSign, minRole: 'manager' as const }] : []),
       ]
     },
     {
