@@ -3791,6 +3791,15 @@ export type Database = {
         Args: { _location_id: string; _user_id: string }
         Returns: boolean
       }
+      compute_rental_base: {
+        Args: {
+          p_daily_rate: number
+          p_duration_type: string
+          p_end: string
+          p_start: string
+        }
+        Returns: number
+      }
       count_admins: { Args: never; Returns: number }
       deactivate_team_member:
         | {
