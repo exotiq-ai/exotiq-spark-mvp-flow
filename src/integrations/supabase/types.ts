@@ -124,6 +124,9 @@ export type Database = {
           pickup_location: string
           pickup_location_id: string | null
           pickup_odometer: number | null
+          platform_fee_amount: number
+          platform_fee_base: number
+          platform_fee_percent_snapshot: number
           rental_duration_type: string | null
           requires_delivery: boolean | null
           return_fuel_level: number | null
@@ -172,6 +175,9 @@ export type Database = {
           pickup_location: string
           pickup_location_id?: string | null
           pickup_odometer?: number | null
+          platform_fee_amount?: number
+          platform_fee_base?: number
+          platform_fee_percent_snapshot?: number
           rental_duration_type?: string | null
           requires_delivery?: boolean | null
           return_fuel_level?: number | null
@@ -220,6 +226,9 @@ export type Database = {
           pickup_location?: string
           pickup_location_id?: string | null
           pickup_odometer?: number | null
+          platform_fee_amount?: number
+          platform_fee_base?: number
+          platform_fee_percent_snapshot?: number
           rental_duration_type?: string | null
           requires_delivery?: boolean | null
           return_fuel_level?: number | null
@@ -1575,6 +1584,81 @@ export type Database = {
         }
         Relationships: []
       }
+      partner_payouts: {
+        Row: {
+          booking_id: string
+          created_at: string
+          currency: string
+          gross_rental_base: number
+          id: string
+          net_after_fee: number
+          net_to_partner: number
+          notes: string | null
+          operator_adjustments: number
+          paid_at: string | null
+          partner_id: string
+          payout_method: string | null
+          payout_reference: string | null
+          platform_fee_amount: number
+          split_type: string
+          split_value_snapshot: number
+          status: string
+          team_id: string
+          updated_at: string
+          vehicle_id: string
+          void_reason: string | null
+          voided_at: string | null
+        }
+        Insert: {
+          booking_id: string
+          created_at?: string
+          currency?: string
+          gross_rental_base?: number
+          id?: string
+          net_after_fee?: number
+          net_to_partner?: number
+          notes?: string | null
+          operator_adjustments?: number
+          paid_at?: string | null
+          partner_id: string
+          payout_method?: string | null
+          payout_reference?: string | null
+          platform_fee_amount?: number
+          split_type: string
+          split_value_snapshot: number
+          status?: string
+          team_id: string
+          updated_at?: string
+          vehicle_id: string
+          void_reason?: string | null
+          voided_at?: string | null
+        }
+        Update: {
+          booking_id?: string
+          created_at?: string
+          currency?: string
+          gross_rental_base?: number
+          id?: string
+          net_after_fee?: number
+          net_to_partner?: number
+          notes?: string | null
+          operator_adjustments?: number
+          paid_at?: string | null
+          partner_id?: string
+          payout_method?: string | null
+          payout_reference?: string | null
+          platform_fee_amount?: number
+          split_type?: string
+          split_value_snapshot?: number
+          status?: string
+          team_id?: string
+          updated_at?: string
+          vehicle_id?: string
+          void_reason?: string | null
+          voided_at?: string | null
+        }
+        Relationships: []
+      }
       payment_receipts: {
         Row: {
           created_at: string | null
@@ -2822,6 +2906,66 @@ export type Database = {
         }
         Relationships: []
       }
+      vehicle_expenses: {
+        Row: {
+          amount: number
+          booking_id: string | null
+          created_at: string
+          created_by: string | null
+          currency: string
+          expense_date: string
+          expense_type: string
+          id: string
+          location_id: string | null
+          notes: string | null
+          receipt_url: string | null
+          source_module: string
+          source_record_id: string | null
+          team_id: string
+          updated_at: string
+          vehicle_id: string | null
+          vendor: string | null
+        }
+        Insert: {
+          amount: number
+          booking_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          expense_date?: string
+          expense_type: string
+          id?: string
+          location_id?: string | null
+          notes?: string | null
+          receipt_url?: string | null
+          source_module?: string
+          source_record_id?: string | null
+          team_id: string
+          updated_at?: string
+          vehicle_id?: string | null
+          vendor?: string | null
+        }
+        Update: {
+          amount?: number
+          booking_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          expense_date?: string
+          expense_type?: string
+          id?: string
+          location_id?: string | null
+          notes?: string | null
+          receipt_url?: string | null
+          source_module?: string
+          source_record_id?: string | null
+          team_id?: string
+          updated_at?: string
+          vehicle_id?: string | null
+          vendor?: string | null
+        }
+        Relationships: []
+      }
       vehicle_inspections: {
         Row: {
           booking_id: string | null
@@ -2953,6 +3097,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      vehicle_partners: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          is_active: boolean
+          name: string
+          notes: string | null
+          payout_method: string | null
+          phone: string | null
+          stripe_connect_account_id: string | null
+          team_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          notes?: string | null
+          payout_method?: string | null
+          phone?: string | null
+          stripe_connect_account_id?: string | null
+          team_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          notes?: string | null
+          payout_method?: string | null
+          phone?: string | null
+          stripe_connect_account_id?: string | null
+          team_id?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       vehicle_photos: {
         Row: {
@@ -3241,10 +3427,14 @@ export type Database = {
           model: string
           name: string
           ops_status: string | null
+          ownership_type: string
+          partner_id: string | null
           rate_3hr: number | null
           rate_6hr: number | null
           rate_multiday: number | null
           revenue: number | null
+          split_type: string | null
+          split_value: number | null
           status: string | null
           suggested_rate: number | null
           team_id: string | null
@@ -3271,10 +3461,14 @@ export type Database = {
           model: string
           name: string
           ops_status?: string | null
+          ownership_type?: string
+          partner_id?: string | null
           rate_3hr?: number | null
           rate_6hr?: number | null
           rate_multiday?: number | null
           revenue?: number | null
+          split_type?: string | null
+          split_value?: number | null
           status?: string | null
           suggested_rate?: number | null
           team_id?: string | null
@@ -3301,10 +3495,14 @@ export type Database = {
           model?: string
           name?: string
           ops_status?: string | null
+          ownership_type?: string
+          partner_id?: string | null
           rate_3hr?: number | null
           rate_6hr?: number | null
           rate_multiday?: number | null
           revenue?: number | null
+          split_type?: string | null
+          split_value?: number | null
           status?: string | null
           suggested_rate?: number | null
           team_id?: string | null
@@ -3320,6 +3518,13 @@ export type Database = {
             columns: ["location_id"]
             isOneToOne: false
             referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicles_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_partners"
             referencedColumns: ["id"]
           },
           {
