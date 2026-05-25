@@ -47,6 +47,7 @@ const DashboardOverviewEnhanced = lazy(() => import('@/components/dashboard/Dash
 const SettingsLayout = lazy(() => import('@/components/dashboard/settings/SettingsLayout'));
 const TeamHub = lazy(() => import('@/components/dashboard/TeamHub'));
 const TeamMessaging = lazy(() => import('@/components/messaging/TeamMessaging'));
+const MarginEnhanced = lazy(() => import('@/components/dashboard/MarginEnhanced'));
 
 import { DashboardSidebarEnhanced } from "@/components/dashboard/DashboardSidebarEnhanced";
 import { KeyboardShortcutsHelp } from "@/components/common/KeyboardShortcutsHelp";
@@ -147,6 +148,7 @@ const DashboardInner = () => {
     pulse: "Pulse",
     motoriq: "MotorIQ",
     vault: "Vault",
+    margin: "Margin",
     settings: "Settings",
     "team-hub": "Team Hub",
     messages: "Messages",
@@ -268,6 +270,9 @@ const DashboardInner = () => {
         break;
       case "fleet":
         content = <FleetPageEnhanced />;
+        break;
+      case "margin":
+        content = <MarginEnhanced />;
         break;
       case "settings":
         content = <SettingsLayout />;
