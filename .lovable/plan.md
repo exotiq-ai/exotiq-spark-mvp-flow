@@ -1,61 +1,183 @@
+# Margin Module — Plan v3 (Build-Ready)
 
-
-## Why You Saw an 8-Month-Old Version
-
-### Root cause analysis
-
-Your app uses `vite-plugin-pwa` with `registerType: 'autoUpdate'`. This means **a service worker is installed in every production browser** and serves cached assets from disk before the network is even consulted.
-
-Here's the failure chain that almost certainly happened:
-
-1. Months ago, you visited `app.exotiq.ai` and the browser silently registered a service worker + cached the JS/CSS bundles from that day.
-2. **Nothing in `index.html` triggers the SW lifecycle on load** — `vite-plugin-pwa` requires an explicit `registerSW()` call (or the `injectRegister: 'auto'` option) for the *current* page load to ask the SW to update. Your `vite.config.ts` doesn't set `injectRegister`, and `main.tsx` never calls `registerSW()`. So the SW never got told "go check for a new version."
-3. The old SW kept serving its old cached bundle. Workbox's `cleanupOutdatedCaches` only fires *after* a new SW activates — which never happened because nothing registered/updated it.
-4. `ServiceWorkerUpdatePrompt.tsx` listens for `updatefound` events but never *triggers* an update check itself — it's purely reactive. If the SW never updates, this code never runs.
-5. Result: the browser kept loading 8-month-old JS forever. Clearing cache nuked the SW registration, which is why it works now.
-
-The current setup has good *intent* (NetworkOnly for navigation, no HTML caching, skipWaiting) but a critical gap: **the service worker is never actually registered or told to update on page load**, so all the safety nets sit dormant.
-
-### Secondary risk
-
-Even if the SW *were* registered correctly, browsers only check for SW updates on navigation by default. A long-lived tab or PWA install can stay stuck for weeks. We need an explicit periodic update check too.
+Incorporating your answers. Locked decisions in **bold**, open items called out at the bottom.
 
 ---
 
-## The Fix (4 small changes)
+## Locked Decisions
 
-### 1. Properly register the service worker on every page load
+1. **Platform fee = 10% of rental base only.** Rental base = `daily_rate × billable_days` (or hourly equivalent for `rental_duration_type='hourly'`). **Excludes** `gas_fee`, `delivery_fee`, `mileage_overage_fee`, `security_deposit_amount`, and `discount_amount` (discount reduces operator's net, not the broker fee base — operator absorbs their own discounts).
+2. **Backfill = 0.** All historical bookings get `platform_fee_percent_snapshot = 0`, `platform_fee_amount = 0`. No retroactive fees. Fees only apply to bookings created after Margin launch AND `booking_source IN ('drive_exotiq','marketplace')`.
+3. **Deposits are NOT revenue.** Tracked separately. Withheld deposits go to **operator only** (never split with partner).
+4. **Refunds/voids handled explicitly.** No double-counting. Status transitions reversible.
+5. **Per-vehicle P&L = SQL function**, not a view (date-bounded, timezone-aware).
+6. **Access = role gate only** (owner/admin/manager). No `view_financials` permission in v1.
+7. **Cut from v1 schema:** `recurring`, `monthly_payment`, `depreciation_method`, `acquisition_cost`. Defer to Phase 3.
+8. **Feature flag:** `featureFlags.margin = false` by default. Enable per-tenant for testing.
+9. **Demo seeding:** `hello@exotiq.ai` gets seeded expenses, partners, and payouts so the module renders meaningful demo content.
+10. **CSV export** for P&L tables (per-vehicle, per-location, payouts).
 
-In `src/main.tsx`, import and call `registerSW` from `virtual:pwa-register`. This:
-- Registers the SW on first visit
-- **Calls `registration.update()` on every page load** (forces a check against the server)
-- Wires `onNeedRefresh` to auto-activate the new SW (your existing `ServiceWorkerUpdatePrompt` already handles `controllerchange` → reload)
+---
 
-### 2. Add periodic update polling
+## Phase 1 Scope (Data Foundation + Operator MVP)
 
-Inside the `registerSW` config, set up a `setInterval` to call `registration.update()` every 60 minutes. Catches users who keep tabs open for days.
+### Schema Changes
 
-### 3. Add Vite PWA TypeScript types
+**`bookings` — add columns:**
+- `platform_fee_percent_snapshot NUMERIC(5,2) DEFAULT 0`
+- `platform_fee_amount NUMERIC(10,2) DEFAULT 0`
+- `platform_fee_base NUMERIC(10,2) DEFAULT 0` (the rental base used for the calc — auditability)
 
-Add `vite-plugin-pwa/client` to `tsconfig`'s `types` array (or add a `/// <reference>` in `main.tsx`) so the `virtual:pwa-register` import type-checks cleanly.
+**Trigger `fn_snapshot_platform_fee`** (BEFORE INSERT/UPDATE on bookings):
+```
+IF NEW.booking_source IN ('drive_exotiq','marketplace') THEN
+  NEW.platform_fee_base := compute_rental_base(NEW); -- daily_rate * days or hourly equiv
+  NEW.platform_fee_percent_snapshot := COALESCE(teams.platform_fee_percent, 10);
+  NEW.platform_fee_amount := ROUND(base * pct / 100, 2);
+ELSE
+  NEW.platform_fee_amount := 0;
+END IF;
+```
+Snapshot is frozen once `status='completed'` to prevent retroactive drift if tenant changes their fee %.
 
-### 4. Add a one-time "kill switch" for stuck users
+**`vehicle_expenses` (NEW):**
+- `id, team_id, vehicle_id (nullable), booking_id (nullable), location_id (nullable)`
+- `expense_type` (fuel, insurance, maintenance, cleaning, damage, partner_payout, transport, tax, overhead, other)
+- `amount, currency, expense_date, vendor, notes, receipt_url`
+- `source_module` (margin_manual, vault, pulse, bookings, motoriq), `source_record_id`
+- Unique `(source_module, source_record_id)` for idempotent trigger inserts
+- RLS: team-scoped, manager+ to write, owner/admin/manager to read
 
-In `src/lib/staleBuildRecovery.ts`, on app boot, check if `navigator.serviceWorker.controller` exists AND no `registerSW` has been previously called against this origin (we'll use a versioned localStorage flag like `sw_v2_initialized`). If found, unregister all old SWs and reload once. This rescues every existing user with the broken old SW currently in their browser — without it, your fix only helps people who clear cache.
+**`vehicle_partners` (NEW):**
+- `id, team_id, name, email, phone, payout_method, stripe_connect_account_id, notes`
 
-### Files to change
+**`partner_payouts` (NEW):**
+- `id, team_id, booking_id, vehicle_id, partner_id`
+- `gross_rental_base, platform_fee_amount, operator_adjustments, deposit_withholdings, net_to_partner`
+- `split_type` (percentage, flat), `split_value_snapshot`
+- `status` (pending, scheduled, paid, voided)
+- `created_at, paid_at, voided_at, void_reason`
 
-| File | Change |
-|------|--------|
-| `src/main.tsx` | Import `registerSW` from `virtual:pwa-register`, call it with `onRegisteredSW` that polls `update()` every 60 min, and `onNeedRefresh` that calls `updateSW(true)` |
-| `src/lib/staleBuildRecovery.ts` | Add `rescueStuckServiceWorker()` helper that detects pre-fix SW (no `sw_v2_initialized` flag + active controller), unregisters it, clears caches, sets the flag, hard-reloads once |
-| `vite.config.ts` | Keep current Workbox config (it's correct); no change needed |
-| `tsconfig.app.json` | Add `"vite-plugin-pwa/client"` to `compilerOptions.types` for the virtual module typing |
+**`vehicles` — add minimal ownership fields:**
+- `ownership_type` (owned, partnered) DEFAULT 'owned'
+- `partner_id` (nullable FK)
+- `split_type` (percentage, flat), `split_value` (operator's share)
 
-### Why this is safe
+### Critical Math — Partner Payout
 
-- The rescue helper runs once per browser (gated by localStorage flag) — no reload loop risk, and `staleBuildRecovery.ts` already has a 30-second cooldown guard.
-- `registerSW` is the official, supported entry point — we're using the plugin as intended, not fighting it.
-- Preview environments are already handled by `ServiceWorkerUpdatePrompt` (it unregisters SWs on `id-preview--*` hosts), so dev workflow is unaffected.
-- After deploy, every existing stuck user gets auto-rescued on their next visit; new users get the proper update flow forever after.
+Computed at booking completion, written to `partner_payouts`:
 
+```
+rental_base        = daily_rate * billable_days (or hourly equiv)
+platform_fee       = bookings.platform_fee_amount (snapshot)
+net_after_fee      = rental_base - platform_fee
+operator_share     = net_after_fee * (1 - split_value)   [if percentage]
+partner_share      = net_after_fee * split_value
+gas/delivery/mileage → 100% to operator (pass-through, not split)
+deposits           → tracked separately, never in payout calc
+withheld_deposits  → 100% to operator (covers damages/overages)
+```
+
+### Triggers (Idempotent)
+
+| Trigger | Fires | Action |
+|---|---|---|
+| `fn_snapshot_platform_fee` | BEFORE INS/UPD on bookings | Freezes fee snapshot |
+| `fn_generate_partner_payout` | AFTER UPD on bookings (status→completed, vehicle has partner) | Insert pending payout row |
+| `fn_void_partner_payout` | AFTER UPD on bookings (completed→cancelled) | Mark payout `voided`, never delete |
+| `fn_recalc_partner_payout` | AFTER UPD on bookings (total_value changes while completed) | Update payout if status='pending', flag if 'paid' |
+| `fn_log_damage_expense` | AFTER INS/UPD on damage_claims | Upsert into vehicle_expenses (idempotent by source_record_id) |
+| `fn_log_maintenance_expense` | AFTER UPD on maintenance_schedules (status='completed') | Upsert expense |
+
+### Deposit Handling (Explicit)
+
+- `security_deposit_amount` is **never** added to gross revenue.
+- A new view `deposit_ledger` shows: collected → held → released-to-customer OR withheld-to-operator-as-expense-offset.
+- When a deposit is withheld for damages: create a `vehicle_expenses` row with `expense_type='damage'` AND a corresponding negative-cost offset (or a `deposit_recoveries` line) so the damage net cost reflects what the operator actually ate.
+- **Deposit returns to customer reduce neither revenue nor operator margin.**
+
+### Refund Handling (Explicit)
+
+- `payments.refund_amount` reduces **collected revenue only** (in `booking_payment_summary`).
+- Gross booked revenue stays at `bookings.total_value`.
+- If a booking is fully refunded → status moves to `cancelled` → payout voided via trigger.
+
+### Per-Vehicle P&L — SQL Function
+
+```
+fn_vehicle_pnl(p_team_id uuid, p_start date, p_end date, p_tz text)
+RETURNS TABLE(vehicle_id, gross_revenue, platform_fees, net_revenue,
+              total_expenses, partner_payouts, operator_net, margin_pct)
+```
+Timezone conversion uses `teams.timezone` so monthly buckets line up with operator local time.
+
+### Views (Date-Agnostic Only)
+
+- `booking_payment_summary` — collected vs outstanding vs refunded per booking
+- `revenue_by_source` — direct vs drive_exotiq vs OTA breakdown
+- `deposit_ledger` — deposit lifecycle
+
+All `security_invoker = true` (PG15+ confirmed available).
+
+---
+
+## UI (behind `featureFlags.margin`)
+
+New route `/margin` with tabs:
+- **Overview** — KPI cards: Gross, Platform Fees, Net Revenue, Total Expenses, Operator Net, Margin %
+- **Per-Vehicle P&L** — sortable table, CSV export
+- **Per-Location P&L** — grouped table, CSV export
+- **Expenses** — list + AddExpenseDialog (manual entry, receipt upload to `expense-receipts` bucket)
+- **Partner Payouts** — list, status filters, mark-as-paid action, CSV export
+- **Deposits** — ledger view
+
+Sidebar gating: visible only to owner/admin/manager AND `featureFlags.margin` enabled.
+
+---
+
+## Demo Account Seeding (`hello@exotiq.ai`)
+
+One-time seed script populates:
+- 3 partnered vehicles with realistic splits (70/30, 80/20, flat $200/day)
+- ~20 expense rows across categories
+- ~10 completed bookings with payouts in mixed statuses
+- A withheld deposit example showing damage offset
+
+Runs only if `teams.is_demo_account = true` AND no margin data exists yet.
+
+---
+
+## Migration Order
+
+1. Create `vehicle_expenses`, `vehicle_partners`, `partner_payouts` + RLS
+2. Add columns to `bookings` and `vehicles`
+3. Create `compute_rental_base()` helper + `fn_snapshot_platform_fee` trigger
+4. Create payout triggers (generate, void, recalc)
+5. Create expense logging triggers (damage, maintenance)
+6. Create views + `fn_vehicle_pnl`
+7. Backfill snapshots to 0 for existing bookings
+8. Seed demo account
+
+---
+
+## File Touch Map
+
+- `supabase/migrations/` — 7 sequential migrations
+- `src/lib/featureFlags.ts` — add `margin: false`
+- `src/pages/Margin.tsx` — new route
+- `src/components/margin/` — MarginOverview, VehiclePnLTable, LocationPnLTable, ExpensesTab, PartnerPayoutsTab, DepositLedgerTab, AddExpenseDialog, MarkPaidDialog
+- `src/components/dashboard/DashboardSidebarEnhanced.tsx` — nav entry (role + flag gated)
+- `src/lib/marginCsv.ts` — CSV export helpers
+- `scripts/seed_demo_margin.sql` — demo seeding
+
+---
+
+## Open Items / Improvements to Flag
+
+- **(8) PG15+ — not an issue.** Lovable Cloud is on PG15+, `security_invoker` views work. Mentioned for completeness only.
+- **Renter-side booking app plan** — yes, I'd like to see it before we wire `booking_source='marketplace'` so the fee snapshot path matches what your checkout will actually send.
+- **Multi-currency** — explicitly USD-only in v1; `currency` column exists for future, defaulted to 'USD'.
+- **Stripe Connect for partner payouts** — schema has `stripe_connect_account_id` but actual payout execution is Phase 2. v1 = manual "mark as paid" with audit trail.
+- **Overhead expenses** (vehicle_id NULL) — included in tenant/location P&L, **excluded** from per-vehicle margin to avoid arbitrary allocation. Documented in tooltip.
+
+Approve and I'll start with migration 1, or push back on anything above.
