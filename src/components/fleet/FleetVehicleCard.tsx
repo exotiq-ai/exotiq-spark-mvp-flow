@@ -16,7 +16,7 @@ import {
   MoreHorizontal, 
   DollarSign, 
   Calendar, 
-  Clock,
+  
   Pencil,
   ClipboardCheck,
   Droplets,
@@ -141,10 +141,8 @@ export const FleetVehicleCard = ({
 
   const statusDisplay = getStatusDisplay();
   
-  // Time since last update
-  const lastUpdateText = vehicle.last_ops_update 
-    ? formatDistanceToNow(new Date(vehicle.last_ops_update), { addSuffix: true }).replace('about ', '')
-    : null;
+
+
 
   // Next booking countdown
   const nextBookingText = nextBooking 
