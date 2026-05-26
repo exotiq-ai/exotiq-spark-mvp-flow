@@ -84,6 +84,7 @@ interface FleetVehicleCardProps {
   onEdit?: (vehicle: Vehicle) => void;
   onDelete?: (vehicle: Vehicle) => void;
   isOpsMode?: boolean;
+  viewMode?: 'grid' | 'list';
   isSelected?: boolean;
   onSelectChange?: (vehicleId: string, selected: boolean) => void;
   className?: string;
@@ -114,6 +115,7 @@ export const FleetVehicleCard = ({
   onEdit,
   onDelete,
   isOpsMode = false,
+  viewMode = 'grid',
   isSelected = false,
   onSelectChange,
   className,
@@ -250,6 +252,229 @@ export const FleetVehicleCard = ({
             </Button>
           </div>
         </Card>
+      </motion.div>
+    );
+  }
+
+  // ============================================================
+  // LIST MODE (desktop row) — dense horizontal layout
+  // ============================================================
+  if (viewMode === 'list') {
+    const opsLabelRow = !isRetired && opsStatus !== 'not_set' ? statusConfig.label : null;
+    const photoColor = photoCount === undefined
+      ? ''
+      : photoCount >= 8
+        ? 'text-success'
+        : photoCount >= 4
+          ? 'text-amber-600 dark:text-amber-400'
+          : 'text-muted-foreground';
+
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.15 }}
+        onHoverStart={() => setIsHovered(true)}
+        onHoverEnd={() => setIsHovered(false)}
+        className={cn(
+          'group relative flex items-center gap-3 px-3 py-2.5 transition-colors',
+          !isRetired && 'hover:bg-muted/40 cursor-pointer',
+          isSelected && 'bg-primary/5 border-l-2 border-l-primary pl-[10px]',
+          isRetired && 'opacity-50 grayscale',
+          className
+        )}
+        onClick={() => onViewDetails(vehicle)}
+      >
+        {/* Checkbox */}
+        {onSelectChange && (
+          <div
+            className="flex-shrink-0 w-6 flex items-center justify-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Checkbox
+              checked={isSelected}
+              onCheckedChange={(checked) => onSelectChange(vehicle.id, !!checked)}
+              aria-label={`Select ${vehicle.name}`}
+            />
+          </div>
+        )}
+
+        {/* Thumbnail */}
+        <div className="flex-shrink-0">
+          <VehicleThumbnail
+            vehicleName={vehicle.name}
+            imageUrl={vehicle.image_url}
+            size="sm"
+            className="!w-20 !h-14 !rounded-md"
+          />
+        </div>
+
+        {/* Name + sub */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <h3 className="font-semibold text-foreground truncate leading-tight" title={vehicle.name}>
+              {vehicle.name}
+            </h3>
+            <Badge
+              variant="outline"
+              className={cn('text-[10px] py-0 px-1.5 h-4 font-medium flex-shrink-0', statusDisplay.className)}
+            >
+              {statusDisplay.label}
+            </Badge>
+            {!isRetired && taskCount > 0 && (
+              <Badge variant="destructive" className="text-[10px] py-0 px-1.5 h-4 flex-shrink-0">
+                {taskCount} {taskCount === 1 ? 'task' : 'tasks'}
+              </Badge>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground truncate mt-0.5">
+            {vehicle.year} {vehicle.make} {vehicle.model}
+          </p>
+        </div>
+
+        {/* Meta column (lg+) */}
+        {!isRetired && (
+          <div className="hidden lg:flex items-center gap-2 text-xs text-muted-foreground flex-shrink-0 max-w-[320px]">
+            {opsLabelRow && (
+              <span className="inline-flex items-center gap-1">
+                <StatusIcon className={cn('h-3 w-3', statusConfig.color)} />
+                <span className={statusConfig.color}>{opsLabelRow}</span>
+              </span>
+            )}
+            {photoCount !== undefined && (
+              <>
+                {opsLabelRow && <span className="text-muted-foreground/40">·</span>}
+                <span className={cn('inline-flex items-center gap-1', photoColor)}>
+                  <Camera className="h-3 w-3" />
+                  {photoCount}/11
+                </span>
+              </>
+            )}
+            {activeBooking && (
+              <>
+                <span className="text-muted-foreground/40">·</span>
+                <span className="inline-flex items-center gap-1 truncate max-w-[120px]">
+                  <Car className="h-3 w-3" />
+                  {activeBooking.customer_name}
+                </span>
+              </>
+            )}
+            {nextBooking && !activeBooking && (
+              <>
+                <span className="text-muted-foreground/40">·</span>
+                <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                  <Calendar className="h-3 w-3" />
+                  Next {nextBookingText}
+                </span>
+              </>
+            )}
+            {vehicle.license_plate && (
+              <>
+                <span className="text-muted-foreground/40">·</span>
+                <span className="whitespace-nowrap">{vehicle.license_plate}</span>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Price column */}
+        {!isRetired && (
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <div className="text-right">
+              <div className="text-sm font-bold text-foreground leading-tight whitespace-nowrap">
+                ${vehicle.current_rate.toLocaleString()}
+                <span className="text-[10px] font-normal text-muted-foreground">/day</span>
+              </div>
+              {(vehicle.rate_3hr || vehicle.rate_6hr) && (
+                <div className="flex gap-1.5 justify-end mt-0.5 whitespace-nowrap">
+                  {vehicle.rate_3hr && (
+                    <span className="text-[10px] text-muted-foreground">3h ${vehicle.rate_3hr}</span>
+                  )}
+                  {vehicle.rate_6hr && (
+                    <span className="text-[10px] text-muted-foreground">6h ${vehicle.rate_6hr}</span>
+                  )}
+                </div>
+              )}
+            </div>
+            {hasRariSuggestion && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-primary hover:text-primary"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEditPrice(vehicle);
+                      }}
+                    >
+                      <Sparkles className="h-3.5 w-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Rari has a pricing suggestion</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </div>
+        )}
+
+        {/* Actions dropdown */}
+        <div className="flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <PermissionGuard minRole="manager">
+                {onEdit && (
+                  <DropdownMenuItem onClick={() => onEdit(vehicle)}>
+                    <Pencil className="h-4 w-4 mr-2" />
+                    Edit Vehicle
+                  </DropdownMenuItem>
+                )}
+              </PermissionGuard>
+              {!isRetired && (
+                <>
+                  <DropdownMenuItem onClick={() => onEditPrice(vehicle)}>
+                    <DollarSign className="h-4 w-4 mr-2" />
+                    Edit Pricing
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onCreateTask(vehicle)}>
+                    <ClipboardCheck className="h-4 w-4 mr-2" />
+                    Create Task
+                  </DropdownMenuItem>
+                </>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => onViewDetails(vehicle)}>
+                View Details
+              </DropdownMenuItem>
+              <PermissionGuard role="admin">
+                {onDelete && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => onDelete(vehicle)}
+                      className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete Vehicle
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </PermissionGuard>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        {/* Chevron on hover */}
+        <ChevronRight className="h-4 w-4 text-muted-foreground/60 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity -ml-1" />
       </motion.div>
     );
   }

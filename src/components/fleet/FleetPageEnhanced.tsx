@@ -470,12 +470,11 @@ export const FleetPageEnhanced = () => {
             />
           ) : (
             <div className={cn(
-              'grid gap-4',
-              isOpsMode 
-                ? 'grid-cols-1' 
+              isOpsMode
+                ? 'grid grid-cols-1 gap-4'
                 : viewMode === 'grid'
-                  ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3'
-                  : 'grid-cols-1'
+                  ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4'
+                  : 'flex flex-col divide-y border rounded-lg overflow-hidden bg-card'
             )}>
               <AnimatePresence mode="popLayout">
                 {filteredVehicles.map((vehicle) => (
@@ -493,6 +492,7 @@ export const FleetPageEnhanced = () => {
                     onStatusChange={handleStatusChange}
                     onDelete={handleDeleteVehicle}
                     isOpsMode={isOpsMode}
+                    viewMode={viewMode}
                     isSelected={selectedVehicleIds.has(vehicle.id)}
                     onSelectChange={!isOpsMode ? handleSelectVehicle : undefined}
                   />

@@ -1,55 +1,65 @@
+# Fleet — Better Row Layout
+
+## Problem
+Right now switching to the list view just stacks the redesigned grid cards full-width (tall image + info below). It feels like one giant card per vehicle instead of a scannable row. Customers want the row view back, but cleaner.
 
 ## Goal
-Clean up the Fleet grid cards so vehicle names are readable, the price stands out, and the cards feel premium (Apple/Porsche minimal) instead of cramped. Scoped to `src/components/fleet/FleetVehicleCard.tsx` desktop grid mode only — Ops mode (mobile) and list view stay untouched.
+A dense, scannable horizontal row — closer to an Airtable / Linear / Apple Finder list item. One vehicle per line, all key info readable at a glance, no wasted vertical space, consistent with the new grid card's visual language.
 
-## Problems in current cards
-1. Horizontal layout forces the name into a narrow column → truncates to `H...`, `Ic...`, `Ol...`
-2. Three stacked badges (Available + Clean & Ready + 3/11) feel heavy
-3. "38 minutes ago" timestamp is noise for a fleet overview
-4. Status dot on thumbnail + duplicate status badge = redundant
-5. Price competes with the truncated name in the same row
-
-## New card structure (grid / non-ops mode)
+## Proposed Row Layout
 
 ```text
-┌──────────────────────────────┐
-│                              │
-│      [ vehicle photo ]       │  ← full-width, 16:10, rounded
-│  [Available]      [⋯ menu]   │  ← status pill overlay TL, menu overlay TR
-│                              │
-├──────────────────────────────┤
-│ Huracán EVO          $1,200  │  ← name (truncate) + price right
-│ 2024 Lamborghini      /day   │  ← muted subtitle
-│                              │
-│ Clean & Ready  ·  📷 3/11    │  ← single muted meta row
-└──────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────────────────────┐
+│ ☐  [img]  Vehicle Name              Available · Clean & Ready   $1,200/day   ⋯              │
+│           2024 Porsche 911 GT3      📷 9/11 · Next: in 2 days   3h $300 6h $600              │
+└──────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Specific changes
-- **Layout flip**: replace the `flex gap-4` row with a vertical card. Thumbnail becomes a full-width 16:10 image at the top with rounded top corners.
-- **Status badge moves onto the image** (top-left overlay, frosted/subtle bg). Removes the duplicate status-dot + status-badge stacking.
-- **Three-dot menu moves to top-right overlay** on the image (matches Porsche/Apple gallery patterns).
-- **Name + price share one row below the image**: name left (full width to truncate, room for ~25 chars now), price right-aligned with `/day` smaller and muted. Year/make/model on the line below in muted text.
-- **Single meta row** combines `Clean & Ready` ops state and `📷 3/11` photo count separated by a middot. Drop the standalone "Available" badge here (already shown on image overlay).
-- **Remove the "38 minutes ago" line** entirely from the grid card. Keep `last_ops_update` in the data; surface it only inside the vehicle detail dialog.
-- **Remove the redundant status dot** on the thumbnail corner (status pill on the image covers it).
-- **Active booking / next booking line**: keep but move into the meta row only when present (e.g. `· Next: in 2 days`). Hide when empty so cards don't reserve empty height.
-- **Selection checkbox**: when in bulk-select mode, overlay it on the image top-left instead of pushing the layout sideways.
-- **Hover**: subtle image zoom (`scale-[1.03]`) inside the rounded frame, card lifts with existing shadow utility. Keep current `motion.div` entrance.
+### Column structure (left → right)
+1. **Checkbox** (only when bulk-select active) — fixed 32px
+2. **Thumbnail** — 80×56 (16:10), rounded-md, click → details
+3. **Name + sub** — flex-1, min-w-0
+   - Line 1: `name` (semibold, truncate) + small status pill inline
+   - Line 2: `year make model` muted, smaller
+4. **Meta column** — hidden on `<lg`, shown on `lg+`
+   - Ops status with icon (color-coded)
+   - Photo count `📷 9/11` (color-coded as in grid)
+   - Active booking customer OR next booking countdown
+   - License plate
+   - All separated by middots, single line, truncate
+5. **Price column** — right-aligned, fixed width
+   - `$1,200/day` (bold)
+   - `3h $300 · 6h $600` muted below (if present)
+   - Rari sparkle button inline if suggestion exists
+6. **Actions** — three-dot dropdown (same items as grid)
+7. **Chevron** — subtle right chevron on hover, opens details
 
-### What stays the same
-- All data props, callbacks, permissions, dropdown items
-- Ops-mode (mobile, `isOpsMode=true`) layout — untouched
-- List view rendering (different component path)
-- Retired-vehicle grayscale + opacity treatment
-- Rari pricing-suggestion sparkle button (relocated next to price)
-- Rate-tier 3h/6h indicators (shown under price, smaller)
+### Behaviors
+- Entire row clickable → opens details (except checkbox / dropdown / sparkle zones — stopPropagation)
+- Hover: `bg-muted/40`, chevron fades in, no scale/lift (rows shouldn't bounce)
+- Selected: `bg-primary/5 border-l-2 border-l-primary`
+- Retired: `opacity-50 grayscale`, no hover affordance
+- Task badge: small red pill next to name (`3 tasks`)
+- Status pill uses the same `statusDisplay` styling as grid (Available / Booked / Maintenance / With Renter / Retired)
+- Height: ~72px per row, comfortable but dense
 
-## Files touched
-- `src/components/fleet/FleetVehicleCard.tsx` — restructure the non-ops JSX branch only
+### Responsive
+- `<md` (mobile): meta column hides, price stacks under name. But mobile already uses ops mode card, so this mostly matters for tablets.
+- `md`–`lg`: meta column shows abbreviated (drop license plate)
+- `lg+`: full meta column
+
+### Container
+- Change list-mode wrapper from `grid grid-cols-1 gap-4` to a `divide-y border rounded-lg overflow-hidden bg-card` list. No gaps between rows, single bordered container — feels like a proper table/list, not a stack of cards.
+
+## Files to touch
+- `src/components/fleet/FleetVehicleCard.tsx` — add a third render branch: when a new `viewMode === 'list'` prop is passed (and not ops mode), render the row layout instead of the grid card. Keep all data props, callbacks, permissions identical.
+- `src/components/fleet/FleetPageEnhanced.tsx`:
+  - Pass `viewMode={viewMode}` to `FleetVehicleCard`
+  - Swap list-mode container classes to `divide-y border rounded-lg overflow-hidden bg-card` (no `gap-4` in list mode)
 
 ## Out of scope
-- Maintenance tab cards
-- Photos tab cards
-- List/table view
-- Any data model or backend changes
+- Grid card (already redesigned)
+- Ops mode mobile card
+- Maintenance/Photos tabs
+- Sorting/column headers (could be a follow-up if customers want sortable columns)
+- Data model, RLS, backend
