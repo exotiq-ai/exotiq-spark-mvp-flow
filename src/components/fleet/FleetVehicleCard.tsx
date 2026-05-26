@@ -333,48 +333,20 @@ export const FleetVehicleCard = ({
           </p>
         </div>
 
-        {/* Meta column (lg+) */}
-        {!isRetired && (
-          <div className="hidden lg:flex items-center gap-2 text-xs text-muted-foreground flex-shrink-0 max-w-[320px]">
-            {opsLabelRow && (
-              <span className="inline-flex items-center gap-1">
-                <StatusIcon className={cn('h-3 w-3', statusConfig.color)} />
-                <span className={statusConfig.color}>{opsLabelRow}</span>
+        {/* Meta column (lg+) — only booking context */}
+        {!isRetired && (activeBooking || nextBooking) && (
+          <div className="hidden lg:flex items-center gap-2 text-xs text-muted-foreground flex-shrink-0 max-w-[240px]">
+            {activeBooking ? (
+              <span className="inline-flex items-center gap-1 truncate">
+                <Car className="h-3 w-3" />
+                <span className="truncate">{activeBooking.customer_name}</span>
               </span>
-            )}
-            {photoCount !== undefined && (
-              <>
-                {opsLabelRow && <span className="text-muted-foreground/40">·</span>}
-                <span className={cn('inline-flex items-center gap-1', photoColor)}>
-                  <Camera className="h-3 w-3" />
-                  {photoCount}/11
-                </span>
-              </>
-            )}
-            {activeBooking && (
-              <>
-                <span className="text-muted-foreground/40">·</span>
-                <span className="inline-flex items-center gap-1 truncate max-w-[120px]">
-                  <Car className="h-3 w-3" />
-                  {activeBooking.customer_name}
-                </span>
-              </>
-            )}
-            {nextBooking && !activeBooking && (
-              <>
-                <span className="text-muted-foreground/40">·</span>
-                <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                  <Calendar className="h-3 w-3" />
-                  Next {nextBookingText}
-                </span>
-              </>
-            )}
-            {vehicle.license_plate && (
-              <>
-                <span className="text-muted-foreground/40">·</span>
-                <span className="whitespace-nowrap">{vehicle.license_plate}</span>
-              </>
-            )}
+            ) : nextBooking ? (
+              <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                <Calendar className="h-3 w-3" />
+                Next {nextBookingText}
+              </span>
+            ) : null}
           </div>
         )}
 
