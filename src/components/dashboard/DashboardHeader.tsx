@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ExotiqLogoBranded } from "@/components/common/ExotiqLogo";
+import { ExotiqLogo, ExotiqLogoBranded } from "@/components/common/ExotiqLogo";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { LogOut, MessageSquare } from "lucide-react";
@@ -50,17 +50,20 @@ export const DashboardHeader = ({ onOpenChat, onOpenRari }: DashboardHeaderProps
     <>
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-14 sm:h-16 items-center justify-between gap-2 sm:gap-4 px-3 sm:px-4">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-0.5 sm:gap-2 min-w-0">
-          <ExotiqLogoBranded variant="gulf-blue" size="sm" className="sm:hidden" />
-          <ExotiqLogoBranded variant="gulf-blue" size="md" className="hidden sm:flex" />
-          {currentTeam?.logo_url && (
+        <div className="flex flex-row items-center gap-2 sm:gap-3 min-w-0">
+          {currentTeam?.logo_url ? (
             <>
-              <Separator orientation="vertical" className="h-6 mx-1 sm:mx-2 hidden sm:block" />
+              <ExotiqLogo variant="auto" size="sm" />
               <img
                 src={currentTeam.logo_url}
                 alt={currentTeam.name || "Company logo"}
-                className="h-7 sm:h-8 w-auto object-contain max-w-[100px] sm:max-w-[120px]"
+                className="h-7 sm:h-8 w-auto object-contain max-w-[120px] sm:max-w-[160px]"
               />
+            </>
+          ) : (
+            <>
+              <ExotiqLogoBranded variant="gulf-blue" size="sm" className="sm:hidden" />
+              <ExotiqLogoBranded variant="gulf-blue" size="md" className="hidden sm:flex" />
             </>
           )}
           <LocationSwitcher onAddLocation={() => setAddLocationOpen(true)} />
