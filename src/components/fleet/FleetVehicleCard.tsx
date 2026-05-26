@@ -84,6 +84,7 @@ interface FleetVehicleCardProps {
   onEdit?: (vehicle: Vehicle) => void;
   onDelete?: (vehicle: Vehicle) => void;
   isOpsMode?: boolean;
+  viewMode?: 'grid' | 'list';
   isSelected?: boolean;
   onSelectChange?: (vehicleId: string, selected: boolean) => void;
   className?: string;
