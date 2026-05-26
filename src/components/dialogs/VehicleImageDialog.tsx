@@ -250,7 +250,7 @@ export function VehicleImageDialog({
               </TabsList>
             </div>
 
-            <ScrollArea className="flex-1 min-h-0">
+            <ScrollArea className="flex-1 min-h-0 h-full overflow-y-auto">
               {/* Details Tab */}
               <TabsContent value="details" className="px-6 pb-6 pt-4 space-y-4 mt-0">
                 {/* Vehicle Info Grid */}
