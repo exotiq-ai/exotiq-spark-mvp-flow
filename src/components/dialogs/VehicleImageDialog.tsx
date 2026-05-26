@@ -495,7 +495,7 @@ export function VehicleImageDialog({
                   onUploadClick={() => setShowUploadModal(true)}
                 />
               </TabsContent>
-            </ScrollArea>
+            </div>
           </Tabs>
         ) : (
           /* Fallback for no vehicleId */
