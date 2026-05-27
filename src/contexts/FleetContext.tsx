@@ -48,6 +48,11 @@ interface FleetContextType {
   createVehicle: (vehicle: Omit<Database['public']['Tables']['vehicles']['Insert'], 'user_id'>) => Promise<{ id: string; name: string } | undefined>;
   deleteVehicle: (vehicleId: string, options?: { silent?: boolean }) => Promise<boolean>;
   deleteVehicles: (vehicleIds: string[]) => Promise<{ success: number; failed: number }>;
+  archiveVehicle: (vehicleId: string) => Promise<boolean>;
+  restoreVehicleFromArchive: (vehicleId: string) => Promise<boolean>;
+  trashVehicle: (vehicleId: string) => Promise<{ ok: boolean; error?: string }>;
+  restoreVehicleFromTrash: (vehicleId: string) => Promise<boolean>;
+  purgeVehicleNow: (vehicleId: string) => Promise<boolean>;
   createBooking: (booking: Omit<Database['public']['Tables']['bookings']['Insert'], 'user_id'>) => Promise<void>;
   updateBookingStatus: (bookingId: string, status: Booking['status']) => Promise<void>;
   updateBookingVehicle: (bookingId: string, newVehicleId: string) => Promise<void>;
