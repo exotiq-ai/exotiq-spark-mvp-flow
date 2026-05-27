@@ -29,6 +29,7 @@ import {
   ChevronRight,
   Camera,
   Trash2,
+  Archive,
   Sparkles,
   CircleDashed,
 } from 'lucide-react';
