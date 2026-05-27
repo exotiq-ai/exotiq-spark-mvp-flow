@@ -325,11 +325,21 @@ export const SuperAdminDashboard = () => {
               <Users className="h-4 w-4 mr-2" />
               Customers
             </TabsTrigger>
+            <TabsTrigger value="billing">
+              <CreditCard className="h-4 w-4 mr-2" />
+              Billing
+            </TabsTrigger>
             <TabsTrigger value="audit">
               <Database className="h-4 w-4 mr-2" />
               Audit Log
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="billing" className="space-y-4">
+            <SuperAdminBillingTab />
+          </TabsContent>
+
+
 
           {/* Customers Tab */}
           <TabsContent value="customers" className="space-y-4">
