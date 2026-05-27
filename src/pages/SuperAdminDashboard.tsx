@@ -25,7 +25,8 @@ import {
   TrendingUp,
   AlertCircle,
   ArrowLeft,
-  ExternalLink
+  ExternalLink,
+  CreditCard
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
