@@ -83,6 +83,7 @@ interface FleetVehicleCardProps {
   onViewDetails: (vehicle: Vehicle) => void;
   onStatusChange: (vehicle: Vehicle, newStatus: OpsStatus) => void;
   onEdit?: (vehicle: Vehicle) => void;
+  onArchive?: (vehicle: Vehicle) => void;
   onDelete?: (vehicle: Vehicle) => void;
   isOpsMode?: boolean;
   viewMode?: 'grid' | 'list';
