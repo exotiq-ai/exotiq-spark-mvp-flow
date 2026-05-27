@@ -115,6 +115,7 @@ export const FleetVehicleCard = ({
   onViewDetails,
   onStatusChange,
   onEdit,
+  onArchive,
   onDelete,
   isOpsMode = false,
   viewMode = 'grid',
