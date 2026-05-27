@@ -1411,6 +1411,61 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     return { success, failed };
   };
 
+  // ---- Archive / Trash lifecycle (RPC-backed, role enforced server-side) ----
+
+  const archiveVehicle = async (vehicleId: string): Promise<boolean> => {
+    const { error } = await supabase.rpc('archive_vehicle' as any, { p_vehicle_id: vehicleId });
+    if (error) {
+      toast({ title: "Couldn't archive vehicle", description: error.message, variant: 'destructive' });
+      return false;
+    }
+    setVehicles(prev => prev.filter(v => v.id !== vehicleId));
+    toast({ title: 'Archived', description: 'Restore anytime from Settings → Archived.' });
+    return true;
+  };
+
+  const restoreVehicleFromArchive = async (vehicleId: string): Promise<boolean> => {
+    const { error } = await supabase.rpc('restore_vehicle_from_archive' as any, { p_vehicle_id: vehicleId });
+    if (error) {
+      toast({ title: "Couldn't restore vehicle", description: error.message, variant: 'destructive' });
+      return false;
+    }
+    await refreshData();
+    toast({ title: 'Restored', description: 'Vehicle is back in your active fleet.' });
+    return true;
+  };
+
+  const trashVehicle = async (vehicleId: string): Promise<{ ok: boolean; error?: string }> => {
+    const { error } = await supabase.rpc('trash_vehicle' as any, { p_vehicle_id: vehicleId });
+    if (error) {
+      // Don't toast here — caller surfaces the blocking-bookings message in its dialog.
+      return { ok: false, error: error.message };
+    }
+    setVehicles(prev => prev.filter(v => v.id !== vehicleId));
+    return { ok: true };
+  };
+
+  const restoreVehicleFromTrash = async (vehicleId: string): Promise<boolean> => {
+    const { error } = await supabase.rpc('restore_vehicle_from_trash' as any, { p_vehicle_id: vehicleId });
+    if (error) {
+      toast({ title: "Couldn't restore vehicle", description: error.message, variant: 'destructive' });
+      return false;
+    }
+    await refreshData();
+    toast({ title: 'Restored', description: 'Vehicle is back in your active fleet.' });
+    return true;
+  };
+
+  const purgeVehicleNow = async (vehicleId: string): Promise<boolean> => {
+    const { error } = await supabase.rpc('purge_vehicle_now' as any, { p_vehicle_id: vehicleId });
+    if (error) {
+      toast({ title: "Couldn't permanently delete vehicle", description: error.message, variant: 'destructive' });
+      return false;
+    }
+    toast({ title: 'Permanently deleted', description: 'This vehicle has been removed for good.' });
+    return true;
+  };
+
   return (
     <FleetContext.Provider value={{
       vehicles,
