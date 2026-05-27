@@ -12,6 +12,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { SuperAdminBillingTab } from '@/components/super-admin/SuperAdminBillingTab';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import {
