@@ -459,6 +459,7 @@ const DashboardInner = () => {
           tabIndex={-1}
         >
           <div className="max-w-7xl mx-auto mobile-spacing">
+            <PaymentDueBanner />
             <LocationContextBanner className="mb-4" />
             {renderModuleContent()}
           </div>
