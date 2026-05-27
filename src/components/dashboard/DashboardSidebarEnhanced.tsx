@@ -260,18 +260,14 @@ export const DashboardSidebarEnhanced = ({
             )}
           </div>
         ) : (
-          <div className="flex flex-col items-center gap-1.5">
-            {currentTeam?.logo_url ? (
-              <>
-                <img
-                  src={currentTeam.logo_url}
-                  alt={currentTeam.name || "Company"}
-                  className="h-10 w-auto max-w-[180px] object-contain"
-                />
-                <Logo size="sm" iconOnly className="opacity-60 [&_img]:h-4 [&_img]:w-4" />
-              </>
-            ) : (
-              <Logo size="lg" className="h-10" />
+          <div className="flex flex-col items-center gap-2">
+            <Logo size="lg" className="h-10" />
+            {currentTeam?.logo_url && (
+              <img
+                src={currentTeam.logo_url}
+                alt={currentTeam.name || "Company"}
+                className="h-7 w-auto max-w-[140px] object-contain opacity-90"
+              />
             )}
           </div>
         )}
