@@ -12,6 +12,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { SuperAdminBillingTab } from '@/components/super-admin/SuperAdminBillingTab';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -24,7 +25,8 @@ import {
   TrendingUp,
   AlertCircle,
   ArrowLeft,
-  ExternalLink
+  ExternalLink,
+  CreditCard
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -323,11 +325,21 @@ export const SuperAdminDashboard = () => {
               <Users className="h-4 w-4 mr-2" />
               Customers
             </TabsTrigger>
+            <TabsTrigger value="billing">
+              <CreditCard className="h-4 w-4 mr-2" />
+              Billing
+            </TabsTrigger>
             <TabsTrigger value="audit">
               <Database className="h-4 w-4 mr-2" />
               Audit Log
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="billing" className="space-y-4">
+            <SuperAdminBillingTab />
+          </TabsContent>
+
+
 
           {/* Customers Tab */}
           <TabsContent value="customers" className="space-y-4">

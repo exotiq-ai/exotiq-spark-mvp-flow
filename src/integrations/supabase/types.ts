@@ -104,6 +104,47 @@ export type Database = {
           },
         ]
       }
+      billing_dunning_events: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          from_stage: string | null
+          id: string
+          note: string | null
+          team_id: string
+          to_stage: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          from_stage?: string | null
+          id?: string
+          note?: string | null
+          team_id: string
+          to_stage?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          from_stage?: string | null
+          id?: string
+          note?: string | null
+          team_id?: string
+          to_stage?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_dunning_events_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bookings: {
         Row: {
           balance_due: number | null
@@ -2585,6 +2626,14 @@ export type Database = {
       }
       teams: {
         Row: {
+          assumed_plan_fleet_size: number | null
+          assumed_plan_is_annual: boolean | null
+          assumed_plan_tier: string | null
+          billing_dunning_message: string | null
+          billing_dunning_notes: string | null
+          billing_dunning_set_at: string | null
+          billing_dunning_set_by: string | null
+          billing_dunning_stage: string | null
           created_at: string | null
           deleted_at: string | null
           deleted_by: string | null
@@ -2608,6 +2657,14 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          assumed_plan_fleet_size?: number | null
+          assumed_plan_is_annual?: boolean | null
+          assumed_plan_tier?: string | null
+          billing_dunning_message?: string | null
+          billing_dunning_notes?: string | null
+          billing_dunning_set_at?: string | null
+          billing_dunning_set_by?: string | null
+          billing_dunning_stage?: string | null
           created_at?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
@@ -2631,6 +2688,14 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          assumed_plan_fleet_size?: number | null
+          assumed_plan_is_annual?: boolean | null
+          assumed_plan_tier?: string | null
+          billing_dunning_message?: string | null
+          billing_dunning_notes?: string | null
+          billing_dunning_set_at?: string | null
+          billing_dunning_set_by?: string | null
+          billing_dunning_stage?: string | null
           created_at?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
@@ -4036,10 +4101,18 @@ export type Database = {
     }
     Functions: {
       archive_vehicle: { Args: { p_vehicle_id: string }; Returns: undefined }
+      auto_clear_billing_dunning_for_email: {
+        Args: { p_email: string }
+        Returns: undefined
+      }
       auto_purge_expired_vehicles: { Args: never; Returns: number }
       can_access_location: {
         Args: { _location_id: string; _user_id: string }
         Returns: boolean
+      }
+      clear_billing_dunning: {
+        Args: { p_note?: string; p_team_id: string }
+        Returns: undefined
       }
       compute_rental_base: {
         Args: {
@@ -4188,6 +4261,18 @@ export type Database = {
       }
       restore_vehicle_from_trash: {
         Args: { p_vehicle_id: string }
+        Returns: undefined
+      }
+      set_billing_dunning_stage: {
+        Args: {
+          p_assumed_plan_fleet_size?: number
+          p_assumed_plan_is_annual?: boolean
+          p_assumed_plan_tier?: string
+          p_message?: string
+          p_notes?: string
+          p_stage: string
+          p_team_id: string
+        }
         Returns: undefined
       }
       snapshot_vehicle_billing: { Args: never; Returns: undefined }

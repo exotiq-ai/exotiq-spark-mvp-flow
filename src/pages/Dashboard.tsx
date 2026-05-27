@@ -16,6 +16,7 @@ import {
 import { UnifiedNotificationCenter } from "@/components/common/UnifiedNotificationCenter";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { LocationContextBanner } from "@/components/common/LocationBadge";
+import { PaymentDueBanner } from "@/components/dashboard/PaymentDueBanner";
 import { InteractiveModuleTour } from "@/components/onboarding/InteractiveModuleTour";
 import { AutomatedDemoTour } from "@/components/onboarding/AutomatedDemoTour";
 import { PostTourChoiceModal } from "@/components/onboarding/PostTourChoiceModal";
@@ -458,6 +459,7 @@ const DashboardInner = () => {
           tabIndex={-1}
         >
           <div className="max-w-7xl mx-auto mobile-spacing">
+            <PaymentDueBanner />
             <LocationContextBanner className="mb-4" />
             {renderModuleContent()}
           </div>
