@@ -2096,6 +2096,33 @@ export type Database = {
         }
         Relationships: []
       }
+      purged_vehicle_fingerprints: {
+        Row: {
+          created_at: string
+          id: string
+          prior_peak: number
+          purged_at: string
+          team_id: string
+          vin: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          prior_peak?: number
+          purged_at?: string
+          team_id: string
+          vin: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          prior_peak?: number
+          purged_at?: string
+          team_id?: string
+          vin?: string
+        }
+        Relationships: []
+      }
       rari_conversations: {
         Row: {
           context_summary: string | null
@@ -2954,6 +2981,36 @@ export type Database = {
           },
         ]
       }
+      vehicle_billing_snapshots: {
+        Row: {
+          active_count: number
+          created_at: string
+          id: string
+          snapshot_date: string
+          team_id: string
+          total_billable: number
+          trashed_count: number
+        }
+        Insert: {
+          active_count?: number
+          created_at?: string
+          id?: string
+          snapshot_date: string
+          team_id: string
+          total_billable?: number
+          trashed_count?: number
+        }
+        Update: {
+          active_count?: number
+          created_at?: string
+          id?: string
+          snapshot_date?: string
+          team_id?: string
+          total_billable?: number
+          trashed_count?: number
+        }
+        Relationships: []
+      }
       vehicle_change_log: {
         Row: {
           change_source: string | null
@@ -3509,12 +3566,14 @@ export type Database = {
       }
       vehicles: {
         Row: {
+          archived_at: string | null
           color: string | null
           created_at: string | null
           current_rate: number
           default_mileage_limit: number | null
           id: string
           image_url: string | null
+          last_known_name: string | null
           last_ops_update: string | null
           license_plate: string | null
           location: string | null
@@ -3527,6 +3586,7 @@ export type Database = {
           ops_status: string | null
           ownership_type: string
           partner_id: string | null
+          purge_at: string | null
           rate_3hr: number | null
           rate_6hr: number | null
           rate_multiday: number | null
@@ -3536,6 +3596,7 @@ export type Database = {
           status: string | null
           suggested_rate: number | null
           team_id: string | null
+          trashed_at: string | null
           updated_at: string | null
           user_id: string
           utilization: number | null
@@ -3543,12 +3604,14 @@ export type Database = {
           year: number | null
         }
         Insert: {
+          archived_at?: string | null
           color?: string | null
           created_at?: string | null
           current_rate?: number
           default_mileage_limit?: number | null
           id?: string
           image_url?: string | null
+          last_known_name?: string | null
           last_ops_update?: string | null
           license_plate?: string | null
           location?: string | null
@@ -3561,6 +3624,7 @@ export type Database = {
           ops_status?: string | null
           ownership_type?: string
           partner_id?: string | null
+          purge_at?: string | null
           rate_3hr?: number | null
           rate_6hr?: number | null
           rate_multiday?: number | null
@@ -3570,6 +3634,7 @@ export type Database = {
           status?: string | null
           suggested_rate?: number | null
           team_id?: string | null
+          trashed_at?: string | null
           updated_at?: string | null
           user_id: string
           utilization?: number | null
@@ -3577,12 +3642,14 @@ export type Database = {
           year?: number | null
         }
         Update: {
+          archived_at?: string | null
           color?: string | null
           created_at?: string | null
           current_rate?: number
           default_mileage_limit?: number | null
           id?: string
           image_url?: string | null
+          last_known_name?: string | null
           last_ops_update?: string | null
           license_plate?: string | null
           location?: string | null
@@ -3595,6 +3662,7 @@ export type Database = {
           ops_status?: string | null
           ownership_type?: string
           partner_id?: string | null
+          purge_at?: string | null
           rate_3hr?: number | null
           rate_6hr?: number | null
           rate_multiday?: number | null
@@ -3604,6 +3672,7 @@ export type Database = {
           status?: string | null
           suggested_rate?: number | null
           team_id?: string | null
+          trashed_at?: string | null
           updated_at?: string | null
           user_id?: string
           utilization?: number | null
@@ -3966,6 +4035,8 @@ export type Database = {
       }
     }
     Functions: {
+      archive_vehicle: { Args: { p_vehicle_id: string }; Returns: undefined }
+      auto_purge_expired_vehicles: { Args: never; Returns: number }
       can_access_location: {
         Args: { _location_id: string; _user_id: string }
         Returns: boolean
@@ -4099,6 +4170,7 @@ export type Database = {
         }[]
       }
       purge_old_notifications: { Args: never; Returns: undefined }
+      purge_vehicle_now: { Args: { p_vehicle_id: string }; Returns: undefined }
       reactivate_team_member:
         | {
             Args: {
@@ -4110,6 +4182,16 @@ export type Database = {
             Returns: boolean
           }
         | { Args: { target_user_id: string }; Returns: undefined }
+      restore_vehicle_from_archive: {
+        Args: { p_vehicle_id: string }
+        Returns: undefined
+      }
+      restore_vehicle_from_trash: {
+        Args: { p_vehicle_id: string }
+        Returns: undefined
+      }
+      snapshot_vehicle_billing: { Args: never; Returns: undefined }
+      trash_vehicle: { Args: { p_vehicle_id: string }; Returns: undefined }
       update_document_status: { Args: never; Returns: undefined }
     }
     Enums: {
