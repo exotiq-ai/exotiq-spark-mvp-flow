@@ -278,34 +278,34 @@ export const FleetPageEnhanced = () => {
     }
   };
 
-  // Undo-toast delete handler
-  const handleDeleteVehicle = useCallback((vehicle: any) => {
-    // Show undo toast via sonner
-    sonnerToast.success(`${vehicle.name} deleted`, {
-      duration: 5000,
-      action: {
-        label: "Undo",
-        onClick: () => {
-          // Cancel the pending delete
-          if (deleteTimeoutRef.current) {
-            clearTimeout(deleteTimeoutRef.current);
-            deleteTimeoutRef.current = null;
-          }
-          // Restore by refreshing data
-          refreshData();
-          sonnerToast.success("Delete undone");
-          deletedVehicleRef.current = null;
-        },
-      },
-    });
+  // Archive (Manager+): hides from active fleet, reversible from Settings → Archived
+  const handleArchiveVehicle = useCallback(async (vehicle: any) => {
+    const ok = window.confirm(
+      `Archive ${vehicle.name}?\n\nThis hides it from your Fleet, calendar, and booking pickers. All history stays intact. You can restore it anytime from Settings → Archived. Archived vehicles aren't billed.`
+    );
+    if (!ok) return;
+    await archiveVehicle(vehicle.id);
+  }, [archiveVehicle]);
 
-    // Schedule actual deletion after 5 seconds
-    deleteTimeoutRef.current = setTimeout(async () => {
-      await deleteVehicle(vehicle.id, { silent: true });
-      deletedVehicleRef.current = null;
-      deleteTimeoutRef.current = null;
-    }, 5000);
-  }, [deleteVehicle, refreshData]);
+  // Delete (Owner only): sends to Trash for 30 days, then permanently removed
+  const handleDeleteVehicle = useCallback(async (vehicle: any) => {
+    const confirmName = window.prompt(
+      `Delete ${vehicle.name}?\n\nThis vehicle will move to Trash for 30 days, then be permanently removed. You can restore it anytime before then from Settings → Trash.\n\nHistorical records (bookings, inspections, customer history) keep the vehicle name — but the vehicle itself will be gone.\n\nHeads up: vehicles in Trash still count toward your subscription until they're permanently removed.\n\nType the vehicle name to confirm:`
+    );
+    if (confirmName === null) return;
+    if (confirmName.trim() !== vehicle.name.trim()) {
+      sonnerToast.error('Name did not match. Vehicle was not deleted.');
+      return;
+    }
+    const result = await trashVehicle(vehicle.id);
+    if (!result.ok) {
+      sonnerToast.error(result.error || "Couldn't delete vehicle");
+      return;
+    }
+    const purgeDate = new Date();
+    purgeDate.setDate(purgeDate.getDate() + 30);
+    sonnerToast.success(`Moved to Trash. Auto-removes ${purgeDate.toLocaleDateString()}.`);
+  }, [trashVehicle]);
 
   const handleBatchDelete = async () => {
     if (selectedVehicleIds.size === 0) return;
