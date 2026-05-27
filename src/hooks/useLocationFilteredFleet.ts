@@ -15,13 +15,14 @@ export const useLocationFilteredFleet = () => {
   const { selectedLocationId, currentLocation, locations } = useTeam();
   const { tourActive, demoSnapshot } = useTourData();
 
-  // Filter vehicles by selected location (or use demo data when tour active)
+  // Filter vehicles by selected location, and exclude Archived / Trashed from active views
   const filteredVehicles = useMemo(() => {
     if (tourActive && demoSnapshot) return demoSnapshot.vehicles;
+    const active = (fleet.vehicles as any[]).filter(v => !v.archived_at && !v.trashed_at);
     if (selectedLocationId === 'all') {
-      return fleet.vehicles;
+      return active;
     }
-    return fleet.vehicles.filter(v => v.location_id === selectedLocationId);
+    return active.filter(v => v.location_id === selectedLocationId);
   }, [fleet.vehicles, selectedLocationId, tourActive, demoSnapshot]);
 
   // Filter bookings by pickup location (or use demo data)
