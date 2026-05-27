@@ -29,6 +29,7 @@ import {
   ChevronRight,
   Camera,
   Trash2,
+  Archive,
   Sparkles,
   CircleDashed,
 } from 'lucide-react';
@@ -82,6 +83,7 @@ interface FleetVehicleCardProps {
   onViewDetails: (vehicle: Vehicle) => void;
   onStatusChange: (vehicle: Vehicle, newStatus: OpsStatus) => void;
   onEdit?: (vehicle: Vehicle) => void;
+  onArchive?: (vehicle: Vehicle) => void;
   onDelete?: (vehicle: Vehicle) => void;
   isOpsMode?: boolean;
   viewMode?: 'grid' | 'list';
@@ -113,6 +115,7 @@ export const FleetVehicleCard = ({
   onViewDetails,
   onStatusChange,
   onEdit,
+  onArchive,
   onDelete,
   isOpsMode = false,
   viewMode = 'grid',
@@ -427,18 +430,26 @@ export const FleetVehicleCard = ({
               <DropdownMenuItem onClick={() => onViewDetails(vehicle)}>
                 View Details
               </DropdownMenuItem>
-              <PermissionGuard role="admin">
-                {onDelete && (
+              <PermissionGuard minRole="manager">
+                {onArchive && (
                   <>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => onDelete(vehicle)}
-                      className="text-destructive focus:text-destructive focus:bg-destructive/10"
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Delete Vehicle
+                    <DropdownMenuItem onClick={() => onArchive(vehicle)}>
+                      <Archive className="h-4 w-4 mr-2" />
+                      Archive vehicle
                     </DropdownMenuItem>
                   </>
+                )}
+              </PermissionGuard>
+              <PermissionGuard role="owner">
+                {onDelete && (
+                  <DropdownMenuItem
+                    onClick={() => onDelete(vehicle)}
+                    className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete vehicle…
+                  </DropdownMenuItem>
                 )}
               </PermissionGuard>
             </DropdownMenuContent>
@@ -557,18 +568,26 @@ export const FleetVehicleCard = ({
                 <DropdownMenuItem onClick={() => onViewDetails(vehicle)}>
                   View Details
                 </DropdownMenuItem>
-                <PermissionGuard role="admin">
-                  {onDelete && (
+                <PermissionGuard minRole="manager">
+                  {onArchive && (
                     <>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onClick={() => onDelete(vehicle)}
-                        className="text-destructive focus:text-destructive focus:bg-destructive/10"
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete Vehicle
+                      <DropdownMenuItem onClick={() => onArchive(vehicle)}>
+                        <Archive className="h-4 w-4 mr-2" />
+                        Archive vehicle
                       </DropdownMenuItem>
                     </>
+                  )}
+                </PermissionGuard>
+                <PermissionGuard role="owner">
+                  {onDelete && (
+                    <DropdownMenuItem
+                      onClick={() => onDelete(vehicle)}
+                      className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete vehicle…
+                    </DropdownMenuItem>
                   )}
                 </PermissionGuard>
               </DropdownMenuContent>
