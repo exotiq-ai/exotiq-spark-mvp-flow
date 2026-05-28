@@ -8,11 +8,17 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Download, Check, ChevronRight, ChevronDown } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Download, Check, ChevronRight, ChevronDown, MoreHorizontal, Ban, RotateCcw } from "lucide-react";
 import { toCsv, downloadCsv, formatCurrency } from "@/lib/marginCsv";
+import { allowedActions, type PayoutAction } from "@/lib/payoutTransitions";
+import { useUserRole } from "@/hooks/useUserRole";
 import { toast } from "sonner";
+
+const PAYOUT_METHODS = ["ACH", "Check", "Wire", "Stripe", "Cash", "Other"];
 
 interface Payout {
   id: string;
@@ -31,6 +37,8 @@ interface Payout {
   created_at: string;
   payout_reference: string | null;
   payout_method: string | null;
+  void_reason: string | null;
+  voided_at: string | null;
 }
 
 const STATUS_STYLES: Record<string, string> = {
@@ -45,6 +53,7 @@ const startOfYear = () => { const d = new Date(); d.setMonth(0,1); d.setHours(0,
 
 export function PartnerPayoutsTab() {
   const { currentTeam } = useTeam();
+  const { isOwnerOrAdmin } = useUserRole();
   const [rows, setRows] = useState<Payout[]>([]);
   const [partners, setPartners] = useState<Record<string, string>>({});
   const [vehicles, setVehicles] = useState<Record<string, string>>({});
@@ -57,6 +66,11 @@ export function PartnerPayoutsTab() {
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkDate, setBulkDate] = useState<string>(new Date().toISOString().slice(0, 10));
   const [bulkRef, setBulkRef] = useState("");
+  const [bulkMethod, setBulkMethod] = useState<string>("ACH");
+  const [voidOpen, setVoidOpen] = useState(false);
+  const [voidTarget, setVoidTarget] = useState<Payout | null>(null);
+  const [voidReason, setVoidReason] = useState("");
+  const [busy, setBusy] = useState(false);
 
   const refresh = async () => {
     if (!currentTeam?.id) return;
@@ -133,18 +147,77 @@ export function PartnerPayoutsTab() {
     setExpanded(next);
   };
 
-  const markPaid = async (ids: string[], paidAt: string, reference: string) => {
-    const { error } = await supabase
-      .from("partner_payouts")
-      .update({ status: "paid", paid_at: new Date(paidAt).toISOString(), payout_reference: reference || null })
-      .in("id", ids);
-    if (error) return toast.error(error.message);
-    toast.success(`${ids.length} payout${ids.length === 1 ? "" : "s"} marked paid`);
-    setSelected(new Set());
-    setBulkOpen(false);
-    setBulkRef("");
-    refresh();
+  const transition = async (
+    payoutId: string,
+    action: PayoutAction,
+    extra: { paidAt?: string; reference?: string; method?: string; reason?: string } = {}
+  ) => {
+    const { error } = await supabase.rpc("fn_transition_payout", {
+      p_payout_id: payoutId,
+      p_action: action,
+      p_paid_at: extra.paidAt ? new Date(extra.paidAt).toISOString() : null,
+      p_reference: extra.reference || null,
+      p_method: extra.method || null,
+      p_reason: extra.reason || null,
+    });
+    if (error) throw error;
   };
+
+  const markPaid = async (ids: string[], paidAt: string, reference: string, method: string) => {
+    setBusy(true);
+    try {
+      for (const id of ids) {
+        await transition(id, "mark_paid", { paidAt, reference, method });
+      }
+      toast.success(`${ids.length} payout${ids.length === 1 ? "" : "s"} marked paid`);
+      setSelected(new Set());
+      setBulkOpen(false);
+      setBulkRef("");
+      refresh();
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to mark paid");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const confirmVoid = async () => {
+    if (!voidTarget) return;
+    setBusy(true);
+    try {
+      await transition(voidTarget.id, "void", { reason: voidReason });
+      toast.success("Payout voided");
+      setVoidOpen(false);
+      setVoidTarget(null);
+      setVoidReason("");
+      refresh();
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to void");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const reopen = async (payout: Payout) => {
+    if (!confirm(`Re-open this voided payout? It returns to pending and clears void details.`)) return;
+    setBusy(true);
+    try {
+      await transition(payout.id, "reopen");
+      toast.success("Payout re-opened");
+      refresh();
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to re-open");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const openVoid = (payout: Payout) => {
+    setVoidTarget(payout);
+    setVoidReason("");
+    setVoidOpen(true);
+  };
+
 
   const handleExport = () => {
     const csv = toCsv(
@@ -244,13 +317,14 @@ export function PartnerPayoutsTab() {
                   <TableHead className="text-right">Net</TableHead>
                   <TableHead className="text-right">To Partner</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="w-8"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
-                  <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">Loading…</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">Loading…</TableCell></TableRow>
                 ) : filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">No partner payouts match the current filters.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">No partner payouts match the current filters.</TableCell></TableRow>
                 ) : (
                   filtered.map((r) => {
                     const isOpen = expanded.has(r.id);
@@ -277,10 +351,20 @@ export function PartnerPayoutsTab() {
                           <TableCell>
                             <Badge variant="outline" className={STATUS_STYLES[r.status] || ""}>{r.status}</Badge>
                           </TableCell>
+                          <TableCell>
+                            <RowActions
+                              payout={r}
+                              isOwnerOrAdmin={isOwnerOrAdmin}
+                              busy={busy}
+                              onMarkPaid={() => { setSelected(new Set([r.id])); setBulkOpen(true); }}
+                              onVoid={() => openVoid(r)}
+                              onReopen={() => reopen(r)}
+                            />
+                          </TableCell>
                         </TableRow>
                         {isOpen && (
                           <TableRow className="bg-muted/30">
-                            <TableCell colSpan={9} className="p-4">
+                            <TableCell colSpan={10} className="p-4">
                               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                                 <Stat label="Gross Base" value={formatCurrency(r.gross_rental_base)} />
                                 <Stat label="Platform Fee" value={formatCurrency(r.platform_fee_amount)} />
@@ -290,6 +374,7 @@ export function PartnerPayoutsTab() {
                                 <Stat label="To Partner" value={formatCurrency(r.net_to_partner)} highlight />
                                 <Stat label="Method" value={r.payout_method || "—"} />
                                 <Stat label="Reference" value={r.payout_reference || "—"} />
+                                {r.status === "voided" && r.void_reason && <Stat label="Void Reason" value={r.void_reason} />}
                                 {bk?.start_date && <Stat label="Booking Window" value={`${bk.start_date.slice(0,10)} → ${bk.end_date?.slice(0,10) || "?"}`} />}
                               </div>
                             </TableCell>
@@ -316,17 +401,91 @@ export function PartnerPayoutsTab() {
               <Input type="date" value={bulkDate} onChange={(e) => setBulkDate(e.target.value)} />
             </div>
             <div className="space-y-2">
+              <Label>Method</Label>
+              <Select value={bulkMethod} onValueChange={setBulkMethod}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {PAYOUT_METHODS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
               <Label>Reference (optional)</Label>
               <Input value={bulkRef} onChange={(e) => setBulkRef(e.target.value)} placeholder="ACH batch #, check #, …" />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setBulkOpen(false)}>Cancel</Button>
-            <Button onClick={() => markPaid(Array.from(selected), bulkDate, bulkRef)}>Confirm</Button>
+            <Button variant="outline" onClick={() => setBulkOpen(false)} disabled={busy}>Cancel</Button>
+            <Button onClick={() => markPaid(Array.from(selected), bulkDate, bulkRef, bulkMethod)} disabled={busy}>Confirm</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={voidOpen} onOpenChange={setVoidOpen}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle>Void payout</DialogTitle>
+            <DialogDescription>
+              This removes the obligation from your margin. A reason is required for the audit trail.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label>Reason</Label>
+            <Textarea
+              value={voidReason}
+              onChange={(e) => setVoidReason(e.target.value)}
+              placeholder="e.g. Booking cancelled, duplicate, settled off-platform…"
+              rows={3}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setVoidOpen(false)} disabled={busy}>Cancel</Button>
+            <Button variant="destructive" onClick={confirmVoid} disabled={busy || !voidReason.trim()}>Void payout</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+function RowActions({
+  payout,
+  isOwnerOrAdmin,
+  busy,
+  onMarkPaid,
+  onVoid,
+  onReopen,
+}: {
+  payout: Payout;
+  isOwnerOrAdmin: boolean;
+  busy: boolean;
+  onMarkPaid: () => void;
+  onVoid: () => void;
+  onReopen: () => void;
+}) {
+  const actions = allowedActions(payout.status).filter((a) => a !== "reopen" || isOwnerOrAdmin);
+  if (actions.length === 0) return null;
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="h-8 w-8" disabled={busy}>
+          <MoreHorizontal className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {actions.includes("mark_paid") && (
+          <DropdownMenuItem onClick={onMarkPaid}><Check className="h-4 w-4 mr-2" /> Mark Paid</DropdownMenuItem>
+        )}
+        {actions.includes("void") && (
+          <DropdownMenuItem onClick={onVoid} className="text-destructive focus:text-destructive">
+            <Ban className="h-4 w-4 mr-2" /> Void
+          </DropdownMenuItem>
+        )}
+        {actions.includes("reopen") && (
+          <DropdownMenuItem onClick={onReopen}><RotateCcw className="h-4 w-4 mr-2" /> Re-open</DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
