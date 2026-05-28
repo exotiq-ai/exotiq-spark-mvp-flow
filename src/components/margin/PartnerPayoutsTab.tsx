@@ -145,18 +145,77 @@ export function PartnerPayoutsTab() {
     setExpanded(next);
   };
 
-  const markPaid = async (ids: string[], paidAt: string, reference: string) => {
-    const { error } = await supabase
-      .from("partner_payouts")
-      .update({ status: "paid", paid_at: new Date(paidAt).toISOString(), payout_reference: reference || null })
-      .in("id", ids);
-    if (error) return toast.error(error.message);
-    toast.success(`${ids.length} payout${ids.length === 1 ? "" : "s"} marked paid`);
-    setSelected(new Set());
-    setBulkOpen(false);
-    setBulkRef("");
-    refresh();
+  const transition = async (
+    payoutId: string,
+    action: PayoutAction,
+    extra: { paidAt?: string; reference?: string; method?: string; reason?: string } = {}
+  ) => {
+    const { error } = await supabase.rpc("fn_transition_payout", {
+      p_payout_id: payoutId,
+      p_action: action,
+      p_paid_at: extra.paidAt ? new Date(extra.paidAt).toISOString() : null,
+      p_reference: extra.reference || null,
+      p_method: extra.method || null,
+      p_reason: extra.reason || null,
+    });
+    if (error) throw error;
   };
+
+  const markPaid = async (ids: string[], paidAt: string, reference: string, method: string) => {
+    setBusy(true);
+    try {
+      for (const id of ids) {
+        await transition(id, "mark_paid", { paidAt, reference, method });
+      }
+      toast.success(`${ids.length} payout${ids.length === 1 ? "" : "s"} marked paid`);
+      setSelected(new Set());
+      setBulkOpen(false);
+      setBulkRef("");
+      refresh();
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to mark paid");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const confirmVoid = async () => {
+    if (!voidTarget) return;
+    setBusy(true);
+    try {
+      await transition(voidTarget.id, "void", { reason: voidReason });
+      toast.success("Payout voided");
+      setVoidOpen(false);
+      setVoidTarget(null);
+      setVoidReason("");
+      refresh();
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to void");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const reopen = async (payout: Payout) => {
+    if (!confirm(`Re-open this voided payout? It returns to pending and clears void details.`)) return;
+    setBusy(true);
+    try {
+      await transition(payout.id, "reopen");
+      toast.success("Payout re-opened");
+      refresh();
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to re-open");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const openVoid = (payout: Payout) => {
+    setVoidTarget(payout);
+    setVoidReason("");
+    setVoidOpen(true);
+  };
+
 
   const handleExport = () => {
     const csv = toCsv(
