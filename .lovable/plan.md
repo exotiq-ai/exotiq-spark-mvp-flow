@@ -1,60 +1,17 @@
-## Phase C — Expense Automation (DONE)
+## Goal
 
-Auto-expense triggers now cover all three sources feeding Margin P&L:
-- `trg_log_maintenance_expense` (Pulse) — already existed.
-- `trg_log_damage_expense` (Vault damage claims) — already existed.
-- `trg_log_insurance_expense` (Vault insurance premiums) — NEW. `documents.premium_amount` + `billing_frequency` added; trigger logs/updates/removes an `insurance` `vehicle_expenses` row keyed by `(source_module='vault', source_record_id=document.id)`. Captured via `DocumentUploadDialog` when type=insurance. Idempotent; clearing premium or changing type removes the linked expense.
+Surface the Margin module in the sidebar. It is already coded into the **Intelligence** group directly under **Vault**, gated to **Manager and above** — only the feature flag is hiding it.
 
-## Phase B — Partner CRUD + Vehicle Ownership UI
+## Change
 
-Operator-facing surfaces so partners and ownership splits are managed without SQL. No new tables; uses existing `vehicle_partners`, `partner_payouts`, and `vehicles.owner_partner_id` / `owner_split_percent`. Existing `fn_generate_partner_payout` trigger (fires on booking completion) stays unchanged.
+1. **`src/lib/featureFlags.ts`** — flip `margin: false` → `margin: true`.
 
-### 1. Partners tab (new)
-- Add `partners` tab to `MarginEnhanced.tsx` → route `/dashboard?module=margin&tab=partners`.
-- `PartnersTab.tsx`: table of partners (name, contact, default split %, payout method, active vehicle count, lifetime paid, outstanding pending).
-- `PartnerDialog.tsx`: create/edit (name, email, phone, default_split_percent, payout_method, notes, is_active).
-- Row actions: edit, deactivate, "View payouts" (jumps to Payouts tab pre-filtered to that partner).
-- Manager+ only (RBAC gate consistent with rest of Margin).
+That's the entire change. No edits to the sidebar are needed:
+- Placement is already correct (`DashboardSidebarEnhanced.tsx:204`): Intelligence group, immediately after Vault, `DollarSign` icon.
+- Role gate stays `minRole: 'manager'` (Managers, Admins, Owners). Operators and Viewers won't see it.
+- The module route already resolves (why the direct URL works), so enabling the flag only adds the visible nav entry.
 
-### 2. Vehicle ownership UI
-- `VehicleOwnershipSection.tsx` mounted inside Vehicle Command Center (Financial tab).
-- Fields: `owner_partner_id` (select active partners, default "Owned by tenant"), `owner_split_percent` (0–100, prefilled from partner default).
-- Saves to `vehicles`; future completed bookings auto-generate payouts via existing trigger. Historical payouts untouched.
-- Read-only ownership badge on vehicle cards/list when partner-owned.
+## Verification
 
-### 3. Partner Payouts tab upgrade
-Enhance `PartnerPayoutsTab.tsx`:
-- Summary cards: Pending total, Paid MTD, Paid YTD.
-- Filters: partner, status (pending/paid/void), date range (uses `MarginFiltersContext` where overlap).
-- Bulk select + "Mark as paid" (capture payout_date + reference).
-- Expandable row drill: source booking, gross, fees, split %, computed payout math.
-- CSV export of filtered set.
-
-### 4. Margin overview hook-in
-- Add "Partner Obligations" mini-card on `MarginOverview` (pending payout total) linking to Payouts tab.
-- Verify Operator Net still correctly subtracts pending payouts.
-
-### Files
-
-Created:
-- `src/components/margin/PartnersTab.tsx`
-- `src/components/margin/PartnerDialog.tsx`
-- `src/components/vehicles/VehicleOwnershipSection.tsx`
-- `src/hooks/usePartners.ts` (react-query CRUD)
-
-Edited:
-- `src/components/dashboard/MarginEnhanced.tsx` (Partners tab)
-- `src/components/margin/PartnerPayoutsTab.tsx` (filters, bulk, drill, CSV, summary)
-- `src/components/margin/MarginOverview.tsx` (Partner Obligations card)
-- Vehicle Command Center container (mount ownership section)
-
-### Out of scope (Phase C)
-- Damage/insurance expense automation triggers
-- New `documents` columns
-- Partner-facing external portal
-
-### Safety
-- No schema changes.
-- All mutations team-scoped via existing RLS; audit `vehicle_partners` policies before shipping.
-- Ownership edits never rewrite historical `partner_payouts`.
-- Feature stays behind existing Margin module gating.
+- Load `/dashboard` as a Manager+ account → confirm "Margin" appears under Vault in the Intelligence group and navigates correctly.
+- Confirm an Operator/Viewer account does **not** see the tab.
