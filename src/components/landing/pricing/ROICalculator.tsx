@@ -9,7 +9,7 @@ import {
   Clock, Coffee, Zap, Check, ArrowRight, Sparkles, Users,
   Shield, ChevronDown, Timer
 } from 'lucide-react';
-import { roiDefaults, roiMethodology, pricingTiers, timeSavingsDefaults, competitiveAdvantages, founderSpotsRemaining } from './PricingData';
+import { roiDefaults, roiMethodology, pricingTiers, timeSavingsDefaults, competitiveAdvantages, pickTierForFleetSize } from './PricingData';
 import {
   Tooltip,
   TooltipContent,
@@ -79,28 +79,15 @@ export const ROICalculator = () => {
   const [isAnnual, setIsAnnual] = useState(true);
   const [showMethodology, setShowMethodology] = useState(false);
 
-  // Calculate tier based on fleet size
-  const getTier = (size: number) => {
-    if (size <= 10) return pricingTiers[0];
-    if (size <= 25) return pricingTiers[1];
-    if (size <= 75) return pricingTiers[2];
-    return pricingTiers[3];
-  };
+  const tier = pickTierForFleetSize(fleetSize);
 
-  const tier = getTier(fleetSize);
-
-  // Calculate monthly Exotiq cost
+  // Per-vehicle pricing: Pro $39, Business $29, Enterprise quoted (use $25 estimate)
   const getMonthlyExotiqCost = (size: number) => {
-    const currentTier = getTier(size);
-    if (currentTier.priceType === 'per-vehicle') {
-      const basePrice = (currentTier.perVehicleRate || 29) * size;
-      return Math.max(basePrice, currentTier.minPrice || 79);
+    const t = pickTierForFleetSize(size);
+    if (t.priceType === 'custom') {
+      return size * 25; // estimate for Enterprise quote
     }
-    if (size > currentTier.maxVehicles && currentTier.overageRate) {
-      const overageVehicles = size - currentTier.maxVehicles;
-      return currentTier.price + (overageVehicles * currentTier.overageRate);
-    }
-    return currentTier.price;
+    return (t.perVehicleRate ?? 39) * size;
   };
 
   const monthlyExotiqCost = getMonthlyExotiqCost(fleetSize);
