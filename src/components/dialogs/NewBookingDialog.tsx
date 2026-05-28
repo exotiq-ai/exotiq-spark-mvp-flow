@@ -845,6 +845,7 @@ export const NewBookingDialog = ({
             )}
           </Button>
         </DialogFooter>
+        </PaymentDueGuard>
       </DialogContent>
     </Dialog>
   );
