@@ -83,6 +83,10 @@ export const EditVehicleDialog = ({ open, onOpenChange, vehicle, onSave }: EditV
       setColor(vehicle.color || "");
       setDefaultMileageLimit(vehicle.default_mileage_limit != null ? String(vehicle.default_mileage_limit) : "");
       setMileageOverageRate(vehicle.mileage_overage_rate != null ? String(vehicle.mileage_overage_rate) : "");
+      setOwnershipType(vehicle.ownership_type || "owned");
+      setPartnerId(vehicle.partner_id || "none");
+      setSplitType(vehicle.split_type || "percent");
+      setSplitValue(vehicle.split_value != null ? String(vehicle.split_value) : "");
       setError(null);
 
       // Fetch last edit info
@@ -141,6 +145,16 @@ export const EditVehicleDialog = ({ open, onOpenChange, vehicle, onSave }: EditV
       
       const newOverageRate = mileageOverageRate ? parseFloat(mileageOverageRate) : null;
       if (newOverageRate !== (vehicle.mileage_overage_rate ?? null)) updates.mileage_overage_rate = newOverageRate;
+
+      // Ownership
+      const newPartnerId = partnerId === "none" ? null : partnerId;
+      const newOwnership = newPartnerId ? "partner" : "owned";
+      const newSplitValue = newPartnerId && splitValue ? parseFloat(splitValue) : null;
+      const newSplitType = newPartnerId ? splitType : null;
+      if (newOwnership !== (vehicle.ownership_type || "owned")) updates.ownership_type = newOwnership;
+      if (newPartnerId !== (vehicle.partner_id ?? null)) updates.partner_id = newPartnerId;
+      if (newSplitType !== (vehicle.split_type ?? null)) updates.split_type = newSplitType;
+      if (newSplitValue !== (vehicle.split_value ?? null)) updates.split_value = newSplitValue;
 
       if (Object.keys(updates).length === 0) {
         onOpenChange(false);
