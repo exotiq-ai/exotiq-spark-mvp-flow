@@ -43,6 +43,7 @@ import { isBlockingBooking } from '@/lib/conflictDetection';
 import { useLocationFilteredFleet } from '@/hooks/useLocationFilteredFleet';
 import { Switch } from '@/components/ui/switch';
 import { useTeamGasFeeSettings } from '@/hooks/useTeamGasFeeSettings';
+import { PaymentDueGuard } from '@/components/guards/PaymentDueGuard';
 
 interface NewBookingDialogProps {
   open: boolean;
