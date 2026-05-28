@@ -8,11 +8,17 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Download, Check, ChevronRight, ChevronDown } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Download, Check, ChevronRight, ChevronDown, MoreHorizontal, Ban, RotateCcw } from "lucide-react";
 import { toCsv, downloadCsv, formatCurrency } from "@/lib/marginCsv";
+import { allowedActions, type PayoutAction } from "@/lib/payoutTransitions";
+import { useUserRole } from "@/hooks/useUserRole";
 import { toast } from "sonner";
+
+const PAYOUT_METHODS = ["ACH", "Check", "Wire", "Stripe", "Cash", "Other"];
 
 interface Payout {
   id: string;
