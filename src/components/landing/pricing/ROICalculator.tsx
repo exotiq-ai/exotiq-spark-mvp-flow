@@ -447,8 +447,8 @@ export const ROICalculator = () => {
                 <ArrowRight className="h-5 w-5" />
               </Button>
               <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                <Users className="h-4 w-4" />
-                <span className="font-medium text-primary">{founderSpotsRemaining}</span> founder spots left
+                <Zap className="h-4 w-4" />
+                <span className="font-medium text-primary">No credit card</span> required
               </div>
             </div>
           </div>
