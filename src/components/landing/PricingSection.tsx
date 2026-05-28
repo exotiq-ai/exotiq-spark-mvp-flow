@@ -17,7 +17,7 @@ export const PricingSection = ({ onGetStarted }: PricingSectionProps) => {
           <p className="text-lg sm:text-xl text-muted-foreground px-4">Scale with confidence as your fleet grows</p>
         </div>
         
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8 px-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 px-4 max-w-6xl mx-auto">
           {pricingPlans.map((plan, index) => (
             <Card key={index} className={`card-premium ${plan.popular ? 'ring-2 ring-primary shadow-premium' : ''} relative p-6 sm:p-8`}>
               {plan.popular && (
