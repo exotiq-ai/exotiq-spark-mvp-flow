@@ -40,7 +40,7 @@ export const featureFlags = {
   telematicsIntegration: false, // Telematics tab — not yet implemented
   
   // Margin Module (Phase 1)
-  margin: false, // Per-vehicle P&L, expenses, partner payouts — off by default
+  margin: true, // Per-vehicle P&L, expenses, partner payouts — visible to Manager+
 } as const;
 
 export type FeatureFlag = keyof typeof featureFlags;
