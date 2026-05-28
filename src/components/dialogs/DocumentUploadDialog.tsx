@@ -322,6 +322,46 @@ export const DocumentUploadDialog = ({
             </Select>
           </div>
 
+          {/* Insurance premium (Insurance only) — feeds Margin P&L */}
+          {isInsurance && (
+            <div className="grid grid-cols-2 gap-3 rounded-lg border p-4 bg-muted/30">
+              <div className="col-span-2 space-y-0.5">
+                <Label className="text-sm font-medium">Premium Tracking (optional)</Label>
+                <p className="text-xs text-muted-foreground">
+                  Recorded as an insurance expense in Margin.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="premium-amount">Premium Amount</Label>
+                <Input
+                  id="premium-amount"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={premiumAmount}
+                  onChange={(e) => setPremiumAmount(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="billing-frequency">Billing</Label>
+                <Select value={billingFrequency} onValueChange={setBillingFrequency}>
+                  <SelectTrigger id="billing-frequency">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                    <SelectItem value="quarterly">Quarterly</SelectItem>
+                    <SelectItem value="annually">Annually</SelectItem>
+                    <SelectItem value="one_time">One-time</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+
+
+
           {/* Set as Default toggle (Rental Agreement only) */}
           {isRentalAgreement && (
             <div className="flex items-center justify-between rounded-lg border p-4">
