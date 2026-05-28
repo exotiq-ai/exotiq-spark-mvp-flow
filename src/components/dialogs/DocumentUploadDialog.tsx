@@ -47,6 +47,7 @@ export const DocumentUploadDialog = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isRentalAgreement = type === 'rental_agreement';
+  const isInsurance = type === 'insurance';
 
   const documentTypes = [
     { label: 'Insurance', value: 'insurance' },
