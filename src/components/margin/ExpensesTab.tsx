@@ -20,12 +20,16 @@ interface Expense {
   source_module: string;
 }
 
-export function ExpensesTab({ start, end }: { start: Date; end: Date }) {
+import { useMarginFilters } from "./MarginFiltersContext";
+
+export function ExpensesTab() {
+  const { start, end } = useMarginFilters();
   const { currentTeam } = useTeam();
   const [rows, setRows] = useState<Expense[]>([]);
   const [vehicleMap, setVehicleMap] = useState<Record<string, string>>({});
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  void start; void end;
 
   const refresh = async () => {
     if (!currentTeam?.id) return;
