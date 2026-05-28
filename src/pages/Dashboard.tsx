@@ -376,6 +376,8 @@ const DashboardInner = () => {
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
+        {/* Trial status banner (hidden for grandfathered teams and paid subscribers) */}
+        <TrialBanner />
         {/* Desktop Header */}
         <div className="hidden md:block">
           <DashboardHeader 
@@ -389,6 +391,7 @@ const DashboardInner = () => {
             }}
           />
         </div>
+
 
         {/* Top Navigation - Mobile */}
         <nav className="bg-background border-b border-border sticky top-0 z-40 md:hidden">
