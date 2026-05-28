@@ -8,6 +8,7 @@ import { MarginOverview } from "@/components/margin/MarginOverview";
 import { VehiclePnLTable } from "@/components/margin/VehiclePnLTable";
 import { ExpensesTab } from "@/components/margin/ExpensesTab";
 import { PartnerPayoutsTab } from "@/components/margin/PartnerPayoutsTab";
+import { PartnersTab } from "@/components/margin/PartnersTab";
 import { DepositLedgerTab } from "@/components/margin/DepositLedgerTab";
 import { RevenueBySourceCard } from "@/components/margin/RevenueBySourceCard";
 import { RevenueExpenseTrendChart } from "@/components/margin/RevenueExpenseTrendChart";
@@ -68,10 +69,11 @@ export default function MarginEnhanced() {
         <TenantOverheadCard />
 
         <Tabs defaultValue="vehicles" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 max-w-2xl">
+          <TabsList className="grid w-full grid-cols-3 md:grid-cols-5 max-w-3xl">
             <TabsTrigger value="vehicles">Per-Vehicle P&L</TabsTrigger>
             <TabsTrigger value="expenses">Expenses</TabsTrigger>
-            <TabsTrigger value="payouts">Partner Payouts</TabsTrigger>
+            <TabsTrigger value="partners">Partners</TabsTrigger>
+            <TabsTrigger value="payouts">Payouts</TabsTrigger>
             <TabsTrigger value="deposits">Deposits</TabsTrigger>
           </TabsList>
           <TabsContent value="vehicles" className="mt-4">
@@ -79,6 +81,9 @@ export default function MarginEnhanced() {
           </TabsContent>
           <TabsContent value="expenses" className="mt-4">
             <ExpensesTab />
+          </TabsContent>
+          <TabsContent value="partners" className="mt-4">
+            <PartnersTab />
           </TabsContent>
           <TabsContent value="payouts" className="mt-4">
             <PartnerPayoutsTab />

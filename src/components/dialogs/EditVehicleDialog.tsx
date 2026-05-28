@@ -6,9 +6,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, Loader2, MapPin } from "lucide-react";
+import { AlertCircle, Loader2, MapPin, Users } from "lucide-react";
 import { useTeam } from "@/contexts/TeamContext";
 import { useUserRole } from "@/hooks/useUserRole";
+import { usePartners } from "@/hooks/usePartners";
 import { MILEAGE_RATE_TIERS } from "@/lib/pricingUtils";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
@@ -27,6 +28,10 @@ interface Vehicle {
   default_mileage_limit?: number | null;
   mileage_overage_rate?: number | null;
   location_id?: string | null;
+  ownership_type?: string | null;
+  partner_id?: string | null;
+  split_type?: string | null;
+  split_value?: number | null;
 }
 
 interface EditVehicleDialogProps {
@@ -40,6 +45,9 @@ export const EditVehicleDialog = ({ open, onOpenChange, vehicle, onSave }: EditV
   const { locations } = useTeam();
   const { role, hasRoleOrHigher } = useUserRole();
 
+  const { partners } = usePartners();
+  const activePartners = partners.filter((p) => p.is_active || p.id === vehicle?.partner_id);
+
   const [name, setName] = useState("");
   const [make, setMake] = useState("");
   const [model, setModel] = useState("");
@@ -52,6 +60,10 @@ export const EditVehicleDialog = ({ open, onOpenChange, vehicle, onSave }: EditV
   const [color, setColor] = useState("");
   const [defaultMileageLimit, setDefaultMileageLimit] = useState("");
   const [mileageOverageRate, setMileageOverageRate] = useState("");
+  const [ownershipType, setOwnershipType] = useState<string>("owned");
+  const [partnerId, setPartnerId] = useState<string>("none");
+  const [splitType, setSplitType] = useState<string>("percent");
+  const [splitValue, setSplitValue] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastEditInfo, setLastEditInfo] = useState<string | null>(null);
@@ -71,6 +83,10 @@ export const EditVehicleDialog = ({ open, onOpenChange, vehicle, onSave }: EditV
       setColor(vehicle.color || "");
       setDefaultMileageLimit(vehicle.default_mileage_limit != null ? String(vehicle.default_mileage_limit) : "");
       setMileageOverageRate(vehicle.mileage_overage_rate != null ? String(vehicle.mileage_overage_rate) : "");
+      setOwnershipType(vehicle.ownership_type || "owned");
+      setPartnerId(vehicle.partner_id || "none");
+      setSplitType(vehicle.split_type || "percent");
+      setSplitValue(vehicle.split_value != null ? String(vehicle.split_value) : "");
       setError(null);
 
       // Fetch last edit info
@@ -129,6 +145,16 @@ export const EditVehicleDialog = ({ open, onOpenChange, vehicle, onSave }: EditV
       
       const newOverageRate = mileageOverageRate ? parseFloat(mileageOverageRate) : null;
       if (newOverageRate !== (vehicle.mileage_overage_rate ?? null)) updates.mileage_overage_rate = newOverageRate;
+
+      // Ownership
+      const newPartnerId = partnerId === "none" ? null : partnerId;
+      const newOwnership = newPartnerId ? "partner" : "owned";
+      const newSplitValue = newPartnerId && splitValue ? parseFloat(splitValue) : null;
+      const newSplitType = newPartnerId ? splitType : null;
+      if (newOwnership !== (vehicle.ownership_type || "owned")) updates.ownership_type = newOwnership;
+      if (newPartnerId !== (vehicle.partner_id ?? null)) updates.partner_id = newPartnerId;
+      if (newSplitType !== (vehicle.split_type ?? null)) updates.split_type = newSplitType;
+      if (newSplitValue !== (vehicle.split_value ?? null)) updates.split_value = newSplitValue;
 
       if (Object.keys(updates).length === 0) {
         onOpenChange(false);
@@ -243,6 +269,57 @@ export const EditVehicleDialog = ({ open, onOpenChange, vehicle, onSave }: EditV
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* Ownership */}
+            <div className="space-y-3 pt-2 border-t">
+              <Label className="flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                Ownership
+              </Label>
+              <div className="space-y-2">
+                <Label htmlFor="edit-partner" className="text-xs text-muted-foreground">Partner</Label>
+                <Select value={partnerId} onValueChange={setPartnerId}>
+                  <SelectTrigger><SelectValue placeholder="Owned by tenant" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Owned by tenant</SelectItem>
+                    {activePartners.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}{!p.is_active && " (inactive)"}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Ownership changes apply to future completed bookings. Existing payouts are unchanged.
+                </p>
+              </div>
+              {partnerId !== "none" && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">Split Type</Label>
+                    <Select value={splitType} onValueChange={setSplitType}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="percent">Percent of net</SelectItem>
+                        <SelectItem value="flat">Flat amount per booking</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">
+                      {splitType === "percent" ? "Partner Share (%)" : "Flat Amount ($)"}
+                    </Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max={splitType === "percent" ? "100" : undefined}
+                      step="0.01"
+                      value={splitValue}
+                      onChange={(e) => setSplitValue(e.target.value)}
+                      placeholder={splitType === "percent" ? "e.g., 70" : "e.g., 250"}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </form>
         </ScrollArea>
