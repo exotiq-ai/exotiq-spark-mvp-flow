@@ -315,13 +315,14 @@ export function PartnerPayoutsTab() {
                   <TableHead className="text-right">Net</TableHead>
                   <TableHead className="text-right">To Partner</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="w-8"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
-                  <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">Loading…</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">Loading…</TableCell></TableRow>
                 ) : filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">No partner payouts match the current filters.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">No partner payouts match the current filters.</TableCell></TableRow>
                 ) : (
                   filtered.map((r) => {
                     const isOpen = expanded.has(r.id);
