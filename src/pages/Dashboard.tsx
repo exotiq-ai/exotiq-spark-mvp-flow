@@ -63,6 +63,7 @@ import { RariSidebar } from "@/components/rari/RariSidebar";
 import { AddLocationDialog } from "@/components/dialogs/AddLocationDialog";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { TrialBanner } from "@/components/trial/TrialBanner";
 
 const DashboardInner = () => {
   const [searchParams] = useSearchParams();
