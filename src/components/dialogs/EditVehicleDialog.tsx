@@ -270,6 +270,57 @@ export const EditVehicleDialog = ({ open, onOpenChange, vehicle, onSave }: EditV
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Ownership */}
+            <div className="space-y-3 pt-2 border-t">
+              <Label className="flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                Ownership
+              </Label>
+              <div className="space-y-2">
+                <Label htmlFor="edit-partner" className="text-xs text-muted-foreground">Partner</Label>
+                <Select value={partnerId} onValueChange={setPartnerId}>
+                  <SelectTrigger><SelectValue placeholder="Owned by tenant" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Owned by tenant</SelectItem>
+                    {activePartners.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}{!p.is_active && " (inactive)"}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Ownership changes apply to future completed bookings. Existing payouts are unchanged.
+                </p>
+              </div>
+              {partnerId !== "none" && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">Split Type</Label>
+                    <Select value={splitType} onValueChange={setSplitType}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="percent">Percent of net</SelectItem>
+                        <SelectItem value="flat">Flat amount per booking</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">
+                      {splitType === "percent" ? "Partner Share (%)" : "Flat Amount ($)"}
+                    </Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max={splitType === "percent" ? "100" : undefined}
+                      step="0.01"
+                      value={splitValue}
+                      onChange={(e) => setSplitValue(e.target.value)}
+                      placeholder={splitType === "percent" ? "e.g., 70" : "e.g., 250"}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
           </form>
         </ScrollArea>
 
