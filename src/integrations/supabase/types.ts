@@ -4174,6 +4174,46 @@ export type Database = {
             Args: { reason?: string; target_user_id: string }
             Returns: undefined
           }
+      fn_transition_payout: {
+        Args: {
+          p_action: string
+          p_method?: string
+          p_paid_at?: string
+          p_payout_id: string
+          p_reason?: string
+          p_reference?: string
+        }
+        Returns: {
+          booking_id: string
+          created_at: string
+          currency: string
+          gross_rental_base: number
+          id: string
+          net_after_fee: number
+          net_to_partner: number
+          notes: string | null
+          operator_adjustments: number
+          paid_at: string | null
+          partner_id: string
+          payout_method: string | null
+          payout_reference: string | null
+          platform_fee_amount: number
+          split_type: string
+          split_value_snapshot: number
+          status: string
+          team_id: string
+          updated_at: string
+          vehicle_id: string
+          void_reason: string | null
+          voided_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "partner_payouts"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       fn_vehicle_pnl: {
         Args: { p_end: string; p_start: string; p_team_id: string }
         Returns: {
