@@ -16,6 +16,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Navigate } from 'react-router-dom';
 import { Loader2, ShieldAlert } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface SuperAdminGuardProps {
@@ -29,40 +30,55 @@ export const SuperAdminGuard = ({ children }: SuperAdminGuardProps) => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+
     const checkSuperAdmin = async () => {
-      if (!user) {
-        setIsSuperAdmin(false);
-        setCheckingStatus(false);
+      if (authLoading) {
+        setCheckingStatus(true);
+        setIsSuperAdmin(null);
+        setError(null);
         return;
       }
 
+      if (!user) {
+        setIsSuperAdmin(false);
+        setCheckingStatus(false);
+        setError(null);
+        return;
+      }
+
+      setCheckingStatus(true);
+      setIsSuperAdmin(null);
+      setError(null);
+
       try {
-        console.log('[SuperAdminGuard] Checking super admin status for user:', user.id);
-        
-        // Call the is_super_admin function from Supabase
         const { data, error: rpcError } = await supabase.rpc('is_super_admin', {
           check_user_id: user.id
         });
 
+        if (cancelled) return;
+
         if (rpcError) {
-          console.error('[SuperAdminGuard] Error checking super admin status:', rpcError);
           setError(rpcError.message);
           setIsSuperAdmin(false);
         } else {
-          console.log('[SuperAdminGuard] Super admin status:', data);
           setIsSuperAdmin(data === true);
         }
       } catch (err) {
-        console.error('[SuperAdminGuard] Unexpected error:', err);
+        if (cancelled) return;
         setError(err instanceof Error ? err.message : 'Unknown error');
         setIsSuperAdmin(false);
       } finally {
-        setCheckingStatus(false);
+        if (!cancelled) setCheckingStatus(false);
       }
     };
 
     checkSuperAdmin();
-  }, [user]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authLoading, user?.id]);
 
   // Show loading state while checking authentication or super admin status
   if (authLoading || checkingStatus) {
@@ -110,10 +126,32 @@ export const SuperAdminGuard = ({ children }: SuperAdminGuardProps) => {
     );
   }
 
-  // Redirect to dashboard if not a super admin
+  if (!user) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  // Show explicit denial once the check has completed
   if (!isSuperAdmin) {
-    console.warn('[SuperAdminGuard] Access denied - user is not a super admin');
-    return <Navigate to="/dashboard" replace />;
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-background via-background to-destructive/5 p-4">
+        <Card className="w-full max-w-md border-destructive/40">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
+              <ShieldAlert className="h-6 w-6 text-destructive" />
+            </div>
+            <CardTitle>Super Admin Access Required</CardTitle>
+            <CardDescription>
+              {user.email || 'This account'} is signed in, but is not currently authorized for Super Admin.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="text-center">
+            <Button variant="outline" onClick={() => { window.location.href = '/dashboard'; }}>
+              Return to Dashboard
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   // User is verified super admin - render protected content
