@@ -1,59 +1,76 @@
 
-# Pricing Overhaul Plan
+# Pricing Overhaul — Build Plan (Stripe ✅)
 
-Based on the GitHub handoff doc `LOVABLE_PRICING_RESTRUCTURE.md`. Goal: collapse the current 4-tier hybrid (Starter / Pro / Business / Enterprise) into **Pro / Business / Enterprise (contact)**, all features included, per-vehicle pricing, 14-day no-CC trial, soft paywall after.
+New live Stripe IDs confirmed:
 
-## New Model
-
-| | Pro | Business | Enterprise |
+| Tier | Product | Monthly | Annual |
 |---|---|---|---|
-| Fleet | 1–15 | 16–50 | 51+ |
-| Monthly | $39/veh | $29/veh | Custom |
-| Annual | $390/veh (2 mo free) | $290/veh (2 mo free) | Custom |
-| Features | All included | All + priority support, 5 locs, white-glove | All + custom AI, API, dedicated CSM |
+| **Pro** | `prod_Ub7IM2Skj93HFS` | `price_1Tbv4IHO7nC3pJiPH4EbyVlL` ($39) | `price_1Tbv4JHO7nC3pJiPqaBeoyAX` ($390) |
+| **Business** | `prod_Ub7IlYXU1diSY8` | `price_1Tbv4KHO7nC3pJiPC5emMKgJ` ($29) | `price_1Tbv4LHO7nC3pJiParUQCB7y` ($290) |
 
-## Execution Steps
+Old 4-tier products still active in Stripe — I'll archive at the end (no live subs to break).
 
-### 1. Stripe (live mode)
-- Create **Exotiq Pro** product with 2 per-seat prices: monthly $39 (3900), annual $390 (39000).
-- Create **Exotiq Business** product with 2 per-seat prices: monthly $29 (2900), annual $290 (29000).
-- Archive the 4 old products + 8 old prices (`prod_UIcR*`, `price_1Shm*`). Don't delete — preserves existing subs.
+## 1. Edge functions
 
-### 2. Frontend — `src/components/landing/pricing/`
-- **PricingData.ts**: replace `pricingTiers` array with Pro/Business/Enterprise per doc; new `STRIPE_PRICES` map; updated FAQ + ROI defaults (avgDailyRate 1500, util 52%, +18% revenue).
-- **PricingCards.tsx**: render 2 paid cards + Enterprise "Contact Sales" card (Calendly). Pro flagged "Most Popular".
-- **PlanSelectionModal.tsx**: auto-pick tier from fleetSize (>50 → demo redirect), drop overage/min-price math, show "14-day free trial — no credit card required".
-- **ROICalculator.tsx**: use $39/$29 per vehicle, new defaults, show payback <1 mo.
-- **FeatureComparison.tsx**: single "Included in all plans" list; differentiate only on support/locations/marketplace/onboarding.
-- **FounderBanner.tsx**: remove countdown; replace with "Launch pricing — rates increase in 2027".
-- Delete obsolete constants (`founderDeadline`, spot counters).
+**`create-checkout-session`**
+- Replace `STRIPE_PRICES` with the 4 new IDs; delete `STRIPE_OVERAGE_PRICES` and `TIER_CONFIG`.
+- Validate `tierId ∈ {pro, business}` and fleet-size bounds (pro 1–15, business 16–50, >50 → 400 with "contact sales").
+- Single line item: `{ price, quantity: fleetSize }` (true per-vehicle).
+- Add `subscription_data.trial_period_days: 14`; drop `payment_method_collection: 'always'` so signup doesn't need a card.
+- Keep success/cancel URL logic.
 
-### 3. Edge functions
-- **`create-checkout-session`**: replace `STRIPE_PRICES`, remove `STRIPE_OVERAGE_PRICES`/`TIER_CONFIG`, validate tier ∈ {pro,business} + fleet-size bounds, line item = `{price, quantity: fleetSize}`, add `subscription_data.trial_period_days: 14`.
-- **`check-subscription`**: update `PRODUCT_TIERS` map to new prod IDs; keep old IDs mapped (Starter+Pro→pro, Business+Enterprise→business) for migration grace.
+**`check-subscription`**
+- Update `PRODUCT_TIERS` to the 2 new product IDs.
+- Keep legacy IDs mapped (Starter+Pro → pro, Business+Enterprise → business) so any test subs still resolve cleanly.
 
-### 4. Trial + Soft Paywall
-- Signup: no CC required (already current behavior). Persist `trial_start` / `trial_end` on `teams` (add columns if missing) at team creation — default 14 days.
-- `AuthContext` / subscription state: expose `trialExpired` + `isReadOnly` (= no active sub AND trial past end).
-- Gate write actions: new `ReadOnlyGuard` wrapper + disable CTAs in BookingDialog, AI pricing actions, payment recording, marketplace listing toggle, vehicle create/edit. Reads stay open.
-- Persistent banner when read-only: "Trial ended — subscribe to unlock writes."
+## 2. Landing pricing — `src/components/landing/pricing/`
 
-### 5. Cleanup
-- Delete/rewrite `PRICING_SYSTEM_PROMPT.md` (old 4-tier model).
-- Update `STRIPE_TODO.md` to reflect new product IDs.
+- **PricingData.ts** — rewrite `pricingTiers` to Pro / Business / Enterprise (per the handoff doc, "all features included"); refresh `STRIPE_PRICES`; FAQ rewritten for $39 / $29 / 14-day trial / no CC; ROI defaults to `avgDailyRate: 1500`, `avgUtilization: 52`, `revenueIncreasePercent: 18`. Delete `founderDeadline` / `founderSpotsRemaining`.
+- **PricingCards.tsx** — 2 paid cards + Enterprise "Contact Sales" card (Calendly link). Pro = "Most Popular".
+- **PlanSelectionModal.tsx** — auto-pick tier from fleet size; >50 → demo redirect; remove overage math; "14-day free trial — no credit card required" subline.
+- **ROICalculator.tsx** — new per-vehicle math ($39 / $29), payback < 1 mo, new bracket logic (≤15 pro, ≤50 business, else enterprise).
+- **FeatureComparison.tsx** — one "Included in all plans" list; differentiate only on support / locations / marketplace / onboarding.
+- **FounderBanner.tsx** — remove countdown + spot counter; replace with "Launch pricing — rates increase in 2027. Lock in today."
+- **PricingSection.tsx** (legacy `LandingData.pricingPlans`) — repoint to `pricingTiers` so it stops showing the old 4 tiers.
 
-## Open Questions / Risks
-1. **Existing live subs** on old prices: none yet on live (per earlier debug, only test charges) — confirm before archive? I'll assume safe to archive after creating new prices.
-2. **Soft paywall scope**: doc lists which actions to block; I'll instrument the highest-impact ones (bookings, AI pricing, payments, marketplace, vehicle writes). Other writes can fall back to a generic guard.
-3. **Trial columns**: if `teams.trial_start/trial_end` don't exist, I'll add via migration + backfill existing teams with `trial_end = created_at + 14d` (already-expired teams without a sub become read-only immediately — flag if you'd rather grandfather them).
+## 3. Settings → Billing (new — based on your screenshot)
 
-## Order of Operations
-1. Create new Stripe products/prices (capture IDs).
-2. Schema migration for trial columns (if needed).
-3. Update edge functions with new IDs.
-4. Update frontend pricing components.
-5. Wire soft paywall + read-only banner.
-6. Archive old Stripe products.
-7. Delete old docs.
+`src/components/dashboard/settings/SubscriptionSection.tsx`:
+- Render the new 3-tier grid (Pro / Business / Enterprise) from the same `pricingTiers` source. Once `PricingData.ts` is rewritten the grid auto-updates, but I'll also:
+  - Keep the Monthly / Annual toggle with "Save 2mo" pill.
+  - Show **current plan** highlight + "Your Plan" badge based on `check-subscription` result.
+  - Replace "Get Started" CTA with context-aware action:
+    - Not subscribed → "Start 14-day trial" → invokes `create-checkout-session`.
+    - On trial → "Subscribe now" (skips trial param if already used).
+    - Active sub same tier → disabled "Current plan".
+    - Active sub different tier → "Switch to Pro/Business" → calls new edge function `switch-subscription` that does `stripe.subscriptions.update` with proration (`create_prorations`), updating both price and quantity to the new fleet size.
+  - Enterprise card → "Contact sales" (Calendly).
+- Add a small **trial status strip** at the top of the section: "Trial: 9 days left — subscribe to keep full access" when applicable, "Grandfathered — no trial limit" for legacy teams (per your decision).
+- Surface "Manage billing" → existing `customer-portal` for invoices / cards / cancel.
+- Quantity-aware copy: "Billed for N vehicles" computed from `useFleet().length` (or `subscription.items[0].quantity`).
 
-Reply with: (a) confirm safe to archive old Stripe objects, (b) whether to grandfather existing teams past 14 days, and I'll execute.
+## 4. Trial + soft paywall
+
+- Migration: add `trial_start` (default `now()`), `trial_end` (default `now() + 14 days`) to `teams`. **Backfill existing teams with NULL** so they stay grandfathered (per your call).
+- `AuthContext` / subscription state exposes `trialExpired` and `isReadOnly` (= no active sub AND `trial_end IS NOT NULL` AND past).
+- Persistent banner when `isReadOnly`: "Trial ended — subscribe to unlock writes." with CTA → Billing.
+- Gate write CTAs in: EnhancedBookingDialog, AI pricing actions, payment recording, marketplace listing toggle, vehicle create/edit. Reads stay open.
+
+## 5. Cleanup
+
+- Archive old Stripe products (`prod_Tf6*`, `prod_Tf3W*`, `prod_UIcR*` style) + their prices via Stripe API after a smoke check.
+- Delete `PRICING_SYSTEM_PROMPT.md`; update `STRIPE_TODO.md` with the new IDs.
+- Update memory: `mem://integrations/stripe-subscription-logic` to the new 3-tier per-vehicle model.
+
+## Order of operations
+
+1. Migration: trial columns (grandfather existing).
+2. Update both edge functions; deploy.
+3. Rewrite `PricingData.ts` (everything else cascades from this).
+4. Update landing pricing components + `PricingSection.tsx`.
+5. Update `SubscriptionSection.tsx` (Settings → Billing) + add `switch-subscription` edge function.
+6. Wire AuthContext + read-only banner + write CTA guards.
+7. Smoke check via Stripe test mode (start trial, switch tier, expire trial).
+8. Archive old Stripe products/prices + docs cleanup + memory update.
+
+Approve and I'll execute.

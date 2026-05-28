@@ -7,40 +7,21 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Stripe Price IDs - Hybrid Pricing Model (LIVE)
+// 2026 Pricing Restructure (LIVE) — per-vehicle pricing
 const STRIPE_PRICES = {
-  starter: {
-    monthly: 'price_1ShmMlHO7nC3pJiPxcbd7vlL',
-    annual: 'price_1ShmRHHO7nC3pJiPtU6o3AMC',
-  },
-  professional: {
-    monthly: 'price_1ShmMmHO7nC3pJiPPYhhXT1o',
-    annual: 'price_1ShmRJHO7nC3pJiP05J4DdvQ',
+  pro: {
+    monthly: 'price_1Tbv4IHO7nC3pJiPH4EbyVlL', // $39/vehicle/month
+    annual:  'price_1Tbv4JHO7nC3pJiPqaBeoyAX', // $390/vehicle/year
   },
   business: {
-    monthly: 'price_1ShmMoHO7nC3pJiPzUH0wSP3',
-    annual: 'price_1ShmRKHO7nC3pJiPSxuuBWtO',
-  },
-  enterprise: {
-    monthly: 'price_1ShmMqHO7nC3pJiPV04rgXRX',
-    annual: 'price_1ShmRMHO7nC3pJiPYawYJ13O',
+    monthly: 'price_1Tbv4KHO7nC3pJiPC5emMKgJ', // $29/vehicle/month
+    annual:  'price_1Tbv4LHO7nC3pJiParUQCB7y', // $290/vehicle/year
   },
 };
 
-// Overage Price IDs — per-vehicle/month for vehicles above tier max
-// TODO: Create overage prices in live Stripe account
-const STRIPE_OVERAGE_PRICES: Record<string, string> = {
-  professional: '', // $22/vehicle/month — needs live price ID
-  business: '',     // $18/vehicle/month — needs live price ID
-  enterprise: '',   // $15/vehicle/month — needs live price ID
-};
-
-// Tier configuration — maxVehicles included in the flat rate
-const TIER_CONFIG: Record<string, { priceType: 'per-vehicle' | 'flat'; maxVehicles: number }> = {
-  starter:      { priceType: 'per-vehicle', maxVehicles: 10 },
-  professional: { priceType: 'flat',        maxVehicles: 25 },
-  business:     { priceType: 'flat',        maxVehicles: 75 },
-  enterprise:   { priceType: 'flat',        maxVehicles: 150 },
+const TIER_BOUNDS: Record<string, { min: number; max: number }> = {
+  pro:      { min: 1,  max: 15 },
+  business: { min: 16, max: 50 },
 };
 
 serve(async (req) => {
@@ -49,70 +30,33 @@ serve(async (req) => {
   }
 
   try {
-    const { tierId, isAnnual, fleetSize, returnPath, cancelPath } = await req.json();
-    
-    console.log('Creating checkout session:', { tierId, isAnnual, fleetSize });
+    const { tierId, isAnnual, fleetSize, returnPath, cancelPath, trial = true } = await req.json();
 
-    // Validate tier
+    console.log('Creating checkout session:', { tierId, isAnnual, fleetSize, trial });
+
     if (!STRIPE_PRICES[tierId as keyof typeof STRIPE_PRICES]) {
-      throw new Error(`Invalid tier: ${tierId}`);
+      throw new Error(`Invalid tier: ${tierId}. Enterprise (51+ vehicles) requires contacting sales.`);
     }
-
-    const tierConfig = TIER_CONFIG[tierId];
-    if (!tierConfig) {
-      throw new Error(`Invalid tier config: ${tierId}`);
-    }
-
-    // Validate fleet size
+    const bounds = TIER_BOUNDS[tierId];
     if (!fleetSize || fleetSize < 1 || fleetSize > 500) {
       throw new Error(`Invalid fleet size: ${fleetSize}`);
     }
+    if (fleetSize < bounds.min || fleetSize > bounds.max) {
+      throw new Error(
+        `Fleet size ${fleetSize} doesn't fit ${tierId} tier (${bounds.min}–${bounds.max}). ` +
+        `Try ${fleetSize <= 15 ? 'Pro' : fleetSize <= 50 ? 'Business' : 'Enterprise (contact sales)'}.`
+      );
+    }
 
-    // Initialize Stripe
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
       apiVersion: "2025-08-27.basil",
     });
 
-    // Get the correct base price ID
-    const priceId = isAnnual 
+    const priceId = isAnnual
       ? STRIPE_PRICES[tierId as keyof typeof STRIPE_PRICES].annual
       : STRIPE_PRICES[tierId as keyof typeof STRIPE_PRICES].monthly;
 
-    // Build line items based on pricing model
-    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
-
-    if (tierConfig.priceType === 'per-vehicle') {
-      // Starter: per-vehicle pricing, quantity = fleet size
-      // Enforce minimum: $79 minimum means at least ceil(79/29) = 3 vehicles worth
-      const minQuantity = tierConfig.minPrice ? Math.ceil(tierConfig.minPrice / tierConfig.perVehicleRate) : 1;
-      const effectiveQuantity = Math.max(fleetSize, minQuantity);
-      lineItems.push({
-        price: priceId,
-        quantity: effectiveQuantity,
-      });
-    } else {
-      // Flat-rate tiers: base plan quantity = 1 (always)
-      lineItems.push({
-        price: priceId,
-        quantity: 1,
-      });
-
-      // Add overage line item if fleet exceeds tier max
-      const overageVehicles = fleetSize - tierConfig.maxVehicles;
-      if (overageVehicles > 0) {
-        const overagePriceId = STRIPE_OVERAGE_PRICES[tierId];
-        if (!overagePriceId) {
-          throw new Error(`No overage price configured for tier: ${tierId}`);
-        }
-        lineItems.push({
-          price: overagePriceId,
-          quantity: overageVehicles,
-        });
-        console.log(`Adding ${overageVehicles} overage vehicles for ${tierId}`);
-      }
-    }
-
-    // Create Supabase client to check for authenticated user
+    // Lookup or create customer
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_ANON_KEY") ?? ""
@@ -121,47 +65,57 @@ serve(async (req) => {
     let customerId: string | undefined;
     let customerEmail: string | undefined;
 
-    // Try to get authenticated user
     const authHeader = req.headers.get("Authorization");
     if (authHeader) {
       const token = authHeader.replace("Bearer ", "");
       const { data } = await supabaseClient.auth.getUser(token);
-      
       if (data.user?.email) {
         customerEmail = data.user.email;
-        
-        // Check if customer already exists in Stripe
-        const customers = await stripe.customers.list({ 
-          email: customerEmail, 
-          limit: 1 
-        });
-        
+        const customers = await stripe.customers.list({ email: customerEmail, limit: 1 });
         if (customers.data.length > 0) {
           customerId = customers.data[0].id;
         }
       }
     }
 
-    // Create checkout session
+    // Determine if customer already used their trial
+    let allowTrial = trial;
+    if (allowTrial && customerId) {
+      const existingSubs = await stripe.subscriptions.list({
+        customer: customerId,
+        status: 'all',
+        limit: 5,
+      });
+      if (existingSubs.data.some(s => s.trial_start || s.status === 'trialing')) {
+        allowTrial = false;
+        console.log('Customer already used trial, skipping trial_period_days');
+      }
+    }
+
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : customerEmail,
-      line_items: lineItems,
+      line_items: [
+        {
+          price: priceId,
+          quantity: fleetSize, // per-vehicle quantity
+        },
+      ],
       mode: "subscription",
-      payment_method_collection: 'always',
+      // Trial requires no payment method up front
+      payment_method_collection: allowTrial ? 'if_required' : 'always',
       subscription_data: {
+        ...(allowTrial ? { trial_period_days: 14 } : {}),
         metadata: {
           tierId,
           fleetSize: String(fleetSize),
-          maxVehicles: String(tierConfig.maxVehicles),
-          overageVehicles: String(Math.max(0, fleetSize - tierConfig.maxVehicles)),
-          isFounderPricing: 'true',
+          interval: isAnnual ? 'annual' : 'monthly',
         },
       },
       metadata: {
         tierId,
         fleetSize: String(fleetSize),
-        isFounderPricing: 'true',
+        interval: isAnnual ? 'annual' : 'monthly',
       },
       success_url: (() => {
         const origin = req.headers.get("origin") || "https://app.exotiq.ai";
@@ -173,23 +127,17 @@ serve(async (req) => {
       allow_promotion_codes: true,
     });
 
-    console.log('Checkout session created:', session.id, 'line_items:', lineItems.length);
+    console.log('Checkout session created:', session.id, 'trial:', allowTrial);
 
     return new Response(
-      JSON.stringify({ url: session.url, sessionId: session.id }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      }
+      JSON.stringify({ url: session.url, sessionId: session.id, trialApplied: allowTrial }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
     );
   } catch (error) {
     console.error('Checkout error:', error);
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 500,
-      }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
     );
   }
 });

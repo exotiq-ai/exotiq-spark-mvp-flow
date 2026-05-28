@@ -2672,6 +2672,8 @@ export type Database = {
           stripe_onboarding_complete: boolean
           stripe_payouts_enabled: boolean
           timezone: string | null
+          trial_end: string | null
+          trial_start: string | null
           updated_at: string | null
         }
         Insert: {
@@ -2703,6 +2705,8 @@ export type Database = {
           stripe_onboarding_complete?: boolean
           stripe_payouts_enabled?: boolean
           timezone?: string | null
+          trial_end?: string | null
+          trial_start?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -2734,6 +2738,8 @@ export type Database = {
           stripe_onboarding_complete?: boolean
           stripe_payouts_enabled?: boolean
           timezone?: string | null
+          trial_end?: string | null
+          trial_start?: string | null
           updated_at?: string | null
         }
         Relationships: []

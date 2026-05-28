@@ -10,8 +10,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, ArrowRight, CheckCircle2 } from 'lucide-react';
-import { type PricingTier } from './PricingData';
+import { Loader2, ArrowRight, CheckCircle2, Sparkles } from 'lucide-react';
+import { type PricingTier, pickTierForFleetSize } from './PricingData';
 import { BillingToggle } from './BillingToggle';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -38,48 +38,72 @@ export const PlanSelectionModal = ({
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  // Reset fleet size and billing when tier changes
   useEffect(() => {
     if (selectedTier) {
-      setFleetSize(selectedTier.maxVehicles);
+      // Default to mid-range of selected tier
+      const midFleet = Math.min(
+        selectedTier.maxVehicles,
+        Math.max(selectedTier.minVehicles, Math.round((selectedTier.minVehicles + selectedTier.maxVehicles) / 2))
+      );
+      setFleetSize(midFleet);
       setIsAnnual(isAnnualProp);
     }
   }, [selectedTier, isAnnualProp]);
 
   if (!selectedTier) return null;
 
-  // Calculate total price based on tier type
-  const calculateMonthlyPrice = () => {
-    if (selectedTier.priceType === 'per-vehicle') {
-      const basePrice = (selectedTier.perVehicleRate || 29) * fleetSize;
-      return Math.max(basePrice, selectedTier.minPrice || 79);
-    }
-    // Flat rate with potential overage
-    if (fleetSize > selectedTier.maxVehicles && selectedTier.overageRate) {
-      const overageVehicles = fleetSize - selectedTier.maxVehicles;
-      return selectedTier.price + (overageVehicles * selectedTier.overageRate);
-    }
-    return selectedTier.price;
-  };
+  // Enterprise → contact sales
+  if (selectedTier.priceType === 'custom') {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Enterprise — let's talk</DialogTitle>
+            <DialogDescription>
+              {selectedTier.vehicleRange}. We'll tailor pricing, integrations, and SLAs to your fleet.
+            </DialogDescription>
+          </DialogHeader>
+          <Button
+            className="w-full h-12"
+            onClick={() => {
+              window.open('https://calendly.com/exotiq/enterprise', '_blank');
+              onOpenChange(false);
+            }}
+          >
+            Book a call
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
-  const monthlyPrice = calculateMonthlyPrice();
-  const totalPrice = isAnnual ? monthlyPrice * 10 : monthlyPrice; // 10 months for annual (2 free)
+  const perVehicleRate = isAnnual
+    ? (selectedTier.perVehicleAnnualRate ?? selectedTier.price * 10)
+    : (selectedTier.perVehicleRate ?? selectedTier.price);
+  const totalPrice = perVehicleRate * fleetSize;
   const billingPeriod = isAnnual ? 'year' : 'month';
 
-  const isValidFleetSize = fleetSize >= 1 && fleetSize <= 500;
+  const inferredTier = pickTierForFleetSize(fleetSize);
+  const tierMismatch = inferredTier.id !== selectedTier.id && inferredTier.id !== 'enterprise';
+  const overEnterprise = fleetSize > 50;
+
+  const fleetInBounds =
+    fleetSize >= selectedTier.minVehicles && fleetSize <= selectedTier.maxVehicles;
 
   const handleCheckout = async () => {
-    if (!isValidFleetSize) {
+    if (!fleetInBounds) {
       toast({
-        title: 'Invalid fleet size',
-        description: 'Please enter a valid number of vehicles.',
+        title: 'Fleet size out of range',
+        description: tierMismatch
+          ? `Switch to ${inferredTier.name} for ${fleetSize} vehicles.`
+          : 'Please enter a valid number of vehicles for this tier.',
         variant: 'destructive',
       });
       return;
     }
 
     setIsLoading(true);
-
     try {
       const { data, error } = await supabase.functions.invoke('create-checkout-session', {
         body: {
@@ -88,13 +112,11 @@ export const PlanSelectionModal = ({
           fleetSize,
           returnPath,
           cancelPath,
+          trial: true,
         },
       });
-
       if (error) throw error;
-
       if (data?.url) {
-        // Try redirect first, fall back to new tab for iframe environments
         try {
           window.location.href = data.url;
         } catch {
@@ -117,91 +139,63 @@ export const PlanSelectionModal = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Get Started with {selectedTier.name}</DialogTitle>
+          <DialogTitle>Start your 14-day free trial</DialogTitle>
           <DialogDescription>
-            {selectedTier.valueProposition}
+            {selectedTier.name} — {selectedTier.valueProposition}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
-          {/* Plan Summary */}
+          {/* Plan summary */}
           <div className="p-4 rounded-lg bg-muted/50 space-y-2">
             <div className="flex items-center justify-between">
               <span className="font-semibold">{selectedTier.name} Plan</span>
               {selectedTier.popular && (
-                <Badge variant="outline" className="text-primary border-primary/30">
-                  Most Popular
-                </Badge>
+                <Badge variant="outline" className="text-primary border-primary/30">Most Popular</Badge>
               )}
             </div>
             <p className="text-sm text-muted-foreground">{selectedTier.vehicleRange}</p>
           </div>
 
-          {/* Fleet Size Input */}
+          {/* Fleet size */}
           <div className="space-y-2">
-            <Label htmlFor="fleetSize">
-              {selectedTier.priceType === 'per-vehicle' 
-                ? 'Number of Vehicles' 
-                : `Total Vehicles (${selectedTier.maxVehicles} included)`}
-            </Label>
+            <Label htmlFor="fleetSize">Number of vehicles</Label>
             <Input
               id="fleetSize"
               type="number"
-              min={1}
-              max={500}
+              min={selectedTier.minVehicles}
+              max={selectedTier.maxVehicles}
               value={fleetSize}
               onChange={(e) => setFleetSize(parseInt(e.target.value) || 1)}
             />
-            {selectedTier.priceType === 'flat' && fleetSize <= selectedTier.maxVehicles && (
-              <p className="text-xs text-muted-foreground">
-                Up to {selectedTier.maxVehicles} vehicles included in your plan
+            {tierMismatch && !overEnterprise && (
+              <p className="text-xs text-amber-600">
+                {fleetSize} vehicles fits the <strong>{inferredTier.name}</strong> tier
+                ({inferredTier.vehicleRange}) at ${inferredTier.perVehicleRate}/vehicle/mo.
               </p>
             )}
-            {selectedTier.priceType === 'flat' && fleetSize > selectedTier.maxVehicles && (
+            {overEnterprise && (
               <p className="text-xs text-amber-600">
-                {fleetSize - selectedTier.maxVehicles} additional vehicles × ${selectedTier.overageRate}/each added to base rate
+                51+ vehicles is Enterprise — contact sales for custom pricing.
               </p>
             )}
           </div>
 
-          {/* Billing Toggle */}
+          {/* Billing toggle */}
           <div className="flex items-center justify-between p-3 rounded-lg border border-border">
             <span className="text-sm">Billing</span>
             <BillingToggle isAnnual={isAnnual} onChange={setIsAnnual} size="sm" />
           </div>
 
-          {/* Price Calculation */}
+          {/* Price */}
           <div className="space-y-2 p-4 rounded-lg bg-primary/5 border border-primary/20">
-            {selectedTier.priceType === 'per-vehicle' ? (
-              <>
-                <div className="flex justify-between text-sm">
-                  <span>${selectedTier.perVehicleRate}/vehicle</span>
-                  <span>x {fleetSize} vehicles</span>
-                </div>
-                {monthlyPrice === selectedTier.minPrice && fleetSize * (selectedTier.perVehicleRate || 29) < (selectedTier.minPrice || 79) && (
-                  <div className="flex justify-between text-sm text-muted-foreground">
-                    <span>Minimum applies</span>
-                    <span>${selectedTier.minPrice}/month</span>
-                  </div>
-                )}
-              </>
-            ) : (
-              <>
-                <div className="flex justify-between text-sm">
-                  <span>Base rate</span>
-                  <span>${selectedTier.price}/month</span>
-                </div>
-                {fleetSize > selectedTier.maxVehicles && selectedTier.overageRate && (
-                  <div className="flex justify-between text-sm text-amber-600">
-                    <span>Overage ({fleetSize - selectedTier.maxVehicles} vehicles)</span>
-                    <span>+${(fleetSize - selectedTier.maxVehicles) * selectedTier.overageRate}/month</span>
-                  </div>
-                )}
-              </>
-            )}
+            <div className="flex justify-between text-sm">
+              <span>${perVehicleRate}/vehicle/{billingPeriod === 'year' ? 'yr' : 'mo'}</span>
+              <span>× {fleetSize} vehicles</span>
+            </div>
             {isAnnual && (
-              <div className="flex justify-between text-sm text-muted-foreground">
-                <span>x 10 months (2 free)</span>
+              <div className="flex justify-between text-xs text-emerald-600">
+                <span>2 months free annually</span>
               </div>
             )}
             <div className="flex justify-between text-lg font-bold pt-2 border-t border-primary/20">
@@ -222,27 +216,20 @@ export const PlanSelectionModal = ({
             ))}
           </div>
 
-          {/* Checkout Button */}
           <Button
             className="w-full h-12"
             onClick={handleCheckout}
-            disabled={isLoading || !isValidFleetSize}
+            disabled={isLoading || !fleetInBounds}
           >
             {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Processing...
-              </>
+              <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing…</>
             ) : (
-              <>
-                Continue to Payment
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </>
+              <><Sparkles className="mr-2 h-4 w-4" />Start 14-day free trial</>
             )}
           </Button>
 
           <p className="text-xs text-center text-muted-foreground">
-            You will be redirected to secure checkout. Your card will not be charged during the 14-day trial.
+            No credit card required. We'll remind you before the trial ends.
           </p>
         </div>
       </DialogContent>

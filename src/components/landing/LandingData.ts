@@ -41,33 +41,26 @@ export const features = [
 
 export const pricingPlans = [
   {
-    name: "Starter",
-    price: "$49",
-    vehicles: "5 vehicles",
-    features: ["Basic analytics", "Document management", "Email support"],
-    popular: false
-  },
-  {
-    name: "Growth",
-    price: "$99",
-    vehicles: "20 vehicles",
-    features: ["Advanced analytics", "AI insights", "Priority support", "Custom branding"],
-    popular: true
-  },
-  {
     name: "Pro",
-    price: "$199",
-    vehicles: "50 vehicles",
-    features: ["Full AI suite", "API access", "White-label solution", "Dedicated support"],
-    popular: false
+    price: "$39",
+    vehicles: "1–15 vehicles · per vehicle/mo",
+    features: ["All features included", "MotorIQ AI pricing", "Email & chat support"],
+    popular: true,
+  },
+  {
+    name: "Business",
+    price: "$29",
+    vehicles: "16–50 vehicles · per vehicle/mo",
+    features: ["Everything in Pro", "Priority support (4hr)", "Up to 5 locations", "White-label marketplace"],
+    popular: false,
   },
   {
     name: "Enterprise",
     price: "Custom",
-    vehicles: "200+ vehicles",
-    features: ["Custom integrations", "Dedicated account manager", "SLA guarantee"],
-    popular: false
-  }
+    vehicles: "51+ vehicles",
+    features: ["Custom AI training", "Dedicated CSM", "Custom integrations & SLA"],
+    popular: false,
+  },
 ];
 
 export const testimonials = [
