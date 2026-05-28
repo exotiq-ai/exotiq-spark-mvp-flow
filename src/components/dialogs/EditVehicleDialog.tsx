@@ -6,9 +6,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, Loader2, MapPin } from "lucide-react";
+import { AlertCircle, Loader2, MapPin, Users } from "lucide-react";
 import { useTeam } from "@/contexts/TeamContext";
 import { useUserRole } from "@/hooks/useUserRole";
+import { usePartners } from "@/hooks/usePartners";
 import { MILEAGE_RATE_TIERS } from "@/lib/pricingUtils";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
@@ -44,6 +45,9 @@ export const EditVehicleDialog = ({ open, onOpenChange, vehicle, onSave }: EditV
   const { locations } = useTeam();
   const { role, hasRoleOrHigher } = useUserRole();
 
+  const { partners } = usePartners();
+  const activePartners = partners.filter((p) => p.is_active || p.id === vehicle?.partner_id);
+
   const [name, setName] = useState("");
   const [make, setMake] = useState("");
   const [model, setModel] = useState("");
@@ -56,6 +60,10 @@ export const EditVehicleDialog = ({ open, onOpenChange, vehicle, onSave }: EditV
   const [color, setColor] = useState("");
   const [defaultMileageLimit, setDefaultMileageLimit] = useState("");
   const [mileageOverageRate, setMileageOverageRate] = useState("");
+  const [ownershipType, setOwnershipType] = useState<string>("owned");
+  const [partnerId, setPartnerId] = useState<string>("none");
+  const [splitType, setSplitType] = useState<string>("percent");
+  const [splitValue, setSplitValue] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastEditInfo, setLastEditInfo] = useState<string | null>(null);
