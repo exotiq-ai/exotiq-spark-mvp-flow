@@ -78,10 +78,10 @@ export function PartnerPayoutsTab() {
     if (bookingIds.length) {
       const { data: bks } = await supabase
         .from("bookings")
-        .select("id, reference, start_date, end_date")
+        .select("id, booking_ref, start_date, end_date")
         .in("id", bookingIds);
       const bm: typeof bookings = {};
-      (bks || []).forEach((b: any) => (bm[b.id] = { reference: b.reference, start_date: b.start_date, end_date: b.end_date }));
+      (bks || []).forEach((b: any) => (bm[b.id] = { reference: b.booking_ref, start_date: b.start_date, end_date: b.end_date }));
       setBookings(bm);
     }
     setLoading(false);
@@ -286,7 +286,7 @@ export function PartnerPayoutsTab() {
                                 <Stat label="Platform Fee" value={formatCurrency(r.platform_fee_amount)} />
                                 <Stat label="Net After Fee" value={formatCurrency(r.net_after_fee)} />
                                 <Stat label="Adjustments" value={formatCurrency(r.operator_adjustments)} />
-                                <Stat label="Split" value={r.split_type === "percent" ? `${r.split_value_snapshot}%` : formatCurrency(r.split_value_snapshot)} />
+                                <Stat label="Split" value={r.split_type === "percentage" ? `${r.split_value_snapshot}% to partner` : `${formatCurrency(r.split_value_snapshot)}/day`} />
                                 <Stat label="To Partner" value={formatCurrency(r.net_to_partner)} highlight />
                                 <Stat label="Method" value={r.payout_method || "—"} />
                                 <Stat label="Reference" value={r.payout_reference || "—"} />
