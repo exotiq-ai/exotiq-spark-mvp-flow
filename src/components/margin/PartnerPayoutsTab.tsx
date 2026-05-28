@@ -1,11 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTeam } from "@/contexts/TeamContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Download, Check } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Download, Check, ChevronRight, ChevronDown } from "lucide-react";
 import { toCsv, downloadCsv, formatCurrency } from "@/lib/marginCsv";
 import { toast } from "sonner";
 
@@ -13,13 +18,19 @@ interface Payout {
   id: string;
   booking_id: string;
   partner_id: string;
+  vehicle_id: string;
   gross_rental_base: number;
   platform_fee_amount: number;
   net_after_fee: number;
   net_to_partner: number;
+  split_type: string;
+  split_value_snapshot: number;
+  operator_adjustments: number;
   status: string;
   paid_at: string | null;
   created_at: string;
+  payout_reference: string | null;
+  payout_method: string | null;
 }
 
 const STATUS_STYLES: Record<string, string> = {
@@ -29,110 +40,301 @@ const STATUS_STYLES: Record<string, string> = {
   voided: "bg-muted text-muted-foreground",
 };
 
+const startOfMonth = () => { const d = new Date(); d.setDate(1); d.setHours(0,0,0,0); return d; };
+const startOfYear = () => { const d = new Date(); d.setMonth(0,1); d.setHours(0,0,0,0); return d; };
+
 export function PartnerPayoutsTab() {
   const { currentTeam } = useTeam();
   const [rows, setRows] = useState<Payout[]>([]);
   const [partners, setPartners] = useState<Record<string, string>>({});
+  const [vehicles, setVehicles] = useState<Record<string, string>>({});
+  const [bookings, setBookings] = useState<Record<string, { reference?: string | null; start_date?: string | null; end_date?: string | null }>>({});
   const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [filterPartner, setFilterPartner] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkDate, setBulkDate] = useState<string>(new Date().toISOString().slice(0, 10));
+  const [bulkRef, setBulkRef] = useState("");
 
   const refresh = async () => {
     if (!currentTeam?.id) return;
     setLoading(true);
-    const [{ data: ps }, { data: prs }] = await Promise.all([
+    const [{ data: ps }, { data: prs }, { data: vehs }] = await Promise.all([
       supabase.from("partner_payouts").select("*").eq("team_id", currentTeam.id).order("created_at", { ascending: false }),
       supabase.from("vehicle_partners").select("id, name").eq("team_id", currentTeam.id),
+      supabase.from("vehicles").select("id, make, model, name").eq("team_id", currentTeam.id),
     ]);
     setRows((ps || []) as any);
-    const m: Record<string, string> = {};
-    (prs || []).forEach((p: any) => (m[p.id] = p.name));
-    setPartners(m);
+    const pm: Record<string, string> = {};
+    (prs || []).forEach((p: any) => (pm[p.id] = p.name));
+    setPartners(pm);
+    const vm: Record<string, string> = {};
+    (vehs || []).forEach((v: any) => (vm[v.id] = v.name || `${v.make} ${v.model}`));
+    setVehicles(vm);
+
+    const bookingIds = Array.from(new Set((ps || []).map((p: any) => p.booking_id).filter(Boolean)));
+    if (bookingIds.length) {
+      const { data: bks } = await supabase
+        .from("bookings")
+        .select("id, reference, start_date, end_date")
+        .in("id", bookingIds);
+      const bm: typeof bookings = {};
+      (bks || []).forEach((b: any) => (bm[b.id] = { reference: b.reference, start_date: b.start_date, end_date: b.end_date }));
+      setBookings(bm);
+    }
     setLoading(false);
   };
 
   useEffect(() => { refresh(); /* eslint-disable-next-line */ }, [currentTeam?.id]);
 
-  const markPaid = async (id: string) => {
+  const filtered = useMemo(() => {
+    return rows.filter((r) => {
+      if (filterPartner !== "all" && r.partner_id !== filterPartner) return false;
+      if (filterStatus !== "all" && r.status !== filterStatus) return false;
+      return true;
+    });
+  }, [rows, filterPartner, filterStatus]);
+
+  const summary = useMemo(() => {
+    const som = startOfMonth().getTime();
+    const soy = startOfYear().getTime();
+    let pending = 0, paidMTD = 0, paidYTD = 0;
+    rows.forEach((r) => {
+      const amt = Number(r.net_to_partner) || 0;
+      if (r.status === "pending" || r.status === "scheduled") pending += amt;
+      if (r.status === "paid" && r.paid_at) {
+        const t = new Date(r.paid_at).getTime();
+        if (t >= soy) paidYTD += amt;
+        if (t >= som) paidMTD += amt;
+      }
+    });
+    return { pending, paidMTD, paidYTD };
+  }, [rows]);
+
+  const toggleSelect = (id: string) => {
+    const next = new Set(selected);
+    next.has(id) ? next.delete(id) : next.add(id);
+    setSelected(next);
+  };
+
+  const togglePending = () => {
+    const pendingIds = filtered.filter((r) => r.status === "pending").map((r) => r.id);
+    const allSelected = pendingIds.every((id) => selected.has(id));
+    const next = new Set(selected);
+    pendingIds.forEach((id) => allSelected ? next.delete(id) : next.add(id));
+    setSelected(next);
+  };
+
+  const toggleExpand = (id: string) => {
+    const next = new Set(expanded);
+    next.has(id) ? next.delete(id) : next.add(id);
+    setExpanded(next);
+  };
+
+  const markPaid = async (ids: string[], paidAt: string, reference: string) => {
     const { error } = await supabase
       .from("partner_payouts")
-      .update({ status: "paid", paid_at: new Date().toISOString() })
-      .eq("id", id);
+      .update({ status: "paid", paid_at: new Date(paidAt).toISOString(), payout_reference: reference || null })
+      .in("id", ids);
     if (error) return toast.error(error.message);
-    toast.success("Marked as paid");
+    toast.success(`${ids.length} payout${ids.length === 1 ? "" : "s"} marked paid`);
+    setSelected(new Set());
+    setBulkOpen(false);
+    setBulkRef("");
     refresh();
   };
 
   const handleExport = () => {
     const csv = toCsv(
-      rows.map((r) => ({ ...r, partner: partners[r.partner_id] || r.partner_id })) as any,
+      filtered.map((r) => ({
+        ...r,
+        partner: partners[r.partner_id] || r.partner_id,
+        vehicle: vehicles[r.vehicle_id] || r.vehicle_id,
+        booking_ref: bookings[r.booking_id]?.reference || r.booking_id,
+      })) as any,
       [
         { key: "created_at", label: "Created" },
         { key: "partner", label: "Partner" },
-        { key: "booking_id", label: "Booking" },
+        { key: "vehicle", label: "Vehicle" },
+        { key: "booking_ref", label: "Booking" },
         { key: "gross_rental_base", label: "Gross Base" },
         { key: "platform_fee_amount", label: "Platform Fee" },
         { key: "net_after_fee", label: "Net After Fee" },
+        { key: "split_type", label: "Split Type" },
+        { key: "split_value_snapshot", label: "Split Value" },
         { key: "net_to_partner", label: "Net to Partner" },
         { key: "status", label: "Status" },
         { key: "paid_at", label: "Paid At" },
+        { key: "payout_reference", label: "Reference" },
       ]
     );
     downloadCsv(`partner-payouts-${Date.now()}.csv`, csv);
   };
 
+  const selectedCount = selected.size;
+  const partnerOptions = Object.entries(partners).sort((a, b) => a[1].localeCompare(b[1]));
+
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-base">Partner Payouts</CardTitle>
-        <Button size="sm" variant="outline" onClick={handleExport} disabled={!rows.length}>
-          <Download className="h-4 w-4 mr-2" /> CSV
-        </Button>
-      </CardHeader>
-      <CardContent className="p-0">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Created</TableHead>
-                <TableHead>Partner</TableHead>
-                <TableHead className="text-right">Gross Base</TableHead>
-                <TableHead className="text-right">Fee</TableHead>
-                <TableHead className="text-right">Net</TableHead>
-                <TableHead className="text-right">To Partner</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Loading…</TableCell></TableRow>
-              ) : rows.length === 0 ? (
-                <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">No partner payouts yet. Partnered vehicles generate payouts on booking completion.</TableCell></TableRow>
-              ) : (
-                rows.map((r) => (
-                  <TableRow key={r.id}>
-                    <TableCell>{new Date(r.created_at).toLocaleDateString()}</TableCell>
-                    <TableCell>{partners[r.partner_id] || "—"}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(r.gross_rental_base)}</TableCell>
-                    <TableCell className="text-right text-muted-foreground">{formatCurrency(r.platform_fee_amount)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(r.net_after_fee)}</TableCell>
-                    <TableCell className="text-right font-semibold">{formatCurrency(r.net_to_partner)}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={STATUS_STYLES[r.status] || ""}>{r.status}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      {r.status === "pending" && (
-                        <Button size="sm" variant="ghost" onClick={() => markPaid(r.id)}>
-                          <Check className="h-4 w-4 mr-1" /> Mark Paid
-                        </Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <Card><CardContent className="p-4">
+          <div className="text-xs text-muted-foreground">Pending Obligations</div>
+          <div className="text-xl font-semibold text-amber-700 dark:text-amber-400">{formatCurrency(summary.pending)}</div>
+        </CardContent></Card>
+        <Card><CardContent className="p-4">
+          <div className="text-xs text-muted-foreground">Paid MTD</div>
+          <div className="text-xl font-semibold">{formatCurrency(summary.paidMTD)}</div>
+        </CardContent></Card>
+        <Card><CardContent className="p-4">
+          <div className="text-xs text-muted-foreground">Paid YTD</div>
+          <div className="text-xl font-semibold">{formatCurrency(summary.paidYTD)}</div>
+        </CardContent></Card>
+      </div>
+
+      <Card>
+        <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <CardTitle className="text-base">Partner Payouts</CardTitle>
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={filterPartner} onValueChange={setFilterPartner}>
+              <SelectTrigger className="h-9 w-[180px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Partners</SelectItem>
+                {partnerOptions.map(([id, name]) => <SelectItem key={id} value={id}>{name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="h-9 w-[140px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="scheduled">Scheduled</SelectItem>
+                <SelectItem value="paid">Paid</SelectItem>
+                <SelectItem value="voided">Voided</SelectItem>
+              </SelectContent>
+            </Select>
+            {selectedCount > 0 && (
+              <Button size="sm" onClick={() => setBulkOpen(true)}>
+                <Check className="h-4 w-4 mr-2" /> Mark {selectedCount} Paid
+              </Button>
+            )}
+            <Button size="sm" variant="outline" onClick={handleExport} disabled={!filtered.length}>
+              <Download className="h-4 w-4 mr-2" /> CSV
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-8">
+                    <Checkbox
+                      checked={filtered.filter((r) => r.status === "pending").length > 0 && filtered.filter((r) => r.status === "pending").every((r) => selected.has(r.id))}
+                      onCheckedChange={togglePending}
+                      aria-label="Select all pending"
+                    />
+                  </TableHead>
+                  <TableHead className="w-8"></TableHead>
+                  <TableHead>Created</TableHead>
+                  <TableHead>Partner</TableHead>
+                  <TableHead>Vehicle</TableHead>
+                  <TableHead>Booking</TableHead>
+                  <TableHead className="text-right">Net</TableHead>
+                  <TableHead className="text-right">To Partner</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">Loading…</TableCell></TableRow>
+                ) : filtered.length === 0 ? (
+                  <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">No partner payouts match the current filters.</TableCell></TableRow>
+                ) : (
+                  filtered.map((r) => {
+                    const isOpen = expanded.has(r.id);
+                    const bk = bookings[r.booking_id];
+                    return (
+                      <>
+                        <TableRow key={r.id}>
+                          <TableCell>
+                            {r.status === "pending" && (
+                              <Checkbox checked={selected.has(r.id)} onCheckedChange={() => toggleSelect(r.id)} />
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <button onClick={() => toggleExpand(r.id)} className="text-muted-foreground hover:text-foreground">
+                              {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                            </button>
+                          </TableCell>
+                          <TableCell className="text-sm">{new Date(r.created_at).toLocaleDateString()}</TableCell>
+                          <TableCell>{partners[r.partner_id] || "—"}</TableCell>
+                          <TableCell className="text-sm">{vehicles[r.vehicle_id] || "—"}</TableCell>
+                          <TableCell className="text-sm font-mono">{bk?.reference || r.booking_id.slice(0, 8)}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(r.net_after_fee)}</TableCell>
+                          <TableCell className="text-right font-semibold">{formatCurrency(r.net_to_partner)}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className={STATUS_STYLES[r.status] || ""}>{r.status}</Badge>
+                          </TableCell>
+                        </TableRow>
+                        {isOpen && (
+                          <TableRow key={`${r.id}-drill`} className="bg-muted/30">
+                            <TableCell colSpan={9} className="p-4">
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                                <Stat label="Gross Base" value={formatCurrency(r.gross_rental_base)} />
+                                <Stat label="Platform Fee" value={formatCurrency(r.platform_fee_amount)} />
+                                <Stat label="Net After Fee" value={formatCurrency(r.net_after_fee)} />
+                                <Stat label="Adjustments" value={formatCurrency(r.operator_adjustments)} />
+                                <Stat label="Split" value={r.split_type === "percent" ? `${r.split_value_snapshot}%` : formatCurrency(r.split_value_snapshot)} />
+                                <Stat label="To Partner" value={formatCurrency(r.net_to_partner)} highlight />
+                                <Stat label="Method" value={r.payout_method || "—"} />
+                                <Stat label="Reference" value={r.payout_reference || "—"} />
+                                {bk?.start_date && <Stat label="Booking Window" value={`${bk.start_date.slice(0,10)} → ${bk.end_date?.slice(0,10) || "?"}`} />}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle>Mark {selectedCount} payout{selectedCount === 1 ? "" : "s"} as paid</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-2">
+              <Label>Payout Date</Label>
+              <Input type="date" value={bulkDate} onChange={(e) => setBulkDate(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Reference (optional)</Label>
+              <Input value={bulkRef} onChange={(e) => setBulkRef(e.target.value)} placeholder="ACH batch #, check #, …" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkOpen(false)}>Cancel</Button>
+            <Button onClick={() => markPaid(Array.from(selected), bulkDate, bulkRef)}>Confirm</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function Stat({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+  return (
+    <div>
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className={`font-medium ${highlight ? "text-primary" : ""}`}>{value}</div>
+    </div>
   );
 }
