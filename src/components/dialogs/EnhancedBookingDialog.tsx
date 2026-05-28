@@ -73,6 +73,7 @@ import type { Database } from "@/integrations/supabase/types";
 
 type CustomerNote = Database["public"]["Tables"]["customer_notes"]["Row"];
 
+import { useBlockIfRestricted } from "@/components/guards/PaymentDueGuard";
 interface EnhancedBookingDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -96,6 +97,7 @@ export const EnhancedBookingDialog = ({
   onNavigateToModule,
 }: EnhancedBookingDialogProps) => {
   const { bookings, vehicles, payments, customers, updateBookingStatus, updateBookingDetails, createPayment, sendMessage, refreshData } = useFleet();
+  const blockIfRestricted = useBlockIfRestricted();
   const { currentTeam } = useTeam();
   const { toast } = useToast();
   const gasFeeSettings = useTeamGasFeeSettings();
@@ -373,6 +375,7 @@ export const EnhancedBookingDialog = ({
 
   const handleSaveChanges = async (andApprove = false) => {
     if (!booking) return;
+    if (blockIfRestricted()) return;
     setSaving(true);
     
     try {
@@ -1239,7 +1242,7 @@ export const EnhancedBookingDialog = ({
                         <XCircle className="h-4 w-4 mr-2" />Cancel
                       </Button>
                       <Button
-                        onClick={() => { updateBookingStatus(booking.id, "confirmed"); onOpenChange(false); }}
+                        onClick={() => { if (blockIfRestricted()) return; updateBookingStatus(booking.id, "confirmed"); onOpenChange(false); }}
                         className="flex-1"
                       >
                         <CheckCircle className="h-4 w-4 mr-2" />Confirm
@@ -1256,7 +1259,7 @@ export const EnhancedBookingDialog = ({
                         <XCircle className="h-4 w-4 mr-2" />Cancel Booking
                       </Button>
                       <Button
-                        onClick={() => { updateBookingStatus(booking.id, "completed"); onOpenChange(false); }}
+                        onClick={() => { if (blockIfRestricted()) return; updateBookingStatus(booking.id, "completed"); onOpenChange(false); }}
                         className="flex-1"
                       >
                         <CheckCircle className="h-4 w-4 mr-2" />Complete Booking
@@ -1272,6 +1275,7 @@ export const EnhancedBookingDialog = ({
                     cancelText="Keep Booking"
                     variant="destructive"
                     onConfirm={() => {
+                      if (blockIfRestricted()) { setShowCancelConfirm(false); return; }
                       updateBookingStatus(booking.id, "cancelled");
                       setShowCancelConfirm(false);
                       onOpenChange(false);
