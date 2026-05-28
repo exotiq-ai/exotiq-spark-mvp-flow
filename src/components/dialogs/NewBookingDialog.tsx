@@ -308,6 +308,10 @@ export const NewBookingDialog = ({
             Create a new booking for your fleet
           </DialogDescription>
         </DialogHeader>
+        <PaymentDueGuard
+          title="New bookings paused"
+          body="Complete billing setup to create new bookings. Existing rentals and historical records are unaffected."
+        >
 
         <ScrollArea className="flex-1 overflow-y-auto">
           <div className="px-6 py-4 space-y-4">
