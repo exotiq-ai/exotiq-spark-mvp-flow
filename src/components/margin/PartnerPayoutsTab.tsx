@@ -256,8 +256,8 @@ export function PartnerPayoutsTab() {
                     const isOpen = expanded.has(r.id);
                     const bk = bookings[r.booking_id];
                     return (
-                      <>
-                        <TableRow key={r.id}>
+                      <Fragment key={r.id}>
+                        <TableRow>
                           <TableCell>
                             {r.status === "pending" && (
                               <Checkbox checked={selected.has(r.id)} onCheckedChange={() => toggleSelect(r.id)} />
@@ -279,7 +279,7 @@ export function PartnerPayoutsTab() {
                           </TableCell>
                         </TableRow>
                         {isOpen && (
-                          <TableRow key={`${r.id}-drill`} className="bg-muted/30">
+                          <TableRow className="bg-muted/30">
                             <TableCell colSpan={9} className="p-4">
                               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                                 <Stat label="Gross Base" value={formatCurrency(r.gross_rental_base)} />
@@ -295,7 +295,7 @@ export function PartnerPayoutsTab() {
                             </TableCell>
                           </TableRow>
                         )}
-                      </>
+                      </Fragment>
                     );
                   })
                 )}
