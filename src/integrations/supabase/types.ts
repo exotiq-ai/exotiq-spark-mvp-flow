@@ -3152,9 +3152,11 @@ export type Database = {
           expense_date: string
           expense_type: string
           id: string
+          is_reimbursable: boolean
           location_id: string | null
           notes: string | null
           receipt_url: string | null
+          reimbursed_amount: number
           source_module: string
           source_record_id: string | null
           team_id: string
@@ -3171,9 +3173,11 @@ export type Database = {
           expense_date?: string
           expense_type: string
           id?: string
+          is_reimbursable?: boolean
           location_id?: string | null
           notes?: string | null
           receipt_url?: string | null
+          reimbursed_amount?: number
           source_module?: string
           source_record_id?: string | null
           team_id: string
@@ -3190,9 +3194,11 @@ export type Database = {
           expense_date?: string
           expense_type?: string
           id?: string
+          is_reimbursable?: boolean
           location_id?: string | null
           notes?: string | null
           receipt_url?: string | null
+          reimbursed_amount?: number
           source_module?: string
           source_record_id?: string | null
           team_id?: string
