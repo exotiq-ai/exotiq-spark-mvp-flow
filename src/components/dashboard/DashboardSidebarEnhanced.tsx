@@ -32,6 +32,7 @@ interface DashboardSidebarEnhancedProps {
   activeModule: string;
   onModuleChange: (moduleId: string) => void;
   onOpenRari?: () => void;
+  isSuperAdmin?: boolean;
 }
 
 interface NavGroup {
@@ -166,7 +167,8 @@ const RariQuickAccess = ({
 export const DashboardSidebarEnhanced = ({ 
   activeModule, 
   onModuleChange,
-  onOpenRari 
+  onOpenRari,
+  isSuperAdmin = false
 }: DashboardSidebarEnhancedProps) => {
   const [collapsed, setCollapsed] = useLocalStorage("sidebarCollapsed", false);
   const [expandedGroups, setExpandedGroups] = useLocalStorage<string[]>("sidebarExpandedGroups", ["operations", "intelligence"]);
@@ -215,6 +217,7 @@ export const DashboardSidebarEnhanced = ({
       name: "Management",
       items: [
         { id: "settings", name: "Settings", icon: Settings, minRole: 'manager' },
+        ...(isSuperAdmin ? [{ id: "super-admin", name: "Super Admin", icon: Shield }] : []),
       ]
     }
   ];

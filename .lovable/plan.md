@@ -1,88 +1,46 @@
+## Assessment
 
-# Ship: Stage-3 Restriction + Auto-Clear
+This feature was partially built, but the access path is brittle and the dashboard itself is not production-ready.
 
-Two focused additions to the dunning system. No new schema — everything below uses what's already in `teams` + the `auto_clear_billing_dunning_for_email` RPC we shipped last round.
+What I verified:
+- `hello@exotiq.ai` exists and is active.
+- `hello@exotiq.ai` is present in the `super_admins` table.
+- The backend function returns `true` for `hello@exotiq.ai`.
+- The browser logs show the race condition: the guard first renders “not super admin” and redirects, then the async check returns `true` after it is too late.
+- The Super Admin page does exist and includes a Billing tab, but other tabs use client-side admin APIs that are not available in the browser, so “full super-admin functionality” needs hardening rather than just exposing the route.
 
-## 1. Stage-3 booking read-only enforcement
+Do I know what the issue is? Yes.
 
-Goal: at `restriction` stage, the tenant can still see everything, but can't create new bookings or edit existing ones. Historical data, fleet view, reports, messaging, settings → all stay fully usable. No data loss, nothing destructive.
+The immediate redirect is caused by the super-admin guard treating an initial unknown/auth-loading state as denied access. The backend says you are a super admin, but the UI redirects before that result wins.
 
-### New: `PaymentDueGuard.tsx`
-- Thin wrapper component. Reads `usePaymentRestricted()` from existing `useBillingDunning` hook.
-- When restricted: renders a centered inline notice card (semantic tokens, destructive tone) with:
-  - Headline: "Account access is limited"
-  - Body: short copy mirroring the banner
-  - Primary CTA: "Complete payment" → same `create-checkout-session` invoke as the banner
-  - Secondary: "Contact support" mailto
-- When not restricted: renders `children` untouched.
-- Owners/Admins still see the CTA; non-billing roles see a "Ask your account owner" variant (matches banner behavior).
+## Plan
 
-### Wire it into Bookings create/edit surfaces
-Wrap the actual create + edit entry points so read-only is enforced no matter how the user got there (button, deep link, Cmd+K). Read-only specifically means:
-- "New booking" button → disabled with tooltip "Payment required to create bookings"
-- `EnhancedBookingDialog` open in create or edit mode → guard intercepts and shows the notice instead of the form
-- Inline edits on the booking detail page (status changes, payment record edits, reschedule) → disabled with the same tooltip
-- Cancel/decline confirmation dialogs → also disabled (they're mutations)
-- Calendar drag-to-create/drag-to-reschedule → no-op + toast "Payment required"
+1. **Fix `/super-admin` access guard**
+   - Keep `/super-admin` behind normal authentication first.
+   - Reset the admin check whenever the user changes.
+   - Do not redirect while auth or the super-admin RPC is still pending.
+   - If access fails, show a clear access-denied screen with the signed-in email instead of silently kicking back to dashboard.
+   - Remove noisy console logging once stable.
 
-Explicitly NOT blocked at Stage 3:
-- Viewing bookings list, calendar, detail pages
-- Viewing customers, fleet, inspections, reports, messages
-- Settings (especially Billing — they need to be able to pay)
-- Check-in/check-out flows already in progress? **Open question — see below.**
+2. **Normalize the super-admin backend model**
+   - Add a small migration to make `is_super_admin` check by `auth.users.id` first and fall back to email/profile matching, so future admin inserts are not fragile.
+   - Ensure `hello@exotiq.ai` has the expected active super-admin permissions in the canonical table shape.
+   - Keep this separate from tenant roles to preserve isolation.
 
-### Files touched (frontend only, no schema)
-**New**
-- `src/components/guards/PaymentDueGuard.tsx`
+3. **Make the dashboard available without browser-only admin APIs**
+   - Replace `supabase.auth.admin.listUsers()` usage in `SuperAdminDashboard.tsx`; that API requires server privileges and is not valid from the browser.
+   - Use database-backed views/RPCs for super-admin customer/team summaries instead.
+   - Keep the Billing tab focused on tenant/team billing controls, because that is the part needed for the payment-due banner.
 
-**Edited**
-- `src/components/bookings/EnhancedBookingDialog.tsx` (or wherever the create/edit dialog mounts) — wrap form body in guard
-- `src/pages/Bookings.tsx` (or equivalent list page) — disable "New booking" CTA when restricted
-- `src/components/bookings/BookingCalendar*.tsx` — block drag-create / drag-reschedule
-- `src/pages/BookingDetail.tsx` (or equivalent) — disable inline edit affordances
-- `src/hooks/useBillingDunning.ts` — already exports `usePaymentRestricted`, no change
+4. **Verify the Billing tab end-to-end**
+   - Confirm the Billing tab can load all teams visible to super admins.
+   - Confirm the dunning RPCs can set and clear banner states.
+   - If “Denver Exotic Rentals” is not found by that exact name, surface the actual matching tenant/team names so you can pick the right account.
 
-## 2. Auto-clear when subscription goes active
+5. **Add a safe navigation affordance**
+   - Add a visible Super Admin entry only for verified super admins, so you do not have to manually type `/super-admin`.
+   - Keep it hidden from regular tenant users.
 
-Goal: when the tenant successfully pays, the banner disappears on its own — no manual Super Admin click required.
+## Expected result
 
-### Hook into existing `check-subscription` edge function
-The RPC `auto_clear_billing_dunning_for_email(p_email)` already exists (security definer, service-role only). We just need to call it from `check-subscription` after it confirms `hasActiveSub === true`.
-
-Add at the end of the active-subscription branch in `supabase/functions/check-subscription/index.ts`:
-
-```typescript
-if (hasActiveSub) {
-  // Fire-and-forget: clear any active dunning stage for this user's team
-  try {
-    await supabaseClient.rpc('auto_clear_billing_dunning_for_email', { p_email: user.email });
-  } catch (e) {
-    logStep("auto-clear dunning failed (non-fatal)", { error: String(e) });
-  }
-}
-```
-
-That's it on the backend. The RPC handles the lookup, update, and audit log entry.
-
-### Frontend nudge
-`check-subscription` is already called on app load and from the Billing settings page. The success URL we use in `PaymentDueBanner` (`/dashboard/settings?tab=billing&status=active`) already lands them on a page that triggers `check-subscription`. Add a small effect on that page (if not already present) to call `check-subscription` once on mount when `?status=active` is in the URL, then refresh `useBillingDunning`.
-
-### Files touched
-**Edited**
-- `supabase/functions/check-subscription/index.ts` — single RPC call after active-sub detection
-- `src/components/settings/` billing tab (whichever file handles `?status=active`) — ensure `check-subscription` + `useBillingDunning.refresh()` fire on mount when the flag is present
-
-## Out of scope (still)
-- Auto-escalation cron (Reminder → Notice → Restriction on a timer)
-- Email/SMS dunning
-- Hard lockout / blocking Settings or read access
-- Stripe webhook → auto-clear (we're piggybacking on `check-subscription` polling, which is sufficient for now since the success redirect triggers it immediately)
-
-## One push-back / open question
-
-**Check-in / check-out at Stage 3.** These are mutations on existing bookings (vehicle handoff, photo capture, signatures). If a tenant has an active rental that's mid-trip when you flip them to Restriction, blocking check-in or check-out would strand a real customer at the curb — which makes *you* the villain, not them.
-
-**My recommendation:** allow check-in/check-out on already-confirmed bookings even at Stage 3. Only block *new* bookings, edits to future bookings, and reschedules. Inspections and photo uploads tied to an in-progress rental stay open. This keeps the pressure on the operator without ever touching an end-customer's trip.
-
-If you want the harder version (block everything including check-in/out), say the word and I'll wire it that way instead — but I'd push back on it.
-
+After implementation, signing in as `hello@exotiq.ai` and visiting `/super-admin` should land on the Super Admin Dashboard instead of redirecting. The Billing tab should be usable for setting the payment-due banner on a tenant, with clear errors if a tenant name does not exist or the backend blocks an action.

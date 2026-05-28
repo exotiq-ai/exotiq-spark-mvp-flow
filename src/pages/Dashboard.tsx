@@ -57,6 +57,7 @@ import { MobileMoreMenu } from "@/components/mobile/MobileMoreMenu";
 import { FloatingActionMenu } from "@/components/mobile/FloatingActionMenu";
 import { useTeamMessaging } from "@/hooks/useTeamMessaging";
 import { useTeam } from "@/contexts/TeamContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { Calendar as CalendarIcon, DollarSign, UserPlus, FileText, Sparkles } from "lucide-react";
 import { RariSidebar } from "@/components/rari/RariSidebar";
 import { AddLocationDialog } from "@/components/dialogs/AddLocationDialog";
@@ -75,6 +76,8 @@ const DashboardInner = () => {
   const rariSidebar = useRariSidebar();
   const { showPostTourModal, setShowPostTourModal } = useTourData();
   const { displayName } = useProfile();
+  const { user } = useAuth();
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
   // Sync localStorage for backwards compat (tours read it)
   useEffect(() => {
@@ -111,6 +114,22 @@ const DashboardInner = () => {
     });
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    if (!user?.id) {
+      setIsSuperAdmin(false);
+      return;
+    }
+
+    supabase.rpc('is_super_admin', { check_user_id: user.id }).then(({ data }) => {
+      if (!cancelled) setIsSuperAdmin(data === true);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
   // Calculate total unread messages
   const totalUnread = conversations.reduce((acc, c) => acc + (c.unread_count || 0), 0);
 
@@ -128,6 +147,11 @@ const DashboardInner = () => {
 
   // Handle module change - special case for messages opens chat instead
   const handleModuleChange = (moduleId: string) => {
+    if (moduleId === 'super-admin') {
+      nav('/super-admin');
+      return;
+    }
+
     if (moduleId === 'messages') {
       setChatOpen(true);
       setChatMinimized(false);
@@ -347,6 +371,7 @@ const DashboardInner = () => {
         activeModule={activeModule}
         onModuleChange={handleModuleChange}
         onOpenRari={rariSidebar.open}
+        isSuperAdmin={isSuperAdmin}
       />
 
       {/* Main Content Area */}
@@ -444,6 +469,7 @@ const DashboardInner = () => {
               activeModule={activeModule}
               onModuleChange={handleModuleChange}
               onAddLocation={() => setMobileAddLocationOpen(true)}
+              isSuperAdmin={isSuperAdmin}
             />
           </div>
         </div>

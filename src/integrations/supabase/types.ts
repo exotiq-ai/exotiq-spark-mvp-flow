@@ -2411,17 +2411,35 @@ export type Database = {
         Row: {
           created_at: string | null
           email: string
+          full_name: string | null
+          id: string
+          is_active: boolean
+          last_login_at: string | null
           notes: string | null
+          permissions: string[] | null
+          user_id: string | null
         }
         Insert: {
           created_at?: string | null
           email: string
+          full_name?: string | null
+          id?: string
+          is_active?: boolean
+          last_login_at?: string | null
           notes?: string | null
+          permissions?: string[] | null
+          user_id?: string | null
         }
         Update: {
           created_at?: string | null
           email?: string
+          full_name?: string | null
+          id?: string
+          is_active?: boolean
+          last_login_at?: string | null
           notes?: string | null
+          permissions?: string[] | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -4160,6 +4178,52 @@ export type Database = {
           role: Database["public"]["Enums"]["app_role"]
         }[]
       }
+      get_super_admin_audit_logs: {
+        Args: never
+        Returns: {
+          action: string
+          changed_by: string
+          created_at: string
+          id: string
+          metadata: Json
+          user_id: string
+        }[]
+      }
+      get_super_admin_billing_tenants: {
+        Args: never
+        Returns: {
+          assumed_plan_fleet_size: number
+          assumed_plan_is_annual: boolean
+          assumed_plan_tier: string
+          billing_dunning_message: string
+          billing_dunning_notes: string
+          billing_dunning_set_at: string
+          billing_dunning_stage: string
+          id: string
+          is_demo_account: boolean
+          name: string
+          owner_email: string
+        }[]
+      }
+      get_super_admin_customers: {
+        Args: never
+        Returns: {
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          role: string
+        }[]
+      }
+      get_super_admin_stats: {
+        Args: never
+        Returns: {
+          new_this_week: number
+          total_bookings: number
+          total_customers: number
+          total_vehicles: number
+        }[]
+      }
       get_team_owner: { Args: { _user_id: string }; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
@@ -4203,7 +4267,7 @@ export type Database = {
         Args: { _target_user_id: string; _user_id: string }
         Returns: boolean
       }
-      is_super_admin: { Args: { check_user_id: string }; Returns: boolean }
+      is_super_admin: { Args: { check_user_id?: string }; Returns: boolean }
       is_team_admin: {
         Args: { _team_id: string; _user_id: string }
         Returns: boolean
@@ -4276,6 +4340,10 @@ export type Database = {
         Returns: undefined
       }
       snapshot_vehicle_billing: { Args: never; Returns: undefined }
+      super_admin_has_permission: {
+        Args: { check_user_id?: string; permission_name: string }
+        Returns: boolean
+      }
       trash_vehicle: { Args: { p_vehicle_id: string }; Returns: undefined }
       update_document_status: { Args: never; Returns: undefined }
     }
