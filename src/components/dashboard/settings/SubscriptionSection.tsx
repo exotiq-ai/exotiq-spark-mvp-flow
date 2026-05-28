@@ -25,12 +25,11 @@ import { BillingToggle } from "@/components/landing/pricing/BillingToggle";
 import { Celebration } from "@/components/common/MicroInteractions";
 import { motion, AnimatePresence } from "framer-motion";
 
-// Vehicle limits by subscription tier
+// Vehicle limits by subscription tier (2026 restructure)
 const TIER_LIMITS: Record<string, number> = {
-  starter: 10,
-  professional: 25,
-  business: 75,
-  enterprise: 150
+  pro: 15,
+  business: 50,
+  enterprise: 9999,
 };
 
 export const SubscriptionSection = () => {
@@ -103,17 +102,13 @@ export const SubscriptionSection = () => {
   };
 
   const getDisplayPrice = (tier: PricingTier) => {
-    if (tier.priceType === 'per-vehicle') {
-      return `$${tier.perVehicleRate}`;
-    }
-    return `$${tier.price}`;
+    if (tier.priceType === 'custom') return 'Custom';
+    return `$${tier.perVehicleRate ?? tier.price}`;
   };
 
   const getPriceLabel = (tier: PricingTier) => {
-    if (tier.priceType === 'per-vehicle') {
-      return '/vehicle/mo';
-    }
-    return '/month';
+    if (tier.priceType === 'custom') return '';
+    return '/vehicle/mo';
   };
 
   // No subscription state
@@ -138,7 +133,7 @@ export const SubscriptionSection = () => {
             <h3 className="text-lg font-semibold">Available Plans</h3>
             <BillingToggle isAnnual={isAnnual} onChange={setIsAnnual} />
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {pricingTiers.map((tier) => (
               <Card
                 key={tier.id}
@@ -157,10 +152,10 @@ export const SubscriptionSection = () => {
                     <span className="text-2xl font-bold">{getDisplayPrice(tier)}</span>
                     <span className="text-sm text-muted-foreground">{getPriceLabel(tier)}</span>
                   </div>
-                  {tier.priceType === 'per-vehicle' && tier.minPrice && (
-                    <p className="text-xs text-muted-foreground mt-1">${tier.minPrice}/mo minimum</p>
+                  {tier.priceType === 'custom' && (
+                    <p className="text-xs text-muted-foreground mt-1">Volume pricing — contact sales</p>
                   )}
-                  {isAnnual && (
+                  {tier.priceType !== 'custom' && isAnnual && (
                     <p className="text-xs text-success mt-1">Save 2 months annually</p>
                   )}
                 </div>
@@ -177,9 +172,15 @@ export const SubscriptionSection = () => {
                 <Button
                   className="w-full mt-5"
                   variant={tier.popular ? "default" : "outline"}
-                  onClick={() => handleSelectPlan(tier)}
+                  onClick={() => {
+                    if (tier.priceType === 'custom') {
+                      window.open('https://calendly.com/exotiq/enterprise', '_blank');
+                    } else {
+                      handleSelectPlan(tier);
+                    }
+                  }}
                 >
-                  Get Started
+                  {tier.priceType === 'custom' ? 'Contact Sales' : 'Start Free Trial'}
                 </Button>
               </Card>
             ))}
@@ -314,7 +315,7 @@ export const SubscriptionSection = () => {
       {/* Available Plans for upgrade */}
       <div>
         <h3 className="text-lg font-semibold mb-4">Available Plans</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {pricingTiers.map((tier) => {
             const isCurrentPlan = tier.id === currentTier;
 
@@ -355,9 +356,15 @@ export const SubscriptionSection = () => {
                   className="w-full mt-5"
                   variant={isCurrentPlan ? "default" : "outline"}
                   disabled={isCurrentPlan}
-                  onClick={() => handleSelectPlan(tier)}
+                  onClick={() => {
+                    if (tier.priceType === 'custom') {
+                      window.open('https://calendly.com/exotiq/enterprise', '_blank');
+                    } else {
+                      handleSelectPlan(tier);
+                    }
+                  }}
                 >
-                  {isCurrentPlan ? "Current Plan" : "Upgrade"}
+                  {isCurrentPlan ? "Current Plan" : tier.priceType === 'custom' ? "Contact Sales" : "Switch Plan"}
                 </Button>
               </Card>
             );
