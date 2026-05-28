@@ -12,6 +12,8 @@ export interface Team {
   logo_url: string | null;
   timezone: string | null;
   is_demo_account?: boolean; // Demo accounts show placeholder content for demos
+  trial_start?: string | null;
+  trial_end?: string | null;
 }
 
 export interface Location {
