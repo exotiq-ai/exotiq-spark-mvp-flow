@@ -341,7 +341,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               } else {
                 // GUARD: Only check onboarding if user is NOT already on a protected route
                 // If they're on dashboard/fleet/etc, they're clearly past onboarding - don't disrupt
-                const protectedRoutes = ['/dashboard', '/fleet', '/bookings', '/customers', '/vault', '/pulse', '/settings', '/team'];
+                const protectedRoutes = ['/dashboard', '/super-admin', '/fleet', '/bookings', '/customers', '/vault', '/pulse', '/settings', '/team'];
                 const isOnProtectedRoute = protectedRoutes.some(route => 
                   currentPath.startsWith(route)
                 );
