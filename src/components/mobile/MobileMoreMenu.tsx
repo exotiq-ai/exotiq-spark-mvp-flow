@@ -21,9 +21,10 @@ interface MobileMoreMenuProps {
   onAddLocation?: () => void;
   activeModule?: string;
   onModuleChange?: (moduleId: string) => void;
+  isSuperAdmin?: boolean;
 }
 
-export const MobileMoreMenu = ({ onAddLocation, activeModule: activeModuleProp, onModuleChange }: MobileMoreMenuProps) => {
+export const MobileMoreMenu = ({ onAddLocation, activeModule: activeModuleProp, onModuleChange, isSuperAdmin = false }: MobileMoreMenuProps) => {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
@@ -52,6 +53,12 @@ export const MobileMoreMenu = ({ onAddLocation, activeModule: activeModuleProp, 
       description: "Preferences & Account",
       icon: Settings 
     },
+    ...(isSuperAdmin ? [{
+      id: "super-admin",
+      label: "Super Admin",
+      description: "Platform controls",
+      icon: Shield,
+    }] : []),
   ];
 
   const menuItems = [...operationsItems, ...intelligenceItems, ...managementItems];
@@ -71,7 +78,7 @@ export const MobileMoreMenu = ({ onAddLocation, activeModule: activeModuleProp, 
     setOpen(false);
   };
 
-  const isActive = ["motoriq", "pulse", "vault", "settings"].includes(activeModule);
+  const isActive = ["motoriq", "pulse", "vault", "settings", "super-admin"].includes(activeModule);
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
