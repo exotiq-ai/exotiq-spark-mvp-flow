@@ -25,7 +25,6 @@ import {
   TrendingUp,
   AlertCircle,
   ArrowLeft,
-  ExternalLink,
   CreditCard
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -102,30 +101,16 @@ export const SuperAdminDashboard = () => {
   useEffect(() => {
     const fetchCustomers = async () => {
       try {
-        // Fetch all users (super admin can see all via RLS bypass)
-        const { data: usersData, error: usersError } = await supabase
-          .from('user_roles')
-          .select('user_id, role')
-          .order('assigned_at', { ascending: false });
+        const { data, error } = await (supabase as any).rpc('get_super_admin_customers');
+        if (error) throw error;
 
-        if (usersError) throw usersError;
-
-        // Get user details from auth.users via API
-        const { data: authUsersData, error: authError } = await supabase.auth.admin.listUsers();
-
-        if (authError) throw authError;
-
-        // Combine data
-        const combinedCustomers: Customer[] = authUsersData.users.map(authUser => {
-          const roleData = usersData?.find(r => r.user_id === authUser.id);
-          return {
-            id: authUser.id,
-            email: authUser.email || 'No email',
-            full_name: authUser.user_metadata?.full_name || null,
-            created_at: authUser.created_at,
-            role: roleData?.role || 'viewer'
-          };
-        });
+        const combinedCustomers: Customer[] = (data || []).map((row: Customer) => ({
+          id: row.id,
+          email: row.email || 'No email',
+          full_name: row.full_name || null,
+          created_at: row.created_at,
+          role: row.role || 'viewer'
+        }));
 
         setCustomers(combinedCustomers);
         setFilteredCustomers(combinedCustomers);
@@ -146,34 +131,15 @@ export const SuperAdminDashboard = () => {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        // Get total customers
-        const { count: totalCustomers } = await supabase
-          .from('user_roles')
-          .select('*', { count: 'exact', head: true });
-
-        // Get customers from this week
-        const weekAgo = new Date();
-        weekAgo.setDate(weekAgo.getDate() - 7);
-        const { count: newThisWeek } = await supabase
-          .from('user_roles')
-          .select('*', { count: 'exact', head: true })
-          .gte('assigned_at', weekAgo.toISOString());
-
-        // Get total vehicles across all accounts
-        const { count: totalVehicles } = await supabase
-          .from('vehicles')
-          .select('*', { count: 'exact', head: true });
-
-        // Get total bookings across all accounts
-        const { count: totalBookings } = await supabase
-          .from('bookings')
-          .select('*', { count: 'exact', head: true });
+        const { data, error } = await (supabase as any).rpc('get_super_admin_stats');
+        if (error) throw error;
+        const row = Array.isArray(data) ? data[0] : data;
 
         setStats({
-          totalCustomers: totalCustomers || 0,
-          newThisWeek: newThisWeek || 0,
-          totalVehicles: totalVehicles || 0,
-          totalBookings: totalBookings || 0
+          totalCustomers: Number(row?.total_customers || 0),
+          newThisWeek: Number(row?.new_this_week || 0),
+          totalVehicles: Number(row?.total_vehicles || 0),
+          totalBookings: Number(row?.total_bookings || 0)
         });
       } catch (error) {
         console.error('[SuperAdmin] Error fetching stats:', error);
@@ -189,11 +155,7 @@ export const SuperAdminDashboard = () => {
   useEffect(() => {
     const fetchAuditLogs = async () => {
       try {
-        const { data, error } = await supabase
-          .from('role_audit_log')
-          .select('id, action, user_id, changed_by, created_at, metadata')
-          .order('created_at', { ascending: false })
-          .limit(10);
+        const { data, error } = await (supabase as any).rpc('get_super_admin_audit_logs');
 
         if (error) throw error;
         setAuditLogs(data || []);
