@@ -62,12 +62,7 @@ export const SuperAdminBillingTab = () => {
 
   const load = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("teams")
-      .select(
-        "id,name,owner_id,is_demo_account,billing_dunning_stage,billing_dunning_set_at,billing_dunning_message,billing_dunning_notes,assumed_plan_tier,assumed_plan_fleet_size,assumed_plan_is_annual"
-      )
-      .order("name");
+    const { data, error } = await (supabase as any).rpc("get_super_admin_billing_tenants");
     if (error) {
       toast({
         title: "Failed to load tenants",
@@ -78,25 +73,11 @@ export const SuperAdminBillingTab = () => {
       return;
     }
     const rows = (data || []) as Array<Record<string, unknown>>;
-    // Hydrate owner emails (best-effort)
-    const ownerIds = Array.from(
-      new Set(rows.map((r) => r.owner_id as string).filter(Boolean))
-    );
-    let emailMap = new Map<string, string>();
-    if (ownerIds.length > 0) {
-      const { data: profs } = await supabase
-        .from("profiles")
-        .select("id,email")
-        .in("id", ownerIds);
-      emailMap = new Map(
-        (profs || []).map((p: { id: string; email: string }) => [p.id, p.email])
-      );
-    }
     setTenants(
       rows.map((r) => ({
         id: r.id as string,
         name: (r.name as string) || "Unnamed",
-        owner_email: emailMap.get(r.owner_id as string) ?? null,
+        owner_email: (r.owner_email as string) ?? null,
         billing_dunning_stage: (r.billing_dunning_stage as Stage) ?? null,
         billing_dunning_set_at: (r.billing_dunning_set_at as string) ?? null,
         billing_dunning_message: (r.billing_dunning_message as string) ?? null,
