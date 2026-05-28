@@ -96,6 +96,7 @@ export const EnhancedBookingDialog = ({
   onNavigateToModule,
 }: EnhancedBookingDialogProps) => {
   const { bookings, vehicles, payments, customers, updateBookingStatus, updateBookingDetails, createPayment, sendMessage, refreshData } = useFleet();
+  const blockIfRestricted = useBlockIfRestricted();
   const { currentTeam } = useTeam();
   const { toast } = useToast();
   const gasFeeSettings = useTeamGasFeeSettings();
@@ -373,6 +374,7 @@ export const EnhancedBookingDialog = ({
 
   const handleSaveChanges = async (andApprove = false) => {
     if (!booking) return;
+    if (blockIfRestricted()) return;
     setSaving(true);
     
     try {
