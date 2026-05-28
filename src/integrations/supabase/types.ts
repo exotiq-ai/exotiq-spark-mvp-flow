@@ -829,6 +829,7 @@ export type Database = {
       }
       documents: {
         Row: {
+          billing_frequency: string | null
           booking_id: string | null
           created_at: string | null
           customer_id: string | null
@@ -841,6 +842,7 @@ export type Database = {
           is_default: boolean | null
           name: string
           parent_document_id: string | null
+          premium_amount: number | null
           signature_image_url: string | null
           signed_at: string | null
           signed_by_name: string | null
@@ -856,6 +858,7 @@ export type Database = {
           verified_by: string | null
         }
         Insert: {
+          billing_frequency?: string | null
           booking_id?: string | null
           created_at?: string | null
           customer_id?: string | null
@@ -868,6 +871,7 @@ export type Database = {
           is_default?: boolean | null
           name: string
           parent_document_id?: string | null
+          premium_amount?: number | null
           signature_image_url?: string | null
           signed_at?: string | null
           signed_by_name?: string | null
@@ -883,6 +887,7 @@ export type Database = {
           verified_by?: string | null
         }
         Update: {
+          billing_frequency?: string | null
           booking_id?: string | null
           created_at?: string | null
           customer_id?: string | null
@@ -895,6 +900,7 @@ export type Database = {
           is_default?: boolean | null
           name?: string
           parent_document_id?: string | null
+          premium_amount?: number | null
           signature_image_url?: string | null
           signed_at?: string | null
           signed_by_name?: string | null

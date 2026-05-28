@@ -39,12 +39,15 @@ export const DocumentUploadDialog = ({
   const [name, setName] = useState('');
   const [type, setType] = useState('');
   const [expiryDate, setExpiryDate] = useState('');
+  const [premiumAmount, setPremiumAmount] = useState('');
+  const [billingFrequency, setBillingFrequency] = useState('annually');
   const [isDefault, setIsDefault] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<{ url: string; name: string; size: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isRentalAgreement = type === 'rental_agreement';
+  const isInsurance = type === 'insurance';
 
   const documentTypes = [
     { label: 'Insurance', value: 'insurance' },
@@ -174,12 +177,22 @@ export const DocumentUploadDialog = ({
       docData.status = 'active';
     }
 
+    if (isInsurance && premiumAmount) {
+      const parsedPremium = parseFloat(premiumAmount);
+      if (!Number.isNaN(parsedPremium) && parsedPremium > 0) {
+        docData.premium_amount = parsedPremium;
+        docData.billing_frequency = billingFrequency;
+      }
+    }
+
     await onSubmit(docData);
 
     // Reset form
     setName('');
     setType('');
     setExpiryDate('');
+    setPremiumAmount('');
+    setBillingFrequency('annually');
     setIsDefault(false);
     setUploadedFile(null);
     if (fileInputRef.current) {
@@ -308,6 +321,46 @@ export const DocumentUploadDialog = ({
               </SelectContent>
             </Select>
           </div>
+
+          {/* Insurance premium (Insurance only) — feeds Margin P&L */}
+          {isInsurance && (
+            <div className="grid grid-cols-2 gap-3 rounded-lg border p-4 bg-muted/30">
+              <div className="col-span-2 space-y-0.5">
+                <Label className="text-sm font-medium">Premium Tracking (optional)</Label>
+                <p className="text-xs text-muted-foreground">
+                  Recorded as an insurance expense in Margin.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="premium-amount">Premium Amount</Label>
+                <Input
+                  id="premium-amount"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={premiumAmount}
+                  onChange={(e) => setPremiumAmount(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="billing-frequency">Billing</Label>
+                <Select value={billingFrequency} onValueChange={setBillingFrequency}>
+                  <SelectTrigger id="billing-frequency">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                    <SelectItem value="quarterly">Quarterly</SelectItem>
+                    <SelectItem value="annually">Annually</SelectItem>
+                    <SelectItem value="one_time">One-time</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+
+
 
           {/* Set as Default toggle (Rental Agreement only) */}
           {isRentalAgreement && (

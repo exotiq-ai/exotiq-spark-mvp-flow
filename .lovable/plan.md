@@ -1,3 +1,10 @@
+## Phase C — Expense Automation (DONE)
+
+Auto-expense triggers now cover all three sources feeding Margin P&L:
+- `trg_log_maintenance_expense` (Pulse) — already existed.
+- `trg_log_damage_expense` (Vault damage claims) — already existed.
+- `trg_log_insurance_expense` (Vault insurance premiums) — NEW. `documents.premium_amount` + `billing_frequency` added; trigger logs/updates/removes an `insurance` `vehicle_expenses` row keyed by `(source_module='vault', source_record_id=document.id)`. Captured via `DocumentUploadDialog` when type=insurance. Idempotent; clearing premium or changing type removes the linked expense.
+
 ## Phase B — Partner CRUD + Vehicle Ownership UI
 
 Operator-facing surfaces so partners and ownership splits are managed without SQL. No new tables; uses existing `vehicle_partners`, `partner_payouts`, and `vehicles.owner_partner_id` / `owner_split_percent`. Existing `fn_generate_partner_payout` trigger (fires on booking completion) stays unchanged.
