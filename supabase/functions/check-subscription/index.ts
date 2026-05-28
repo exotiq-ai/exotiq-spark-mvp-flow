@@ -13,11 +13,16 @@ const logStep = (step: string, details?: Record<string, unknown>) => {
 };
 
 // Map by PRODUCT ID (stable across price changes / billing intervals)
+// 2026 restructure: Pro + Business only. Legacy IDs kept mapped for migration grace.
 const PRODUCT_TIERS: Record<string, { tier: string; name: string }> = {
-  'prod_UIcRqJzc9qC0zh': { tier: 'starter', name: 'Starter' },
-  'prod_UIcRHKBhWSyMO6': { tier: 'professional', name: 'Professional' },
-  'prod_UIcR8tFUKCjx7i': { tier: 'business', name: 'Business' },
-  'prod_UIcRnSPmFfcwWH': { tier: 'enterprise', name: 'Enterprise' },
+  // New (2026)
+  'prod_Ub7IM2Skj93HFS': { tier: 'pro',      name: 'Pro' },
+  'prod_Ub7IlYXU1diSY8': { tier: 'business', name: 'Business' },
+  // Legacy 4-tier (mapped to closest new tier for any existing subs)
+  'prod_UIcRqJzc9qC0zh': { tier: 'pro',      name: 'Pro (legacy Starter)' },
+  'prod_UIcRHKBhWSyMO6': { tier: 'pro',      name: 'Pro (legacy Professional)' },
+  'prod_UIcR8tFUKCjx7i': { tier: 'business', name: 'Business (legacy)' },
+  'prod_UIcRnSPmFfcwWH': { tier: 'business', name: 'Business (legacy Enterprise)' },
 };
 
 serve(async (req) => {
