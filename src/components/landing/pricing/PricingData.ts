@@ -187,13 +187,8 @@ export const timeSavingsDefaults = {
   ],
 };
 
-// Launch pricing messaging (replaces founder countdown)
+// Launch pricing messaging
 export const launchPricingMessage = 'Launch pricing — rates lock in for the lifetime of your subscription. Increases planned for 2027.';
-
-// Legacy exports kept to avoid breaking imports. No longer surfaced in UI.
-export const founderDeadline = new Date('2027-01-01T00:00:00');
-export const founderSpotsTotal = 0;
-export const founderSpotsRemaining = 0;
 
 export const competitiveAdvantages = {
   vsTuro:    { feePercent: 25, ourFeePercent: 0, headline: 'Keep 100% of your direct-booking revenue, own your customers' },
