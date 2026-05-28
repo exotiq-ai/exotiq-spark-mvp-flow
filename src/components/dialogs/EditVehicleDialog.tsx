@@ -27,6 +27,10 @@ interface Vehicle {
   default_mileage_limit?: number | null;
   mileage_overage_rate?: number | null;
   location_id?: string | null;
+  ownership_type?: string | null;
+  partner_id?: string | null;
+  split_type?: string | null;
+  split_value?: number | null;
 }
 
 interface EditVehicleDialogProps {
