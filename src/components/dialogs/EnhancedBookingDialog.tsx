@@ -73,6 +73,7 @@ import type { Database } from "@/integrations/supabase/types";
 
 type CustomerNote = Database["public"]["Tables"]["customer_notes"]["Row"];
 
+import { useBlockIfRestricted } from "@/components/guards/PaymentDueGuard";
 interface EnhancedBookingDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
