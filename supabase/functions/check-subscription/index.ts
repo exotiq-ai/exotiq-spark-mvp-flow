@@ -120,6 +120,17 @@ serve(async (req) => {
       logStep("No active subscription found");
     }
 
+    // Auto-clear billing dunning banner when the subscription is active.
+    // Fire-and-forget — never fail the response if this RPC errors.
+    if (hasActiveSub) {
+      try {
+        await supabaseClient.rpc('auto_clear_billing_dunning_for_email', { p_email: user.email });
+        logStep("Auto-cleared billing dunning (if any)");
+      } catch (e) {
+        logStep("Auto-clear dunning failed (non-fatal)", { error: String(e) });
+      }
+    }
+
     return new Response(JSON.stringify({
       subscribed: hasActiveSub, tier, tierName, interval,
       subscriptionEnd, customerId, priceId, subscriptionStatus
