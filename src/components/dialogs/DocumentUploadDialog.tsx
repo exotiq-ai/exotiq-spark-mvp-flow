@@ -177,12 +177,22 @@ export const DocumentUploadDialog = ({
       docData.status = 'active';
     }
 
+    if (isInsurance && premiumAmount) {
+      const parsedPremium = parseFloat(premiumAmount);
+      if (!Number.isNaN(parsedPremium) && parsedPremium > 0) {
+        docData.premium_amount = parsedPremium;
+        docData.billing_frequency = billingFrequency;
+      }
+    }
+
     await onSubmit(docData);
 
     // Reset form
     setName('');
     setType('');
     setExpiryDate('');
+    setPremiumAmount('');
+    setBillingFrequency('annually');
     setIsDefault(false);
     setUploadedFile(null);
     if (fileInputRef.current) {
