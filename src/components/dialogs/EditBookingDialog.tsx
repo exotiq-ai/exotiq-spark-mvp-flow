@@ -24,6 +24,7 @@ import { calculateBookingTotal, getGasFeeForTeam } from "@/lib/pricingUtils";
 import { TimeInput } from "@/components/ui/time-input";
 import type { Database } from "@/integrations/supabase/types";
 import { useTeamGasFeeSettings } from '@/hooks/useTeamGasFeeSettings';
+import { PaymentDueGuard } from '@/components/guards/PaymentDueGuard';
 
 type Booking = Database["public"]["Tables"]["bookings"]["Row"];
 
@@ -121,6 +122,10 @@ export const EditBookingDialog = ({
             Update booking dates, location, and notes.
           </DialogDescription>
         </DialogHeader>
+        <PaymentDueGuard
+          title="Booking edits paused"
+          body="Complete billing setup to edit bookings. You can still view all booking details."
+        >
 
         <ScrollArea className="flex-1 overflow-y-auto">
           <div className="px-6 py-4 space-y-4">
@@ -289,6 +294,7 @@ export const EditBookingDialog = ({
             {isUpdating ? "Updating..." : "Save Changes"}
           </Button>
         </DialogFooter>
+        </PaymentDueGuard>
       </DialogContent>
     </Dialog>
   );
