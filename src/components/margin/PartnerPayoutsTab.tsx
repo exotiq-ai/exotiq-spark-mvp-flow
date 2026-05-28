@@ -51,6 +51,7 @@ const startOfYear = () => { const d = new Date(); d.setMonth(0,1); d.setHours(0,
 
 export function PartnerPayoutsTab() {
   const { currentTeam } = useTeam();
+  const { isOwnerOrAdmin } = useUserRole();
   const [rows, setRows] = useState<Payout[]>([]);
   const [partners, setPartners] = useState<Record<string, string>>({});
   const [vehicles, setVehicles] = useState<Record<string, string>>({});
@@ -63,6 +64,11 @@ export function PartnerPayoutsTab() {
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkDate, setBulkDate] = useState<string>(new Date().toISOString().slice(0, 10));
   const [bulkRef, setBulkRef] = useState("");
+  const [bulkMethod, setBulkMethod] = useState<string>("ACH");
+  const [voidOpen, setVoidOpen] = useState(false);
+  const [voidTarget, setVoidTarget] = useState<Payout | null>(null);
+  const [voidReason, setVoidReason] = useState("");
+  const [busy, setBusy] = useState(false);
 
   const refresh = async () => {
     if (!currentTeam?.id) return;
