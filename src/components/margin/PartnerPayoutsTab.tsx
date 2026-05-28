@@ -37,6 +37,8 @@ interface Payout {
   created_at: string;
   payout_reference: string | null;
   payout_method: string | null;
+  void_reason: string | null;
+  voided_at: string | null;
 }
 
 const STATUS_STYLES: Record<string, string> = {
