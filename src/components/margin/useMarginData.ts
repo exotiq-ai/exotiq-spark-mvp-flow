@@ -200,3 +200,7 @@ export const sumOverhead = (expenses: FilteredExpense[]) =>
 
 export const sumPendingPayouts = (payouts: FilteredPayout[]) =>
   payouts.filter((p) => p.status === "pending" || p.status === "scheduled").reduce((s, p) => s + Number(p.net_to_partner || 0), 0);
+
+// All real partner obligations in range (pending + paid), excluding voided — used for net margin
+export const sumPartnerPayouts = (payouts: FilteredPayout[]) =>
+  payouts.filter((p) => p.status !== "voided" && (p.status as string) !== "cancelled").reduce((s, p) => s + Number(p.net_to_partner || 0), 0);

@@ -9,6 +9,7 @@ import {
   sumPlatformFees,
   sumVehicleExpenses,
   sumPendingPayouts,
+  sumPartnerPayouts,
 } from "./useMarginData";
 
 export function MarginOverview() {
@@ -21,7 +22,8 @@ export function MarginOverview() {
   const fees = sumPlatformFees(bookings);
   const vehicleExpenses = sumVehicleExpenses(expenses);
   const pendingPayouts = sumPendingPayouts(payouts);
-  const operatorNet = gross - fees - vehicleExpenses - pendingPayouts;
+  const totalPayouts = sumPartnerPayouts(payouts);
+  const operatorNet = gross - fees - vehicleExpenses - totalPayouts;
   const marginPct = gross > 0 ? (operatorNet / gross) * 100 : 0;
 
   const cards = [
