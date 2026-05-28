@@ -5,8 +5,8 @@ export const PricingGuarantee = () => {
   const guarantees = [
     {
       icon: Lock,
-      title: 'Locked-In Forever',
-      description: 'Your founder rate never increases, even as we add features and raise prices for new customers.',
+      title: 'Rate Locked for Life',
+      description: 'Your per-vehicle rate is locked for the lifetime of your subscription. Planned increases only apply to new customers.',
     },
     {
       icon: Shield,

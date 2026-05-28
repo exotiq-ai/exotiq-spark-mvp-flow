@@ -54,7 +54,7 @@ export const PricingSectionNew = () => {
             Per-vehicle pricing that scales with you
           </h1>
           <p className="text-xl text-muted-foreground">
-            Lock in founder rates today. Your price stays the same forever, even as we add features.
+            Launch pricing — start with a 14-day free trial. No credit card required.
           </p>
         </div>
       </section>
