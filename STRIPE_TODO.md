@@ -56,26 +56,25 @@
 
 ---
 
-## 🔧 Stripe Dashboard Setup Required
+## 🔧 Stripe Dashboard Configuration
 
 ### Webhook Configuration
 - **Endpoint URL:** `https://jlgwbbqydjeokypoenoc.supabase.co/functions/v1/stripe-webhook`
-- **Events to subscribe:**
+- **Events subscribed:**
   - `account.updated`
   - `checkout.session.completed`
   - `charge.captured`
   - `charge.refunded`
+  - `charge.dispute.created`
   - `payment_intent.succeeded`
-  - `payment_intent.canceled`
   - `payment_intent.amount_capturable_updated`
-  - `customer.subscription.created`
+  - `payout.paid`
   - `customer.subscription.updated`
   - `customer.subscription.deleted`
-  - `invoice.payment_succeeded`
   - `invoice.payment_failed`
-- **Connect events:** Enable "Listen to events on Connected accounts"
+- **Connect events:** "Listen to events on Connected accounts" — ENABLED
 
-### Products (already created)
+### Products (live)
 - Starter, Professional, Enterprise plans via Product IDs (`prod_Tf6Z*`)
 
 ### Connect Settings
@@ -85,37 +84,12 @@
 
 ---
 
-## 🧪 Testing Checklist (Sandbox)
-
-### SaaS Subscriptions
-- [ ] New tenant subscribes → `checkout.session.completed` fires → subscription active
-- [ ] Tenant accesses billing portal → can change plan / cancel
-- [ ] Expired subscription → gate blocks access
-
-### Connect Onboarding
-- [ ] Tenant clicks "Connect Stripe" → redirected to Express onboarding
-- [ ] Completes onboarding → `account.updated` webhook → `stripe_charges_enabled = true`
-- [ ] Tenant accesses Express Dashboard → sees balance, payouts, tax docs
-
-### Payment Processing
-- [ ] Create payment intent on connected account → funds held
-- [ ] Capture full amount → tenant receives funds minus platform fee
-- [ ] Partial capture → remainder released
-- [ ] Cancel/void hold → full amount released
-- [ ] Refund completed payment → funds returned to customer
-
-### Security Deposits
-- [ ] Auth hold created → `payment_intent.status = requires_capture`
-- [ ] Hold captured within 7 days → success
-- [ ] Hold expires after 7 days → auto-released
-- [ ] Partial capture for damage deduction → correct amounts
-
----
-
 ## 📝 Notes
 
 - All edge functions use Stripe SDK v18.5.0, API version `2025-08-27.basil`
 - Subscription verification uses Product IDs (not Price IDs) for stability
 - Webhook signing secret stored as `STRIPE_WEBHOOK_SECRET`
-- Connected account IDs will be stored on the `teams` table
+- Connected account IDs stored on the `teams` table
 - Express Dashboard gives tenants full control of banking, payouts, and tax docs
+- See `docs/internal/STRIPE_CONNECT_SOP.md` for full internal documentation
+- See `docs/customer/STRIPE_CONNECT_SETUP_GUIDE.md` for customer-facing guide
