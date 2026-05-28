@@ -349,10 +349,20 @@ export function PartnerPayoutsTab() {
                           <TableCell>
                             <Badge variant="outline" className={STATUS_STYLES[r.status] || ""}>{r.status}</Badge>
                           </TableCell>
+                          <TableCell>
+                            <RowActions
+                              payout={r}
+                              isOwnerOrAdmin={isOwnerOrAdmin}
+                              busy={busy}
+                              onMarkPaid={() => { setSelected(new Set([r.id])); setBulkOpen(true); }}
+                              onVoid={() => openVoid(r)}
+                              onReopen={() => reopen(r)}
+                            />
+                          </TableCell>
                         </TableRow>
                         {isOpen && (
                           <TableRow className="bg-muted/30">
-                            <TableCell colSpan={9} className="p-4">
+                            <TableCell colSpan={10} className="p-4">
                               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                                 <Stat label="Gross Base" value={formatCurrency(r.gross_rental_base)} />
                                 <Stat label="Platform Fee" value={formatCurrency(r.platform_fee_amount)} />
@@ -362,6 +372,7 @@ export function PartnerPayoutsTab() {
                                 <Stat label="To Partner" value={formatCurrency(r.net_to_partner)} highlight />
                                 <Stat label="Method" value={r.payout_method || "—"} />
                                 <Stat label="Reference" value={r.payout_reference || "—"} />
+                                {r.status === "voided" && r.void_reason && <Stat label="Void Reason" value={r.void_reason} />}
                                 {bk?.start_date && <Stat label="Booking Window" value={`${bk.start_date.slice(0,10)} → ${bk.end_date?.slice(0,10) || "?"}`} />}
                               </div>
                             </TableCell>
