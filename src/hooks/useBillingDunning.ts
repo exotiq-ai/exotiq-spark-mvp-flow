@@ -4,14 +4,30 @@ import { useTeam } from "@/contexts/TeamContext";
 
 export type DunningStage = "reminder" | "notice" | "restriction";
 
+export type AssumedPlanTier = "pro" | "business" | "enterprise";
+
 export interface BillingDunningState {
   stage: DunningStage | null;
   message: string | null;
   setAt: string | null;
-  assumedPlanTier: "starter" | "professional" | "business" | "enterprise" | null;
+  assumedPlanTier: AssumedPlanTier | null;
   assumedPlanFleetSize: number | null;
   assumedPlanIsAnnual: boolean | null;
 }
+
+// Defensive normalizer for any grandfathered rows that still carry legacy tier names.
+const normalizeTier = (raw: unknown): AssumedPlanTier | null => {
+  if (raw === "pro" || raw === "business" || raw === "enterprise") return raw;
+  if (raw === "starter") return "pro";
+  if (raw === "professional") return "business";
+  return null;
+};
+
+export const TIER_BOUNDS: Record<AssumedPlanTier, { min: number; max: number }> = {
+  pro: { min: 1, max: 15 },
+  business: { min: 16, max: 50 },
+  enterprise: { min: 51, max: 9999 },
+};
 
 const EMPTY: BillingDunningState = {
   stage: null,
@@ -49,7 +65,7 @@ export const useBillingDunning = () => {
       stage: (row?.billing_dunning_stage as DunningStage) ?? null,
       message: (row?.billing_dunning_message as string) ?? null,
       setAt: (row?.billing_dunning_set_at as string) ?? null,
-      assumedPlanTier: (row?.assumed_plan_tier as BillingDunningState["assumedPlanTier"]) ?? null,
+      assumedPlanTier: normalizeTier(row?.assumed_plan_tier),
       assumedPlanFleetSize: (row?.assumed_plan_fleet_size as number) ?? null,
       assumedPlanIsAnnual: (row?.assumed_plan_is_annual as boolean) ?? null,
     });

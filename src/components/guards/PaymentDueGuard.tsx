@@ -3,7 +3,7 @@ import { AlertCircle, CreditCard, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useBillingDunning } from "@/hooks/useBillingDunning";
+import { useBillingDunning, TIER_BOUNDS } from "@/hooks/useBillingDunning";
 import { useUserRole } from "@/hooks/useUserRole";
 
 interface PaymentDueGuardProps {
@@ -32,8 +32,17 @@ export const PaymentDueGuard = ({ children, title, body }: PaymentDueGuardProps)
 
   const canPay = isOwner || isAdmin;
 
+  const isEnterprise = assumedPlanTier === "enterprise";
+
   const handlePay = async () => {
-    if (!assumedPlanTier) {
+    if (isEnterprise) {
+      window.location.href =
+        "mailto:sales@exotiq.ai?subject=Enterprise%20billing%20setup";
+      return;
+    }
+    const bounds = assumedPlanTier ? TIER_BOUNDS[assumedPlanTier] : null;
+    const fleet = assumedPlanFleetSize ?? 0;
+    if (!assumedPlanTier || !bounds || fleet < bounds.min || fleet > bounds.max) {
       window.location.href = "/dashboard/settings?tab=billing";
       return;
     }
@@ -43,7 +52,7 @@ export const PaymentDueGuard = ({ children, title, body }: PaymentDueGuardProps)
         body: {
           tierId: assumedPlanTier,
           isAnnual: assumedPlanIsAnnual ?? false,
-          fleetSize: assumedPlanFleetSize ?? 10,
+          fleetSize: fleet,
           returnPath: "/dashboard/settings?tab=billing&subscription=success",
           cancelPath: "/dashboard?canceled=true",
         },
@@ -83,7 +92,7 @@ export const PaymentDueGuard = ({ children, title, body }: PaymentDueGuardProps)
             ) : (
               <CreditCard className="w-4 h-4 mr-2" />
             )}
-            Complete payment
+            {isEnterprise ? "Contact sales" : "Complete payment"}
           </Button>
         ) : (
           <p className="text-sm text-muted-foreground">

@@ -3,7 +3,7 @@ import { AlertCircle, CreditCard, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useBillingDunning, type DunningStage } from "@/hooks/useBillingDunning";
+import { useBillingDunning, type DunningStage, TIER_BOUNDS } from "@/hooks/useBillingDunning";
 import { useUserRole } from "@/hooks/useUserRole";
 import { cn } from "@/lib/utils";
 
@@ -68,9 +68,19 @@ export const PaymentDueBanner = () => {
   const copy = COPY[stage];
   const canPay = isOwner || isAdmin;
 
+  const isEnterprise = assumedPlanTier === "enterprise";
+
   const handlePay = async () => {
-    if (!assumedPlanTier) {
-      // No plan pre-selected — send them to the plan picker
+    // Enterprise tier doesn't go through Stripe checkout — route to sales.
+    if (isEnterprise) {
+      window.location.href =
+        "mailto:sales@exotiq.ai?subject=Enterprise%20billing%20setup";
+      return;
+    }
+    // No assumed plan, or fleet size outside tier bounds → send to plan picker.
+    const bounds = assumedPlanTier ? TIER_BOUNDS[assumedPlanTier] : null;
+    const fleet = assumedPlanFleetSize ?? 0;
+    if (!assumedPlanTier || !bounds || fleet < bounds.min || fleet > bounds.max) {
       window.location.href = "/dashboard/settings?tab=billing";
       return;
     }
@@ -80,7 +90,7 @@ export const PaymentDueBanner = () => {
         body: {
           tierId: assumedPlanTier,
           isAnnual: assumedPlanIsAnnual ?? false,
-          fleetSize: assumedPlanFleetSize ?? 10,
+          fleetSize: fleet,
           returnPath: "/dashboard/settings?tab=billing&status=active",
           cancelPath: "/dashboard?canceled=true",
         },
@@ -134,7 +144,7 @@ export const PaymentDueBanner = () => {
               ) : (
                 <CreditCard className="w-4 h-4 mr-2" />
               )}
-              {copy.cta}
+              {isEnterprise ? "Contact sales" : copy.cta}
             </Button>
           ) : (
             <p className="text-xs text-muted-foreground">

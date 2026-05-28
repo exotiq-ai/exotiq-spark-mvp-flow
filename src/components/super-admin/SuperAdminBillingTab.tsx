@@ -25,7 +25,20 @@ import { Switch } from "@/components/ui/switch";
 import { AlertCircle, CheckCircle2, Loader2, Search } from "lucide-react";
 
 type Stage = "reminder" | "notice" | "restriction";
-type Tier = "starter" | "professional" | "business" | "enterprise";
+type Tier = "pro" | "business" | "enterprise";
+
+const TIER_INFO: Record<Tier, { label: string; price: string; min: number; max: number }> = {
+  pro: { label: "Pro — $39/vehicle/mo", price: "$39", min: 1, max: 15 },
+  business: { label: "Business — $29/vehicle/mo", price: "$29", min: 16, max: 50 },
+  enterprise: { label: "Enterprise — custom quote", price: "Custom", min: 51, max: 9999 },
+};
+
+const normalizeLegacyTier = (raw: string | null): Tier | "" => {
+  if (raw === "pro" || raw === "business" || raw === "enterprise") return raw;
+  if (raw === "starter") return "pro";
+  if (raw === "professional") return "business";
+  return "";
+};
 
 interface TenantRow {
   id: string;
@@ -213,13 +226,22 @@ const TenantBillingDrawer = ({
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   const [stage, setStage] = useState<Stage | "">(tenant.billing_dunning_stage ?? "");
-  const [tier, setTier] = useState<Tier | "">(tenant.assumed_plan_tier ?? "");
+  const [tier, setTier] = useState<Tier | "">(normalizeLegacyTier(tenant.assumed_plan_tier as string | null));
   const [fleetSize, setFleetSize] = useState<string>(
     String(tenant.assumed_plan_fleet_size ?? 10)
   );
   const [annual, setAnnual] = useState<boolean>(tenant.assumed_plan_is_annual ?? false);
   const [message, setMessage] = useState<string>(tenant.billing_dunning_message ?? "");
   const [notes, setNotes] = useState<string>(tenant.billing_dunning_notes ?? "");
+
+  const fleetNum = fleetSize ? Number(fleetSize) : NaN;
+  const bounds = tier ? TIER_INFO[tier] : null;
+  const isEnterprise = tier === "enterprise";
+  const fleetOutOfBounds =
+    !isEnterprise &&
+    !!bounds &&
+    Number.isFinite(fleetNum) &&
+    (fleetNum < bounds.min || fleetNum > bounds.max);
 
   const applyStage = async () => {
     if (!stage) {
@@ -230,13 +252,25 @@ const TenantBillingDrawer = ({
       });
       return;
     }
+    if (tier && !isEnterprise && bounds && (!Number.isFinite(fleetNum) || fleetOutOfBounds)) {
+      toast({
+        title: "Fleet size doesn't fit tier",
+        description: `${TIER_INFO[tier].label} covers ${bounds.min}–${bounds.max} vehicles.`,
+        variant: "destructive",
+      });
+      return;
+    }
     setSaving(true);
     const { error } = await supabase.rpc("set_billing_dunning_stage", {
       p_team_id: tenant.id,
       p_stage: stage,
       p_assumed_plan_tier: tier || null,
-      p_assumed_plan_fleet_size: fleetSize ? Number(fleetSize) : null,
-      p_assumed_plan_is_annual: annual,
+      p_assumed_plan_fleet_size: isEnterprise
+        ? Number(fleetSize) || null
+        : fleetSize
+          ? Number(fleetSize)
+          : null,
+      p_assumed_plan_is_annual: isEnterprise ? false : annual,
       p_message: message || null,
       p_notes: notes || null,
     });
@@ -298,35 +332,50 @@ const TenantBillingDrawer = ({
                 <SelectValue placeholder="None — tenant picks their own" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="starter">Starter</SelectItem>
-                <SelectItem value="professional">Professional</SelectItem>
-                <SelectItem value="business">Business</SelectItem>
-                <SelectItem value="enterprise">Enterprise</SelectItem>
+                <SelectItem value="pro">Pro — $39/vehicle/mo · 1–15 vehicles</SelectItem>
+                <SelectItem value="business">Business — $29/vehicle/mo · 16–50 vehicles</SelectItem>
+                <SelectItem value="enterprise">Enterprise — custom quote · 51+ vehicles</SelectItem>
               </SelectContent>
             </Select>
+            {bounds && (
+              <p className="text-xs text-muted-foreground">
+                {isEnterprise
+                  ? "Enterprise checkout routes to sales@exotiq.ai — no Stripe link sent."
+                  : `${bounds.price}/vehicle/mo · covers ${bounds.min}–${bounds.max} vehicles`}
+              </p>
+            )}
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label htmlFor="fleet">Fleet size</Label>
-              <Input
-                id="fleet"
-                type="number"
-                min="1"
-                value={fleetSize}
-                onChange={(e) => setFleetSize(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="block">Billing cadence</Label>
-              <div className="flex items-center gap-2 h-10">
-                <Switch checked={annual} onCheckedChange={setAnnual} id="annual" />
-                <Label htmlFor="annual" className="text-sm font-normal cursor-pointer">
-                  {annual ? "Annual" : "Monthly"}
-                </Label>
+          {!isEnterprise && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="fleet">Fleet size</Label>
+                <Input
+                  id="fleet"
+                  type="number"
+                  min={bounds?.min ?? 1}
+                  max={bounds?.max ?? undefined}
+                  value={fleetSize}
+                  onChange={(e) => setFleetSize(e.target.value)}
+                  className={fleetOutOfBounds ? "border-destructive" : undefined}
+                />
+                {fleetOutOfBounds && bounds && (
+                  <p className="text-xs text-destructive">
+                    Must be {bounds.min}–{bounds.max} for this tier.
+                  </p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label className="block">Billing cadence</Label>
+                <div className="flex items-center gap-2 h-10">
+                  <Switch checked={annual} onCheckedChange={setAnnual} id="annual" />
+                  <Label htmlFor="annual" className="text-sm font-normal cursor-pointer">
+                    {annual ? "Annual" : "Monthly"}
+                  </Label>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="msg">Banner message override (optional)</Label>
