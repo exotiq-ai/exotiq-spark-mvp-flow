@@ -25,7 +25,20 @@ import { Switch } from "@/components/ui/switch";
 import { AlertCircle, CheckCircle2, Loader2, Search } from "lucide-react";
 
 type Stage = "reminder" | "notice" | "restriction";
-type Tier = "starter" | "professional" | "business" | "enterprise";
+type Tier = "pro" | "business" | "enterprise";
+
+const TIER_INFO: Record<Tier, { label: string; price: string; min: number; max: number }> = {
+  pro: { label: "Pro — $39/vehicle/mo", price: "$39", min: 1, max: 15 },
+  business: { label: "Business — $29/vehicle/mo", price: "$29", min: 16, max: 50 },
+  enterprise: { label: "Enterprise — custom quote", price: "Custom", min: 51, max: 9999 },
+};
+
+const normalizeLegacyTier = (raw: string | null): Tier | "" => {
+  if (raw === "pro" || raw === "business" || raw === "enterprise") return raw;
+  if (raw === "starter") return "pro";
+  if (raw === "professional") return "business";
+  return "";
+};
 
 interface TenantRow {
   id: string;
@@ -213,7 +226,7 @@ const TenantBillingDrawer = ({
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   const [stage, setStage] = useState<Stage | "">(tenant.billing_dunning_stage ?? "");
-  const [tier, setTier] = useState<Tier | "">(tenant.assumed_plan_tier ?? "");
+  const [tier, setTier] = useState<Tier | "">(normalizeLegacyTier(tenant.assumed_plan_tier as string | null));
   const [fleetSize, setFleetSize] = useState<string>(
     String(tenant.assumed_plan_fleet_size ?? 10)
   );
