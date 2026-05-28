@@ -6,139 +6,30 @@ import { pricingTiers } from './PricingData';
 
 interface FeatureRow {
   feature: string;
-  starter: string | boolean;
-  professional: string | boolean;
+  pro: string | boolean;
   business: string | boolean;
   enterprise: string | boolean;
 }
 
 const features: FeatureRow[] = [
-  {
-    feature: 'Vehicles',
-    starter: '1-10',
-    professional: 'Up to 25',
-    business: 'Up to 75',
-    enterprise: 'Up to 150',
-  },
-  {
-    feature: 'Fleet Dashboard',
-    starter: true,
-    professional: true,
-    business: true,
-    enterprise: true,
-  },
-  {
-    feature: 'Booking Calendar',
-    starter: true,
-    professional: true,
-    business: true,
-    enterprise: true,
-  },
-  {
-    feature: 'Document Vault',
-    starter: true,
-    professional: true,
-    business: true,
-    enterprise: true,
-  },
-  {
-    feature: 'Customer CRM',
-    starter: true,
-    professional: true,
-    business: true,
-    enterprise: true,
-  },
-  {
-    feature: 'AI Pricing Engine (MotorIQ)',
-    starter: false,
-    professional: true,
-    business: true,
-    enterprise: true,
-  },
-  {
-    feature: 'AI Forecasting',
-    starter: '7-day',
-    professional: '30-day',
-    business: '90-day',
-    enterprise: '365-day',
-  },
-  {
-    feature: 'Rari AI Copilot',
-    starter: false,
-    professional: false,
-    business: true,
-    enterprise: true,
-  },
-  {
-    feature: 'Advanced Analytics',
-    starter: false,
-    professional: true,
-    business: true,
-    enterprise: true,
-  },
-  {
-    feature: 'API Access',
-    starter: false,
-    professional: true,
-    business: true,
-    enterprise: true,
-  },
-  {
-    feature: 'Locations',
-    starter: '1',
-    professional: 'Up to 3',
-    business: 'Unlimited',
-    enterprise: 'Unlimited + Custom',
-  },
-  {
-    feature: 'White-label Booking Portal',
-    starter: false,
-    professional: false,
-    business: true,
-    enterprise: true,
-  },
-  {
-    feature: 'Custom Integrations',
-    starter: false,
-    professional: true,
-    business: true,
-    enterprise: true,
-  },
-  {
-    feature: 'Support SLA',
-    starter: 'Email (48hr)',
-    professional: 'Chat (24hr)',
-    business: 'Phone (4hr)',
-    enterprise: 'Dedicated (1hr)',
-  },
-  {
-    feature: 'Dedicated Success Manager',
-    starter: false,
-    professional: false,
-    business: true,
-    enterprise: true,
-  },
-  {
-    feature: 'Custom AI Training',
-    starter: false,
-    professional: false,
-    business: false,
-    enterprise: true,
-  },
-  {
-    feature: 'Quarterly Business Reviews',
-    starter: false,
-    professional: false,
-    business: false,
-    enterprise: true,
-  },
-  {
-    feature: 'SLA Guarantee',
-    starter: false,
-    professional: false,
-    business: '99.5%',
-    enterprise: '99.9%',
-  },
+  { feature: 'Vehicles',                       pro: '1–15',           business: '16–50',         enterprise: '51+' },
+  { feature: 'Fleet Dashboard',                pro: true,             business: true,            enterprise: true },
+  { feature: 'Booking Calendar',               pro: true,             business: true,            enterprise: true },
+  { feature: 'Document Vault',                 pro: true,             business: true,            enterprise: true },
+  { feature: 'Customer CRM',                   pro: true,             business: true,            enterprise: true },
+  { feature: 'AI Pricing Engine (MotorIQ)',    pro: true,             business: true,            enterprise: true },
+  { feature: 'AI Forecasting',                 pro: '30-day',         business: '90-day',        enterprise: '365-day' },
+  { feature: 'Rari AI Copilot',                pro: true,             business: true,            enterprise: true },
+  { feature: 'Advanced Analytics',             pro: true,             business: true,            enterprise: true },
+  { feature: 'API Access',                     pro: false,            business: true,            enterprise: true },
+  { feature: 'Locations',                      pro: 'Up to 2',        business: 'Unlimited',     enterprise: 'Unlimited + Custom' },
+  { feature: 'White-label Booking Portal',     pro: false,            business: true,            enterprise: true },
+  { feature: 'Custom Integrations',            pro: false,            business: true,            enterprise: true },
+  { feature: 'Support SLA',                    pro: 'Chat (24hr)',    business: 'Phone (4hr)',   enterprise: 'Dedicated (1hr)' },
+  { feature: 'Dedicated Success Manager',      pro: false,            business: true,            enterprise: true },
+  { feature: 'Custom AI Training',             pro: false,            business: false,           enterprise: true },
+  { feature: 'Quarterly Business Reviews',     pro: false,            business: false,           enterprise: true },
+  { feature: 'SLA Guarantee',                  pro: false,            business: '99.5%',         enterprise: '99.9%' },
 ];
 
 export const FeatureComparison = () => {
@@ -156,13 +47,19 @@ export const FeatureComparison = () => {
     return <span className="text-sm font-medium">{value}</span>;
   };
 
+  const priceLabel = (tier: typeof pricingTiers[number]) => {
+    if (tier.id === 'enterprise') return 'Custom';
+    if (tier.priceType === 'per-vehicle') return `$${tier.perVehicleRate}/veh/mo`;
+    return `$${tier.price}/mo`;
+  };
+
   return (
     <section className="py-16 px-4">
       <div className="container mx-auto max-w-6xl">
         <div className="text-center mb-12">
           <h2 className="text-3xl font-bold mb-4">Compare Plans</h2>
           <p className="text-lg text-muted-foreground">
-            Find the perfect plan for your fleet size and needs
+            Find the right plan for your fleet size and needs
           </p>
         </div>
 
@@ -177,10 +74,7 @@ export const FeatureComparison = () => {
                       <div className="space-y-1">
                         <span className={tier.popular ? 'text-primary' : ''}>{tier.name}</span>
                         <p className="text-xs font-normal text-muted-foreground">
-                          {tier.priceType === 'per-vehicle' 
-                            ? `$${tier.perVehicleRate}/veh/mo`
-                            : `$${tier.price}/mo flat`
-                          }
+                          {priceLabel(tier)}
                         </p>
                       </div>
                     </th>
@@ -194,9 +88,8 @@ export const FeatureComparison = () => {
                     className={`border-t border-border ${index % 2 === 0 ? 'bg-background' : 'bg-muted/20'}`}
                   >
                     <td className="p-4 font-medium">{row.feature}</td>
-                    <td className="p-4 text-center">{renderCell(row.starter)}</td>
-                    <td className="p-4 text-center bg-primary/5">{renderCell(row.professional)}</td>
-                    <td className="p-4 text-center">{renderCell(row.business)}</td>
+                    <td className="p-4 text-center">{renderCell(row.pro)}</td>
+                    <td className="p-4 text-center bg-primary/5">{renderCell(row.business)}</td>
                     <td className="p-4 text-center">{renderCell(row.enterprise)}</td>
                   </tr>
                 ))}
