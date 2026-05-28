@@ -401,17 +401,91 @@ export function PartnerPayoutsTab() {
               <Input type="date" value={bulkDate} onChange={(e) => setBulkDate(e.target.value)} />
             </div>
             <div className="space-y-2">
+              <Label>Method</Label>
+              <Select value={bulkMethod} onValueChange={setBulkMethod}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {PAYOUT_METHODS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
               <Label>Reference (optional)</Label>
               <Input value={bulkRef} onChange={(e) => setBulkRef(e.target.value)} placeholder="ACH batch #, check #, …" />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setBulkOpen(false)}>Cancel</Button>
-            <Button onClick={() => markPaid(Array.from(selected), bulkDate, bulkRef)}>Confirm</Button>
+            <Button variant="outline" onClick={() => setBulkOpen(false)} disabled={busy}>Cancel</Button>
+            <Button onClick={() => markPaid(Array.from(selected), bulkDate, bulkRef, bulkMethod)} disabled={busy}>Confirm</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={voidOpen} onOpenChange={setVoidOpen}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle>Void payout</DialogTitle>
+            <DialogDescription>
+              This removes the obligation from your margin. A reason is required for the audit trail.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label>Reason</Label>
+            <Textarea
+              value={voidReason}
+              onChange={(e) => setVoidReason(e.target.value)}
+              placeholder="e.g. Booking cancelled, duplicate, settled off-platform…"
+              rows={3}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setVoidOpen(false)} disabled={busy}>Cancel</Button>
+            <Button variant="destructive" onClick={confirmVoid} disabled={busy || !voidReason.trim()}>Void payout</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+function RowActions({
+  payout,
+  isOwnerOrAdmin,
+  busy,
+  onMarkPaid,
+  onVoid,
+  onReopen,
+}: {
+  payout: Payout;
+  isOwnerOrAdmin: boolean;
+  busy: boolean;
+  onMarkPaid: () => void;
+  onVoid: () => void;
+  onReopen: () => void;
+}) {
+  const actions = allowedActions(payout.status).filter((a) => a !== "reopen" || isOwnerOrAdmin);
+  if (actions.length === 0) return null;
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="h-8 w-8" disabled={busy}>
+          <MoreHorizontal className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {actions.includes("mark_paid") && (
+          <DropdownMenuItem onClick={onMarkPaid}><Check className="h-4 w-4 mr-2" /> Mark Paid</DropdownMenuItem>
+        )}
+        {actions.includes("void") && (
+          <DropdownMenuItem onClick={onVoid} className="text-destructive focus:text-destructive">
+            <Ban className="h-4 w-4 mr-2" /> Void
+          </DropdownMenuItem>
+        )}
+        {actions.includes("reopen") && (
+          <DropdownMenuItem onClick={onReopen}><RotateCcw className="h-4 w-4 mr-2" /> Re-open</DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
