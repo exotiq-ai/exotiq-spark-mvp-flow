@@ -70,6 +70,16 @@ export const MobileMoreMenu = ({ onAddLocation, activeModule: activeModuleProp, 
 
   const handleItemClick = (itemId: string) => {
     if (navigator.vibrate) navigator.vibrate(10);
+    if (itemId === 'super-admin') {
+      if (onModuleChange) {
+        onModuleChange(itemId);
+      } else {
+        navigate('/super-admin');
+      }
+      setOpen(false);
+      return;
+    }
+
     if (onModuleChange) {
       onModuleChange(itemId);
     } else {
