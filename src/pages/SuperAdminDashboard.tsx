@@ -347,9 +347,6 @@ export const SuperAdminDashboard = () => {
                             Joined {new Date(customer.created_at).toLocaleDateString()}
                           </p>
                         </div>
-                        <Button variant="ghost" size="sm" className="ml-4">
-                          <ExternalLink className="h-4 w-4" />
-                        </Button>
                       </div>
                     ))
                   )}
