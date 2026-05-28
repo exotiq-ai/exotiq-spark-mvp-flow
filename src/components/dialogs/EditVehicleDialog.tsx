@@ -62,7 +62,7 @@ export const EditVehicleDialog = ({ open, onOpenChange, vehicle, onSave }: EditV
   const [mileageOverageRate, setMileageOverageRate] = useState("");
   const [ownershipType, setOwnershipType] = useState<string>("owned");
   const [partnerId, setPartnerId] = useState<string>("none");
-  const [splitType, setSplitType] = useState<string>("percent");
+  const [splitType, setSplitType] = useState<string>("percentage");
   const [splitValue, setSplitValue] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -85,7 +85,7 @@ export const EditVehicleDialog = ({ open, onOpenChange, vehicle, onSave }: EditV
       setMileageOverageRate(vehicle.mileage_overage_rate != null ? String(vehicle.mileage_overage_rate) : "");
       setOwnershipType(vehicle.ownership_type || "owned");
       setPartnerId(vehicle.partner_id || "none");
-      setSplitType(vehicle.split_type || "percent");
+      setSplitType(vehicle.split_type || "percentage");
       setSplitValue(vehicle.split_value != null ? String(vehicle.split_value) : "");
       setError(null);
 
@@ -148,7 +148,7 @@ export const EditVehicleDialog = ({ open, onOpenChange, vehicle, onSave }: EditV
 
       // Ownership
       const newPartnerId = partnerId === "none" ? null : partnerId;
-      const newOwnership = newPartnerId ? "partner" : "owned";
+      const newOwnership = newPartnerId ? "partnered" : "owned";
       const newSplitValue = newPartnerId && splitValue ? parseFloat(splitValue) : null;
       const newSplitType = newPartnerId ? splitType : null;
       if (newOwnership !== (vehicle.ownership_type || "owned")) updates.ownership_type = newOwnership;
@@ -299,23 +299,23 @@ export const EditVehicleDialog = ({ open, onOpenChange, vehicle, onSave }: EditV
                     <Select value={splitType} onValueChange={setSplitType}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="percent">Percent of net</SelectItem>
-                        <SelectItem value="flat">Flat amount per booking</SelectItem>
+                        <SelectItem value="percentage">Percent of net</SelectItem>
+                        <SelectItem value="flat">Flat amount per day</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs text-muted-foreground">
-                      {splitType === "percent" ? "Partner Share (%)" : "Flat Amount ($)"}
+                      {splitType === "percentage" ? "Partner Share (%)" : "Flat $ / day"}
                     </Label>
                     <Input
                       type="number"
                       min="0"
-                      max={splitType === "percent" ? "100" : undefined}
+                      max={splitType === "percentage" ? "100" : undefined}
                       step="0.01"
                       value={splitValue}
                       onChange={(e) => setSplitValue(e.target.value)}
-                      placeholder={splitType === "percent" ? "e.g., 70" : "e.g., 250"}
+                      placeholder={splitType === "percentage" ? "e.g., 40" : "e.g., 1500"}
                     />
                   </div>
                 </div>
