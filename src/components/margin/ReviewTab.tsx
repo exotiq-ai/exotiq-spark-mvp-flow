@@ -58,7 +58,7 @@ export function ReviewTab() {
     const [{ data: exps }, { data: vehs }] = await Promise.all([
       supabase
         .from("vehicle_expenses")
-        .select("id, vehicle_id, booking_id, expense_type, amount, expense_date, vendor, notes, source_module, review_reason, ai_confidence, ai_parsed_fields, receipt_url, linked_damage_claim_id")
+        .select("id, vehicle_id, booking_id, expense_type, amount, expense_date, vendor, notes, source_module, review_reason, auto_routed_reason, requires_admin_approval, ai_confidence, ai_parsed_fields, receipt_url, linked_damage_claim_id")
         .eq("team_id", currentTeam.id)
         .eq("status", "pending_review")
         .order("created_at", { ascending: false }),
