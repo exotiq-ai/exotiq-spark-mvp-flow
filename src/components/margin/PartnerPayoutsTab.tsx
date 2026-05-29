@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogD
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Download, Check, ChevronRight, ChevronDown, MoreHorizontal, Ban, RotateCcw } from "lucide-react";
+import { Download, Check, ChevronRight, ChevronDown, MoreHorizontal, Ban, RotateCcw, AlertTriangle, RefreshCw } from "lucide-react";
 import { toCsv, downloadCsv, formatCurrency } from "@/lib/marginCsv";
 import { allowedActions, type PayoutAction } from "@/lib/payoutTransitions";
 import { useUserRole } from "@/hooks/useUserRole";
