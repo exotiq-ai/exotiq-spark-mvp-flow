@@ -14,6 +14,13 @@ export interface Team {
   is_demo_account?: boolean; // Demo accounts show placeholder content for demos
   trial_start?: string | null;
   trial_end?: string | null;
+  // Stripe Connect (tenant payment processing)
+  stripe_account_id?: string | null;
+  stripe_charges_enabled?: boolean | null;
+  stripe_payouts_enabled?: boolean | null;
+  stripe_onboarding_complete?: boolean | null;
+  // Free-form team settings (jsonb)
+  settings?: Record<string, any> | null;
 }
 
 export interface Location {
