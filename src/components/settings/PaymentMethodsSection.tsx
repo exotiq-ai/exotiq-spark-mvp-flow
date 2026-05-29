@@ -77,7 +77,7 @@ export const PaymentMethodsSection = () => {
     if (!currentTeam) return;
     setSaving(true);
     try {
-      const currentSettings = (teamData?.settings as Record<string, any>) || {};
+      const currentSettings = (currentTeam.settings as Record<string, any>) || {};
       const { error } = await supabase
         .from('teams')
         .update({ 
