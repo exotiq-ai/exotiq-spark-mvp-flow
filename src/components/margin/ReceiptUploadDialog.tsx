@@ -28,8 +28,8 @@ export function ReceiptUploadDialog({
     ]);
   };
 
-  const processOne = async (idx: number, item: Item) => {
-    if (!currentTeam?.id || !user?.id) return;
+  const processOne = async (idx: number, item: Item): Promise<{ ok: boolean }> => {
+    if (!currentTeam?.id || !user?.id) return { ok: false };
     const set = (patch: Partial<Item>) =>
       setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
 
