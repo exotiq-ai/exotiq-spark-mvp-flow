@@ -97,8 +97,9 @@ export function useMarginData(): State {
           .lte("start_date", endIso),
         supabase
           .from("vehicle_expenses")
-          .select("id, vehicle_id, location_id, expense_type, amount, expense_date, source_module, is_reimbursable, reimbursed_amount")
+          .select("id, vehicle_id, location_id, expense_type, amount, expense_date, source_module, is_reimbursable, reimbursed_amount, status")
           .eq("team_id", currentTeam.id)
+          .eq("status", "confirmed")
           .gte("expense_date", startDay)
           .lte("expense_date", endDay),
         supabase
