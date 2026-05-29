@@ -157,7 +157,6 @@ function DatePopover({ label, value, onChange }: { label: string; value: Date; o
 }
 
 function MultiSelectMenu({
-function MultiSelectMenu({
   label, options, selected, onChange, vertical = false,
 }: { label: string; options: { id: string; label: string }[]; selected: string[]; onChange: (v: string[]) => void; vertical?: boolean }) {
   return (
