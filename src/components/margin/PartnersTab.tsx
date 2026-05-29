@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Pencil, PowerOff } from "lucide-react";
 import { usePartners, type VehiclePartner } from "@/hooks/usePartners";
 import { PartnerDialog } from "./PartnerDialog";
+import { PartnerStatementDrawer } from "./PartnerStatementDrawer";
 import { formatCurrency } from "@/lib/marginCsv";
 import { toast } from "sonner";
 
