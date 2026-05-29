@@ -24,6 +24,8 @@ export function PartnersTab() {
   const [stats, setStats] = useState<Record<string, PartnerStats>>({});
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<VehiclePartner | null>(null);
+  const [statementOpen, setStatementOpen] = useState(false);
+  const [statementPartner, setStatementPartner] = useState<VehiclePartner | null>(null);
 
   useEffect(() => {
     if (!currentTeam?.id) return;
