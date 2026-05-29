@@ -5,10 +5,10 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Download } from "lucide-react";
+import { Download, Printer } from "lucide-react";
 import { formatCurrency } from "@/lib/marginCsv";
 import { buildPartnerStatement, type StatementPayout } from "@/lib/partnerStatement";
-import { downloadStatementCsv } from "@/lib/statementExport";
+import { downloadStatementCsv, printPartnerStatement } from "@/lib/statementExport";
 import type { VehiclePartner } from "@/hooks/usePartners";
 
 interface FullPayout extends StatementPayout {
