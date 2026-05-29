@@ -157,12 +157,13 @@ function DatePopover({ label, value, onChange }: { label: string; value: Date; o
 }
 
 function MultiSelectMenu({
-  label, options, selected, onChange,
-}: { label: string; options: { id: string; label: string }[]; selected: string[]; onChange: (v: string[]) => void }) {
+function MultiSelectMenu({
+  label, options, selected, onChange, vertical = false,
+}: { label: string; options: { id: string; label: string }[]; selected: string[]; onChange: (v: string[]) => void; vertical?: boolean }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className="h-9 font-normal">
+        <Button variant="outline" size="sm" className={vertical ? "h-10 font-normal" : "h-9 font-normal"}>
           {label}
           {selected.length > 0 && (
             <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-[10px]">{selected.length}</Badge>
