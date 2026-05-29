@@ -161,6 +161,14 @@ export function ReviewTab() {
                         </Badge>
                       )}
                       {isDamage && <Badge variant="destructive" className="text-xs">Owner confirm</Badge>}
+                      {row.requires_admin_approval && (
+                        <Badge variant="destructive" className="text-xs flex items-center gap-1">
+                          <ShieldAlert className="h-3 w-3" /> Admin approval required
+                        </Badge>
+                      )}
+                      {row.booking_id && (
+                        <Badge variant="outline" className="text-xs">Linked to rental</Badge>
+                      )}
                       {row.review_reason && (
                         <span className="text-xs text-muted-foreground flex items-center gap-1">
                           <AlertCircle className="h-3 w-3" />
