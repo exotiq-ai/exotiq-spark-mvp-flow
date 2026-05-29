@@ -1114,6 +1114,10 @@ export const EnhancedBookingDialog = ({
                         <CreditCard className="h-4 w-4 mr-2" />
                         Record Payment
                       </Button>
+
+                      <Separator />
+
+                      <BookingCostsSection bookingId={booking.id} />
                     </TabsContent>
 
                     {/* Customer Tab */}
