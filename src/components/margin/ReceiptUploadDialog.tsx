@@ -89,7 +89,7 @@ export function ReceiptUploadDialog({
       .select("id")
       .single();
 
-    if (insErr) return set({ status: "error", error: insErr.message });
+    if (insErr) { set({ status: "error", error: insErr.message }); return { ok: false }; }
     set({ status: "done", expenseId: ins?.id });
     return { ok: true };
   };
