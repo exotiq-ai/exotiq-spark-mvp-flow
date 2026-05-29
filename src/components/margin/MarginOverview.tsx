@@ -93,16 +93,16 @@ export function MarginOverview() {
 
   return (
     <TooltipProvider delayDuration={150}>
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {cards.map((c) => (
           <Card key={c.label} className={c.highlight ? "border-primary/40" : ""}>
-            <CardContent className="p-4 space-y-1">
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  {c.label}
+            <CardContent className="p-4 space-y-1 min-w-0">
+              <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground min-w-0">
+                <span className="flex items-center gap-1 min-w-0 truncate">
+                  <span className="truncate">{c.label}</span>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <button type="button" className="text-muted-foreground/60 hover:text-foreground">
+                      <button type="button" className="shrink-0 text-muted-foreground/60 hover:text-foreground">
                         <Info className="h-3 w-3" />
                       </button>
                     </TooltipTrigger>
@@ -111,9 +111,9 @@ export function MarginOverview() {
                     </TooltipContent>
                   </Tooltip>
                 </span>
-                <c.icon className="h-3.5 w-3.5" />
+                <c.icon className="h-3.5 w-3.5 shrink-0" />
               </div>
-              <div className={`text-lg font-semibold ${c.muted ? "text-muted-foreground" : ""}`}>
+              <div className={`text-lg font-semibold tabular-nums truncate ${c.muted ? "text-muted-foreground" : ""}`}>
                 {loading ? "…" : c.value}
               </div>
               {c.hint && <div className="text-[10px] text-muted-foreground/70 truncate">{c.hint}</div>}
