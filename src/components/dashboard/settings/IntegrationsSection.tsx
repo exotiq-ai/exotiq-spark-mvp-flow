@@ -14,6 +14,7 @@ import {
   Map,
   FileText,
   Sparkles,
+  ShieldCheck,
   Loader2
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
