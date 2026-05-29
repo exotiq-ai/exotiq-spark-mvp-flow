@@ -6,6 +6,8 @@ import { useMarginData } from "./useMarginData";
 import { useMarginFilters } from "./MarginFiltersContext";
 import { formatCurrency, formatPercent } from "@/lib/marginCsv";
 import { TrendingUp, TrendingDown } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
 
 interface Row {
   vehicle_id: string;
@@ -20,6 +22,8 @@ export function TopBottomMarginVehicles() {
   const f = useMarginFilters();
   const { bookings, expenses, payouts } = useMarginData();
   const [vehicleNames, setVehicleNames] = useState<Record<string, string>>({});
+  const isMobile = useIsMobile();
+  const [view, setView] = useState<"top" | "bottom">("top");
 
   useEffect(() => {
     if (!currentTeam?.id) return;
@@ -63,6 +67,46 @@ export function TopBottomMarginVehicles() {
   const top = rows.slice(0, 5);
   const bottom = rows.slice(-5).reverse();
 
+  if (isMobile) {
+    const active = view === "top" ? top : bottom;
+    return (
+      <Card>
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle className="text-base">By Margin</CardTitle>
+            <div className="inline-flex rounded-lg bg-muted p-0.5">
+              <button
+                onClick={() => setView("top")}
+                className={cn(
+                  "px-3 py-1 text-xs font-medium rounded-md transition-colors inline-flex items-center gap-1",
+                  view === "top" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground",
+                )}
+              >
+                <TrendingUp className="h-3 w-3" /> Top
+              </button>
+              <button
+                onClick={() => setView("bottom")}
+                className={cn(
+                  "px-3 py-1 text-xs font-medium rounded-md transition-colors inline-flex items-center gap-1",
+                  view === "bottom" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground",
+                )}
+              >
+                <TrendingDown className="h-3 w-3" /> Bottom
+              </button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {active.length === 0 ? (
+            <div className="py-6 text-center text-sm text-muted-foreground">No vehicle activity.</div>
+          ) : (
+            <RankList rows={active} />
+          )}
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <Card>
@@ -101,9 +145,9 @@ function RankList({ rows }: { rows: Row[] }) {
   return (
     <div className="space-y-2">
       {rows.map((r) => (
-        <div key={r.vehicle_id} className="flex items-center justify-between text-sm border-b border-border/50 last:border-0 pb-2 last:pb-0">
-          <div className="truncate flex-1 pr-2">{r.vehicle_name}</div>
-          <div className="text-right tabular-nums">
+        <div key={r.vehicle_id} className="flex items-center justify-between gap-3 text-sm border-b border-border/50 last:border-0 pb-2 last:pb-0 min-w-0">
+          <div className="truncate flex-1 min-w-0">{r.vehicle_name}</div>
+          <div className="text-right tabular-nums shrink-0">
             <div className={`font-semibold ${r.marginPct < 0 ? "text-destructive" : ""}`}>{formatPercent(r.marginPct)}</div>
             <div className="text-[10px] text-muted-foreground">{formatCurrency(r.gross)} gross</div>
           </div>
