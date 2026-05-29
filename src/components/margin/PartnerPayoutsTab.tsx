@@ -479,6 +479,7 @@ function RowActions({
   onMarkPaid,
   onVoid,
   onReopen,
+  onRecompute,
 }: {
   payout: Payout;
   isOwnerOrAdmin: boolean;
@@ -486,9 +487,11 @@ function RowActions({
   onMarkPaid: () => void;
   onVoid: () => void;
   onReopen: () => void;
+  onRecompute: () => void;
 }) {
   const actions = allowedActions(payout.status).filter((a) => a !== "reopen" || isOwnerOrAdmin);
-  if (actions.length === 0) return null;
+  const canRecompute = payout.status === "pending" || payout.status === "scheduled";
+  if (actions.length === 0 && !canRecompute) return null;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -499,6 +502,9 @@ function RowActions({
       <DropdownMenuContent align="end">
         {actions.includes("mark_paid") && (
           <DropdownMenuItem onClick={onMarkPaid}><Check className="h-4 w-4 mr-2" /> Mark Paid</DropdownMenuItem>
+        )}
+        {canRecompute && (
+          <DropdownMenuItem onClick={onRecompute}><RefreshCw className="h-4 w-4 mr-2" /> Recompute from booking</DropdownMenuItem>
         )}
         {actions.includes("void") && (
           <DropdownMenuItem onClick={onVoid} className="text-destructive focus:text-destructive">
