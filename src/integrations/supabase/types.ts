@@ -1717,6 +1717,8 @@ export type Database = {
           payout_method: string | null
           payout_reference: string | null
           platform_fee_amount: number
+          reconcile_flag: boolean
+          reconcile_note: string | null
           split_type: string
           split_value_snapshot: number
           status: string
@@ -1741,6 +1743,8 @@ export type Database = {
           payout_method?: string | null
           payout_reference?: string | null
           platform_fee_amount?: number
+          reconcile_flag?: boolean
+          reconcile_note?: string | null
           split_type: string
           split_value_snapshot: number
           status?: string
@@ -1765,6 +1769,8 @@ export type Database = {
           payout_method?: string | null
           payout_reference?: string | null
           platform_fee_amount?: number
+          reconcile_flag?: boolean
+          reconcile_note?: string | null
           split_type?: string
           split_value_snapshot?: number
           status?: string
@@ -4198,6 +4204,8 @@ export type Database = {
           payout_method: string | null
           payout_reference: string | null
           platform_fee_amount: number
+          reconcile_flag: boolean
+          reconcile_note: string | null
           split_type: string
           split_value_snapshot: number
           status: string
