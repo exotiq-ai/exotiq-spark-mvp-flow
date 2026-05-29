@@ -30,9 +30,9 @@ export function ExpenseBreakdownChart() {
       </CardHeader>
       <CardContent>
         {loading ? (
-          <div className="h-[240px] flex items-center justify-center text-sm text-muted-foreground">Loading…</div>
+          <div className="h-20 md:h-[240px] flex items-center justify-center text-sm text-muted-foreground">Loading…</div>
         ) : data.rows.length === 0 ? (
-          <div className="h-[240px] flex items-center justify-center text-sm text-muted-foreground">No vehicle expenses in range.</div>
+          <div className="h-20 md:h-[240px] flex items-center justify-center text-sm text-muted-foreground">No vehicle expenses in range.</div>
         ) : (
           <div className="space-y-2">
             {data.rows.slice(0, 8).map((r) => (

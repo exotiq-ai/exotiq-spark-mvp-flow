@@ -29,18 +29,18 @@ export function TenantOverheadCard() {
         <CardTitle className="text-base flex items-center gap-2">
           <Building2 className="h-4 w-4 text-muted-foreground" /> Tenant Overhead
         </CardTitle>
-        <p className="text-xs text-muted-foreground">Not allocated to vehicles — shown separately to keep per-vehicle P&L clean.</p>
+        <p className="text-xs text-muted-foreground hidden md:block">Not allocated to vehicles — shown separately to keep per-vehicle P&L clean.</p>
       </CardHeader>
       <CardContent>
-        <div className="flex items-baseline justify-between mb-3">
-          <span className="text-xs text-muted-foreground">Total in range</span>
-          <span className="text-2xl font-semibold">{formatCurrency(data.total)}</span>
+        <div className="flex items-baseline justify-between gap-2 mb-3 min-w-0">
+          <span className="text-xs text-muted-foreground shrink-0">Total in range</span>
+          <span className="text-xl md:text-2xl font-semibold tabular-nums truncate">{formatCurrency(data.total)}</span>
         </div>
         <div className="space-y-1.5">
           {data.rows.map((r) => (
-            <div key={r.type} className="flex items-center justify-between text-xs">
-              <span className="capitalize text-muted-foreground">{r.type.replace("_", " ")}</span>
-              <span className="tabular-nums">{formatCurrency(r.amount)}</span>
+            <div key={r.type} className="flex items-center justify-between gap-2 text-xs min-w-0">
+              <span className="capitalize text-muted-foreground truncate">{r.type.replace("_", " ")}</span>
+              <span className="tabular-nums shrink-0">{formatCurrency(r.amount)}</span>
             </div>
           ))}
         </div>
