@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sparkles, Check, X, Upload, FileText, AlertCircle } from "lucide-react";
+import { Sparkles, Check, X, Upload, FileText, AlertCircle, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/marginCsv";
 import { ReceiptUploadDialog } from "./ReceiptUploadDialog";
@@ -23,6 +23,8 @@ type ReviewExpense = {
   notes: string | null;
   source_module: string;
   review_reason: string | null;
+  auto_routed_reason: string | null;
+  requires_admin_approval: boolean | null;
   ai_confidence: number | null;
   ai_parsed_fields: any;
   receipt_url: string | null;
