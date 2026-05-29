@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
@@ -47,12 +48,23 @@ const allSettingsTabs: SettingsTab[] = [
 ];
 
 export const SettingsLayout = () => {
-  const [activeTab, setActiveTab] = useState("account");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialTab = searchParams.get('tab') || 'account';
+  const [activeTab, setActiveTab] = useState(initialTab);
   const { isMobile, isTablet, isDesktop } = useBreakpoint();
   const { isAdmin, loading: roleLoading } = useUserRole();
   const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showRightFade, setShowRightFade] = useState(true);
+
+  // Sync activeTab when URL ?tab= changes (e.g. Stripe Connect onboarding return)
+  useEffect(() => {
+    const urlTab = searchParams.get('tab');
+    if (urlTab && urlTab !== activeTab) {
+      setActiveTab(urlTab);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
   const [showLeftFade, setShowLeftFade] = useState(false);
 
   // Filter tabs based on user role

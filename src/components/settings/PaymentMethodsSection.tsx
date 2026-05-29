@@ -42,11 +42,10 @@ export const PaymentMethodsSection = () => {
   const [connecting, setConnecting] = useState(false);
   const [enabledMethods, setEnabledMethods] = useState<string[]>(DEFAULT_METHODS);
 
-  const teamData = currentTeam as any;
-  const stripeAccountId = teamData?.stripe_account_id;
-  const chargesEnabled = teamData?.stripe_charges_enabled ?? false;
-  const payoutsEnabled = teamData?.stripe_payouts_enabled ?? false;
-  const onboardingComplete = teamData?.stripe_onboarding_complete ?? false;
+  const stripeAccountId = currentTeam?.stripe_account_id ?? null;
+  const chargesEnabled = currentTeam?.stripe_charges_enabled ?? false;
+  const payoutsEnabled = currentTeam?.stripe_payouts_enabled ?? false;
+  const onboardingComplete = currentTeam?.stripe_onboarding_complete ?? false;
 
   const connectStatus: ConnectStatus = !stripeAccountId
     ? "not_connected"
@@ -58,7 +57,7 @@ export const PaymentMethodsSection = () => {
 
   useEffect(() => {
     if (currentTeam) {
-      const settings = teamData?.settings as Record<string, any> | null;
+      const settings = (currentTeam.settings as Record<string, any> | null) || null;
       const saved = settings?.accepted_payment_methods;
       if (Array.isArray(saved) && saved.length > 0) {
         setEnabledMethods(saved);
@@ -78,7 +77,7 @@ export const PaymentMethodsSection = () => {
     if (!currentTeam) return;
     setSaving(true);
     try {
-      const currentSettings = (teamData?.settings as Record<string, any>) || {};
+      const currentSettings = (currentTeam.settings as Record<string, any>) || {};
       const { error } = await supabase
         .from('teams')
         .update({ 
