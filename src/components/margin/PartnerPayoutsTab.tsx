@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogD
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Download, Check, ChevronRight, ChevronDown, MoreHorizontal, Ban, RotateCcw } from "lucide-react";
+import { Download, Check, ChevronRight, ChevronDown, MoreHorizontal, Ban, RotateCcw, AlertTriangle, RefreshCw } from "lucide-react";
 import { toCsv, downloadCsv, formatCurrency } from "@/lib/marginCsv";
 import { allowedActions, type PayoutAction } from "@/lib/payoutTransitions";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -39,6 +39,8 @@ interface Payout {
   payout_method: string | null;
   void_reason: string | null;
   voided_at: string | null;
+  reconcile_flag?: boolean | null;
+  reconcile_note?: string | null;
 }
 
 const STATUS_STYLES: Record<string, string> = {
@@ -212,6 +214,20 @@ export function PartnerPayoutsTab() {
     }
   };
 
+  const recompute = async (payout: Payout) => {
+    if (!confirm(`Recompute this payout from the current booking? Only pending payouts can be refreshed.`)) return;
+    setBusy(true);
+    try {
+      await transition(payout.id, "recompute" as any);
+      toast.success("Payout recomputed from booking");
+      refresh();
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to recompute");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const openVoid = (payout: Payout) => {
     setVoidTarget(payout);
     setVoidReason("");
@@ -349,7 +365,14 @@ export function PartnerPayoutsTab() {
                           <TableCell className="text-right">{formatCurrency(r.net_after_fee)}</TableCell>
                           <TableCell className="text-right font-semibold">{formatCurrency(r.net_to_partner)}</TableCell>
                           <TableCell>
-                            <Badge variant="outline" className={STATUS_STYLES[r.status] || ""}>{r.status}</Badge>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className={STATUS_STYLES[r.status] || ""}>{r.status}</Badge>
+                              {r.reconcile_flag && (
+                                <span title={r.reconcile_note || "Booking changed after payout — review required"}>
+                                  <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
+                                </span>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>
                             <RowActions
@@ -359,6 +382,7 @@ export function PartnerPayoutsTab() {
                               onMarkPaid={() => { setSelected(new Set([r.id])); setBulkOpen(true); }}
                               onVoid={() => openVoid(r)}
                               onReopen={() => reopen(r)}
+                              onRecompute={() => recompute(r)}
                             />
                           </TableCell>
                         </TableRow>
@@ -455,6 +479,7 @@ function RowActions({
   onMarkPaid,
   onVoid,
   onReopen,
+  onRecompute,
 }: {
   payout: Payout;
   isOwnerOrAdmin: boolean;
@@ -462,9 +487,11 @@ function RowActions({
   onMarkPaid: () => void;
   onVoid: () => void;
   onReopen: () => void;
+  onRecompute: () => void;
 }) {
   const actions = allowedActions(payout.status).filter((a) => a !== "reopen" || isOwnerOrAdmin);
-  if (actions.length === 0) return null;
+  const canRecompute = payout.status === "pending" || payout.status === "scheduled";
+  if (actions.length === 0 && !canRecompute) return null;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -475,6 +502,9 @@ function RowActions({
       <DropdownMenuContent align="end">
         {actions.includes("mark_paid") && (
           <DropdownMenuItem onClick={onMarkPaid}><Check className="h-4 w-4 mr-2" /> Mark Paid</DropdownMenuItem>
+        )}
+        {canRecompute && (
+          <DropdownMenuItem onClick={onRecompute}><RefreshCw className="h-4 w-4 mr-2" /> Recompute from booking</DropdownMenuItem>
         )}
         {actions.includes("void") && (
           <DropdownMenuItem onClick={onVoid} className="text-destructive focus:text-destructive">
