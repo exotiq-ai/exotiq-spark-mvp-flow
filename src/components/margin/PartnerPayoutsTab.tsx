@@ -365,7 +365,14 @@ export function PartnerPayoutsTab() {
                           <TableCell className="text-right">{formatCurrency(r.net_after_fee)}</TableCell>
                           <TableCell className="text-right font-semibold">{formatCurrency(r.net_to_partner)}</TableCell>
                           <TableCell>
-                            <Badge variant="outline" className={STATUS_STYLES[r.status] || ""}>{r.status}</Badge>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className={STATUS_STYLES[r.status] || ""}>{r.status}</Badge>
+                              {r.reconcile_flag && (
+                                <span title={r.reconcile_note || "Booking changed after payout — review required"}>
+                                  <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
+                                </span>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>
                             <RowActions
@@ -375,6 +382,7 @@ export function PartnerPayoutsTab() {
                               onMarkPaid={() => { setSelected(new Set([r.id])); setBulkOpen(true); }}
                               onVoid={() => openVoid(r)}
                               onReopen={() => reopen(r)}
+                              onRecompute={() => recompute(r)}
                             />
                           </TableCell>
                         </TableRow>
