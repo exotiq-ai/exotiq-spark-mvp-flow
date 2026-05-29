@@ -188,7 +188,6 @@ export const IntegrationsSection = () => {
     { name: "Stripe", description: "Payment processing and invoicing", icon: CreditCard },
     { name: "Twilio", description: "SMS and WhatsApp notifications", icon: MessageSquare },
     { name: "Google Maps", description: "Location services and routing", icon: Map },
-    { name: "DocuSign", description: "Digital contract signing", icon: FileText },
   ];
 
   return (
