@@ -28,6 +28,7 @@ import { LinkVehicleDialog } from "./LinkVehicleDialog";
 import { SigningCeremony } from "@/components/signing/SigningCeremony";
 import { DocumentPicker } from "@/components/signing/DocumentPicker";
 import { DocumentPreviewDialog } from "@/components/common/DocumentPreviewDialog";
+import { BookingCostsSection } from "@/components/margin/BookingCostsSection";
 import { useFleet } from "@/contexts/FleetContext";
 import { useTeam } from "@/contexts/TeamContext";
 import { useToast } from "@/hooks/use-toast";
@@ -1114,6 +1115,10 @@ export const EnhancedBookingDialog = ({
                         <CreditCard className="h-4 w-4 mr-2" />
                         Record Payment
                       </Button>
+
+                      <Separator />
+
+                      <BookingCostsSection bookingId={booking.id} />
                     </TabsContent>
 
                     {/* Customer Tab */}

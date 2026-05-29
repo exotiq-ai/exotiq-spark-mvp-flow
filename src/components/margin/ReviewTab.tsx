@@ -44,6 +44,8 @@ const SOURCE_LABEL: Record<string, string> = {
   margin_manual: "Manual",
 };
 
+type BookingOption = { id: string; label: string };
+
 export function ReviewTab() {
   const { currentTeam } = useTeam();
   const [rows, setRows] = useState<ReviewExpense[]>([]);
@@ -51,6 +53,7 @@ export function ReviewTab() {
   const [loading, setLoading] = useState(true);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [editing, setEditing] = useState<Record<string, Partial<ReviewExpense>>>({});
+  const [bookingOptions, setBookingOptions] = useState<Record<string, BookingOption[]>>({});
 
   const refresh = useCallback(async () => {
     if (!currentTeam?.id) return;
@@ -83,22 +86,53 @@ export function ReviewTab() {
     return () => { supabase.removeChannel(ch); };
   }, [currentTeam?.id, refresh]);
 
+  // Fetch bookings matching vehicle+date for each row, used by the "Assign to rental" picker
+  useEffect(() => {
+    if (!currentTeam?.id || rows.length === 0) return;
+    (async () => {
+      const next: Record<string, BookingOption[]> = {};
+      for (const r of rows) {
+        if (!r.vehicle_id) continue;
+        const { data } = await supabase
+          .from("bookings")
+          .select("id, customer_name, start_date, end_date")
+          .eq("team_id", currentTeam.id)
+          .eq("vehicle_id", r.vehicle_id)
+          .lte("start_date", `${r.expense_date}T23:59:59`)
+          .gte("end_date", `${r.expense_date}T00:00:00`)
+          .order("start_date", { ascending: false })
+          .limit(10);
+        next[r.id] = (data || []).map((b: any) => ({
+          id: b.id,
+          label: `${b.customer_name} · ${new Date(b.start_date).toLocaleDateString()}–${new Date(b.end_date).toLocaleDateString()}`,
+        }));
+      }
+      setBookingOptions(next);
+    })();
+  }, [currentTeam?.id, rows]);
+
   const update = (id: string, patch: Partial<ReviewExpense>) =>
     setEditing((e) => ({ ...e, [id]: { ...e[id], ...patch } }));
 
   const approve = async (row: ReviewExpense) => {
     const p = editing[row.id] || {};
+    const bookingId = (p.booking_id === "" ? null : (p.booking_id ?? row.booking_id)) ?? null;
     const { error } = await supabase.rpc("review_expense", {
       p_expense_id: row.id,
       p_action: "approve",
       p_amount: p.amount ?? null,
       p_expense_type: p.expense_type ?? null,
       p_vehicle_id: (p.vehicle_id === "" ? null : p.vehicle_id) ?? null,
-      p_booking_id: null,
+      p_booking_id: bookingId,
       p_notes: p.notes ?? null,
     });
     if (error) return toast.error(error.message);
-    toast.success("Expense approved");
+    toast.success("Expense approved", {
+      action: {
+        label: "View",
+        onClick: () => { window.location.href = `/dashboard/margin?tab=expenses&highlight=${row.id}`; },
+      },
+    });
     refresh();
   };
 
@@ -228,6 +262,24 @@ export function ReviewTab() {
                       </Select>
                     </div>
                   </div>
+
+                  {vehicle_id && (bookingOptions[row.id]?.length ?? 0) > 0 && (
+                    <div className="space-y-1">
+                      <Label className="text-xs">Assign to rental (optional)</Label>
+                      <Select
+                        value={(editing[row.id]?.booking_id ?? row.booking_id ?? "none") as string}
+                        onValueChange={(v) => update(row.id, { booking_id: v === "none" ? "" : v })}
+                      >
+                        <SelectTrigger className="h-8"><SelectValue placeholder="Not linked" /></SelectTrigger>
+                        <SelectContent className="z-[60]">
+                          <SelectItem value="none">Not linked to a rental</SelectItem>
+                          {(bookingOptions[row.id] || []).map((b) => (
+                            <SelectItem key={b.id} value={b.id}>{b.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
 
                   <div className="flex items-center justify-between gap-2 flex-wrap text-xs text-muted-foreground">
                     <span>
