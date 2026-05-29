@@ -101,7 +101,11 @@ export function PartnersTab() {
                   sorted.map((p) => {
                     const s = stats[p.id] || { activeVehicles: 0, lifetimePaid: 0, outstanding: 0 };
                     return (
-                      <TableRow key={p.id}>
+                      <TableRow
+                        key={p.id}
+                        className="cursor-pointer hover:bg-muted/40"
+                        onClick={() => { setStatementPartner(p); setStatementOpen(true); }}
+                      >
                         <TableCell className="font-medium">{p.name}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           {p.email || p.phone || "—"}
@@ -117,7 +121,7 @@ export function PartnersTab() {
                             <Badge variant="outline" className="text-muted-foreground">Inactive</Badge>
                           )}
                         </TableCell>
-                        <TableCell className="text-right space-x-1">
+                        <TableCell className="text-right space-x-1" onClick={(e) => e.stopPropagation()}>
                           <Button size="sm" variant="ghost" onClick={() => { setEditing(p); setDialogOpen(true); }}>
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
@@ -137,6 +141,11 @@ export function PartnersTab() {
         </CardContent>
       </Card>
       <PartnerDialog open={dialogOpen} onOpenChange={setDialogOpen} partner={editing} />
+      <PartnerStatementDrawer
+        partner={statementPartner}
+        open={statementOpen}
+        onOpenChange={(o) => { setStatementOpen(o); if (!o) setStatementPartner(null); }}
+      />
     </>
   );
 }
