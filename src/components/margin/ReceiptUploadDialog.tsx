@@ -38,7 +38,7 @@ export function ReceiptUploadDialog({
     const { error: upErr } = await supabase.storage
       .from("expense-receipts")
       .upload(path, item.file, { cacheControl: "3600", upsert: false });
-    if (upErr) return set({ status: "error", error: upErr.message });
+    if (upErr) { set({ status: "error", error: upErr.message }); return { ok: false }; }
 
     set({ status: "parsing" });
     let parsed: any = null;
