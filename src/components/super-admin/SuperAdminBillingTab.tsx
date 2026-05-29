@@ -230,7 +230,7 @@ const TenantBillingDrawer = ({
   const [fleetSize, setFleetSize] = useState<string>(
     String(tenant.assumed_plan_fleet_size ?? 10)
   );
-  const [annual, setAnnual] = useState<boolean>(tenant.assumed_plan_is_annual ?? false);
+  const [annual, setAnnual] = useState<boolean>(tenant.assumed_plan_is_annual ?? true);
   const [message, setMessage] = useState<string>(tenant.billing_dunning_message ?? "");
   const [notes, setNotes] = useState<string>(tenant.billing_dunning_notes ?? "");
 

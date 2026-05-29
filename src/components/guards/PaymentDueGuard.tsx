@@ -51,7 +51,7 @@ export const PaymentDueGuard = ({ children, title, body }: PaymentDueGuardProps)
       const { data, error } = await supabase.functions.invoke("create-checkout-session", {
         body: {
           tierId: assumedPlanTier,
-          isAnnual: assumedPlanIsAnnual ?? false,
+          isAnnual: assumedPlanIsAnnual ?? true,
           fleetSize: fleet,
           returnPath: "/dashboard/settings?tab=billing&subscription=success",
           cancelPath: "/dashboard?canceled=true",
@@ -92,7 +92,7 @@ export const PaymentDueGuard = ({ children, title, body }: PaymentDueGuardProps)
             ) : (
               <CreditCard className="w-4 h-4 mr-2" />
             )}
-            {isEnterprise ? "Contact sales" : "Complete payment"}
+            {isEnterprise ? "Contact sales" : "Complete plan now"}
           </Button>
         ) : (
           <p className="text-sm text-muted-foreground">

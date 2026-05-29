@@ -14,19 +14,19 @@ const COPY: Record<
   reminder: {
     title: "Your free trial has ended",
     body: "Thanks for kicking the tires! Set up billing in a couple of clicks whenever you're ready.",
-    cta: "Choose plan",
+    cta: "Start annual plan",
     tone: "info",
   },
   notice: {
     title: "Payment is past due",
     body: "To keep everything running smoothly, please complete payment setup.",
-    cta: "Complete payment",
+    cta: "Complete plan",
     tone: "warning",
   },
   restriction: {
     title: "Account access is limited",
     body: "Booking and editing are paused until billing is completed. All historical records remain available.",
-    cta: "Complete payment now",
+    cta: "Complete plan now",
     tone: "destructive",
   },
 };
@@ -89,7 +89,7 @@ export const PaymentDueBanner = () => {
       const { data, error } = await supabase.functions.invoke("create-checkout-session", {
         body: {
           tierId: assumedPlanTier,
-          isAnnual: assumedPlanIsAnnual ?? false,
+          isAnnual: assumedPlanIsAnnual ?? true,
           fleetSize: fleet,
           returnPath: "/dashboard/settings?tab=billing&status=active",
           cancelPath: "/dashboard?canceled=true",
