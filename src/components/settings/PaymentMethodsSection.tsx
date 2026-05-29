@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { useTeam } from "@/contexts/TeamContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 import { 
   Banknote, 
   Building2, 
