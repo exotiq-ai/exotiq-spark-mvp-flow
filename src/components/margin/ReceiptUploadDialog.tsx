@@ -28,8 +28,8 @@ export function ReceiptUploadDialog({
     ]);
   };
 
-  const processOne = async (idx: number, item: Item) => {
-    if (!currentTeam?.id || !user?.id) return;
+  const processOne = async (idx: number, item: Item): Promise<{ ok: boolean }> => {
+    if (!currentTeam?.id || !user?.id) return { ok: false };
     const set = (patch: Partial<Item>) =>
       setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
 
@@ -38,10 +38,12 @@ export function ReceiptUploadDialog({
     const { error: upErr } = await supabase.storage
       .from("expense-receipts")
       .upload(path, item.file, { cacheControl: "3600", upsert: false });
-    if (upErr) return set({ status: "error", error: upErr.message });
+    if (upErr) { set({ status: "error", error: upErr.message }); return { ok: false }; }
 
     set({ status: "parsing" });
     let parsed: any = null;
+    let parseFailed = false;
+    let parseFailReason = "";
     try {
       const { data, error } = await supabase.functions.invoke("parse-expense-receipt", {
         body: { receipt_path: path },
@@ -49,7 +51,9 @@ export function ReceiptUploadDialog({
       if (error) throw error;
       parsed = data?.parsed || {};
     } catch (e: any) {
-      // Still create a blank pending_review draft so nothing is lost
+      console.error("parse-expense-receipt invoke failed:", e);
+      parseFailed = true;
+      parseFailReason = e?.message || "AI could not read this file";
       parsed = { confidence: 0 };
     }
 
@@ -73,9 +77,11 @@ export function ReceiptUploadDialog({
         receipt_url: path,
         source_module: "ai_receipt",
         status: "pending_review",
-        review_reason: confidence < 0.6
-          ? "Low AI confidence — please verify"
-          : "AI-parsed receipt — confirm vehicle & details",
+        review_reason: parseFailed
+          ? `AI parsing failed (${parseFailReason}) — please fill in manually`
+          : confidence < 0.6
+            ? "Low AI confidence — please verify"
+            : "AI-parsed receipt — confirm vehicle & details",
         ai_confidence: isFinite(confidence) ? Math.min(Math.max(confidence, 0), 1) : 0,
         ai_parsed_fields: parsed,
         created_by: user.id,
@@ -83,26 +89,40 @@ export function ReceiptUploadDialog({
       .select("id")
       .single();
 
-    if (insErr) return set({ status: "error", error: insErr.message });
+    if (insErr) { set({ status: "error", error: insErr.message }); return { ok: false }; }
     set({ status: "done", expenseId: ins?.id });
+    return { ok: true };
   };
 
   const runAll = async () => {
     setRunning(true);
-    // 3-worker pool
+    // 3-worker pool with local success/error tracking (avoids stale state)
     const queue = items.map((it, idx) => ({ it, idx })).filter(({ it }) => it.status === "queued" || it.status === "error");
+    let okCount = 0;
+    let errCount = 0;
     const workers = Array.from({ length: 3 }, async () => {
       while (queue.length) {
         const next = queue.shift();
         if (!next) break;
-        await processOne(next.idx, next.it);
+        try {
+          const res = await processOne(next.idx, next.it);
+          if (res?.ok) okCount++;
+          else errCount++;
+        } catch {
+          errCount++;
+        }
       }
     });
     await Promise.all(workers);
     setRunning(false);
-    const ok = items.filter((i) => i.status === "done").length;
-    if (ok > 0) toast.success(`${ok} receipt${ok === 1 ? "" : "s"} added to Review queue`);
+    if (okCount > 0) toast.success(`${okCount} receipt${okCount === 1 ? "" : "s"} added to Review queue`);
+    if (errCount > 0) toast.error(`${errCount} file${errCount === 1 ? "" : "s"} failed — check the list`);
     onComplete();
+    // Auto-close + reset only when everything succeeded
+    if (errCount === 0 && okCount > 0) {
+      setItems([]);
+      onOpenChange(false);
+    }
   };
 
   const done = items.filter((i) => i.status === "done").length;
