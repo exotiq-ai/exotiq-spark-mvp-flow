@@ -30,16 +30,23 @@ serve(async (req) => {
     const user = userData.user;
     if (!user) throw new Error("User not authenticated");
 
-    // Get team
+    // Get team — restrict to owner/admin/manager to prevent low-privilege staff
+    // (operators, viewers) from opening the Express financial dashboard.
     const { data: teamMember } = await supabaseClient
       .from("team_members")
-      .select("team_id")
+      .select("team_id, role")
       .eq("user_id", user.id)
       .eq("is_active", true)
+      .in("role", ["owner", "admin", "manager"])
       .limit(1)
-      .single();
+      .maybeSingle();
 
-    if (!teamMember) throw new Error("No team found");
+    if (!teamMember) {
+      return new Response(
+        JSON.stringify({ error: "You don't have permission to access the Stripe Dashboard." }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 403 },
+      );
+    }
 
     const { data: team } = await supabaseClient
       .from("teams")
