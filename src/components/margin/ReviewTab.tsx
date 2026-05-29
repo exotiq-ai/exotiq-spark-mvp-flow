@@ -263,6 +263,24 @@ export function ReviewTab() {
                     </div>
                   </div>
 
+                  {vehicle_id && (bookingOptions[row.id]?.length ?? 0) > 0 && (
+                    <div className="space-y-1">
+                      <Label className="text-xs">Assign to rental (optional)</Label>
+                      <Select
+                        value={(editing[row.id]?.booking_id ?? row.booking_id ?? "none") as string}
+                        onValueChange={(v) => update(row.id, { booking_id: v === "none" ? "" : v })}
+                      >
+                        <SelectTrigger className="h-8"><SelectValue placeholder="Not linked" /></SelectTrigger>
+                        <SelectContent className="z-[60]">
+                          <SelectItem value="none">Not linked to a rental</SelectItem>
+                          {(bookingOptions[row.id] || []).map((b) => (
+                            <SelectItem key={b.id} value={b.id}>{b.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
                   <div className="flex items-center justify-between gap-2 flex-wrap text-xs text-muted-foreground">
                     <span>
                       {new Date(row.expense_date).toLocaleDateString()} · {row.vendor || "No vendor"}
