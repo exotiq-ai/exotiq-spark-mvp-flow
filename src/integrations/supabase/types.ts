@@ -2351,6 +2351,66 @@ export type Database = {
           },
         ]
       }
+      recurring_expense_templates: {
+        Row: {
+          amount: number
+          cadence: string
+          created_at: string
+          created_by: string | null
+          day_of_month: number
+          expense_type: string
+          id: string
+          is_active: boolean
+          last_run_at: string | null
+          location_id: string | null
+          name: string
+          next_run_at: string
+          notes: string | null
+          team_id: string
+          updated_at: string
+          vehicle_id: string | null
+          vendor: string | null
+        }
+        Insert: {
+          amount: number
+          cadence: string
+          created_at?: string
+          created_by?: string | null
+          day_of_month?: number
+          expense_type: string
+          id?: string
+          is_active?: boolean
+          last_run_at?: string | null
+          location_id?: string | null
+          name: string
+          next_run_at: string
+          notes?: string | null
+          team_id: string
+          updated_at?: string
+          vehicle_id?: string | null
+          vendor?: string | null
+        }
+        Update: {
+          amount?: number
+          cadence?: string
+          created_at?: string
+          created_by?: string | null
+          day_of_month?: number
+          expense_type?: string
+          id?: string
+          is_active?: boolean
+          last_run_at?: string | null
+          location_id?: string | null
+          name?: string
+          next_run_at?: string
+          notes?: string | null
+          team_id?: string
+          updated_at?: string
+          vehicle_id?: string | null
+          vendor?: string | null
+        }
+        Relationships: []
+      }
       role_audit_log: {
         Row: {
           action: string
@@ -3166,6 +3226,7 @@ export type Database = {
           ai_parsed_fields: Json | null
           amount: number
           approval_threshold_applied: number | null
+          auto_routed_reason: string | null
           booking_id: string | null
           created_at: string
           created_by: string | null
@@ -3179,6 +3240,7 @@ export type Database = {
           notes: string | null
           receipt_url: string | null
           reimbursed_amount: number
+          requires_admin_approval: boolean
           review_reason: string | null
           reviewed_at: string | null
           reviewed_by: string | null
@@ -3195,6 +3257,7 @@ export type Database = {
           ai_parsed_fields?: Json | null
           amount: number
           approval_threshold_applied?: number | null
+          auto_routed_reason?: string | null
           booking_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -3208,6 +3271,7 @@ export type Database = {
           notes?: string | null
           receipt_url?: string | null
           reimbursed_amount?: number
+          requires_admin_approval?: boolean
           review_reason?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
@@ -3224,6 +3288,7 @@ export type Database = {
           ai_parsed_fields?: Json | null
           amount?: number
           approval_threshold_applied?: number | null
+          auto_routed_reason?: string | null
           booking_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -3237,6 +3302,7 @@ export type Database = {
           notes?: string | null
           receipt_url?: string | null
           reimbursed_amount?: number
+          requires_admin_approval?: boolean
           review_reason?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
@@ -4273,6 +4339,7 @@ export type Database = {
           vehicle_name: string
         }[]
       }
+      generate_recurring_expenses: { Args: never; Returns: number }
       get_my_role: {
         Args: never
         Returns: {
@@ -4429,52 +4496,105 @@ export type Database = {
         Args: { p_vehicle_id: string }
         Returns: undefined
       }
-      review_expense: {
-        Args: {
-          p_action: string
-          p_amount?: number
-          p_booking_id?: string
-          p_expense_id: string
-          p_expense_type?: string
-          p_notes?: string
-          p_vehicle_id?: string
-        }
-        Returns: {
-          ai_confidence: number | null
-          ai_parsed_fields: Json | null
-          amount: number
-          approval_threshold_applied: number | null
-          booking_id: string | null
-          created_at: string
-          created_by: string | null
-          currency: string
-          expense_date: string
-          expense_type: string
-          id: string
-          is_reimbursable: boolean
-          linked_damage_claim_id: string | null
-          location_id: string | null
-          notes: string | null
-          receipt_url: string | null
-          reimbursed_amount: number
-          review_reason: string | null
-          reviewed_at: string | null
-          reviewed_by: string | null
-          source_module: string
-          source_record_id: string | null
-          status: string
-          team_id: string
-          updated_at: string
-          vehicle_id: string | null
-          vendor: string | null
-        }
-        SetofOptions: {
-          from: "*"
-          to: "vehicle_expenses"
-          isOneToOne: true
-          isSetofReturn: false
-        }
-      }
+      review_expense:
+        | {
+            Args: {
+              p_action: string
+              p_amount?: number
+              p_booking_id?: string
+              p_expense_date?: string
+              p_expense_id: string
+              p_expense_type?: string
+              p_notes?: string
+              p_vehicle_id?: string
+              p_vendor?: string
+            }
+            Returns: {
+              ai_confidence: number | null
+              ai_parsed_fields: Json | null
+              amount: number
+              approval_threshold_applied: number | null
+              auto_routed_reason: string | null
+              booking_id: string | null
+              created_at: string
+              created_by: string | null
+              currency: string
+              expense_date: string
+              expense_type: string
+              id: string
+              is_reimbursable: boolean
+              linked_damage_claim_id: string | null
+              location_id: string | null
+              notes: string | null
+              receipt_url: string | null
+              reimbursed_amount: number
+              requires_admin_approval: boolean
+              review_reason: string | null
+              reviewed_at: string | null
+              reviewed_by: string | null
+              source_module: string
+              source_record_id: string | null
+              status: string
+              team_id: string
+              updated_at: string
+              vehicle_id: string | null
+              vendor: string | null
+            }
+            SetofOptions: {
+              from: "*"
+              to: "vehicle_expenses"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
+        | {
+            Args: {
+              p_action: string
+              p_amount?: number
+              p_booking_id?: string
+              p_expense_id: string
+              p_expense_type?: string
+              p_notes?: string
+              p_vehicle_id?: string
+            }
+            Returns: {
+              ai_confidence: number | null
+              ai_parsed_fields: Json | null
+              amount: number
+              approval_threshold_applied: number | null
+              auto_routed_reason: string | null
+              booking_id: string | null
+              created_at: string
+              created_by: string | null
+              currency: string
+              expense_date: string
+              expense_type: string
+              id: string
+              is_reimbursable: boolean
+              linked_damage_claim_id: string | null
+              location_id: string | null
+              notes: string | null
+              receipt_url: string | null
+              reimbursed_amount: number
+              requires_admin_approval: boolean
+              review_reason: string | null
+              reviewed_at: string | null
+              reviewed_by: string | null
+              source_module: string
+              source_record_id: string | null
+              status: string
+              team_id: string
+              updated_at: string
+              vehicle_id: string | null
+              vendor: string | null
+            }
+            SetofOptions: {
+              from: "*"
+              to: "vehicle_expenses"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
       set_billing_dunning_stage: {
         Args: {
           p_assumed_plan_fleet_size?: number
