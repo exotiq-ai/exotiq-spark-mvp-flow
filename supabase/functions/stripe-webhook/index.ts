@@ -84,6 +84,48 @@ serve(async (req) => {
         break;
       }
 
+      case "account.application.deauthorized": {
+        // Tenant disconnected our app from Stripe — wipe stored credentials
+        // so the UI shows "not connected" and we stop attempting charges on a
+        // dead account.
+        const accountId = event.account ?? (event.data.object as Stripe.Account)?.id;
+        logStep("Account deauthorized", { accountId });
+
+        if (accountId) {
+          const { data: team } = await supabaseClient
+            .from("teams")
+            .select("id, owner_id, name")
+            .eq("stripe_account_id", accountId)
+            .limit(1)
+            .single();
+
+          if (team) {
+            await supabaseClient
+              .from("teams")
+              .update({
+                stripe_account_id: null,
+                stripe_charges_enabled: false,
+                stripe_payouts_enabled: false,
+                stripe_onboarding_complete: false,
+              } as any)
+              .eq("id", team.id);
+
+            if (team.owner_id) {
+              await supabaseClient.from("notifications").insert({
+                user_id: team.owner_id,
+                type: "payment",
+                title: "Stripe Account Disconnected",
+                message: "Your Stripe payment account has been disconnected. Reconnect in Settings → Payments to resume accepting card payments.",
+                data: { stripe_account_id: accountId },
+              });
+            }
+
+            logStep("Team Stripe credentials cleared", { teamId: team.id });
+          }
+        }
+        break;
+      }
+
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
         logStep("Checkout completed", { sessionId: session.id, mode: session.mode });
