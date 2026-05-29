@@ -27,7 +27,7 @@ const PRESETS: { value: DateRangePreset; label: string }[] = [
   { value: "custom", label: "Custom range" },
 ];
 
-export function MarginFilterBar() {
+export function MarginFilterBar({ vertical = false }: { vertical?: boolean } = {}) {
   const { currentTeam } = useTeam();
   const f = useMarginFilters();
   const [locations, setLocations] = useState<{ id: string; name: string }[]>([]);
@@ -49,16 +49,16 @@ export function MarginFilterBar() {
     ? vehicles
     : vehicles.filter((v) => v.location_id && f.locationIds.includes(v.location_id));
 
-  const toggleArr = (arr: string[], id: string) =>
-    arr.includes(id) ? arr.filter((x) => x !== id) : [...arr, id];
-
   const hasFilters = f.locationIds.length || f.vehicleIds.length || f.sources.length || f.preset !== "this_month";
 
+  const containerClass = vertical
+    ? "flex flex-col gap-3 [&>button]:w-full [&>button]:justify-between"
+    : "flex flex-wrap items-center gap-2";
+
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      {/* Date preset */}
+    <div className={containerClass}>
       <Select value={f.preset} onValueChange={(v) => f.setPreset(v as DateRangePreset)}>
-        <SelectTrigger className="h-9 w-[160px]">
+        <SelectTrigger className={vertical ? "h-10 w-full" : "h-9 w-[160px]"}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -66,7 +66,6 @@ export function MarginFilterBar() {
         </SelectContent>
       </Select>
 
-      {/* Custom date range */}
       {f.preset === "custom" && (
         <>
           <DatePopover label="From" value={f.start} onChange={(d) => f.setRange(d, f.end, "custom")} />
@@ -74,43 +73,52 @@ export function MarginFilterBar() {
         </>
       )}
 
-      {/* Compact date display */}
-      {f.preset !== "custom" && (
+      {f.preset !== "custom" && !vertical && (
         <span className="text-xs text-muted-foreground hidden md:inline">
           {format(f.start, "MMM d")} – {format(f.end, "MMM d, yyyy")}
         </span>
       )}
 
-      {/* Locations */}
       <MultiSelectMenu
         label="Locations"
         selected={f.locationIds}
         options={locations.map((l) => ({ id: l.id, label: l.name }))}
         onChange={f.setLocationIds}
+        vertical={vertical}
       />
 
-      {/* Vehicles */}
       <MultiSelectMenu
         label="Vehicles"
         selected={f.vehicleIds}
         options={visibleVehicles.map((v) => ({ id: v.id, label: v.name }))}
         onChange={f.setVehicleIds}
+        vertical={vertical}
       />
 
-      {/* Sources */}
       <MultiSelectMenu
         label="Sources"
         selected={f.sources}
         options={dedupeSources()}
         onChange={f.setSources}
+        vertical={vertical}
       />
 
       {hasFilters ? (
-        <Button variant="ghost" size="sm" onClick={f.reset} className="h-9">
+        <Button variant="ghost" size="sm" onClick={f.reset} className={vertical ? "h-10 w-full" : "h-9"}>
           <X className="h-3.5 w-3.5 mr-1" /> Reset
         </Button>
       ) : null}
     </div>
+  );
+}
+
+export function useMarginActiveFilterCount() {
+  const f = useMarginFilters();
+  return (
+    f.locationIds.length +
+    f.vehicleIds.length +
+    f.sources.length +
+    (f.preset !== "this_month" ? 1 : 0)
   );
 }
 
