@@ -14,6 +14,7 @@ import {
   Map,
   FileText,
   Sparkles,
+  ShieldCheck,
   Loader2
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -187,7 +188,6 @@ export const IntegrationsSection = () => {
     { name: "Stripe", description: "Payment processing and invoicing", icon: CreditCard },
     { name: "Twilio", description: "SMS and WhatsApp notifications", icon: MessageSquare },
     { name: "Google Maps", description: "Location services and routing", icon: Map },
-    { name: "DocuSign", description: "Digital contract signing", icon: FileText },
   ];
 
   return (
@@ -298,6 +298,30 @@ export const IntegrationsSection = () => {
                 </Badge>
               </div>
               <p className="text-sm text-muted-foreground">Powered by Lovable AI for intelligent features</p>
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      {/* Vault eSign — Built-in */}
+      <Card className="card-premium p-6">
+        <h3 className="text-lg font-semibold mb-4">Documents & Signatures</h3>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-lg bg-muted/30">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-background border shrink-0">
+              <ShieldCheck className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h4 className="font-medium">Vault eSign</h4>
+                <Badge className="bg-success/10 text-success border-success/30">
+                  <Check className="w-3 h-3 mr-1" />
+                  Active
+                </Badge>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Legally binding digital signatures, built in. ESIGN & UETA compliant — captures signature, timestamp, IP address, and a full audit trail on every rental agreement, then delivers the signed PDF to your customer automatically.
+              </p>
             </div>
           </div>
         </div>
