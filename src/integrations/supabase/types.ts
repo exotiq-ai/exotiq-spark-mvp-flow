@@ -1318,6 +1318,8 @@ export type Database = {
       }
       maintenance_schedules: {
         Row: {
+          actual_cost: number | null
+          completed_at: string | null
           created_at: string
           estimated_cost: number | null
           id: string
@@ -1339,6 +1341,8 @@ export type Database = {
           vehicle_id: string
         }
         Insert: {
+          actual_cost?: number | null
+          completed_at?: string | null
           created_at?: string
           estimated_cost?: number | null
           id?: string
@@ -1360,6 +1364,8 @@ export type Database = {
           vehicle_id: string
         }
         Update: {
+          actual_cost?: number | null
+          completed_at?: string | null
           created_at?: string
           estimated_cost?: number | null
           id?: string
@@ -2668,6 +2674,8 @@ export type Database = {
           deleted_at: string | null
           deleted_by: string | null
           deletion_scheduled_for: string | null
+          expense_auto_approve_under: number
+          expense_review_required_types: string[]
           id: string
           is_deleted: boolean | null
           is_demo_account: boolean | null
@@ -2701,6 +2709,8 @@ export type Database = {
           deleted_at?: string | null
           deleted_by?: string | null
           deletion_scheduled_for?: string | null
+          expense_auto_approve_under?: number
+          expense_review_required_types?: string[]
           id?: string
           is_deleted?: boolean | null
           is_demo_account?: boolean | null
@@ -2734,6 +2744,8 @@ export type Database = {
           deleted_at?: string | null
           deleted_by?: string | null
           deletion_scheduled_for?: string | null
+          expense_auto_approve_under?: number
+          expense_review_required_types?: string[]
           id?: string
           is_deleted?: boolean | null
           is_demo_account?: boolean | null
@@ -3150,7 +3162,10 @@ export type Database = {
       }
       vehicle_expenses: {
         Row: {
+          ai_confidence: number | null
+          ai_parsed_fields: Json | null
           amount: number
+          approval_threshold_applied: number | null
           booking_id: string | null
           created_at: string
           created_by: string | null
@@ -3159,19 +3174,27 @@ export type Database = {
           expense_type: string
           id: string
           is_reimbursable: boolean
+          linked_damage_claim_id: string | null
           location_id: string | null
           notes: string | null
           receipt_url: string | null
           reimbursed_amount: number
+          review_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
           source_module: string
           source_record_id: string | null
+          status: string
           team_id: string
           updated_at: string
           vehicle_id: string | null
           vendor: string | null
         }
         Insert: {
+          ai_confidence?: number | null
+          ai_parsed_fields?: Json | null
           amount: number
+          approval_threshold_applied?: number | null
           booking_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -3180,19 +3203,27 @@ export type Database = {
           expense_type: string
           id?: string
           is_reimbursable?: boolean
+          linked_damage_claim_id?: string | null
           location_id?: string | null
           notes?: string | null
           receipt_url?: string | null
           reimbursed_amount?: number
+          review_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           source_module?: string
           source_record_id?: string | null
+          status?: string
           team_id: string
           updated_at?: string
           vehicle_id?: string | null
           vendor?: string | null
         }
         Update: {
+          ai_confidence?: number | null
+          ai_parsed_fields?: Json | null
           amount?: number
+          approval_threshold_applied?: number | null
           booking_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -3201,12 +3232,17 @@ export type Database = {
           expense_type?: string
           id?: string
           is_reimbursable?: boolean
+          linked_damage_claim_id?: string | null
           location_id?: string | null
           notes?: string | null
           receipt_url?: string | null
           reimbursed_amount?: number
+          review_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           source_module?: string
           source_record_id?: string | null
+          status?: string
           team_id?: string
           updated_at?: string
           vehicle_id?: string | null
@@ -4392,6 +4428,52 @@ export type Database = {
       restore_vehicle_from_trash: {
         Args: { p_vehicle_id: string }
         Returns: undefined
+      }
+      review_expense: {
+        Args: {
+          p_action: string
+          p_amount?: number
+          p_booking_id?: string
+          p_expense_id: string
+          p_expense_type?: string
+          p_notes?: string
+          p_vehicle_id?: string
+        }
+        Returns: {
+          ai_confidence: number | null
+          ai_parsed_fields: Json | null
+          amount: number
+          approval_threshold_applied: number | null
+          booking_id: string | null
+          created_at: string
+          created_by: string | null
+          currency: string
+          expense_date: string
+          expense_type: string
+          id: string
+          is_reimbursable: boolean
+          linked_damage_claim_id: string | null
+          location_id: string | null
+          notes: string | null
+          receipt_url: string | null
+          reimbursed_amount: number
+          review_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          source_module: string
+          source_record_id: string | null
+          status: string
+          team_id: string
+          updated_at: string
+          vehicle_id: string | null
+          vendor: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "vehicle_expenses"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       set_billing_dunning_stage: {
         Args: {
