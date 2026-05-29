@@ -154,6 +154,18 @@ serve(async (req) => {
               stripe_charge_id: charge.id,
             })
             .eq("stripe_payment_intent_id", charge.payment_intent as string);
+
+          await logStripeProcessingFee(supabaseClient, stripe, charge);
+        }
+        break;
+      }
+
+      case "charge.succeeded": {
+        const charge = event.data.object as Stripe.Charge;
+        logStep("Charge succeeded", { chargeId: charge.id });
+        // Cover non-hold flows (direct charges) — captured handler covers manual capture
+        if (charge.payment_intent && charge.captured) {
+          await logStripeProcessingFee(supabaseClient, stripe, charge);
         }
         break;
       }
