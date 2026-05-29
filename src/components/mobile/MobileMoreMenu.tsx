@@ -3,18 +3,20 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { moduleIdToPath, pathToModuleId } from "@/lib/moduleRoutes";
-import { 
-  MoreHorizontal, 
-  Shield, 
-  Settings, 
-  User, 
+import {
+  MoreHorizontal,
+  Shield,
+  Settings,
+  User,
   HelpCircle,
   ChevronRight,
   TrendingUp,
   BarChart3,
-  Car
+  Car,
+  DollarSign
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { featureFlags } from "@/lib/featureFlags";
 import { MobileLocationSelector } from "./MobileLocationSelector";
 
 interface MobileMoreMenuProps {
@@ -37,6 +39,9 @@ export const MobileMoreMenu = ({ onAddLocation, activeModule: activeModuleProp, 
     { id: "motoriq", label: "MotorIQ", description: "AI-powered pricing & demand intelligence", icon: TrendingUp },
     { id: "core", label: "FleetCopilot™", description: "AI-powered fleet assistant", icon: TrendingUp },
     { id: "vault", label: "Vault", description: "Documents & Knowledge Base", icon: Shield },
+    ...(featureFlags.margin
+      ? [{ id: "margin", label: "Margin", description: "Per-vehicle P&L, expenses & partner payouts", icon: DollarSign }]
+      : []),
   ];
 
   // Operations group items
@@ -88,7 +93,7 @@ export const MobileMoreMenu = ({ onAddLocation, activeModule: activeModuleProp, 
     setOpen(false);
   };
 
-  const isActive = ["motoriq", "pulse", "vault", "settings", "super-admin"].includes(activeModule);
+  const isActive = ["motoriq", "pulse", "vault", "margin", "fleet", "settings", "super-admin"].includes(activeModule);
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
