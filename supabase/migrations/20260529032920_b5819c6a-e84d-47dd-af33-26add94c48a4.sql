@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.review_expense(uuid,text,numeric,text,uuid,uuid,text) FROM PUBLIC, anon;
