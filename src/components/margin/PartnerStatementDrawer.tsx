@@ -63,12 +63,24 @@ export function PartnerStatementDrawer({
   const statement = useMemo(() => buildPartnerStatement(rows), [rows]);
   const ordered = useMemo(() => [...statement.pending, ...statement.paid, ...statement.voided], [statement]);
 
+  const ctx = {
+    partnerName: partner?.name || "Partner",
+    vehicleName: (id: string) => vehicles[id] || id,
+    bookingRef: (id: string) => bookings[id] || id,
+  };
+
   const handleExport = () => {
     if (!partner) return;
-    downloadStatementCsv(statement, rows, {
-      partnerName: partner.name,
-      vehicleName: (id) => vehicles[id] || id,
-      bookingRef: (id) => bookings[id] || id,
+    downloadStatementCsv(statement, rows, ctx);
+  };
+
+  const handlePrint = () => {
+    if (!partner) return;
+    printPartnerStatement(statement, rows, {
+      ...ctx,
+      operatorName: currentTeam?.name || "Operator",
+      operatorLogoUrl: (currentTeam as any)?.logo_url || null,
+      rangeLabel: "All-time",
     });
   };
 
@@ -88,9 +100,12 @@ export function PartnerStatementDrawer({
           <Tile label="Voided" value={formatCurrency(statement.totals.voided)} muted />
         </div>
 
-        <div className="flex justify-end mt-4">
+        <div className="flex justify-end gap-2 mt-4">
+          <Button size="sm" variant="outline" onClick={handlePrint} disabled={!ordered.length}>
+            <Printer className="h-4 w-4 mr-2" /> Print / PDF
+          </Button>
           <Button size="sm" variant="outline" onClick={handleExport} disabled={!ordered.length}>
-            <Download className="h-4 w-4 mr-2" /> Export statement
+            <Download className="h-4 w-4 mr-2" /> Export CSV
           </Button>
         </div>
 
