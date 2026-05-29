@@ -48,33 +48,55 @@ serve(async (req) => {
     if (!user) throw new Error("User not authenticated");
     logStep("User authenticated", { userId: user.id });
 
-    // Get team and connected Stripe account
-    const { data: teamMember } = await supabaseClient
+    // Get team and connected Stripe account — hard-fail if missing to prevent
+    // revenue from silently landing on the platform account.
+    const { data: teamMember, error: teamMemberError } = await supabaseClient
       .from("team_members")
       .select("team_id")
       .eq("user_id", user.id)
       .eq("is_active", true)
       .limit(1)
+      .maybeSingle();
+
+    if (teamMemberError) throw new Error(`Team lookup error: ${teamMemberError.message}`);
+    if (!teamMember) {
+      return new Response(
+        JSON.stringify({ error: "No active team membership found. Payments cannot be routed." }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 409 },
+      );
+    }
+
+    const teamId: string = teamMember.team_id;
+
+    const { data: team, error: teamError } = await supabaseClient
+      .from("teams")
+      .select("stripe_account_id, stripe_charges_enabled")
+      .eq("id", teamId)
       .single();
 
-    let stripeAccountId: string | null = null;
-    let teamId: string | null = null;
+    if (teamError) throw new Error(`Team fetch error: ${teamError.message}`);
 
-    if (teamMember) {
-      teamId = teamMember.team_id;
-      const { data: team } = await supabaseClient
-        .from("teams")
-        .select("stripe_account_id, stripe_charges_enabled")
-        .eq("id", teamMember.team_id)
-        .single();
-      
-      if (team?.stripe_account_id) {
-        if (!team.stripe_charges_enabled) {
-          throw new Error("Your Stripe account is not yet enabled for charges. Please complete onboarding in Settings > Payments.");
-        }
-        stripeAccountId = team.stripe_account_id;
-      }
+    if (!team?.stripe_account_id) {
+      return new Response(
+        JSON.stringify({
+          error: "Payment processing is not set up for this team. Connect a Stripe account in Settings → Payments.",
+          code: "stripe_not_connected",
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 409 },
+      );
     }
+
+    if (!team.stripe_charges_enabled) {
+      return new Response(
+        JSON.stringify({
+          error: "Your Stripe account is not yet enabled for charges. Please complete onboarding in Settings → Payments.",
+          code: "stripe_charges_disabled",
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 409 },
+      );
+    }
+
+    const stripeAccountId: string = team.stripe_account_id;
 
     // Check booking source for marketplace fee
     let platformFee = 0;
