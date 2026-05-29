@@ -214,6 +214,20 @@ export function PartnerPayoutsTab() {
     }
   };
 
+  const recompute = async (payout: Payout) => {
+    if (!confirm(`Recompute this payout from the current booking? Only pending payouts can be refreshed.`)) return;
+    setBusy(true);
+    try {
+      await transition(payout.id, "recompute" as any);
+      toast.success("Payout recomputed from booking");
+      refresh();
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to recompute");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const openVoid = (payout: Payout) => {
     setVoidTarget(payout);
     setVoidReason("");
