@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sparkles, Check, X, Upload, FileText, AlertCircle } from "lucide-react";
+import { Sparkles, Check, X, Upload, FileText, AlertCircle, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/marginCsv";
 import { ReceiptUploadDialog } from "./ReceiptUploadDialog";
@@ -23,6 +23,8 @@ type ReviewExpense = {
   notes: string | null;
   source_module: string;
   review_reason: string | null;
+  auto_routed_reason: string | null;
+  requires_admin_approval: boolean | null;
   ai_confidence: number | null;
   ai_parsed_fields: any;
   receipt_url: string | null;
@@ -56,7 +58,7 @@ export function ReviewTab() {
     const [{ data: exps }, { data: vehs }] = await Promise.all([
       supabase
         .from("vehicle_expenses")
-        .select("id, vehicle_id, booking_id, expense_type, amount, expense_date, vendor, notes, source_module, review_reason, ai_confidence, ai_parsed_fields, receipt_url, linked_damage_claim_id")
+        .select("id, vehicle_id, booking_id, expense_type, amount, expense_date, vendor, notes, source_module, review_reason, auto_routed_reason, requires_admin_approval, ai_confidence, ai_parsed_fields, receipt_url, linked_damage_claim_id")
         .eq("team_id", currentTeam.id)
         .eq("status", "pending_review")
         .order("created_at", { ascending: false }),
@@ -159,6 +161,14 @@ export function ReviewTab() {
                         </Badge>
                       )}
                       {isDamage && <Badge variant="destructive" className="text-xs">Owner confirm</Badge>}
+                      {row.requires_admin_approval && (
+                        <Badge variant="destructive" className="text-xs flex items-center gap-1">
+                          <ShieldAlert className="h-3 w-3" /> Admin approval required
+                        </Badge>
+                      )}
+                      {row.booking_id && (
+                        <Badge variant="outline" className="text-xs">Linked to rental</Badge>
+                      )}
                       {row.review_reason && (
                         <span className="text-xs text-muted-foreground flex items-center gap-1">
                           <AlertCircle className="h-3 w-3" />

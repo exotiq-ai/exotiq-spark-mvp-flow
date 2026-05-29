@@ -41,57 +41,18 @@ export function ReceiptUploadDialog({
     if (upErr) { set({ status: "error", error: upErr.message }); return { ok: false }; }
 
     set({ status: "parsing" });
-    let parsed: any = null;
-    let parseFailed = false;
-    let parseFailReason = "";
     try {
       const { data, error } = await supabase.functions.invoke("parse-expense-receipt", {
-        body: { receipt_path: path },
+        body: { receipt_path: path, team_id: currentTeam.id },
       });
       if (error) throw error;
-      parsed = data?.parsed || {};
+      set({ status: "done", expenseId: data?.expense_id });
+      return { ok: true };
     } catch (e: any) {
       console.error("parse-expense-receipt invoke failed:", e);
-      parseFailed = true;
-      parseFailReason = e?.message || "AI could not read this file";
-      parsed = { confidence: 0 };
+      set({ status: "error", error: e?.message || "AI could not read this file" });
+      return { ok: false };
     }
-
-    const confidence = Number(parsed.confidence ?? 0);
-    const amount = Number(parsed.amount ?? 0);
-    const expense_type = typeof parsed.expense_type === "string" ? parsed.expense_type : "other";
-    const expense_date = typeof parsed.expense_date === "string" ? parsed.expense_date : new Date().toISOString().slice(0, 10);
-
-    // Always pending_review for AI receipts — user confirms in Review tab.
-    const { data: ins, error: insErr } = await supabase
-      .from("vehicle_expenses")
-      .insert({
-        team_id: currentTeam.id,
-        expense_type,
-        amount: amount > 0 ? amount : 0.01,
-        expense_date,
-        vendor: parsed.vendor || null,
-        notes: Array.isArray(parsed.line_items) && parsed.line_items.length
-          ? parsed.line_items.map((l: any) => `${l.description}: ${l.amount}`).join(" · ")
-          : null,
-        receipt_url: path,
-        source_module: "ai_receipt",
-        status: "pending_review",
-        review_reason: parseFailed
-          ? `AI parsing failed (${parseFailReason}) — please fill in manually`
-          : confidence < 0.6
-            ? "Low AI confidence — please verify"
-            : "AI-parsed receipt — confirm vehicle & details",
-        ai_confidence: isFinite(confidence) ? Math.min(Math.max(confidence, 0), 1) : 0,
-        ai_parsed_fields: parsed,
-        created_by: user.id,
-      })
-      .select("id")
-      .single();
-
-    if (insErr) { set({ status: "error", error: insErr.message }); return { ok: false }; }
-    set({ status: "done", expenseId: ins?.id });
-    return { ok: true };
   };
 
   const runAll = async () => {
