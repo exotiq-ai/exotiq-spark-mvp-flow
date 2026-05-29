@@ -106,6 +106,45 @@ const DashboardInner = () => {
     }
   }, [searchParams, nav]);
 
+  // Stripe Connect onboarding return handler — Stripe redirects tenants back
+  // to /dashboard?stripe_onboard=complete or ?stripe_refresh=true after the
+  // hosted flow. Webhooks normally fire within seconds, so we poll briefly to
+  // surface the activated state without making the user hunt for "Refresh".
+  useEffect(() => {
+    const stripeOnboard = searchParams.get('stripe_onboard');
+    const stripeRefresh = searchParams.get('stripe_refresh');
+    if (!stripeOnboard && !stripeRefresh) return;
+
+    let cancelled = false;
+    (async () => {
+      if (stripeOnboard === 'complete') {
+        toast.success("Connecting your Stripe account", {
+          description: "Stripe is verifying your details. This usually takes under a minute.",
+        });
+      } else if (stripeRefresh === 'true') {
+        toast.info("Resume Stripe setup", {
+          description: "Pick up where you left off in Settings → Payments.",
+        });
+      }
+
+      // Strip the params and route to the Payments tab so the badge is visible.
+      nav('/dashboard/settings?tab=payments', { replace: true });
+
+      // Poll for up to 60s for the webhook to flip charges_enabled.
+      for (let i = 0; i < 12 && !cancelled; i++) {
+        await refreshTeam();
+        await new Promise((r) => setTimeout(r, 5000));
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // Only run once on mount when params are present; refreshTeam ref is stable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+
   // Get user ID for welcome video
   const [userId, setUserId] = useState<string | null>(null);
   
