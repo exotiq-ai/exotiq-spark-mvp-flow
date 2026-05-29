@@ -12,6 +12,7 @@ import { ExpensesTab } from "@/components/margin/ExpensesTab";
 import { PartnerPayoutsTab } from "@/components/margin/PartnerPayoutsTab";
 import { PartnersTab } from "@/components/margin/PartnersTab";
 import { DepositLedgerTab } from "@/components/margin/DepositLedgerTab";
+import { ReviewTab } from "@/components/margin/ReviewTab";
 import { RevenueBySourceCard } from "@/components/margin/RevenueBySourceCard";
 import { RevenueExpenseTrendChart } from "@/components/margin/RevenueExpenseTrendChart";
 import { ExpenseBreakdownChart } from "@/components/margin/ExpenseBreakdownChart";
@@ -78,6 +79,7 @@ export default function MarginEnhanced() {
               <TabsList className="flex w-max gap-1 overflow-x-auto snap-x bg-muted/40 p-1 h-auto">
                 <TabsTrigger value="vehicles" className="snap-start shrink-0 text-xs px-3 py-1.5">Per-Vehicle P&L</TabsTrigger>
                 <TabsTrigger value="expenses" className="snap-start shrink-0 text-xs px-3 py-1.5">Expenses</TabsTrigger>
+                <TabsTrigger value="review" className="snap-start shrink-0 text-xs px-3 py-1.5">Review</TabsTrigger>
                 <TabsTrigger value="partners" className="snap-start shrink-0 text-xs px-3 py-1.5">Partners</TabsTrigger>
                 <TabsTrigger value="payouts" className="snap-start shrink-0 text-xs px-3 py-1.5">Payouts</TabsTrigger>
                 <TabsTrigger value="deposits" className="snap-start shrink-0 text-xs px-3 py-1.5">Deposits</TabsTrigger>
@@ -85,9 +87,10 @@ export default function MarginEnhanced() {
               <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background to-transparent" />
             </div>
           ) : (
-            <TabsList className="grid w-full grid-cols-3 md:grid-cols-5 max-w-3xl">
+            <TabsList className="grid w-full grid-cols-3 md:grid-cols-6 max-w-3xl">
               <TabsTrigger value="vehicles">Per-Vehicle P&L</TabsTrigger>
               <TabsTrigger value="expenses">Expenses</TabsTrigger>
+              <TabsTrigger value="review">Review</TabsTrigger>
               <TabsTrigger value="partners">Partners</TabsTrigger>
               <TabsTrigger value="payouts">Payouts</TabsTrigger>
               <TabsTrigger value="deposits">Deposits</TabsTrigger>
@@ -98,6 +101,9 @@ export default function MarginEnhanced() {
           </TabsContent>
           <TabsContent value="expenses" className="mt-4">
             <ExpensesTab />
+          </TabsContent>
+          <TabsContent value="review" className="mt-4">
+            <ReviewTab />
           </TabsContent>
           <TabsContent value="partners" className="mt-4">
             <PartnersTab />
