@@ -1,100 +1,70 @@
-# Harden Tenant Stripe Connect Activation
+# Fix "Connect Stripe Account" Edge Function Error
 
-## Goal
-Make the tenant Stripe Connect activation flow bulletproof before the first real tenant activates. Currently zero tenants are connected — we have a clean runway to fix the 2 critical bugs and 5 gaps the audit surfaced.
+## What's actually happening
 
-## Critical fixes (P0)
+When you click **Connect Stripe Account**, our `stripe-connect-onboard` edge function calls `stripe.accounts.create({ type: "express", capabilities: { card_payments, transfers } })`. Stripe rejects that call with:
 
-### 1. Frontend return-URL handler
-**Problem:** After completing Stripe onboarding, tenants land at `/dashboard?stripe_onboard=complete` with no feedback. The UI keeps showing "Onboarding" until they manually click Refresh.
+> **"Please review the responsibilities of managing losses for connected accounts at https://dashboard.stripe.com/settings/connect/platform-profile."**
 
-**Fix in `src/pages/Dashboard.tsx`:**
-- Read `stripe_onboard` and `stripe_refresh` from `searchParams`.
-- On `stripe_onboard=complete`:
-  - Call `refreshTeam()` to re-fetch the team row.
-  - Show a toast: "Connecting your account — Stripe is verifying your details. This usually takes under a minute."
-  - Strip the param from the URL (`navigate('/dashboard', { replace: true })`) and redirect to `/dashboard/settings?tab=payments` so the tenant sees the updated badge.
-  - Poll `refreshTeam()` every 5s for up to 60s while `stripe_charges_enabled` is still false (the webhook is usually <5s but can be delayed).
-- On `stripe_refresh=true`: redirect back to `/dashboard/settings?tab=payments` and call the existing "Continue Setup" flow.
+That's a platform-level configuration requirement, **not a code bug**. The function is working correctly and refusing to silently create a broken account. Because the call throws, our function returns a 500 — which the frontend surfaces as the generic "Edge Function returned a non-2xx status code" toast.
 
-### 2. Hard-fail missing tenant in `create-payment-checkout`
-**Problem:** If `teamMember` lookup returns null, the function falls through and creates a Stripe Checkout session on the **platform account** — revenue lands on Exotiq, not the tenant.
+The error has been firing for both of your test clicks (12:09:24 and 12:10:18 UTC), confirming it's reproducible and configuration-driven.
 
-**Fix in `supabase/functions/create-payment-checkout/index.ts`:**
-- Change `if (teamMember)` block to: `if (!teamMember) throw new Error("No active team membership found for this user. Cannot route payment.");`
-- Also hard-fail if `team.stripe_account_id` is null OR `team.stripe_charges_enabled` is false, with a clear error: "Tenant Stripe account is not active. Please complete payment setup in Settings → Payments."
-- Return a 409 (Conflict) status with the human-readable message so the UI can surface it to the operator clearly.
+## Root cause
 
-## High-priority fixes (P1)
+To request the `card_payments` capability on an Express connected account, Stripe requires the **platform** (your Exotiq Stripe account) to:
+1. Complete the Connect **Platform Profile**.
+2. Acknowledge **loss liability** for connected accounts — i.e. confirm Exotiq is responsible for handling chargebacks, refunds, and negative balances on tenant accounts.
 
-### 3. Role check on `stripe-connect-dashboard`
-**Problem:** Any active team member (including Viewer role) can open the Express dashboard.
+This is a one-time setup per Stripe account (you have to do it once for test mode and once for live mode). Without it, Stripe will reject every `accounts.create` call with `card_payments` requested.
 
-**Fix in `supabase/functions/stripe-connect-dashboard/index.ts`:**
-- Add `.in("role", ["owner", "admin", "manager"])` to the `team_members` query, mirroring `stripe-connect-onboard`. Manager+ is appropriate per the RBAC memory.
+## Fix — two parts
 
-### 4. Add Stripe fields to the `Team` TypeScript interface
-**Fix in `src/contexts/TeamContext.tsx`:**
-- Extend `Team` interface with:
-  ```ts
-  stripe_account_id?: string | null;
-  stripe_charges_enabled?: boolean;
-  stripe_payouts_enabled?: boolean;
-  stripe_onboarding_complete?: boolean;
-  ```
-- Remove the `as any` cast in `PaymentMethodsSection.tsx:44` and any other downstream consumers.
+### Part 1: You complete the Stripe Dashboard setup (5 minutes, manual)
 
-### 5. Handle `account.application.deauthorized` webhook
-**Problem:** If a tenant disconnects the app from Stripe's side, our DB stays "active" forever with an invalid account ID.
+1. Open https://dashboard.stripe.com/settings/connect/platform-profile (make sure the **test mode** toggle matches the key currently in `STRIPE_SECRET_KEY` — if that key is a `sk_test_...` key, you're in test mode).
+2. Fill out the Platform Profile sections Stripe asks for:
+   - Business model / how connected accounts are used
+   - Industries served
+   - Volume estimates
+3. **Critically**, in the "Responsibilities" / "Loss liability" section, accept that Exotiq (the platform) is responsible for losses on connected accounts.
+4. Save.
+5. Repeat the same steps in **live mode** before you ever take a real tenant through Connect.
 
-**Fix in `supabase/functions/stripe-webhook/index.ts`:**
-- Add a case for `account.application.deauthorized` that:
-  - Looks up team by `stripe_account_id`.
-  - Sets `stripe_account_id = null`, `stripe_charges_enabled = false`, `stripe_payouts_enabled = false`, `stripe_onboarding_complete = false`.
-  - Inserts a record into `notifications` for the team owner: "Your Stripe account has been disconnected. Reconnect to resume accepting payments."
-- Verify in the Stripe Dashboard (or document for the user) that the `account.application.deauthorized` event is subscribed on the webhook endpoint.
+Once that profile is saved, `accounts.create` calls will succeed immediately — no redeploy needed on our side.
 
-## Lower-priority cleanup (P2 — only if time permits in same pass)
+### Part 2: I make the error surface clearly (code change)
 
-### 6. Remove fabricated balance fallback in `stripe-get-balance`
-- Either delete the `totalCollected * 0.85` fallback entirely and return `using_fallback: true` with `balance: null`, OR
-- Surface "Estimated from local records — Stripe temporarily unavailable" warning prominently in the BalanceCard UI when `using_fallback: true`.
+Right now any Stripe rejection becomes a generic toast. I'll update `supabase/functions/stripe-connect-onboard/index.ts` so that:
 
-### 7. Add migration for `stripe_details_submitted`
-- New migration adding `stripe_details_submitted boolean NOT NULL DEFAULT false` to `teams`.
-- Update the `account.updated` webhook handler to also write `details_submitted` from the Stripe payload.
-- Use it in the UI state machine to distinguish "submitted but not yet enabled" (Stripe is reviewing) from "not submitted" (tenant didn't finish the form).
+- We catch the specific "platform-profile" error and return a structured **409 Conflict** response with a clear human message and a deep link to the Stripe settings page, instead of a bare 500.
+- We catch any other Stripe error and pass the actual Stripe message through to the response body, so the UI shows something actionable instead of "non-2xx".
+
+Then update `src/components/settings/PaymentMethodsSection.tsx` `handleConnectStripe` to:
+
+- Read `data?.error` (and the new `error_code`) from the function response — `supabase.functions.invoke` returns the JSON body even on non-2xx, we just weren't using it.
+- When `error_code === "platform_profile_incomplete"`, show a specific toast: "Platform setup required — your Stripe Connect platform profile needs to be completed before tenants can connect. Open Stripe settings →" with a link button.
+- For any other error, surface the actual Stripe message instead of the generic one.
+
+This way, if Stripe ever rejects an onboarding call for *any* reason (KYC, missing capability, country restriction, etc.), the operator sees what to actually do.
+
+## What I'm explicitly NOT changing
+
+- **The `card_payments` capability.** Removing it to dodge the loss-liability requirement would break the whole tenant payment model (no card charges, no holds, no marketplace fees). Loss-liability acceptance is the correct architectural choice for what Exotiq does.
+- **Switching to Standard accounts** (which avoid some of this). Express is the right call for the in-app onboarding UX we already built.
+- **Touching `card_payments: { requested: true }`** or any other capability — they're correct as-is.
 
 ## Files touched
 
-- `src/pages/Dashboard.tsx` — return URL handler + polling
-- `src/contexts/TeamContext.tsx` — extend `Team` interface
-- `src/components/settings/PaymentMethodsSection.tsx` — remove `as any` casts
-- `src/components/settings/BalanceCard.tsx` (or wherever the balance is rendered) — surface fallback warning if we keep it
-- `supabase/functions/create-payment-checkout/index.ts` — hard-fail missing tenant/account
-- `supabase/functions/stripe-connect-dashboard/index.ts` — role check
-- `supabase/functions/stripe-webhook/index.ts` — `account.application.deauthorized` case
-- `supabase/functions/stripe-get-balance/index.ts` — remove or label fallback
-- New migration: `stripe_details_submitted` column
+- `supabase/functions/stripe-connect-onboard/index.ts` — better error mapping (Stripe error → structured 409 with `error_code`).
+- `src/components/settings/PaymentMethodsSection.tsx` — `handleConnectStripe` reads the structured error and shows an actionable toast with a link to Stripe's settings page.
 
-## Validation plan
+## Validation
 
-1. **Manual end-to-end test on a real test account:**
-   - Click Connect Stripe → complete Stripe Express onboarding in test mode → confirm we land on Settings → Payments with a toast and "Active" badge within ~10s.
-   - Confirm the Dashboard URL param is stripped after handling.
-2. **Failure-path tests:**
-   - Call `create-payment-checkout` from a user with no team_member row → confirm 409 with clear error (use `supabase--curl_edge_functions`).
-   - Call `stripe-connect-dashboard` as a viewer-role member → confirm 403.
-3. **Webhook test:**
-   - Use Stripe CLI to fire `account.application.deauthorized` against the test endpoint → confirm `stripe_account_id` is nulled out on the team row.
-4. **Type safety:** confirm `tsc --noEmit` (handled by harness build) passes after removing `as any` casts.
-
-## Out of scope (do separately)
-
-- Partner payouts (Mercury vs Stripe Connect — separate decision still pending).
-- Separate Connect webhook endpoint with its own secret (P3 — nice to have, not blocking).
-- Stripe Connect Standard vs Express comparison (already on Express, no change planned).
+1. **Before you complete the dashboard step:** click Connect Stripe Account → confirm the new toast says "Platform setup required" with a working link to `https://dashboard.stripe.com/settings/connect/platform-profile`, not the generic "non-2xx".
+2. **After you complete the dashboard step:** click Connect Stripe Account → Stripe Express onboarding opens in a new tab. Complete it in test mode. Return URL handler (already shipped last turn) flips the badge to **Active** within ~10s.
+3. Check `stripe-connect-onboard` logs — should show `Account link created` instead of `ERROR`.
 
 ## Risk
 
-Low. All changes are additive or tightening checks. The biggest risk is the polling loop in #1 — bounded at 60s with 5s intervals (12 calls max) to avoid runaway requests if the webhook never fires.
+Zero risk on the code side — error handling change only, no behavior change to the happy path. The dashboard step is a Stripe-side configuration with no code impact.

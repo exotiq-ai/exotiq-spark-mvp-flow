@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { useTeam } from "@/contexts/TeamContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 import { 
   Banknote, 
   Building2, 
@@ -101,7 +102,38 @@ export const PaymentMethodsSection = () => {
       const { data, error } = await supabase.functions.invoke('stripe-connect-onboard', {
         body: {},
       });
-      if (error) throw error;
+
+      // Extract structured error body from non-2xx responses
+      let errorBody: { error?: string; error_code?: string; action_url?: string } | null = null;
+      if (error) {
+        try {
+          const ctx = (error as any)?.context;
+          if (ctx?.response && typeof ctx.response.json === 'function') {
+            errorBody = await ctx.response.clone().json();
+          }
+        } catch { /* ignore parse failure */ }
+      }
+
+      if (errorBody?.error_code === 'platform_profile_incomplete') {
+        toast({
+          title: "Stripe platform setup required",
+          description: errorBody.error ?? "Complete your Stripe Connect platform profile to enable tenant onboarding.",
+          variant: "destructive",
+          action: errorBody.action_url
+            ? (
+                <ToastAction altText="Open Stripe settings" onClick={() => window.open(errorBody!.action_url!, '_blank')}>
+                  Open Stripe
+                </ToastAction>
+              )
+            : undefined,
+        });
+        return;
+      }
+
+      if (error) {
+        throw new Error(errorBody?.error || (error as Error).message || 'Failed to start Stripe onboarding.');
+      }
+
       if (data?.url) {
         window.open(data.url, '_blank');
         toast({ title: "Stripe Onboarding", description: "Complete your Stripe setup in the new tab. Refresh this page when done." });

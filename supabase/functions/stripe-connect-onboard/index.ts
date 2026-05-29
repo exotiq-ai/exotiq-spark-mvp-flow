@@ -110,9 +110,33 @@ serve(async (req) => {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logStep("ERROR", { message: errorMessage });
-    return new Response(JSON.stringify({ error: errorMessage }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 500,
-    });
+
+    // Detect Stripe platform profile not configured (loss liability responsibilities)
+    const isPlatformProfileError =
+      errorMessage.includes("platform-profile") ||
+      errorMessage.includes("responsibilities of managing losses");
+
+    if (isPlatformProfileError) {
+      return new Response(
+        JSON.stringify({
+          error:
+            "Your Stripe Connect platform profile needs to be completed before tenants can connect. Open your Stripe Dashboard → Connect → Platform Profile to accept loss-liability responsibilities, then try again.",
+          error_code: "platform_profile_incomplete",
+          action_url: "https://dashboard.stripe.com/settings/connect/platform-profile",
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 409,
+        }
+      );
+    }
+
+    return new Response(
+      JSON.stringify({ error: errorMessage, error_code: "stripe_onboard_failed" }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500,
+      }
+    );
   }
 });
