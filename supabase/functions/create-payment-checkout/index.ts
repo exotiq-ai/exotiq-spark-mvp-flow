@@ -114,7 +114,7 @@ serve(async (req) => {
     }
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
-    const stripeOpts = stripeAccountId ? { stripeAccount: stripeAccountId } : undefined;
+    const stripeOpts = { stripeAccount: stripeAccountId };
 
     // Find or create customer
     let stripeCustomerId: string | undefined;
