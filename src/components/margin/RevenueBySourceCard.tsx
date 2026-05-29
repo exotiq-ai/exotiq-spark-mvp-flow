@@ -50,9 +50,9 @@ export function RevenueBySourceCard() {
               const pct = total > 0 ? (r.gross / total) * 100 : 0;
               return (
                 <div key={r.source}>
-                  <div className="flex items-center justify-between text-xs mb-1">
-                    <span>{r.label}</span>
-                    <span className="text-muted-foreground tabular-nums">
+                  <div className="flex items-center justify-between gap-2 text-xs mb-1 min-w-0">
+                    <span className="truncate">{r.label}</span>
+                    <span className="text-muted-foreground tabular-nums shrink-0 text-right">
                       {formatCurrency(r.gross)} · {pct.toFixed(0)}% · {r.bookings} bk
                     </span>
                   </div>
