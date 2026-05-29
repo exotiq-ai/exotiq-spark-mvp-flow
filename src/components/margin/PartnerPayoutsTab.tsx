@@ -39,6 +39,8 @@ interface Payout {
   payout_method: string | null;
   void_reason: string | null;
   voided_at: string | null;
+  reconcile_flag?: boolean | null;
+  reconcile_note?: string | null;
 }
 
 const STATUS_STYLES: Record<string, string> = {
