@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { format, differenceInDays } from "date-fns";
 import { IDUploadDialog } from "@/components/dialogs/IDUploadDialog";
 import { InsuranceUploadDialog } from "@/components/dialogs/InsuranceUploadDialog";
+import { isFeatureEnabled } from "@/lib/featureFlags";
 
 interface CustomerVerification {
   id: string;
@@ -264,7 +265,7 @@ export const VerificationSection = () => {
                             <CheckCircle2 className="h-3 w-3" />
                             ID Verified
                           </Badge>
-                        ) : (
+                        ) : isFeatureEnabled('idVerification') ? (
                           <Button
                             size="sm"
                             variant="outline"
@@ -272,6 +273,18 @@ export const VerificationSection = () => {
                               setSelectedCustomer(customer);
                               setIdUploadOpen(true);
                             }}
+                          >
+                            <Upload className="h-3 w-3 mr-1" />
+                            Upload ID
+                          </Button>
+                        ) : (
+                          // DPA §3.8: ID image uploads disabled on Lovable path.
+                          // Re-enable via Stripe Identity / Persona integration.
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled
+                            title="ID verification coming soon — pending compliant provider integration"
                           >
                             <Upload className="h-3 w-3 mr-1" />
                             Upload ID

@@ -1,3 +1,21 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// DPA §3.8 — DRIVER'S LICENSE IMAGE UPLOADS
+// This dialog is currently UNREACHABLE from the UI (gated by the
+// `idVerification` feature flag in src/lib/featureFlags.ts).
+//
+// Our signed Lovable DPA §3.8 prohibits routing government identifiers and
+// biometric data through Lovable Cloud / the AI Gateway. Driver's license
+// images would write to the `customer-documents` Supabase bucket (Lovable-
+// managed), which is non-compliant.
+//
+// DO NOT re-enable the `idVerification` flag on the Lovable path.
+// When integrating Stripe Identity or Persona:
+//   1. Replace this dialog with a hosted-verification redirect/iframe.
+//   2. Persist ONLY: verification token, status, and expiry on the customer
+//      row. Never persist the raw DL number, scan, or selfie.
+//   3. Drop the `customer-documents` bucket and the `drivers_license` /
+//      `id_document_url` columns in a follow-up migration.
+// ─────────────────────────────────────────────────────────────────────────────
 import { useState, useRef } from "react";
 import {
   Dialog,

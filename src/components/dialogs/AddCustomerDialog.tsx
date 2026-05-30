@@ -17,6 +17,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { validators, validateForm } from "@/lib/validation";
 import { toast } from "@/hooks/use-toast";
+import { isFeatureEnabled } from "@/lib/featureFlags";
 
 interface AddCustomerDialogProps {
   open: boolean;
@@ -207,18 +208,25 @@ export const AddCustomerDialog = ({
             </div>
 
             {/* License Info */}
+            {/* DPA §3.8: typed government identifier (DL number) input is gated.
+                Expiry date alone is not a government identifier — kept visible
+                as a compliance reminder. Re-enable the number field only after
+                migrating to Stripe Identity / Persona (store verification token
+                instead of raw DL number). See src/lib/featureFlags.ts. */}
             <div className="space-y-4">
               <h4 className="font-semibold text-sm text-muted-foreground">Driver's License</h4>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="drivers_license">License Number</Label>
-                  <Input
-                    id="drivers_license"
-                    value={formData.drivers_license}
-                    onChange={(e) => setFormData({ ...formData, drivers_license: e.target.value })}
-                    placeholder="D1234567"
-                  />
-                </div>
+              <div className={isFeatureEnabled('driversLicenseNumberField') ? "grid grid-cols-2 gap-4" : "grid grid-cols-1 gap-4"}>
+                {isFeatureEnabled('driversLicenseNumberField') && (
+                  <div>
+                    <Label htmlFor="drivers_license">License Number</Label>
+                    <Input
+                      id="drivers_license"
+                      value={formData.drivers_license}
+                      onChange={(e) => setFormData({ ...formData, drivers_license: e.target.value })}
+                      placeholder="D1234567"
+                    />
+                  </div>
+                )}
                 <div>
                   <Label htmlFor="license_expiry">Expiry Date</Label>
                   <Input
@@ -230,6 +238,7 @@ export const AddCustomerDialog = ({
                 </div>
               </div>
             </div>
+
 
             {/* Insurance Info */}
             <div className="space-y-4">

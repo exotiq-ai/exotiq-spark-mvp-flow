@@ -11,6 +11,7 @@ import { Sparkles, Check, X, Upload, FileText, AlertCircle, ShieldAlert } from "
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/marginCsv";
 import { ReceiptUploadDialog } from "./ReceiptUploadDialog";
+import { isFeatureEnabled } from "@/lib/featureFlags";
 
 type ReviewExpense = {
   id: string;
@@ -161,7 +162,14 @@ export function ReviewTab() {
               Expenses awaiting your confirmation. Nothing here counts toward P&L until approved.
             </CardDescription>
           </div>
-          <Button size="sm" onClick={() => setUploadOpen(true)}>
+          {/* DPA §3.8: receipt OCR routes through AI Gateway → Gemini.
+              Re-enable only after migrating to a direct non-Lovable OCR path. */}
+          <Button
+            size="sm"
+            onClick={() => setUploadOpen(true)}
+            disabled={!isFeatureEnabled('receiptScanning')}
+            title={isFeatureEnabled('receiptScanning') ? undefined : 'Receipt scanning coming soon — pending compliant OCR path'}
+          >
             <Upload className="h-4 w-4 mr-2" /> Upload Receipts
           </Button>
         </CardHeader>
