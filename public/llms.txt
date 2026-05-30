@@ -1,0 +1,12 @@
+# Exotiq
+
+> Luxury fleet management platform for exotic and high-end vehicle rentals.
+
+## Pages
+
+- [/](/): Product overview and platform capabilities for luxury fleet operators.
+- [/welcome](/welcome): Onboarding landing page for new fleet operators getting started with Exotiq.
+- [/terms](/terms): Terms of Service governing platform use.
+- [/privacy](/privacy): Privacy Policy explaining data collection, processing, and user rights.
+- [/acceptable-use](/acceptable-use): Acceptable Use Policy outlining permitted and prohibited activities.
+- [/data-processing](/data-processing): Data Processing Agreement and DPA terms for enterprise customers.
