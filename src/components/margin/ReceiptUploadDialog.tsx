@@ -1,3 +1,16 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// DPA §3.8 — RECEIPT/INVOICE OCR
+// Receipts may contain financial account numbers (card PANs, ACH details),
+// which are prohibited under our signed Lovable DPA §3.8. This flow uploads
+// images to the `expense-receipts` Supabase bucket and invokes the
+// `parse-expense-receipt` edge function, which routes through the Lovable AI
+// Gateway to Google Gemini — all Lovable-managed.
+//
+// Entry points are gated by the `receiptScanning` feature flag. Do NOT
+// re-enable on the Lovable path. Future implementation: call Google
+// Document AI / Vision directly with our own GCP credentials, bypassing the
+// AI Gateway entirely.
+// ─────────────────────────────────────────────────────────────────────────────
 import { useState, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -7,6 +20,7 @@ import { useTeam } from "@/contexts/TeamContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Upload, Sparkles, Check, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { isFeatureEnabled } from "@/lib/featureFlags";
 
 type Status = "queued" | "uploading" | "parsing" | "done" | "error";
 type Item = { file: File; status: Status; error?: string; expenseId?: string };
@@ -19,6 +33,27 @@ export function ReceiptUploadDialog({
   const [items, setItems] = useState<Item[]>([]);
   const [running, setRunning] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // DPA §3.8 safeguard: defensive render-time block in case the dialog is
+  // ever invoked while the feature flag is off.
+  if (!isFeatureEnabled('receiptScanning')) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Receipt scanning unavailable</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Coming soon — pending a compliant OCR integration.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
 
   const addFiles = (files: FileList | null) => {
     if (!files) return;

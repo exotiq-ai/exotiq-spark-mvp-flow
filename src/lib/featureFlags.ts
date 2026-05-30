@@ -1,5 +1,23 @@
 // Feature Flags for Incomplete/Beta Features
 // Set to false to hide features that are not ready for production
+//
+// ─────────────────────────────────────────────────────────────────────────────
+// DPA §3.8 COMPLIANCE GATES (do NOT flip to true on the Lovable path)
+// Our signed Lovable DPA §3.8 prohibits routing government identifiers,
+// financial account numbers, and biometric data through Lovable Cloud and
+// the AI Gateway. The flags below gate any UI/flow that would persist or
+// transmit such categories via Lovable-managed infrastructure.
+//
+// Re-enable ONLY after one of:
+//   (a) migration off Lovable to direct infrastructure, OR
+//   (b) wiring through a confirmed non-Lovable provider:
+//       - ID verification → Stripe Identity or Persona (store token + status
+//         + expiry only; never the raw DL number or image)
+//       - Receipt/invoice OCR → direct Google Document AI / Vision, bypassing
+//         the Lovable AI Gateway
+// See /legal/ DPA correspondence and HONEST_STATUS.md for context.
+// ─────────────────────────────────────────────────────────────────────────────
+
 
 export const featureFlags = {
   // Rari AI Features
@@ -41,6 +59,11 @@ export const featureFlags = {
   
   // Margin Module (Phase 1)
   margin: true, // Per-vehicle P&L, expenses, partner payouts — visible to Manager+
+
+  // DPA §3.8 — prohibited data categories (keep OFF on Lovable path)
+  idVerification: false, // Driver's license image upload / OCR
+  receiptScanning: false, // Receipt/invoice OCR via AI Gateway → Gemini
+  driversLicenseNumberField: false, // Typed government identifier input
 } as const;
 
 export type FeatureFlag = keyof typeof featureFlags;
