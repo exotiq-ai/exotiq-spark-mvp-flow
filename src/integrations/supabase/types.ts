@@ -1316,6 +1316,48 @@ export type Database = {
           },
         ]
       }
+      maintenance_notify_subscribers: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          notified_at: string | null
+          team_id: string | null
+          window_id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          notified_at?: string | null
+          team_id?: string | null
+          window_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          notified_at?: string | null
+          team_id?: string | null
+          window_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_notify_subscribers_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_notify_subscribers_window_id_fkey"
+            columns: ["window_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_windows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       maintenance_schedules: {
         Row: {
           actual_cost: number | null
@@ -1406,6 +1448,56 @@ export type Database = {
             columns: ["vehicle_id"]
             isOneToOne: false
             referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maintenance_windows: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          ended_at: string | null
+          eta: string | null
+          id: string
+          is_active: boolean
+          message: string | null
+          scope: string
+          started_at: string
+          team_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          ended_at?: string | null
+          eta?: string | null
+          id?: string
+          is_active?: boolean
+          message?: string | null
+          scope: string
+          started_at?: string
+          team_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          ended_at?: string | null
+          eta?: string | null
+          id?: string
+          is_active?: boolean
+          message?: string | null
+          scope?: string
+          started_at?: string
+          team_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_windows_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
             referencedColumns: ["id"]
           },
         ]

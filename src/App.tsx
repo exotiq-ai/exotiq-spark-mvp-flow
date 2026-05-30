@@ -28,6 +28,7 @@ import Terms from "./pages/legal/Terms";
 import Privacy from "./pages/legal/Privacy";
 import AcceptableUse from "./pages/legal/AcceptableUse";
 import DataProcessing from "./pages/legal/DataProcessing";
+import { MaintenanceOverlay } from "./components/common/MaintenanceOverlay";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -46,6 +47,7 @@ const ProvidersWrapper = () => {
         <TeamProvider>
           <FleetProvider>
             <Outlet />
+            <MaintenanceOverlay />
           </FleetProvider>
         </TeamProvider>
       </DemoProvider>

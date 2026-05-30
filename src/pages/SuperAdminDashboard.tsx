@@ -13,6 +13,7 @@
 
 import { useState, useEffect } from 'react';
 import { SuperAdminBillingTab } from '@/components/super-admin/SuperAdminBillingTab';
+import { MaintenanceModeSection } from '@/components/super-admin/MaintenanceModeSection';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -25,7 +26,8 @@ import {
   TrendingUp,
   AlertCircle,
   ArrowLeft,
-  CreditCard
+  CreditCard,
+  Wrench
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -291,6 +293,10 @@ export const SuperAdminDashboard = () => {
               <CreditCard className="h-4 w-4 mr-2" />
               Billing
             </TabsTrigger>
+            <TabsTrigger value="maintenance">
+              <Wrench className="h-4 w-4 mr-2" />
+              Maintenance
+            </TabsTrigger>
             <TabsTrigger value="audit">
               <Database className="h-4 w-4 mr-2" />
               Audit Log
@@ -299,6 +305,10 @@ export const SuperAdminDashboard = () => {
 
           <TabsContent value="billing" className="space-y-4">
             <SuperAdminBillingTab />
+          </TabsContent>
+
+          <TabsContent value="maintenance" className="space-y-4">
+            <MaintenanceModeSection />
           </TabsContent>
 
 
