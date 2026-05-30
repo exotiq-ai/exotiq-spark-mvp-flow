@@ -300,7 +300,7 @@ Up — 23/240 connections, 7% memory, 5% disk, 37 MB DB, 144 MB WAL, 0 restarts 
 5. **Vehicle-photos bucket SELECT policy keyed to uploader** — teammates blocked, forces public-URL workarounds.
 6. **`stripe_webhook_events` RLS enabled, no SELECT policy** — currently inaccessible (not a leak, but gap).
 
-Full raw outputs: `raw/linter.txt`, `raw/security_scan.json` (saved separately).
+Full raw outputs: `raw/linter.txt`, `raw/security_scan.json`. **Per-policy details with verbatim USING/WITH CHECK predicates for the six priority findings: `raw/security_findings_detail.md`.**
 
 ---
 
