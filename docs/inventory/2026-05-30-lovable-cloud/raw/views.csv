@@ -1,0 +1,5 @@
+table_schema,table_name
+public,booking_payment_summary
+public,deposit_ledger
+public,revenue_by_source
+public,vehicle_photos_with_vehicle

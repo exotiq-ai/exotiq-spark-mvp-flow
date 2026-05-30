@@ -1,0 +1,78 @@
+schema,function,args,lang,security
+public,archive_vehicle,p_vehicle_id uuid,plpgsql,definer
+public,auto_assign_user_role,"",plpgsql,definer
+public,auto_clear_billing_dunning_for_email,p_email text,plpgsql,definer
+public,auto_purge_expired_vehicles,"",plpgsql,definer
+public,can_access_location,"_user_id uuid, _location_id uuid",sql,definer
+public,check_invitation_expiry,"",plpgsql,definer
+public,clear_billing_dunning,"p_team_id uuid, p_note text",plpgsql,definer
+public,compute_rental_base,"p_daily_rate numeric, p_start timestamp with time zone, p_end timestamp with time zone, p_duration_type text",plpgsql,invoker
+public,count_admins,"",sql,definer
+public,create_team_for_new_user,"",plpgsql,definer
+public,deactivate_team_member,"target_user_id uuid, reason text",plpgsql,definer
+public,deactivate_team_member,"p_user_id uuid, p_team_id uuid, p_deactivated_by uuid, p_reason text",plpgsql,definer
+public,ensure_single_hero_photo,"",plpgsql,invoker
+public,fn_generate_partner_payout,"",plpgsql,definer
+public,fn_log_damage_expense,"",plpgsql,definer
+public,fn_log_insurance_expense,"",plpgsql,definer
+public,fn_log_maintenance_expense,"",plpgsql,definer
+public,fn_log_work_order_expense,"",plpgsql,definer
+public,fn_snapshot_platform_fee,"",plpgsql,definer
+public,fn_transition_payout,"p_payout_id uuid, p_action text, p_paid_at timestamp with time zone, p_reference text, p_method text, p_reason text",plpgsql,definer
+public,fn_vehicle_pnl,"p_team_id uuid, p_start date, p_end date",plpgsql,invoker
+public,fn_void_partner_payout,"",plpgsql,definer
+public,generate_booking_ref,"",plpgsql,invoker
+public,generate_doc_ref,"",plpgsql,definer
+public,generate_recurring_expenses,"",plpgsql,definer
+public,get_my_role,"",plpgsql,definer
+public,get_super_admin_audit_logs,"",sql,definer
+public,get_super_admin_billing_tenants,"",sql,definer
+public,get_super_admin_customers,"",sql,definer
+public,get_super_admin_stats,"",sql,definer
+public,get_team_owner,_user_id uuid,sql,definer
+public,get_user_role,_user_id uuid,sql,definer
+public,get_user_teams,_user_id uuid,sql,definer
+public,get_vehicle_hero_photo,p_vehicle_id uuid,plpgsql,invoker
+public,handle_new_user,"",plpgsql,definer
+public,has_role,"_user_id uuid, _role app_role",sql,definer
+public,has_team_role,"_user_id uuid, _team_id uuid, _role app_role",sql,definer
+public,is_company_wide_conversation,p_conversation_id uuid,sql,definer
+public,is_conversation_creator,"p_conversation_id uuid, p_user_id uuid",sql,definer
+public,is_conversation_member,"p_conversation_id uuid, p_user_id uuid",sql,definer
+public,is_my_team_admin,p_team_id uuid,sql,definer
+public,is_my_team_member,p_team_id uuid,sql,definer
+public,is_same_team,"_user_id uuid, _target_user_id uuid",sql,definer
+public,is_super_admin,check_user_id uuid,sql,definer
+public,is_team_admin,"_user_id uuid, _team_id uuid",sql,definer
+public,is_team_member,"_user_id uuid, _team_id uuid",sql,definer
+public,is_team_member_of_record,"_user_id uuid, _team_id uuid",sql,definer
+public,is_team_owner,"_user_id uuid, _team_id uuid",sql,definer
+public,log_admin_action,"p_action text, p_details jsonb",plpgsql,definer
+public,log_user_activity,"p_activity_type text, p_entity_type text, p_entity_id uuid, p_metadata jsonb",plpgsql,definer
+public,mark_expired_invitations,"",plpgsql,definer
+public,migrate_users_to_teams,"",plpgsql,definer
+public,notify_booking_status_change,"",plpgsql,definer
+public,notify_mentioned_users,"",plpgsql,definer
+public,notify_new_booking,"",plpgsql,definer
+public,notify_new_damage_claim,"",plpgsql,definer
+public,notify_new_payment,"",plpgsql,definer
+public,prevent_admin_demotion,"",plpgsql,definer
+public,purge_old_notifications,"",plpgsql,definer
+public,purge_vehicle_now,p_vehicle_id uuid,plpgsql,definer
+public,reactivate_team_member,"p_user_id uuid, p_team_id uuid, p_reactivated_by uuid, p_new_role text",plpgsql,definer
+public,reactivate_team_member,target_user_id uuid,plpgsql,definer
+public,restore_vehicle_from_archive,p_vehicle_id uuid,plpgsql,definer
+public,restore_vehicle_from_trash,p_vehicle_id uuid,plpgsql,definer
+public,review_expense,"p_expense_id uuid, p_action text, p_amount numeric, p_expense_type text, p_vehicle_id uuid, p_booking_id uuid, p_notes text",plpgsql,definer
+public,review_expense,"p_expense_id uuid, p_action text, p_amount numeric, p_expense_type text, p_vehicle_id uuid, p_booking_id uuid, p_expense_date date, p_vendor text, p_notes text",plpgsql,definer
+public,set_billing_dunning_stage,"p_team_id uuid, p_stage text, p_assumed_plan_tier text, p_assumed_plan_fleet_size integer, p_assumed_plan_is_annual boolean, p_message text, p_notes text",plpgsql,definer
+public,snapshot_vehicle_billing,"",plpgsql,definer
+public,super_admin_has_permission,"permission_name text, check_user_id uuid",sql,definer
+public,sync_hero_to_vehicle,"",plpgsql,definer
+public,trash_vehicle,p_vehicle_id uuid,plpgsql,definer
+public,update_customer_stats,"",plpgsql,definer
+public,update_dashboard_preferences_updated_at,"",plpgsql,definer
+public,update_document_status,"",plpgsql,definer
+public,update_onboarding_activity,"",plpgsql,definer
+public,update_updated_at_column,"",plpgsql,invoker
+public,update_vehicle_photos_updated_at,"",plpgsql,invoker

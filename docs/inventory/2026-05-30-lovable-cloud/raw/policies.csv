@@ -1,0 +1,360 @@
+schemaname,tablename,policyname,cmd,roles,qual,with_check
+public,automated_messages,Users can delete own messages,DELETE,{public},(auth.uid() = user_id),
+public,automated_messages,Users can insert own messages,INSERT,{public},,(auth.uid() = user_id)
+public,automated_messages,Users can update own messages,UPDATE,{public},(auth.uid() = user_id),
+public,automated_messages,Users can view own messages,SELECT,{public},(auth.uid() = user_id),
+public,billing_dunning_events,Super admins insert dunning events,INSERT,{authenticated},,is_super_admin(auth.uid())
+public,billing_dunning_events,Super admins view dunning events,SELECT,{authenticated},is_super_admin(auth.uid()),
+public,bookings,Users can delete bookings,DELETE,{public},"((auth.uid() = user_id) OR (is_team_member_of_record(auth.uid(), team_id) AND has_role(auth.uid(), 'admin'::app_role)) OR is_super_admin(auth.uid()))",
+public,bookings,Users can insert bookings,INSERT,{public},,(auth.uid() = user_id)
+public,bookings,Users can update bookings,UPDATE,{public},"((auth.uid() = user_id) OR (is_team_member_of_record(auth.uid(), team_id) AND (has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'manager'::app_role) OR has_role(auth.uid(), 'operator'::app_role))) OR is_super_admin(auth.uid()))",
+public,bookings,Users can view bookings,SELECT,{public},"((auth.uid() = user_id) OR is_team_member_of_record(auth.uid(), team_id) OR is_super_admin(auth.uid()))",
+public,conversation_members,cm_delete,DELETE,{public},"((user_id = auth.uid()) OR is_conversation_creator(conversation_id, auth.uid()) OR has_role(auth.uid(), 'admin'::app_role))",
+public,conversation_members,cm_insert,INSERT,{public},,"((user_id = auth.uid()) OR is_conversation_creator(conversation_id, auth.uid()) OR is_company_wide_conversation(conversation_id))"
+public,conversation_members,cm_select,SELECT,{public},"((user_id = auth.uid()) OR is_conversation_creator(conversation_id, auth.uid()) OR is_company_wide_conversation(conversation_id))",
+public,conversation_members,cm_update,UPDATE,{public},(user_id = auth.uid()),(user_id = auth.uid())
+public,customer_notes,Team members can insert team customer notes,INSERT,{public},,"((auth.uid() = user_id) AND (EXISTS ( SELECT 1
+   FROM customers c
+  WHERE ((c.id = customer_notes.customer_id) AND ((c.user_id = auth.uid()) OR is_team_member_of_record(auth.uid(), c.team_id))))))"
+public,customer_notes,Team members can view team customer notes,SELECT,{public},"((auth.uid() = user_id) OR (EXISTS ( SELECT 1
+   FROM customers c
+  WHERE ((c.id = customer_notes.customer_id) AND is_team_member_of_record(auth.uid(), c.team_id)))))",
+public,customer_notes,Users can delete own customer notes,DELETE,{public},(auth.uid() = user_id),
+public,customer_notes,Users can update own customer notes,UPDATE,{public},(auth.uid() = user_id),
+public,customers,Authorized users can delete customers,DELETE,{authenticated},"((user_id = auth.uid()) OR (is_same_team(auth.uid(), user_id) AND has_role(auth.uid(), 'admin'::app_role)))",
+public,customers,Authorized users can update customers,UPDATE,{authenticated},"((user_id = auth.uid()) OR (is_same_team(auth.uid(), user_id) AND (has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'manager'::app_role))))","((user_id = auth.uid()) OR (is_same_team(auth.uid(), user_id) AND (has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'manager'::app_role))))"
+public,customers,Owners can insert customers,INSERT,{authenticated},,(user_id = auth.uid())
+public,customers,Team members can view customers,SELECT,{authenticated},"((user_id = auth.uid()) OR (is_same_team(auth.uid(), user_id) AND (has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'manager'::app_role) OR has_role(auth.uid(), 'operator'::app_role))))",
+public,damage_claims,Users can delete damage claims,DELETE,{public},"((auth.uid() = user_id) OR (is_team_member_of_record(auth.uid(), team_id) AND has_role(auth.uid(), 'admin'::app_role)) OR is_super_admin(auth.uid()))",
+public,damage_claims,Users can insert damage claims,INSERT,{public},,(auth.uid() = user_id)
+public,damage_claims,Users can update damage claims,UPDATE,{public},"((auth.uid() = user_id) OR (is_team_member_of_record(auth.uid(), team_id) AND (has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'manager'::app_role))) OR is_super_admin(auth.uid()))",
+public,damage_claims,Users can view damage claims,SELECT,{public},"((auth.uid() = user_id) OR is_team_member_of_record(auth.uid(), team_id) OR is_super_admin(auth.uid()))",
+public,data_backups,Users can create own backups,INSERT,{authenticated},,(auth.uid() = user_id)
+public,data_backups,Users can read own backups,SELECT,{authenticated},(auth.uid() = user_id),
+public,deletion_requests,Team owners can create deletion requests,INSERT,{public},,"(is_team_owner(auth.uid(), team_id) AND (requested_by = auth.uid()))"
+public,deletion_requests,Team owners can update deletion requests,UPDATE,{public},"(is_team_owner(auth.uid(), team_id) OR is_super_admin(auth.uid()))",
+public,deletion_requests,Team owners can view deletion requests,SELECT,{public},"(is_team_owner(auth.uid(), team_id) OR is_super_admin(auth.uid()))",
+public,demand_intelligence_cache,Authenticated users can read cache,SELECT,{authenticated},true,
+public,documents,Users can delete documents,DELETE,{public},"((auth.uid() = user_id) OR (is_team_member_of_record(auth.uid(), team_id) AND has_role(auth.uid(), 'admin'::app_role)) OR is_super_admin(auth.uid()))",
+public,documents,Users can insert documents,INSERT,{public},,(auth.uid() = user_id)
+public,documents,Users can update documents,UPDATE,{public},"((auth.uid() = user_id) OR (is_team_member_of_record(auth.uid(), team_id) AND (has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'manager'::app_role))) OR is_super_admin(auth.uid()))",
+public,documents,Users can view documents,SELECT,{public},"((auth.uid() = user_id) OR is_team_member_of_record(auth.uid(), team_id) OR is_super_admin(auth.uid()))",
+public,entity_comments,Users can create comments,INSERT,{public},,(auth.uid() = user_id)
+public,entity_comments,Users can delete own comments,DELETE,{public},"((auth.uid() = user_id) OR has_role(auth.uid(), 'admin'::app_role))",
+public,entity_comments,Users can update own comments,UPDATE,{public},(auth.uid() = user_id),
+public,entity_comments,Users can view accessible comments,SELECT,{authenticated},"((auth.uid() = user_id) OR is_super_admin(auth.uid()) OR ((entity_type = 'booking'::text) AND (EXISTS ( SELECT 1
+   FROM bookings b
+  WHERE ((b.id = entity_comments.entity_id) AND ((b.user_id = auth.uid()) OR is_team_member_of_record(auth.uid(), b.team_id)))))) OR ((entity_type = 'vehicle'::text) AND (EXISTS ( SELECT 1
+   FROM vehicles v
+  WHERE ((v.id = entity_comments.entity_id) AND ((v.user_id = auth.uid()) OR is_team_member_of_record(auth.uid(), v.team_id)))))) OR ((entity_type = 'customer'::text) AND (EXISTS ( SELECT 1
+   FROM customers c
+  WHERE ((c.id = entity_comments.entity_id) AND ((c.user_id = auth.uid()) OR is_team_member_of_record(auth.uid(), c.team_id)))))) OR ((entity_type = 'payment'::text) AND (EXISTS ( SELECT 1
+   FROM payments p
+  WHERE ((p.id = entity_comments.entity_id) AND ((p.user_id = auth.uid()) OR is_team_member_of_record(auth.uid(), p.team_id)))))) OR ((entity_type = 'damage_claim'::text) AND (EXISTS ( SELECT 1
+   FROM damage_claims d
+  WHERE ((d.id = entity_comments.entity_id) AND ((d.user_id = auth.uid()) OR is_team_member_of_record(auth.uid(), d.team_id)))))))",
+public,import_batches,Users can create imports,INSERT,{public},,(auth.uid() = user_id)
+public,import_batches,Users can update own imports,UPDATE,{public},(auth.uid() = user_id),
+public,import_batches,Users can view team imports,SELECT,{public},"(team_id IN ( SELECT team_members.team_id
+   FROM team_members
+  WHERE ((team_members.user_id = auth.uid()) AND (team_members.is_active = true))))",
+public,inspection_damage_items,Users can delete own or team inspection damage items,DELETE,{public},"(EXISTS ( SELECT 1
+   FROM vehicle_inspections vi
+  WHERE ((vi.id = inspection_damage_items.inspection_id) AND ((vi.user_id = auth.uid()) OR is_team_member_of_record(auth.uid(), vi.team_id)))))",
+public,inspection_damage_items,Users can insert own or team inspection damage items,INSERT,{public},,"(EXISTS ( SELECT 1
+   FROM vehicle_inspections vi
+  WHERE ((vi.id = inspection_damage_items.inspection_id) AND ((vi.user_id = auth.uid()) OR is_team_member_of_record(auth.uid(), vi.team_id)))))"
+public,inspection_damage_items,Users can update own or team inspection damage items,UPDATE,{public},"(EXISTS ( SELECT 1
+   FROM vehicle_inspections vi
+  WHERE ((vi.id = inspection_damage_items.inspection_id) AND ((vi.user_id = auth.uid()) OR is_team_member_of_record(auth.uid(), vi.team_id)))))",
+public,inspection_damage_items,Users can view own or team inspection damage items,SELECT,{public},"(EXISTS ( SELECT 1
+   FROM vehicle_inspections vi
+  WHERE ((vi.id = inspection_damage_items.inspection_id) AND ((vi.user_id = auth.uid()) OR is_team_member_of_record(auth.uid(), vi.team_id)))))",
+public,inspection_photos,Users can delete own inspection photos,DELETE,{public},"(EXISTS ( SELECT 1
+   FROM vehicle_inspections
+  WHERE ((vehicle_inspections.id = inspection_photos.inspection_id) AND (vehicle_inspections.user_id = auth.uid()))))",
+public,inspection_photos,Users can insert own inspection photos,INSERT,{public},,"(EXISTS ( SELECT 1
+   FROM vehicle_inspections
+  WHERE ((vehicle_inspections.id = inspection_photos.inspection_id) AND (vehicle_inspections.user_id = auth.uid()))))"
+public,inspection_photos,Users can view own inspection photos,SELECT,{public},"(EXISTS ( SELECT 1
+   FROM vehicle_inspections
+  WHERE ((vehicle_inspections.id = inspection_photos.inspection_id) AND (vehicle_inspections.user_id = auth.uid()))))",
+public,integration_configs,Users can manage own integrations,ALL,{public},(auth.uid() = user_id),
+public,location_staff,Team admins can assign staff,INSERT,{public},,"((EXISTS ( SELECT 1
+   FROM locations l
+  WHERE ((l.id = location_staff.location_id) AND is_team_admin(auth.uid(), l.team_id)))) OR is_super_admin(auth.uid()))"
+public,location_staff,Team admins can remove staff,DELETE,{public},"((EXISTS ( SELECT 1
+   FROM locations l
+  WHERE ((l.id = location_staff.location_id) AND is_team_admin(auth.uid(), l.team_id)))) OR is_super_admin(auth.uid()))",
+public,location_staff,Team admins can update staff assignments,UPDATE,{public},"((EXISTS ( SELECT 1
+   FROM locations l
+  WHERE ((l.id = location_staff.location_id) AND is_team_admin(auth.uid(), l.team_id)))) OR is_super_admin(auth.uid()))",
+public,location_staff,Team members can view location staff,SELECT,{public},"((EXISTS ( SELECT 1
+   FROM locations l
+  WHERE ((l.id = location_staff.location_id) AND is_team_member(auth.uid(), l.team_id)))) OR is_super_admin(auth.uid()))",
+public,locations,Team admins can create locations,INSERT,{public},,"(is_team_admin(auth.uid(), team_id) OR is_super_admin(auth.uid()))"
+public,locations,Team admins can update locations,UPDATE,{public},"(is_team_admin(auth.uid(), team_id) OR is_super_admin(auth.uid()))",
+public,locations,Team members can view locations,SELECT,{public},"(is_team_member(auth.uid(), team_id) OR is_super_admin(auth.uid()))",
+public,locations,Team owners can delete locations,DELETE,{public},"(is_team_owner(auth.uid(), team_id) OR is_super_admin(auth.uid()))",
+public,locations,Users can delete locations for their team,DELETE,{public},"(team_id IN ( SELECT tm.team_id
+   FROM team_members tm
+  WHERE (tm.user_id = auth.uid())))",
+public,locations,Users can insert locations for their team,INSERT,{public},,"(team_id IN ( SELECT tm.team_id
+   FROM team_members tm
+  WHERE (tm.user_id = auth.uid())))"
+public,locations,Users can update locations for their team,UPDATE,{public},"(team_id IN ( SELECT tm.team_id
+   FROM team_members tm
+  WHERE (tm.user_id = auth.uid())))",
+public,locations,Users can view locations for their team,SELECT,{public},"(team_id IN ( SELECT tm.team_id
+   FROM team_members tm
+  WHERE (tm.user_id = auth.uid())))",
+public,maintenance_notify_subscribers,Anyone can subscribe to maintenance updates,INSERT,"{anon,authenticated}",,true
+public,maintenance_notify_subscribers,Super admins can view subscribers,SELECT,{authenticated},is_super_admin(auth.uid()),
+public,maintenance_schedules,Users can delete maintenance schedules,DELETE,{public},"((auth.uid() = user_id) OR (is_team_member_of_record(auth.uid(), team_id) AND has_role(auth.uid(), 'admin'::app_role)) OR is_super_admin(auth.uid()))",
+public,maintenance_schedules,Users can insert maintenance schedules,INSERT,{public},,(auth.uid() = user_id)
+public,maintenance_schedules,Users can update maintenance schedules,UPDATE,{public},"((auth.uid() = user_id) OR (is_team_member_of_record(auth.uid(), team_id) AND (has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'manager'::app_role) OR has_role(auth.uid(), 'operator'::app_role))) OR is_super_admin(auth.uid()))",
+public,maintenance_schedules,Users can view maintenance schedules,SELECT,{public},"((auth.uid() = user_id) OR is_team_member_of_record(auth.uid(), team_id) OR is_super_admin(auth.uid()))",
+public,maintenance_windows,Authenticated users can view maintenance windows,SELECT,{authenticated},true,
+public,maintenance_windows,Super admins can delete maintenance windows,DELETE,{authenticated},is_super_admin(auth.uid()),
+public,maintenance_windows,Super admins can insert maintenance windows,INSERT,{authenticated},,is_super_admin(auth.uid())
+public,maintenance_windows,Super admins can update maintenance windows,UPDATE,{authenticated},is_super_admin(auth.uid()),is_super_admin(auth.uid())
+public,message_read_receipts,Users can insert their own read receipts,INSERT,{public},,(auth.uid() = user_id)
+public,message_read_receipts,Users can view read receipts for messages in their conversation,SELECT,{public},"(EXISTS ( SELECT 1
+   FROM (team_messages tm
+     JOIN conversation_members cm ON ((cm.conversation_id = tm.conversation_id)))
+  WHERE ((tm.id = message_read_receipts.message_id) AND (cm.user_id = auth.uid()))))",
+public,messages,Users can create own messages,INSERT,{public},,(auth.uid() = user_id)
+public,messages,Users can delete own messages,DELETE,{public},(auth.uid() = user_id),
+public,messages,Users can update own messages,UPDATE,{public},(auth.uid() = user_id),
+public,messages,Users can view own messages,SELECT,{public},(auth.uid() = user_id),
+public,notification_preferences,Users can insert their own notification preferences,INSERT,{public},,(auth.uid() = user_id)
+public,notification_preferences,Users can update their own notification preferences,UPDATE,{public},(auth.uid() = user_id),
+public,notification_preferences,Users can view their own notification preferences,SELECT,{public},(auth.uid() = user_id),
+public,notifications,System can insert notifications,INSERT,{public},,(auth.uid() = user_id)
+public,notifications,Users can delete own notifications,DELETE,{public},(auth.uid() = user_id),
+public,notifications,Users can update own notifications,UPDATE,{public},(auth.uid() = user_id),
+public,notifications,Users can view own notifications,SELECT,{public},(auth.uid() = user_id),
+public,onboarding_progress,Users can manage own onboarding progress,ALL,{public},(auth.uid() = user_id),(auth.uid() = user_id)
+public,onboarding_responses,Anyone can insert onboarding responses,INSERT,{public},,true
+public,onboarding_responses,Users can view own onboarding responses,SELECT,{public},(auth.uid() = user_id),
+public,partner_payouts,Admins can delete payouts,DELETE,{public},"(is_team_member_of_record(auth.uid(), team_id) AND (has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'admin'::app_role)))",
+public,partner_payouts,Managers can update payouts,UPDATE,{public},"(is_team_member_of_record(auth.uid(), team_id) AND (has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'manager'::app_role)))",
+public,partner_payouts,Managers can view payouts,SELECT,{public},"((is_team_member_of_record(auth.uid(), team_id) AND (has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'manager'::app_role))) OR is_super_admin(auth.uid()))",
+public,partner_payouts,System can insert payouts,INSERT,{public},,"is_team_member_of_record(auth.uid(), team_id)"
+public,payment_receipts,Users can insert their own payment receipts,INSERT,{public},,"(EXISTS ( SELECT 1
+   FROM payments p
+  WHERE ((p.id = payment_receipts.payment_id) AND (p.user_id = auth.uid()))))"
+public,payment_receipts,Users can view their own payment receipts,SELECT,{public},"(EXISTS ( SELECT 1
+   FROM payments p
+  WHERE ((p.id = payment_receipts.payment_id) AND (p.user_id = auth.uid()))))",
+public,payments,Users can delete payments,DELETE,{public},"((auth.uid() = user_id) OR (is_team_member_of_record(auth.uid(), team_id) AND has_role(auth.uid(), 'admin'::app_role)) OR is_super_admin(auth.uid()))",
+public,payments,Users can insert payments,INSERT,{public},,(auth.uid() = user_id)
+public,payments,Users can update payments,UPDATE,{public},"((auth.uid() = user_id) OR (is_team_member_of_record(auth.uid(), team_id) AND (has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'manager'::app_role))) OR is_super_admin(auth.uid()))",
+public,payments,Users can view payments,SELECT,{public},"((auth.uid() = user_id) OR is_team_member_of_record(auth.uid(), team_id) OR is_super_admin(auth.uid()))",
+public,payouts,Users can insert their own payouts,INSERT,{public},,(auth.uid() = user_id)
+public,payouts,Users can update their own payouts,UPDATE,{public},(auth.uid() = user_id),
+public,payouts,Users can view their own payouts,SELECT,{public},(auth.uid() = user_id),
+public,photo_upload_batches,Users can insert own batches,INSERT,{public},,(user_id = auth.uid())
+public,photo_upload_batches,Users can update own batches,UPDATE,{public},(user_id = auth.uid()),
+public,photo_upload_batches,Users can view own or team batches,SELECT,{public},"((user_id = auth.uid()) OR is_team_member_of_record(auth.uid(), team_id))",
+public,pinned_messages,Users can pin messages in their conversations,INSERT,{public},,"((auth.uid() = pinned_by) AND ((EXISTS ( SELECT 1
+   FROM conversation_members cm
+  WHERE ((cm.conversation_id = pinned_messages.conversation_id) AND (cm.user_id = auth.uid())))) OR (EXISTS ( SELECT 1
+   FROM team_conversations tc
+  WHERE ((tc.id = pinned_messages.conversation_id) AND (tc.is_company_wide = true))))))"
+public,pinned_messages,Users can unpin messages in their conversations,DELETE,{public},"((EXISTS ( SELECT 1
+   FROM conversation_members cm
+  WHERE ((cm.conversation_id = pinned_messages.conversation_id) AND (cm.user_id = auth.uid())))) OR (EXISTS ( SELECT 1
+   FROM team_conversations tc
+  WHERE ((tc.id = pinned_messages.conversation_id) AND (tc.is_company_wide = true)))))",
+public,pinned_messages,Users can view pinned messages in their conversations,SELECT,{public},"((EXISTS ( SELECT 1
+   FROM conversation_members cm
+  WHERE ((cm.conversation_id = pinned_messages.conversation_id) AND (cm.user_id = auth.uid())))) OR (EXISTS ( SELECT 1
+   FROM team_conversations tc
+  WHERE ((tc.id = pinned_messages.conversation_id) AND (tc.is_company_wide = true)))))",
+public,profiles,Users can insert own profile,INSERT,{public},,(auth.uid() = id)
+public,profiles,Users can update own profile,UPDATE,{public},(auth.uid() = id),
+public,profiles,Users can view own or admin can view all profiles,SELECT,{authenticated},"((auth.uid() = id) OR has_role(auth.uid(), 'admin'::app_role))",
+public,purged_vehicle_fingerprints,Owners and admins view purged fingerprints,SELECT,{authenticated},"(is_team_admin(auth.uid(), team_id) OR is_super_admin(auth.uid()))",
+public,rari_conversations,Users can delete own conversations,DELETE,{public},(auth.uid() = user_id),
+public,rari_conversations,Users can insert own conversations,INSERT,{public},,(auth.uid() = user_id)
+public,rari_conversations,Users can update own conversations,UPDATE,{public},(auth.uid() = user_id),
+public,rari_conversations,Users can view own conversations,SELECT,{public},(auth.uid() = user_id),
+public,rari_feedback,Users can insert own rari feedback,INSERT,{public},,(auth.uid() = user_id)
+public,rari_feedback,Users can view own rari feedback,SELECT,{public},(auth.uid() = user_id),
+public,rari_insights,Users can insert own insights,INSERT,{authenticated},,(auth.uid() = user_id)
+public,rari_insights,Users can read own insights,SELECT,{authenticated},(auth.uid() = user_id),
+public,rari_insights,Users can update own insights,UPDATE,{public},(auth.uid() = user_id),(auth.uid() = user_id)
+public,rari_insights,Users can view own insights,SELECT,{public},"((auth.uid() = user_id) OR ((team_id IS NOT NULL) AND is_team_member(auth.uid(), team_id)))",
+public,rari_messages,Users can delete own messages,DELETE,{public},"(EXISTS ( SELECT 1
+   FROM rari_conversations
+  WHERE ((rari_conversations.id = rari_messages.conversation_id) AND (rari_conversations.user_id = auth.uid()))))",
+public,rari_messages,Users can insert own messages,INSERT,{public},,"(EXISTS ( SELECT 1
+   FROM rari_conversations
+  WHERE ((rari_conversations.id = rari_messages.conversation_id) AND (rari_conversations.user_id = auth.uid()))))"
+public,rari_messages,Users can view own messages,SELECT,{public},"(EXISTS ( SELECT 1
+   FROM rari_conversations
+  WHERE ((rari_conversations.id = rari_messages.conversation_id) AND (rari_conversations.user_id = auth.uid()))))",
+public,recurring_expense_templates,Team admins manage recurring templates,ALL,{public},"(is_team_member_of_record(auth.uid(), team_id) AND (has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'manager'::app_role)))","(is_team_member_of_record(auth.uid(), team_id) AND (has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'manager'::app_role)))"
+public,recurring_expense_templates,Team members view recurring templates,SELECT,{public},"is_team_member_of_record(auth.uid(), team_id)",
+public,role_audit_log,Team members can insert audit logs,INSERT,{authenticated},,"((team_id IN ( SELECT tm.team_id
+   FROM team_members tm
+  WHERE ((tm.user_id = auth.uid()) AND (tm.is_active = true)))) OR has_role(auth.uid(), 'admin'::app_role))"
+public,role_audit_log,Team members can view own audit logs,SELECT,{authenticated},"((team_id IN ( SELECT tm.team_id
+   FROM team_members tm
+  WHERE ((tm.user_id = auth.uid()) AND (tm.is_active = true)))) AND (has_role(auth.uid(), 'admin'::app_role) OR (user_id = auth.uid())))",
+public,super_admins,Super admins can view super_admins table,SELECT,{public},"(EXISTS ( SELECT 1
+   FROM profiles p
+  WHERE ((p.id = auth.uid()) AND (lower(p.email) = lower(super_admins.email)))))",
+public,team_conversations,Conversation creators can delete,DELETE,{public},"((created_by = auth.uid()) OR has_role(auth.uid(), 'admin'::app_role))",
+public,team_conversations,Users can create conversations,INSERT,{public},,(auth.uid() = created_by)
+public,team_conversations,tc_select,SELECT,{authenticated},"((auth.uid() = created_by) OR is_conversation_member(id, auth.uid()) OR ((is_company_wide = true) AND (team_id IS NOT NULL) AND is_team_member(auth.uid(), team_id)))",
+public,team_conversations,tc_update,UPDATE,{public},(created_by = auth.uid()),
+public,team_integrations,Team admins can view integrations,SELECT,{public},"(is_team_admin(auth.uid(), team_id) OR is_super_admin(auth.uid()))",
+public,team_integrations,Team owners can create integrations,INSERT,{public},,"(is_team_owner(auth.uid(), team_id) OR is_super_admin(auth.uid()))"
+public,team_integrations,Team owners can delete integrations,DELETE,{public},"(is_team_owner(auth.uid(), team_id) OR is_super_admin(auth.uid()))",
+public,team_integrations,Team owners can update integrations,UPDATE,{public},"(is_team_owner(auth.uid(), team_id) OR is_super_admin(auth.uid()))",
+public,team_members,Team admins can add members,INSERT,{public},,"(is_team_admin(auth.uid(), team_id) OR is_super_admin(auth.uid()))"
+public,team_members,Team admins can remove members,DELETE,{public},"(is_team_admin(auth.uid(), team_id) OR is_super_admin(auth.uid()))",
+public,team_members,Team admins can update members,UPDATE,{public},"(is_team_admin(auth.uid(), team_id) OR is_super_admin(auth.uid()))",
+public,team_members,Users can view own and team memberships,SELECT,{public},((user_id = auth.uid()) OR is_my_team_admin(team_id) OR is_super_admin(auth.uid())),
+public,team_messages,Members can send messages,INSERT,{public},,"((sender_id = auth.uid()) AND ((EXISTS ( SELECT 1
+   FROM conversation_members
+  WHERE ((conversation_members.conversation_id = team_messages.conversation_id) AND (conversation_members.user_id = auth.uid())))) OR (EXISTS ( SELECT 1
+   FROM team_conversations
+  WHERE ((team_conversations.id = team_messages.conversation_id) AND (team_conversations.is_company_wide = true))))))"
+public,team_messages,Users can delete own messages,DELETE,{public},"((sender_id = auth.uid()) OR has_role(auth.uid(), 'admin'::app_role))",
+public,team_messages,Users can update own messages,UPDATE,{public},(sender_id = auth.uid()),
+public,team_messages,Users can view messages in their conversations,SELECT,{public},"((EXISTS ( SELECT 1
+   FROM conversation_members
+  WHERE ((conversation_members.conversation_id = team_messages.conversation_id) AND (conversation_members.user_id = auth.uid())))) OR (EXISTS ( SELECT 1
+   FROM team_conversations
+  WHERE ((team_conversations.id = team_messages.conversation_id) AND (team_conversations.is_company_wide = true)))))",
+public,teams,Only owners can update team settings,UPDATE,{public},"(is_team_owner(auth.uid(), id) OR is_super_admin(auth.uid()))",
+public,teams,Super admins can delete teams,DELETE,{public},is_super_admin(auth.uid()),
+public,teams,Team members can view their teams,SELECT,{public},"(is_team_member(auth.uid(), id) OR is_super_admin(auth.uid()))",
+public,teams,Users can create teams,INSERT,{public},,(owner_id = auth.uid())
+public,unmatched_photos,Users can delete own unmatched photos,DELETE,{public},(user_id = auth.uid()),
+public,unmatched_photos,Users can insert own unmatched photos,INSERT,{public},,(user_id = auth.uid())
+public,unmatched_photos,Users can update own or team unmatched photos,UPDATE,{public},"((user_id = auth.uid()) OR is_team_member_of_record(auth.uid(), team_id))",
+public,unmatched_photos,Users can view own or team unmatched photos,SELECT,{public},"((user_id = auth.uid()) OR is_team_member_of_record(auth.uid(), team_id))",
+public,user_activity_log,Admins can view all activity,SELECT,{public},"(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'manager'::app_role))",
+public,user_activity_log,Users can insert own activity,INSERT,{public},,(auth.uid() = user_id)
+public,user_dashboard_layouts,Users can insert their own dashboard layout,INSERT,{public},,(auth.uid() = user_id)
+public,user_dashboard_layouts,Users can update their own dashboard layout,UPDATE,{public},(auth.uid() = user_id),
+public,user_dashboard_layouts,Users can view their own dashboard layout,SELECT,{public},(auth.uid() = user_id),
+public,user_dashboard_preferences,Users can insert their own dashboard preferences,INSERT,{public},,(auth.uid() = user_id)
+public,user_dashboard_preferences,Users can update their own dashboard preferences,UPDATE,{public},(auth.uid() = user_id),
+public,user_dashboard_preferences,Users can view their own dashboard preferences,SELECT,{public},(auth.uid() = user_id),
+public,user_invitations,Admins can delete invitations,DELETE,{public},"has_role(auth.uid(), 'admin'::app_role)",
+public,user_invitations,Admins can insert invitations,INSERT,{public},,"has_role(auth.uid(), 'admin'::app_role)"
+public,user_invitations,Admins can update invitations,UPDATE,{public},"has_role(auth.uid(), 'admin'::app_role)",
+public,user_invitations,Admins can view invitations,SELECT,{public},"has_role(auth.uid(), 'admin'::app_role)",
+public,user_presence,Users can insert their own presence,INSERT,{public},,(auth.uid() = user_id)
+public,user_presence,Users can update their own presence,UPDATE,{public},(auth.uid() = user_id),
+public,user_presence,Users can view team presence,SELECT,{authenticated},"((auth.uid() = user_id) OR (EXISTS ( SELECT 1
+   FROM team_members tm1
+  WHERE ((tm1.user_id = auth.uid()) AND (tm1.is_active = true) AND (EXISTS ( SELECT 1
+           FROM team_members tm2
+          WHERE ((tm2.user_id = user_presence.user_id) AND (tm2.team_id = tm1.team_id) AND (tm2.is_active = true))))))))",
+public,user_roles,Admins can delete roles,DELETE,{authenticated},"has_role(auth.uid(), 'admin'::app_role)",
+public,user_roles,Admins can insert roles,INSERT,{authenticated},,"has_role(auth.uid(), 'admin'::app_role)"
+public,user_roles,Admins can update roles,UPDATE,{authenticated},"has_role(auth.uid(), 'admin'::app_role)",
+public,user_roles,Users can view own role,SELECT,{authenticated},"((user_id = auth.uid()) OR has_role(auth.uid(), 'admin'::app_role))",
+public,user_settings,Users can delete own settings,DELETE,{authenticated},(auth.uid() = user_id),
+public,user_settings,Users can insert own settings,INSERT,{authenticated},,(auth.uid() = user_id)
+public,user_settings,Users can read own settings,SELECT,{authenticated},(auth.uid() = user_id),
+public,user_settings,Users can update own settings,UPDATE,{authenticated},(auth.uid() = user_id),(auth.uid() = user_id)
+public,vehicle_billing_snapshots,Owners and admins view billing snapshots,SELECT,{authenticated},"(is_team_admin(auth.uid(), team_id) OR is_super_admin(auth.uid()))",
+public,vehicle_change_log,Team members can view vehicle changes,SELECT,{authenticated},"is_team_member_of_record(auth.uid(), team_id)",
+public,vehicle_change_log,Users can insert vehicle change logs,INSERT,{authenticated},,(auth.uid() = user_id)
+public,vehicle_expenses,Admins can delete expenses,DELETE,{public},"(is_team_member_of_record(auth.uid(), team_id) AND (has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'admin'::app_role)))",
+public,vehicle_expenses,Managers can insert expenses,INSERT,{public},,"(is_team_member_of_record(auth.uid(), team_id) AND (has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'manager'::app_role)))"
+public,vehicle_expenses,Managers can update expenses,UPDATE,{public},"(is_team_member_of_record(auth.uid(), team_id) AND (has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'manager'::app_role)))",
+public,vehicle_expenses,Managers can view expenses,SELECT,{public},"((is_team_member_of_record(auth.uid(), team_id) AND (has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'manager'::app_role))) OR is_super_admin(auth.uid()))",
+public,vehicle_inspections,Team admins can delete team inspections,DELETE,{public},"((auth.uid() = user_id) OR is_team_admin(auth.uid(), team_id))",
+public,vehicle_inspections,Team members can insert team inspections,INSERT,{public},,"((auth.uid() = user_id) AND ((team_id IS NULL) OR is_team_member_of_record(auth.uid(), team_id)))"
+public,vehicle_inspections,Team members can update team inspections,UPDATE,{public},"((auth.uid() = user_id) OR is_team_member_of_record(auth.uid(), team_id))",
+public,vehicle_inspections,Team members can view team inspections,SELECT,{public},"((auth.uid() = user_id) OR is_team_member_of_record(auth.uid(), team_id))",
+public,vehicle_partners,Admins can delete partners,DELETE,{public},"(is_team_member_of_record(auth.uid(), team_id) AND (has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'admin'::app_role)))",
+public,vehicle_partners,Managers can insert partners,INSERT,{public},,"(is_team_member_of_record(auth.uid(), team_id) AND (has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'manager'::app_role)))"
+public,vehicle_partners,Managers can update partners,UPDATE,{public},"(is_team_member_of_record(auth.uid(), team_id) AND (has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'manager'::app_role)))",
+public,vehicle_partners,Managers can view partners,SELECT,{public},"((is_team_member_of_record(auth.uid(), team_id) AND (has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'manager'::app_role))) OR is_super_admin(auth.uid()))",
+public,vehicle_photos,Users can delete own vehicle photos,DELETE,{public},(user_id = auth.uid()),
+public,vehicle_photos,Users can insert own vehicle photos,INSERT,{public},,(user_id = auth.uid())
+public,vehicle_photos,Users can update own or team vehicle photos,UPDATE,{public},"((user_id = auth.uid()) OR is_team_member_of_record(auth.uid(), team_id))",
+public,vehicle_photos,Users can view own or team vehicle photos,SELECT,{public},"((user_id = auth.uid()) OR is_team_member_of_record(auth.uid(), team_id))",
+public,vehicle_tasks,Admins can delete tasks,DELETE,{authenticated},"(team_id IN ( SELECT team_members.team_id
+   FROM team_members
+  WHERE ((team_members.user_id = auth.uid()) AND (team_members.is_active = true) AND (team_members.role = ANY (ARRAY['admin'::app_role, 'manager'::app_role])))))",
+public,vehicle_tasks,Authorized users can update tasks,UPDATE,{authenticated},"((created_by = auth.uid()) OR (assigned_to = auth.uid()) OR (team_id IN ( SELECT team_members.team_id
+   FROM team_members
+  WHERE ((team_members.user_id = auth.uid()) AND (team_members.is_active = true) AND (team_members.role = ANY (ARRAY['admin'::app_role, 'manager'::app_role]))))))",
+public,vehicle_tasks,Team members can create tasks,INSERT,{authenticated},,"(team_id IN ( SELECT team_members.team_id
+   FROM team_members
+  WHERE ((team_members.user_id = auth.uid()) AND (team_members.is_active = true))))"
+public,vehicle_tasks,Team members can view team tasks,SELECT,{authenticated},"(team_id IN ( SELECT team_members.team_id
+   FROM team_members
+  WHERE ((team_members.user_id = auth.uid()) AND (team_members.is_active = true))))",
+public,vehicle_transfers,Operators can create transfers,INSERT,{public},,"((transferred_by = auth.uid()) AND (EXISTS ( SELECT 1
+   FROM locations l
+  WHERE ((l.id = vehicle_transfers.to_location_id) AND (can_access_location(auth.uid(), vehicle_transfers.to_location_id) OR is_team_admin(auth.uid(), l.team_id))))))"
+public,vehicle_transfers,Team members can view transfers,SELECT,{public},"((EXISTS ( SELECT 1
+   FROM locations l
+  WHERE ((l.id = vehicle_transfers.to_location_id) AND is_team_member(auth.uid(), l.team_id)))) OR is_super_admin(auth.uid()))",
+public,vehicles,Users can delete vehicles,DELETE,{public},"((auth.uid() = user_id) OR (is_team_member_of_record(auth.uid(), team_id) AND has_role(auth.uid(), 'admin'::app_role)) OR is_super_admin(auth.uid()))",
+public,vehicles,Users can insert vehicles,INSERT,{public},,(auth.uid() = user_id)
+public,vehicles,Users can update vehicles,UPDATE,{public},"((auth.uid() = user_id) OR (is_team_member_of_record(auth.uid(), team_id) AND (has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'manager'::app_role))) OR is_super_admin(auth.uid()))",
+public,vehicles,Users can view vehicles,SELECT,{public},"((auth.uid() = user_id) OR is_team_member_of_record(auth.uid(), team_id) OR is_super_admin(auth.uid()))",
+public,weekly_digests,Users can insert digests,INSERT,{authenticated},,(user_id = auth.uid())
+public,weekly_digests,Users can read their team digests,SELECT,{authenticated},((user_id = auth.uid()) OR ((team_id IS NOT NULL) AND is_my_team_member(team_id))),
+public,work_order_events,Team members can insert events,INSERT,{authenticated},,"(EXISTS ( SELECT 1
+   FROM work_orders wo
+  WHERE ((wo.id = work_order_events.work_order_id) AND is_my_team_member(wo.team_id))))"
+public,work_order_events,Team members can view events via work order,SELECT,{authenticated},"(EXISTS ( SELECT 1
+   FROM work_orders wo
+  WHERE ((wo.id = work_order_events.work_order_id) AND is_my_team_member(wo.team_id))))",
+public,work_orders,Admins can delete work orders,DELETE,{authenticated},is_my_team_admin(team_id),
+public,work_orders,Team members can insert work orders,INSERT,{authenticated},,is_my_team_member(team_id)
+public,work_orders,Team members can update work orders,UPDATE,{authenticated},is_my_team_member(team_id),
+public,work_orders,Team members can view work orders,SELECT,{authenticated},is_my_team_member(team_id),
+storage,objects,Admins can delete expense receipts,DELETE,{public},"((bucket_id = 'expense-receipts'::text) AND (auth.uid() IS NOT NULL) AND (((storage.foldername(name))[1])::uuid IN ( SELECT team_members.team_id
+   FROM team_members
+  WHERE ((team_members.user_id = auth.uid()) AND (team_members.is_active = true)))) AND (has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'admin'::app_role)))",
+storage,objects,Authenticated users can upload attachments,INSERT,{public},,((bucket_id = 'message-attachments'::text) AND (auth.role() = 'authenticated'::text))
+storage,objects,Avatar images are publicly accessible,SELECT,{public},(bucket_id = 'user-avatars'::text),
+storage,objects,Managers can upload expense receipts,INSERT,{public},,"((bucket_id = 'expense-receipts'::text) AND (auth.uid() IS NOT NULL) AND (((storage.foldername(name))[1])::uuid IN ( SELECT team_members.team_id
+   FROM team_members
+  WHERE ((team_members.user_id = auth.uid()) AND (team_members.is_active = true)))) AND (has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'manager'::app_role)))"
+storage,objects,Team members can delete receipts,DELETE,{authenticated},"((bucket_id = 'expense-receipts'::text) AND (EXISTS ( SELECT 1
+   FROM team_members tm
+  WHERE ((tm.user_id = auth.uid()) AND (tm.is_active = true) AND ((tm.team_id)::text = (storage.foldername(objects.name))[1])))))",
+storage,objects,Team members can read expense receipts,SELECT,{public},"((bucket_id = 'expense-receipts'::text) AND (auth.uid() IS NOT NULL) AND (((storage.foldername(name))[1])::uuid IN ( SELECT team_members.team_id
+   FROM team_members
+  WHERE ((team_members.user_id = auth.uid()) AND (team_members.is_active = true)))))",
+storage,objects,Team members can upload receipts,INSERT,{authenticated},,"((bucket_id = 'expense-receipts'::text) AND (EXISTS ( SELECT 1
+   FROM team_members tm
+  WHERE ((tm.user_id = auth.uid()) AND (tm.is_active = true) AND ((tm.team_id)::text = (storage.foldername(objects.name))[1])))))"
+storage,objects,Team members can view receipts,SELECT,{authenticated},"((bucket_id = 'expense-receipts'::text) AND (EXISTS ( SELECT 1
+   FROM team_members tm
+  WHERE ((tm.user_id = auth.uid()) AND (tm.is_active = true) AND ((tm.team_id)::text = (storage.foldername(objects.name))[1])))))",
+storage,objects,Users can delete own attachments,DELETE,{public},((bucket_id = 'message-attachments'::text) AND ((auth.uid())::text = (storage.foldername(name))[1])),
+storage,objects,Users can delete their customer documents,DELETE,{public},((bucket_id = 'customer-documents'::text) AND (auth.uid() IS NOT NULL)),
+storage,objects,Users can delete their damage photos,DELETE,{public},((bucket_id = 'damage-photos'::text) AND ((auth.uid())::text = (storage.foldername(name))[1])),
+storage,objects,Users can delete their own avatar,DELETE,{public},((bucket_id = 'user-avatars'::text) AND ((auth.uid())::text = (storage.foldername(name))[1])),
+storage,objects,Users can delete their own dashboard banners,DELETE,{public},((bucket_id = 'dashboard-banners'::text) AND ((auth.uid())::text = (storage.foldername(name))[1])),
+storage,objects,Users can delete their own vehicle photos,DELETE,{public},((bucket_id = 'vehicle-photos'::text) AND ((auth.uid())::text = (storage.foldername(name))[1])),
+storage,objects,Users can update their customer documents,UPDATE,{public},((bucket_id = 'customer-documents'::text) AND (auth.uid() IS NOT NULL)),
+storage,objects,Users can update their own avatar,UPDATE,{public},((bucket_id = 'user-avatars'::text) AND ((auth.uid())::text = (storage.foldername(name))[1])),
+storage,objects,Users can update their own dashboard banners,UPDATE,{public},((bucket_id = 'dashboard-banners'::text) AND ((auth.uid())::text = (storage.foldername(name))[1])),
+storage,objects,Users can update their own vehicle photos,UPDATE,{public},((bucket_id = 'vehicle-photos'::text) AND ((auth.uid())::text = (storage.foldername(name))[1])),
+storage,objects,Users can upload customer documents,INSERT,{public},,((bucket_id = 'customer-documents'::text) AND (auth.uid() IS NOT NULL))
+storage,objects,Users can upload damage photos,INSERT,{public},,((bucket_id = 'damage-photos'::text) AND ((auth.uid())::text = (storage.foldername(name))[1]))
+storage,objects,Users can upload their own avatar,INSERT,{public},,((bucket_id = 'user-avatars'::text) AND ((auth.uid())::text = (storage.foldername(name))[1]))
+storage,objects,Users can upload their own dashboard banners,INSERT,{public},,((bucket_id = 'dashboard-banners'::text) AND ((auth.uid())::text = (storage.foldername(name))[1]))
+storage,objects,Users can upload their own vehicle photos,INSERT,{public},,((bucket_id = 'vehicle-photos'::text) AND ((auth.uid())::text = (storage.foldername(name))[1]))
+storage,objects,Users can view attachments in their conversations,SELECT,{public},((bucket_id = 'message-attachments'::text) AND (auth.role() = 'authenticated'::text)),
+storage,objects,Users can view dashboard banners,SELECT,{public},(bucket_id = 'dashboard-banners'::text),
+storage,objects,Users can view own vehicle photos,SELECT,{public},((bucket_id = 'vehicle-photos'::text) AND ((auth.uid())::text = (storage.foldername(name))[1])),
+storage,objects,Users can view their customer documents,SELECT,{public},((bucket_id = 'customer-documents'::text) AND (auth.uid() IS NOT NULL)),
+storage,objects,Users can view their damage photos,SELECT,{public},((bucket_id = 'damage-photos'::text) AND ((auth.uid())::text = (storage.foldername(name))[1])),

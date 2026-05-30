@@ -1,0 +1,2 @@
+enum_name,values
+app_role,"owner,admin,manager,operator,viewer"

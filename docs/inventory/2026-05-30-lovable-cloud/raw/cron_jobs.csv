@@ -1,0 +1,5 @@
+jobid,jobname,schedule,active,command
+1,purge-old-notifications,"0 3 * * *",true,"SELECT public.purge_old_notifications()"
+2,purge-old-notifications-daily,"0 3 * * *",true,"SELECT public.purge_old_notifications()"
+3,cleanup-unmatched-photos-weekly,"0 4 * * 0",true,"net.http_post -> /functions/v1/cleanup-unmatched-photos"
+4,daily-generate-recurring-expenses,"0 3 * * *",true,"net.http_post -> /functions/v1/generate-recurring-expenses"
