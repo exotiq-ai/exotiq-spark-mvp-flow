@@ -1,0 +1,754 @@
+Found 125 linter issues in the Supabase project:
+
+INFO 1: RLS Enabled No Policy
+  Level: INFO
+  Description: Detects cases where row level security (RLS) has been enabled on a table but no RLS policies have been created.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy
+
+WARN 2: RLS Policy Always True
+  Level: WARN
+  Description: Detects RLS policies that use overly permissive expressions like \`USING (true)\` or \`WITH CHECK (true)\` for UPDATE, DELETE, or INSERT operations. SELECT policies with \`USING (true)\` are intentionally excluded as this pattern is often used deliberately for public read access.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0024_permissive_rls_policy
+
+WARN 3: RLS Policy Always True
+  Level: WARN
+  Description: Detects RLS policies that use overly permissive expressions like \`USING (true)\` or \`WITH CHECK (true)\` for UPDATE, DELETE, or INSERT operations. SELECT policies with \`USING (true)\` are intentionally excluded as this pattern is often used deliberately for public read access.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0024_permissive_rls_policy
+
+WARN 4: Public Bucket Allows Listing
+  Level: WARN
+  Description: Detects public storage buckets with a broad SELECT policy on `storage.objects`, which allows clients to list all files in the bucket.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0025_public_bucket_allows_listing
+
+WARN 5: Public Bucket Allows Listing
+  Level: WARN
+  Description: Detects public storage buckets with a broad SELECT policy on `storage.objects`, which allows clients to list all files in the bucket.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0025_public_bucket_allows_listing
+
+WARN 6: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 7: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 8: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 9: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 10: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 11: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 12: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 13: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 14: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 15: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 16: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 17: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 18: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 19: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 20: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 21: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 22: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 23: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 24: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 25: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 26: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 27: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 28: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 29: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 30: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 31: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 32: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 33: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 34: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 35: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 36: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 37: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 38: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 39: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 40: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 41: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 42: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 43: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 44: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 45: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 46: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 47: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 48: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 49: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 50: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 51: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 52: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 53: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 54: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 55: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 56: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 57: Public Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+WARN 58: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 59: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 60: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 61: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 62: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 63: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 64: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 65: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 66: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 67: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 68: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 69: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 70: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 71: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 72: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 73: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 74: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 75: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 76: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 77: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 78: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 79: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 80: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 81: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 82: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 83: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 84: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 85: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 86: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 87: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 88: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 89: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 90: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 91: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 92: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 93: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 94: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 95: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 96: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 97: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 98: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 99: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 100: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 101: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 102: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 103: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 104: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 105: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 106: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 107: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 108: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 109: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 110: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 111: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 112: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 113: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 114: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 115: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 116: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 117: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 118: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 119: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 120: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 121: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 122: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 123: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 124: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+WARN 125: Signed-In Users Can Execute SECURITY DEFINER Function
+  Level: WARN
+  Description: Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.
+  Categories: SECURITY
+  How to fix (visit the link to see what to do!): https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+
+SUMMARY:

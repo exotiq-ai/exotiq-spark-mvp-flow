@@ -177,11 +177,14 @@ _Note: jobs 1 and 2 are duplicates (`purge-old-notifications` + `purge-old-notif
 ## 3. Migration State
 
 - Applied to live DB: **115**
-- Repo migration files: **125**
-- In repo but not applied: **76**
-- Applied but not in repo: **66**
+- Repo migration files: **127**
+- Matched (within ±10s of version timestamp): **113**
+- Applied with NO repo file (real minor drift): **2** — `20260114230555`, `20260319204959`
+- Repo files NEVER applied to live (legacy/superseded bootstrap files): **14**
 
-Repo and live are in sync (no drift). Full lists: `raw/applied_migrations.csv`, `raw/repo_migrations.txt`, `raw/migration_diff.md`.
+The earlier `raw/migration_diff.md` showed a huge diff because it did a strict string compare on filename timestamps; the migration runner records a `version` that is offset from the filename timestamp by a few seconds, so identical migrations appeared as both "in repo, not applied" and "applied, not in repo". A ±10-second fuzzy match collapses the noise.
+
+**Bottom line:** essentially in sync. Before cutover, (a) export SQL for the 2 unmatched applied versions and commit them, and (b) clean up the 14 stale legacy files from the repo. Full breakdown: `raw/migration_reconciliation.md`. Raw lists: `raw/applied_migrations.csv`, `raw/repo_migrations.txt`, `raw/migration_diff.md` (legacy strict-compare, superseded).
 
 ---
 
