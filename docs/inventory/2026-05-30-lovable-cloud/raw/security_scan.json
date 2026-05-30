@@ -1,0 +1,821 @@
+{
+  "count": 133,
+  "findings": [
+    {
+      "description": "Detects cases where row level security (RLS) has been enabled on a table but no RLS policies have been created. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy",
+      "id": "SUPA_rls_enabled_no_policy",
+      "level": "info",
+      "name": "RLS Enabled No Policy"
+    },
+    {
+      "description": "Detects RLS policies that use overly permissive expressions like \\`USING (true)\\` or \\`WITH CHECK (true)\\` for UPDATE, DELETE, or INSERT operations. SELECT policies with \\`USING (true)\\` are intentionally excluded as this pattern is often used deliberately for public read access. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0024_permissive_rls_policy",
+      "id": "SUPA_rls_policy_always_true",
+      "level": "warn",
+      "name": "RLS Policy Always True"
+    },
+    {
+      "description": "Detects RLS policies that use overly permissive expressions like \\`USING (true)\\` or \\`WITH CHECK (true)\\` for UPDATE, DELETE, or INSERT operations. SELECT policies with \\`USING (true)\\` are intentionally excluded as this pattern is often used deliberately for public read access. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0024_permissive_rls_policy",
+      "id": "SUPA_rls_policy_always_true",
+      "level": "warn",
+      "name": "RLS Policy Always True"
+    },
+    {
+      "description": "Detects public storage buckets with a broad SELECT policy on `storage.objects`, which allows clients to list all files in the bucket. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0025_public_bucket_allows_listing",
+      "id": "SUPA_public_bucket_allows_listing",
+      "level": "warn",
+      "name": "Public Bucket Allows Listing"
+    },
+    {
+      "description": "Detects public storage buckets with a broad SELECT policy on `storage.objects`, which allows clients to list all files in the bucket. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0025_public_bucket_allows_listing",
+      "id": "SUPA_public_bucket_allows_listing",
+      "level": "warn",
+      "name": "Public Bucket Allows Listing"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+      "id": "SUPA_anon_security_definer_function_executable",
+      "level": "warn",
+      "name": "Public Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it. Remediation: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+      "id": "SUPA_authenticated_security_definer_function_executable",
+      "level": "warn",
+      "name": "Signed-In Users Can Execute SECURITY DEFINER Function"
+    },
+    {
+      "description": "The 'customer-documents' storage bucket SELECT, INSERT, UPDATE, and DELETE policies only check `auth.uid() IS NOT NULL`, meaning any authenticated user can access, overwrite, or delete identity documents, insurance records, and driver's licenses belonging to any customer across all teams. Add team-scoped path checks (e.g., verify the first path segment matches a team_id the user belongs to) to all four policies.",
+      "id": "EXPOSED_SENSITIVE_DATA",
+      "level": "error",
+      "name": "Any authenticated user can read, write, and delete all customer documents"
+    },
+    {
+      "description": "The `has_role()` function checks only the `user_roles` table with no team scope. Policies on `user_invitations` (SELECT/INSERT/UPDATE/DELETE), `user_roles` (SELECT/INSERT/UPDATE/DELETE), `profiles` (SELECT), `team_messages` (DELETE), `team_conversations` (DELETE), `entity_comments` (DELETE), `conversation_members` (DELETE), `role_audit_log` (INSERT), and `user_activity_log` (SELECT) all use bare `has_role(auth.uid(), 'admin')` without verifying the admin belongs to the same team as the target record. Any admin-role user can read all other teams' invitations, profiles, messages, comments, and activity logs, and can insert/delete records across tenants. Replace bare `has_role()` calls with checks that combine team membership (e.g., `is_team_member_of_record` or `is_team_admin`) with the role check.",
+      "id": "PUBLIC_DATA_EXPOSURE",
+      "level": "error",
+      "name": "Admins from any team can read and modify data belonging to other teams"
+    },
+    {
+      "description": "The vehicle-photos bucket SELECT policy checks `(auth.uid())::text = (storage.foldername(name))[1]`, restricting access to the uploading user only. However, the `vehicle_photos` table RLS allows teammates to view photos via `is_team_member_of_record`. This mismatch means team members see photo records in the DB but receive permission denied from storage. While not a data-leak issue, the inverse concern is that if path structure is predictable, the restrictive storage policy is the only guard — any user who knows a path can attempt access. More critically, the storage policy does not permit teammates to read vehicle photos needed for operations. Align the storage policy to also allow team members by joining to `vehicle_photos` or using a team-based path prefix.",
+      "id": "EXPOSED_SENSITIVE_DATA",
+      "level": "warn",
+      "name": "Team members cannot view vehicle photos uploaded by teammates"
+    },
+    {
+      "description": "The `user_activity_log` SELECT policy `has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'manager')` grants access to all rows in the table for any user holding those roles globally, with no team scoping. An admin on Team A can query activity logs of all users on Teams B, C, etc., including IP addresses, user agents, and entity access patterns. Restrict the policy to rows where the acting user shares a team with the log's `user_id`, e.g., by joining through `team_members`.",
+      "id": "MISSING_RLS_PROTECTION",
+      "level": "warn",
+      "name": "Any admin or manager can read activity logs for users on other teams"
+    },
+    {
+      "description": "There are no RLS policies on `realtime.messages`. All 19 published tables (vehicles, bookings, customers, payments, etc.) broadcast row-level changes over Realtime. Without channel-level authorization policies, any authenticated user — including users from other tenants — can subscribe to any channel topic and receive change events for data they should not access. Add RLS policies on `realtime.messages` scoped by `auth.uid()` and team membership to restrict which topics a user may subscribe to.",
+      "id": "MISSING_RLS_PROTECTION",
+      "level": "warn",
+      "name": "Any authenticated user can subscribe to any Realtime channel topic"
+    },
+    {
+      "description": "The `is_same_team` function determines co-membership by checking `user_roles.assigned_by` relationships rather than `team_members.team_id`. If a super-admin or multi-team admin has assigned users in two different tenant organizations, `is_same_team` returns true across those tenants, allowing `customers` SELECT, UPDATE, and DELETE policies to expose one tenant's customer PII (email, phone, DOB, license, address) to users of another tenant. Rewrite `is_same_team` to use `team_members` team_id overlap instead of `assigned_by` chains.",
+      "id": "MISSING_RLS_PROTECTION",
+      "level": "warn",
+      "name": "Cross-team customer access possible through shared admin accounts"
+    },
+    {
+      "description": "The `stripe_webhook_events` table has RLS enabled but no SELECT policy is defined. While this defaults to deny-all for reads (secure by default), the raw Stripe webhook payloads stored in the `payload` JSONB column may contain sensitive billing data. If a SELECT policy is ever added without careful scoping, this data would be exposed. Additionally, there is no INSERT policy visible — confirm that only the service role or webhook function can write to this table.",
+      "id": "MISSING_RLS_PROTECTION",
+      "level": "warn",
+      "name": "stripe_webhook_events table has no SELECT policy — data inaccessible but no explicit protection"
+    },
+    {
+      "description": "The `message-attachments` bucket SELECT policy allows access to any authenticated user (`auth.role() = 'authenticated'`), with no check that the user is a member of the conversation the attachment belongs to. Any authenticated user across all tenants can download private message attachments. Restrict the SELECT policy to users who are members of the conversation associated with the attachment, e.g., by verifying the path prefix against `conversation_members`.",
+      "id": "MISSING_RLS_PROTECTION",
+      "level": "warn",
+      "name": "Any authenticated user can read all private message attachments"
+    }
+  ],
+  "metadata": {
+    "connector_security_scan": {
+      "items_found": 0,
+      "status": "success",
+      "version": "1.0"
+    },
+    "supabase": {
+      "items_found": 125,
+      "status": "success",
+      "version": "1.0"
+    },
+    "supabase_lov": {
+      "items_found": 8,
+      "status": "success",
+      "version": "3.2"
+    }
+  },
+  "scanned_at": "2026-05-30T20:16:58.639294619Z"
+}
