@@ -12,3 +12,5 @@ Allow: /
 
 User-agent: *
 Allow: /
+
+Sitemap: https://exotiq-spark-mvp-flow.lovable.app/sitemap.xml
