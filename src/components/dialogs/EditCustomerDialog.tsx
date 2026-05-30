@@ -23,6 +23,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { validators, validateForm } from "@/lib/validation";
 import { toast } from "@/hooks/use-toast";
+import { isFeatureEnabled } from "@/lib/featureFlags";
 
 type Customer = Database['public']['Tables']['customers']['Row'];
 
@@ -218,19 +219,25 @@ export const EditCustomerDialog = ({
             </div>
 
             {/* License */}
+            {/* DPA §3.8: typed government identifier (DL number) input is gated.
+                Existing stored values are preserved on save — we just hide the
+                form input so new values can't be added via this path. */}
             <div className="space-y-4">
               <h4 className="font-semibold text-sm text-muted-foreground">Driver's License</h4>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="edit_license">License Number</Label>
-                  <Input id="edit_license" value={formData.drivers_license} onChange={(e) => updateField("drivers_license", e.target.value)} />
-                </div>
+              <div className={isFeatureEnabled('driversLicenseNumberField') ? "grid grid-cols-2 gap-4" : "grid grid-cols-1 gap-4"}>
+                {isFeatureEnabled('driversLicenseNumberField') && (
+                  <div>
+                    <Label htmlFor="edit_license">License Number</Label>
+                    <Input id="edit_license" value={formData.drivers_license} onChange={(e) => updateField("drivers_license", e.target.value)} />
+                  </div>
+                )}
                 <div>
                   <Label htmlFor="edit_license_exp">Expiry Date</Label>
                   <Input id="edit_license_exp" type="date" value={formData.license_expiry} onChange={(e) => updateField("license_expiry", e.target.value)} />
                 </div>
               </div>
             </div>
+
 
             {/* Insurance */}
             <div className="space-y-4">
