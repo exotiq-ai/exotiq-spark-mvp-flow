@@ -1,0 +1,8 @@
+id,name,public,file_size_limit,allowed_mime_types
+customer-documents,customer-documents,f,,
+damage-photos,damage-photos,f,,
+dashboard-banners,dashboard-banners,t,,
+expense-receipts,expense-receipts,f,,
+message-attachments,message-attachments,f,10485760,"{image/jpeg,image/png,image/gif,image/webp,application/pdf,text/plain,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document}"
+user-avatars,user-avatars,t,,
+vehicle-photos,vehicle-photos,f,52428800,"{image/jpeg,image/png,image/webp,image/heic}"
