@@ -6,6 +6,10 @@ const migrationPath = resolve(
   process.cwd(),
   "supabase/migrations/20260530203000_harden_tenant_rls_policies.sql"
 );
+const signupSlugMigrationPath = resolve(
+  process.cwd(),
+  "supabase/migrations/20260530224500_harden_signup_team_slug_generation.sql"
+);
 
 describe("tenant RLS hardening migration", () => {
   const migration = () => readFileSync(migrationPath, "utf8");
@@ -26,5 +30,13 @@ describe("tenant RLS hardening migration", () => {
 
     expect(sql).not.toContain("bucket_id = 'customer-documents' AND auth.uid() IS NOT NULL");
     expect(sql).not.toContain("bucket_id = 'message-attachments' AND auth.role() = 'authenticated'");
+  });
+
+  it("prevents blank team slugs for auth-created profiles without display metadata", () => {
+    const sql = readFileSync(signupSlugMigrationPath, "utf8");
+
+    expect(sql).toContain("NULLIF");
+    expect(sql).toContain("fleet-' || LEFT(NEW.id::text, 8)");
+    expect(sql).toContain("WHERE slug IS NULL OR btrim(slug) = ''");
   });
 });
