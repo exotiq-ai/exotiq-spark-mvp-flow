@@ -78,16 +78,19 @@ verify_jwt = false
 [functions.rari-email-summary]
 verify_jwt = false
 
+[functions.rari-enterprise-handlers]
+verify_jwt = false
+
 [functions.rari-message-summary]
+verify_jwt = false
+
+[functions.rari-universal-query]
 verify_jwt = false
 
 [functions.revoke-user-sessions]
 verify_jwt = false
 
 [functions.analyze-vehicle-photo]
-verify_jwt = false
-
-[functions.enhance-hero-photo]
 verify_jwt = false
 
 [functions.identify-vehicle]
@@ -97,6 +100,9 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.cleanup-unmatched-photos]
+verify_jwt = false
+
+[functions.confirm-data-deletion]
 verify_jwt = false
 
 [functions.demo-data-snapshot]
@@ -111,10 +117,22 @@ verify_jwt = false
 [functions.generate-signed-pdf]
 verify_jwt = false
 
+[functions.generate-recurring-expenses]
+verify_jwt = false
+
 [functions.fill-rental-template]
 verify_jwt = false
 
+[functions.maintenance-notify-restored]
+verify_jwt = false
+
+[functions.parse-expense-receipt]
+verify_jwt = false
+
 [functions.send-signed-document]
+verify_jwt = false
+
+[functions.send-deletion-confirmation]
 verify_jwt = false
 
 [functions.gcal-auth]
@@ -136,6 +154,9 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.stripe-webhook]
+verify_jwt = false
+
+[functions.switch-subscription]
 verify_jwt = false
 
 [functions.stripe-create-hold]
