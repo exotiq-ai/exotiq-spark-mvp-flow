@@ -125,10 +125,11 @@ Run this against a new staging Supabase project before production cutover:
 
 ## 6. Open Items Before Cutover
 
-- Merge and stage-test the Security/RLS remediation PR.
-- Merge and replay-test the migration hygiene PR.
-- Merge and smoke-test the edge function config cleanup PR.
+- Migration hygiene, Edge Function config cleanup, and Security/RLS remediation
+  are merged to GitHub `main` as of commit `8b23f4e`.
 - Reissue cron job anon JWTs for the new Supabase project.
 - Confirm all function secrets and Netlify `VITE_*` variables are set in the new
   environments.
+- Receive and validate the full export package from Lovable/Supabase support.
+- Complete the staging restore rehearsal against the direct Supabase project.
 - Document the final go/no-go checklist after the restore rehearsal.
