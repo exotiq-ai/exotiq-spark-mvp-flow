@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { buildMessageAttachmentPath } from './teamMessagingPaths';
 
 export interface Conversation {
   id: string;
@@ -494,10 +495,14 @@ export const useTeamMessaging = () => {
 
   // Upload attachment
   const uploadAttachment = useCallback(async (file: File): Promise<Attachment | null> => {
-    if (!user) return null;
+    if (!user || !activeConversation) return null;
 
     try {
-      const fileName = `${user.id}/${Date.now()}-${file.name}`;
+      const fileName = buildMessageAttachmentPath({
+        conversationId: activeConversation.id,
+        userId: user.id,
+        fileName: file.name,
+      });
       const { data, error } = await supabase.storage
         .from('message-attachments')
         .upload(fileName, file);
@@ -519,7 +524,7 @@ export const useTeamMessaging = () => {
       toast.error('Failed to upload file');
       return null;
     }
-  }, [user]);
+  }, [activeConversation, user]);
 
   return {
     conversations,
