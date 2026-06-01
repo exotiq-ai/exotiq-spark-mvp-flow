@@ -1,56 +1,52 @@
-## Goal
+## Diagnosis
 
-1. Convert the majority of demo `[DEMO-6MO-FWD]` pending bookings to confirmed so the demo account looks like a healthy, mostly-booked operation.
-2. Make the Pulse dashboard render believable real numbers (today's revenue, vs-yesterday delta, 7-day totals) instead of a single artificial spike.
+Pulse module **is working correctly** — it reads live data from `bookings` + `payments`:
+- **Pickups Today** = confirmed bookings where `start_date::date = today`
+- **Returns Today** = confirmed/completed bookings where `end_date::date = today`
+- **Vehicles Out** = confirmed bookings spanning now
+- **Collected Today** = payments with `transaction_date::date = today`
 
-Scoped strictly to team `c1de6533-ab44-4973-a123-007a8007b5ba` (hello@exotiq.ai). No app code changes. All writes remain rollback-safe via the `[DEMO-6MO-FWD]` tag.
+The screen looks light because the prior 6-month seed started on **June 1, 2026** — today (May 31) has **0 pickups, 0 returns, 1 vehicle out**. So Pulse has nothing to display, not a bug.
 
-## Current state (just verified)
+## Fix
 
-- Demo forward bookings: **626 confirmed / 300 pending** (all tagged `[DEMO-6MO-FWD]`).
-- Demo deposits inserted: **621 payments, all dated 2026-06-01** (today) → Pulse currently shows a $903K "Collected Today" spike and 0% vs yesterday. Not realistic.
+Insert realistic same-day activity for the `hello@exotiq.ai` demo team (`c1de6533-…`) across both markets. All rows tagged `[DEMO-6MO-FWD]` for rollback.
 
-## Changes
+### Today's seed targets (May 31, 2026)
 
-### 1. Flip pending → confirmed (~85%)
+Fleet split: Scottsdale 9 vehicles, Miami/Miami Beach/Ft Lauderdale 46 vehicles.
 
-- Update **~255 of 300** `[DEMO-6MO-FWD]` pending bookings to `status = 'confirmed'`, `payment_status = 'deposit_paid'`.
-- Keep **~45 pending** distributed across the forward window (mostly near-term + some far-future) so the pipeline still looks alive.
-- Selection: weight toward near-term first (next 60 days flipped most aggressively); leave a thin pending tail further out.
+| Market | Pickups today | Returns today | Hero "Vehicles Out" boost |
+|---|---|---|---|
+| Scottsdale | 2 | 2 | +2 active rentals (started 1-3d ago, end in 2-5d) |
+| Miami | 9 | 8 | +12 active rentals (started 1-4d ago, end in 2-6d) |
 
-### 2. Add deposit payments for the newly-confirmed bookings
+Tier rules respected: hypercars capped (≤10% util), bias toward exotic/luxury/SUV.
 
-- One `payments` row per newly-confirmed booking: `payment_type='deposit'`, `amount=deposit_amount`, `payment_status='succeeded'`, `payment_method='card'`, `notes='[DEMO-6MO-FWD]'`. No Stripe IDs, no Stripe API calls. Same pattern as the existing seed.
+### What gets inserted
 
-### 3. Spread payment `transaction_date` across the past ~90 days
+1. **Pickups** — `status='confirmed'`, `start_date = today + random hour (9am–6pm)`, `end_date = today + 2–5 days`, customer pulled from existing demo customers, vehicle picked from idle vehicles in that market not already booked today.
+2. **Returns** — `status='confirmed'`, `start_date = today − 2..5 days`, `end_date = today + random hour (10am–7pm)`. ~30% flipped to `status='completed'` to populate "X completed" subtext.
+3. **Active mid-rentals** — `status='confirmed'`, spans today, populates Fleet Status "Booked" ring and "Vehicles Out" card.
+4. **Today's payments** — one `deposit` payment per new pickup (`payment_status='succeeded'`, `transaction_date=now()`) so "Collected Today" card shows a believable 4–5 figure for May 31 instead of staying at $0 / spiking.
 
-- Re-date all `[DEMO-6MO-FWD]` payments (existing 621 + the new ~255) across the last **1–90 days**, weighted toward recent (more activity in last 14 days, tapering back).
-- Ensures Pulse shows: a believable today number (handful of payments, not 600), a non-zero yesterday for a meaningful % delta, and a realistic 7-day and 30-day total.
+### Guardrails
 
-### 4. Verify Pulse with real-data checks (no UI changes)
+- No overlap with existing bookings (check `vehicle_id` + date range before insert).
+- Hypercars (Bugatti, Koenigsegg, etc.) excluded unless their forward-window util is still under 10%.
+- All rows carry `notes ILIKE '%[DEMO-6MO-FWD]%'` for one-click rollback.
+- Only touches the demo team; no production data, no app code, no schema.
 
-Run the same aggregations `src/components/dashboard/Pulse.tsx` performs and confirm:
+### Out of scope
 
-- **Active Bookings** = count of `status in ('active','confirmed')` → expect ~880+.
-- **Collected Today** = sum of payments where `transaction_date::date = today` → expect a realistic 4-figure / low-5-figure number.
-- **Yesterday revenue** > 0 so the delta % renders meaningfully.
-- **Fleet Utilization** computed from `vehicles.status` — report current value (will not be changed by this task).
-- **7-day revenue** vs prior 7-day window → both > 0, plausible % delta.
-- **Completed bookings this week** → from existing 138 completed rows, report count.
+- No changes to Pulse component code (it's working).
+- No PredictHQ event layer (still 401).
+- No changes to `vehicles.status` or `utilization` columns.
 
-Spot-check 3 recent calendar days for payment counts and totals.
+### Verification after run
 
-## Out of scope
-
-- No changes to `vehicles.status` / `vehicles.utilization` / `vehicles.revenue` cached columns.
-- No Stripe objects, no inspections, no other teams.
-- No changes to Pulse component code — only verifying it renders real values from the updated data.
-
-## Rollback
-
-Unchanged from prior seed: delete by `notes='[DEMO-6MO-FWD]'` scoped to the demo team. The status flips are reversible by setting flipped rows back to `pending` (identifiable via the tag + current confirmed-after-seed timestamp if needed).
-
-## Risks
-
-- Live writes to production DB (tagged, rollback-safe).
-- Re-dating payments shifts historical-looking activity; this is intentional for demo realism and only affects `[DEMO-6MO-FWD]` rows.
+Re-query and confirm Pulse will render:
+- Pickups Today: ~11 (Scottsdale 2 + Miami 9)
+- Returns Today: ~10
+- Vehicles Out: ~15
+- Collected Today: realistic non-zero
