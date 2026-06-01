@@ -1,101 +1,56 @@
 ## Goal
 
-Make the `hello@exotiq.ai` demo account (team `c1de6533-ab44-4973-a123-007a8007b5ba`) look like a thriving real-world exotic rental operation across the next 6 months (Jun 1 → Dec 1, 2026), with realistic per-tier utilization, event-anchored demand pulled live from PredictHQ for Miami and Scottsdale, and a light layer of payments. Hypercars stay ≤10% utilized. All inserts tagged for clean rollback.
+1. Convert the majority of demo `[DEMO-6MO-FWD]` pending bookings to confirmed so the demo account looks like a healthy, mostly-booked operation.
+2. Make the Pulse dashboard render believable real numbers (today's revenue, vs-yesterday delta, 7-day totals) instead of a single artificial spike.
 
-## Scope
+Scoped strictly to team `c1de6533-ab44-4973-a123-007a8007b5ba` (hello@exotiq.ai). No app code changes. All writes remain rollback-safe via the `[DEMO-6MO-FWD]` tag.
 
-- Affects only team `c1de6533-ab44-4973-a123-007a8007b5ba`.
-- Inserts into `bookings`, `customers`, and `payments` only.
-- No schema changes. No edge function changes. No Stripe API calls. No app code changes.
-- Every new row tagged with `[DEMO-6MO-FWD]` in `notes` for one-line cleanup.
+## Current state (just verified)
 
-## Inputs
+- Demo forward bookings: **626 confirmed / 300 pending** (all tagged `[DEMO-6MO-FWD]`).
+- Demo deposits inserted: **621 payments, all dated 2026-06-01** (today) → Pulse currently shows a $903K "Collected Today" spike and 0% vs yesterday. Not realistic.
 
-- **Fleet**: 54 active vehicles (already loaded), price tiers $500–$8,029/day.
-- **Locations**: Miami Beach + Scottsdale (both exist).
-- **Existing forward bookings**: through ~Jun 23, 2026 — will be preserved and conflict-checked against.
-- **Event demand**: live PredictHQ pull per-market, per-month, via the existing `predicthq-events` edge function (key is configured).
+## Changes
 
-## Utilization tiers (Industry Realistic — confirmed)
+### 1. Flip pending → confirmed (~85%)
 
-Targets are average over the 6-month window, per vehicle within the tier:
+- Update **~255 of 300** `[DEMO-6MO-FWD]` pending bookings to `status = 'confirmed'`, `payment_status = 'deposit_paid'`.
+- Keep **~45 pending** distributed across the forward window (mostly near-term + some far-future) so the pipeline still looks alive.
+- Selection: weight toward near-term first (next 60 days flipped most aggressively); leave a thin pending tail further out.
 
-| Tier | Daily rate | Vehicles | Target util |
-|---|---|---|---|
-| Hypercar | ≥ $4,500 | 7 (Mercedes-AMG One, Jesko, Valkyrie, Huayra, 2× Chiron, Speedtail) | **≤ 10%** (hard cap) |
-| Ultra-exotic | $2,000–$4,499 | 6 | 15–25% |
-| Exotic | $1,000–$1,999 | 20 | 30–45% |
-| Luxury / SUV | $500–$999 | 21 | 45–60% |
+### 2. Add deposit payments for the newly-confirmed bookings
 
-Per-vehicle utilization is sampled within its tier band so the fleet looks heterogeneous (some stars, some quieter units).
+- One `payments` row per newly-confirmed booking: `payment_type='deposit'`, `amount=deposit_amount`, `payment_status='succeeded'`, `payment_method='card'`, `notes='[DEMO-6MO-FWD]'`. No Stripe IDs, no Stripe API calls. Same pattern as the existing seed.
 
-## Event-anchored demand (live PredictHQ)
+### 3. Spread payment `transaction_date` across the past ~90 days
 
-For each month Jun–Dec 2026, call `predicthq-events` once per market (Miami, Scottsdale) and build a real demand curve:
+- Re-date all `[DEMO-6MO-FWD]` payments (existing 621 + the new ~255) across the last **1–90 days**, weighted toward recent (more activity in last 14 days, tapering back).
+- Ensures Pulse shows: a believable today number (handful of payments, not 600), a non-zero yesterday for a meaningful % delta, and a realistic 7-day and 30-day total.
 
-- Use `events[].impactScore`, `attendance`, and `date` to weight which calendar days get bookings.
-- Use `demandMultiplier` to scale that month's booking volume vs baseline.
-- Booking density follows the real curve — e.g. Scottsdale spikes around any returned PGA / Barrett-Jackson / WM Phoenix Open-class events; Miami spikes around real Art Basel / F1 / Ultra-class events if PredictHQ returns them in window.
-- No hard-coded event names or multipliers — everything is derived from the API response.
+### 4. Verify Pulse with real-data checks (no UI changes)
 
-Split: ~50/50 Miami vs Scottsdale (confirmed).
+Run the same aggregations `src/components/dashboard/Pulse.tsx` performs and confirm:
 
-## Booking generation logic
+- **Active Bookings** = count of `status in ('active','confirmed')` → expect ~880+.
+- **Collected Today** = sum of payments where `transaction_date::date = today` → expect a realistic 4-figure / low-5-figure number.
+- **Yesterday revenue** > 0 so the delta % renders meaningfully.
+- **Fleet Utilization** computed from `vehicles.status` — report current value (will not be changed by this task).
+- **7-day revenue** vs prior 7-day window → both > 0, plausible % delta.
+- **Completed bookings this week** → from existing 138 completed rows, report count.
 
-For each vehicle, in 2-week planning windows:
-
-1. Compute the vehicle's target rented-day count for the window from its tier util band.
-2. Sample booking start dates weighted by the live event-demand curve for the assigned market.
-3. Pick rental length from a realistic distribution:
-   - Hypercar: 1–2 days, often event weekend
-   - Ultra-exotic: 2–4 days
-   - Exotic: 2–5 days
-   - Luxury/SUV: 3–7 days (some 14-day corporate)
-4. Reject any candidate that overlaps an existing booking on that vehicle (±1 day buffer for turn).
-5. Status mix: ~70% `confirmed`, ~20% `pending`, ~10% future `pending` near-term. (No `completed`/`cancelled` in the forward set.)
-6. `daily_rate` = vehicle.current_rate with ±5% noise; `total_value` = rate × days; deposit = 30%, balance = remainder.
-7. Fields populated: `team_id`, `vehicle_id`, `vehicle_name`, `customer_*`, `start/end_date`, `pickup_location_id`/`dropoff_location_id`, `daily_rate`, `total_value`, `deposit_amount`, `balance_due`, `status`, `payment_status`, `rental_duration_type='multiday'`, `booking_source` mix (direct / Turo / referral), `notes` prefixed `[DEMO-6MO-FWD]`. `booking_ref` is generated by existing Postgres sequence.
-
-## Customers
-
-- Reuse existing 88 customers ~60% of the time (so repeat-customer LTV looks real).
-- Insert ~30–40 new realistic customers (mix of VIP, corporate, first-timers) for variety. All tagged `[DEMO-6MO-FWD]` in `notes`.
-- `lifetime_value` is auto-maintained by the existing DB trigger — no manual writes.
-
-## Payments (Light — confirmed)
-
-For each `confirmed` future booking only:
-- 1 row in `payments`: `payment_type='deposit'`, `amount=deposit_amount`, `payment_status='succeeded'`, `payment_method='card'`, `transaction_date=created_at`, no Stripe IDs, `notes='[DEMO-6MO-FWD]'`.
-- No balance payments, no Stripe API calls, no Stripe customer/intent/charge objects.
-
-## Execution
-
-Single Node script run via `code--exec` against the prod DB using `psql`. Script:
-
-1. Fetches PredictHQ data for Miami + Scottsdale across the 6-month window.
-2. Builds demand curve + per-vehicle plan in memory.
-3. Reads existing bookings to avoid conflicts.
-4. Inserts customers → bookings → payments in batched transactions.
-5. Prints a summary: rows inserted, per-tier utilization achieved, top 5 demand days, market split.
-
-Re-runnable: rolling back is `DELETE FROM payments WHERE notes='[DEMO-6MO-FWD]'; DELETE FROM bookings WHERE notes LIKE '[DEMO-6MO-FWD]%'; DELETE FROM customers WHERE notes LIKE '[DEMO-6MO-FWD]%';` scoped to the demo team.
+Spot-check 3 recent calendar days for payment counts and totals.
 
 ## Out of scope
 
-- No Stripe objects (subscriptions, invoices, charges, refunds).
-- No inspections, damage claims, work orders, messages, or notifications.
-- No changes to `vehicles.utilization` / `vehicles.revenue` (those are derived in the UI; if you want me to also refresh the cached columns afterward, say the word).
-- No changes to other teams.
+- No changes to `vehicles.status` / `vehicles.utilization` / `vehicles.revenue` cached columns.
+- No Stripe objects, no inspections, no other teams.
+- No changes to Pulse component code — only verifying it renders real values from the updated data.
 
-## Verification after run
+## Rollback
 
-- Query per-tier achieved utilization and confirm hypercar ≤10%.
-- Query market split and confirm ~50/50.
-- Spot-check 3 calendar days that match top PredictHQ events and confirm clustered bookings.
-- Open the demo account calendar in preview and visually confirm density looks natural.
+Unchanged from prior seed: delete by `notes='[DEMO-6MO-FWD]'` scoped to the demo team. The status flips are reversible by setting flipped rows back to `pending` (identifiable via the tag + current confirmed-after-seed timestamp if needed).
 
-## Risks / call-outs
+## Risks
 
-- This writes ~250–500 bookings + ~150–350 payments + ~30–40 customers into the production DB. Tagged for rollback but still a live write.
-- PredictHQ rate limit: 12 API calls total (2 markets × 6 months) — well under any tier limit.
-- If PredictHQ returns sparse results for Scottsdale in a given month, that month falls back to a flat baseline curve (still real, just not event-spiked) — I'll note this in the summary rather than fabricating events.
+- Live writes to production DB (tagged, rollback-safe).
+- Re-dating payments shifts historical-looking activity; this is intentional for demo realism and only affects `[DEMO-6MO-FWD]` rows.
