@@ -43,23 +43,38 @@ const LEN_RANGE: Record<string, [number, number]> = {
   luxury: [3, 7],
 };
 
+// Geonames IDs: Miami=4164138, Scottsdale=5313457
+const MARKET_GEO: Record<string, { lat: number; lon: number; radius: number }> = {
+  miami: { lat: 25.7617, lon: -80.1918, radius: 35 },
+  scottsdale: { lat: 33.4942, lon: -111.9261, radius: 35 },
+};
+
 async function fetchEvents(market: string, start: string, end: string, apiKey: string) {
-  const params = new URLSearchParams();
-  params.append("active.gte", start);
-  params.append("active.lte", end);
-  params.append("place.scope", market);
-  params.append("category", "concerts,sports,conferences,festivals,performing-arts,expos,community");
-  params.append("sort", "-rank");
-  params.append("limit", "100");
-  const r = await fetch(`https://api.predicthq.com/v1/events?${params}`, {
-    headers: { Authorization: `Bearer ${apiKey}`, Accept: "application/json" },
-  });
-  if (!r.ok) {
-    console.warn(`PredictHQ ${market} ${start}: ${r.status}`);
-    return [];
+  const geo = MARKET_GEO[market];
+  const all: any[] = [];
+  // Paginate via offset; PredictHQ caps limit at 50 for many tiers
+  for (let offset = 0; offset < 300; offset += 50) {
+    const params = new URLSearchParams();
+    params.append("active.gte", start);
+    params.append("active.lte", end);
+    params.append("within", `${geo.radius}km@${geo.lat},${geo.lon}`);
+    params.append("category", "concerts,sports,conferences,festivals,performing-arts,expos,community");
+    params.append("sort", "-rank");
+    params.append("limit", "50");
+    params.append("offset", String(offset));
+    const r = await fetch(`https://api.predicthq.com/v1/events?${params}`, {
+      headers: { Authorization: `Bearer ${apiKey}`, Accept: "application/json" },
+    });
+    if (!r.ok) {
+      console.warn(`PredictHQ ${market} offset=${offset}: ${r.status} ${await r.text()}`);
+      break;
+    }
+    const data = await r.json();
+    const page = data.results || [];
+    all.push(...page);
+    if (page.length < 50) break;
   }
-  const data = await r.json();
-  return data.results || [];
+  return all;
 }
 
 Deno.serve(async (req) => {
