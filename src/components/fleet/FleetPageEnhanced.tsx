@@ -510,6 +510,7 @@ export const FleetPageEnhanced = () => {
               onViewModeChange={setViewMode}
               vehicleCount={vehicles.length}
               filteredCount={filteredVehicles.length}
+              facets={facets}
               isOpsMode={isOpsMode}
             />
             
