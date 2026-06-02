@@ -16,7 +16,7 @@ import { useVehiclePhotos } from '@/hooks/useVehiclePhotos';
 import { useTeam } from '@/contexts/TeamContext';
 import { supabase } from '@/integrations/supabase/client';
 import { FleetVehicleCard } from './FleetVehicleCard';
-import { FleetFilters, FleetFiltersState, ViewMode } from './FleetFilters';
+import { FleetFilters, FleetFiltersState, ViewMode, FleetFacets, DEFAULT_FLEET_FILTERS } from './FleetFilters';
 import { TaskQueue } from './TaskQueue';
 import { TaskDetailSheet } from './TaskDetailSheet';
 import { MaintenanceHub } from './MaintenanceHub';
