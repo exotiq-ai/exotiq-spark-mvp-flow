@@ -1,52 +1,74 @@
-## Diagnosis
+# Fleet Filters Overhaul
 
-Pulse module **is working correctly** — it reads live data from `bookings` + `payments`:
-- **Pickups Today** = confirmed bookings where `start_date::date = today`
-- **Returns Today** = confirmed/completed bookings where `end_date::date = today`
-- **Vehicles Out** = confirmed bookings spanning now
-- **Collected Today** = payments with `transaction_date::date = today`
+## Problem
+The Fleet → Filters popover (`src/components/fleet/FleetFilters.tsx`) clips its content — Ops Status options below "Pending Inspection" are cut off, the `ScrollArea` is wrapped but the popover itself has no bounded height so it just overflows the viewport instead of scrolling. The filter set is also thin: only Booking Status, Show-retired, and Ops Status — missing things customers actually filter by (location, make, year, price, ownership).
 
-The screen looks light because the prior 6-month seed started on **June 1, 2026** — today (May 31) has **0 pickups, 0 returns, 1 vehicle out**. So Pulse has nothing to display, not a bug.
+## Goals
+1. Fix the scroll so every section is reachable.
+2. Expand filters to match what fleet operators actually slice by.
+3. Tighten the UI: clear sections, sticky header/footer with Clear + Apply, active-count badges per section, mobile-friendly.
 
-## Fix
+## New filter set
+Sectioned, collapsible groups inside the popover:
 
-Insert realistic same-day activity for the `hello@exotiq.ai` demo team (`c1de6533-…`) across both markets. All rows tagged `[DEMO-6MO-FWD]` for rollback.
+| Section | Control | Source |
+|---|---|---|
+| Booking Status | chip multi-select | `vehicles.status` (existing) |
+| Ops Status | chip multi-select | `vehicles.ops_status` (existing) |
+| Location / Market | multi-select | distinct `vehicles.location` (Miami, Scottsdale, …) |
+| Make | multi-select (searchable) | distinct `vehicles.make` |
+| Model Year | range slider | min/max of `vehicles.year` |
+| Daily Rate | range slider ($) | min/max of `vehicles.current_rate` |
+| Mileage | range slider | min/max of `vehicles.mileage` |
+| Ownership | chips: Owned / Partner / Consignment | `vehicles.ownership_type` |
+| Has photos | toggle | `image_url` present |
+| Needs attention | toggle | `ops_status in (pending_inspection, dirty, damage_reported)` |
+| Show retired | toggle (existing) | `status='retired'` |
 
-### Today's seed targets (May 31, 2026)
+All new filter state lives in `FleetFiltersState`; filtering logic added to the `useMemo` in `FleetPageEnhanced.tsx`.
 
-Fleet split: Scottsdale 9 vehicles, Miami/Miami Beach/Ft Lauderdale 46 vehicles.
+## UI changes (`FleetFilters.tsx`)
 
-| Market | Pickups today | Returns today | Hero "Vehicles Out" boost |
-|---|---|---|---|
-| Scottsdale | 2 | 2 | +2 active rentals (started 1-3d ago, end in 2-5d) |
-| Miami | 9 | 8 | +12 active rentals (started 1-4d ago, end in 2-6d) |
+```text
+┌─ Popover (w-96, max-h-[80vh], flex-col) ───────┐
+│  Sticky header: "Filters"   [Clear all]        │
+├────────────────────────────────────────────────┤
+│  ScrollArea (flex-1, min-h-0)                  │
+│   ├─ Booking Status   • chips                  │
+│   ├─ Ops Status       • chips                  │
+│   ├─ Location         • chips                  │
+│   ├─ Make             • searchable list        │
+│   ├─ Year             • dual slider            │
+│   ├─ Daily Rate       • dual slider            │
+│   ├─ Mileage          • dual slider            │
+│   ├─ Ownership        • chips                  │
+│   └─ Quick toggles    • switches               │
+├────────────────────────────────────────────────┤
+│  Sticky footer: count summary  [Apply]         │
+└────────────────────────────────────────────────┘
+```
 
-Tier rules respected: hypercars capped (≤10% util), bias toward exotic/luxury/SUV.
+Key fixes:
+- `PopoverContent` becomes `w-96 p-0 max-h-[80vh] flex flex-col` so the inner `ScrollArea` actually has a bounded parent → real scrolling.
+- `ScrollArea` gets `flex-1 min-h-0` (the current cause of the cutoff — it had no height constraint).
+- Replace heavy bordered checkbox cards with compact toggle chips for status sections to reduce vertical bulk.
+- Each section header shows a small `(n)` badge when active.
+- Sticky footer with live "Showing X of Y vehicles" + Clear + Apply (closes popover).
+- Mobile (`<md`): popover renders as a bottom Sheet (reuse pattern from `MarginMobileFilterSheet`) with the same content.
 
-### What gets inserted
+## Technical notes
+- `FleetFiltersState` extends to: `locations: string[]`, `makes: string[]`, `yearRange: [number, number] | null`, `rateRange`, `mileageRange`, `ownership: string[]`, `hasPhotos: boolean`, `needsAttention: boolean`.
+- Distinct lists (locations, makes) + slider bounds are derived in `FleetPageEnhanced.tsx` via `useMemo` over `vehicles` and passed into `<FleetFilters />` as props (`facets`).
+- Filter application appended to existing `filteredVehicles` `useMemo`.
+- Active count helper updated; URL/localStorage persistence out of scope for this pass.
+- Uses existing shadcn primitives only: `Popover`, `Sheet`, `ScrollArea`, `Slider`, `Switch`, `Badge`, `Command` (for searchable Make list), `Separator`. No new deps.
 
-1. **Pickups** — `status='confirmed'`, `start_date = today + random hour (9am–6pm)`, `end_date = today + 2–5 days`, customer pulled from existing demo customers, vehicle picked from idle vehicles in that market not already booked today.
-2. **Returns** — `status='confirmed'`, `start_date = today − 2..5 days`, `end_date = today + random hour (10am–7pm)`. ~30% flipped to `status='completed'` to populate "X completed" subtext.
-3. **Active mid-rentals** — `status='confirmed'`, spans today, populates Fleet Status "Booked" ring and "Vehicles Out" card.
-4. **Today's payments** — one `deposit` payment per new pickup (`payment_status='succeeded'`, `transaction_date=now()`) so "Collected Today" card shows a believable 4–5 figure for May 31 instead of staying at $0 / spiking.
+## Out of scope
+- Saved filter presets (can be a follow-up).
+- Server-side filtering / pagination.
+- Changes to sort dropdown or view-mode toggle.
+- Backend / RLS / schema changes.
 
-### Guardrails
-
-- No overlap with existing bookings (check `vehicle_id` + date range before insert).
-- Hypercars (Bugatti, Koenigsegg, etc.) excluded unless their forward-window util is still under 10%.
-- All rows carry `notes ILIKE '%[DEMO-6MO-FWD]%'` for one-click rollback.
-- Only touches the demo team; no production data, no app code, no schema.
-
-### Out of scope
-
-- No changes to Pulse component code (it's working).
-- No PredictHQ event layer (still 401).
-- No changes to `vehicles.status` or `utilization` columns.
-
-### Verification after run
-
-Re-query and confirm Pulse will render:
-- Pickups Today: ~11 (Scottsdale 2 + Miami 9)
-- Returns Today: ~10
-- Vehicles Out: ~15
-- Collected Today: realistic non-zero
+## Files touched
+- `src/components/fleet/FleetFilters.tsx` — rewrite layout, add new sections, fix scroll, add mobile Sheet variant.
+- `src/components/fleet/FleetPageEnhanced.tsx` — extend `FleetFiltersState` defaults, compute facets, apply new filter predicates.

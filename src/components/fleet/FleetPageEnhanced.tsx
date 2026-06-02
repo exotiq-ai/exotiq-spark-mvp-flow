@@ -16,7 +16,7 @@ import { useVehiclePhotos } from '@/hooks/useVehiclePhotos';
 import { useTeam } from '@/contexts/TeamContext';
 import { supabase } from '@/integrations/supabase/client';
 import { FleetVehicleCard } from './FleetVehicleCard';
-import { FleetFilters, FleetFiltersState, ViewMode } from './FleetFilters';
+import { FleetFilters, FleetFiltersState, ViewMode, FleetFacets, DEFAULT_FLEET_FILTERS } from './FleetFilters';
 import { TaskQueue } from './TaskQueue';
 import { TaskDetailSheet } from './TaskDetailSheet';
 import { MaintenanceHub } from './MaintenanceHub';
@@ -154,14 +154,7 @@ export const FleetPageEnhanced = () => {
   // View state
   const [isOpsMode, setIsOpsMode] = useState(isMobile);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
-  const [filters, setFilters] = useState<FleetFiltersState>({
-    search: '',
-    bookingStatus: [],
-    opsStatus: [],
-    sortBy: 'name',
-    sortDesc: false,
-    hideRetired: true,
-  });
+  const [filters, setFilters] = useState<FleetFiltersState>(DEFAULT_FLEET_FILTERS);
 
   // Dialog state
   const [priceEditVehicle, setPriceEditVehicle] = useState<any>(null);
@@ -172,11 +165,52 @@ export const FleetPageEnhanced = () => {
   const [photoUploadVehicle, setPhotoUploadVehicle] = useState<{ id: string; name: string } | null>(null);
   const [editVehicle, setEditVehicle] = useState<any>(null);
 
+  // Facets derived from the underlying vehicle set
+  const facets = useMemo<FleetFacets>(() => {
+    const locations = new Set<string>();
+    const makes = new Set<string>();
+    const ownership = new Set<string>();
+    let minYear = Infinity, maxYear = -Infinity;
+    let minRate = Infinity, maxRate = -Infinity;
+    let minMiles = Infinity, maxMiles = -Infinity;
+
+    vehicles.forEach((v: any) => {
+      if (v.location) locations.add(v.location);
+      if (v.make) makes.add(v.make);
+      if (v.ownership_type) ownership.add(v.ownership_type);
+      if (typeof v.year === 'number') {
+        if (v.year < minYear) minYear = v.year;
+        if (v.year > maxYear) maxYear = v.year;
+      }
+      const rate = Number(v.current_rate) || 0;
+      if (rate < minRate) minRate = rate;
+      if (rate > maxRate) maxRate = rate;
+      const miles = Number(v.mileage) || 0;
+      if (miles < minMiles) minMiles = miles;
+      if (miles > maxMiles) maxMiles = miles;
+    });
+
+    const round = (n: number, step: number, up = false) =>
+      up ? Math.ceil(n / step) * step : Math.floor(n / step) * step;
+
+    return {
+      locations: Array.from(locations).sort(),
+      makes: Array.from(makes).sort(),
+      ownership: Array.from(ownership).sort(),
+      yearBounds: isFinite(minYear) ? [minYear, maxYear] : null,
+      rateBounds: isFinite(minRate)
+        ? [round(minRate, 50), Math.max(round(maxRate, 50, true), round(minRate, 50) + 50)]
+        : null,
+      mileageBounds: isFinite(minMiles)
+        ? [round(minMiles, 1000), Math.max(round(maxMiles, 1000, true), round(minMiles, 1000) + 1000)]
+        : null,
+    };
+  }, [vehicles]);
+
   // Filter and sort vehicles
   const filteredVehicles = useMemo(() => {
     let result = [...vehicles];
 
-    // Hide retired vehicles by default
     if (filters.hideRetired) {
       result = result.filter(v => v.status !== 'retired');
     }
@@ -197,6 +231,52 @@ export const FleetPageEnhanced = () => {
 
     if (filters.opsStatus.length > 0) {
       result = result.filter(v => filters.opsStatus.includes((v.ops_status || 'not_set') as OpsStatus));
+    }
+
+    if (filters.locations.length > 0) {
+      result = result.filter(v => v.location && filters.locations.includes(v.location));
+    }
+
+    if (filters.makes.length > 0) {
+      result = result.filter(v => v.make && filters.makes.includes(v.make));
+    }
+
+    if (filters.ownership.length > 0) {
+      result = result.filter((v: any) =>
+        v.ownership_type && filters.ownership.includes(v.ownership_type)
+      );
+    }
+
+    if (filters.yearRange) {
+      const [lo, hi] = filters.yearRange;
+      result = result.filter((v: any) =>
+        typeof v.year === 'number' && v.year >= lo && v.year <= hi
+      );
+    }
+
+    if (filters.rateRange) {
+      const [lo, hi] = filters.rateRange;
+      result = result.filter((v: any) => {
+        const r = Number(v.current_rate) || 0;
+        return r >= lo && r <= hi;
+      });
+    }
+
+    if (filters.mileageRange) {
+      const [lo, hi] = filters.mileageRange;
+      result = result.filter((v: any) => {
+        const m = Number(v.mileage) || 0;
+        return m >= lo && m <= hi;
+      });
+    }
+
+    if (filters.hasPhotos) {
+      result = result.filter((v: any) => !!v.image_url);
+    }
+
+    if (filters.needsAttention) {
+      const flagged = new Set(['pending_inspection', 'dirty', 'damage_reported']);
+      result = result.filter((v: any) => flagged.has(v.ops_status));
     }
 
     result.sort((a, b) => {
@@ -430,6 +510,7 @@ export const FleetPageEnhanced = () => {
               onViewModeChange={setViewMode}
               vehicleCount={vehicles.length}
               filteredCount={filteredVehicles.length}
+              facets={facets}
               isOpsMode={isOpsMode}
             />
             
