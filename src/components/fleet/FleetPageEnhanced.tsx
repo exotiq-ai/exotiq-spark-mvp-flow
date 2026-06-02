@@ -154,14 +154,7 @@ export const FleetPageEnhanced = () => {
   // View state
   const [isOpsMode, setIsOpsMode] = useState(isMobile);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
-  const [filters, setFilters] = useState<FleetFiltersState>({
-    search: '',
-    bookingStatus: [],
-    opsStatus: [],
-    sortBy: 'name',
-    sortDesc: false,
-    hideRetired: true,
-  });
+  const [filters, setFilters] = useState<FleetFiltersState>(DEFAULT_FLEET_FILTERS);
 
   // Dialog state
   const [priceEditVehicle, setPriceEditVehicle] = useState<any>(null);
