@@ -14,20 +14,22 @@
 import { useState, useEffect } from 'react';
 import { SuperAdminBillingTab } from '@/components/super-admin/SuperAdminBillingTab';
 import { MaintenanceModeSection } from '@/components/super-admin/MaintenanceModeSection';
+import { PlatformPulseStrip } from '@/components/super-admin/PlatformPulseStrip';
+import { TenantHealthTab } from '@/components/super-admin/TenantHealthTab';
+import { VehicleAuditTab } from '@/components/super-admin/VehicleAuditTab';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   Shield,
   Users,
   Search,
-  Activity,
   Database,
-  FileText,
-  TrendingUp,
   AlertCircle,
   ArrowLeft,
   CreditCard,
-  Wrench
+  Wrench,
+  Activity,
+  Car,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -45,12 +47,6 @@ interface Customer {
   role?: string;
 }
 
-interface SystemStats {
-  totalCustomers: number;
-  newThisWeek: number;
-  totalVehicles: number;
-  totalBookings: number;
-}
 
 interface AuditLogEntry {
   id: string;
@@ -69,14 +65,8 @@ export const SuperAdminDashboard = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [filteredCustomers, setFilteredCustomers] = useState<Customer[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [stats, setStats] = useState<SystemStats>({
-    totalCustomers: 0,
-    newThisWeek: 0,
-    totalVehicles: 0,
-    totalBookings: 0
-  });
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+
 
   // Log super admin access
   useEffect(() => {
@@ -129,29 +119,6 @@ export const SuperAdminDashboard = () => {
     fetchCustomers();
   }, [toast]);
 
-  // Fetch system stats
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const { data, error } = await (supabase as any).rpc('get_super_admin_stats');
-        if (error) throw error;
-        const row = Array.isArray(data) ? data[0] : data;
-
-        setStats({
-          totalCustomers: Number(row?.total_customers || 0),
-          newThisWeek: Number(row?.new_this_week || 0),
-          totalVehicles: Number(row?.total_vehicles || 0),
-          totalBookings: Number(row?.total_bookings || 0)
-        });
-      } catch (error) {
-        console.error('[SuperAdmin] Error fetching stats:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchStats();
-  }, []);
 
   // Fetch recent audit logs from role_audit_log table
   useEffect(() => {
@@ -227,64 +194,21 @@ export const SuperAdminDashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Customers</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{loading ? '...' : stats.totalCustomers}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Across all accounts
-              </p>
-            </CardContent>
-          </Card>
+        {/* Platform Pulse */}
+        <PlatformPulseStrip />
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">New This Week</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{loading ? '...' : stats.newThisWeek}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Last 7 days
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Vehicles</CardTitle>
-              <Activity className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{loading ? '...' : stats.totalVehicles}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Across all accounts
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Bookings</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{loading ? '...' : stats.totalBookings}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                All time
-              </p>
-            </CardContent>
-          </Card>
-        </div>
 
         {/* Main Content Tabs */}
-        <Tabs defaultValue="customers" className="space-y-4">
-          <TabsList>
+        <Tabs defaultValue="tenants" className="space-y-4">
+          <TabsList className="flex-wrap h-auto">
+            <TabsTrigger value="tenants">
+              <Activity className="h-4 w-4 mr-2" />
+              Tenant Health
+            </TabsTrigger>
+            <TabsTrigger value="vehicle-audit">
+              <Car className="h-4 w-4 mr-2" />
+              Vehicle Audit
+            </TabsTrigger>
             <TabsTrigger value="customers">
               <Users className="h-4 w-4 mr-2" />
               Customers
@@ -303,6 +227,14 @@ export const SuperAdminDashboard = () => {
             </TabsTrigger>
           </TabsList>
 
+          <TabsContent value="tenants" className="space-y-4">
+            <TenantHealthTab />
+          </TabsContent>
+
+          <TabsContent value="vehicle-audit" className="space-y-4">
+            <VehicleAuditTab />
+          </TabsContent>
+
           <TabsContent value="billing" className="space-y-4">
             <SuperAdminBillingTab />
           </TabsContent>
@@ -310,6 +242,7 @@ export const SuperAdminDashboard = () => {
           <TabsContent value="maintenance" className="space-y-4">
             <MaintenanceModeSection />
           </TabsContent>
+
 
 
 
