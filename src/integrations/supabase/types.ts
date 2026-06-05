@@ -2837,6 +2837,8 @@ export type Database = {
           owner_id: string
           platform_fee_percent: number
           rental_buffer_minutes: number | null
+          seat_audit_reviewed_at: string | null
+          seat_audit_reviewed_by: string | null
           settings: Json | null
           slug: string | null
           stripe_account_id: string | null
@@ -2872,6 +2874,8 @@ export type Database = {
           owner_id: string
           platform_fee_percent?: number
           rental_buffer_minutes?: number | null
+          seat_audit_reviewed_at?: string | null
+          seat_audit_reviewed_by?: string | null
           settings?: Json | null
           slug?: string | null
           stripe_account_id?: string | null
@@ -2907,6 +2911,8 @@ export type Database = {
           owner_id?: string
           platform_fee_percent?: number
           rental_buffer_minutes?: number | null
+          seat_audit_reviewed_at?: string | null
+          seat_audit_reviewed_by?: string | null
           settings?: Json | null
           slug?: string | null
           stripe_account_id?: string | null
@@ -4476,6 +4482,18 @@ export type Database = {
           role: string
         }[]
       }
+      get_super_admin_platform_pulse: {
+        Args: never
+        Returns: {
+          accounts_over_plan: number
+          active_rentals_now: number
+          failed_payments_7d: number
+          revenue_7d: number
+          revenue_sparkline: Json
+          stuck_onboarding: number
+          trials_ending_7d: number
+        }[]
+      }
       get_super_admin_stats: {
         Args: never
         Returns: {
@@ -4483,6 +4501,43 @@ export type Database = {
           total_bookings: number
           total_customers: number
           total_vehicles: number
+        }[]
+      }
+      get_super_admin_tenant_detail: {
+        Args: { p_team_id: string }
+        Returns: Json
+      }
+      get_super_admin_tenant_health: {
+        Args: never
+        Returns: {
+          active_rentals: number
+          city: string
+          fleet_size_cap: number
+          is_demo: boolean
+          last_login: string
+          plan_tier: string
+          revenue_30d: number
+          risk_flags: string[]
+          stripe_connected: boolean
+          team_id: string
+          team_name: string
+          trial_end: string
+          util_30d: number
+          vehicles_in_use: number
+        }[]
+      }
+      get_super_admin_vehicle_audit: {
+        Args: never
+        Returns: {
+          fleet_size_cap: number
+          is_demo: boolean
+          overage: number
+          plan_tier: string
+          seat_audit_reviewed_at: string
+          team_id: string
+          team_name: string
+          trial_end: string
+          vehicles_in_use: number
         }[]
       }
       get_team_owner: { Args: { _user_id: string }; Returns: string }
@@ -4559,6 +4614,10 @@ export type Database = {
         Returns: string
       }
       mark_expired_invitations: { Args: never; Returns: undefined }
+      mark_tenant_seat_review: {
+        Args: { p_note?: string; p_team_id: string }
+        Returns: undefined
+      }
       migrate_users_to_teams: {
         Args: never
         Returns: {
