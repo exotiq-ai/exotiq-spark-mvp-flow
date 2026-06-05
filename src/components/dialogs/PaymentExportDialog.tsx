@@ -110,6 +110,24 @@ export const PaymentExportDialog = ({
     const { data: payments, error } = await query;
     if (error) throw error;
 
+    // HTML-escape all interpolated values to prevent stored XSS in the print window
+    const escapeHtml = (value: unknown): string =>
+      String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+
+    // Allowlist status -> CSS class to prevent class-name injection
+    const STATUS_CLASS: Record<string, string> = {
+      completed: "status-completed",
+      pending: "status-pending",
+      failed: "status-failed",
+    };
+    const statusClass = (status?: string | null) =>
+      STATUS_CLASS[(status || "").toLowerCase()] || "";
+
     // Generate HTML for PDF
     const htmlContent = `
       <!DOCTYPE html>
@@ -130,8 +148,8 @@ export const PaymentExportDialog = ({
         </head>
         <body>
           <h1>Payment Report</h1>
-          <p>Generated: ${format(new Date(), "MMMM d, yyyy 'at' h:mm a")}</p>
-          ${startDate || endDate ? `<p>Period: ${startDate || "Start"} to ${endDate || "Present"}</p>` : ""}
+          <p>Generated: ${escapeHtml(format(new Date(), "MMMM d, yyyy 'at' h:mm a"))}</p>
+          ${startDate || endDate ? `<p>Period: ${escapeHtml(startDate || "Start")} to ${escapeHtml(endDate || "Present")}</p>` : ""}
           
           <table>
             <thead>
@@ -148,15 +166,16 @@ export const PaymentExportDialog = ({
             <tbody>
               ${(payments || []).map(p => {
                 const booking = p.bookings as { customer_name: string; vehicles: { make: string; model: string } | null } | null;
+                const vehicle = booking?.vehicles ? `${booking.vehicles.make} ${booking.vehicles.model}` : "N/A";
                 return `
                   <tr>
-                    <td>${p.created_at ? format(new Date(p.created_at), "MMM d, yyyy") : "N/A"}</td>
-                    <td>${booking?.customer_name || "Unknown"}</td>
-                    <td>${booking?.vehicles ? `${booking.vehicles.make} ${booking.vehicles.model}` : "N/A"}</td>
-                    <td>${p.payment_type || "N/A"}</td>
-                    <td>${p.payment_method || "N/A"}</td>
-                    <td>$${p.amount?.toLocaleString() || "0"}</td>
-                    <td class="status-${p.payment_status?.toLowerCase()}">${p.payment_status || "N/A"}</td>
+                    <td>${escapeHtml(p.created_at ? format(new Date(p.created_at), "MMM d, yyyy") : "N/A")}</td>
+                    <td>${escapeHtml(booking?.customer_name || "Unknown")}</td>
+                    <td>${escapeHtml(vehicle)}</td>
+                    <td>${escapeHtml(p.payment_type || "N/A")}</td>
+                    <td>${escapeHtml(p.payment_method || "N/A")}</td>
+                    <td>${escapeHtml(`$${p.amount?.toLocaleString() || "0"}`)}</td>
+                    <td class="${statusClass(p.payment_status)}">${escapeHtml(p.payment_status || "N/A")}</td>
                   </tr>
                 `;
               }).join("")}
@@ -164,7 +183,7 @@ export const PaymentExportDialog = ({
           </table>
           
           <p class="total">
-            Total: $${(payments || []).reduce((sum, p) => sum + (p.amount || 0), 0).toLocaleString()}
+            Total: ${escapeHtml(`$${(payments || []).reduce((sum, p) => sum + (p.amount || 0), 0).toLocaleString()}`)}
           </p>
         </body>
       </html>
