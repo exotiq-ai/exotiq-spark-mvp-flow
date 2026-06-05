@@ -65,14 +65,8 @@ export const SuperAdminDashboard = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [filteredCustomers, setFilteredCustomers] = useState<Customer[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [stats, setStats] = useState<SystemStats>({
-    totalCustomers: 0,
-    newThisWeek: 0,
-    totalVehicles: 0,
-    totalBookings: 0
-  });
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+
 
   // Log super admin access
   useEffect(() => {
