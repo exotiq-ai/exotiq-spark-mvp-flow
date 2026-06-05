@@ -132,7 +132,7 @@ serve(async (req) => {
     const RARI_TOOL_TOKEN_SECRET = Deno.env.get('RARI_TOOL_TOKEN_SECRET');
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    
+
     if (!ELEVENLABS_API_KEY) {
       throw new Error('ELEVENLABS_API_KEY not configured');
     }
@@ -141,11 +141,26 @@ serve(async (req) => {
       console.warn('RARI_TOOL_TOKEN_SECRET not configured - tool calls will not be authenticated');
     }
 
-    const { userId, context } = await req.json();
-    
-    if (!userId) {
-      throw new Error('userId is required');
+    // Require authenticated user
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
+    const supabaseAuth = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY') ?? supabaseServiceKey);
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(authHeader.slice(7));
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const { context } = await req.json().catch(() => ({ context: undefined }));
+    // Always derive userId from the verified JWT, never trust the request body
+    const userId = user.id;
 
     // Initialize Supabase with service role for admin access
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
