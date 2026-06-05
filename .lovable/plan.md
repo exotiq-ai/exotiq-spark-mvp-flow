@@ -1,74 +1,78 @@
-# Fleet Filters Overhaul
+# Super Admin: Tenant Health & Vehicle Audit
 
-## Problem
-The Fleet → Filters popover (`src/components/fleet/FleetFilters.tsx`) clips its content — Ops Status options below "Pending Inspection" are cut off, the `ScrollArea` is wrapped but the popover itself has no bounded height so it just overflows the viewport instead of scrolling. The filter set is also thin: only Booking Status, Show-retired, and Ops Status — missing things customers actually filter by (location, make, year, price, ownership).
+## Trust posture
+Aggregates + business-account contact info = OK. Renter PII, messages, photos, payment instruments = never. Every RPC writes to `role_audit_log`.
 
-## Goals
-1. Fix the scroll so every section is reachable.
-2. Expand filters to match what fleet operators actually slice by.
-3. Tighten the UI: clear sections, sticky header/footer with Clear + Apply, active-count badges per section, mobile-friendly.
+## Decisions locked in
+1. **Seat cap source of truth:** `teams.assumed_plan_fleet_size` (with `assumed_plan_tier` for label).
+2. **Actions:** read-only. No "Force notify owner" button in v1 — outreach stays a human decision via copy-to-clipboard summary. We can revisit once we see real overage volume.
+3. **Owner email:** include it. Rationale — it's the *business* contact (not a renter), we already have it via auth/Stripe, and support work (overage outreach, troubleshooting, billing) genuinely needs it. Guardrails:
+   - Show owner name + email only inside the **Tenant Detail drawer**, never in the list/table rows.
+   - Drawer open writes `role_audit_log` with `p_action='open_tenant_detail'` + `team_id`.
+   - List/table rows show team name + city only.
+   - Still excluded everywhere: renter names/emails, message content, photos, payment instruments.
 
-## New filter set
-Sectioned, collapsible groups inside the popover:
+## What we're building
 
-| Section | Control | Source |
-|---|---|---|
-| Booking Status | chip multi-select | `vehicles.status` (existing) |
-| Ops Status | chip multi-select | `vehicles.ops_status` (existing) |
-| Location / Market | multi-select | distinct `vehicles.location` (Miami, Scottsdale, …) |
-| Make | multi-select (searchable) | distinct `vehicles.make` |
-| Model Year | range slider | min/max of `vehicles.year` |
-| Daily Rate | range slider ($) | min/max of `vehicles.current_rate` |
-| Mileage | range slider | min/max of `vehicles.mileage` |
-| Ownership | chips: Owned / Partner / Consignment | `vehicles.ownership_type` |
-| Has photos | toggle | `image_url` present |
-| Needs attention | toggle | `ops_status in (pending_inspection, dirty, damage_reported)` |
-| Show retired | toggle (existing) | `status='retired'` |
+### 1. Platform Pulse strip (replaces top 4 stat cards)
+- Active rentals now
+- Trials ending in 7 days (click → filtered Tenant Health)
+- Accounts over plan (count + $ est. monthly leakage)
+- Stuck onboarding (>3d idle)
+- Failed payments 7d
+- Platform 7d revenue (sparkline)
 
-All new filter state lives in `FleetFiltersState`; filtering logic added to the `useMemo` in `FleetPageEnhanced.tsx`.
+### 2. Tenant Health tab (new)
+Searchable list, one row per team. Columns: Team · City · Plan · Vehicles · 30d util % · Active rentals · 30d revenue · Last login · Risk flags.
 
-## UI changes (`FleetFilters.tsx`)
+Risk flag chips: `Trial <7d`, `No Stripe`, `No payment 30d`, `Over plan`, `Stuck onboarding`, `Demo`.
 
-```text
-┌─ Popover (w-96, max-h-[80vh], flex-col) ───────┐
-│  Sticky header: "Filters"   [Clear all]        │
-├────────────────────────────────────────────────┤
-│  ScrollArea (flex-1, min-h-0)                  │
-│   ├─ Booking Status   • chips                  │
-│   ├─ Ops Status       • chips                  │
-│   ├─ Location         • chips                  │
-│   ├─ Make             • searchable list        │
-│   ├─ Year             • dual slider            │
-│   ├─ Daily Rate       • dual slider            │
-│   ├─ Mileage          • dual slider            │
-│   ├─ Ownership        • chips                  │
-│   └─ Quick toggles    • switches               │
-├────────────────────────────────────────────────┤
-│  Sticky footer: count summary  [Apply]         │
-└────────────────────────────────────────────────┘
-```
+Click row → **Tenant Detail drawer**:
+- Header: team name, city, plan tier, owner name + email (audit-logged on open)
+- Fleet: total / active / maintenance / retired / missing hero photo
+- Utilization: 7d, 30d, vehicles idle 30d
+- Bookings: active now, pending, week-over-week trend
+- Revenue: 30d gross, MRR estimate, last payment date
+- Activity: last login, active users 7d, onboarding %
+- Buttons: "Copy support summary" (clipboard), "View in Billing tab"
 
-Key fixes:
-- `PopoverContent` becomes `w-96 p-0 max-h-[80vh] flex flex-col` so the inner `ScrollArea` actually has a bounded parent → real scrolling.
-- `ScrollArea` gets `flex-1 min-h-0` (the current cause of the cutoff — it had no height constraint).
-- Replace heavy bordered checkbox cards with compact toggle chips for status sections to reduce vertical bulk.
-- Each section header shows a small `(n)` badge when active.
-- Sticky footer with live "Showing X of Y vehicles" + Clear + Apply (closes popover).
-- Mobile (`<md`): popover renders as a bottom Sheet (reuse pattern from `MarginMobileFilterSheet`) with the same content.
+### 3. Vehicle Audit tab (new) — seat compliance
+Top summary: total seats sold vs in use, total est. monthly leakage $.
+
+Table: Team · Plan tier · Fleet size (cap) · Vehicles in use · Overage · Est. monthly leakage · Last reviewed.
+- Sort by overage desc; filters: Over plan / Trial / Unconverted.
+- Row actions: **Mark reviewed** (audit-logged), **Copy outreach summary** (clipboard text).
+- "Vehicles in use" = `count(vehicles where status != 'retired' and trashed_at is null)`.
+- Leakage math (placeholder until pricing confirmed): `overage × per-seat rate from plan tier`. We'll tune the per-seat rate constant after first review.
+
+## Out of scope (v1)
+- Force-notify / outbound email from super admin.
+- Realtime subscriptions; periodic refresh only.
+- Renter PII reveal, message/photo viewing.
+- Saved filters, CSV export (easy follow-up).
 
 ## Technical notes
-- `FleetFiltersState` extends to: `locations: string[]`, `makes: string[]`, `yearRange: [number, number] | null`, `rateRange`, `mileageRange`, `ownership: string[]`, `hasPhotos: boolean`, `needsAttention: boolean`.
-- Distinct lists (locations, makes) + slider bounds are derived in `FleetPageEnhanced.tsx` via `useMemo` over `vehicles` and passed into `<FleetFilters />` as props (`facets`).
-- Filter application appended to existing `filteredVehicles` `useMemo`.
-- Active count helper updated; URL/localStorage persistence out of scope for this pass.
-- Uses existing shadcn primitives only: `Popover`, `Sheet`, `ScrollArea`, `Slider`, `Switch`, `Badge`, `Command` (for searchable Make list), `Separator`. No new deps.
 
-## Out of scope
-- Saved filter presets (can be a follow-up).
-- Server-side filtering / pagination.
-- Changes to sort dropdown or view-mode toggle.
-- Backend / RLS / schema changes.
+**Migration (new RPCs, all `SECURITY DEFINER` + `is_super_admin()` gated, all log to `role_audit_log`):**
+- `get_super_admin_platform_pulse()` → single row of platform aggregates.
+- `get_super_admin_tenant_health()` → one row per team with list-view fields only (no owner email).
+- `get_super_admin_tenant_detail(p_team_id uuid)` → drawer payload incl. owner email + name, logs `open_tenant_detail` with team_id.
+- `get_super_admin_vehicle_audit()` → seat overage table.
+- `mark_tenant_seat_review(p_team_id uuid, p_note text)` → writes `role_audit_log` entry, stores `reviewed_at` (new column on `teams`: `seat_audit_reviewed_at timestamptz`).
+
+Allowlist guard: each function's SELECT list is reviewed to ensure no renter/message/photo columns leak.
+
+**Schema add (single small migration):**
+- `teams.seat_audit_reviewed_at timestamptz` (nullable). Used by Vehicle Audit "Last reviewed" + Mark reviewed.
+
+**Frontend:**
+- `src/pages/SuperAdminDashboard.tsx` — swap 4-card grid for `<PlatformPulseStrip />`, add two new tabs between Customers and Billing.
+- New: `src/components/super-admin/PlatformPulseStrip.tsx`
+- New: `src/components/super-admin/TenantHealthTab.tsx` (+ `TenantDetailDrawer.tsx`)
+- New: `src/components/super-admin/VehicleAuditTab.tsx`
+- Reuse existing shadcn primitives. No new deps.
 
 ## Files touched
-- `src/components/fleet/FleetFilters.tsx` — rewrite layout, add new sections, fix scroll, add mobile Sheet variant.
-- `src/components/fleet/FleetPageEnhanced.tsx` — extend `FleetFiltersState` defaults, compute facets, apply new filter predicates.
+- `supabase/migrations/<new>.sql` — 5 RPCs + `seat_audit_reviewed_at` column.
+- `src/pages/SuperAdminDashboard.tsx`
+- 4 new components under `src/components/super-admin/`
