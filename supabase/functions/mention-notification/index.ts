@@ -30,7 +30,42 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    const { mentionedUserIds, senderId, senderName, messageContent, conversationId, messageId }: MentionNotificationRequest = await req.json();
+    // Require authenticated user
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(
+      authHeader.slice(7)
+    );
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const body: MentionNotificationRequest = await req.json();
+    const { mentionedUserIds, senderName, messageContent, conversationId, messageId } = body;
+    // Derive senderId from the verified JWT — never trust the request body
+    const senderId = user.id;
+
+    // Verify the sender is a member of the target conversation
+    const { data: membership } = await supabaseAdmin
+      .from("conversation_members")
+      .select("user_id")
+      .eq("conversation_id", conversationId)
+      .eq("user_id", senderId)
+      .maybeSingle();
+    if (!membership) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     console.log("Processing mention notifications for users:", mentionedUserIds);
 
