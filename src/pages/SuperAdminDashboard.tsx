@@ -234,8 +234,16 @@ export const SuperAdminDashboard = () => {
 
 
         {/* Main Content Tabs */}
-        <Tabs defaultValue="customers" className="space-y-4">
-          <TabsList>
+        <Tabs defaultValue="tenants" className="space-y-4">
+          <TabsList className="flex-wrap h-auto">
+            <TabsTrigger value="tenants">
+              <Activity className="h-4 w-4 mr-2" />
+              Tenant Health
+            </TabsTrigger>
+            <TabsTrigger value="vehicle-audit">
+              <Car className="h-4 w-4 mr-2" />
+              Vehicle Audit
+            </TabsTrigger>
             <TabsTrigger value="customers">
               <Users className="h-4 w-4 mr-2" />
               Customers
@@ -254,6 +262,14 @@ export const SuperAdminDashboard = () => {
             </TabsTrigger>
           </TabsList>
 
+          <TabsContent value="tenants" className="space-y-4">
+            <TenantHealthTab />
+          </TabsContent>
+
+          <TabsContent value="vehicle-audit" className="space-y-4">
+            <VehicleAuditTab />
+          </TabsContent>
+
           <TabsContent value="billing" className="space-y-4">
             <SuperAdminBillingTab />
           </TabsContent>
@@ -261,6 +277,7 @@ export const SuperAdminDashboard = () => {
           <TabsContent value="maintenance" className="space-y-4">
             <MaintenanceModeSection />
           </TabsContent>
+
 
 
 
