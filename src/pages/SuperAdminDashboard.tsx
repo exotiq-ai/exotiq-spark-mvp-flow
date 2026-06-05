@@ -119,29 +119,6 @@ export const SuperAdminDashboard = () => {
     fetchCustomers();
   }, [toast]);
 
-  // Fetch system stats
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const { data, error } = await (supabase as any).rpc('get_super_admin_stats');
-        if (error) throw error;
-        const row = Array.isArray(data) ? data[0] : data;
-
-        setStats({
-          totalCustomers: Number(row?.total_customers || 0),
-          newThisWeek: Number(row?.new_this_week || 0),
-          totalVehicles: Number(row?.total_vehicles || 0),
-          totalBookings: Number(row?.total_bookings || 0)
-        });
-      } catch (error) {
-        console.error('[SuperAdmin] Error fetching stats:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchStats();
-  }, []);
 
   // Fetch recent audit logs from role_audit_log table
   useEffect(() => {
