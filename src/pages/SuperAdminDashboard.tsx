@@ -14,20 +14,22 @@
 import { useState, useEffect } from 'react';
 import { SuperAdminBillingTab } from '@/components/super-admin/SuperAdminBillingTab';
 import { MaintenanceModeSection } from '@/components/super-admin/MaintenanceModeSection';
+import { PlatformPulseStrip } from '@/components/super-admin/PlatformPulseStrip';
+import { TenantHealthTab } from '@/components/super-admin/TenantHealthTab';
+import { VehicleAuditTab } from '@/components/super-admin/VehicleAuditTab';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   Shield,
   Users,
   Search,
-  Activity,
   Database,
-  FileText,
-  TrendingUp,
   AlertCircle,
   ArrowLeft,
   CreditCard,
-  Wrench
+  Wrench,
+  Activity,
+  Car,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
