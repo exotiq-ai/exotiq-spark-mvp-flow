@@ -47,12 +47,6 @@ interface Customer {
   role?: string;
 }
 
-interface SystemStats {
-  totalCustomers: number;
-  newThisWeek: number;
-  totalVehicles: number;
-  totalBookings: number;
-}
 
 interface AuditLogEntry {
   id: string;
