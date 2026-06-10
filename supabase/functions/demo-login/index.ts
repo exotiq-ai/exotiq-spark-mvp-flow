@@ -70,9 +70,23 @@ serve(async (req) => {
       );
     }
 
-    // Get demo credentials from environment
+    // Get demo credentials from environment.
+    // SECURITY: no hardcoded password fallback — if DEMO_PASSWORD is not
+    // configured the endpoint fails closed rather than minting a real session
+    // for hello@exotiq.ai with a guessable password.
     const DEMO_EMAIL = 'hello@exotiq.ai';
-    const DEMO_PASSWORD = Deno.env.get('DEMO_PASSWORD') || 'demo123456';
+    const DEMO_PASSWORD = Deno.env.get('DEMO_PASSWORD');
+
+    if (!DEMO_PASSWORD) {
+      console.error('🚨 DEMO_PASSWORD is not configured; refusing demo login');
+      return new Response(
+        JSON.stringify({ error: 'Demo mode is not configured' }),
+        {
+          status: 503,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;

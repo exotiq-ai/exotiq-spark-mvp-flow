@@ -22,7 +22,30 @@ serve(async (req) => {
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // SECURITY: require a verified caller and enforce ownership. Without this,
+    // any unauthenticated caller could supply an arbitrary conversationId and
+    // have the full transcript emailed to an address they choose (IDOR + exfil).
+    // The frontend's supabase.functions.invoke() attaches the user's JWT.
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Authentication required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    const token = authHeader.replace('Bearer ', '');
+    const authClient = createClient(supabaseUrl, supabaseAnonKey, { auth: { persistSession: false } });
+    const { data: userData, error: userError } = await authClient.auth.getUser(token);
+    const callerId = userData?.user?.id;
+    if (userError || !callerId) {
+      return new Response(
+        JSON.stringify({ error: 'Authentication required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Get conversation details
     const { data: conversation, error: convError } = await supabase
@@ -32,6 +55,14 @@ serve(async (req) => {
       .single();
 
     if (convError) throw convError;
+
+    // Ownership check: the caller must own the conversation being exported.
+    if (conversation.user_id !== callerId) {
+      return new Response(
+        JSON.stringify({ error: 'Not found' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Format messages for email
     const messages = (conversation.rari_messages || [])
