@@ -19,6 +19,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Celebration } from '@/components/common/MicroInteractions';
 import { motion } from 'framer-motion';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Logo } from '@/components/ui/logo';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { Link } from 'react-router-dom';
 
 const Welcome = () => {
   const [searchParams] = useSearchParams();
