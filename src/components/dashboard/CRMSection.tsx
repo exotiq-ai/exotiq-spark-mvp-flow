@@ -30,7 +30,6 @@ import { AddCustomerDialog } from "@/components/dialogs/AddCustomerDialog";
 import { NewBookingDialog } from "@/components/dialogs/NewBookingDialog";
 import { Database } from "@/integrations/supabase/types";
 import { formatDistanceToNow } from "date-fns";
-import * as XLSX from "xlsx";
 
 type Customer = Database['public']['Tables']['customers']['Row'];
 
@@ -130,7 +129,8 @@ export const CRMSection = () => {
     return map;
   }, [bookings]);
 
-  const handleExport = useCallback(() => {
+  const handleExport = useCallback(async () => {
+    const XLSX = await import("xlsx");
     const data = filteredCustomers.map(c => ({
       Name: c.full_name,
       Email: c.email,

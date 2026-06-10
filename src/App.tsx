@@ -1,4 +1,5 @@
 
+import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -14,21 +15,26 @@ import { FleetProvider } from "@/contexts/FleetContext";
 import { TeamProvider } from "@/contexts/TeamContext";
 import { ProtectedRoute } from "@/components/common/ProtectedRoute";
 import { SuperAdminGuard } from "@/components/guards/SuperAdminGuard";
-import Index from "./pages/Index";
-import Dashboard from "./pages/Dashboard";
-import { SuperAdminDashboard } from "./pages/SuperAdminDashboard";
-import Auth from "./pages/Auth";
-import Onboarding from "./pages/Onboarding";
-import TeamMemberOnboarding from "./pages/TeamMemberOnboarding";
-import Welcome from "./pages/Welcome";
-import SignOut from "./pages/SignOut";
-import Reset from "./pages/Reset";
-import NotFound from "./pages/NotFound";
-import Terms from "./pages/legal/Terms";
-import Privacy from "./pages/legal/Privacy";
-import AcceptableUse from "./pages/legal/AcceptableUse";
-import DataProcessing from "./pages/legal/DataProcessing";
+import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { MaintenanceOverlay } from "./components/common/MaintenanceOverlay";
+
+// Lazy-loaded page routes
+const Index = lazy(() => import("./pages/Index"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const SuperAdminDashboard = lazy(() =>
+  import("./pages/SuperAdminDashboard").then((m) => ({ default: m.SuperAdminDashboard }))
+);
+const Auth = lazy(() => import("./pages/Auth"));
+const Onboarding = lazy(() => import("./pages/Onboarding"));
+const TeamMemberOnboarding = lazy(() => import("./pages/TeamMemberOnboarding"));
+const Welcome = lazy(() => import("./pages/Welcome"));
+const SignOut = lazy(() => import("./pages/SignOut"));
+const Reset = lazy(() => import("./pages/Reset"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const Terms = lazy(() => import("./pages/legal/Terms"));
+const Privacy = lazy(() => import("./pages/legal/Privacy"));
+const AcceptableUse = lazy(() => import("./pages/legal/AcceptableUse"));
+const DataProcessing = lazy(() => import("./pages/legal/DataProcessing"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -57,47 +63,49 @@ const ProvidersWrapper = () => {
 
 const AppWithRouter = () => {
   return (
-    <Routes>
-      {/* Nuclear reset & signout routes - OUTSIDE all providers to prevent interference */}
-      <Route path="/reset" element={<Reset />} />
-      <Route path="/signout" element={<SignOut />} />
-      
-      {/* All other routes use layout route pattern with ProvidersWrapper */}
-      <Route element={<ProvidersWrapper />}>
-        <Route path="/" element={<Index />} />
-        <Route path="/auth" element={<Auth />} />
-        <Route path="/onboarding" element={
-          <ProtectedRoute>
-            <Onboarding />
-          </ProtectedRoute>
-        } />
-        <Route path="/team-onboarding" element={
-          <ProtectedRoute>
-            <TeamMemberOnboarding />
-          </ProtectedRoute>
-        } />
-        <Route path="/dashboard/*" element={
-          <ProtectedRoute>
-            <Dashboard />
-          </ProtectedRoute>
-        } />
-        <Route path="/super-admin" element={
-          <SuperAdminGuard>
-            <SuperAdminDashboard />
-          </SuperAdminGuard>
-        } />
-        {/* Demo pages temporarily disabled - demo login uses /dashboard */}
-        <Route path="/demo-landing" element={<Navigate to="/auth" replace />} />
-        <Route path="/demo" element={<Navigate to="/auth" replace />} />
-        <Route path="/terms" element={<Terms />} />
-        <Route path="/privacy" element={<Privacy />} />
-        <Route path="/acceptable-use" element={<AcceptableUse />} />
-        <Route path="/data-processing" element={<DataProcessing />} />
-        <Route path="/welcome" element={<Welcome />} />
-        {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-        <Route path="*" element={<NotFound />} />
-      </Route>
-    </Routes>
+    <Suspense fallback={<LoadingSpinner fullScreen />}>
+      <Routes>
+        {/* Nuclear reset & signout routes - OUTSIDE all providers to prevent interference */}
+        <Route path="/reset" element={<Reset />} />
+        <Route path="/signout" element={<SignOut />} />
+
+        {/* All other routes use layout route pattern with ProvidersWrapper */}
+        <Route element={<ProvidersWrapper />}>
+          <Route path="/" element={<Index />} />
+          <Route path="/auth" element={<Auth />} />
+          <Route path="/onboarding" element={
+            <ProtectedRoute>
+              <Onboarding />
+            </ProtectedRoute>
+          } />
+          <Route path="/team-onboarding" element={
+            <ProtectedRoute>
+              <TeamMemberOnboarding />
+            </ProtectedRoute>
+          } />
+          <Route path="/dashboard/*" element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          } />
+          <Route path="/super-admin" element={
+            <SuperAdminGuard>
+              <SuperAdminDashboard />
+            </SuperAdminGuard>
+          } />
+          {/* Demo pages temporarily disabled - demo login uses /dashboard */}
+          <Route path="/demo-landing" element={<Navigate to="/auth" replace />} />
+          <Route path="/demo" element={<Navigate to="/auth" replace />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/acceptable-use" element={<AcceptableUse />} />
+          <Route path="/data-processing" element={<DataProcessing />} />
+          <Route path="/welcome" element={<Welcome />} />
+          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          <Route path="*" element={<NotFound />} />
+        </Route>
+      </Routes>
+    </Suspense>
   );
 };
 

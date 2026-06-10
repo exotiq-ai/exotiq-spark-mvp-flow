@@ -76,4 +76,30 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          // React core — kept together for a single tight vendor chunk
+          if (
+            id.includes('node_modules/react/') ||
+            id.includes('node_modules/react-dom/') ||
+            id.includes('node_modules/react-router-dom/') ||
+            id.includes('node_modules/react-router/')
+          ) {
+            return 'react-vendor';
+          }
+          // Recharts charting library
+          if (id.includes('node_modules/recharts/')) {
+            return 'charts';
+          }
+          // Radix UI primitives
+          if (id.includes('node_modules/@radix-ui/')) {
+            return 'ui-vendor';
+          }
+          // xlsx and framer-motion fall into their own lazy chunks naturally
+        },
+      },
+    },
+  },
 }));
