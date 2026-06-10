@@ -380,6 +380,8 @@ export const DashboardSidebarEnhanced = ({
           variant="ghost"
           size="sm"
           onClick={() => setCollapsed(!collapsed)}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           className={cn(
             "w-full flex items-center justify-center hover:bg-sidebar-accent",
             collapsed ? "px-2" : "px-3"

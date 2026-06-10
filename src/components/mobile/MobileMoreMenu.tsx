@@ -152,7 +152,7 @@ export const MobileMoreMenu = ({ onAddLocation, activeModule: activeModuleProp, 
                   <item.icon className="h-5 w-5" />
                 </div>
                 <div className="text-left">
-                  <p className="font-medium text-sm">{item.label}</p>
+                  <p className={cn("font-medium text-sm", activeModule === item.id && "text-primary")}>{item.label}</p>
                   <p className="text-xs text-muted-foreground">{item.description}</p>
                 </div>
               </div>

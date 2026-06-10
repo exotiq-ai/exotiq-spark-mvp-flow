@@ -21,6 +21,7 @@ import { AddLocationDialog } from "@/components/dialogs/AddLocationDialog";
 import { useTeamMessaging } from "@/hooks/useTeamMessaging";
 import { useTeam } from "@/contexts/TeamContext";
 import { Separator } from "@/components/ui/separator";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface DashboardHeaderProps {
   onOpenChat?: () => void;
@@ -77,20 +78,27 @@ export const DashboardHeader = ({ onOpenChat, onOpenRari }: DashboardHeaderProps
           <UnifiedNotificationCenter />
           
           {/* Team Chat Button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="relative"
-            onClick={onOpenChat}
-            aria-label={totalUnread > 0 ? `Team messages, ${totalUnread} unread` : 'Team messages'}
-          >
-            <MessageSquare className="h-5 w-5" />
-            {totalUnread > 0 && (
-              <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-[10px] font-bold min-w-[16px] h-4 rounded-full flex items-center justify-center px-1">
-                {totalUnread > 99 ? '99+' : totalUnread}
-              </span>
-            )}
-          </Button>
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="relative"
+                  onClick={onOpenChat}
+                  aria-label={totalUnread > 0 ? `Team messages, ${totalUnread} unread` : 'Team messages'}
+                >
+                  <MessageSquare className="h-5 w-5" />
+                  {totalUnread > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-[10px] font-bold min-w-[16px] h-4 rounded-full flex items-center justify-center px-1">
+                      {totalUnread > 99 ? '99+' : totalUnread}
+                    </span>
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Team Messages{totalUnread > 0 ? ` (${totalUnread > 99 ? '99+' : totalUnread})` : ''}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
           
           <ThemeToggle />
           

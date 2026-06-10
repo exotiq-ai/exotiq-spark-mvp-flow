@@ -490,6 +490,19 @@ export default function Auth() {
                   <span className="font-medium">{invitation.inviterName}</span> invited you as a <span className="font-medium capitalize">{invitation.role}</span>
                 </p>
               </>
+            ) : authMode === 'reset' ? (
+              <>
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm mb-3">
+                  <KeyRound className="w-4 h-4" />
+                  Reset Password
+                </div>
+                <h1 className="text-2xl sm:text-3xl font-bold mb-2">
+                  Forgot your password?
+                </h1>
+                <p className="text-sm sm:text-base text-muted-foreground">
+                  Enter your email and we'll send you a reset link
+                </p>
+              </>
             ) : (
               // Default header
               <>
@@ -504,14 +517,14 @@ export default function Auth() {
           </div>
 
           {/* Contact for Demo Button - Only show if not an invitation */}
-          {!invitation && (
+          {!invitation && authMode !== 'reset' && (
             <>
               <Button 
                 asChild
                 className="w-full mb-6 btn-premium bg-gradient-to-r from-accent to-primary hover:opacity-90 transition-opacity"
                 size="lg"
               >
-                <a href="mailto:Hello@exotiq.com?subject=Exotiq Demo Request">
+                <a href="mailto:hello@exotiq.com?subject=Exotiq Demo Request">
                   <Mail className="w-5 h-5 mr-2" />
                   Contact for Demo
                 </a>
@@ -634,7 +647,7 @@ export default function Auth() {
                 )}
               </Button>
             </form>
-          ) : (
+          ) : authMode === 'reset' ? null : (
             // Standard auth tabs
             <Tabs defaultValue="signin" className="w-full" onValueChange={(value) => setAuthMode(value as AuthMode)}>
               <TabsList className="grid w-full grid-cols-3 mb-4">
@@ -913,11 +926,6 @@ export default function Auth() {
           )}
         </Card>
 
-        {!invitation && (
-          <p className="text-center text-xs text-muted-foreground mt-4">
-            Demo mode includes pre-populated fleet data for testing
-          </p>
-        )}
       </motion.div>
     </div>
   );

@@ -19,6 +19,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Celebration } from '@/components/common/MicroInteractions';
 import { motion } from 'framer-motion';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Logo } from '@/components/ui/logo';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { Link } from 'react-router-dom';
 
 const Welcome = () => {
   const [searchParams] = useSearchParams();
@@ -112,6 +116,15 @@ const Welcome = () => {
         description="Complete your onboarding and schedule your setup session"
         url="/welcome"
       />
+
+      <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="container mx-auto flex h-14 items-center justify-between px-4">
+          <Link to="/dashboard" aria-label="Go to dashboard" className="focus-visible">
+            <Logo size="md" />
+          </Link>
+          <ThemeToggle />
+        </div>
+      </header>
 
       <div className="container mx-auto py-12 px-4 max-w-4xl">
         {/* Celebration confetti */}
@@ -296,8 +309,15 @@ const Welcome = () => {
                     data-url="https://calendly.com/hello-exotiq/30min?hide_gdpr_banner=1"
                   />
                 ) : (
-                  <div className="flex items-center justify-center h-[500px]">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  <div className="h-[500px] p-4 space-y-4" aria-busy="true" aria-label="Loading scheduler">
+                    <Skeleton className="h-6 w-1/2" />
+                    <Skeleton className="h-4 w-2/3" />
+                    <div className="grid grid-cols-7 gap-2 mt-4">
+                      {Array.from({ length: 28 }).map((_, i) => (
+                        <Skeleton key={i} className="h-10 w-full" />
+                      ))}
+                    </div>
+                    <Skeleton className="h-10 w-1/3 mt-4" />
                   </div>
                 )}
               </div>
