@@ -1,5 +1,3 @@
-import { format } from "date-fns";
-
 interface CalendarEvent {
   title: string;
   description: string;
@@ -13,8 +11,19 @@ interface CalendarEvent {
  * Generate an ICS file content for calendar events
  */
 export const generateICS = (events: CalendarEvent[]): string => {
-  const formatDate = (date: Date) => {
-    return format(date, "yyyyMMdd'T'HHmmss");
+  /** Format a Date as a UTC datetime string with trailing Z (e.g. 20260610T090000Z). */
+  const formatDate = (date: Date): string => {
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return (
+      String(date.getUTCFullYear()) +
+      pad(date.getUTCMonth() + 1) +
+      pad(date.getUTCDate()) +
+      "T" +
+      pad(date.getUTCHours()) +
+      pad(date.getUTCMinutes()) +
+      pad(date.getUTCSeconds()) +
+      "Z"
+    );
   };
 
   const escapeText = (text: string) => {

@@ -71,13 +71,11 @@ describe("pricingUtils edge cases — negative guards", () => {
     expect(r.grandTotal).toBe(70); // 0 + 20 + 50
   });
 
-  it("negative discountAmount is treated as 0 [current behavior: Math.min(negative,subtotal)=negative → but max(0,...)]", () => {
-    // discountAmount = -50: Math.min(-50, 500) = -50, grandTotal = max(0, 500 - (-50)) = 550
-    // This documents current behavior — caller should not pass negative discounts
+  it("negative discountAmount is clamped to 0 — does not inflate the total", () => {
+    // discountAmount = -50: Math.max(0, -50) = 0, grandTotal = 500 - 0 = 500
     const r = calculateBookingTotal({ startDate: TODAY, endDate: TOMORROW, dailyRate: 500, durationType: "daily", discountAmount: -50 });
-    // Current implementation: discount = Math.min(-50, 500) = -50; grandTotal = Math.max(0, 500 - (-50)) = 550
-    expect(r.discountAmount).toBe(-50);
-    expect(r.grandTotal).toBe(550);
+    expect(r.discountAmount).toBe(0);
+    expect(r.grandTotal).toBe(500);
   });
 });
 
