@@ -42,7 +42,9 @@ export const Navigation = ({ onRequestAccess, onTryDemo, scrollToSection, onSche
       <div className="container mx-auto px-4 sm:px-6 py-3 sm:py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center">
-            <Logo size="md" />
+            <Link to="/" aria-label="Exotiq home" className="focus-visible">
+              <Logo size="md" />
+            </Link>
           </div>
           
           {/* Desktop Navigation */}
