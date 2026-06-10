@@ -647,7 +647,7 @@ export default function Auth() {
                 )}
               </Button>
             </form>
-          ) : (
+          ) : authMode === 'reset' ? null : (
             // Standard auth tabs
             <Tabs defaultValue="signin" className="w-full" onValueChange={(value) => setAuthMode(value as AuthMode)}>
               <TabsList className="grid w-full grid-cols-3 mb-4">
