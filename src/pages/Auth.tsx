@@ -926,11 +926,6 @@ export default function Auth() {
           )}
         </Card>
 
-        {!invitation && (
-          <p className="text-center text-xs text-muted-foreground mt-4">
-            Demo mode includes pre-populated fleet data for testing
-          </p>
-        )}
       </motion.div>
     </div>
   );
