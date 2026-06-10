@@ -60,6 +60,31 @@ This project is built with:
 - shadcn-ui
 - Tailwind CSS
 
+## Testing & CI
+
+```sh
+npm test          # run the full Vitest suite once
+npm run test:watch # watch mode
+npm run typecheck  # tsc --noEmit against tsconfig.app.json
+npm run lint       # eslint
+npm run build      # production build
+```
+
+GitHub Actions (`.github/workflows/ci.yml`) runs on every pull request and push
+to `main`: **lint** (currently informational/non-blocking while the inherited
+`no-explicit-any` backlog is paid down), **typecheck**, the **full test suite**,
+and **build**. Typecheck, tests, and build are gating — a PR must keep them green.
+
+The suite is a smoke harness focused on the highest-risk logic: booking-conflict
+detection, fee/payout/platform-fee math, auth-form validation, and routing. It is
+not exhaustive coverage; it is the "tests pass ⇒ the core works" baseline. Tests
+live next to the code (`*.test.ts(x)`, `src/**/__tests__/`) with shared setup in
+`src/test/setup.ts`.
+
+> Note: the app talks to a hosted Supabase project (Lovable-managed). There is no
+> committed local Supabase stack wired into CI, so tests mock the Supabase client
+> rather than hitting a database. RLS/edge-function behavior is not exercised by CI.
+
 ## How can I deploy this project?
 
 Simply open [Lovable](https://lovable.dev/projects/40709742-522b-4267-a142-c1816d02a8a5) and click on Share -> Publish.
