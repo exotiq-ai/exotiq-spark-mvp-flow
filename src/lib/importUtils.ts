@@ -1,5 +1,4 @@
 import Papa from 'papaparse';
-import * as XLSX from 'xlsx';
 import { 
   ImportEntityType, 
   ImportEntitySchema,
@@ -147,9 +146,10 @@ async function parseCSV(file: File): Promise<ParsedFileData> {
 
 // Parse Excel file
 async function parseExcel(file: File): Promise<ParsedFileData> {
+  const XLSX = await import('xlsx');
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    
+
     reader.onload = (e) => {
       try {
         const data = new Uint8Array(e.target?.result as ArrayBuffer);
