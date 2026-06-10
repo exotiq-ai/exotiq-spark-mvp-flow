@@ -306,7 +306,7 @@ export default function Onboarding() {
           title: "Setup Updated",
           description: "Your business information has been saved.",
         });
-        navigate('/dashboard?tab=settings');
+        navigate('/dashboard/settings');
       } else {
         await handleStepChange(3);
       }
@@ -380,7 +380,7 @@ export default function Onboarding() {
     if (step > 1) {
       setStep(step - 1);
     } else if (isEditMode) {
-      navigate('/dashboard?tab=settings');
+      navigate('/dashboard/settings');
     } else {
       navigate('/auth');
     }

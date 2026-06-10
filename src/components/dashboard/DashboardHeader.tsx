@@ -82,6 +82,7 @@ export const DashboardHeader = ({ onOpenChat, onOpenRari }: DashboardHeaderProps
             size="icon"
             className="relative"
             onClick={onOpenChat}
+            aria-label={totalUnread > 0 ? `Team messages, ${totalUnread} unread` : 'Team messages'}
           >
             <MessageSquare className="h-5 w-5" />
             {totalUnread > 0 && (

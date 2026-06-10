@@ -5,7 +5,7 @@ export const SkipNavigation: React.FC = () => {
     <a
       href="#main-content"
       className="skip-nav"
-      tabIndex={1}
+      tabIndex={0}
     >
       Skip to main content
     </a>

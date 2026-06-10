@@ -18,7 +18,9 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
   title,
   description = APP_CONFIG.description,
   keywords = [],
-  image = '/og-image.jpg',
+  // FD-10: /og-image.jpg does not exist in public/. Defaulting to the external social image
+  // already declared in index.html. A proper 1200×630 og-image.jpg needs a design/Lovable handoff.
+  image = 'https://storage.googleapis.com/gpt-engineer-file-uploads/v7VNKr4nPzWrw1UkoJhuK24gaky2/social-images/social-1768627311442-EQ-exotiq-white-lockup-white.svg',
   url,
   type = 'website',
   noIndex = false,

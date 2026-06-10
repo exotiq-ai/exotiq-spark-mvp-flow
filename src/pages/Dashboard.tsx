@@ -451,6 +451,7 @@ const DashboardInner = () => {
                 variant="ghost" 
                 size="sm" 
                 className="touch-target relative"
+                aria-label={totalUnread > 0 ? `Team messages, ${totalUnread} unread` : 'Team messages'}
                 onClick={() => {
                   setChatOpen(true);
                   setChatMinimized(false);

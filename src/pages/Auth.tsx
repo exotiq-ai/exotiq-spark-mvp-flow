@@ -192,6 +192,11 @@ export default function Auth() {
       return;
     }
 
+    if (authMode === 'signup' && password !== confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -593,8 +598,25 @@ export default function Auth() {
                 <PasswordStrengthMeter password={password} />
               </div>
 
-              <Button 
-                type="submit" 
+              <div className="space-y-2">
+                <Label htmlFor="invite-confirm-password">Confirm Password</Label>
+                <Input
+                  id="invite-confirm-password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={confirmPassword}
+                  onChange={(e) => {
+                    setConfirmPassword(e.target.value);
+                    setError(null);
+                  }}
+                  required
+                  minLength={6}
+                  aria-required="true"
+                />
+              </div>
+
+              <Button
+                type="submit"
                 className="w-full btn-premium"
                 disabled={loading}
                 size="lg"
@@ -791,8 +813,26 @@ export default function Auth() {
                     <PasswordStrengthMeter password={password} />
                   </div>
 
-                  <Button 
-                    type="submit" 
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-confirm-password">Confirm Password</Label>
+                    <Input
+                      id="signup-confirm-password"
+                      type="password"
+                      placeholder="••••••••"
+                      value={confirmPassword}
+                      onChange={(e) => {
+                        setConfirmPassword(e.target.value);
+                        setError(null);
+                        setSuccess(null);
+                      }}
+                      required
+                      minLength={6}
+                      aria-required="true"
+                    />
+                  </div>
+
+                  <Button
+                    type="submit"
                     className="w-full btn-premium"
                     disabled={loading}
                   >
