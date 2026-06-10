@@ -43,11 +43,11 @@ serve(async (req) => {
   }
 
   try {
-    const { vehicleId, make, model, year, color, userId, teamId } = await req.json() as GenerateHeroRequest;
-    
-    if (!vehicleId || !make || !model || !userId) {
+    const { vehicleId, make, model, year, color, teamId } = await req.json() as GenerateHeroRequest;
+
+    if (!vehicleId || !make || !model) {
       return new Response(
-        JSON.stringify({ success: false, error: "vehicleId, make, model, and userId are required" }),
+        JSON.stringify({ success: false, error: "vehicleId, make, and model are required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -55,7 +55,8 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    
+    const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
+
     if (!LOVABLE_API_KEY) {
       console.error("LOVABLE_API_KEY is not configured");
       return new Response(
@@ -64,11 +65,34 @@ serve(async (req) => {
       );
     }
 
-    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !SUPABASE_ANON_KEY) {
       console.error("Supabase configuration missing");
       return new Response(
         JSON.stringify({ success: false, error: "Storage service not configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // SECURITY: require a verified caller. This endpoint performs paid AI image
+    // generation and service-role storage writes, so the user identity must come
+    // from a validated JWT — never from the request body (which an attacker
+    // controls). The frontend's supabase.functions.invoke() attaches the user's
+    // access token automatically.
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Authentication required" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const token = authHeader.replace("Bearer ", "");
+    const authClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: false } });
+    const { data: userData, error: userError } = await authClient.auth.getUser(token);
+    const userId = userData?.user?.id;
+    if (userError || !userId) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Authentication required" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
