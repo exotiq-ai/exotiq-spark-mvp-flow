@@ -1,31 +1,30 @@
 # AUDIT CHECKPOINT
 
-Session: 2026-06-10 • Orchestrator: Claude (Fable 5) • Spec: AUDIT-GOAL (provided via /goal command; no AUDIT-GOAL.md exists in repo)
+Session 2026-06-10 • Orchestrator: Claude (Fable 5)
 
-## Current phase: Phase 4 (implementation) — PR #1 open (#11); starting audit/security
+## Current phase: Phase 4 (implementation), category-by-category
 
-## Phase 0 — Recon and boot: COMPLETE
-- App: Lovable-generated Vite + React 18 + TS + shadcn + Supabase SPA ("Exotiq" — operator-side exotic/rental fleet management SaaS; dashboard-centric with module navigation, Stripe billing + payment holds, ElevenLabs voice agent "Rari", margin module, messaging).
-- Scale: 521 TS/TSX files (~115k LOC), 120 migrations, 56 edge functions, ~140 plan/spec markdown files at repo root.
-- Baseline (main): vitest 64/64 pass (8 files) • tsc clean • eslint 848 problems (737 errors / 111 warnings) • build OK but main chunk 2.65 MB (766 KB gzip).
-- Dev server boots (needs `--host 127.0.0.1`; config binds `::` which this container lacks) and serves /, /auth, /vehicles → 200.
+## Done
+- Phase 0 boot/recon: app runs locally (vite --host 127.0.0.1); NO local DB possible (network policy blocks Supabase/Postgres image CDN + Docker Hub) -> edge-fn/RLS findings static-only. Baseline main: 64 tests, tsc clean, eslint 848 problems, main bundle 2.65MB.
+- Phase 1 harness+CI: audit/test-harness -> PR #11, CI GREEN. 64->175 tests. CI = lint(informational)+typecheck+test+build.
+- Phase 2 parallel analysis: all reports in /audit/ committed on audit/report.
+- Phase 3 TRIAGE.md committed.
+- Phase 4 security: audit/security -> PR #12, CI GREEN. 3 contained edge-fn auth fixes. 2 criticals FLAGGED (server-to-server contract).
+- Report deliverables drafted on audit/report: FLAGGED.md, LOVABLE-PROMPTS.md.
 
-### Environment constraints (binding for all findings)
-- **No local database possible.** Network policy blocks public.ecr.aws CDN (403) and Docker Hub (rate limit). `supabase start` infeasible. Docker daemon itself runs fine.
-- Hosted Supabase (jlgwbbqydjeokypoenoc.supabase.co) = PRODUCTION (Lovable MCP). Never connected to; never will be.
-- Consequence: all RLS/schema findings are **static analysis** of `supabase/migrations/` + `src/integrations/supabase/types.ts`, confidence stated per finding. Schema marked UNVERIFIED vs hosted (drift possible since Lovable applies changes via MCP).
-- Stripe: test mode only; no keys present in repo beyond Supabase anon key in `.env` (anon key is public by design; still listed in security review).
+## In flight
+- Phase 4 bugs: branch audit/bugs (off harness). Implementer running: BUG-1 double-booking submit guard + hasBlockingOverlap helper+tests, BUG-7 negative-discount clamp, BUG-4 ICS UTC timezone.
 
-## Phase 1 — Test harness + CI: IN FLIGHT (branch `audit/test-harness-ci`)
-- Plan: add `test`/`typecheck` scripts, GitHub Actions CI (lint informational until code-quality category lands; typecheck+tests+build gating), smoke harness for fee/payout math, booking conflict logic, auth page render, routing. PR #1.
+## Stacking model
+Category branches off audit/test-harness so they carry CI+harness; PRs target main, stacked on #11. Merge #11 first -> category diffs go clean.
 
-## Phase 2 — Parallel analysis: DISPATCHED (read-only, outputs to /audit/)
-- A architect-reviewer → security.md + observability.md
-- B architect-reviewer → bugs.md + performance.md + refactors.md + features.md
-- C architect-reviewer → plan-stress-tests.md
-- D sweeper → code-quality.md + dependencies.md
-- E ui-reviewer → uiux.md
+## Next actions (priority order)
+1. Review bugs diff, verify suite, commit, PR.
+2. audit/performance (route code-splitting, xlsx dynamic import, manualChunks).
+3. audit/uiux (Lane 1: dead /features route, stub logo, navigate target, aria-labels, confirm-password, tabIndex, meta).
+4. audit/dependencies (npm audit fix patch/minor, test libs->devDeps, react-is).
+5. audit/code-quality (eslint --fix auto-fixables).
+6. Phase 5 stress (limited: no DB; double-booking race FLAGGED F-BUG-1-DB).
+7. Phase 6 IMPROVEMENTS.md + README.
 
-## Completed: Phase 0
-## In-flight branch: audit/test-harness-ci
-## Next action: review implementer harness output, open PR #1, then triage (Phase 3)
+## Open PRs: #11 (harness+CI green), #12 (security green)
