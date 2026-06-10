@@ -490,6 +490,19 @@ export default function Auth() {
                   <span className="font-medium">{invitation.inviterName}</span> invited you as a <span className="font-medium capitalize">{invitation.role}</span>
                 </p>
               </>
+            ) : authMode === 'reset' ? (
+              <>
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm mb-3">
+                  <KeyRound className="w-4 h-4" />
+                  Reset Password
+                </div>
+                <h1 className="text-2xl sm:text-3xl font-bold mb-2">
+                  Forgot your password?
+                </h1>
+                <p className="text-sm sm:text-base text-muted-foreground">
+                  Enter your email and we'll send you a reset link
+                </p>
+              </>
             ) : (
               // Default header
               <>
