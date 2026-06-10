@@ -483,7 +483,14 @@ export default function Onboarding() {
         <Card className="card-premium p-6 sm:p-8">
           {/* Progress Bar */}
           <div className="mb-8">
-            <div className="flex justify-between mb-4">
+            <div
+              className="flex justify-between mb-4"
+              role="progressbar"
+              aria-valuenow={step}
+              aria-valuemin={1}
+              aria-valuemax={totalSteps}
+              aria-label={`Onboarding progress: step ${step} of ${totalSteps}`}
+            >
               {Array.from({ length: totalSteps }).map((_, i) => (
                 <div
                   key={i}
