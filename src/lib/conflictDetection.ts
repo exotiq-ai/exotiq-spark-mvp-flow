@@ -10,6 +10,27 @@ type Maintenance = Database['public']['Tables']['maintenance_schedules']['Row'];
 export const isBlockingBooking = (status: string | null): boolean =>
   status !== 'cancelled' && status !== 'completed';
 
+/**
+ * Returns true if any blocking booking for the given vehicle overlaps [start, end)
+ * using the half-open predicate: start < bEnd && end > bStart.
+ * Optionally excludes a booking by id (for edit flows).
+ */
+export const hasBlockingOverlap = (
+  vehicleId: string,
+  start: Date,
+  end: Date,
+  bookings: { vehicle_id: string; status: string | null; start_date: string; end_date: string }[],
+  excludeBookingId?: string
+): boolean =>
+  bookings.some((b) => {
+    if (b.vehicle_id !== vehicleId) return false;
+    if (!isBlockingBooking(b.status)) return false;
+    if (excludeBookingId && (b as { id?: string }).id === excludeBookingId) return false;
+    const bStart = new Date(b.start_date);
+    const bEnd = new Date(b.end_date);
+    return start < bEnd && end > bStart;
+  });
+
 export interface Conflict {
   type: 'overlap' | 'buffer' | 'maintenance' | 'availability';
   severity: 'critical' | 'warning' | 'info';

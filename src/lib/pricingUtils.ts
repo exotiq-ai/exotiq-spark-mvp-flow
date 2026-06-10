@@ -69,7 +69,7 @@ export function calculateBookingTotal(params: BookingPricingParams): BookingPric
     rentalSubtotal = params.dailyRate * rentalDays;
   }
 
-  const discountAmount = Math.min(params.discountAmount || 0, rentalSubtotal);
+  const discountAmount = Math.min(Math.max(0, params.discountAmount || 0), rentalSubtotal);
   const gasFee = params.gasFeeWaived ? 0 : (params.gasFee ?? 0);
   const deliveryFee = params.deliveryFee || 0;
   const grandTotal = Math.max(0, rentalSubtotal - discountAmount + gasFee + deliveryFee);

@@ -6,6 +6,7 @@ import { describe, it, expect } from "vitest";
 import {
   checkBookingConflicts,
   isBlockingBooking,
+  hasBlockingOverlap,
 } from "./conflictDetection";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -592,5 +593,102 @@ describe("checkBookingConflicts — suggestions wiring", () => {
     );
     const ov = result.conflicts.find((c) => c.type === "overlap");
     expect(ov?.suggestion).toBeTruthy();
+  });
+});
+
+// ─── hasBlockingOverlap ───────────────────────────────────────────────────────
+
+/** Minimal stub for hasBlockingOverlap — only overlap-relevant fields */
+const mkSimpleBooking = (
+  id: string,
+  vehicle_id: string,
+  start_date: string,
+  end_date: string,
+  status: string | null = "confirmed"
+) => ({ id, vehicle_id, start_date, end_date, status });
+
+describe("hasBlockingOverlap", () => {
+  it("returns false with no bookings", () => {
+    expect(
+      hasBlockingOverlap(VEHICLE, new Date("2026-06-10T08:00:00Z"), new Date("2026-06-12T08:00:00Z"), [])
+    ).toBe(false);
+  });
+
+  it("returns true when new range overlaps a confirmed booking", () => {
+    const b = mkSimpleBooking("b1", VEHICLE, "2026-06-10T08:00:00Z", "2026-06-12T08:00:00Z");
+    expect(
+      hasBlockingOverlap(VEHICLE, new Date("2026-06-11T08:00:00Z"), new Date("2026-06-13T08:00:00Z"), [b])
+    ).toBe(true);
+  });
+
+  it("returns false when ranges are adjacent — start === bEnd (half-open, no overlap)", () => {
+    const b = mkSimpleBooking("b1", VEHICLE, "2026-06-10T08:00:00Z", "2026-06-12T08:00:00Z");
+    // new start equals existing end — half-open means no overlap
+    expect(
+      hasBlockingOverlap(VEHICLE, new Date("2026-06-12T08:00:00Z"), new Date("2026-06-14T08:00:00Z"), [b])
+    ).toBe(false);
+  });
+
+  it("returns false when ranges are adjacent — end === bStart (half-open, no overlap)", () => {
+    const b = mkSimpleBooking("b1", VEHICLE, "2026-06-14T08:00:00Z", "2026-06-16T08:00:00Z");
+    // new end equals existing start — half-open means no overlap
+    expect(
+      hasBlockingOverlap(VEHICLE, new Date("2026-06-12T08:00:00Z"), new Date("2026-06-14T08:00:00Z"), [b])
+    ).toBe(false);
+  });
+
+  it("returns true when new range contains (engulfs) existing booking", () => {
+    const b = mkSimpleBooking("b1", VEHICLE, "2026-06-11T08:00:00Z", "2026-06-12T08:00:00Z");
+    expect(
+      hasBlockingOverlap(VEHICLE, new Date("2026-06-10T08:00:00Z"), new Date("2026-06-13T08:00:00Z"), [b])
+    ).toBe(true);
+  });
+
+  it("returns false for a cancelled booking that overlaps", () => {
+    const b = mkSimpleBooking("b1", VEHICLE, "2026-06-10T08:00:00Z", "2026-06-12T08:00:00Z", "cancelled");
+    expect(
+      hasBlockingOverlap(VEHICLE, new Date("2026-06-10T08:00:00Z"), new Date("2026-06-12T08:00:00Z"), [b])
+    ).toBe(false);
+  });
+
+  it("returns false for a completed booking that overlaps", () => {
+    const b = mkSimpleBooking("b1", VEHICLE, "2026-06-10T08:00:00Z", "2026-06-12T08:00:00Z", "completed");
+    expect(
+      hasBlockingOverlap(VEHICLE, new Date("2026-06-10T08:00:00Z"), new Date("2026-06-12T08:00:00Z"), [b])
+    ).toBe(false);
+  });
+
+  it("returns false for a different vehicle even when dates overlap", () => {
+    const b = mkSimpleBooking("b1", OTHER_VEHICLE, "2026-06-10T08:00:00Z", "2026-06-12T08:00:00Z");
+    expect(
+      hasBlockingOverlap(VEHICLE, new Date("2026-06-10T08:00:00Z"), new Date("2026-06-12T08:00:00Z"), [b])
+    ).toBe(false);
+  });
+
+  it("excludeBookingId excludes the self booking (edit flow — no false positive)", () => {
+    const b = mkSimpleBooking("booking-self", VEHICLE, "2026-06-10T08:00:00Z", "2026-06-12T08:00:00Z");
+    expect(
+      hasBlockingOverlap(
+        VEHICLE,
+        new Date("2026-06-10T08:00:00Z"),
+        new Date("2026-06-12T08:00:00Z"),
+        [b],
+        "booking-self"
+      )
+    ).toBe(false);
+  });
+
+  it("excludeBookingId only excludes the matched id — other overlapping bookings still block", () => {
+    const self = mkSimpleBooking("booking-self", VEHICLE, "2026-06-10T08:00:00Z", "2026-06-12T08:00:00Z");
+    const other = mkSimpleBooking("booking-other", VEHICLE, "2026-06-11T00:00:00Z", "2026-06-13T00:00:00Z");
+    expect(
+      hasBlockingOverlap(
+        VEHICLE,
+        new Date("2026-06-10T08:00:00Z"),
+        new Date("2026-06-12T08:00:00Z"),
+        [self, other],
+        "booking-self"
+      )
+    ).toBe(true);
   });
 });

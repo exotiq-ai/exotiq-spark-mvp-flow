@@ -39,7 +39,7 @@ import { useTeam } from '@/contexts/TeamContext';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { calculateBookingTotal, getRateForDuration, getAvailableDurations, getDurationLabel, getGasFeeForTeam, type RentalDurationType } from '@/lib/pricingUtils';
-import { isBlockingBooking } from '@/lib/conflictDetection';
+import { isBlockingBooking, hasBlockingOverlap } from '@/lib/conflictDetection';
 import { useLocationFilteredFleet } from '@/hooks/useLocationFilteredFleet';
 import { Switch } from '@/components/ui/switch';
 import { useTeamGasFeeSettings } from '@/hooks/useTeamGasFeeSettings';
@@ -171,14 +171,7 @@ export const NewBookingDialog = ({
     const end = new Date(endDateTimeStr);
     const availability: Record<string, boolean> = {};
     vehicles.forEach(v => {
-      const hasConflict = allBookings.some(b => {
-        if (b.vehicle_id !== v.id) return false;
-        if (!isBlockingBooking(b.status)) return false;
-        const bStart = new Date(b.start_date);
-        const bEnd = new Date(b.end_date);
-        return start < bEnd && end > bStart;
-      });
-      availability[v.id] = !hasConflict;
+      availability[v.id] = !hasBlockingOverlap(v.id, start, end, allBookings);
     });
     return availability;
   }, [startDate, endDate, vehicles, allBookings]);
@@ -211,6 +204,11 @@ export const NewBookingDialog = ({
     const selectedVehicle = vehicles.find(v => v.id === vehicleId);
     if (!selectedVehicle) {
       setError('Selected vehicle not found');
+      return;
+    }
+
+    if (hasBlockingOverlap(vehicleId, new Date(startDateTimeStr), new Date(endDateTimeStr), allBookings)) {
+      setError('This vehicle is already booked for the selected dates. Choose different dates or another vehicle.');
       return;
     }
 
