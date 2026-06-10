@@ -19,12 +19,17 @@ const NotFound = () => {
       <p className="text-xl text-muted-foreground mb-8">
         The page you're looking for doesn't exist.
       </p>
-      <Button asChild variant="default" size="lg">
-        <Link to="/dashboard">
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Go to Dashboard
-        </Link>
-      </Button>
+      <div className="flex flex-col sm:flex-row gap-3">
+        <Button asChild variant="default" size="lg">
+          <Link to="/">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Home
+          </Link>
+        </Button>
+        <Button asChild variant="outline" size="lg">
+          <Link to="/dashboard">Go to Dashboard</Link>
+        </Button>
+      </div>
     </div>
   );
 };
