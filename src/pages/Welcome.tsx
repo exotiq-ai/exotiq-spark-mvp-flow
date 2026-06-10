@@ -309,8 +309,15 @@ const Welcome = () => {
                     data-url="https://calendly.com/hello-exotiq/30min?hide_gdpr_banner=1"
                   />
                 ) : (
-                  <div className="flex items-center justify-center h-[500px]">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  <div className="h-[500px] p-4 space-y-4" aria-busy="true" aria-label="Loading scheduler">
+                    <Skeleton className="h-6 w-1/2" />
+                    <Skeleton className="h-4 w-2/3" />
+                    <div className="grid grid-cols-7 gap-2 mt-4">
+                      {Array.from({ length: 28 }).map((_, i) => (
+                        <Skeleton key={i} className="h-10 w-full" />
+                      ))}
+                    </div>
+                    <Skeleton className="h-10 w-1/3 mt-4" />
                   </div>
                 )}
               </div>
