@@ -1,6 +1,5 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Sparkles, BarChart3, Calendar, Shield, Users, Brain } from "lucide-react";
-import { Link } from "react-router-dom";
 
 const modules = [
   {
@@ -67,18 +66,18 @@ export const FeaturesSection = () => {
           ))}
         </div>
 
-        {/* CTA to features page */}
+        {/* CTA scrolls back to the #features anchor on the landing page (FD-01: /features is not a route) */}
         <div className="text-center">
-          <Link to="/features">
-            <Button 
-              variant="outline" 
-              size="lg" 
+          <a href="#features">
+            <Button
+              variant="outline"
+              size="lg"
               className="h-12 px-8 rounded-full group hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all"
             >
               Explore All Features
               <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
             </Button>
-          </Link>
+          </a>
         </div>
       </div>
     </section>

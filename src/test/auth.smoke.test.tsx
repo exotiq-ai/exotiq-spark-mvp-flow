@@ -214,6 +214,15 @@ describe("Auth page smoke — sign-up tab", () => {
     });
   });
 
+  it("sign-up tab renders Confirm Password field (FD-11)", async () => {
+    renderAuth();
+    const signUpTab = screen.getByRole("tab", { name: /sign up/i });
+    clickTab(signUpTab);
+    await waitFor(() => {
+      expect(screen.getByLabelText(/confirm password/i)).toBeInTheDocument();
+    });
+  });
+
   it("sign-up submit with empty fields does NOT call supabase signUp", async () => {
     renderAuth();
 
@@ -226,6 +235,59 @@ describe("Auth page smoke — sign-up tab", () => {
 
     await waitFor(() => {
       expect(mockAuthContext.signUp).not.toHaveBeenCalled();
+    });
+  });
+
+  it("sign-up submit with mismatched passwords shows validation error and does NOT call signUp (FD-11)", async () => {
+    renderAuth();
+
+    const signUpTab = screen.getByRole("tab", { name: /sign up/i });
+    clickTab(signUpTab);
+
+    const nameInput = await screen.findByLabelText(/full name/i);
+    const emailInput = document.getElementById("signup-email") as HTMLInputElement;
+    const passwordInput = document.getElementById("signup-password") as HTMLInputElement;
+    const confirmPasswordInput = document.getElementById("signup-confirm-password") as HTMLInputElement;
+
+    fireEvent.change(nameInput, { target: { value: "Jane Doe" } });
+    fireEvent.change(emailInput, { target: { value: "jane@example.com" } });
+    fireEvent.change(passwordInput, { target: { value: "password123" } });
+    fireEvent.change(confirmPasswordInput, { target: { value: "differentpassword" } });
+
+    const form = nameInput.closest("form")!;
+    fireEvent.submit(form);
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toBeInTheDocument();
+    });
+    expect(mockAuthContext.signUp).not.toHaveBeenCalled();
+  });
+
+  it("sign-up submit with matching passwords calls signUp (FD-11)", async () => {
+    renderAuth();
+
+    const signUpTab = screen.getByRole("tab", { name: /sign up/i });
+    clickTab(signUpTab);
+
+    const nameInput = await screen.findByLabelText(/full name/i);
+    const emailInput = document.getElementById("signup-email") as HTMLInputElement;
+    const passwordInput = document.getElementById("signup-password") as HTMLInputElement;
+    const confirmPasswordInput = document.getElementById("signup-confirm-password") as HTMLInputElement;
+
+    fireEvent.change(nameInput, { target: { value: "Jane Doe" } });
+    fireEvent.change(emailInput, { target: { value: "jane@example.com" } });
+    fireEvent.change(passwordInput, { target: { value: "password123" } });
+    fireEvent.change(confirmPasswordInput, { target: { value: "password123" } });
+
+    const form = nameInput.closest("form")!;
+    fireEvent.submit(form);
+
+    await waitFor(() => {
+      expect(mockAuthContext.signUp).toHaveBeenCalledWith(
+        "jane@example.com",
+        "password123",
+        "Jane Doe"
+      );
     });
   });
 });

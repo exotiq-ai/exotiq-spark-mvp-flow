@@ -15,7 +15,9 @@ export default defineConfig(({ mode }) => ({
     mode === 'development' && componentTagger(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'robots.txt', 'exotiq-logo.png'],
+      // favicon.ico removed from includeAssets — file does not exist in public/.
+      // exotiq-logo.png is a text stub; a real PNG needs a design/Lovable handoff (see FD-03 note).
+      includeAssets: ['robots.txt', 'brand/logos/svg/d-emblem-gulf-blue-transparent.svg'],
       manifest: {
         name: 'Exotiq Fleet Management',
         short_name: 'Exotiq',
@@ -25,10 +27,16 @@ export default defineConfig(({ mode }) => ({
         display: 'standalone',
         icons: [
           {
-            src: '/exotiq-logo.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'any maskable'
+            src: '/brand/logos/svg/d-emblem-gulf-blue-transparent.svg',
+            sizes: 'any',
+            type: 'image/svg+xml',
+            purpose: 'any'
+          },
+          {
+            src: '/brand/logos/svg/d-emblem-gulf-blue-transparent.svg',
+            sizes: 'any',
+            type: 'image/svg+xml',
+            purpose: 'maskable'
           }
         ]
       },

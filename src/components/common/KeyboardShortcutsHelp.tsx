@@ -32,9 +32,8 @@ const shortcutGroups: ShortcutGroup[] = [
   {
     title: "Actions",
     shortcuts: [
-      { keys: ["⌘/Ctrl", "N"], description: "New booking" },
-      { keys: ["⌘/Ctrl", "Shift", "V"], description: "Add vehicle" },
-      { keys: ["⌘/Ctrl", "Shift", "C"], description: "Add customer" },
+      // ⌘N / ⌘Shift+V / ⌘Shift+C removed — handlers not implemented in useKeyboardShortcuts.ts
+      { keys: ["⌘/Ctrl", "O"], description: "Toggle Rari AI assistant" },
       { keys: ["Esc"], description: "Close dialog/modal" },
     ]
   },
@@ -42,7 +41,7 @@ const shortcutGroups: ShortcutGroup[] = [
     title: "Help",
     shortcuts: [
       { keys: ["⌘/Ctrl", "/"], description: "Show keyboard shortcuts" },
-      { keys: ["?"], description: "Open help center" },
+      // "?" → Open help center removed — no help center route or handler exists
     ]
   }
 ];
