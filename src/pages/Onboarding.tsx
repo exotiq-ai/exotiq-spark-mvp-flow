@@ -448,7 +448,26 @@ export default function Onboarding() {
   if (initialLoading || (progressLoading && !isEditMode)) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 flex items-center justify-center p-4">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <div className="w-full max-w-2xl">
+          <Card className="card-premium p-6 sm:p-8">
+            <div className="mb-8">
+              <div className="flex justify-between mb-4">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="flex-1 h-2 mx-1 rounded-full" />
+                ))}
+              </div>
+              <Skeleton className="h-4 w-24 mx-auto" />
+            </div>
+            <Skeleton className="h-8 w-2/3 mb-3" />
+            <Skeleton className="h-4 w-1/2 mb-8" />
+            <div className="space-y-4">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-1/3 ml-auto" />
+            </div>
+          </Card>
+        </div>
       </div>
     );
   }
