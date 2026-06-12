@@ -642,7 +642,14 @@ Deno.serve(async (req) => {
 
   console.log(`[MCP Server] ${req.method} ${path}`);
 
-  // Validate authentication (optional)
+  // Mandatory auth gate — fail closed if MCP_SECRET_TOKEN is unset.
+  if (!Deno.env.get('MCP_SECRET_TOKEN')) {
+    console.error('[MCP Server] MCP_SECRET_TOKEN is not configured — refusing all requests');
+    return new Response(JSON.stringify({ error: 'Service not configured' }), {
+      status: 503,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
   if (!validateAuth(req)) {
     console.log('[MCP Server] Unauthorized request');
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
