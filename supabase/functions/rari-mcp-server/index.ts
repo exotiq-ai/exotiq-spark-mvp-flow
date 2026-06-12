@@ -585,69 +585,49 @@ function createJSONRPCError(id: string | number | null, code: number, message: s
 const SUPABASE_PROJECT_ID = 'jlgwbbqydjeokypoenoc';
 const FUNCTION_BASE_URL = `https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/rari-mcp-server`;
 
-// Optional token authentication
+// Mandatory shared-secret gate. Fail closed if env var is unset.
 function validateAuth(req: Request): boolean {
   const expectedToken = Deno.env.get('MCP_SECRET_TOKEN');
-  if (!expectedToken) return true; // No token configured = open access
-  
+  if (!expectedToken) return false;
+
   const authHeader = req.headers.get('authorization');
   if (authHeader === `Bearer ${expectedToken}`) return true;
-  
-  // Also check apikey header as fallback
+
   const apiKey = req.headers.get('apikey');
   if (apiKey === expectedToken) return true;
-  
+
   return false;
 }
 
-// Extract user ID from request context
-async function extractUserId(req: Request, supabase: any): Promise<string> {
-  // Try to get user ID from custom header
-  const userIdHeader = req.headers.get('x-user-id') || req.headers.get('x-elevenlabs-user-id');
-  if (userIdHeader) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('id', userIdHeader)
-      .single();
-    if (profile) {
-      console.log(`[MCP Server] Using user ID from header: ${userIdHeader}`);
-      return userIdHeader;
+// Identity must come from a verified Supabase session JWT carried by the
+// MCP client. No header/query-param spoofing, no "first user" fallback.
+async function extractUserId(req: Request, supabase: any): Promise<string | null> {
+  const sessionHeader = req.headers.get('x-supabase-authorization')
+    || req.headers.get('x-user-jwt');
+  let jwt: string | null = null;
+
+  if (sessionHeader && sessionHeader.startsWith('Bearer ')) {
+    jwt = sessionHeader.slice(7).trim();
+  } else if (sessionHeader) {
+    jwt = sessionHeader.trim();
+  }
+
+  if (!jwt) {
+    console.warn('[MCP Server] No user JWT provided (expected x-supabase-authorization)');
+    return null;
+  }
+
+  try {
+    const { data, error } = await supabase.auth.getUser(jwt);
+    if (error || !data?.user?.id) {
+      console.warn('[MCP Server] User JWT failed verification:', error?.message);
+      return null;
     }
+    return data.user.id as string;
+  } catch (e) {
+    console.warn('[MCP Server] User JWT verification threw:', e);
+    return null;
   }
-
-  // Try to get from query parameter (for testing)
-  const url = new URL(req.url);
-  const userIdParam = url.searchParams.get('userId');
-  if (userIdParam) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('id', userIdParam)
-      .single();
-    if (profile) {
-      console.log(`[MCP Server] Using user ID from query param: ${userIdParam}`);
-      return userIdParam;
-    }
-  }
-
-  // Fallback: Use demo user ID from environment or first user
-  const demoUserId = Deno.env.get('DEMO_USER_ID');
-  if (demoUserId) {
-    console.log(`[MCP Server] Using demo user ID from env: ${demoUserId}`);
-    return demoUserId;
-  }
-
-  // Last resort: Get first user
-  const { data: firstUser } = await supabase
-    .from('profiles')
-    .select('id')
-    .limit(1)
-    .single();
-  
-  const userId = firstUser?.id || 'demo-user-id';
-  console.log(`[MCP Server] Using fallback user ID: ${userId}`);
-  return userId;
 }
 
 // Main server handler
@@ -662,7 +642,14 @@ Deno.serve(async (req) => {
 
   console.log(`[MCP Server] ${req.method} ${path}`);
 
-  // Validate authentication (optional)
+  // Mandatory auth gate — fail closed if MCP_SECRET_TOKEN is unset.
+  if (!Deno.env.get('MCP_SECRET_TOKEN')) {
+    console.error('[MCP Server] MCP_SECRET_TOKEN is not configured — refusing all requests');
+    return new Response(JSON.stringify({ error: 'Service not configured' }), {
+      status: 503,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
   if (!validateAuth(req)) {
     console.log('[MCP Server] Unauthorized request');
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
@@ -836,9 +823,16 @@ Deno.serve(async (req) => {
           const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
           const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-          // Extract user ID
+          // Extract user ID from verified Supabase JWT (mandatory)
           const userId = await extractUserId(req, supabase);
-          
+          if (!userId) {
+            response = createJSONRPCResponse(id, {
+              content: [{ type: "text", text: "Error: Unauthorized — missing or invalid user session." }],
+              isError: true
+            });
+            break;
+          }
+
           // Get team ID for the user
           const teamId = await getUserTeamId(supabase, userId);
           if (!teamId) {
@@ -853,7 +847,7 @@ Deno.serve(async (req) => {
           }
 
           // Execute the tool
-          const result = await executeFunction(toolName, toolArgs || {}, supabase, teamId);
+          const result = await executeFunction(toolName, toolArgs || {}, supabase, teamId, userId);
           console.log('[MCP Server] Tool result:', JSON.stringify(result, null, 2));
 
           const responseText = result.summary 
@@ -967,8 +961,17 @@ Deno.serve(async (req) => {
           const supabase = createClient(supabaseUrl, supabaseServiceKey);
           
           const userId = await extractUserId(req, supabase);
+          if (!userId) {
+            return new Response(JSON.stringify(createJSONRPCResponse(id, {
+              content: [{ type: "text", text: "Error: Unauthorized — missing or invalid user session." }],
+              isError: true
+            })), {
+              status: 401,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
+          }
           const teamId = await getUserTeamId(supabase, userId);
-          
+
           if (!teamId) {
             return new Response(JSON.stringify(createJSONRPCResponse(id, {
               content: [{ type: "text", text: "Error: No team found." }],
@@ -977,8 +980,8 @@ Deno.serve(async (req) => {
               headers: { ...corsHeaders, 'Content-Type': 'application/json' }
             });
           }
-          
-          const result = await executeFunction(toolName, toolArgs || {}, supabase, teamId);
+
+          const result = await executeFunction(toolName, toolArgs || {}, supabase, teamId, userId);
           
           return new Response(JSON.stringify(createJSONRPCResponse(id, {
             content: [{ type: "text", text: result.summary || JSON.stringify(result) }],
@@ -1000,8 +1003,17 @@ Deno.serve(async (req) => {
         const supabase = createClient(supabaseUrl, supabaseServiceKey);
         
         const userId = await extractUserId(req, supabase);
+        if (!userId) {
+          return new Response(JSON.stringify({
+            error: 'Unauthorized',
+            summary: 'Missing or invalid user session.'
+          }), {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
         const teamId = await getUserTeamId(supabase, userId);
-        
+
         if (!teamId) {
           return new Response(JSON.stringify({
             error: 'No team found',
@@ -1010,8 +1022,8 @@ Deno.serve(async (req) => {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           });
         }
-        
-        const result = await executeFunction(tool_name, parameters || {}, supabase, teamId);
+
+        const result = await executeFunction(tool_name, parameters || {}, supabase, teamId, userId);
         
         return new Response(JSON.stringify(result), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -1056,7 +1068,7 @@ Deno.serve(async (req) => {
 // Tool Execution Functions - All using team_id
 // ============================================================
 
-async function executeFunction(functionName: string, args: any, supabase: any, teamId: string) {
+async function executeFunction(functionName: string, args: any, supabase: any, teamId: string, userId: string) {
   console.log(`[TOOL] Executing: ${functionName} | Team: ${teamId}`);
 
   try {
@@ -1543,10 +1555,8 @@ async function executeFunction(functionName: string, args: any, supabase: any, t
 
       case "logFeedback": {
         const { feedbackType, keywords, userQuery, rariResponse, context } = args;
-        // Note: For feedback, we still use a user context, but it's acceptable to skip team context here
-        const { data: firstUser } = await supabase.from('profiles').select('id').limit(1).single();
         await supabase.from('rari_feedback').insert({
-          user_id: firstUser?.id || 'unknown',
+          user_id: userId,
           feedback_type: feedbackType || 'feature_request',
           keywords: keywords ? keywords.split(',').map((k: string) => k.trim()) : [],
           user_query: userQuery,
@@ -1558,14 +1568,12 @@ async function executeFunction(functionName: string, args: any, supabase: any, t
 
       case "featureComingSoon": {
         const { featureName, userRequest } = args;
-        const { data: firstUser } = await supabase.from('profiles').select('id').limit(1).single();
-        await supabase.from('rari_feedback').insert({ user_id: firstUser?.id || 'unknown', feedback_type: 'feature_request', keywords: [featureName], user_query: userRequest, rari_response: `Feature coming soon: ${featureName}`, context: { requested_feature: featureName } });
+        await supabase.from('rari_feedback').insert({ user_id: userId, feedback_type: 'feature_request', keywords: [featureName], user_query: userRequest, rari_response: `Feature coming soon: ${featureName}`, context: { requested_feature: featureName } });
         return { feature: featureName, status: 'coming_soon', summary: `${featureName} is coming soon! I've logged your request.` };
       }
 
       default:
-        const { data: firstUser } = await supabase.from('profiles').select('id').limit(1).single();
-        await supabase.from('rari_feedback').insert({ user_id: firstUser?.id || 'unknown', feedback_type: 'not_working', keywords: [functionName], user_query: JSON.stringify(args), context: { function_name: functionName, args } });
+        await supabase.from('rari_feedback').insert({ user_id: userId, feedback_type: 'not_working', keywords: [functionName], user_query: JSON.stringify(args), context: { function_name: functionName, args } });
         return { error: `Capability not available yet`, summary: `That feature isn't available yet, but I've logged it.` };
     }
   } catch (error) {

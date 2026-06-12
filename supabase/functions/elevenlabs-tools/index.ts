@@ -478,28 +478,43 @@ function formatDateRange(startIso: string, endIso: string): string {
   }
 }
 
-// Default user ID for demo/unauthenticated access - can be overridden via DEMO_USER_ID secret
-const HARDCODED_DEMO_USER_ID = '99d902d4-5878-4b59-a108-142bafb1c862';
-
 serve(async (req) => {
   const requestId = generateRequestId();
-  
+
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Health check endpoint
+  // Health check endpoint (no secret required, no data exposed)
   const url = new URL(req.url);
   if (url.pathname.endsWith('/health') && req.method === 'GET') {
-    const hasToolSecret = !!Deno.env.get('RARI_TOOL_TOKEN_SECRET');
-    const hasDemoUser = !!Deno.env.get('DEMO_USER_ID');
     return new Response(JSON.stringify({
       ok: true,
       requestId,
-      hasToolSecret,
-      hasDemoUser,
+      hasToolSecret: !!Deno.env.get('RARI_TOOL_TOKEN_SECRET'),
+      hasSharedSecret: !!Deno.env.get('ELEVENLABS_TOOL_SECRET'),
       timestamp: new Date().toISOString(),
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  }
+
+  // ============================================================
+  // GATE 1: Shared secret (fail closed)
+  // ============================================================
+  const expectedSecret = Deno.env.get('ELEVENLABS_TOOL_SECRET');
+  if (!expectedSecret) {
+    console.error(`[${requestId}] ELEVENLABS_TOOL_SECRET is not configured — refusing all requests`);
+    return new Response(
+      JSON.stringify({ error: 'Service not configured', requestId }),
+      { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+  const providedSecret = req.headers.get('x-elevenlabs-secret');
+  if (providedSecret !== expectedSecret) {
+    console.warn(`[${requestId}] Rejected: missing or invalid x-elevenlabs-secret header`);
+    return new Response(
+      JSON.stringify({ error: 'Unauthorized', requestId }),
+      { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   }
 
   try {
@@ -522,81 +537,47 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // ============================================================
-    // IDENTITY RESOLUTION (prioritized, non-blocking)
+    // GATE 2: Identity from verified tool token ONLY (fail closed)
     // ============================================================
-    let userId: string | null = null;
-    let teamId: string | null = null;
-    let authMethod = 'none';
-
-    // 1. Try tool token from Authorization header (best - carries userId + teamId)
-    const authHeader = req.headers.get('authorization') || req.headers.get('Authorization');
-    if (authHeader && authHeader.startsWith('Bearer ') && RARI_TOOL_TOKEN_SECRET) {
-      const token = authHeader.slice(7).trim();
-      
-      console.log(`[${requestId}] [Auth] Bearer token received (${token.length} chars, JWT-like: ${looksLikeJwt(token)})`);
-
-      if (looksLikeJwt(token)) {
-        const payload = await verifyToolToken(token, RARI_TOOL_TOKEN_SECRET);
-        if (payload) {
-          userId = payload.userId;
-          teamId = payload.teamId;
-          authMethod = 'tool_token';
-          console.log(`[${requestId}] ✓ Verified tool token: userId=${userId}, teamId=${teamId}`);
-        } else {
-          // IMPORTANT: Do NOT return 401 here - just log and continue to fallbacks
-          // The token might be a Supabase session JWT or something else
-          console.log(`[${requestId}] ⚠ Bearer token did not verify as tool token - trying fallbacks`);
-        }
-      } else {
-        console.log(`[${requestId}] ⚠ Bearer token is not JWT format - trying fallbacks`);
-      }
-    }
-
-    // 2. Fallback: Check conversation metadata (ElevenLabs can send this)
-    if (!userId) {
-      const metaUserId = body.conversation_metadata?.user_id || body.metadata?.user_id;
-      if (metaUserId) {
-        userId = metaUserId;
-        authMethod = 'conversation_metadata';
-        console.log(`[${requestId}] Using user_id from metadata: ${userId}`);
-      }
-    }
-
-    // 3. Fallback: DEMO_USER_ID from environment (must be valid UUID)
-    if (!userId) {
-      const demoUserId = Deno.env.get('DEMO_USER_ID');
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      
-      if (demoUserId && uuidRegex.test(demoUserId)) {
-        userId = demoUserId;
-        authMethod = 'demo_user_env';
-        console.log(`[${requestId}] Using DEMO_USER_ID from env: ${userId}`);
-      } else if (demoUserId) {
-        console.log(`[${requestId}] DEMO_USER_ID env var is not a valid UUID: ${demoUserId.substring(0, 10)}...`);
-      }
-    }
-
-    // 4. Fallback: Use hardcoded demo user (for truly anonymous access)
-    if (!userId) {
-      userId = HARDCODED_DEMO_USER_ID;
-      authMethod = 'demo_user_hardcoded';
-      console.log(`[${requestId}] Using hardcoded demo user: ${userId}`);
-    }
-
-    // At this point we should always have a userId
-    if (!userId) {
-      console.error(`[${requestId}] FATAL: No user ID resolved - this should never happen`);
+    if (!RARI_TOOL_TOKEN_SECRET) {
+      console.error(`[${requestId}] RARI_TOOL_TOKEN_SECRET is not configured — cannot verify identity`);
       return new Response(
-        JSON.stringify({
-          error: 'Authentication required',
-          summary: 'I need you to be logged in to access your fleet data. Please make sure you are signed in to your account.',
-          requestId,
-        }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: 'Service not configured', requestId }),
+        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`[${requestId}] Auth resolved: method=${authMethod}, userId=${userId}, teamId=${teamId || 'null'}`);
+    let userId: string | null = null;
+    let teamId: string | null = null;
+    const authMethod = 'tool_token';
+
+    const authHeader = req.headers.get('authorization') || req.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.warn(`[${requestId}] Rejected: missing Bearer tool token`);
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized', requestId }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    const token = authHeader.slice(7).trim();
+    if (!looksLikeJwt(token)) {
+      console.warn(`[${requestId}] Rejected: Bearer token is not JWT-formatted`);
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized', requestId }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    const payload = await verifyToolToken(token, RARI_TOOL_TOKEN_SECRET);
+    if (!payload || !payload.userId) {
+      console.warn(`[${requestId}] Rejected: tool token failed verification`);
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized', requestId }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    userId = payload.userId;
+    teamId = payload.teamId ?? null;
+    console.log(`[${requestId}] ✓ Auth resolved: userId=${userId}, teamId=${teamId || 'null'}`);
     
     // Resolve tool + parameters from request
     const { toolName, parameters } = extractToolCall(body, url);
@@ -615,60 +596,43 @@ serve(async (req) => {
       );
     }
     
-    // Verify user exists in profiles table
+    // Verify user exists in profiles table (do not auto-create)
     const { data: userProfile, error: userError } = await supabase
       .from('profiles')
       .select('id, full_name, email')
       .eq('id', userId)
       .maybeSingle();
-    
+
     if (userError) {
       console.error(`[${requestId}] Profile lookup error:`, userError);
     }
-    
-    if (!userProfile) {
-      console.log(`[${requestId}] ⚠ User ${userId} not found in profiles - creating minimal profile`);
-      // Auto-create a minimal profile for demo users
-      await supabase.from('profiles').upsert({
-        id: userId,
-        email: `demo-${userId.substring(0, 8)}@exotiq.demo`,
-        full_name: 'Demo User',
-        created_at: new Date().toISOString(),
-      }, { onConflict: 'id' });
-    } else {
-      console.log(`[${requestId}] User verified: ${userProfile.full_name || userProfile.email}`);
-    }
 
-    // Get user's team_id if not already from token
+    if (!userProfile) {
+      console.warn(`[${requestId}] Rejected: tool token user ${userId} not found in profiles`);
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized', requestId }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    console.log(`[${requestId}] User verified: ${userProfile.full_name || userProfile.email}`);
+
+    // Get user's team_id from membership if not already from token
     if (!teamId) {
       teamId = await getUserTeamId(supabase, userId);
       console.log(`[${requestId}] Team from DB: ${teamId || 'null'}`);
     }
-    
-    // If still no team, try to find any team and add user to it (for demo purposes)
+
+    // No team = no data access. Do NOT auto-join arbitrary teams.
     if (!teamId) {
-      console.log(`[${requestId}] No team found - looking for default team`);
-      const { data: anyTeam } = await supabase
-        .from('teams')
-        .select('id')
-        .eq('is_deleted', false)
-        .limit(1)
-        .maybeSingle();
-      
-      if (anyTeam) {
-        teamId = anyTeam.id;
-        // Add user to team as viewer
-        await supabase.from('team_members').upsert({
-          user_id: userId,
-          team_id: teamId,
-          role: 'viewer',
-          is_active: true,
-          joined_at: new Date().toISOString(),
-        }, { onConflict: 'user_id,team_id' }).catch(() => {});
-        console.log(`[${requestId}] Auto-joined user to team: ${teamId}`);
-      } else {
-        console.warn(`[${requestId}] ⚠ No teams exist - data queries will be empty`);
-      }
+      console.warn(`[${requestId}] Rejected: user ${userId} has no team membership`);
+      return new Response(
+        JSON.stringify({
+          error: 'No team membership',
+          summary: 'You are not a member of any team yet. Please complete onboarding before using voice tools.',
+          requestId,
+        }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // Execute the requested tool with team_id
