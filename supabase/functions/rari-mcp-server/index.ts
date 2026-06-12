@@ -585,69 +585,49 @@ function createJSONRPCError(id: string | number | null, code: number, message: s
 const SUPABASE_PROJECT_ID = 'jlgwbbqydjeokypoenoc';
 const FUNCTION_BASE_URL = `https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/rari-mcp-server`;
 
-// Optional token authentication
+// Mandatory shared-secret gate. Fail closed if env var is unset.
 function validateAuth(req: Request): boolean {
   const expectedToken = Deno.env.get('MCP_SECRET_TOKEN');
-  if (!expectedToken) return true; // No token configured = open access
-  
+  if (!expectedToken) return false;
+
   const authHeader = req.headers.get('authorization');
   if (authHeader === `Bearer ${expectedToken}`) return true;
-  
-  // Also check apikey header as fallback
+
   const apiKey = req.headers.get('apikey');
   if (apiKey === expectedToken) return true;
-  
+
   return false;
 }
 
-// Extract user ID from request context
-async function extractUserId(req: Request, supabase: any): Promise<string> {
-  // Try to get user ID from custom header
-  const userIdHeader = req.headers.get('x-user-id') || req.headers.get('x-elevenlabs-user-id');
-  if (userIdHeader) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('id', userIdHeader)
-      .single();
-    if (profile) {
-      console.log(`[MCP Server] Using user ID from header: ${userIdHeader}`);
-      return userIdHeader;
+// Identity must come from a verified Supabase session JWT carried by the
+// MCP client. No header/query-param spoofing, no "first user" fallback.
+async function extractUserId(req: Request, supabase: any): Promise<string | null> {
+  const sessionHeader = req.headers.get('x-supabase-authorization')
+    || req.headers.get('x-user-jwt');
+  let jwt: string | null = null;
+
+  if (sessionHeader && sessionHeader.startsWith('Bearer ')) {
+    jwt = sessionHeader.slice(7).trim();
+  } else if (sessionHeader) {
+    jwt = sessionHeader.trim();
+  }
+
+  if (!jwt) {
+    console.warn('[MCP Server] No user JWT provided (expected x-supabase-authorization)');
+    return null;
+  }
+
+  try {
+    const { data, error } = await supabase.auth.getUser(jwt);
+    if (error || !data?.user?.id) {
+      console.warn('[MCP Server] User JWT failed verification:', error?.message);
+      return null;
     }
+    return data.user.id as string;
+  } catch (e) {
+    console.warn('[MCP Server] User JWT verification threw:', e);
+    return null;
   }
-
-  // Try to get from query parameter (for testing)
-  const url = new URL(req.url);
-  const userIdParam = url.searchParams.get('userId');
-  if (userIdParam) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('id', userIdParam)
-      .single();
-    if (profile) {
-      console.log(`[MCP Server] Using user ID from query param: ${userIdParam}`);
-      return userIdParam;
-    }
-  }
-
-  // Fallback: Use demo user ID from environment or first user
-  const demoUserId = Deno.env.get('DEMO_USER_ID');
-  if (demoUserId) {
-    console.log(`[MCP Server] Using demo user ID from env: ${demoUserId}`);
-    return demoUserId;
-  }
-
-  // Last resort: Get first user
-  const { data: firstUser } = await supabase
-    .from('profiles')
-    .select('id')
-    .limit(1)
-    .single();
-  
-  const userId = firstUser?.id || 'demo-user-id';
-  console.log(`[MCP Server] Using fallback user ID: ${userId}`);
-  return userId;
 }
 
 // Main server handler
