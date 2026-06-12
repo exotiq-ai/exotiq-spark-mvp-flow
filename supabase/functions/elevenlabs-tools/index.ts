@@ -209,10 +209,23 @@ const KNOWN_TOOLS = new Set([
   'getVehicleProfitLoss', 'getFleetProfitLoss', 'getCompetitorRates',
   'getSeasonalPricing', 'getFleetInsights', 'getActionItems',
   'createBooking', 'updateBooking', 'sendCustomerMessage',
+  // New ops tools (2026-06-12)
+  'get_vehicle_status', 'get_todays_schedule', 'get_booking_by_reference',
+  'search_customer', 'get_open_work_orders', 'create_booking_hold',
 ]);
 
 function extractToolCall(body: any, url: URL): { toolName?: string; parameters: any } {
   // 1) Query params (supports /elevenlabs-tools?tool_name=...)
+  // 0) Path suffix takes priority: /elevenlabs-tools/<toolName>?...
+  const pathPartsEarly = url.pathname.split('/').filter(Boolean);
+  const lastEarly = pathPartsEarly[pathPartsEarly.length - 1];
+  if (lastEarly && lastEarly !== 'elevenlabs-tools' && KNOWN_TOOLS.has(lastEarly)) {
+    const qp: Record<string, string> = {};
+    url.searchParams.forEach((v, k) => { qp[k] = v; });
+    const merged = { ...(body || {}), ...qp };
+    return { toolName: lastEarly, parameters: merged };
+  }
+
   const qpName =
     url.searchParams.get('tool_name') ||
     url.searchParams.get('tool') ||
@@ -2686,6 +2699,188 @@ async function executeFunction(functionName: string, args: Record<string, unknow
             : 'No new insights at this time. Your fleet is running smoothly!'
         };
       }
+
+      // ============================================================
+      // NEW OPERATIONS TOOLS (added 2026-06-12)
+      // ============================================================
+
+      case "get_vehicle_status": {
+        const { vehicle_name } = args as { vehicle_name?: string };
+        const now = new Date().toISOString();
+        let vQ = supabase.from('vehicles').select('id, year, make, model, status, location, current_rate, utilization');
+        if (teamId) vQ = vQ.eq('team_id', teamId);
+        if (vehicle_name) vQ = vQ.or(`make.ilike.%${vehicle_name}%,model.ilike.%${vehicle_name}%`);
+        const { data: vehicles, error: vErr } = await vQ.limit(50);
+        if (vErr) return { error: vErr.message };
+        if (!vehicles?.length) return { count: 0, summary: `No vehicles found${vehicle_name ? ` matching "${vehicle_name}"` : ''}.` };
+
+        const ids = vehicles.map((v: any) => v.id);
+        const [{ data: liveBookings }, { data: maint }, { data: wos }] = await Promise.all([
+          supabase.from('bookings').select('vehicle_id, customer_name, end_date, status, booking_ref').in('vehicle_id', ids).in('status', ['confirmed','pending']).lte('start_date', now).gte('end_date', now),
+          supabase.from('maintenance_windows').select('vehicle_id, end_at, reason').in('vehicle_id', ids).lte('start_at', now).gte('end_at', now),
+          supabase.from('work_orders').select('vehicle_id, title, status').in('vehicle_id', ids).in('status', ['open','in_progress']),
+        ]);
+
+        const results = vehicles.map((v: any) => {
+          const live = liveBookings?.find((b: any) => b.vehicle_id === v.id);
+          const mw   = maint?.find((m: any) => m.vehicle_id === v.id);
+          const openWO = wos?.filter((w: any) => w.vehicle_id === v.id) || [];
+          let liveState = 'available';
+          let detail = '';
+          if (live) { liveState = 'on rent'; detail = `with ${live.customer_name}${live.booking_ref ? ` (${live.booking_ref})` : ''} until ${new Date(live.end_date).toLocaleDateString()}`; }
+          else if (mw) { liveState = 'in maintenance'; detail = mw.reason || ''; }
+          else if (v.status === 'retired') liveState = 'retired';
+          return {
+            vehicle: `${v.year} ${v.make} ${v.model}`,
+            location: v.location,
+            db_status: v.status,
+            live_status: liveState,
+            detail,
+            open_work_orders: openWO.length,
+          };
+        });
+        return {
+          count: results.length,
+          vehicles: results,
+          summary: `${results.length} vehicle${results.length === 1 ? '' : 's'}: ${results.slice(0,3).map(r => `${r.vehicle} — ${r.live_status}${r.detail ? ' ' + r.detail : ''}`).join('; ')}.`,
+        };
+      }
+
+      case "get_todays_schedule": {
+        const todayStart = new Date(); todayStart.setUTCHours(0,0,0,0);
+        const todayEnd   = new Date(); todayEnd.setUTCHours(23,59,59,999);
+        const nowIso = new Date().toISOString();
+        const teamFilter = (q: any) => teamId ? q.eq('team_id', teamId) : q;
+
+        const [{ data: checkOuts }, { data: checkIns }, { data: overdue }, { data: maint }] = await Promise.all([
+          teamFilter(supabase.from('bookings').select('booking_ref, customer_name, customer_phone, vehicle_name, start_date, pickup_location, status').gte('start_date', todayStart.toISOString()).lte('start_date', todayEnd.toISOString()).in('status', ['confirmed','pending']).order('start_date')),
+          teamFilter(supabase.from('bookings').select('booking_ref, customer_name, customer_phone, vehicle_name, end_date, dropoff_location, status').gte('end_date', todayStart.toISOString()).lte('end_date', todayEnd.toISOString()).eq('status', 'confirmed').order('end_date')),
+          teamFilter(supabase.from('bookings').select('booking_ref, customer_name, customer_phone, vehicle_name, end_date').lt('end_date', nowIso).eq('status', 'confirmed').order('end_date')).limit(20),
+          teamFilter(supabase.from('maintenance_windows').select('vehicle_id, start_at, end_at, reason').gte('start_at', todayStart.toISOString()).lte('start_at', todayEnd.toISOString())),
+        ]);
+
+        return {
+          date: todayStart.toISOString().slice(0,10),
+          check_outs: (checkOuts || []).map((b: any) => ({ ref: b.booking_ref, customer: b.customer_name, phone: b.customer_phone, vehicle: b.vehicle_name, time: b.start_date, location: b.pickup_location })),
+          check_ins:  (checkIns  || []).map((b: any) => ({ ref: b.booking_ref, customer: b.customer_name, phone: b.customer_phone, vehicle: b.vehicle_name, time: b.end_date, location: b.dropoff_location })),
+          overdue:    (overdue   || []).map((b: any) => ({ ref: b.booking_ref, customer: b.customer_name, phone: b.customer_phone, vehicle: b.vehicle_name, was_due: b.end_date })),
+          maintenance_starting: (maint || []).length,
+          summary: `Today: ${(checkOuts||[]).length} check-out${(checkOuts||[]).length===1?'':'s'}, ${(checkIns||[]).length} check-in${(checkIns||[]).length===1?'':'s'}, ${(overdue||[]).length} overdue return${(overdue||[]).length===1?'':'s'}.`,
+        };
+      }
+
+      case "get_booking_by_reference": {
+        const { reference } = args as { reference?: string };
+        if (!reference) return { error: 'reference is required (e.g. BK-01234)' };
+        const ref = reference.trim().toUpperCase();
+        let q = supabase.from('bookings').select('*').eq('booking_ref', ref).limit(1);
+        if (teamId) q = q.eq('team_id', teamId);
+        const { data, error } = await q.maybeSingle();
+        if (error) return { error: error.message };
+        if (!data) return { found: false, summary: `No booking found with reference ${ref}.` };
+        return {
+          found: true,
+          booking: {
+            ref: data.booking_ref, status: data.status,
+            customer: data.customer_name, phone: data.customer_phone, email: data.customer_email,
+            vehicle: data.vehicle_name, start_date: data.start_date, end_date: data.end_date,
+            pickup: data.pickup_location, dropoff: data.dropoff_location,
+            total: data.total_value, balance_due: data.balance_due, payment_status: data.payment_status,
+            notes: data.notes,
+          },
+          summary: `${data.booking_ref}: ${data.customer_name} in the ${data.vehicle_name}, ${new Date(data.start_date).toLocaleDateString()} to ${new Date(data.end_date).toLocaleDateString()}, status ${data.status}.`,
+        };
+      }
+
+      case "search_customer": {
+        const { query } = args as { query?: string };
+        if (!query || query.trim().length < 2) return { error: 'query must be at least 2 characters' };
+        const term = query.trim();
+        let q = supabase.from('customers').select('id, full_name, email, phone, total_bookings, lifetime_value').or(`full_name.ilike.%${term}%,email.ilike.%${term}%,phone.ilike.%${term}%`).limit(10);
+        if (teamId) q = q.eq('team_id', teamId);
+        const { data, error } = await q;
+        if (error) return { error: error.message };
+        return {
+          count: data?.length || 0,
+          customers: data || [],
+          summary: data?.length ? `Found ${data.length} customer${data.length===1?'':'s'}: ${data.slice(0,3).map((c: any) => c.full_name).join(', ')}.` : `No customers match "${term}".`,
+        };
+      }
+
+      case "get_open_work_orders": {
+        const { priority } = args as { priority?: string };
+        let q = supabase.from('work_orders').select('id, title, status, priority, vehicle_id, due_at, created_at, vendor_name, vehicles(year, make, model)').in('status', ['open','in_progress']).order('created_at', { ascending: true }).limit(50);
+        if (teamId) q = q.eq('team_id', teamId);
+        if (priority && priority !== 'all') q = q.eq('priority', priority);
+        const { data, error } = await q;
+        if (error) return { error: error.message };
+        const list = (data || []).map((w: any) => ({
+          title: w.title, status: w.status, priority: w.priority,
+          vehicle: w.vehicles ? `${w.vehicles.year} ${w.vehicles.make} ${w.vehicles.model}` : 'unassigned',
+          due_at: w.due_at, vendor: w.vendor_name,
+        }));
+        return {
+          count: list.length,
+          work_orders: list,
+          summary: list.length ? `${list.length} open work order${list.length===1?'':'s'}. ${list.slice(0,3).map(w => `${w.title} (${w.vehicle})`).join('; ')}.` : 'No open work orders. Fleet is in good shape.',
+        };
+      }
+
+      case "create_booking_hold": {
+        const { vehicle_id, customer_name, customer_phone, start_date, end_date, notes } = args as any;
+        if (!vehicle_id || !customer_name || !start_date || !end_date) {
+          return { error: 'vehicle_id, customer_name, start_date, and end_date are required' };
+        }
+        let conflictQ = supabase.from('bookings').select('id, booking_ref, customer_name').eq('vehicle_id', vehicle_id).in('status', ['confirmed','pending']).lte('start_date', end_date).gte('end_date', start_date);
+        if (teamId) conflictQ = conflictQ.eq('team_id', teamId);
+        const { data: conflicts } = await conflictQ.limit(1);
+        if (conflicts && conflicts.length) {
+          return { error: 'conflict', conflict: conflicts[0], summary: `That window overlaps booking ${conflicts[0].booking_ref} for ${conflicts[0].customer_name}. Pick a different vehicle or time.` };
+        }
+        let veh: any = null;
+        {
+          let vq = supabase.from('vehicles').select('id, year, make, model, current_rate, location').eq('id', vehicle_id);
+          if (teamId) vq = vq.eq('team_id', teamId);
+          const { data } = await vq.maybeSingle();
+          veh = data;
+        }
+        if (!veh) return { error: 'vehicle not found in your fleet' };
+
+        const ms = new Date(end_date).getTime() - new Date(start_date).getTime();
+        const days = Math.max(1, Math.ceil(ms / 86400000));
+        const total = days * Number(veh.current_rate || 0);
+        const holdNote = `[Rari hold ${new Date().toISOString()}] ${notes || ''}`.trim();
+
+        const insert: any = {
+          user_id: userId,
+          team_id: teamId,
+          vehicle_id,
+          vehicle_name: `${veh.year} ${veh.make} ${veh.model}`,
+          customer_name,
+          customer_phone: customer_phone || null,
+          start_date,
+          end_date,
+          pickup_location: veh.location || 'Miami',
+          daily_rate: veh.current_rate || 0,
+          total_value: total,
+          status: 'pending',
+          payment_status: 'unpaid',
+          booking_source: 'rari_voice',
+          notes: holdNote,
+        };
+
+        const { data: created, error } = await supabase.from('bookings').insert(insert).select('id, booking_ref').single();
+        if (error) return { error: error.message };
+
+        return {
+          success: true,
+          booking_id: created.id,
+          booking_ref: created.booking_ref,
+          summary: `Hold created — reference ${created.booking_ref}. ${veh.year} ${veh.make} ${veh.model} for ${customer_name}, ${days} day${days===1?'':'s'}, total $${total.toLocaleString()}. It's pending until you confirm or cancel.`,
+        };
+      }
+
+
 
       default:
         // Log unknown requests as potential feature needs
