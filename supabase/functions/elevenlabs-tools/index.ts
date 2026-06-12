@@ -216,6 +216,16 @@ const KNOWN_TOOLS = new Set([
 
 function extractToolCall(body: any, url: URL): { toolName?: string; parameters: any } {
   // 1) Query params (supports /elevenlabs-tools?tool_name=...)
+  // 0) Path suffix takes priority: /elevenlabs-tools/<toolName>?...
+  const pathPartsEarly = url.pathname.split('/').filter(Boolean);
+  const lastEarly = pathPartsEarly[pathPartsEarly.length - 1];
+  if (lastEarly && lastEarly !== 'elevenlabs-tools' && KNOWN_TOOLS.has(lastEarly)) {
+    const qp: Record<string, string> = {};
+    url.searchParams.forEach((v, k) => { qp[k] = v; });
+    const merged = { ...(body || {}), ...qp };
+    return { toolName: lastEarly, parameters: merged };
+  }
+
   const qpName =
     url.searchParams.get('tool_name') ||
     url.searchParams.get('tool') ||
