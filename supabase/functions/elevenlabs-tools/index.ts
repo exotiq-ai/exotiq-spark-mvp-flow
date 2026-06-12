@@ -352,11 +352,11 @@ function extractToolCall(body: any, url: URL): { toolName?: string; parameters: 
   // 6) Handle multi-key parameter payloads like { "status": "all", "location": "Miami" }
   if (keys.length > 0 && keys.length <= 5) {
     // Check if ALL keys are known parameters (not tool names)
-    const allKeysAreParams = keys.every(k => PARAMETER_TO_TOOL_MAP[k] || ['start_date', 'end_date', 'limit', 'includeBookings', 'includeHistory'].includes(k));
+    const allKeysAreParams = keys.every(k => PARAMETER_TO_TOOL_MAP[k] || ['start_date', 'end_date', 'date', 'limit', 'includeBookings', 'includeHistory'].includes(k));
     if (allKeysAreParams) {
       // Determine the best tool based on the parameters present
       let inferredTool = 'get_fleet_vehicles'; // default
-      
+
       if (keys.includes('customerName')) inferredTool = 'getCustomerProfile';
       else if (keys.includes('vehicleName') && (keys.includes('startDate') || keys.includes('endDate'))) inferredTool = 'checkAvailability';
       else if (keys.includes('vehicleName')) inferredTool = 'getVehicleDetails';
@@ -364,7 +364,9 @@ function extractToolCall(body: any, url: URL): { toolName?: string; parameters: 
       else if (keys.includes('timeframe')) inferredTool = 'getFleetMetrics';
       else if (keys.includes('daysRange')) inferredTool = 'searchBookings';
       else if (keys.includes('daysAhead')) inferredTool = 'getUpcomingMaintenance';
-      else if (keys.includes('status') && keys.includes('start_date')) inferredTool = 'get_bookings';
+      // Any date keyword/range or status → bookings (vehicles table has no date columns)
+      else if (keys.includes('date') || keys.includes('start_date') || keys.includes('end_date')) inferredTool = 'get_bookings';
+      else if (keys.includes('status')) inferredTool = 'get_bookings';
       else if (keys.includes('metric')) inferredTool = 'getTopPerformers';
       
       console.log(`[extractToolCall] Inferred tool from parameters ${JSON.stringify(keys)}: ${inferredTool}`);
