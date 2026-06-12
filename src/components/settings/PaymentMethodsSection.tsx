@@ -8,7 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { useTeam } from "@/contexts/TeamContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ToastAction } from "@/components/ui/toast";
+
 import { 
   Banknote, 
   Building2, 
@@ -114,13 +114,12 @@ export const PaymentMethodsSection = () => {
       }
 
       if (errorBody?.error_code === 'platform_profile_incomplete') {
-        toast.error("Stripe platform setup required", { description: errorBody.error ?? "Complete your Stripe Connect platform profile to enable tenant onboarding.", action: errorBody.action_url
-            ? (
-                <ToastAction altText="Open Stripe settings" onClick={() => window.open(errorBody!.action_url!, '_blank')}>
-                  Open Stripe
-                </ToastAction>
-              )
-            : undefined });
+        toast.error("Stripe platform setup required", {
+          description: errorBody.error ?? "Complete your Stripe Connect platform profile to enable tenant onboarding.",
+          action: errorBody.action_url
+            ? { label: "Open Stripe", onClick: () => window.open(errorBody!.action_url!, '_blank') }
+            : undefined,
+        });
         return;
       }
 
