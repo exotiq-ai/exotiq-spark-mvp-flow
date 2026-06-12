@@ -596,60 +596,43 @@ serve(async (req) => {
       );
     }
     
-    // Verify user exists in profiles table
+    // Verify user exists in profiles table (do not auto-create)
     const { data: userProfile, error: userError } = await supabase
       .from('profiles')
       .select('id, full_name, email')
       .eq('id', userId)
       .maybeSingle();
-    
+
     if (userError) {
       console.error(`[${requestId}] Profile lookup error:`, userError);
     }
-    
-    if (!userProfile) {
-      console.log(`[${requestId}] ⚠ User ${userId} not found in profiles - creating minimal profile`);
-      // Auto-create a minimal profile for demo users
-      await supabase.from('profiles').upsert({
-        id: userId,
-        email: `demo-${userId.substring(0, 8)}@exotiq.demo`,
-        full_name: 'Demo User',
-        created_at: new Date().toISOString(),
-      }, { onConflict: 'id' });
-    } else {
-      console.log(`[${requestId}] User verified: ${userProfile.full_name || userProfile.email}`);
-    }
 
-    // Get user's team_id if not already from token
+    if (!userProfile) {
+      console.warn(`[${requestId}] Rejected: tool token user ${userId} not found in profiles`);
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized', requestId }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    console.log(`[${requestId}] User verified: ${userProfile.full_name || userProfile.email}`);
+
+    // Get user's team_id from membership if not already from token
     if (!teamId) {
       teamId = await getUserTeamId(supabase, userId);
       console.log(`[${requestId}] Team from DB: ${teamId || 'null'}`);
     }
-    
-    // If still no team, try to find any team and add user to it (for demo purposes)
+
+    // No team = no data access. Do NOT auto-join arbitrary teams.
     if (!teamId) {
-      console.log(`[${requestId}] No team found - looking for default team`);
-      const { data: anyTeam } = await supabase
-        .from('teams')
-        .select('id')
-        .eq('is_deleted', false)
-        .limit(1)
-        .maybeSingle();
-      
-      if (anyTeam) {
-        teamId = anyTeam.id;
-        // Add user to team as viewer
-        await supabase.from('team_members').upsert({
-          user_id: userId,
-          team_id: teamId,
-          role: 'viewer',
-          is_active: true,
-          joined_at: new Date().toISOString(),
-        }, { onConflict: 'user_id,team_id' }).catch(() => {});
-        console.log(`[${requestId}] Auto-joined user to team: ${teamId}`);
-      } else {
-        console.warn(`[${requestId}] ⚠ No teams exist - data queries will be empty`);
-      }
+      console.warn(`[${requestId}] Rejected: user ${userId} has no team membership`);
+      return new Response(
+        JSON.stringify({
+          error: 'No team membership',
+          summary: 'You are not a member of any team yet. Please complete onboarding before using voice tools.',
+          requestId,
+        }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // Execute the requested tool with team_id
