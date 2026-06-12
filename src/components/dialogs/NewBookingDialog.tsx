@@ -279,10 +279,7 @@ export const NewBookingDialog = ({
       setDiscountReason('');
       onOpenChange(false);
       
-      toast({
-        title: "Success",
-        description: "Booking created successfully",
-      });
+      toast("Success", { description: "Booking created successfully" });
     } catch (err) {
       setError('Failed to create booking. Please try again.');
       console.error('Booking error:', err);
@@ -436,10 +433,7 @@ export const NewBookingDialog = ({
                       variant="outline"
                       className="w-full"
                       onClick={() => {
-                        toast({
-                          title: "AI Rate Applied",
-                          description: `Daily rate set to $${pricingSuggestion.suggestedRate}`,
-                        });
+                        toast("AI Rate Applied", { description: `Daily rate set to $${pricingSuggestion.suggestedRate}` });
                       }}
                     >
                       <Check className="h-4 w-4 mr-2" />

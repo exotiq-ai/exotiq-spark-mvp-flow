@@ -7,13 +7,12 @@ import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { exportToCSV } from "@/utils/chartExport";
 import { Download, TrendingUp, AlertTriangle } from "lucide-react";
 import { PriceOptimizationDialog } from "@/components/dialogs/PriceOptimizationDialog";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useChartHeight } from "@/components/ui/adaptive-chart";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 export const PriceUtilizationScatterPlot = () => {
   const { vehicles, applyPriceOptimization } = useLocationFilteredFleet();
-  const { toast } = useToast();
   const [zoneFilter, setZoneFilter] = useState<string>('all');
   const [selectedVehicle, setSelectedVehicle] = useState<any>(null);
   const [showOptimization, setShowOptimization] = useState(false);
@@ -61,10 +60,7 @@ export const PriceUtilizationScatterPlot = () => {
     
     exportToCSV(exportData, 'price_utilization_data');
     
-    toast({
-      title: "Export Successful",
-      description: "Price & utilization data has been exported to CSV",
-    });
+    toast("Export Successful", { description: "Price & utilization data has been exported to CSV" });
   };
 
   const handlePointClick = (data: any) => {

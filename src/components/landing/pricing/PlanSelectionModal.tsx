@@ -14,7 +14,7 @@ import { Loader2, ArrowRight, CheckCircle2, Sparkles } from 'lucide-react';
 import { type PricingTier, pickTierForFleetSize } from './PricingData';
 import { BillingToggle } from './BillingToggle';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from "sonner";
 
 interface PlanSelectionModalProps {
   open: boolean;
@@ -36,8 +36,6 @@ export const PlanSelectionModal = ({
   const [fleetSize, setFleetSize] = useState(1);
   const [isAnnual, setIsAnnual] = useState(isAnnualProp);
   const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
-
   useEffect(() => {
     if (selectedTier) {
       // Default to mid-range of selected tier
@@ -93,13 +91,9 @@ export const PlanSelectionModal = ({
 
   const handleCheckout = async () => {
     if (!fleetInBounds) {
-      toast({
-        title: 'Fleet size out of range',
-        description: tierMismatch
+      toast.error('Fleet size out of range', { description: tierMismatch
           ? `Switch to ${inferredTier.name} for ${fleetSize} vehicles.`
-          : 'Please enter a valid number of vehicles for this tier.',
-        variant: 'destructive',
-      });
+          : 'Please enter a valid number of vehicles for this tier.' });
       return;
     }
 
@@ -125,11 +119,7 @@ export const PlanSelectionModal = ({
       }
     } catch (error: any) {
       console.error('Checkout error:', error);
-      toast({
-        title: 'Checkout failed',
-        description: error.message || 'Unable to start checkout. Please try again.',
-        variant: 'destructive',
-      });
+      toast.error('Checkout failed', { description: error.message || 'Unable to start checkout. Please try again.' });
     } finally {
       setIsLoading(false);
     }

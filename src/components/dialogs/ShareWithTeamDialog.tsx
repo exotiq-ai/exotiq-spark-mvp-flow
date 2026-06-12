@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useTeamMessaging } from "@/hooks/useTeamMessaging";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { 
   MessageSquare, 
   Send, 
@@ -47,7 +47,6 @@ export function ShareWithTeamDialog({
   vehicleId,
 }: ShareWithTeamDialogProps) {
   const { teamMembers, createConversation, sendMessage, setActiveConversation } = useTeamMessaging();
-  const { toast } = useToast();
   const [selectedMemberId, setSelectedMemberId] = useState<string>("");
   const [additionalNote, setAdditionalNote] = useState("");
   const [isSending, setIsSending] = useState(false);
@@ -63,11 +62,7 @@ export function ShareWithTeamDialog({
 
   const handleSend = async () => {
     if (!selectedMemberId) {
-      toast({
-        title: "Select a team member",
-        description: "Please select a team member to share with",
-        variant: "destructive"
-      });
+      toast.error("Select a team member", { description: "Please select a team member to share with" });
       return;
     }
 
@@ -97,10 +92,7 @@ ${additionalNote ? `\n💬 **Note:**\n${additionalNote}` : ''}
 
         await sendMessage(message);
 
-        toast({
-          title: "Message sent",
-          description: `Shared damage claim with team member`,
-        });
+        toast("Message sent", { description: `Shared damage claim with team member` });
 
         onOpenChange(false);
         setAdditionalNote("");
@@ -108,11 +100,7 @@ ${additionalNote ? `\n💬 **Note:**\n${additionalNote}` : ''}
       }
     } catch (error) {
       console.error('Error sharing claim:', error);
-      toast({
-        title: "Failed to send",
-        description: "Could not share the damage claim. Please try again.",
-        variant: "destructive"
-      });
+      toast.error("Failed to send", { description: "Could not share the damage claim. Please try again." });
     } finally {
       setIsSending(false);
     }

@@ -30,7 +30,7 @@ import { DemoOnboarding } from "@/components/demo/DemoOnboarding";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useRariSidebar } from "@/hooks/useRariSidebar";
 import { useNavigate } from "react-router-dom";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   SkeletonBanner, 
@@ -79,7 +79,6 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
   const { signOut, loading: authLoading } = useAuth();
   const { profile } = useProfile();
   const { currentTeam, loading: teamLoading, error: teamError } = useTeam();
-  const { toast } = useToast();
   const rariSidebar = useRariSidebar();
   const { hasRoleOrHigher: isManagerOrHigher } = useUserRole();
   const navigate = useNavigate();
@@ -121,11 +120,7 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
       
       if (refreshError) {
         // Session is truly expired, redirect to login
-        toast({
-          title: 'Session Expired',
-          description: 'Redirecting to login...',
-          variant: 'destructive',
-        });
+        toast.error('Session Expired', { description: 'Redirecting to login...' });
         window.location.href = '/auth';
         return;
       }
@@ -321,10 +316,7 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
           <Button
             variant="outline"
             onClick={async () => {
-              toast({
-                title: 'Signing out...',
-                description: 'You will be redirected to the login page.',
-              });
+              toast('Signing out...', { description: 'You will be redirected to the login page.' });
               await signOut();
             }}
             className="gap-2"

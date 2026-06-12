@@ -97,10 +97,7 @@ export const AddCustomerDialog = ({
       setError(null);
       onOpenChange(false);
       
-      toast({
-        title: "Success",
-        description: "Customer added successfully",
-      });
+      toast("Success", { description: "Customer added successfully" });
     } catch (err) {
       setError("Failed to add customer. Please try again.");
       console.error("Error adding customer:", err);

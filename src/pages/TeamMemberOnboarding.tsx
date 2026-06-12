@@ -9,7 +9,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTeam } from '@/contexts/TeamContext';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from "sonner";
 import { useOnboardingProgress } from '@/hooks/useOnboardingProgress';
 import { RoleTips } from '@/components/onboarding/RoleTips';
 import {
@@ -37,7 +37,6 @@ export default function TeamMemberOnboarding() {
   const { user } = useAuth();
   const { currentTeam } = useTeam();
   const navigate = useNavigate();
-  const { toast } = useToast();
   const { updateProgress, markComplete } = useOnboardingProgress();
 
   const [step, setStep] = useState(1);
@@ -109,11 +108,7 @@ export default function TeamMemberOnboarding() {
 
       setFormData((prev) => ({ ...prev, avatarUrl: publicUrl }));
     } catch (error: any) {
-      toast({
-        title: 'Upload failed',
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast.error('Upload failed', { description: error.message });
     } finally {
       setUploading(false);
     }
@@ -140,11 +135,7 @@ export default function TeamMemberOnboarding() {
 
       setStep(2);
     } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast.error('Error', { description: error.message });
     } finally {
       setLoading(false);
     }
@@ -171,18 +162,11 @@ export default function TeamMemberOnboarding() {
         colors: ['#0B3D91', '#FF6B35', '#FFD700'],
       });
 
-      toast({
-        title: `Welcome to ${currentTeam?.name || 'the team'}! 🎉`,
-        description: "You're all set up and ready to go.",
-      });
+      toast(`Welcome to ${currentTeam?.name || 'the team'}! 🎉`, { description: "You're all set up and ready to go." });
 
       navigate('/dashboard');
     } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast.error('Error', { description: error.message });
     } finally {
       setLoading(false);
     }

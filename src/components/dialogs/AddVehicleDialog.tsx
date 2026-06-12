@@ -123,10 +123,7 @@ export const AddVehicleDialog = ({ open, onOpenChange, onSubmit, onAddPhotos }: 
       if (result) {
         // Show success state with photo prompt
         setCreatedVehicle(result);
-        toast({
-          title: "Success",
-          description: "Vehicle added successfully",
-        });
+        toast("Success", { description: "Vehicle added successfully" });
         
         // Auto-generate hero image in background
         setGeneratingHero(true);

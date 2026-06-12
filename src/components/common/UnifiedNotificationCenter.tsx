@@ -35,7 +35,7 @@ import {
   FileText,
   Settings,
 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useFleet } from "@/contexts/FleetContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { NotificationPreferences, useNotificationPreferences } from "./NotificationPreferences";
@@ -72,7 +72,6 @@ const isAIAlert = (notification: UnifiedNotification): notification is AIAlert =
 };
 
 export const UnifiedNotificationCenter = ({ onNavigate }: { onNavigate?: (module: string) => void }) => {
-  const { toast } = useToast();
   const isMobile = useIsMobile();
   const { vehicles, bookings, customers, damageClaims, inspections } = useFleet();
   const { prefs, isInQuietHours } = useNotificationPreferences();

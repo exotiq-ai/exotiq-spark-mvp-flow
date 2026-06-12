@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { Tables } from '@/integrations/supabase/types';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from "sonner";
 
 type Vehicle = Tables<'vehicles'>;
 type Booking = Tables<'bookings'>;
@@ -45,7 +45,6 @@ interface UseAIPricingEnhancedReturn {
 }
 
 export const useAIPricingEnhanced = (): UseAIPricingEnhancedReturn => {
-  const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pricingResult, setPricingResult] = useState<AIPricingResult | null>(null);
@@ -139,20 +138,13 @@ export const useAIPricingEnhanced = (): UseAIPricingEnhancedReturn => {
 
       setPricingResult(result);
 
-      toast({
-        title: "Pricing Analysis Complete",
-        description: `Suggested rate: $${result.suggestedRate}/day (${result.confidence}% confidence)`,
-      });
+      toast("Pricing Analysis Complete", { description: `Suggested rate: $${result.suggestedRate}/day (${result.confidence}% confidence)` });
 
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to analyze pricing';
       setError(message);
       
-      toast({
-        title: "Pricing Analysis Failed",
-        description: message,
-        variant: "destructive",
-      });
+      toast.error("Pricing Analysis Failed", { description: message });
     } finally {
       setLoading(false);
     }

@@ -4,7 +4,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from "sonner";
 import { Copy, Mail, Phone } from 'lucide-react';
 
 interface Props {
@@ -49,8 +49,6 @@ const Stat = ({ label, value }: { label: string; value: React.ReactNode }) => (
 export const TenantDetailDrawer = ({ teamId, onClose }: Props) => {
   const [detail, setDetail] = useState<Detail | null>(null);
   const [loading, setLoading] = useState(false);
-  const { toast } = useToast();
-
   useEffect(() => {
     if (!teamId) {
       setDetail(null);
@@ -64,7 +62,7 @@ export const TenantDetailDrawer = ({ teamId, onClose }: Props) => {
         setDetail(data as Detail);
       } catch (e) {
         console.error('[TenantDetail] error', e);
-        toast({ title: 'Could not load tenant', variant: 'destructive' });
+        toast.error('Could not load tenant');
       } finally {
         setLoading(false);
       }
@@ -86,7 +84,7 @@ export const TenantDetailDrawer = ({ teamId, onClose }: Props) => {
       .filter(Boolean)
       .join('\n');
     await navigator.clipboard.writeText(text);
-    toast({ title: 'Support summary copied' });
+    toast('Support summary copied');
   };
 
   const open = !!teamId;

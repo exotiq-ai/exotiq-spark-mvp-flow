@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from "sonner";
 import { useTrialStatus } from '@/hooks/useTrialStatus';
 
 /**
@@ -11,17 +11,11 @@ import { useTrialStatus } from '@/hooks/useTrialStatus';
 export function useTrialGuard() {
   const { isReadOnly } = useTrialStatus();
   const navigate = useNavigate();
-  const { toast } = useToast();
-
   const guard = useCallback(
     <T extends (...args: any[]) => any>(action: T) =>
       ((...args: Parameters<T>) => {
         if (isReadOnly) {
-          toast({
-            title: 'Trial ended',
-            description: 'Upgrade to a paid plan to keep creating and editing records.',
-            variant: 'destructive',
-          });
+          toast.error('Trial ended', { description: 'Upgrade to a paid plan to keep creating and editing records.' });
           navigate('/dashboard/settings?section=billing');
           return undefined;
         }

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Download, ExternalLink, Loader2 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 interface DocumentPreviewDialogProps {
   open: boolean;
@@ -17,7 +17,6 @@ export const DocumentPreviewDialog = ({
   documentUrl,
   documentName,
 }: DocumentPreviewDialogProps) => {
-  const { toast } = useToast();
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [blobLoading, setBlobLoading] = useState(false);
 
@@ -60,11 +59,7 @@ export const DocumentPreviewDialog = ({
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch {
-      toast({
-        title: "Download failed",
-        description: "Could not download the file. Try opening in a new tab.",
-        variant: "destructive",
-      });
+      toast.error("Download failed", { description: "Could not download the file. Try opening in a new tab." });
     }
   };
 

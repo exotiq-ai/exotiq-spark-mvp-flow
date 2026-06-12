@@ -37,7 +37,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useNavigate } from 'react-router-dom';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from "sonner";
 
 interface Customer {
   id: string;
@@ -60,8 +60,6 @@ interface AuditLogEntry {
 export const SuperAdminDashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { toast } = useToast();
-
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [filteredCustomers, setFilteredCustomers] = useState<Customer[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -108,11 +106,7 @@ export const SuperAdminDashboard = () => {
         setFilteredCustomers(combinedCustomers);
       } catch (error) {
         console.error('[SuperAdmin] Error fetching customers:', error);
-        toast({
-          title: "Error loading customers",
-          description: error instanceof Error ? error.message : "Unknown error",
-          variant: "destructive"
-        });
+        toast.error("Error loading customers", { description: error instanceof Error ? error.message : "Unknown error" });
       }
     };
 

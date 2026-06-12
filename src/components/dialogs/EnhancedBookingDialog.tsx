@@ -31,7 +31,7 @@ import { DocumentPreviewDialog } from "@/components/common/DocumentPreviewDialog
 import { BookingCostsSection } from "@/components/margin/BookingCostsSection";
 import { useFleet } from "@/contexts/FleetContext";
 import { useTeam } from "@/contexts/TeamContext";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { getVehicleImage } from "@/lib/vehicleImageMapping";
@@ -100,7 +100,6 @@ export const EnhancedBookingDialog = ({
   const { bookings, vehicles, payments, customers, updateBookingStatus, updateBookingDetails, createPayment, sendMessage, refreshData } = useFleet();
   const blockIfRestricted = useBlockIfRestricted();
   const { currentTeam } = useTeam();
-  const { toast } = useToast();
   const gasFeeSettings = useTeamGasFeeSettings();
   const teamGasFee = getGasFeeForTeam(gasFeeSettings.gasFeeAmount);
   
@@ -360,9 +359,9 @@ export const EnhancedBookingDialog = ({
       if (error) throw error;
       setCustomerNotes((prev) => [data, ...prev]);
       setNewNote("");
-      toast({ title: "Note added successfully" });
+      toast("Note added successfully");
     } catch (error) {
-      toast({ title: "Failed to add note", variant: "destructive" });
+      toast.error("Failed to add note");
     } finally {
       setAddingNote(false);
     }
@@ -371,7 +370,7 @@ export const EnhancedBookingDialog = ({
   const handleAddToGoogleCalendar = () => {
     if (!booking) return;
     openGoogleCalendar(booking, vehicle?.name);
-    toast({ title: "Opening Google Calendar" });
+    toast("Opening Google Calendar");
   };
 
   const handleSaveChanges = async (andApprove = false) => {
@@ -402,17 +401,17 @@ export const EnhancedBookingDialog = ({
       // If Save & Approve, also update status
       if (andApprove) {
         await updateBookingStatus(booking.id, 'confirmed');
-        toast({ title: "Booking saved and approved" });
+        toast("Booking saved and approved");
         onOpenChange(false);
       } else {
-        toast({ title: "Booking updated successfully" });
+        toast("Booking updated successfully");
         setIsEditMode(false);
       }
       
       refreshData();
     } catch (error) {
       console.error('Error saving booking:', error);
-      toast({ title: "Failed to save changes", variant: "destructive" });
+      toast.error("Failed to save changes");
     } finally {
       setSaving(false);
     }
@@ -1310,7 +1309,7 @@ export const EnhancedBookingDialog = ({
           }}
           document={signingDocument}
           onComplete={async (docRef) => {
-            toast({ title: "Document Signed", description: `Reference: ${docRef}` });
+            toast("Document Signed", { description: `Reference: ${docRef}` });
             // Refresh booking documents
             const { data } = await supabase
               .from("documents")
@@ -1325,7 +1324,7 @@ export const EnhancedBookingDialog = ({
               supabase.functions.invoke("send-signed-document", {
                 body: { documentId: signedDoc.id, sendToRenter: true, sendToOperator: true },
               }).then(({ error }) => {
-                if (!error) toast({ title: "Signed agreement emailed to renter and operator" });
+                if (!error) toast("Signed agreement emailed to renter and operator");
               });
             }
           }}

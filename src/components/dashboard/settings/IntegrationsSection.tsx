@@ -17,7 +17,7 @@ import {
   ShieldCheck,
   Loader2
 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useTeam } from "@/contexts/TeamContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -30,7 +30,6 @@ interface GCalConfig {
 }
 
 export const IntegrationsSection = () => {
-  const { toast } = useToast();
   const { currentTeam } = useTeam();
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -48,13 +47,13 @@ export const IntegrationsSection = () => {
   useEffect(() => {
     const gcalStatus = searchParams.get("gcal");
     if (gcalStatus === "success") {
-      toast({ title: "Google Calendar Connected", description: "Your bookings will now sync automatically." });
+      toast("Google Calendar Connected", { description: "Your bookings will now sync automatically." });
       searchParams.delete("gcal");
       setSearchParams(searchParams, { replace: true });
       fetchIntegration();
     } else if (gcalStatus === "error") {
       const reason = searchParams.get("reason") || "unknown";
-      toast({ title: "Connection Failed", description: `Google Calendar connection failed: ${reason}`, variant: "destructive" });
+      toast.error("Connection Failed", { description: `Google Calendar connection failed: ${reason}` });
       searchParams.delete("gcal");
       searchParams.delete("reason");
       setSearchParams(searchParams, { replace: true });
@@ -93,7 +92,7 @@ export const IntegrationsSection = () => {
 
   const handleConnect = async () => {
     if (!currentTeam?.id) {
-      toast({ title: "Error", description: "No team selected.", variant: "destructive" });
+      toast.error("Error", { description: "No team selected." });
       return;
     }
     setIsConnecting(true);
@@ -119,7 +118,7 @@ export const IntegrationsSection = () => {
         throw new Error(result.error || "Failed to get auth URL");
       }
     } catch (err: any) {
-      toast({ title: "Connection Failed", description: err.message, variant: "destructive" });
+      toast.error("Connection Failed", { description: err.message });
       setIsConnecting(false);
     }
   };
@@ -135,9 +134,9 @@ export const IntegrationsSection = () => {
         .eq("integration_type", "google_calendar");
 
       setGcalIntegration(null);
-      toast({ title: "Disconnected", description: "Google Calendar has been disconnected. Events already synced will remain." });
+      toast("Disconnected", { description: "Google Calendar has been disconnected. Events already synced will remain." });
     } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast.error("Error", { description: err.message });
     } finally {
       setIsDisconnecting(false);
     }
@@ -156,7 +155,7 @@ export const IntegrationsSection = () => {
         .in("status", ["pending", "confirmed"]);
 
       if (!bookings?.length) {
-        toast({ title: "Already Synced", description: "All bookings are up to date." });
+        toast("Already Synced", { description: "All bookings are up to date." });
         setIsSyncing(false);
         return;
       }
@@ -175,10 +174,10 @@ export const IntegrationsSection = () => {
       );
 
       await Promise.all(promises);
-      toast({ title: "Sync Complete", description: `Synced ${bookings.length} booking(s) to Google Calendar.` });
+      toast("Sync Complete", { description: `Synced ${bookings.length} booking(s) to Google Calendar.` });
       fetchIntegration();
     } catch (err: any) {
-      toast({ title: "Sync Failed", description: err.message, variant: "destructive" });
+      toast.error("Sync Failed", { description: err.message });
     } finally {
       setIsSyncing(false);
     }

@@ -11,7 +11,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from "sonner";
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import confetti from 'canvas-confetti';
@@ -139,7 +139,6 @@ export const DashboardOnboarding = () => {
   const [spotlightRect, setSpotlightRect] = useState<SpotlightRect | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isMobileSheetExpanded, setIsMobileSheetExpanded] = useState(true);
-  const { toast } = useToast();
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Fetch user profile
@@ -287,11 +286,7 @@ export const DashboardOnboarding = () => {
       });
     }, 40);
 
-    toast({
-      title: "Welcome to Exotiq!",
-      description: "You're all set. Let's build something amazing!",
-      duration: 4000,
-    });
+    toast("Welcome to Exotiq!", { description: "You're all set. Let's build something amazing!", duration: 4000 });
   };
 
   // Generate SVG clip path for spotlight cutout

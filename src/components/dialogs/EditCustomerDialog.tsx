@@ -122,10 +122,7 @@ export const EditCustomerDialog = ({
       });
 
       onOpenChange(false);
-      toast({
-        title: "Customer updated",
-        description: `${formData.full_name}'s information has been saved`,
-      });
+      toast("Customer updated", { description: `${formData.full_name}'s information has been saved` });
     } catch (err) {
       setError("Failed to update customer. Please try again.");
       console.error("Error updating customer:", err);

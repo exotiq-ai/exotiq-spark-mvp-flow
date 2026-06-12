@@ -9,7 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useFleet } from "@/contexts/FleetContext";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { format } from "date-fns";
 import { BarChart3, FileText, TrendingUp, FolderOpen, Users, Download, Sparkles, Loader2, FileJson, FileSpreadsheet } from "lucide-react";
 import { exportToCSV, exportToJSON, exportToPDF } from "@/lib/exportUtils";
@@ -26,8 +26,6 @@ export const GenerateReportDialog = ({
   onGenerate 
 }: GenerateReportDialogProps) => {
   const { bookings, vehicles, customers, payments, documents } = useFleet();
-  const { toast } = useToast();
-  
   const [reportType, setReportType] = useState("revenue");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -68,10 +66,10 @@ export const GenerateReportDialog = ({
       setReportData(data.content);
       setAiInsights(data.aiInsights);
 
-      toast({ title: "Report generated successfully" });
+      toast("Report generated successfully");
     } catch (error) {
       console.error("Report generation error:", error);
-      toast({ title: "Failed to generate report", variant: "destructive" });
+      toast.error("Failed to generate report");
     } finally {
       setLoading(false);
     }
@@ -86,10 +84,10 @@ export const GenerateReportDialog = ({
     try {
       if (exportFormat === "csv") {
         exportToCSV(reportData.details || [], fileName);
-        toast({ title: "CSV exported successfully" });
+        toast("CSV exported successfully");
       } else if (exportFormat === "json") {
         exportToJSON(reportData, fileName);
-        toast({ title: "JSON exported successfully" });
+        toast("JSON exported successfully");
       } else if (exportFormat === "pdf") {
         await exportToPDF(
           {
@@ -99,11 +97,11 @@ export const GenerateReportDialog = ({
           },
           fileName
         );
-        toast({ title: "PDF export initiated", description: "Check your browser's print dialog" });
+        toast("PDF export initiated", { description: "Check your browser's print dialog" });
       }
     } catch (error: any) {
       console.error('Export error:', error);
-      toast({ title: "Export failed", description: error.message, variant: "destructive" });
+      toast.error("Export failed", { description: error.message });
     }
   };
 

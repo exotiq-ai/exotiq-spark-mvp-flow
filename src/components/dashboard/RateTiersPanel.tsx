@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { useTeam } from "@/contexts/TeamContext";
 import { PermissionGuard } from "@/components/common/PermissionGuard";
@@ -43,7 +43,6 @@ interface EditingRates {
 export const RateTiersPanel = () => {
   const { vehicles, updateVehicle } = useLocationFilteredFleet();
   const { currentTeam } = useTeam();
-  const { toast } = useToast();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingRates, setEditingRates] = useState<EditingRates>({
     rate_3hr: "",
@@ -113,11 +112,7 @@ export const RateTiersPanel = () => {
     }
 
     if (errors.length > 0) {
-      toast({
-        title: "Validation Error",
-        description: errors[0],
-        variant: "destructive",
-      });
+      toast.error("Validation Error", { description: errors[0] });
       return;
     }
 
@@ -132,11 +127,11 @@ export const RateTiersPanel = () => {
 
       const success = await updateVehicle(vehicleId, updates);
       if (success) {
-        toast({ title: "Rates updated", description: "Vehicle rates saved successfully" });
+        toast("Rates updated", { description: "Vehicle rates saved successfully" });
         setEditingId(null);
       }
     } catch {
-      toast({ title: "Error", description: "Failed to update rates", variant: "destructive" });
+      toast.error("Error", { description: "Failed to update rates" });
     } finally {
       setSaving(false);
     }
