@@ -340,8 +340,17 @@ function extractToolCall(body: any, url: URL): { toolName?: string; parameters: 
       }
     }
 
-    // 5) NEW: Check if this is a parameter-only payload like { "status": "all" }
-    // Map it to the appropriate tool
+    // 5) Parameter-only payload like { "status": "all" } or { "date": "today" }
+    // Booking-status synonyms and date keywords must route to get_bookings, NOT vehicles.
+    const bookingStatusValues = new Set(['confirmed','pending','active','completed','cancelled','in_progress','all','current','rented','out','upcoming','future']);
+    if (k === 'status' && typeof v === 'string' && bookingStatusValues.has(v.toLowerCase())) {
+      console.log(`[extractToolCall] Mapping parameter-only { "status": "${v}" } to tool: get_bookings`);
+      return { toolName: 'get_bookings', parameters: { [k]: v } };
+    }
+    if (k === 'date') {
+      console.log(`[extractToolCall] Mapping parameter-only { "date": "${v}" } to tool: get_bookings`);
+      return { toolName: 'get_bookings', parameters: { [k]: v } };
+    }
     if (PARAMETER_TO_TOOL_MAP[k]) {
       const mappedTool = PARAMETER_TO_TOOL_MAP[k];
       console.log(`[extractToolCall] Mapping parameter-only payload { "${k}": "${v}" } to tool: ${mappedTool}`);
