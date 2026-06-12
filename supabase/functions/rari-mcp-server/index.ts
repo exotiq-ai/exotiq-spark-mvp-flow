@@ -1555,10 +1555,8 @@ async function executeFunction(functionName: string, args: any, supabase: any, t
 
       case "logFeedback": {
         const { feedbackType, keywords, userQuery, rariResponse, context } = args;
-        // Note: For feedback, we still use a user context, but it's acceptable to skip team context here
-        const { data: firstUser } = await supabase.from('profiles').select('id').limit(1).single();
         await supabase.from('rari_feedback').insert({
-          user_id: firstUser?.id || 'unknown',
+          user_id: userId,
           feedback_type: feedbackType || 'feature_request',
           keywords: keywords ? keywords.split(',').map((k: string) => k.trim()) : [],
           user_query: userQuery,
@@ -1570,14 +1568,12 @@ async function executeFunction(functionName: string, args: any, supabase: any, t
 
       case "featureComingSoon": {
         const { featureName, userRequest } = args;
-        const { data: firstUser } = await supabase.from('profiles').select('id').limit(1).single();
-        await supabase.from('rari_feedback').insert({ user_id: firstUser?.id || 'unknown', feedback_type: 'feature_request', keywords: [featureName], user_query: userRequest, rari_response: `Feature coming soon: ${featureName}`, context: { requested_feature: featureName } });
+        await supabase.from('rari_feedback').insert({ user_id: userId, feedback_type: 'feature_request', keywords: [featureName], user_query: userRequest, rari_response: `Feature coming soon: ${featureName}`, context: { requested_feature: featureName } });
         return { feature: featureName, status: 'coming_soon', summary: `${featureName} is coming soon! I've logged your request.` };
       }
 
       default:
-        const { data: firstUser } = await supabase.from('profiles').select('id').limit(1).single();
-        await supabase.from('rari_feedback').insert({ user_id: firstUser?.id || 'unknown', feedback_type: 'not_working', keywords: [functionName], user_query: JSON.stringify(args), context: { function_name: functionName, args } });
+        await supabase.from('rari_feedback').insert({ user_id: userId, feedback_type: 'not_working', keywords: [functionName], user_query: JSON.stringify(args), context: { function_name: functionName, args } });
         return { error: `Capability not available yet`, summary: `That feature isn't available yet, but I've logged it.` };
     }
   } catch (error) {
