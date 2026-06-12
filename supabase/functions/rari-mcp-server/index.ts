@@ -1068,7 +1068,7 @@ Deno.serve(async (req) => {
 // Tool Execution Functions - All using team_id
 // ============================================================
 
-async function executeFunction(functionName: string, args: any, supabase: any, teamId: string) {
+async function executeFunction(functionName: string, args: any, supabase: any, teamId: string, userId: string) {
   console.log(`[TOOL] Executing: ${functionName} | Team: ${teamId}`);
 
   try {
