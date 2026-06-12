@@ -1003,8 +1003,17 @@ Deno.serve(async (req) => {
         const supabase = createClient(supabaseUrl, supabaseServiceKey);
         
         const userId = await extractUserId(req, supabase);
+        if (!userId) {
+          return new Response(JSON.stringify({
+            error: 'Unauthorized',
+            summary: 'Missing or invalid user session.'
+          }), {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
         const teamId = await getUserTeamId(supabase, userId);
-        
+
         if (!teamId) {
           return new Response(JSON.stringify({
             error: 'No team found',
@@ -1013,8 +1022,8 @@ Deno.serve(async (req) => {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           });
         }
-        
-        const result = await executeFunction(tool_name, parameters || {}, supabase, teamId);
+
+        const result = await executeFunction(tool_name, parameters || {}, supabase, teamId, userId);
         
         return new Response(JSON.stringify(result), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
