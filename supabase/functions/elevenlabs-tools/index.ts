@@ -2809,7 +2809,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
 
       case "get_open_work_orders": {
         const { priority } = args as { priority?: string };
-        let q = supabase.from('work_orders').select('id, title, status, priority, vehicle_id, due_date, created_at, vehicles(year, make, model)').in('status', ['open','in_progress']).order('created_at', { ascending: true }).limit(50);
+        let q = supabase.from('work_orders').select('id, title, status, priority, vehicle_id, due_at, created_at, vendor_name, vehicles(year, make, model)').in('status', ['open','in_progress']).order('created_at', { ascending: true }).limit(50);
         if (teamId) q = q.eq('team_id', teamId);
         if (priority && priority !== 'all') q = q.eq('priority', priority);
         const { data, error } = await q;
@@ -2817,7 +2817,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         const list = (data || []).map((w: any) => ({
           title: w.title, status: w.status, priority: w.priority,
           vehicle: w.vehicles ? `${w.vehicles.year} ${w.vehicles.make} ${w.vehicles.model}` : 'unassigned',
-          due_date: w.due_date,
+          due_at: w.due_at, vendor: w.vendor_name,
         }));
         return {
           count: list.length,
