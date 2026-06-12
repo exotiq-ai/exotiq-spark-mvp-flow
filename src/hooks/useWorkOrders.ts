@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTeam } from '@/contexts/TeamContext';
-import { toast } from "sonner";
+import { useToast } from '@/hooks/use-toast';
 
 export type WorkOrderStatus = 'new' | 'triaged' | 'scheduled' | 'in_progress' | 'blocked_parts' | 'blocked_vendor' | 'qa_review' | 'completed' | 'cancelled';
 export type WorkOrderPriority = 'low' | 'normal' | 'urgent';
@@ -91,6 +91,7 @@ const ACTIVE_STATUSES = ['new', 'triaged', 'scheduled', 'in_progress', 'blocked_
 export const useWorkOrders = () => {
   const { user } = useAuth();
   const { currentTeam, selectedLocationId } = useTeam();
+  const { toast } = useToast();
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -174,11 +175,11 @@ export const useWorkOrders = () => {
         new_value: 'new',
       });
 
-      toast('Work order created', { description: `"${input.title}" has been created` });
+      toast({ title: 'Work order created', description: `"${input.title}" has been created` });
       return data as WorkOrder;
     } catch (error: any) {
       console.error('Error creating work order:', error);
-      toast.error('Error creating work order', { description: error.message });
+      toast({ title: 'Error creating work order', description: error.message, variant: 'destructive' });
       return null;
     }
   }, [user, currentTeam, selectedLocationId, toast]);
@@ -217,11 +218,11 @@ export const useWorkOrders = () => {
 
       if (navigator.vibrate) navigator.vibrate(10);
       const label = WORK_ORDER_STATUSES.find(s => s.value === newStatus)?.label || newStatus;
-      toast(newStatus === 'completed' ? 'Work order completed' : 'Status updated', { description: `Status changed to ${label}` });
+      toast({ title: newStatus === 'completed' ? 'Work order completed' : 'Status updated', description: `Status changed to ${label}` });
       return true;
     } catch (error: any) {
       console.error('Error updating work order:', error);
-      toast.error('Error updating work order', { description: error.message });
+      toast({ title: 'Error updating work order', description: error.message, variant: 'destructive' });
       return false;
     }
   }, [user, workOrders, toast]);
@@ -234,7 +235,7 @@ export const useWorkOrders = () => {
       return true;
     } catch (error: any) {
       console.error('Error updating work order:', error);
-      toast.error('Error', { description: error.message });
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
       return false;
     }
   }, [user, toast]);
@@ -259,11 +260,11 @@ export const useWorkOrders = () => {
         new_value: outOfRotation ? 'true' : 'false',
       });
 
-      toast(outOfRotation ? 'Vehicle marked out of rotation' : 'Vehicle back in rotation');
+      toast({ title: outOfRotation ? 'Vehicle marked out of rotation' : 'Vehicle back in rotation' });
       return true;
     } catch (error: any) {
       console.error('Error toggling OOR:', error);
-      toast.error('Error', { description: error.message });
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
       return false;
     }
   }, [user, toast]);
@@ -272,11 +273,11 @@ export const useWorkOrders = () => {
     try {
       const { error } = await (supabase as any).from('work_orders').delete().eq('id', workOrderId);
       if (error) throw error;
-      toast('Work order deleted');
+      toast({ title: 'Work order deleted' });
       return true;
     } catch (error: any) {
       console.error('Error deleting work order:', error);
-      toast.error('Error', { description: error.message });
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
       return false;
     }
   }, [toast]);

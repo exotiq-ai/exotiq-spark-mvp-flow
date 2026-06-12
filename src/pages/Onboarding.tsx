@@ -15,7 +15,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { toast } from "sonner";
+import { useToast } from '@/hooks/use-toast';
 import { useOnboardingProgress, OnboardingFormData } from '@/hooks/useOnboardingProgress';
 import { AddressAutocomplete, AddressData } from '@/components/ui/address-autocomplete';
 import { LocationInput, LocationData } from '@/components/onboarding/LocationInput';
@@ -60,6 +60,7 @@ export default function Onboarding() {
   const { refreshData } = useFleet();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { toast } = useToast();
   const isEditMode = searchParams.get('edit') === 'true';
   
   // Database-backed progress with localStorage fallback
@@ -221,7 +222,11 @@ export default function Onboarding() {
 
       await handleStepChange(2);
     } catch (error: any) {
-      toast.error("Error", { description: error.message });
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }
@@ -298,13 +303,20 @@ export default function Onboarding() {
       await refreshTeam();
       
       if (isEditMode) {
-        toast("Setup Updated", { description: "Your business information has been saved." });
+        toast({
+          title: "Setup Updated",
+          description: "Your business information has been saved.",
+        });
         navigate('/dashboard/settings');
       } else {
         await handleStepChange(3);
       }
     } catch (error: any) {
-      toast.error("Error", { description: error.message });
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }
@@ -315,7 +327,11 @@ export default function Onboarding() {
     
     // Validate team exists before insert
     if (!currentTeam?.id) {
-      toast.error("Error", { description: "Team not found. Please refresh and try again." });
+      toast({
+        title: "Error",
+        description: "Team not found. Please refresh and try again.",
+        variant: "destructive"
+      });
       return;
     }
     
@@ -347,7 +363,11 @@ export default function Onboarding() {
       await handleStepChange(4);
     } catch (error: any) {
       console.error('[Onboarding] Vehicle creation failed:', error);
-      toast.error("Error", { description: error.message });
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }
@@ -392,11 +412,18 @@ export default function Onboarding() {
         colors,
       });
 
-      toast("Welcome to Exotiq! 🎉", { description: "Your account is ready. Let's optimize your fleet!" });
+      toast({
+        title: "Welcome to Exotiq! 🎉",
+        description: "Your account is ready. Let's optimize your fleet!",
+      });
 
       navigate('/dashboard');
     } catch (error: any) {
-      toast.error("Error", { description: error.message });
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }
@@ -1019,7 +1046,10 @@ export default function Onboarding() {
               onClose={() => setShowImportDialog(false)}
               onComplete={async (entityType, count) => {
                 setShowImportDialog(false);
-                toast("Import Complete! 🎉", { description: `Successfully imported ${count} ${entityType}.` });
+                toast({
+                  title: "Import Complete! 🎉",
+                  description: `Successfully imported ${count} ${entityType}.`,
+                });
                 // Advance to completion step
                 await handleStepChange(4);
               }}
@@ -1034,7 +1064,10 @@ export default function Onboarding() {
         onOpenChange={setShowPhotoWizard}
         onComplete={async (vehicleId) => {
           setShowPhotoWizard(false);
-          toast("Vehicle Added! 🎉", { description: "Your vehicle has been created with photos." });
+          toast({
+            title: "Vehicle Added! 🎉",
+            description: "Your vehicle has been created with photos.",
+          });
           // Advance to completion step
           await handleStepChange(4);
         }}

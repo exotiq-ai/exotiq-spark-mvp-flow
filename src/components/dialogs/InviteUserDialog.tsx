@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Mail, Loader2, UserPlus, Info } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -58,6 +58,7 @@ const ALL_PERMISSIONS = [
 ];
 
 export function InviteUserDialog({ open, onOpenChange, onSuccess }: InviteUserDialogProps) {
+  const { toast } = useToast();
   const [email, setEmail] = useState("");
   const [selectedRole, setSelectedRole] = useState<AppRole>("viewer");
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>(ROLE_CONFIG.viewer.defaultPermissions);
@@ -78,7 +79,11 @@ export function InviteUserDialog({ open, onOpenChange, onSuccess }: InviteUserDi
 
   const handleSendInvitation = async () => {
     if (!email || !email.includes('@')) {
-      toast.error("Invalid email", { description: "Please enter a valid email address" });
+      toast({
+        title: "Invalid email",
+        description: "Please enter a valid email address",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -99,7 +104,10 @@ export function InviteUserDialog({ open, onOpenChange, onSuccess }: InviteUserDi
         throw new Error(data.error);
       }
 
-      toast("Invitation sent", { description: `An invitation has been sent to ${email}` });
+      toast({
+        title: "Invitation sent",
+        description: `An invitation has been sent to ${email}`,
+      });
 
       // Reset form
       setEmail("");
@@ -109,7 +117,11 @@ export function InviteUserDialog({ open, onOpenChange, onSuccess }: InviteUserDi
       onSuccess?.();
     } catch (error: any) {
       console.error("Failed to send invitation:", error);
-      toast.error("Failed to send invitation", { description: error.message || "Please try again later" });
+      toast({
+        title: "Failed to send invitation",
+        description: error.message || "Please try again later",
+        variant: "destructive",
+      });
     } finally {
       setIsSending(false);
     }

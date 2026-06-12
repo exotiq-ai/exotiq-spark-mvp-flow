@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { ArrowLeft, ArrowRight, Upload, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { toast } from "sonner";
+import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { ImportEntityType } from '@/lib/importSchemas';
 import { parseFile, detectEntityType, transformRows, validateRows, ColumnMapping, ParsedFileData, ValidationResult, EntityDetectionResult } from '@/lib/importUtils';
@@ -39,6 +39,7 @@ const steps: { key: WizardStep; label: string }[] = [
 ];
 
 export function ImportWizard({ onClose, onComplete }: ImportWizardProps) {
+  const { toast } = useToast();
   const { user } = useAuth();
   const { currentTeam } = useTeam();
   const { refreshData: refreshFleetData } = useFleet();

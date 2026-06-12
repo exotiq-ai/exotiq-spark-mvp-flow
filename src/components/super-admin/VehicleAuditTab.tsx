@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { toast } from "sonner";
+import { useToast } from '@/hooks/use-toast';
 import { AlertTriangle, Check, Copy } from 'lucide-react';
 
 interface Row {
@@ -45,6 +45,8 @@ export const VehicleAuditTab = () => {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Filter>('all');
+  const { toast } = useToast();
+
   const load = async () => {
     setLoading(true);
     try {
@@ -87,11 +89,11 @@ export const VehicleAuditTab = () => {
         p_note: null,
       });
       if (error) throw error;
-      toast('Marked as reviewed');
+      toast({ title: 'Marked as reviewed' });
       load();
     } catch (e) {
       console.error(e);
-      toast.error('Could not mark reviewed');
+      toast({ title: 'Could not mark reviewed', variant: 'destructive' });
     }
   };
 
@@ -107,7 +109,7 @@ export const VehicleAuditTab = () => {
       `— Exotiq Support`,
     ].join('\n');
     await navigator.clipboard.writeText(text);
-    toast('Outreach summary copied');
+    toast({ title: 'Outreach summary copied' });
   };
 
   return (

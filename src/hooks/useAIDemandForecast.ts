@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from "sonner";
+import { useToast } from '@/hooks/use-toast';
 
 export interface DailyPrediction {
   date: string;
@@ -79,6 +79,7 @@ interface UseAIDemandForecastReturn {
 }
 
 export const useAIDemandForecast = (): UseAIDemandForecastReturn => {
+  const { toast } = useToast();
   const [forecast, setForecast] = useState<DemandForecast | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -126,13 +127,20 @@ export const useAIDemandForecast = (): UseAIDemandForecastReturn => {
 
       setForecast(response.data);
       
-      toast("Forecast Generated", { description: `Predicted ${response.data.summary?.totalPredictedBookings || 0} bookings with ${response.data.summary?.averageConfidence || 0}% average confidence` });
+      toast({
+        title: "Forecast Generated",
+        description: `Predicted ${response.data.summary?.totalPredictedBookings || 0} bookings with ${response.data.summary?.averageConfidence || 0}% average confidence`,
+      });
 
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to generate forecast';
       setError(message);
       
-      toast.error("Forecast Failed", { description: message });
+      toast({
+        title: "Forecast Failed",
+        description: message,
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }

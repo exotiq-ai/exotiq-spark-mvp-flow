@@ -17,7 +17,7 @@ import { VerificationSection } from "@/components/dashboard/VerificationSection"
 import { ComplianceStackedBar } from "@/components/charts/ComplianceStackedBar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { AskRariQuickAction } from "@/components/common/AskRariQuickAction";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 import { DocumentPreviewDialog } from "@/components/common/DocumentPreviewDialog";
 import { SkeletonCard, SkeletonMetric } from "@/components/ui/skeleton-card";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -46,6 +46,8 @@ export const VaultEnhanced = () => {
   const { documents, vehicles, uploadDocument, deleteDocument, loading } = useLocationFilteredFleet();
   const { refreshMaintenance } = useFleet();
   const { currentTeam } = useTeam();
+  const { toast } = useToast();
+
   useRealtimeTable('maintenance_schedules', {
     teamId: currentTeam?.id,
     onUpdate: refreshMaintenance,
@@ -197,7 +199,7 @@ export const VaultEnhanced = () => {
 
   const handleDownload = async (doc: any) => {
     if (!doc.file_url) {
-      toast.error("No file available");
+      toast({ title: "No file available", variant: "destructive" });
       return;
     }
     try {
@@ -212,7 +214,7 @@ export const VaultEnhanced = () => {
       document.body.removeChild(a);
       URL.revokeObjectURL(blobUrl);
     } catch {
-      toast.error("Download failed", { description: "Try opening in a new tab instead." });
+      toast({ title: "Download failed", description: "Try opening in a new tab instead.", variant: "destructive" });
     }
   };
 
@@ -220,7 +222,7 @@ export const VaultEnhanced = () => {
     if (doc.file_url) {
       setPreviewDoc({ url: doc.file_url, name: doc.name || "Document" });
     } else {
-      toast.error("No file available");
+      toast({ title: "No file available", variant: "destructive" });
     }
   };
 

@@ -37,7 +37,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Location } from "@/contexts/TeamContext";
 
@@ -84,6 +84,7 @@ export const EditLocationDialog = ({
   location, 
   onSuccess 
 }: EditLocationDialogProps) => {
+  const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showDeactivateDialog, setShowDeactivateDialog] = useState(false);
   const [isDeactivating, setIsDeactivating] = useState(false);
@@ -138,12 +139,19 @@ export const EditLocationDialog = ({
 
       if (error) throw error;
 
-      toast("Location updated", { description: `${values.name} has been updated.` });
+      toast({
+        title: "Location updated",
+        description: `${values.name} has been updated.`,
+      });
 
       onSuccess();
     } catch (error) {
       console.error("Error updating location:", error);
-      toast.error("Error", { description: "Failed to update location. Please try again." });
+      toast({
+        title: "Error",
+        description: "Failed to update location. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -159,13 +167,20 @@ export const EditLocationDialog = ({
 
       if (error) throw error;
 
-      toast(activate ? "Location activated" : "Location deactivated", { description: `${location.name} has been ${activate ? 'activated' : 'deactivated'}.` });
+      toast({
+        title: activate ? "Location activated" : "Location deactivated",
+        description: `${location.name} has been ${activate ? 'activated' : 'deactivated'}.`,
+      });
 
       setShowDeactivateDialog(false);
       onSuccess();
     } catch (error) {
       console.error("Error updating location status:", error);
-      toast.error("Error", { description: `Failed to ${activate ? 'activate' : 'deactivate'} location. Please try again.` });
+      toast({
+        title: "Error",
+        description: `Failed to ${activate ? 'activate' : 'deactivate'} location. Please try again.`,
+        variant: "destructive",
+      });
     } finally {
       setIsDeactivating(false);
     }

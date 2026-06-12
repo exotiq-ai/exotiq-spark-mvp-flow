@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 
 export interface Notification {
@@ -19,6 +19,7 @@ const ALERTS_SESSION_KEY = "fleet-alerts-checked";
 
 export const useNotifications = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -84,7 +85,7 @@ export const useNotifications = () => {
       if (error) throw error;
 
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-      toast("All notifications marked as read");
+      toast({ title: "All notifications marked as read" });
     } catch (error) {
       console.error("Error marking all as read:", error);
     }
@@ -100,7 +101,7 @@ export const useNotifications = () => {
       if (error) throw error;
 
       setNotifications((prev) => prev.filter((n) => n.id !== id));
-      toast("Notification deleted");
+      toast({ title: "Notification deleted" });
     } catch (error) {
       console.error("Error deleting notification:", error);
     }
@@ -118,7 +119,7 @@ export const useNotifications = () => {
       if (error) throw error;
 
       setNotifications([]);
-      toast("All notifications cleared");
+      toast({ title: "All notifications cleared" });
     } catch (error) {
       console.error("Error clearing notifications:", error);
     }
@@ -178,7 +179,10 @@ export const useNotifications = () => {
           setNotifications((prev) => [newNotification, ...prev]);
           
           // Show toast for new notification
-          toast(newNotification.title, { description: newNotification.message });
+          toast({
+            title: newNotification.title,
+            description: newNotification.message,
+          });
         }
       )
       .subscribe();

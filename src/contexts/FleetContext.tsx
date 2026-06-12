@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { useTeam } from './TeamContext';
-import { toast } from "sonner";
+import { useToast } from '@/hooks/use-toast';
 import { Database } from '@/integrations/supabase/types';
 import { z } from 'zod';
 import confetti from 'canvas-confetti';
@@ -83,6 +83,7 @@ interface FleetContextType {
 const FleetContext = createContext<FleetContextType | undefined>(undefined);
 
 export const FleetProvider = ({ children }: { children: ReactNode }) => {
+  const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
   const { currentTeam, selectedLocationId, loading: teamLoading } = useTeam();
   
@@ -333,7 +334,11 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
         const errorMessage = err.message || 'Failed to load data';
         devError('[FleetContext] Error loading data:', err);
         setError(errorMessage);
-        toast.error("Error Loading Data", { description: errorMessage });
+        toast({
+          title: "Error Loading Data",
+          description: errorMessage,
+          variant: "destructive"
+        });
       }
     } finally {
       if (seq === refreshSeqRef.current) {
@@ -690,7 +695,7 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
 
     if (changedFields.length === 0) {
       if (!options?.silent) {
-        toast("No Changes", { description: "No fields were modified." });
+        toast({ title: "No Changes", description: "No fields were modified." });
       }
       return true;
     }
@@ -701,7 +706,7 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       .eq('id', vehicleId);
 
     if (error) {
-      toast.error("Error", { description: error.message });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
       return false;
     }
 
@@ -724,7 +729,10 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     setVehicles(prev => prev.map(v => v.id === vehicleId ? { ...v, ...finalUpdates } as Vehicle : v));
 
     if (!options?.silent) {
-      toast("Vehicle Updated", { description: `${currentVehicle.name} updated (${changedFields.length} field${changedFields.length !== 1 ? 's' : ''})` });
+      toast({
+        title: "Vehicle Updated",
+        description: `${currentVehicle.name} updated (${changedFields.length} field${changedFields.length !== 1 ? 's' : ''})`,
+      });
     }
 
     return true;
@@ -737,13 +745,13 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
 
   const createVehicle = async (vehicle: Omit<Database['public']['Tables']['vehicles']['Insert'], 'user_id'>): Promise<{ id: string; name: string } | undefined> => {
     if (!user) {
-      toast.error("Error", { description: "You must be logged in to add a vehicle." });
+      toast({ title: "Error", description: "You must be logged in to add a vehicle.", variant: "destructive" });
       return undefined;
     }
 
     const teamId = currentTeam?.id;
     if (!teamId) {
-      toast.error("Team Not Ready", { description: "Team not loaded yet, please refresh the page." });
+      toast({ title: "Team Not Ready", description: "Team not loaded yet, please refresh the page.", variant: "destructive" });
       return undefined;
     }
 
@@ -761,7 +769,7 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
         .single();
 
       if (error) {
-        toast.error("Error", { description: error.message });
+        toast({ title: "Error", description: error.message, variant: "destructive" });
         return undefined;
       }
 
@@ -783,7 +791,7 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       return { id: data.id, name: data.name };
     } catch (error) {
       if (error instanceof z.ZodError) {
-        toast.error("Validation Error", { description: error.errors[0].message });
+        toast({ title: "Validation Error", description: error.errors[0].message, variant: "destructive" });
       } else {
         throw error;
       }
@@ -827,7 +835,7 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
         .single();
 
       if (error) {
-        toast.error("Error", { description: error.message });
+        toast({ title: "Error", description: error.message, variant: "destructive" });
         return;
       }
 
@@ -899,9 +907,12 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
           if (Date.now() < end) requestAnimationFrame(frame);
         };
         frame();
-        toast("🎉 First Booking Created!", { description: "Congratulations on your first booking! Your fleet business is off to a great start." });
+        toast({
+          title: "🎉 First Booking Created!",
+          description: "Congratulations on your first booking! Your fleet business is off to a great start.",
+        });
       } else {
-      toast("Booking Created", { description: "Booking has been successfully created." });
+      toast({ title: "Booking Created", description: "Booking has been successfully created." });
       }
 
       // Fire-and-forget Google Calendar sync
@@ -913,7 +924,7 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       await refreshData(true);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        toast.error("Validation Error", { description: error.errors[0].message });
+        toast({ title: "Validation Error", description: error.errors[0].message, variant: "destructive" });
       } else {
         throw error;
       }
@@ -936,11 +947,11 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       .eq('id', bookingId);
 
     if (error) {
-      toast.error("Error", { description: error.message });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
       return;
     }
 
-    toast("Booking Updated", { description: `Booking status changed to ${status}.` });
+    toast({ title: "Booking Updated", description: `Booking status changed to ${status}.` });
 
     // Fire-and-forget Google Calendar sync
     const booking = bookings.find(b => b.id === bookingId);
@@ -958,11 +969,11 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       .eq('id', bookingId);
 
     if (error) {
-      toast.error("Error", { description: error.message });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
       return;
     }
 
-    toast("Vehicle Changed", { description: "Booking vehicle has been updated." });
+    toast({ title: "Vehicle Changed", description: "Booking vehicle has been updated." });
   };
 
   const updateBookingDetails = async (bookingId: string, updates: Partial<Booking>) => {
@@ -974,11 +985,11 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       .eq('id', bookingId);
 
     if (error) {
-      toast.error("Error", { description: error.message });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
       return;
     }
 
-    toast("Booking Updated", { description: "Booking details have been updated." });
+    toast({ title: "Booking Updated", description: "Booking details have been updated." });
 
     // Fire-and-forget Google Calendar sync
     const booking = bookings.find(b => b.id === bookingId);
@@ -996,12 +1007,12 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       .insert({ ...document, user_id: user.id, team_id: teamId || null });
 
     if (error) {
-      toast.error("Error", { description: error.message });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
       return;
     }
 
     await refreshData();
-    toast("Document Uploaded", { description: "Document has been successfully uploaded." });
+    toast({ title: "Document Uploaded", description: "Document has been successfully uploaded." });
   };
 
   const deleteDocument = async (documentId: string) => {
@@ -1013,12 +1024,12 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       .eq('id', documentId);
 
     if (error) {
-      toast.error("Error", { description: error.message });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
       return;
     }
 
     await refreshData();
-    toast("Document Deleted", { description: "Document has been removed." });
+    toast({ title: "Document Deleted", description: "Document has been removed." });
   };
 
   const createMaintenance = async (maintenance: Omit<Database['public']['Tables']['maintenance_schedules']['Insert'], 'user_id'>) => {
@@ -1036,12 +1047,12 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       });
 
     if (error) {
-      toast.error("Error", { description: error.message });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
       return;
     }
 
     await refreshData();
-    toast("Maintenance Scheduled", { description: "Maintenance has been scheduled." });
+    toast({ title: "Maintenance Scheduled", description: "Maintenance has been scheduled." });
   };
 
   const sendMessage = async (message: Omit<Database['public']['Tables']['messages']['Insert'], 'user_id'>) => {
@@ -1056,15 +1067,15 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
         .insert({ ...(validated as any), user_id: user.id, team_id: teamId || null });
 
       if (error) {
-        toast.error("Error", { description: error.message });
+        toast({ title: "Error", description: error.message, variant: "destructive" });
         return;
       }
 
       await refreshData();
-      toast("Message Sent", { description: "Your message has been sent." });
+      toast({ title: "Message Sent", description: "Your message has been sent." });
     } catch (error) {
       if (error instanceof z.ZodError) {
-        toast.error("Validation Error", { description: error.errors[0].message });
+        toast({ title: "Validation Error", description: error.errors[0].message, variant: "destructive" });
       } else {
         throw error;
       }
@@ -1072,7 +1083,7 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const generateReport = async (reportType: string, dateRange: { start: string; end: string }, format: string) => {
-    toast("Report Generated", { description: `${reportType} report generated for ${dateRange.start} to ${dateRange.end} in ${format} format.` });
+    toast({ title: "Report Generated", description: `${reportType} report generated for ${dateRange.start} to ${dateRange.end} in ${format} format.` });
   };
 
   const createCustomer = async (customer: Omit<Database['public']['Tables']['customers']['Insert'], 'user_id'>) => {
@@ -1087,15 +1098,15 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
         .insert({ ...(validated as any), user_id: user.id, team_id: teamId || null });
 
       if (error) {
-        toast.error("Error", { description: error.message });
+        toast({ title: "Error", description: error.message, variant: "destructive" });
         return;
       }
 
       await refreshData();
-      toast("Customer Added", { description: "Customer has been successfully added." });
+      toast({ title: "Customer Added", description: "Customer has been successfully added." });
     } catch (error) {
       if (error instanceof z.ZodError) {
-        toast.error("Validation Error", { description: error.errors[0].message });
+        toast({ title: "Validation Error", description: error.errors[0].message, variant: "destructive" });
       } else {
         throw error;
       }
@@ -1111,12 +1122,12 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       .eq('id', customerId);
 
     if (error) {
-      toast.error("Error", { description: error.message });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
       return;
     }
 
     await refreshData();
-    toast("Customer Updated", { description: "Customer information has been updated." });
+    toast({ title: "Customer Updated", description: "Customer information has been updated." });
   };
 
   const addCustomerNote = async (customerId: string, note: string, createdBy: string) => {
@@ -1127,12 +1138,12 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       .insert({ customer_id: customerId, note, created_by: createdBy, user_id: user.id });
 
     if (error) {
-      toast.error("Error", { description: error.message });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
       return;
     }
 
     await refreshData();
-    toast("Note Added", { description: "Customer note has been added." });
+    toast({ title: "Note Added", description: "Customer note has been added." });
   };
 
   const blacklistCustomer = async (customerId: string, reason: string) => {
@@ -1144,12 +1155,12 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       .eq('id', customerId);
 
     if (error) {
-      toast.error("Error", { description: error.message });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
       return;
     }
 
     await refreshData();
-    toast("Customer Blacklisted", { description: "Customer has been added to the blacklist." });
+    toast({ title: "Customer Blacklisted", description: "Customer has been added to the blacklist." });
   };
 
   const createInspection = async (inspection: Omit<Database['public']['Tables']['vehicle_inspections']['Insert'], 'user_id'>) => {
@@ -1161,11 +1172,11 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       .insert({ ...inspection, user_id: user.id, team_id: teamId || null });
 
     if (error) {
-      toast.error("Error", { description: error.message });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
       return;
     }
 
-    toast("Inspection Created", { description: "Vehicle inspection has been recorded." });
+    toast({ title: "Inspection Created", description: "Vehicle inspection has been recorded." });
   };
 
   const createInspectionWithPhotos = async (
@@ -1182,7 +1193,7 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       .single();
 
     if (error || !data) {
-      toast.error("Error", { description: error?.message || 'Failed to create inspection' });
+      toast({ title: "Error", description: error?.message || 'Failed to create inspection', variant: "destructive" });
       return;
     }
 
@@ -1200,7 +1211,7 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       }
     }
 
-    toast("Inspection Created", { description: `Vehicle inspection recorded with ${photos.length} photos.` });
+    toast({ title: "Inspection Created", description: `Vehicle inspection recorded with ${photos.length} photos.` });
   };
 
   const createDamageClaim = async (claim: Omit<Database['public']['Tables']['damage_claims']['Insert'], 'user_id'>) => {
@@ -1215,14 +1226,14 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
         .insert({ ...(validated as any), user_id: user.id, team_id: teamId || null });
 
       if (error) {
-        toast.error("Error", { description: error.message });
+        toast({ title: "Error", description: error.message, variant: "destructive" });
         return;
       }
 
-      toast("Damage Claim Created", { description: "Damage claim has been recorded." });
+      toast({ title: "Damage Claim Created", description: "Damage claim has been recorded." });
     } catch (error) {
       if (error instanceof z.ZodError) {
-        toast.error("Validation Error", { description: error.errors[0].message });
+        toast({ title: "Validation Error", description: error.errors[0].message, variant: "destructive" });
       } else {
         throw error;
       }
@@ -1241,7 +1252,7 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
         .insert({ ...(validated as any), user_id: user.id, team_id: teamId || null });
 
       if (error) {
-        toast.error("Error", { description: error.message });
+        toast({ title: "Error", description: error.message, variant: "destructive" });
         return;
       }
 
@@ -1277,11 +1288,11 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
         console.error('Failed to update booking payment status:', statusError);
       }
 
-      toast("Payment Recorded", { description: "Payment has been successfully recorded." });
+      toast({ title: "Payment Recorded", description: "Payment has been successfully recorded." });
       await refreshData(true);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        toast.error("Validation Error", { description: error.errors[0].message });
+        toast({ title: "Validation Error", description: error.errors[0].message, variant: "destructive" });
       } else {
         throw error;
       }
@@ -1298,7 +1309,11 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     );
 
     if (activeBookings.length > 0) {
-      toast.error("Cannot Delete", { description: `This customer has ${activeBookings.length} active booking(s). Cancel or complete them first.` });
+      toast({
+        title: "Cannot Delete",
+        description: `This customer has ${activeBookings.length} active booking(s). Cancel or complete them first.`,
+        variant: "destructive"
+      });
       return false;
     }
 
@@ -1309,7 +1324,7 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
 
     if (error) {
       devError('[FleetContext] Error deleting customer:', error);
-      toast.error("Error", { description: error.message });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
       return false;
     }
 
@@ -1317,7 +1332,7 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     setCustomers(prev => prev.filter(c => c.id !== customerId));
     setCustomerNotes(prev => prev.filter(n => n.customer_id !== customerId));
 
-    toast("Customer Deleted", { description: "Customer has been removed from CRM." });
+    toast({ title: "Customer Deleted", description: "Customer has been removed from CRM." });
     return true;
   };
 
@@ -1334,7 +1349,11 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
 
     if (error) {
       devError('[FleetContext] Error deleting vehicle:', error);
-      toast.error("Error", { description: error.message });
+      toast({ 
+        title: "Error", 
+        description: error.message, 
+        variant: "destructive" 
+      });
       return false;
     }
 
@@ -1342,7 +1361,10 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     setVehicles(prev => prev.filter(v => v.id !== vehicleId));
     
     if (!options?.silent) {
-      toast("Vehicle Deleted", { description: vehicle ? `${vehicle.name} has been removed from your fleet.` : "Vehicle has been removed." });
+      toast({ 
+        title: "Vehicle Deleted", 
+        description: vehicle ? `${vehicle.name} has been removed from your fleet.` : "Vehicle has been removed." 
+      });
     }
     
     return true;
@@ -1374,9 +1396,16 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     setVehicles(prev => prev.filter(v => !vehicleIds.includes(v.id)));
     
     if (failed === 0) {
-      toast("Vehicles Deleted", { description: `${success} vehicle${success !== 1 ? 's' : ''} removed from your fleet.` });
+      toast({ 
+        title: "Vehicles Deleted", 
+        description: `${success} vehicle${success !== 1 ? 's' : ''} removed from your fleet.` 
+      });
     } else {
-      toast.error("Partial Success", { description: `Deleted ${success} vehicle${success !== 1 ? 's' : ''}, ${failed} failed.` });
+      toast({ 
+        title: "Partial Success", 
+        description: `Deleted ${success} vehicle${success !== 1 ? 's' : ''}, ${failed} failed.`,
+        variant: "destructive"
+      });
     }
     
     return { success, failed };
@@ -1387,22 +1416,22 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
   const archiveVehicle = async (vehicleId: string): Promise<boolean> => {
     const { error } = await supabase.rpc('archive_vehicle' as any, { p_vehicle_id: vehicleId });
     if (error) {
-      toast.error("Couldn't archive vehicle", { description: error.message });
+      toast({ title: "Couldn't archive vehicle", description: error.message, variant: 'destructive' });
       return false;
     }
     setVehicles(prev => prev.filter(v => v.id !== vehicleId));
-    toast('Archived', { description: 'Restore anytime from Settings → Archived.' });
+    toast({ title: 'Archived', description: 'Restore anytime from Settings → Archived.' });
     return true;
   };
 
   const restoreVehicleFromArchive = async (vehicleId: string): Promise<boolean> => {
     const { error } = await supabase.rpc('restore_vehicle_from_archive' as any, { p_vehicle_id: vehicleId });
     if (error) {
-      toast.error("Couldn't restore vehicle", { description: error.message });
+      toast({ title: "Couldn't restore vehicle", description: error.message, variant: 'destructive' });
       return false;
     }
     await refreshData();
-    toast('Restored', { description: 'Vehicle is back in your active fleet.' });
+    toast({ title: 'Restored', description: 'Vehicle is back in your active fleet.' });
     return true;
   };
 
@@ -1419,21 +1448,21 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
   const restoreVehicleFromTrash = async (vehicleId: string): Promise<boolean> => {
     const { error } = await supabase.rpc('restore_vehicle_from_trash' as any, { p_vehicle_id: vehicleId });
     if (error) {
-      toast.error("Couldn't restore vehicle", { description: error.message });
+      toast({ title: "Couldn't restore vehicle", description: error.message, variant: 'destructive' });
       return false;
     }
     await refreshData();
-    toast('Restored', { description: 'Vehicle is back in your active fleet.' });
+    toast({ title: 'Restored', description: 'Vehicle is back in your active fleet.' });
     return true;
   };
 
   const purgeVehicleNow = async (vehicleId: string): Promise<boolean> => {
     const { error } = await supabase.rpc('purge_vehicle_now' as any, { p_vehicle_id: vehicleId });
     if (error) {
-      toast.error("Couldn't permanently delete vehicle", { description: error.message });
+      toast({ title: "Couldn't permanently delete vehicle", description: error.message, variant: 'destructive' });
       return false;
     }
-    toast('Permanently deleted', { description: 'This vehicle has been removed for good.' });
+    toast({ title: 'Permanently deleted', description: 'This vehicle has been removed for good.' });
     return true;
   };
 

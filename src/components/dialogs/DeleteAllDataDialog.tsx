@@ -33,7 +33,7 @@ import {
   FileText,
   CreditCard,
 } from "lucide-react";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTeam } from "@/contexts/TeamContext";
 import { useFleet } from "@/contexts/FleetContext";
@@ -60,6 +60,7 @@ export const DeleteAllDataDialog = ({
   open,
   onOpenChange,
 }: DeleteAllDataDialogProps) => {
+  const { toast } = useToast();
   const { user } = useAuth();
   const { currentTeam } = useTeam();
   const { vehicles, bookings, customers } = useFleet();
@@ -156,10 +157,17 @@ export const DeleteAllDataDialog = ({
       setEmailSent(true);
       setStep(2);
 
-      toast("Confirmation Email Sent", { description: "Please check your inbox to continue." });
+      toast({
+        title: "Confirmation Email Sent",
+        description: "Please check your inbox to continue.",
+      });
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "Failed to send confirmation email";
-      toast.error("Error", { description: errorMessage });
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
     } finally {
       setIsRequestingDeletion(false);
     }
@@ -183,10 +191,17 @@ export const DeleteAllDataDialog = ({
 
       if (error) throw error;
 
-      toast("Email Resent", { description: "Please check your inbox." });
+      toast({
+        title: "Email Resent",
+        description: "Please check your inbox.",
+      });
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "Failed to resend email";
-      toast.error("Error", { description: errorMessage });
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
     } finally {
       setIsRequestingDeletion(false);
     }
@@ -211,14 +226,22 @@ export const DeleteAllDataDialog = ({
 
       if (error) throw error;
 
-      toast.error("Account Deleted", { description: "All your data has been permanently deleted." });
+      toast({
+        title: "Account Deleted",
+        description: "All your data has been permanently deleted.",
+        variant: "destructive",
+      });
 
       // Sign out and redirect
       await supabase.auth.signOut();
       window.location.href = "/";
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "Failed to delete data";
-      toast.error("Deletion Failed", { description: errorMessage });
+      toast({
+        title: "Deletion Failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
     } finally {
       setIsDeleting(false);
     }

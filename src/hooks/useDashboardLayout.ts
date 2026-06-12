@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { toast } from "sonner";
+import { useToast } from '@/hooks/use-toast';
 import { Layout } from 'react-grid-layout';
 
 export interface WidgetConfig {
@@ -36,6 +36,7 @@ const defaultVisibleWidgets = availableWidgets.map(w => w.id);
 
 export const useDashboardLayout = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [layout, setLayout] = useState<Layout[]>(defaultLayout);
   const [visibleWidgets, setVisibleWidgets] = useState<string[]>(defaultVisibleWidgets);
   const [loading, setLoading] = useState(true);
@@ -92,16 +93,26 @@ export const useDashboardLayout = () => {
       setLayout(newLayout);
       setVisibleWidgets(newVisibleWidgets);
 
-      toast("Layout Saved", { description: "Your dashboard layout has been saved successfully." });
+      toast({
+        title: "Layout Saved",
+        description: "Your dashboard layout has been saved successfully.",
+      });
     } catch (error) {
       console.error('Error saving dashboard layout:', error);
-      toast.error("Error Saving Layout", { description: "Failed to save your dashboard layout. Please try again." });
+      toast({
+        title: "Error Saving Layout",
+        description: "Failed to save your dashboard layout. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
   const resetLayout = async () => {
     await saveLayout(defaultLayout, defaultVisibleWidgets);
-    toast("Layout Reset", { description: "Your dashboard has been reset to the default layout." });
+    toast({
+      title: "Layout Reset",
+      description: "Your dashboard has been reset to the default layout.",
+    });
   };
 
   const toggleWidget = (widgetId: string) => {

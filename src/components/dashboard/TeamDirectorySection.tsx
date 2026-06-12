@@ -26,7 +26,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useTeam } from "@/contexts/TeamContext";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 import { DeactivateUserDialog } from "@/components/dialogs/DeactivateUserDialog";
 import { EditUserRoleDialog } from "@/components/dialogs/EditUserRoleDialog";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -55,6 +55,7 @@ const roleConfig: Record<AppRole, { icon: React.ElementType; color: string; labe
 export const TeamDirectorySection = () => {
   const { user } = useAuth();
   const { isAdmin, isOwner } = useUserRole();
+  const { toast } = useToast();
   const { currentTeam } = useTeam();
   
   const [searchQuery, setSearchQuery] = useState("");
@@ -105,7 +106,11 @@ export const TeamDirectorySection = () => {
       setTeamMembers(members);
     } catch (error) {
       console.error("Error fetching team members:", error);
-      toast.error("Error", { description: "Failed to load team members" });
+      toast({
+        title: "Error",
+        description: "Failed to load team members",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -123,11 +128,18 @@ export const TeamDirectorySection = () => {
 
       if (error) throw error;
 
-      toast("User reactivated", { description: `${member.name} has been reactivated` });
+      toast({
+        title: "User reactivated",
+        description: `${member.name} has been reactivated`,
+      });
 
       fetchTeamMembers();
     } catch (error: any) {
-      toast.error("Failed to reactivate user", { description: error.message });
+      toast({
+        title: "Failed to reactivate user",
+        description: error.message,
+        variant: "destructive",
+      });
     }
   };
 

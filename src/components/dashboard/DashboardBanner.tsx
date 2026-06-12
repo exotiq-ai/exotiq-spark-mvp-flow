@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Camera, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 import defaultBanner from "@/assets/dashboard-banner.jpg";
 
 // Static tagline for all users
@@ -31,6 +31,8 @@ export const DashboardBanner = () => {
     banner_text_position: 'left',
     show_carbon_fiber: false,
   });
+  const { toast } = useToast();
+
   useEffect(() => {
     loadUserBanner();
   }, []);
@@ -76,13 +78,21 @@ export const DashboardBanner = () => {
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
-      toast.error("Invalid file type", { description: "Please upload an image file" });
+      toast({
+        title: "Invalid file type",
+        description: "Please upload an image file",
+        variant: "destructive"
+      });
       return;
     }
 
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      toast.error("File too large", { description: "Please upload an image smaller than 5MB" });
+      toast({
+        title: "File too large",
+        description: "Please upload an image smaller than 5MB",
+        variant: "destructive"
+      });
       return;
     }
 
@@ -125,10 +135,17 @@ export const DashboardBanner = () => {
       if (dbError) throw dbError;
 
       setBannerUrl(publicUrl);
-      toast("Banner updated", { description: "Your dashboard banner has been updated successfully" });
+      toast({
+        title: "Banner updated",
+        description: "Your dashboard banner has been updated successfully"
+      });
     } catch (error) {
       console.error('Error uploading banner:', error);
-      toast.error("Upload failed", { description: "Failed to upload banner. Please try again." });
+      toast({
+        title: "Upload failed",
+        description: "Failed to upload banner. Please try again.",
+        variant: "destructive"
+      });
     } finally {
       setIsUploading(false);
     }
@@ -147,10 +164,17 @@ export const DashboardBanner = () => {
       if (error) throw error;
 
       setBannerUrl(defaultBanner);
-      toast("Banner reset", { description: "Your dashboard banner has been reset to default" });
+      toast({
+        title: "Banner reset",
+        description: "Your dashboard banner has been reset to default"
+      });
     } catch (error) {
       console.error('Error resetting banner:', error);
-      toast.error("Reset failed", { description: "Failed to reset banner. Please try again." });
+      toast({
+        title: "Reset failed",
+        description: "Failed to reset banner. Please try again.",
+        variant: "destructive"
+      });
     }
   };
 

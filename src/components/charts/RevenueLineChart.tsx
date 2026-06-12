@@ -8,7 +8,7 @@ import { useChartData } from "@/hooks/useChartData";
 import { RevenueBreakdownDialog } from "@/components/dialogs/RevenueBreakdownDialog";
 import { exportToCSV } from "@/utils/chartExport";
 import { Download } from "lucide-react";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 import { useChartHeight, getResponsiveAxisConfig, formatCompactNumber } from "@/components/ui/adaptive-chart";
 import { TouchTooltip, getTouchActiveDot } from "@/components/ui/touch-tooltip";
@@ -17,6 +17,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 export const RevenueLineChart = () => {
   const { bookings, vehicles, payments } = useLocationFilteredFleet();
   const { revenueData, collectedData } = useChartData(bookings, payments);
+  const { toast } = useToast();
   const [selectedDay, setSelectedDay] = useState<typeof revenueData[0] | null>(null);
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [comparePeriod, setComparePeriod] = useState(false);
@@ -42,7 +43,10 @@ export const RevenueLineChart = () => {
     
     exportToCSV(exportData, 'revenue_data');
     
-    toast("Export Successful", { description: "Revenue data has been exported to CSV" });
+    toast({
+      title: "Export Successful",
+      description: "Revenue data has been exported to CSV",
+    });
   };
 
   const handlePointClick = (data: any) => {

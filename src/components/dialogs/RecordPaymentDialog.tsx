@@ -29,7 +29,7 @@ import {
 
 import { Database } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 import { useTeam } from "@/contexts/TeamContext";
 import { DollarSign, CreditCard, Loader2, ExternalLink, ChevronDown, Plus, Trash2, Gauge, Receipt, Tag } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -78,6 +78,7 @@ export const RecordPaymentDialog = ({
   booking,
   onSubmit,
 }: RecordPaymentDialogProps) => {
+  const { toast } = useToast();
   const { currentTeam } = useTeam();
   const gasFeeSettings = useTeamGasFeeSettings();
   const teamGasFee = getGasFeeForTeam(gasFeeSettings.gasFeeAmount);
@@ -254,7 +255,7 @@ export const RecordPaymentDialog = ({
       });
       if (error) throw error;
       if (data?.url) {
-        toast("Redirecting to Stripe", { description: "Opening Stripe Checkout in a new tab..." });
+        toast({ title: "Redirecting to Stripe", description: "Opening Stripe Checkout in a new tab..." });
         window.open(data.url, '_blank');
         onOpenChange(false);
       } else {
@@ -262,7 +263,7 @@ export const RecordPaymentDialog = ({
       }
     } catch (error) {
       console.error("Stripe checkout error:", error);
-      toast.error("Payment Error", { description: error instanceof Error ? error.message : "Failed to create checkout session" });
+      toast({ title: "Payment Error", description: error instanceof Error ? error.message : "Failed to create checkout session", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -308,7 +309,7 @@ export const RecordPaymentDialog = ({
       onOpenChange(false);
     } catch (error) {
       console.error("Manual payment error:", error);
-      toast.error("Payment Error", { description: error instanceof Error ? error.message : "Failed to record payment" });
+      toast({ title: "Payment Error", description: error instanceof Error ? error.message : "Failed to record payment", variant: "destructive" });
     } finally {
       setLoading(false);
     }

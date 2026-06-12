@@ -17,7 +17,7 @@ import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 import { useFleet } from "@/contexts/FleetContext";
 import {
   Gauge,
@@ -78,6 +78,7 @@ export const CheckInOutDialog = ({
   onComplete,
   onCollectPayment,
 }: CheckInOutDialogProps) => {
+  const { toast } = useToast();
   const { user } = useAuth();
   const { vehicles, refreshData } = useFleet();
   const vehicle = vehicles.find((v) => v.id === booking.vehicle_id);
@@ -210,11 +211,15 @@ export const CheckInOutDialog = ({
   const validateBasics = (): boolean => {
     const odoValue = Number(odometer);
     if (!odoValue || odoValue <= 0) {
-      toast.error("Odometer reading is required");
+      toast({ title: "Odometer reading is required", variant: "destructive" });
       return false;
     }
     if (isCheckIn && booking.pickup_odometer && odoValue < booking.pickup_odometer) {
-      toast.error("Invalid odometer", { description: "Return odometer must be greater than pickup odometer" });
+      toast({
+        title: "Invalid odometer",
+        description: "Return odometer must be greater than pickup odometer",
+        variant: "destructive",
+      });
       return false;
     }
     return true;
@@ -380,7 +385,10 @@ export const CheckInOutDialog = ({
         }
       }
 
-      toast(isCheckIn ? "Vehicle Checked In" : "Vehicle Checked Out", { description: `${resolvedVehicleName} ${isCheckIn ? "returned" : "dispatched"} successfully` });
+      toast({
+        title: isCheckIn ? "Vehicle Checked In" : "Vehicle Checked Out",
+        description: `${resolvedVehicleName} ${isCheckIn ? "returned" : "dispatched"} successfully`,
+      });
 
       // Prompt for payment if balance due on check-in
       if (isCheckIn) {
@@ -399,7 +407,11 @@ export const CheckInOutDialog = ({
       }
     } catch (error) {
       console.error("Check-in/out error:", error);
-      toast.error("Error", { description: error instanceof Error ? error.message : "Failed to process" });
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to process",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }

@@ -11,7 +11,7 @@ import {
   Loader2
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 import { useTeam } from "@/contexts/TeamContext";
 import { InviteUserDialog } from "@/components/dialogs/InviteUserDialog";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -26,6 +26,7 @@ interface PendingInvitation {
 }
 
 export const TeamInvitationsSection = () => {
+  const { toast } = useToast();
   const { currentTeam } = useTeam();
   
   const [invitations, setInvitations] = useState<PendingInvitation[]>([]);
@@ -49,7 +50,11 @@ export const TeamInvitationsSection = () => {
       setInvitations(data || []);
     } catch (error) {
       console.error("Error fetching invitations:", error);
-      toast.error("Error", { description: "Failed to load invitations" });
+      toast({
+        title: "Error",
+        description: "Failed to load invitations",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -72,11 +77,18 @@ export const TeamInvitationsSection = () => {
 
       if (error) throw error;
 
-      toast("Invitation resent", { description: `Invitation to ${invitation.email} has been extended` });
+      toast({
+        title: "Invitation resent",
+        description: `Invitation to ${invitation.email} has been extended`,
+      });
 
       fetchInvitations();
     } catch (error: any) {
-      toast.error("Failed to resend invitation", { description: error.message });
+      toast({
+        title: "Failed to resend invitation",
+        description: error.message,
+        variant: "destructive",
+      });
     } finally {
       setActionLoading(null);
     }
@@ -92,11 +104,18 @@ export const TeamInvitationsSection = () => {
 
       if (error) throw error;
 
-      toast("Invitation cancelled", { description: `Invitation to ${invitation.email} has been cancelled` });
+      toast({
+        title: "Invitation cancelled",
+        description: `Invitation to ${invitation.email} has been cancelled`,
+      });
 
       fetchInvitations();
     } catch (error: any) {
-      toast.error("Failed to cancel invitation", { description: error.message });
+      toast({
+        title: "Failed to cancel invitation",
+        description: error.message,
+        variant: "destructive",
+      });
     } finally {
       setActionLoading(null);
     }

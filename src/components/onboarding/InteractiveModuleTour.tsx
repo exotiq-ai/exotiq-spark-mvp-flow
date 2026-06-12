@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { TourSpotlight } from './TourSpotlight';
 import { useTourNavigation, TourStep } from '@/hooks/useTourNavigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { toast } from "sonner";
+import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import confetti from 'canvas-confetti';
 import { cn } from '@/lib/utils';
@@ -142,6 +142,7 @@ const getCardPosition = (stepId: string, isCenterStep: boolean): { position: str
 
 export const InteractiveModuleTour = ({ onModuleChange }: InteractiveModuleTourProps) => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [showTour, setShowTour] = useState(false);
   const [isMobileSheetExpanded, setIsMobileSheetExpanded] = useState(true);
@@ -176,7 +177,11 @@ export const InteractiveModuleTour = ({ onModuleChange }: InteractiveModuleTourP
         colors,
       });
 
-      toast("Tour Complete! 🎉", { description: "You're all set to manage your fleet like a pro.", duration: 4000 });
+      toast({
+        title: "Tour Complete! 🎉",
+        description: "You're all set to manage your fleet like a pro.",
+        duration: 4000,
+      });
     },
   });
 

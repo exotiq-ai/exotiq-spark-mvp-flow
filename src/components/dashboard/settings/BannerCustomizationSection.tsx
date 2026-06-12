@@ -7,7 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 import { useTeam } from "@/contexts/TeamContext";
 import { Save, Sparkles, Upload, X, Building2 } from "lucide-react";
 
@@ -33,6 +33,7 @@ export const BannerCustomizationSection = () => {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
   const { currentTeam, refreshTeam } = useTeam();
 
   useEffect(() => {
@@ -82,12 +83,12 @@ export const BannerCustomizationSection = () => {
 
     const validTypes = ['image/png', 'image/jpeg', 'image/svg+xml', 'image/webp'];
     if (!validTypes.includes(file.type)) {
-      toast.error("Invalid file type", { description: "Please upload PNG, JPG, SVG, or WebP." });
+      toast({ title: "Invalid file type", description: "Please upload PNG, JPG, SVG, or WebP.", variant: "destructive" });
       return;
     }
 
     if (file.size > 2 * 1024 * 1024) {
-      toast.error("File too large", { description: "Logo must be under 2MB." });
+      toast({ title: "File too large", description: "Logo must be under 2MB.", variant: "destructive" });
       return;
     }
 
@@ -119,10 +120,10 @@ export const BannerCustomizationSection = () => {
       setLogoUrl(publicUrl);
       await refreshTeam();
 
-      toast("Logo uploaded", { description: "Your company logo has been updated." });
+      toast({ title: "Logo uploaded", description: "Your company logo has been updated." });
     } catch (error) {
       console.error('Logo upload error:', error);
-      toast.error("Upload failed", { description: "Could not upload logo. Please try again." });
+      toast({ title: "Upload failed", description: "Could not upload logo. Please try again.", variant: "destructive" });
     } finally {
       setIsUploadingLogo(false);
       if (logoInputRef.current) logoInputRef.current.value = '';
@@ -141,10 +142,10 @@ export const BannerCustomizationSection = () => {
 
       setLogoUrl(null);
       await refreshTeam();
-      toast("Logo removed");
+      toast({ title: "Logo removed" });
     } catch (error) {
       console.error('Remove logo error:', error);
-      toast.error("Failed to remove logo");
+      toast({ title: "Failed to remove logo", variant: "destructive" });
     }
   };
 
@@ -165,12 +166,19 @@ export const BannerCustomizationSection = () => {
 
       if (error) throw error;
 
-      toast("Settings saved", { description: "Your banner customization has been updated. Refresh to see changes." });
+      toast({
+        title: "Settings saved",
+        description: "Your banner customization has been updated. Refresh to see changes.",
+      });
 
       setTimeout(() => window.location.reload(), 1500);
     } catch (error) {
       console.error('Error saving settings:', error);
-      toast.error("Save failed", { description: "Failed to save settings. Please try again." });
+      toast({
+        title: "Save failed",
+        description: "Failed to save settings. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsSaving(false);
     }

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { AlertTriangle, Loader2, UserMinus } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -24,6 +24,7 @@ interface DeactivateUserDialogProps {
 }
 
 export function DeactivateUserDialog({ open, onOpenChange, user, onSuccess }: DeactivateUserDialogProps) {
+  const { toast } = useToast();
   const [reason, setReason] = useState("");
   const [confirmed, setConfirmed] = useState(false);
   const [isDeactivating, setIsDeactivating] = useState(false);
@@ -58,7 +59,10 @@ export function DeactivateUserDialog({ open, onOpenChange, user, onSuccess }: De
         }
       }
 
-      toast("User deactivated", { description: `${user.name}'s access has been suspended and all sessions terminated` });
+      toast({
+        title: "User deactivated",
+        description: `${user.name}'s access has been suspended and all sessions terminated`,
+      });
 
       setReason("");
       setConfirmed(false);
@@ -66,7 +70,11 @@ export function DeactivateUserDialog({ open, onOpenChange, user, onSuccess }: De
       onSuccess?.();
     } catch (error: any) {
       console.error("Failed to deactivate user:", error);
-      toast.error("Failed to deactivate user", { description: error.message || "Please try again later" });
+      toast({
+        title: "Failed to deactivate user",
+        description: error.message || "Please try again later",
+        variant: "destructive",
+      });
     } finally {
       setIsDeactivating(false);
     }

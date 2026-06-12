@@ -6,7 +6,7 @@ import { useDemoOrchestrator } from '@/hooks/useDemoOrchestrator';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTourData } from '@/contexts/TourDataContext';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from "sonner";
+import { useToast } from '@/hooks/use-toast';
 import { RariCursor } from './RariCursor';
 import confetti from 'canvas-confetti';
 import { cn } from '@/lib/utils';
@@ -32,6 +32,7 @@ const fireFullScreenConfetti = () => {
 
 export const AutomatedDemoTour = ({ onModuleChange }: AutomatedDemoTourProps) => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const { activateTour, deactivateTour } = useTourData();
   const steps = useDemoScript();
   
@@ -41,7 +42,11 @@ export const AutomatedDemoTour = ({ onModuleChange }: AutomatedDemoTourProps) =>
     onComplete: () => {
       deactivateTour(true);
       fireFullScreenConfetti();
-      toast("Tour Complete! 🎉", { description: "Now let's set up your fleet.", duration: 5000 });
+      toast({
+        title: "Tour Complete! 🎉",
+        description: "Now let's set up your fleet.",
+        duration: 5000,
+      });
       if (user?.id) {
         supabase.from('profiles').update({ tour_completed: true }).eq('id', user.id).then(() => {});
       }

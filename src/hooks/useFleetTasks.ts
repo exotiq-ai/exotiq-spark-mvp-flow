@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTeam } from '@/contexts/TeamContext';
-import { toast } from "sonner";
+import { useToast } from '@/hooks/use-toast';
 
 export type TaskType = 'wash' | 'fuel' | 'inspection' | 'maintenance' | 'check_in' | 'check_out' | 'detail' | 'repair' | 'other';
 export type TaskPriority = 'low' | 'normal' | 'urgent';
@@ -41,6 +41,7 @@ export interface CreateTaskInput {
 export const useFleetTasks = () => {
   const { user } = useAuth();
   const { currentTeam, selectedLocationId } = useTeam();
+  const { toast } = useToast();
   const [tasks, setTasks] = useState<VehicleTask[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -69,7 +70,11 @@ export const useFleetTasks = () => {
       setTasks((data || []) as VehicleTask[]);
     } catch (error: any) {
       console.error('Error fetching tasks:', error);
-      toast.error('Error loading tasks', { description: error.message });
+      toast({
+        title: 'Error loading tasks',
+        description: error.message,
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }
@@ -124,12 +129,19 @@ export const useFleetTasks = () => {
 
       if (error) throw error;
 
-      toast('Task created', { description: `"${input.title}" has been added` });
+      toast({
+        title: 'Task created',
+        description: `"${input.title}" has been added`,
+      });
 
       return data as VehicleTask;
     } catch (error: any) {
       console.error('Error creating task:', error);
-      toast.error('Error creating task', { description: error.message });
+      toast({
+        title: 'Error creating task',
+        description: error.message,
+        variant: 'destructive',
+      });
       return null;
     }
   }, [user, currentTeam, selectedLocationId, toast]);
@@ -157,12 +169,19 @@ export const useFleetTasks = () => {
         navigator.vibrate(10);
       }
 
-      toast(status === 'completed' ? 'Task completed' : 'Task updated', { description: `Task status changed to ${status}` });
+      toast({
+        title: status === 'completed' ? 'Task completed' : 'Task updated',
+        description: `Task status changed to ${status}`,
+      });
 
       return true;
     } catch (error: any) {
       console.error('Error updating task:', error);
-      toast.error('Error updating task', { description: error.message });
+      toast({
+        title: 'Error updating task',
+        description: error.message,
+        variant: 'destructive',
+      });
       return false;
     }
   }, [user, toast]);
@@ -184,7 +203,11 @@ export const useFleetTasks = () => {
       if (error) throw error;
 
       if (!data || data.length === 0) {
-        toast.error('Task already claimed', { description: 'Someone else claimed this task before you' });
+        toast({
+          title: 'Task already claimed',
+          description: 'Someone else claimed this task before you',
+          variant: 'destructive',
+        });
         await fetchTasks();
         return false;
       }
@@ -193,12 +216,19 @@ export const useFleetTasks = () => {
         navigator.vibrate(10);
       }
 
-      toast('Task claimed', { description: 'You are now assigned to this task' });
+      toast({
+        title: 'Task claimed',
+        description: 'You are now assigned to this task',
+      });
 
       return true;
     } catch (error: any) {
       console.error('Error claiming task:', error);
-      toast.error('Error claiming task', { description: error.message });
+      toast({
+        title: 'Error claiming task',
+        description: error.message,
+        variant: 'destructive',
+      });
       return false;
     }
   }, [user, toast, fetchTasks]);
@@ -212,12 +242,18 @@ export const useFleetTasks = () => {
 
       if (error) throw error;
 
-      toast('Task deleted');
+      toast({
+        title: 'Task deleted',
+      });
 
       return true;
     } catch (error: any) {
       console.error('Error deleting task:', error);
-      toast.error('Error deleting task', { description: error.message });
+      toast({
+        title: 'Error deleting task',
+        description: error.message,
+        variant: 'destructive',
+      });
       return false;
     }
   }, [toast]);

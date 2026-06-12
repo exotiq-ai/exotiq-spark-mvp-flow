@@ -20,7 +20,7 @@ import {
   Building2,
   Sparkles
 } from "lucide-react";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { CompanyLogoUpload } from "@/components/shared/CompanyLogoUpload";
@@ -34,6 +34,7 @@ interface Profile {
 
 export const MyAccountSection = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const { user, signOut } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -89,9 +90,16 @@ export const MyAccountSection = () => {
 
       if (error) throw error;
 
-      toast("Profile Updated", { description: "Your account information has been saved." });
+      toast({
+        title: "Profile Updated",
+        description: "Your account information has been saved."
+      });
     } catch (error) {
-      toast.error("Error", { description: "Failed to update profile. Please try again." });
+      toast({
+        title: "Error",
+        description: "Failed to update profile. Please try again.",
+        variant: "destructive"
+      });
     } finally {
       setIsLoading(false);
     }
@@ -99,12 +107,20 @@ export const MyAccountSection = () => {
 
   const handlePasswordChange = async () => {
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      toast.error("Password Mismatch", { description: "New passwords do not match." });
+      toast({
+        title: "Password Mismatch",
+        description: "New passwords do not match.",
+        variant: "destructive"
+      });
       return;
     }
 
     if (passwordData.newPassword.length < 8) {
-      toast.error("Weak Password", { description: "Password must be at least 8 characters." });
+      toast({
+        title: "Weak Password",
+        description: "Password must be at least 8 characters.",
+        variant: "destructive"
+      });
       return;
     }
 
@@ -116,10 +132,17 @@ export const MyAccountSection = () => {
 
       if (error) throw error;
 
-      toast("Password Updated", { description: "Your password has been changed successfully." });
+      toast({
+        title: "Password Updated",
+        description: "Your password has been changed successfully."
+      });
       setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
     } catch (error) {
-      toast.error("Error", { description: "Failed to update password. Please try again." });
+      toast({
+        title: "Error",
+        description: "Failed to update password. Please try again.",
+        variant: "destructive"
+      });
     } finally {
       setIsLoading(false);
     }
@@ -326,7 +349,10 @@ export const MyAccountSection = () => {
                     .update({ tour_completed: false })
                     .eq('id', user.id);
                 }
-                toast("Tour Restarting", { description: "Starting the demo tour now..." });
+                toast({
+                  title: "Tour Restarting",
+                  description: "Starting the demo tour now...",
+                });
                 navigate('/dashboard');
                 setTimeout(() => window.dispatchEvent(new Event('start-demo-tour')), 500);
               }}

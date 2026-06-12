@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { toast } from "sonner";
+import { useToast } from '@/hooks/use-toast';
 import { Json } from '@/integrations/supabase/types';
 
 export type SettingsCategory = 'ai' | 'team' | 'system';
@@ -16,6 +16,7 @@ export function useUserSettings<T>({
   defaultSettings,
 }: UseUserSettingsOptions<T>) {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [settings, setSettings] = useState<T>(defaultSettings);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -61,7 +62,11 @@ export function useUserSettings<T>({
   // Save settings to database
   const saveSettings = useCallback(async (newSettings?: T): Promise<boolean> => {
     if (!user) {
-      toast.error('Not authenticated', { description: 'Please log in to save settings.' });
+      toast({
+        title: 'Not authenticated',
+        description: 'Please log in to save settings.',
+        variant: 'destructive',
+      });
       return false;
     }
 
@@ -85,7 +90,11 @@ export function useUserSettings<T>({
 
       if (error) {
         console.error('Error saving settings:', error);
-        toast.error('Error saving settings', { description: error.message });
+        toast({
+          title: 'Error saving settings',
+          description: error.message,
+          variant: 'destructive',
+        });
         return false;
       }
 
@@ -96,7 +105,11 @@ export function useUserSettings<T>({
       return true;
     } catch (err) {
       console.error('Failed to save settings:', err);
-      toast.error('Error saving settings', { description: 'An unexpected error occurred.' });
+      toast({
+        title: 'Error saving settings',
+        description: 'An unexpected error occurred.',
+        variant: 'destructive',
+      });
       return false;
     } finally {
       setIsSaving(false);

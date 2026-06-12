@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useFleet } from '@/contexts/FleetContext';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from "sonner";
+import { useToast } from '@/hooks/use-toast';
 import { Search, User, Mail, Phone, Check, Plus, Loader2 } from 'lucide-react';
 
 interface LinkCustomerDialogProps {
@@ -34,6 +34,7 @@ export function LinkCustomerDialog({
   onCustomerLinked
 }: LinkCustomerDialogProps) {
   const { customers, refreshData } = useFleet();
+  const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
   const [isLinking, setIsLinking] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -69,14 +70,21 @@ export function LinkCustomerDialog({
       
       if (error) throw error;
       
-      toast('Customer linked', { description: `Successfully linked ${customer?.full_name} to this booking.` });
+      toast({
+        title: 'Customer linked',
+        description: `Successfully linked ${customer?.full_name} to this booking.`
+      });
       
       await refreshData();
       onCustomerLinked();
       onOpenChange(false);
     } catch (error) {
       console.error('Error linking customer:', error);
-      toast.error('Failed to link customer', { description: 'Please try again.' });
+      toast({
+        title: 'Failed to link customer',
+        description: 'Please try again.',
+        variant: 'destructive'
+      });
     } finally {
       setIsLinking(false);
       setSelectedCustomerId(null);
@@ -117,7 +125,10 @@ export function LinkCustomerDialog({
         if (existing) {
           // Link existing instead of creating duplicate
           await handleLinkCustomer(existing.id);
-          toast('Existing customer found', { description: `Linked existing CRM record for ${existing.full_name}.` });
+          toast({
+            title: 'Existing customer found',
+            description: `Linked existing CRM record for ${existing.full_name}.`
+          });
           return;
         }
       }
@@ -150,14 +161,21 @@ export function LinkCustomerDialog({
 
       if (linkError) throw linkError;
 
-      toast('Customer created & linked', { description: `Created CRM record for ${newCustomer.full_name} and linked to this booking.` });
+      toast({
+        title: 'Customer created & linked',
+        description: `Created CRM record for ${newCustomer.full_name} and linked to this booking.`
+      });
 
       await refreshData();
       onCustomerLinked();
       onOpenChange(false);
     } catch (error) {
       console.error('Error creating and linking customer:', error);
-      toast.error('Failed to create customer', { description: 'Please try again.' });
+      toast({
+        title: 'Failed to create customer',
+        description: 'Please try again.',
+        variant: 'destructive'
+      });
     } finally {
       setIsCreating(false);
     }

@@ -12,7 +12,7 @@ import {
   Save,
   Loader2
 } from "lucide-react";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import {
   Select,
@@ -69,6 +69,7 @@ const defaultSettings: SystemSettings = {
 };
 
 export const SystemSettingsSection = () => {
+  const { toast } = useToast();
   const [errors, setErrors] = useState<Record<string, string>>({});
   
   const {
@@ -117,13 +118,20 @@ export const SystemSettingsSection = () => {
 
   const handleSaveSettings = async () => {
     if (!validateSettings()) {
-      toast.error("Validation Error", { description: "Please fix the errors before saving." });
+      toast({
+        title: "Validation Error",
+        description: "Please fix the errors before saving.",
+        variant: "destructive"
+      });
       return;
     }
 
     const success = await saveSettings();
     if (success) {
-      toast("Settings Saved", { description: "Your system settings have been updated successfully." });
+      toast({
+        title: "Settings Saved",
+        description: "Your system settings have been updated successfully.",
+      });
       setErrors({});
     }
   };

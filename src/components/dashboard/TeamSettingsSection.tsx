@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { Save, Building2, Clock, Bell, Loader2, DollarSign, Fuel } from "lucide-react";
 
@@ -37,6 +37,8 @@ const defaultSettings: TeamSettings = {
 };
 
 export const TeamSettingsSection = () => {
+  const { toast } = useToast();
+  
   const {
     settings,
     updateSetting,
@@ -51,7 +53,10 @@ export const TeamSettingsSection = () => {
   const handleSave = async () => {
     const success = await saveSettings();
     if (success) {
-      toast("Settings saved", { description: "Team settings have been updated successfully" });
+      toast({
+        title: "Settings saved",
+        description: "Team settings have been updated successfully",
+      });
     }
   };
 

@@ -1,4 +1,4 @@
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { SEOHead } from "@/components/common/SEOHead";
@@ -11,6 +11,7 @@ import { Footer } from "@/components/landing/Footer";
 import { CalendlyModal } from "@/components/landing/CalendlyModal";
 
 const Landing = () => {
+  const { toast } = useToast();
   const navigate = useNavigate();
   const [calendlyOpen, setCalendlyOpen] = useState(false);
 

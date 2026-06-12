@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from "sonner";
+import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -46,6 +46,8 @@ export const InspectionWidget = ({
   onComplete,
 }: InspectionWidgetProps) => {
   const { user } = useAuth();
+  const { toast } = useToast();
+  
   const [isOpen, setIsOpen] = useState(false);
   const [step, setStep] = useState<WizardStep>('start');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -256,7 +258,10 @@ export const InspectionWidget = ({
         if (damageError) console.error('Error inserting damage items:', damageError);
       }
 
-      toast('Inspection Complete', { description: `${direction === 'check_in' ? 'Check-in' : 'Check-out'} inspection saved successfully.` });
+      toast({
+        title: 'Inspection Complete',
+        description: `${direction === 'check_in' ? 'Check-in' : 'Check-out'} inspection saved successfully.`,
+      });
 
       setStep('complete');
       
@@ -268,7 +273,11 @@ export const InspectionWidget = ({
       }
     } catch (error) {
       console.error('Error submitting inspection:', error);
-      toast.error('Error', { description: 'Failed to save inspection. Please try again.' });
+      toast({
+        title: 'Error',
+        description: 'Failed to save inspection. Please try again.',
+        variant: 'destructive',
+      });
     } finally {
       setIsSubmitting(false);
     }

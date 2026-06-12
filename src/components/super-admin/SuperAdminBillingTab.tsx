@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -67,6 +67,7 @@ const STAGE_BADGE: Record<Stage, string> = {
 };
 
 export const SuperAdminBillingTab = () => {
+  const { toast } = useToast();
   const [tenants, setTenants] = useState<TenantRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -76,7 +77,11 @@ export const SuperAdminBillingTab = () => {
     setLoading(true);
     const { data, error } = await (supabase as any).rpc("get_super_admin_billing_tenants");
     if (error) {
-      toast.error("Failed to load tenants", { description: error.message });
+      toast({
+        title: "Failed to load tenants",
+        description: error.message,
+        variant: "destructive",
+      });
       setLoading(false);
       return;
     }
@@ -218,6 +223,7 @@ const TenantBillingDrawer = ({
   onClose: () => void;
   onSaved: () => void;
 }) => {
+  const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   const [stage, setStage] = useState<Stage | "">(tenant.billing_dunning_stage ?? "");
   const [tier, setTier] = useState<Tier | "">(normalizeLegacyTier(tenant.assumed_plan_tier as string | null));
@@ -239,11 +245,19 @@ const TenantBillingDrawer = ({
 
   const applyStage = async () => {
     if (!stage) {
-      toast.error("Pick a stage", { description: "Choose Reminder, Notice, or Restriction." });
+      toast({
+        title: "Pick a stage",
+        description: "Choose Reminder, Notice, or Restriction.",
+        variant: "destructive",
+      });
       return;
     }
     if (tier && !isEnterprise && bounds && (!Number.isFinite(fleetNum) || fleetOutOfBounds)) {
-      toast.error("Fleet size doesn't fit tier", { description: `${TIER_INFO[tier].label} covers ${bounds.min}–${bounds.max} vehicles.` });
+      toast({
+        title: "Fleet size doesn't fit tier",
+        description: `${TIER_INFO[tier].label} covers ${bounds.min}–${bounds.max} vehicles.`,
+        variant: "destructive",
+      });
       return;
     }
     setSaving(true);
@@ -262,10 +276,10 @@ const TenantBillingDrawer = ({
     });
     setSaving(false);
     if (error) {
-      toast.error("Failed", { description: error.message });
+      toast({ title: "Failed", description: error.message, variant: "destructive" });
       return;
     }
-    toast("Stage applied", { description: `${tenant.name} is now at ${stage}.` });
+    toast({ title: "Stage applied", description: `${tenant.name} is now at ${stage}.` });
     onSaved();
   };
 
@@ -277,10 +291,10 @@ const TenantBillingDrawer = ({
     });
     setSaving(false);
     if (error) {
-      toast.error("Failed", { description: error.message });
+      toast({ title: "Failed", description: error.message, variant: "destructive" });
       return;
     }
-    toast("Cleared", { description: `Banner removed for ${tenant.name}.` });
+    toast({ title: "Cleared", description: `Banner removed for ${tenant.name}.` });
     onSaved();
   };
 

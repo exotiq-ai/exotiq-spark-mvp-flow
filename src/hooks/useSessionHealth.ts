@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from "sonner";
+import { useToast } from '@/hooks/use-toast';
 import { devLog, devWarn, devError } from '@/lib/logger';
 
 export type SessionHealthStatus = 'healthy' | 'refreshing' | 'checking' | 'expired' | 'idle-warning';
@@ -29,6 +29,8 @@ export function useSessionHealth(config: SessionHealthConfig) {
     isAuthenticated,
     userId,
   } = config;
+
+  const { toast } = useToast();
   const [sessionHealth, setSessionHealth] = useState<SessionHealthStatus>('healthy');
   const sessionHealthRef = useRef<SessionHealthStatus>('healthy');
   
@@ -104,7 +106,11 @@ export function useSessionHealth(config: SessionHealthConfig) {
       if (error || !data.session) {
         devWarn('[SessionHealth] Session refresh failed:', error?.message || 'No session returned');
         setSessionHealth('expired');
-        toast.error('Session Expired', { description: 'Your session has expired. Please sign in again.' });
+        toast({
+          title: 'Session Expired',
+          description: 'Your session has expired. Please sign in again.',
+          variant: 'destructive',
+        });
         await onSessionExpired();
         return false;
       }
@@ -190,7 +196,11 @@ export function useSessionHealth(config: SessionHealthConfig) {
         devLog('[SessionHealth] Inactivity threshold reached:', Math.round(inactiveDuration / 1000 / 60), 'minutes');
         setSessionHealth('idle-warning');
         
-        toast('Session Expiring Soon', { description: 'You will be signed out in 1 minute due to inactivity. Move your mouse or press any key to stay signed in.', duration: 10000 });
+        toast({
+          title: 'Session Expiring Soon',
+          description: 'You will be signed out in 1 minute due to inactivity. Move your mouse or press any key to stay signed in.',
+          duration: 10000,
+        });
 
         // Start grace period countdown
         warningTimeoutRef.current = window.setTimeout(async () => {
@@ -198,7 +208,11 @@ export function useSessionHealth(config: SessionHealthConfig) {
           const stillInactive = Date.now() - lastActivityTimestamp.current >= timeoutMs;
           if (stillInactive && sessionHealthRef.current === 'idle-warning') {
             devLog('[SessionHealth] Grace period expired, signing out');
-            toast.error('Session Ended', { description: 'You have been signed out due to inactivity.' });
+            toast({
+              title: 'Session Ended',
+              description: 'You have been signed out due to inactivity.',
+              variant: 'destructive',
+            });
             await onSessionExpired();
           }
         }, gracePeriodMs);

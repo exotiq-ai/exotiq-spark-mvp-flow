@@ -22,7 +22,7 @@ import { Database } from "@/integrations/supabase/types";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { validators, validateForm } from "@/lib/validation";
-import { toast } from "sonner";
+import { toast } from "@/hooks/use-toast";
 import { isFeatureEnabled } from "@/lib/featureFlags";
 
 type Customer = Database['public']['Tables']['customers']['Row'];
@@ -122,7 +122,10 @@ export const EditCustomerDialog = ({
       });
 
       onOpenChange(false);
-      toast("Customer updated", { description: `${formData.full_name}'s information has been saved` });
+      toast({
+        title: "Customer updated",
+        description: `${formData.full_name}'s information has been saved`,
+      });
     } catch (err) {
       setError("Failed to update customer. Please try again.");
       console.error("Error updating customer:", err);

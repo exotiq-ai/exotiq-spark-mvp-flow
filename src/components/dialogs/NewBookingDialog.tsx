@@ -33,7 +33,7 @@ import { Badge } from '@/components/ui/badge';
 import { TablesInsert, Tables } from '@/integrations/supabase/types';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { validators, validateForm } from '@/lib/validation';
-import { toast } from "sonner";
+import { toast } from '@/hooks/use-toast';
 import { useAIPricing } from '@/hooks/useAIPricing';
 import { useTeam } from '@/contexts/TeamContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -279,7 +279,10 @@ export const NewBookingDialog = ({
       setDiscountReason('');
       onOpenChange(false);
       
-      toast("Success", { description: "Booking created successfully" });
+      toast({
+        title: "Success",
+        description: "Booking created successfully",
+      });
     } catch (err) {
       setError('Failed to create booking. Please try again.');
       console.error('Booking error:', err);
@@ -433,7 +436,10 @@ export const NewBookingDialog = ({
                       variant="outline"
                       className="w-full"
                       onClick={() => {
-                        toast("AI Rate Applied", { description: `Daily rate set to $${pricingSuggestion.suggestedRate}` });
+                        toast({
+                          title: "AI Rate Applied",
+                          description: `Daily rate set to $${pricingSuggestion.suggestedRate}`,
+                        });
                       }}
                     >
                       <Check className="h-4 w-4 mr-2" />

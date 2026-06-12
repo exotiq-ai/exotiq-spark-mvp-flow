@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useTeam, Location } from "@/contexts/TeamContext";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 import { MapPin, Plus, Pencil, Star, Phone, Mail, Clock } from "lucide-react";
 import { AddLocationDialog } from "@/components/dialogs/AddLocationDialog";
 import { EditLocationDialog } from "@/components/dialogs/EditLocationDialog";
@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 
 export const LocationsSection = () => {
   const { locations, currentTeam, refreshTeam, isOwner } = useTeam();
+  const { toast } = useToast();
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editingLocation, setEditingLocation] = useState<Location | null>(null);
   const [settingDefault, setSettingDefault] = useState<string | null>(null);
@@ -35,12 +36,19 @@ export const LocationsSection = () => {
 
       if (error) throw error;
 
-      toast("Default location updated", { description: "The default location has been changed." });
+      toast({
+        title: "Default location updated",
+        description: "The default location has been changed.",
+      });
 
       await refreshTeam();
     } catch (error) {
       console.error('Error setting default location:', error);
-      toast.error("Error", { description: "Failed to update default location." });
+      toast({
+        title: "Error",
+        description: "Failed to update default location.",
+        variant: "destructive",
+      });
     } finally {
       setSettingDefault(null);
     }

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { AlertCircle, CreditCard, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 import { useBillingDunning, type DunningStage, TIER_BOUNDS } from "@/hooks/useBillingDunning";
 import { useUserRole } from "@/hooks/useUserRole";
 import { cn } from "@/lib/utils";
@@ -49,6 +49,7 @@ export const PaymentDueBanner = () => {
   const { stage, message, assumedPlanTier, assumedPlanFleetSize, assumedPlanIsAnnual, setAt } =
     useBillingDunning();
   const { isOwner, isAdmin } = useUserRole();
+  const { toast } = useToast();
   const [launching, setLaunching] = useState(false);
 
   // Reminder stage is dismissible per session (keyed by set time so a fresh flag re-appears)
@@ -99,7 +100,11 @@ export const PaymentDueBanner = () => {
       if (!url) throw new Error("No checkout URL returned");
       window.open(url, "_blank", "noopener,noreferrer");
     } catch (err) {
-      toast.error("Couldn't open checkout", { description: err instanceof Error ? err.message : "Please try again or contact support." });
+      toast({
+        title: "Couldn't open checkout",
+        description: err instanceof Error ? err.message : "Please try again or contact support.",
+        variant: "destructive",
+      });
     } finally {
       setLaunching(false);
     }

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 import { useTeam } from "@/contexts/TeamContext";
 import { supabase } from "@/integrations/supabase/client";
 import { AlertTriangle, Loader2, Trash2 } from "lucide-react";
@@ -25,6 +25,7 @@ interface DeleteUserDialogProps {
 }
 
 export function DeleteUserDialog({ open, onOpenChange, user, onSuccess }: DeleteUserDialogProps) {
+  const { toast } = useToast();
   const { currentTeam } = useTeam();
   const [reason, setReason] = useState("");
   const [confirmed, setConfirmed] = useState(false);
@@ -73,7 +74,10 @@ export function DeleteUserDialog({ open, onOpenChange, user, onSuccess }: Delete
         team_id: currentTeam?.id,
       });
 
-      toast("User removed", { description: `${user.name}'s access has been revoked` });
+      toast({
+        title: "User removed",
+        description: `${user.name}'s access has been revoked`,
+      });
 
       // Reset form
       setReason("");
@@ -82,7 +86,11 @@ export function DeleteUserDialog({ open, onOpenChange, user, onSuccess }: Delete
       onSuccess?.();
     } catch (error: any) {
       console.error("Failed to delete user:", error);
-      toast.error("Failed to remove user", { description: error.message || "Please try again later" });
+      toast({
+        title: "Failed to remove user",
+        description: error.message || "Please try again later",
+        variant: "destructive",
+      });
     } finally {
       setIsDeleting(false);
     }

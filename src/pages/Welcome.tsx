@@ -16,7 +16,7 @@ import {
 import { CheckCircle2, ArrowRight, Calendar, Loader2, Sparkles } from 'lucide-react';
 import { SEOHead } from '@/components/common/SEOHead';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from "sonner";
+import { useToast } from '@/hooks/use-toast';
 import { Celebration } from '@/components/common/MicroInteractions';
 import { motion } from 'framer-motion';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -27,6 +27,7 @@ import { Link } from 'react-router-dom';
 const Welcome = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCalendlyLoaded, setIsCalendlyLoaded] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
@@ -92,10 +93,17 @@ const Welcome = () => {
 
       if (error) throw error;
 
-      toast('Information saved!', { description: 'Thank you for completing your profile. Book your onboarding session below.' });
+      toast({
+        title: 'Information saved!',
+        description: 'Thank you for completing your profile. Book your onboarding session below.',
+      });
     } catch (error: any) {
       console.error('Error saving onboarding data:', error);
-      toast.error('Could not save', { description: 'Your information could not be saved, but you can still book your onboarding.' });
+      toast({
+        title: 'Could not save',
+        description: 'Your information could not be saved, but you can still book your onboarding.',
+        variant: 'destructive',
+      });
     } finally {
       setIsSubmitting(false);
     }

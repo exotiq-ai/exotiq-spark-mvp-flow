@@ -7,8 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useTeam } from "@/contexts/TeamContext";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-
+import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 import { 
   Banknote, 
   Building2, 
@@ -38,6 +38,7 @@ type ConnectStatus = "not_connected" | "onboarding" | "active" | "restricted";
 
 export const PaymentMethodsSection = () => {
   const { currentTeam, refreshTeam } = useTeam();
+  const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [enabledMethods, setEnabledMethods] = useState<string[]>(DEFAULT_METHODS);
@@ -87,9 +88,9 @@ export const PaymentMethodsSection = () => {
 
       if (error) throw error;
       await refreshTeam();
-      toast("Payment Methods Updated", { description: "Your accepted payment methods have been saved." });
+      toast({ title: "Payment Methods Updated", description: "Your accepted payment methods have been saved." });
     } catch (err) {
-      toast.error("Error", { description: "Failed to save payment methods." });
+      toast({ title: "Error", description: "Failed to save payment methods.", variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -114,10 +115,16 @@ export const PaymentMethodsSection = () => {
       }
 
       if (errorBody?.error_code === 'platform_profile_incomplete') {
-        toast.error("Stripe platform setup required", {
+        toast({
+          title: "Stripe platform setup required",
           description: errorBody.error ?? "Complete your Stripe Connect platform profile to enable tenant onboarding.",
+          variant: "destructive",
           action: errorBody.action_url
-            ? { label: "Open Stripe", onClick: () => window.open(errorBody!.action_url!, '_blank') }
+            ? (
+                <ToastAction altText="Open Stripe settings" onClick={() => window.open(errorBody!.action_url!, '_blank')}>
+                  Open Stripe
+                </ToastAction>
+              )
             : undefined,
         });
         return;
@@ -129,10 +136,10 @@ export const PaymentMethodsSection = () => {
 
       if (data?.url) {
         window.open(data.url, '_blank');
-        toast("Stripe Onboarding", { description: "Complete your Stripe setup in the new tab. Refresh this page when done." });
+        toast({ title: "Stripe Onboarding", description: "Complete your Stripe setup in the new tab. Refresh this page when done." });
       }
     } catch (err) {
-      toast.error("Error", { description: err instanceof Error ? err.message : "Failed to start Stripe onboarding." });
+      toast({ title: "Error", description: err instanceof Error ? err.message : "Failed to start Stripe onboarding.", variant: "destructive" });
     } finally {
       setConnecting(false);
     }
@@ -149,7 +156,7 @@ export const PaymentMethodsSection = () => {
         window.open(data.url, '_blank');
       }
     } catch (err) {
-      toast.error("Error", { description: "Failed to refresh onboarding link." });
+      toast({ title: "Error", description: "Failed to refresh onboarding link.", variant: "destructive" });
     } finally {
       setConnecting(false);
     }
@@ -165,13 +172,13 @@ export const PaymentMethodsSection = () => {
         window.open(data.url, '_blank');
       }
     } catch (err) {
-      toast.error("Error", { description: "Failed to open Stripe Dashboard." });
+      toast({ title: "Error", description: "Failed to open Stripe Dashboard.", variant: "destructive" });
     }
   };
 
   const handleRefreshStatus = async () => {
     await refreshTeam();
-    toast("Status Refreshed", { description: "Payment account status has been updated." });
+    toast({ title: "Status Refreshed", description: "Payment account status has been updated." });
   };
 
   return (

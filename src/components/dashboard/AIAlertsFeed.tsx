@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { differenceInDays, differenceInHours, isBefore, addDays } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 
 interface AIAlert {
   id: string;
@@ -174,6 +174,8 @@ export const AIAlertsFeed = ({ onNavigate, className }: AIAlertsFeedProps) => {
     documents, 
     damageClaims
   } = useLocationFilteredFleet();
+  const { toast } = useToast();
+  
   const [collapsed, setCollapsed] = useState(true); // Start collapsed by default
   const [dismissedAlertIds, setDismissedAlertIds] = useState<Set<string>>(new Set());
   const [voiceAlertsEnabled, setVoiceAlertsEnabled] = useState(() => {
@@ -236,7 +238,11 @@ export const AIAlertsFeed = ({ onNavigate, className }: AIAlertsFeedProps) => {
       }
     } catch (error) {
       console.error('Error generating speech:', error);
-      toast.error("Voice Alert Error", { description: "Could not play voice alert. Check console for details." });
+      toast({
+        title: "Voice Alert Error",
+        description: "Could not play voice alert. Check console for details.",
+        variant: "destructive"
+      });
       playNextInQueue();
     }
   };

@@ -3,7 +3,7 @@ import { Phone, PhoneOff, Mic } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { toast } from "sonner";
+import { useToast } from '@/hooks/use-toast';
 import { useConversation } from '@11labs/react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -35,6 +35,7 @@ export const RariVoiceInterface = ({
   recentEntities,
   onActiveCallChange,
 }: RariVoiceInterfaceProps) => {
+  const { toast } = useToast();
   const { user } = useAuth();
   const { currentTeam } = useTeam();
   const { role: userRole } = useUserRole();
@@ -129,7 +130,10 @@ export const RariVoiceInterface = ({
     onConnect: () => {
       console.log('Connected to Rari');
       setConversationStartTime(new Date());
-      toast("Connected to Rari", { description: "Voice assistant is ready to help with your fleet." });
+      toast({
+        title: "Connected to Rari",
+        description: "Voice assistant is ready to help with your fleet.",
+      });
     },
     onDisconnect: () => {
       console.log('Disconnected from Rari');
@@ -211,7 +215,11 @@ export const RariVoiceInterface = ({
     },
     onError: (error) => {
       console.error('Rari error:', error);
-      toast.error("Connection Error", { description: "Failed to connect to Rari. Please try again." });
+      toast({
+        title: "Connection Error",
+        description: "Failed to connect to Rari. Please try again.",
+        variant: "destructive",
+      });
     },
   });
 
@@ -324,7 +332,11 @@ export const RariVoiceInterface = ({
       });
     } catch (error: any) {
       console.error('Failed to start conversation:', error);
-      toast.error("Connection Failed", { description: error.message || "Please allow microphone access and ensure API key is configured." });
+      toast({
+        title: "Connection Failed",
+        description: error.message || "Please allow microphone access and ensure API key is configured.",
+        variant: "destructive",
+      });
     }
   };
 
