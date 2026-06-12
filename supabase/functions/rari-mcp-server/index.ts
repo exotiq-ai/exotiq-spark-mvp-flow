@@ -961,8 +961,17 @@ Deno.serve(async (req) => {
           const supabase = createClient(supabaseUrl, supabaseServiceKey);
           
           const userId = await extractUserId(req, supabase);
+          if (!userId) {
+            return new Response(JSON.stringify(createJSONRPCResponse(id, {
+              content: [{ type: "text", text: "Error: Unauthorized — missing or invalid user session." }],
+              isError: true
+            })), {
+              status: 401,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
+          }
           const teamId = await getUserTeamId(supabase, userId);
-          
+
           if (!teamId) {
             return new Response(JSON.stringify(createJSONRPCResponse(id, {
               content: [{ type: "text", text: "Error: No team found." }],
@@ -971,8 +980,8 @@ Deno.serve(async (req) => {
               headers: { ...corsHeaders, 'Content-Type': 'application/json' }
             });
           }
-          
-          const result = await executeFunction(toolName, toolArgs || {}, supabase, teamId);
+
+          const result = await executeFunction(toolName, toolArgs || {}, supabase, teamId, userId);
           
           return new Response(JSON.stringify(createJSONRPCResponse(id, {
             content: [{ type: "text", text: result.summary || JSON.stringify(result) }],
