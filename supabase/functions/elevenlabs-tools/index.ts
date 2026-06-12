@@ -209,6 +209,9 @@ const KNOWN_TOOLS = new Set([
   'getVehicleProfitLoss', 'getFleetProfitLoss', 'getCompetitorRates',
   'getSeasonalPricing', 'getFleetInsights', 'getActionItems',
   'createBooking', 'updateBooking', 'sendCustomerMessage',
+  // New ops tools (2026-06-12)
+  'get_vehicle_status', 'get_todays_schedule', 'get_booking_by_reference',
+  'search_customer', 'get_open_work_orders', 'create_booking_hold',
 ]);
 
 function extractToolCall(body: any, url: URL): { toolName?: string; parameters: any } {
