@@ -1,0 +1,1 @@
+UPDATE public.bookings SET status = 'completed', updated_at = now() WHERE status = 'active' AND end_date < now();
