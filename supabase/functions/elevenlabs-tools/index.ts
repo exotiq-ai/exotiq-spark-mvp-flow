@@ -844,30 +844,82 @@ async function executeFunction(functionName: string, args: Record<string, unknow
       }
 
       case "get_bookings": {
-        const { status, start_date, end_date, location } = args;
-        console.log(`[get_bookings] Team: ${teamId}, Status: ${status || 'all'}, Location: ${location || 'all'}`);
-        
+        const { status, start_date, end_date, location, date } = args;
+        console.log(`[get_bookings] Team: ${teamId}, Status: ${status || 'all'}, Date: ${date || 'n/a'}, Range: ${start_date || '-'}..${end_date || '-'}, Location: ${location || 'all'}`);
+
+        // --- Status synonyms ---------------------------------------------------
+        // The app uses canonical statuses: confirmed, pending, completed, cancelled.
+        // Rari (and humans) commonly say "active", "current", "rented", "out", "upcoming".
+        // Translate those to a set of canonical statuses + an implicit time window.
+        const STATUS_SYNONYMS: Record<string, { statuses: string[]; window?: 'today' | 'future' }> = {
+          active:       { statuses: ['confirmed', 'pending'], window: 'today' },
+          current:      { statuses: ['confirmed', 'pending'], window: 'today' },
+          rented:       { statuses: ['confirmed'],            window: 'today' },
+          out:          { statuses: ['confirmed'],            window: 'today' },
+          in_progress:  { statuses: ['confirmed'],            window: 'today' },
+          upcoming:     { statuses: ['confirmed', 'pending'], window: 'future' },
+        };
+
+        const rawStatus = typeof status === 'string' ? status.toLowerCase().trim() : '';
+        const synonym = STATUS_SYNONYMS[rawStatus];
+        const resolvedStatuses: string[] | null = synonym
+          ? synonym.statuses
+          : (rawStatus && rawStatus !== 'all' ? [rawStatus] : null);
+
+        // --- Date window resolution -------------------------------------------
+        // `date` keyword takes precedence over explicit start/end; both produce
+        // an OVERLAP filter (start <= window_end AND end >= window_start).
+        const todayStart = new Date(); todayStart.setUTCHours(0, 0, 0, 0);
+        const todayEnd   = new Date(); todayEnd.setUTCHours(23, 59, 59, 999);
+        let windowStart: Date | null = null;
+        let windowEnd: Date | null = null;
+        let windowLabel: string | null = null;
+
+        const keyword = (typeof date === 'string' ? date.toLowerCase().trim() : '')
+          || (synonym?.window === 'today' ? 'today' : '')
+          || (synonym?.window === 'future' ? 'upcoming' : '');
+
+        if (keyword === 'today') {
+          windowStart = todayStart; windowEnd = todayEnd;
+          windowLabel = `today (${todayStart.toISOString().slice(0,10)})`;
+        } else if (keyword === 'tomorrow') {
+          windowStart = new Date(todayStart.getTime() + 86400000);
+          windowEnd   = new Date(todayEnd.getTime()   + 86400000);
+          windowLabel = `tomorrow (${windowStart.toISOString().slice(0,10)})`;
+        } else if (keyword === 'this_week' || keyword === 'week') {
+          windowStart = todayStart;
+          windowEnd   = new Date(todayEnd.getTime() + 6 * 86400000);
+          windowLabel = `this week (${windowStart.toISOString().slice(0,10)} → ${windowEnd.toISOString().slice(0,10)})`;
+        } else if (keyword === 'upcoming' || keyword === 'future') {
+          windowStart = todayStart; windowEnd = null;
+          windowLabel = `upcoming (from ${todayStart.toISOString().slice(0,10)})`;
+        } else if (start_date || end_date) {
+          windowStart = start_date ? new Date(start_date) : null;
+          windowEnd   = end_date   ? new Date(end_date)   : null;
+          windowLabel = `${start_date || '…'} → ${end_date || '…'}`;
+        }
+
+        // --- Build query -------------------------------------------------------
         let query = supabase
           .from('bookings')
           .select('*, vehicles(name, make, model, year, location), customers(full_name, email)');
-        
-        // Filter by team_id
-        if (teamId) {
-          query = query.eq('team_id', teamId);
+
+        if (teamId) query = query.eq('team_id', teamId);
+
+        if (resolvedStatuses && resolvedStatuses.length === 1) {
+          query = query.eq('status', resolvedStatuses[0]);
+        } else if (resolvedStatuses && resolvedStatuses.length > 1) {
+          query = query.in('status', resolvedStatuses);
         }
 
-        if (status && status !== 'all') {
-          query = query.eq('status', status);
-        }
-        if (start_date) {
-          query = query.gte('start_date', start_date);
-        }
-        if (end_date) {
-          query = query.lte('end_date', end_date);
-        }
+        // OVERLAP semantics: booking is in-window if start <= window_end AND end >= window_start
+        if (windowEnd)   query = query.lte('start_date', windowEnd.toISOString());
+        if (windowStart) query = query.gte('end_date',   windowStart.toISOString());
 
-        const { data: bookings, error } = await query.order('start_date', { ascending: false}).limit(30);
-        
+        const { data: bookings, error } = await query
+          .order('start_date', { ascending: false })
+          .limit(30);
+
         if (error) {
           console.error('[get_bookings] Database error:', error);
           return {
@@ -875,31 +927,44 @@ async function executeFunction(functionName: string, args: Record<string, unknow
             summary: 'I encountered an error retrieving your booking data.'
           };
         }
-        
-        // Filter by location if specified
+
         let filteredBookings = bookings || [];
         if (location && location !== 'all') {
-          filteredBookings = filteredBookings.filter((b: any) => 
+          filteredBookings = filteredBookings.filter((b: any) =>
             b.vehicles?.location?.toLowerCase().includes(location.toLowerCase())
           );
         }
-        
-        console.log(`[get_bookings] Found ${filteredBookings.length} bookings`);
-        
+
+        const interpretation = [
+          windowLabel ? `window=${windowLabel}` : 'no time filter',
+          resolvedStatuses ? `status∈[${resolvedStatuses.join(',')}]` : 'any status',
+          location && location !== 'all' ? `location~${location}` : null,
+        ].filter(Boolean).join(' · ');
+
+        console.log(`[get_bookings] Found ${filteredBookings.length} bookings (${interpretation})`);
+
+        const baseMeta = {
+          queried_status: status ?? null,
+          resolved_statuses: resolvedStatuses,
+          date_window: windowLabel,
+          today_iso: todayStart.toISOString().slice(0, 10),
+          interpretation,
+        };
+
         if (filteredBookings.length === 0) {
           return {
+            ...baseMeta,
             count: 0,
             bookings: [],
             totalRevenue: '$0',
-            summary: `You don't have any bookings${status && status !== 'all' ? ` that are ${status}` : ''}${location ? ` in ${location}` : ''} matching your criteria.`
+            summary: `No bookings match ${interpretation}. (Canonical statuses in this system are confirmed, pending, completed, cancelled — there is no live "active" status; use date='today' for what's out right now.)`
           };
         }
-        
+
         const bookingList = filteredBookings.map(b => {
           const vehicleName = b.vehicles ? `${b.vehicles.year} ${b.vehicles.make} ${b.vehicles.model}` : 'Unknown vehicle';
           const customerName = b.customers?.full_name || b.customer_name || 'Unknown';
           const totalAmount = Number(b.total_value || b.total_amount || 0);
-          
           return {
             customer: customerName,
             vehicle: vehicleName,
@@ -913,13 +978,14 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         });
 
         const totalRevenue = filteredBookings.reduce((sum, b) => sum + Number(b.total_value || b.total_amount || 0), 0);
-        
+
         return {
+          ...baseMeta,
           count: filteredBookings.length,
           bookings: bookingList,
           totalRevenue: formatUsdWords(totalRevenue),
           totalRevenueRaw: totalRevenue,
-          summary: `You have ${filteredBookings.length} bookings${status && status !== 'all' ? ` that are ${status}` : ''}${location ? ` in ${location}` : ''}. Total value: ${formatUsdWords(totalRevenue)}.`
+          summary: `You have ${filteredBookings.length} bookings (${interpretation}). Total value: ${formatUsdWords(totalRevenue)}.`
         };
       }
 
