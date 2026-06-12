@@ -243,13 +243,22 @@ function extractToolCall(body: any, url: URL): { toolName?: string; parameters: 
         const v = queryParams[k];
         
         // Special case: status param with booking-related values → get_bookings
-        // Booking statuses: confirmed, pending, active, completed, cancelled, in_progress
-        const bookingStatuses = ['confirmed', 'pending', 'active', 'completed', 'cancelled', 'in_progress', 'all'];
+        // Canonical statuses + synonyms Rari may emit
+        const bookingStatuses = [
+          'confirmed', 'pending', 'active', 'completed', 'cancelled', 'in_progress', 'all',
+          'current', 'rented', 'out', 'upcoming', 'future'
+        ];
         if (k === 'status' && bookingStatuses.includes(v.toLowerCase())) {
           console.log(`[extractToolCall] Mapping URL param { "status": "${v}" } to tool: get_bookings (booking status detected)`);
           return { toolName: 'get_bookings', parameters: queryParams };
         }
-        
+
+        // Date keyword (today/tomorrow/this_week/upcoming) → get_bookings
+        if (k === 'date') {
+          console.log(`[extractToolCall] Mapping URL param { "date": "${v}" } to tool: get_bookings`);
+          return { toolName: 'get_bookings', parameters: queryParams };
+        }
+
         if (PARAMETER_TO_TOOL_MAP[k]) {
           console.log(`[extractToolCall] Mapping URL param { "${k}": "${v}" } to tool: ${PARAMETER_TO_TOOL_MAP[k]}`);
           return { toolName: PARAMETER_TO_TOOL_MAP[k], parameters: queryParams };
@@ -260,7 +269,7 @@ function extractToolCall(body: any, url: URL): { toolName?: string; parameters: 
           return { toolName: 'get_recent_activity', parameters: queryParams };
         }
       }
-      
+
       // Multi-param: use same inference as body
       let inferredTool = 'get_fleet_vehicles'; // default
       if (paramKeys.includes('customerName')) inferredTool = 'getCustomerProfile';
@@ -270,6 +279,8 @@ function extractToolCall(body: any, url: URL): { toolName?: string; parameters: 
       else if (paramKeys.includes('timeframe')) inferredTool = 'getFleetMetrics';
       else if (paramKeys.includes('daysRange')) inferredTool = 'searchBookings';
       else if (paramKeys.includes('daysAhead')) inferredTool = 'getUpcomingMaintenance';
+      // start_date/end_date/date → bookings (NOT vehicles); vehicles don't have date fields
+      else if (paramKeys.includes('date') || paramKeys.includes('start_date') || paramKeys.includes('end_date')) inferredTool = 'get_bookings';
       else if (paramKeys.includes('status')) inferredTool = 'get_bookings';
       else if (paramKeys.includes('limit')) inferredTool = 'get_recent_activity';
       else if (paramKeys.includes('metric')) inferredTool = 'getTopPerformers';
