@@ -823,9 +823,16 @@ Deno.serve(async (req) => {
           const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
           const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-          // Extract user ID
+          // Extract user ID from verified Supabase JWT (mandatory)
           const userId = await extractUserId(req, supabase);
-          
+          if (!userId) {
+            response = createJSONRPCResponse(id, {
+              content: [{ type: "text", text: "Error: Unauthorized — missing or invalid user session." }],
+              isError: true
+            });
+            break;
+          }
+
           // Get team ID for the user
           const teamId = await getUserTeamId(supabase, userId);
           if (!teamId) {
@@ -840,7 +847,7 @@ Deno.serve(async (req) => {
           }
 
           // Execute the tool
-          const result = await executeFunction(toolName, toolArgs || {}, supabase, teamId);
+          const result = await executeFunction(toolName, toolArgs || {}, supabase, teamId, userId);
           console.log('[MCP Server] Tool result:', JSON.stringify(result, null, 2));
 
           const responseText = result.summary 
