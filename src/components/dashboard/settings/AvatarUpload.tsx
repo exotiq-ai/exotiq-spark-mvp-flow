@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Camera, Loader2, X } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -20,7 +20,6 @@ interface AvatarUploadProps {
 }
 
 export const AvatarUpload = ({ currentAvatarUrl, displayName, onAvatarChange }: AvatarUploadProps) => {
-  const { toast } = useToast();
   const { user } = useAuth();
   const [isUploading, setIsUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -35,21 +34,13 @@ export const AvatarUpload = ({ currentAvatarUrl, displayName, onAvatarChange }: 
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
-      toast({
-        title: "Invalid file type",
-        description: "Please select an image file (JPG, PNG, GIF, etc.)",
-        variant: "destructive"
-      });
+      toast.error("Invalid file type", { description: "Please select an image file (JPG, PNG, GIF, etc.)" });
       return;
     }
 
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      toast({
-        title: "File too large",
-        description: "Please select an image smaller than 5MB",
-        variant: "destructive"
-      });
+      toast.error("File too large", { description: "Please select an image smaller than 5MB" });
       return;
     }
 
@@ -104,17 +95,10 @@ export const AvatarUpload = ({ currentAvatarUrl, displayName, onAvatarChange }: 
       setDialogOpen(false);
       setPreviewUrl(null);
       
-      toast({
-        title: "Avatar updated",
-        description: "Your profile photo has been updated successfully."
-      });
+      toast("Avatar updated", { description: "Your profile photo has been updated successfully." });
     } catch (error) {
       console.error('Error uploading avatar:', error);
-      toast({
-        title: "Upload failed",
-        description: "Failed to upload avatar. Please try again.",
-        variant: "destructive"
-      });
+      toast.error("Upload failed", { description: "Failed to upload avatar. Please try again." });
     } finally {
       setIsUploading(false);
     }
@@ -144,17 +128,10 @@ export const AvatarUpload = ({ currentAvatarUrl, displayName, onAvatarChange }: 
 
       onAvatarChange(null);
       
-      toast({
-        title: "Avatar removed",
-        description: "Your profile photo has been removed."
-      });
+      toast("Avatar removed", { description: "Your profile photo has been removed." });
     } catch (error) {
       console.error('Error removing avatar:', error);
-      toast({
-        title: "Error",
-        description: "Failed to remove avatar. Please try again.",
-        variant: "destructive"
-      });
+      toast.error("Error", { description: "Failed to remove avatar. Please try again." });
     } finally {
       setIsUploading(false);
     }

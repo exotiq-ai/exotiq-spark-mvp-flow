@@ -3,7 +3,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useTeam } from "@/contexts/TeamContext";
 import { Upload, X, Building2, Loader2 } from "lucide-react";
 
@@ -22,7 +22,6 @@ export const CompanyLogoUpload = ({
   compact = false,
 }: CompanyLogoUploadProps) => {
   const { currentTeam, refreshTeam } = useTeam();
-  const { toast } = useToast();
   const [isUploading, setIsUploading] = useState(false);
   const [logoUrl, setLogoUrl] = useState<string | null>(currentTeam?.logo_url ?? null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -36,12 +35,12 @@ export const CompanyLogoUpload = ({
 
     const validTypes = ["image/png", "image/jpeg", "image/svg+xml", "image/webp"];
     if (!validTypes.includes(file.type)) {
-      toast({ title: "Invalid file type", description: "Please upload PNG, JPG, SVG, or WebP.", variant: "destructive" });
+      toast.error("Invalid file type", { description: "Please upload PNG, JPG, SVG, or WebP." });
       return;
     }
 
     if (file.size > 2 * 1024 * 1024) {
-      toast({ title: "File too large", description: "Logo must be under 2MB.", variant: "destructive" });
+      toast.error("File too large", { description: "Logo must be under 2MB." });
       return;
     }
 
@@ -73,10 +72,10 @@ export const CompanyLogoUpload = ({
       setLogoUrl(publicUrl);
       await refreshTeam();
 
-      toast({ title: "Logo uploaded", description: "Your company logo has been updated." });
+      toast("Logo uploaded", { description: "Your company logo has been updated." });
     } catch (error) {
       console.error("Logo upload error:", error);
-      toast({ title: "Upload failed", description: "Could not upload logo. Please try again.", variant: "destructive" });
+      toast.error("Upload failed", { description: "Could not upload logo. Please try again." });
     } finally {
       setIsUploading(false);
       if (inputRef.current) inputRef.current.value = "";
@@ -95,10 +94,10 @@ export const CompanyLogoUpload = ({
 
       setLogoUrl(null);
       await refreshTeam();
-      toast({ title: "Logo removed" });
+      toast("Logo removed");
     } catch (error) {
       console.error("Remove logo error:", error);
-      toast({ title: "Failed to remove logo", variant: "destructive" });
+      toast.error("Failed to remove logo");
     }
   };
 

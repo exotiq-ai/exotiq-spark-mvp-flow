@@ -2,7 +2,7 @@ import { useState } from "react";
 import { AlertCircle, CreditCard, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useBillingDunning, TIER_BOUNDS } from "@/hooks/useBillingDunning";
 import { useUserRole } from "@/hooks/useUserRole";
 
@@ -25,7 +25,6 @@ export const PaymentDueGuard = ({ children, title, body }: PaymentDueGuardProps)
   const { stage, assumedPlanTier, assumedPlanFleetSize, assumedPlanIsAnnual } =
     useBillingDunning();
   const { isOwner, isAdmin } = useUserRole();
-  const { toast } = useToast();
   const [launching, setLaunching] = useState(false);
 
   if (stage !== "restriction") return <>{children}</>;
@@ -62,11 +61,7 @@ export const PaymentDueGuard = ({ children, title, body }: PaymentDueGuardProps)
       if (!url) throw new Error("No checkout URL returned");
       window.open(url, "_blank", "noopener,noreferrer");
     } catch (err) {
-      toast({
-        title: "Couldn't open checkout",
-        description: err instanceof Error ? err.message : "Please try again or contact support.",
-        variant: "destructive",
-      });
+      toast.error("Couldn't open checkout", { description: err instanceof Error ? err.message : "Please try again or contact support." });
     } finally {
       setLaunching(false);
     }
@@ -123,14 +118,9 @@ export const PaymentDueGuard = ({ children, title, body }: PaymentDueGuardProps)
  */
 export const useBlockIfRestricted = () => {
   const { stage } = useBillingDunning();
-  const { toast } = useToast();
   return () => {
     if (stage !== "restriction") return false;
-    toast({
-      title: "Payment required",
-      description: "Complete billing setup to make booking changes.",
-      variant: "destructive",
-    });
+    toast.error("Payment required", { description: "Complete billing setup to make booking changes." });
     return true;
   };
 };

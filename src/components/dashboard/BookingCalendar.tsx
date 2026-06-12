@@ -12,7 +12,7 @@ import { EnhancedBookingDialog } from "@/components/dialogs/EnhancedBookingDialo
 import { RealtimeIndicator } from "@/components/common/RealtimeIndicator";
 import { downloadICS, bookingsToCalendarEvents } from "@/lib/calendarExport";
 import { getVehicleImage } from "@/lib/vehicleImageMapping";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useDebounce } from "@/hooks/useDebounce";
 import { motion, AnimatePresence } from "framer-motion";
@@ -275,7 +275,6 @@ const DayDetailContent = ({
 export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) => {
   const { bookings, vehicles, refreshBookings } = useLocationFilteredFleet();
   const { goToCustomerProfile } = useModuleNavigation();
-  const { toast } = useToast();
   const isMobile = useIsMobile();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedVehicle, setSelectedVehicle] = useState<string>("all");
@@ -318,10 +317,7 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
     const events = bookingsToCalendarEvents(filteredBookings, vehicleMap);
     const monthName = format(currentDate, "MMMM-yyyy");
     downloadICS(events, `bookings-${monthName}.ics`);
-    toast({ 
-      title: "Calendar exported", 
-      description: `${events.length} bookings exported. Import the .ics file into Google Calendar via Settings → Import & Export.` 
-    });
+    toast("Calendar exported", { description: `${events.length} bookings exported. Import the .ics file into Google Calendar via Settings → Import & Export.` });
   };
 
   const monthStart = startOfMonth(currentDate);

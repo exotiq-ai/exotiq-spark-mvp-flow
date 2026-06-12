@@ -27,7 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useTeam } from "@/contexts/TeamContext";
 
@@ -69,7 +69,6 @@ interface AddLocationDialogProps {
 
 export const AddLocationDialog = ({ open, onOpenChange, onSuccess }: AddLocationDialogProps) => {
   const { currentTeam } = useTeam();
-  const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<LocationFormValues>({
@@ -109,20 +108,13 @@ export const AddLocationDialog = ({ open, onOpenChange, onSuccess }: AddLocation
 
       if (error) throw error;
 
-      toast({
-        title: "Location added",
-        description: `${values.name} has been added to your locations.`,
-      });
+      toast("Location added", { description: `${values.name} has been added to your locations.` });
 
       form.reset();
       onSuccess();
     } catch (error) {
       console.error("Error adding location:", error);
-      toast({
-        title: "Error",
-        description: "Failed to add location. Please try again.",
-        variant: "destructive",
-      });
+      toast.error("Error", { description: "Failed to add location. Please try again." });
     } finally {
       setIsSubmitting(false);
     }

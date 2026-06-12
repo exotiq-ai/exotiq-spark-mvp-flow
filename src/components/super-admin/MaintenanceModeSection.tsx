@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -44,7 +44,6 @@ interface TeamOption {
 
 export const MaintenanceModeSection = () => {
   const { user } = useAuth();
-  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [windows, setWindows] = useState<MaintenanceWindowRow[]>([]);
   const [teams, setTeams] = useState<TeamOption[]>([]);
@@ -68,7 +67,7 @@ export const MaintenanceModeSection = () => {
       .order('started_at', { ascending: false });
 
     if (error) {
-      toast({ title: 'Failed to load maintenance windows', description: error.message, variant: 'destructive' });
+      toast.error('Failed to load maintenance windows', { description: error.message });
       setLoading(false);
       return;
     }
@@ -142,10 +141,10 @@ export const MaintenanceModeSection = () => {
     });
     setGlobalSubmitting(false);
     if (error) {
-      toast({ title: 'Failed to activate', description: error.message, variant: 'destructive' });
+      toast.error('Failed to activate', { description: error.message });
       return;
     }
-    toast({ title: 'Global maintenance activated' });
+    toast('Global maintenance activated');
     setGlobalDialogOpen(false);
     setGlobalMessage('');
     setGlobalEta('');
@@ -157,10 +156,10 @@ export const MaintenanceModeSection = () => {
       .update({ is_active: false, ended_at: new Date().toISOString() })
       .eq('id', w.id);
     if (error) {
-      toast({ title: 'Failed to end window', description: error.message, variant: 'destructive' });
+      toast.error('Failed to end window', { description: error.message });
       return;
     }
-    toast({ title: 'Maintenance ended' });
+    toast('Maintenance ended');
 
     // Best-effort: notify subscribers. Function is service-role only; errors are logged.
     try {
@@ -174,7 +173,7 @@ export const MaintenanceModeSection = () => {
 
   const activateTenant = async () => {
     if (!tenantTeamId) {
-      toast({ title: 'Select a team first', variant: 'destructive' });
+      toast.error('Select a team first');
       return;
     }
     setTenantSubmitting(true);
@@ -188,10 +187,10 @@ export const MaintenanceModeSection = () => {
     });
     setTenantSubmitting(false);
     if (error) {
-      toast({ title: 'Failed to activate', description: error.message, variant: 'destructive' });
+      toast.error('Failed to activate', { description: error.message });
       return;
     }
-    toast({ title: 'Tenant maintenance activated' });
+    toast('Tenant maintenance activated');
     setTenantDialogOpen(false);
     setTenantTeamId('');
     setTenantMessage('');

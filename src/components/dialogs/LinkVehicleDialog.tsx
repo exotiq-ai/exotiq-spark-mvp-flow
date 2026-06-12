@@ -12,7 +12,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { useFleet } from '@/contexts/FleetContext';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from "sonner";
 import { Search, Car, Check, DollarSign } from 'lucide-react';
 
 interface LinkVehicleDialogProps {
@@ -35,7 +35,6 @@ export function LinkVehicleDialog({
   onVehicleLinked
 }: LinkVehicleDialogProps) {
   const { vehicles, bookings, refreshData } = useFleet();
-  const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
   const [isLinking, setIsLinking] = useState(false);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
@@ -99,21 +98,14 @@ export function LinkVehicleDialog({
       
       if (error) throw error;
       
-      toast({
-        title: 'Vehicle linked',
-        description: `Successfully linked ${vehicle?.name || 'vehicle'} to this booking.`
-      });
+      toast('Vehicle linked', { description: `Successfully linked ${vehicle?.name || 'vehicle'} to this booking.` });
       
       await refreshData();
       onVehicleLinked();
       onOpenChange(false);
     } catch (error) {
       console.error('Error linking vehicle:', error);
-      toast({
-        title: 'Failed to link vehicle',
-        description: 'Please try again.',
-        variant: 'destructive'
-      });
+      toast.error('Failed to link vehicle', { description: 'Please try again.' });
     } finally {
       setIsLinking(false);
       setSelectedVehicleId(null);

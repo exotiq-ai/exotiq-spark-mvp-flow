@@ -43,11 +43,10 @@ import {
   Layers
 } from "lucide-react";
 import { createExportActions } from "@/lib/exportUtils";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 export const MotorIQEnhanced = () => {
   const { vehicles, bookings, applyPriceOptimization, loading, createVehicle } = useLocationFilteredFleet();
-  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("overview");
   const [showOptimizationDialog, setShowOptimizationDialog] = useState(false);
   const [showPriceEditor, setShowPriceEditor] = useState(false);
@@ -127,7 +126,7 @@ export const MotorIQEnhanced = () => {
 
     const actions = createExportActions(exportData, `fleet-data-${new Date().toISOString().split('T')[0]}`);
     actions.exportCSV();
-    toast({ title: "Fleet data exported", description: "CSV file downloaded successfully" });
+    toast("Fleet data exported", { description: "CSV file downloaded successfully" });
   };
 
   const handleEditPricing = (vehicle: typeof vehicles[0]) => {
@@ -169,10 +168,7 @@ export const MotorIQEnhanced = () => {
         id: topRecommendation.id,
         dismissedAt: new Date().toISOString()
       }));
-      toast({
-        title: "Recommendation dismissed",
-        description: "View pricing details in the Pricing tab",
-      });
+      toast("Recommendation dismissed", { description: "View pricing details in the Pricing tab" });
     }
   };
 

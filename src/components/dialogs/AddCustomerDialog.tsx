@@ -16,7 +16,7 @@ import { Database } from "@/integrations/supabase/types";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { validators, validateForm } from "@/lib/validation";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { isFeatureEnabled } from "@/lib/featureFlags";
 
 interface AddCustomerDialogProps {
@@ -97,10 +97,7 @@ export const AddCustomerDialog = ({
       setError(null);
       onOpenChange(false);
       
-      toast({
-        title: "Success",
-        description: "Customer added successfully",
-      });
+      toast("Success", { description: "Customer added successfully" });
     } catch (err) {
       setError("Failed to add customer. Please try again.");
       console.error("Error adding customer:", err);

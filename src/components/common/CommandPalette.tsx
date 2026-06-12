@@ -24,7 +24,7 @@ import { moduleIdToPath } from '@/lib/moduleRoutes';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { supabase } from '@/integrations/supabase/client';
 import { exportToCSV } from '@/lib/exportUtils';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from "sonner";
 
 interface CommandItem {
   id: string;
@@ -202,9 +202,6 @@ export const CommandPalette = ({ open, onOpenChange }: CommandPaletteProps) => {
       badge: '⌘,',
     },
   ];
-
-  const { toast } = useToast();
-
   // Global Actions - Quick tasks and exports with real implementation
   const globalActions: CommandItem[] = [
     {
@@ -220,12 +217,12 @@ export const CommandPalette = ({ open, onOpenChange }: CommandPaletteProps) => {
           if (error) throw error;
           if (data && data.length > 0) {
             exportToCSV(data, 'fleet-data');
-            toast({ title: 'Export complete', description: `${data.length} vehicles exported` });
+            toast('Export complete', { description: `${data.length} vehicles exported` });
           } else {
-            toast({ title: 'No data', description: 'No vehicles to export', variant: 'destructive' });
+            toast.error('No data', { description: 'No vehicles to export' });
           }
         } catch (error) {
-          toast({ title: 'Export failed', description: 'Could not export fleet data', variant: 'destructive' });
+          toast.error('Export failed', { description: 'Could not export fleet data' });
         }
         onOpenChange(false);
       },
@@ -245,12 +242,12 @@ export const CommandPalette = ({ open, onOpenChange }: CommandPaletteProps) => {
           if (error) throw error;
           if (data && data.length > 0) {
             exportToCSV(data, 'bookings-export');
-            toast({ title: 'Export complete', description: `${data.length} bookings exported` });
+            toast('Export complete', { description: `${data.length} bookings exported` });
           } else {
-            toast({ title: 'No data', description: 'No bookings to export', variant: 'destructive' });
+            toast.error('No data', { description: 'No bookings to export' });
           }
         } catch (error) {
-          toast({ title: 'Export failed', description: 'Could not export bookings', variant: 'destructive' });
+          toast.error('Export failed', { description: 'Could not export bookings' });
         }
         onOpenChange(false);
       },

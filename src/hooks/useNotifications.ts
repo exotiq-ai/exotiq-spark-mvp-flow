@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 
 export interface Notification {
@@ -19,7 +19,6 @@ const ALERTS_SESSION_KEY = "fleet-alerts-checked";
 
 export const useNotifications = () => {
   const { user } = useAuth();
-  const { toast } = useToast();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -85,7 +84,7 @@ export const useNotifications = () => {
       if (error) throw error;
 
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-      toast({ title: "All notifications marked as read" });
+      toast("All notifications marked as read");
     } catch (error) {
       console.error("Error marking all as read:", error);
     }
@@ -101,7 +100,7 @@ export const useNotifications = () => {
       if (error) throw error;
 
       setNotifications((prev) => prev.filter((n) => n.id !== id));
-      toast({ title: "Notification deleted" });
+      toast("Notification deleted");
     } catch (error) {
       console.error("Error deleting notification:", error);
     }
@@ -119,7 +118,7 @@ export const useNotifications = () => {
       if (error) throw error;
 
       setNotifications([]);
-      toast({ title: "All notifications cleared" });
+      toast("All notifications cleared");
     } catch (error) {
       console.error("Error clearing notifications:", error);
     }
@@ -179,10 +178,7 @@ export const useNotifications = () => {
           setNotifications((prev) => [newNotification, ...prev]);
           
           // Show toast for new notification
-          toast({
-            title: newNotification.title,
-            description: newNotification.message,
-          });
+          toast(newNotification.title, { description: newNotification.message });
         }
       )
       .subscribe();

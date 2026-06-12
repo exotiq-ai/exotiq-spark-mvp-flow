@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from "sonner";
 import { devLog, devError, devWarn } from '@/lib/logger';
 import { useSessionHealth, SessionHealthStatus } from '@/hooks/useSessionHealth';
 
@@ -72,7 +72,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [subscription, setSubscription] = useState<SubscriptionStatus>(defaultSubscription);
   const [pendingInviteToken, setPendingInviteToken] = useState<string | null>(null);
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
-  const { toast } = useToast();
   const navigate = useNavigate();
   const onboardingNavTimeoutRef = useRef<number | null>(null);
 
@@ -140,11 +139,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Open Stripe customer portal
   const openCustomerPortal = useCallback(async () => {
     if (!session?.access_token) {
-      toast({
-        title: "Authentication Required",
-        description: "Please sign in to manage your subscription.",
-        variant: "destructive",
-      });
+      toast.error("Authentication Required", { description: "Please sign in to manage your subscription." });
       return;
     }
 
@@ -164,11 +159,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (error: any) {
       devError('Error opening customer portal:', error);
-      toast({
-        title: "Unable to Open Billing Portal",
-        description: error.message || "Please try again or contact support.",
-        variant: "destructive",
-      });
+      toast.error("Unable to Open Billing Portal", { description: error.message || "Please try again or contact support." });
     }
   }, [session?.access_token, toast]);
 
@@ -208,17 +199,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (error || data?.error) {
         devError('Error accepting invite:', error || data?.error);
         // Don't throw - user is already created, just log the error
-        toast({
-          title: "Warning",
-          description: "Account created but there was an issue with the invitation. Please contact support.",
-          variant: "destructive",
-        });
+        toast.error("Warning", { description: "Account created but there was an issue with the invitation. Please contact support." });
       } else {
         devLog('Invite accepted successfully:', data);
-        toast({
-          title: `Welcome to ${data.companyName || 'the team'}!`,
-          description: `You've joined as a ${data.role || 'team member'}.`,
-        });
+        toast(`Welcome to ${data.companyName || 'the team'}!`, { description: `You've joined as a ${data.role || 'team member'}.` });
       }
     } catch (err) {
       devError('Error processing invite:', err);
@@ -323,11 +307,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
               if (!isActive) {
                 devLog('[Auth] User account is deactivated, signing out');
-                toast({
-                  title: "Account Deactivated",
-                  description: "Your account has been deactivated. Please contact your administrator.",
-                  variant: "destructive",
-                });
+                toast.error("Account Deactivated", { description: "Your account has been deactivated. Please contact your administrator." });
                 await supabase.auth.signOut();
                 navigate('/auth');
                 return;
@@ -482,16 +462,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
 
     if (error) {
-      toast({
-        title: "Sign Up Failed",
-        description: error.message,
-        variant: "destructive"
-      });
+      toast.error("Sign Up Failed", { description: error.message });
     } else {
-      toast({
-        title: "Welcome to Exotiq!",
-        description: "Your account has been created successfully.",
-      });
+      toast("Welcome to Exotiq!", { description: "Your account has been created successfully." });
     }
 
     return { error };
@@ -516,11 +489,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     if (error) {
       setPendingInviteToken(null);
-      toast({
-        title: "Sign Up Failed",
-        description: error.message,
-        variant: "destructive"
-      });
+      toast.error("Sign Up Failed", { description: error.message });
     }
     // Success toast and invite processing handled in onAuthStateChange
 
@@ -534,11 +503,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
 
     if (error) {
-      toast({
-        title: "Sign In Failed",
-        description: error.message,
-        variant: "destructive"
-      });
+      toast.error("Sign In Failed", { description: error.message });
     }
 
     return { error };
@@ -556,18 +521,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     if (error) {
       const isRateLimit = error.message?.includes('security purposes') || (error as any).status === 429;
-      toast({
-        title: "Error Sending Magic Link",
-        description: isRateLimit
+      toast.error("Error Sending Magic Link", { description: isRateLimit
           ? "Please wait a moment before requesting another magic link."
-          : error.message,
-        variant: "destructive"
-      });
+          : error.message });
     } else {
-      toast({
-        title: "Check Your Email!",
-        description: "We've sent you a magic link to sign in.",
-      });
+      toast("Check Your Email!", { description: "We've sent you a magic link to sign in." });
     }
 
     return { error };
@@ -582,18 +540,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     if (error) {
       const isRateLimit = error.message?.includes('security purposes') || (error as any).status === 429;
-      toast({
-        title: "Error Sending Reset Email",
-        description: isRateLimit
+      toast.error("Error Sending Reset Email", { description: isRateLimit
           ? "Please wait a moment before requesting another reset link."
-          : error.message,
-        variant: "destructive"
-      });
+          : error.message });
     } else {
-      toast({
-        title: "Password Reset Email Sent",
-        description: "Check your email for the password reset link.",
-      });
+      toast("Password Reset Email Sent", { description: "Check your email for the password reset link." });
     }
 
     return { error };
@@ -605,16 +556,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
 
     if (error) {
-      toast({
-        title: "Password Update Failed",
-        description: error.message,
-        variant: "destructive"
-      });
+      toast.error("Password Update Failed", { description: error.message });
     } else {
-      toast({
-        title: "Password Updated",
-        description: "Your password has been successfully updated.",
-      });
+      toast("Password Updated", { description: "Your password has been successfully updated." });
       
       // Clear recovery mode and check if user is active before redirecting
       setIsPasswordRecovery(false);
@@ -622,11 +566,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (user) {
         const isActive = await checkUserActiveStatus(user.id);
         if (!isActive) {
-          toast({
-            title: "Account Deactivated",
-            description: "Your account has been deactivated. Please contact your administrator.",
-            variant: "destructive",
-          });
+          toast.error("Account Deactivated", { description: "Your account has been deactivated. Please contact your administrator." });
           await supabase.auth.signOut();
           navigate('/auth');
         } else {
@@ -677,22 +617,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       // Session is now set - onAuthStateChange will fire and handle navigation
-      toast({
-        title: "Welcome to Demo Mode!",
-        description: "Exploring Exotiq with pre-populated data.",
-        duration: 3000,
-      });
+      toast("Welcome to Demo Mode!", { description: "Exploring Exotiq with pre-populated data.", duration: 3000 });
 
       return { error: null };
     } catch (error: any) {
       devError('Demo mode error:', error);
 
       const message = error?.message || 'Please try again or contact support.';
-      toast({
-        title: "Demo Mode Unavailable",
-        description: message,
-        variant: "destructive",
-      });
+      toast.error("Demo Mode Unavailable", { description: message });
 
       // IMPORTANT: rethrow so callers (Demo page / Auth page) can break out of
       // loading spinners and route the user appropriately.
@@ -720,10 +652,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setSubscription({ ...defaultSubscription, loading: false });
       setIsPasswordRecovery(false);
       navigate('/auth', { replace: true });
-      toast({
-        title: "Signed Out",
-        description: "You have been signed out successfully.",
-      });
+      toast("Signed Out", { description: "You have been signed out successfully." });
     }
   };
 

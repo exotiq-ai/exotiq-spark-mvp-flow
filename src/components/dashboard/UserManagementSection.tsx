@@ -44,7 +44,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useTeam } from "@/contexts/TeamContext";
 import { EditUserRoleDialog, type AppRole } from "@/components/dialogs/EditUserRoleDialog";
@@ -75,7 +75,6 @@ interface PendingInvitation {
 }
 
 export const UserManagementSection = () => {
-  const { toast } = useToast();
   const { currentTeam } = useTeam();
   const [searchQuery, setSearchQuery] = useState("");
   const [users, setUsers] = useState<UserWithRole[]>([]);
@@ -152,11 +151,7 @@ export const UserManagementSection = () => {
       setPendingInvitations(invitations || []);
     } catch (error) {
       console.error('Error fetching users:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load users",
-        variant: "destructive"
-      });
+      toast.error("Error", { description: "Failed to load users" });
     } finally {
       setIsLoading(false);
     }
@@ -266,22 +261,15 @@ export const UserManagementSection = () => {
         }
       }
 
-      toast({
-        title: "Role Updated",
-        description: roleChanged 
+      toast("Role Updated", { description: roleChanged 
           ? "User role has been updated and they've been notified via email."
-          : "User permissions have been updated successfully.",
-      });
+          : "User permissions have been updated successfully." });
 
       // Refresh user list
       fetchUsers();
     } catch (error: any) {
       console.error('Error updating role:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update user role. You may not have admin permissions.",
-        variant: "destructive"
-      });
+      toast.error("Error", { description: error.message || "Failed to update user role. You may not have admin permissions." });
     }
   };
 
@@ -304,19 +292,12 @@ export const UserManagementSection = () => {
 
       if (error) throw error;
 
-      toast({
-        title: "Invitation cancelled",
-        description: "The invitation has been cancelled.",
-      });
+      toast("Invitation cancelled", { description: "The invitation has been cancelled." });
 
       fetchUsers();
     } catch (error) {
       console.error('Error cancelling invitation:', error);
-      toast({
-        title: "Error",
-        description: "Failed to cancel invitation",
-        variant: "destructive"
-      });
+      toast.error("Error", { description: "Failed to cancel invitation" });
     }
   };
 
@@ -328,20 +309,13 @@ export const UserManagementSection = () => {
 
       if (error) throw error;
 
-      toast({
-        title: "Invitation Resent",
-        description: `A new invitation email has been sent to ${invitation.email}`,
-      });
+      toast("Invitation Resent", { description: `A new invitation email has been sent to ${invitation.email}` });
 
       // Refresh the list
       fetchUsers();
     } catch (error: any) {
       console.error('Error resending invitation:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to resend invitation",
-        variant: "destructive"
-      });
+      toast.error("Error", { description: error.message || "Failed to resend invitation" });
     }
   };
 
@@ -413,22 +387,14 @@ export const UserManagementSection = () => {
         }
       }
 
-      toast({
-        title: "Bulk Update Complete",
-        description: `Updated ${successCount} users${errorCount > 0 ? `, ${errorCount} failed` : ''}.`,
-        variant: errorCount > 0 ? "destructive" : "default"
-      });
+      toast.error("Bulk Update Complete", { description: `Updated ${successCount} users${errorCount > 0 ? `, ${errorCount} failed` : ''}.` });
 
       setBulkRoleDialogOpen(false);
       setSelectedUserIds([]);
       fetchUsers();
     } catch (error: any) {
       console.error('Error in bulk role change:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update user roles",
-        variant: "destructive"
-      });
+      toast.error("Error", { description: error.message || "Failed to update user roles" });
     } finally {
       setIsBulkUpdating(false);
     }

@@ -1,6 +1,6 @@
 import { useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { moduleIdToPath } from "@/lib/moduleRoutes";
 
 interface UseKeyboardShortcutsOptions {
@@ -9,8 +9,6 @@ interface UseKeyboardShortcutsOptions {
 
 export const useKeyboardShortcuts = (options?: UseKeyboardShortcutsOptions) => {
   const navigate = useNavigate();
-  const { toast } = useToast();
-
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
       // Escape key - no modifier needed
@@ -27,45 +25,42 @@ export const useKeyboardShortcuts = (options?: UseKeyboardShortcutsOptions) => {
         "1": () => {
           e.preventDefault();
           navigate(moduleIdToPath("motoriq"));
-          toast({ title: "Navigated to MotorIQ" });
+          toast("Navigated to MotorIQ");
         },
         "2": () => {
           e.preventDefault();
           navigate(moduleIdToPath("pulse"));
-          toast({ title: "Navigated to Pulse" });
+          toast("Navigated to Pulse");
         },
         "3": () => {
           e.preventDefault();
           navigate(moduleIdToPath("book"));
-          toast({ title: "Navigated to Book" });
+          toast("Navigated to Book");
         },
         "4": () => {
           e.preventDefault();
           navigate(moduleIdToPath("vault"));
-          toast({ title: "Navigated to Vault" });
+          toast("Navigated to Vault");
         },
         "5": () => {
           e.preventDefault();
           navigate(moduleIdToPath("core"));
-          toast({ title: "Navigated to Core" });
+          toast("Navigated to Core");
         },
         "h": () => {
           e.preventDefault();
           navigate("/");
-          toast({ title: "Navigated to Home" });
+          toast("Navigated to Home");
         },
         "o": () => {
           // Rari shortcut - Cmd/Ctrl + O (changed from R to avoid browser refresh conflict)
           e.preventDefault();
           options?.onToggleRari?.();
-          toast({ title: "Toggled Rari AI Assistant" });
+          toast("Toggled Rari AI Assistant");
         },
         "/": () => {
           e.preventDefault();
-          toast({
-            title: "Keyboard Shortcuts",
-            description: "⌘K: Search | ⌘O: Rari AI | ⌘1-5: Modules | ⌘H: Home | Esc: Minimize",
-          });
+          toast("Keyboard Shortcuts", { description: "⌘K: Search | ⌘O: Rari AI | ⌘1-5: Modules | ⌘H: Home | Esc: Minimize" });
         },
       };
 

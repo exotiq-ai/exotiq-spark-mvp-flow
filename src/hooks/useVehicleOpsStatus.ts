@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFleet } from '@/contexts/FleetContext';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from "sonner";
 
 export type OpsStatus = 
   | 'not_set'
@@ -112,8 +112,6 @@ export const OPS_STATUS_CONFIG: Record<OpsStatus, OpsStatusConfig> = {
 export const useVehicleOpsStatus = () => {
   const { user } = useAuth();
   const { refreshData } = useFleet();
-  const { toast } = useToast();
-
   const updateOpsStatus = useCallback(async (
     vehicleId: string,
     newStatus: OpsStatus
@@ -139,19 +137,12 @@ export const useVehicleOpsStatus = () => {
       await refreshData();
 
       const config = OPS_STATUS_CONFIG[newStatus];
-      toast({
-        title: 'Status Updated',
-        description: `Vehicle is now "${config.label}"`,
-      });
+      toast('Status Updated', { description: `Vehicle is now "${config.label}"` });
 
       return true;
     } catch (error: any) {
       console.error('Error updating ops status:', error);
-      toast({
-        title: 'Error updating status',
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast.error('Error updating status', { description: error.message });
       return false;
     }
   }, [user, refreshData, toast]);

@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { uploadVehiclePhoto, deleteVehiclePhoto } from "@/lib/photoUpload";
 import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 export interface InspectionPhoto {
   id: string;
@@ -62,7 +62,6 @@ export const InspectionPhotoUpload = ({
   maxPhotos = 8,
 }: InspectionPhotoUploadProps) => {
   const { user } = useAuth();
-  const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragActive, setIsDragActive] = useState(false);
   const [selectedType, setSelectedType] = useState<PhotoType>('exterior_front');
@@ -79,11 +78,7 @@ export const InspectionPhotoUpload = ({
 
   const processFiles = useCallback(async (files: FileList) => {
     if (!user) {
-      toast({
-        title: "Authentication Required",
-        description: "Please sign in to upload photos.",
-        variant: "destructive",
-      });
+      toast.error("Authentication Required", { description: "Please sign in to upload photos." });
       return;
     }
 
@@ -91,11 +86,7 @@ export const InspectionPhotoUpload = ({
     const filesToProcess = Array.from(files).slice(0, remainingSlots);
 
     if (filesToProcess.length === 0) {
-      toast({
-        title: "Maximum Photos Reached",
-        description: `You can upload up to ${maxPhotos} photos per inspection.`,
-        variant: "destructive",
-      });
+      toast.error("Maximum Photos Reached", { description: `You can upload up to ${maxPhotos} photos per inspection.` });
       return;
     }
 

@@ -24,7 +24,7 @@ import {
   AlertTriangle,
   History
 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { ImportWizard } from "@/components/import/ImportWizard";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -33,7 +33,6 @@ import { format } from "date-fns";
 import { DeleteAllDataDialog } from "@/components/dialogs/DeleteAllDataDialog";
 
 export const DataManagementSection = () => {
-  const { toast } = useToast();
   const { currentTeam } = useTeam();
   const [isExporting, setIsExporting] = useState(false);
   const [showImportWizard, setShowImportWizard] = useState(false);
@@ -80,10 +79,7 @@ export const DataManagementSection = () => {
     
     await new Promise(resolve => setTimeout(resolve, 3000));
     
-    toast({
-      title: "Export Complete",
-      description: "Your data has been exported. Check your downloads."
-    });
+    toast("Export Complete", { description: "Your data has been exported. Check your downloads." });
     
     setIsExporting(false);
   };
@@ -91,32 +87,19 @@ export const DataManagementSection = () => {
   const handleImportComplete = (entityType: string, count: number) => {
     setShowImportWizard(false);
     refetchHistory();
-    toast({
-      title: "Import Complete",
-      description: `Successfully imported ${count} ${entityType}.`
-    });
+    toast("Import Complete", { description: `Successfully imported ${count} ${entityType}.` });
   };
 
   const handleCreateBackup = async () => {
-    toast({
-      title: "Backup Started",
-      description: "Creating a manual backup of your data..."
-    });
+    toast("Backup Started", { description: "Creating a manual backup of your data..." });
     
     await new Promise(resolve => setTimeout(resolve, 2000));
     
-    toast({
-      title: "Backup Complete",
-      description: "Your data has been backed up successfully."
-    });
+    toast("Backup Complete", { description: "Your data has been backed up successfully." });
   };
 
   const handleDeleteAllData = async () => {
-    toast({
-      title: "Data Deletion Requested",
-      description: "Please contact support to complete this request.",
-      variant: "destructive"
-    });
+    toast.error("Data Deletion Requested", { description: "Please contact support to complete this request." });
   };
 
   const usagePercentage = (storageData.used / storageData.total) * 100;

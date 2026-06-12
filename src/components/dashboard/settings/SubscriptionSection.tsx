@@ -14,7 +14,7 @@ import {
   Loader2,
   Rocket
 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFleet } from "@/contexts/FleetContext";
@@ -33,7 +33,6 @@ const TIER_LIMITS: Record<string, number> = {
 };
 
 export const SubscriptionSection = () => {
-  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const { subscription } = useAuth();
   const { vehicles } = useFleet();
@@ -72,11 +71,7 @@ export const SubscriptionSection = () => {
         window.open(data.url, '_blank');
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to open billing portal. Please try again.",
-        variant: "destructive"
-      });
+      toast.error("Error", { description: "Failed to open billing portal. Please try again." });
     } finally {
       setIsLoading(false);
     }

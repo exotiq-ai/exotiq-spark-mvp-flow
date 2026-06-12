@@ -11,7 +11,7 @@ import {
   Save,
   Loader2
 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import {
   Select,
@@ -52,8 +52,6 @@ const defaultSettings: AISettings = {
 };
 
 export const AISettingsSection = () => {
-  const { toast } = useToast();
-  
   const {
     settings,
     toggleNestedSetting,
@@ -69,10 +67,7 @@ export const AISettingsSection = () => {
   const handleSaveSettings = async () => {
     const success = await saveSettings();
     if (success) {
-      toast({
-        title: "AI Settings Saved",
-        description: "Your AI and automation preferences have been updated.",
-      });
+      toast("AI Settings Saved", { description: "Your AI and automation preferences have been updated." });
     }
   };
 
