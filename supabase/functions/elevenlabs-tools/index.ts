@@ -478,28 +478,43 @@ function formatDateRange(startIso: string, endIso: string): string {
   }
 }
 
-// Default user ID for demo/unauthenticated access - can be overridden via DEMO_USER_ID secret
-const HARDCODED_DEMO_USER_ID = '99d902d4-5878-4b59-a108-142bafb1c862';
-
 serve(async (req) => {
   const requestId = generateRequestId();
-  
+
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Health check endpoint
+  // Health check endpoint (no secret required, no data exposed)
   const url = new URL(req.url);
   if (url.pathname.endsWith('/health') && req.method === 'GET') {
-    const hasToolSecret = !!Deno.env.get('RARI_TOOL_TOKEN_SECRET');
-    const hasDemoUser = !!Deno.env.get('DEMO_USER_ID');
     return new Response(JSON.stringify({
       ok: true,
       requestId,
-      hasToolSecret,
-      hasDemoUser,
+      hasToolSecret: !!Deno.env.get('RARI_TOOL_TOKEN_SECRET'),
+      hasSharedSecret: !!Deno.env.get('ELEVENLABS_TOOL_SECRET'),
       timestamp: new Date().toISOString(),
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  }
+
+  // ============================================================
+  // GATE 1: Shared secret (fail closed)
+  // ============================================================
+  const expectedSecret = Deno.env.get('ELEVENLABS_TOOL_SECRET');
+  if (!expectedSecret) {
+    console.error(`[${requestId}] ELEVENLABS_TOOL_SECRET is not configured — refusing all requests`);
+    return new Response(
+      JSON.stringify({ error: 'Service not configured', requestId }),
+      { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+  const providedSecret = req.headers.get('x-elevenlabs-secret');
+  if (providedSecret !== expectedSecret) {
+    console.warn(`[${requestId}] Rejected: missing or invalid x-elevenlabs-secret header`);
+    return new Response(
+      JSON.stringify({ error: 'Unauthorized', requestId }),
+      { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   }
 
   try {
