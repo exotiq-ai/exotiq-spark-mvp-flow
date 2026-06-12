@@ -2707,7 +2707,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
       case "get_vehicle_status": {
         const { vehicle_name } = args as { vehicle_name?: string };
         const now = new Date().toISOString();
-        let vQ = supabase.from('vehicles').select('id, year, make, model, status, location, daily_rate, utilization');
+        let vQ = supabase.from('vehicles').select('id, year, make, model, status, location, current_rate, utilization');
         if (teamId) vQ = vQ.eq('team_id', teamId);
         if (vehicle_name) vQ = vQ.or(`make.ilike.%${vehicle_name}%,model.ilike.%${vehicle_name}%`);
         const { data: vehicles, error: vErr } = await vQ.limit(50);
@@ -2796,7 +2796,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         const { query } = args as { query?: string };
         if (!query || query.trim().length < 2) return { error: 'query must be at least 2 characters' };
         const term = query.trim();
-        let q = supabase.from('customers').select('id, full_name, email, phone, total_bookings, total_spent').or(`full_name.ilike.%${term}%,email.ilike.%${term}%,phone.ilike.%${term}%`).limit(10);
+        let q = supabase.from('customers').select('id, full_name, email, phone, total_bookings, lifetime_value').or(`full_name.ilike.%${term}%,email.ilike.%${term}%,phone.ilike.%${term}%`).limit(10);
         if (teamId) q = q.eq('team_id', teamId);
         const { data, error } = await q;
         if (error) return { error: error.message };
@@ -2839,7 +2839,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         }
         let veh: any = null;
         {
-          let vq = supabase.from('vehicles').select('id, year, make, model, daily_rate, location').eq('id', vehicle_id);
+          let vq = supabase.from('vehicles').select('id, year, make, model, current_rate, location').eq('id', vehicle_id);
           if (teamId) vq = vq.eq('team_id', teamId);
           const { data } = await vq.maybeSingle();
           veh = data;
@@ -2848,7 +2848,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
 
         const ms = new Date(end_date).getTime() - new Date(start_date).getTime();
         const days = Math.max(1, Math.ceil(ms / 86400000));
-        const total = days * Number(veh.daily_rate || 0);
+        const total = days * Number(veh.current_rate || 0);
         const holdNote = `[Rari hold ${new Date().toISOString()}] ${notes || ''}`.trim();
 
         const insert: any = {
@@ -2861,7 +2861,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
           start_date,
           end_date,
           pickup_location: veh.location || 'Miami',
-          daily_rate: veh.daily_rate || 0,
+          daily_rate: veh.current_rate || 0,
           total_value: total,
           status: 'pending',
           payment_status: 'unpaid',
