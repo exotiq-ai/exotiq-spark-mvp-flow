@@ -1,36 +1,45 @@
-# Plan: LOVABLE-PROMPTS.md — Lane 2 UI/UX pass
+# Fix Rari: redeploy stale elevenlabs-tools function
 
-11 tightly-scoped, presentation-only fixes. Single sequenced pass, one file per change, existing primitives only (`Skeleton`, `Tooltip`, `Link`, `Logo`, `ThemeToggle`). No new deps, no business logic, no schema/edge work.
+## Root cause
 
-## Decisions locked
+Every Rari tool call fails with:
 
-1. Forgot-password view reuses the **same Card chrome** — swap contents only.
-2. Misleading demo helper text is **removed** entirely (no replacement copy).
-3. Welcome header logo links to **`/dashboard`**.
+```
+[req_…] Rejected: missing or invalid x-elevenlabs-secret header
+```
 
-## Sequence
+(visible in the `elevenlabs-tools` edge function logs).
 
-| # | File | Change |
-|---|------|--------|
-| 1 | `src/pages/Auth.tsx` | `authMode === 'reset'` swaps Card contents to reset form + "Back to sign in". Sign-in and reset never co-visible. |
-| 2 | `src/pages/Auth.tsx` | Lowercase `hello@exotiq.com`; remove misleading demo helper text entirely. |
-| 3 | `src/pages/Onboarding.tsx` | Replace `<Loader2>` loading state with `<Skeleton>` mirroring the card (progress dots, heading, 3–4 rows). |
-| 4 | `src/pages/Onboarding.tsx` | Add `role="progressbar"` + `aria-valuenow/min/max` + `aria-label` to step indicator. |
-| 5 | `src/pages/NotFound.tsx` | Primary "Back to Home" (`/`) + secondary "Go to Dashboard". |
-| 6 | `src/components/landing/Navigation.tsx` | Wrap `<Logo>` in `<Link to="/" aria-label="Exotiq home">`. |
-| 7 | `src/components/dashboard/DashboardHeader.tsx` | Wrap team-messaging button in `<Tooltip>` "Team Messages" (aria-label already present). |
-| 8 | `src/components/dashboard/DashboardSidebarEnhanced.tsx` | Dynamic `aria-label`/`title` on collapse toggle. |
-| 9 | `src/components/mobile/MobileMoreMenu.tsx` | Active item: icon `text-primary-foreground`, label `text-primary`. |
-| 10 | `src/pages/Welcome.tsx` | Replace Calendly spinner with skeleton card; script logic untouched. |
-| 11 | `src/pages/Welcome.tsx` | Add sticky header with `<Logo>` linked to `/dashboard` + `<ThemeToggle>`, mirroring `LegalPageLayout`. |
+But the current repo source at `supabase/functions/elevenlabs-tools/index.ts` does **not** check `x-elevenlabs-secret` anywhere. It authenticates via the `Authorization: Bearer <tool_token>` header that `elevenlabs-session` mints and ElevenLabs forwards (and the session function is already minting that token correctly per its logs).
 
-Items 3+4 and 10+11 batched per shared file.
+So the June‑10 rollback reverted the repo, but the **deployed copy of `elevenlabs-tools` on Lovable Cloud is still the newer post‑rollback build** that enforces `x-elevenlabs-secret`. ElevenLabs never sends that header, so every tool call is rejected and Rari responds with "I'm having trouble accessing your fleet data / authentication issue" — exactly what the user is seeing.
 
-## Verification
+Other Rari plumbing is healthy:
+- `elevenlabs-session` returns a valid signed URL + tool token (logs confirm).
+- Conversation persistence (`rari_conversations` / `rari_messages`) writes fine.
+- Fleet context (55 vehicles) is built correctly.
 
-- Visual check per route (auth, onboarding, 404, landing, dashboard, mobile More, welcome).
-- `bunx vitest run` at the end; CI typecheck + build on resulting branch.
+The only break is the deployed `elevenlabs-tools` function being out of sync with repo source.
+
+## Fix
+
+Force `elevenlabs-tools` to redeploy from the current repo source so the live function matches the rolled‑back code (Bearer tool‑token auth, no `x-elevenlabs-secret` gate).
+
+Steps:
+
+1. Touch `supabase/functions/elevenlabs-tools/index.ts` with a no‑op edit (e.g. update the top banner comment) so Lovable Cloud picks up the change and redeploys the function.
+2. After redeploy, hit `…/functions/v1/elevenlabs-tools/health` and confirm `{ ok: true, hasToolSecret: true }` with no "x-elevenlabs-secret" log line.
+3. Start a Rari session in the preview, ask "how many vehicles do I have", and confirm:
+   - `elevenlabs-tools` logs show `Auth resolved: method=tool_token` (not "Rejected").
+   - Rari answers with the real fleet number instead of the auth‑error fallback.
 
 ## Out of scope
 
-Lane 3 / FLAGGED.md, edge functions, RLS, Stripe, lint `any`-backlog.
+- No changes to `elevenlabs-session`, ElevenLabs agent config, or the Rari UI.
+- No schema, RLS, or secret changes. `RARI_TOOL_TOKEN_SECRET` is already set and working (session function signs with it; tools function will verify with it once redeployed).
+- No rollback of any other feature.
+
+## Technical notes
+
+- Auth path that will be active after redeploy (already in repo, lines ~531–599 of `supabase/functions/elevenlabs-tools/index.ts`): `Authorization: Bearer <jwt>` → `verifyToolToken(token, RARI_TOOL_TOKEN_SECRET)` → `{ userId, teamId }` → `authMethod = 'tool_token'`. Falls back to conversation metadata, then `DEMO_USER_ID`, then hardcoded demo user.
+- If after redeploy the health endpoint reports `hasToolSecret: false`, the missing piece is the `RARI_TOOL_TOKEN_SECRET` env var on the tools function — would re‑add via secrets tool. Logs currently suggest it is present (session function signs successfully with the same secret name).
