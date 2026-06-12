@@ -9,7 +9,7 @@ import { Database } from "@/integrations/supabase/types";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, Loader2, MapPin, CheckCircle2, Camera, Sparkles } from "lucide-react";
 import { validators, validateForm } from "@/lib/validation";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useTeam } from "@/contexts/TeamContext";
 import { useGenerateHeroImage } from "@/hooks/useGenerateHeroImage";
 import { MILEAGE_RATE_TIERS } from "@/lib/pricingUtils";

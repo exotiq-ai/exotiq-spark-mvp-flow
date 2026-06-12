@@ -22,7 +22,7 @@ import { Database } from "@/integrations/supabase/types";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { validators, validateForm } from "@/lib/validation";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { isFeatureEnabled } from "@/lib/featureFlags";
 
 type Customer = Database['public']['Tables']['customers']['Row'];

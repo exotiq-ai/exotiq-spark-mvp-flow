@@ -33,7 +33,7 @@ import { Badge } from '@/components/ui/badge';
 import { TablesInsert, Tables } from '@/integrations/supabase/types';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { validators, validateForm } from '@/lib/validation';
-import { toast } from '@/hooks/use-toast';
+import { toast } from "sonner";
 import { useAIPricing } from '@/hooks/useAIPricing';
 import { useTeam } from '@/contexts/TeamContext';
 import { supabase } from '@/integrations/supabase/client';
