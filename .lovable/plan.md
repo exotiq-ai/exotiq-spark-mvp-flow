@@ -1,48 +1,55 @@
-# Rari ElevenLabs Agent Update — Handoff Doc
+# What's actually happening
 
-The edge-function fixes are already live (status synonyms, overlap dates, smarter tool routing, stale `active` rows reconciled). The remaining work lives **inside the ElevenLabs dashboard** — I can't reach it from here without an API key. Below is what I'll deliver and how you'll apply it.
+The marketing site (exotiq.ai) is fine. The **app** (`app.exotiq.ai` and `exotiq-spark-mvp-flow.lovable.app`) is rendering a blank white page. Lovable Cloud (database/auth/edge functions) is healthy — this is **not** an infrastructure outage.
 
-## What I'll create
+The published JavaScript bundle throws on boot:
 
-A single new file: `RARI_AGENT_CONFIG_UPDATE.md` with three copy-paste blocks:
+```
+TypeError: Cannot read properties of undefined (reading 'forwardRef')
+  at /assets/charts-BFDzxQby.js
+```
 
-1. **System prompt diff** — Adds a "Booking Status Vocabulary" section teaching Rari:
-   - Real statuses: `confirmed`, `pending`, `completed`, `cancelled` (no `active`)
-   - For "what's out today / currently rented / active", call `get_bookings({ date: "today" })` — never `status: "active"`
-   - For "upcoming", use `date: "upcoming"`; for date ranges, pass `start_date`/`end_date` and trust overlap semantics
-   - Always read back the `interpretation` field from the tool response so the voice answer matches the data window
+That kills React before anything renders, so every route shows a blank page.
 
-2. **Updated `get_bookings` tool schema** (JSON) — adds:
-   - `date` enum: `today | tomorrow | this_week | upcoming`
-   - `status` enum with canonical values **plus** synonyms (`active`, `current`, `rented`, `out`) and a description noting synonyms resolve to confirmed+pending overlapping today
-   - Clarified `start_date`/`end_date` description: "any booking overlapping this window"
+# Root cause
 
-3. **5-step apply instructions** for the ElevenLabs dashboard:
-   1. Open agent → System Prompt → paste the new "Booking Status Vocabulary" section at the end → Save
-   2. Tools → `get_bookings` → Replace JSON with the new schema → Save
-   3. Test in the dashboard sandbox: "What's out today?" → expect 20 bookings with real customer names
-   4. Test: "Show me active rentals" → same 20 (synonym path)
-   5. Publish agent
+`vite.config.ts` uses `manualChunks` to split recharts into its own `charts` chunk, separate from the `react-vendor` chunk:
 
-## Answer to your API question
+```ts
+if (id.includes('node_modules/recharts/')) return 'charts';
+```
 
-**Yes — with an ElevenLabs API key (Workspace Admin scope) I can fully manage the agent programmatically.** Their Conversational AI REST API exposes:
+Recharts (and some of its transitive deps like `react-smooth` / `react-is`) reach into React via CommonJS-style access (`React.forwardRef`). When Rollup splits those deps into a chunk that doesn't co-locate with React's interop shim, the `React` namespace resolves to `undefined` at evaluation time — exactly the error we're seeing. This typically appears only **after a dependency bump or a Vite/Rollup update** changes how the interop wrapper is emitted, which matches "worked yesterday, broken today."
 
-- `GET/PATCH /v1/convai/agents/:agent_id` — read/update system prompt, first message, voice, model, language
-- `GET/POST/PATCH/DELETE /v1/convai/agents/:agent_id/tools` — full CRUD on tool definitions (name, description, JSON schema, webhook URL, auth headers)
-- `GET /v1/convai/conversations` — pull transcripts for debugging (exactly the kind you pasted earlier)
-- Knowledge base, secrets, and workspace settings endpoints
+The preview works because the dev server doesn't apply `manualChunks` (no Rollup build).
 
-**How I'd use it going forward:**
-- Store the key as `ELEVENLABS_ADMIN_API_KEY` via the secrets tool (separate from the existing `ELEVENLABS_API_KEY` used for voice tokens so we can scope/rotate independently)
-- Build a small `supabase/functions/rari-agent-admin/` function with operations like `sync-tools-from-edge`, `update-system-prompt`, `fetch-recent-transcripts`, `diff-agent-config`
-- Optionally add a checked-in `rari-agent.config.json` in the repo as the source of truth, with a `sync` script that pushes diffs to ElevenLabs — so agent config is reviewable like code instead of clicked through a dashboard
-- For one-offs (like today's fix) I'd just call the API directly from an edge function or a `code--exec` script rather than building UI
+# Fix
 
-Caveat: the key needs **Workspace Admin** permission. A read-only or voice-only key won't let me edit agents/tools.
+Single-file change to `vite.config.ts`: stop splitting recharts into its own chunk. Let Vite/Rollup co-locate it with its React dependency automatically.
 
-## Out of scope for this turn
-- Any further edge-function changes (already deployed and verified)
-- Building the agent-admin function — only if you confirm the API-key path
+```ts
+// Remove this block:
+if (id.includes('node_modules/recharts/')) {
+  return 'charts';
+}
+```
 
-Approve and I'll write `RARI_AGENT_CONFIG_UPDATE.md` with the exact prompt + tool JSON ready to paste.
+Keep `react-vendor` and `ui-vendor` chunks as-is. Recharts will be bundled into whichever route-level chunk imports it (or into a shared chunk Rollup picks automatically), and the React interop wrapper will land in the same chunk.
+
+# Verification steps
+
+1. Edit `vite.config.ts` (remove the recharts manualChunk).
+2. Republish (frontend changes require Publish → Update to go live).
+3. Load `https://app.exotiq.ai` in a fresh tab — the dashboard should render.
+4. Confirm no `forwardRef` error in the console.
+5. Spot-check a page that uses recharts (Dashboard / Analytics) to confirm charts still render.
+
+# Why not other approaches
+
+- **Pin/upgrade recharts**: would also work but is riskier (breaking API changes) and doesn't address the underlying chunk-split fragility.
+- **Add recharts to `react-vendor`**: works, but a one-line removal is simpler and equally effective.
+- **Tell users to hard-refresh**: the SW already auto-updates; the broken bundle is the deployed artifact, so a refresh changes nothing until we republish.
+
+# Reassurance for users mid-outage
+
+Since the database is untouched, no data is lost. The moment the new bundle is published, the app comes back.
