@@ -89,10 +89,9 @@ export default defineConfig(({ mode }) => ({
           ) {
             return 'react-vendor';
           }
-          // Recharts charting library
-          if (id.includes('node_modules/recharts/')) {
-            return 'charts';
-          }
+          // Recharts intentionally NOT split — isolating it from react-vendor
+          // caused a "Cannot read properties of undefined (reading 'forwardRef')"
+          // crash on boot. Let Rollup co-locate it with its React interop shim.
           // Radix UI primitives
           if (id.includes('node_modules/@radix-ui/')) {
             return 'ui-vendor';
