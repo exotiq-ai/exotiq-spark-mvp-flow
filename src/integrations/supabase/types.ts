@@ -3018,6 +3018,39 @@ export type Database = {
           },
         ]
       }
+      uptime_checks: {
+        Row: {
+          checked_at: string
+          created_at: string
+          failure_reason: string | null
+          http_status: number | null
+          id: string
+          latency_ms: number | null
+          status: string
+          target_url: string
+        }
+        Insert: {
+          checked_at?: string
+          created_at?: string
+          failure_reason?: string | null
+          http_status?: number | null
+          id?: string
+          latency_ms?: number | null
+          status: string
+          target_url: string
+        }
+        Update: {
+          checked_at?: string
+          created_at?: string
+          failure_reason?: string | null
+          http_status?: number | null
+          id?: string
+          latency_ms?: number | null
+          status?: string
+          target_url?: string
+        }
+        Relationships: []
+      }
       user_activity_log: {
         Row: {
           activity_type: string
