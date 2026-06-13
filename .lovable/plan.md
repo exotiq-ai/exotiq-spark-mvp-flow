@@ -1,55 +1,46 @@
-# What's actually happening
+# Uptime monitor for app.exotiq.ai
 
-The marketing site (exotiq.ai) is fine. The **app** (`app.exotiq.ai` and `exotiq-spark-mvp-flow.lovable.app`) is rendering a blank white page. Lovable Cloud (database/auth/edge functions) is healthy — this is **not** an infrastructure outage.
+A small background job that pings the published app every 5 minutes, detects the kinds of failure that just happened, records each check, and emails you only on **state changes** (up→down and down→up) so your inbox stays quiet during steady operation.
 
-The published JavaScript bundle throws on boot:
+## What it can and can't detect
 
-```
-TypeError: Cannot read properties of undefined (reading 'forwardRef')
-  at /assets/charts-BFDzxQby.js
-```
+| Failure type | Detected? | How |
+|---|---|---|
+| App URL unreachable / 5xx / timeout | ✅ | HTTP status + timeout on the HTML fetch |
+| HTML returned but `<div id="root">` missing or empty shell | ✅ | Parse the response body |
+| HTML references a JS chunk that 404s (the exact bug from today) | ✅ | Extract every `<script src>` and `<link rel="modulepreload">` from the HTML and HEAD-check each one |
+| Service worker serving stale broken bundle to real users | ⚠️ Partial | The monitor sees the freshly served HTML, not what a returning user's SW cached. Real-user JS runtime errors aren't catchable without a headless browser, which we can't run inside an Edge Function. |
+| Runtime `TypeError` after the bundle loads | ❌ | Would require a real browser. Not in scope. |
 
-That kills React before anything renders, so every route shows a blank page.
+This catches the deploy-bundle-broken category — which is what hit today — plus generic outages. I'll be upfront about that limitation in the email.
 
-# Root cause
+## Pieces to build
 
-`vite.config.ts` uses `manualChunks` to split recharts into its own `charts` chunk, separate from the `react-vendor` chunk:
+1. **Edge function `uptime-check`** (no JWT).
+   - Fetches `https://app.exotiq.ai` with a 15-second timeout.
+   - Verifies HTTP 200, non-empty `<div id="root">`, and that every referenced JS/CSS asset returns 200.
+   - Writes the result (status, latency, failure reason) to a new `uptime_checks` table.
+   - Compares to the previous check; if status flipped, sends an email via existing `send-transactional-email`.
 
-```ts
-if (id.includes('node_modules/recharts/')) return 'charts';
-```
+2. **Database**
+   - `uptime_checks` table: `id, checked_at, status (up|down), latency_ms, http_status, failure_reason`.
+   - RLS: owner-only read.
+   - `uptime_alert_recipients` table: `id, email, active` so you can add/remove recipients later without code changes (seeded with the email you give me).
 
-Recharts (and some of its transitive deps like `react-smooth` / `react-is`) reach into React via CommonJS-style access (`React.forwardRef`). When Rollup splits those deps into a chunk that doesn't co-locate with React's interop shim, the `React` namespace resolves to `undefined` at evaluation time — exactly the error we're seeing. This typically appears only **after a dependency bump or a Vite/Rollup update** changes how the interop wrapper is emitted, which matches "worked yesterday, broken today."
+3. **App email template `uptime-alert`**
+   - Two states: "App is DOWN" (red, includes failure reason, http status, time, link to app) and "App is back UP" (green, includes downtime duration).
+   - Plain, minimal, brand-consistent.
 
-The preview works because the dev server doesn't apply `manualChunks` (no Rollup build).
+4. **Schedule**
+   - `pg_cron` job every 5 minutes invoking `uptime-check`.
 
-# Fix
+5. **(Optional) Admin view**
+   - Tiny page at `/dashboard/admin/uptime` showing the last 100 checks and current status. Owner-only. Skip if you'd rather just get the emails.
 
-Single-file change to `vite.config.ts`: stop splitting recharts into its own chunk. Let Vite/Rollup co-locate it with its React dependency automatically.
+## What I need from you before building
 
-```ts
-// Remove this block:
-if (id.includes('node_modules/recharts/')) {
-  return 'charts';
-}
-```
+- **Alert email address** — where should the up/down emails go? (Just one address, or several?)
+- **Cadence** — 5 minutes is the sane default. Slower = cheaper, faster = noisier. OK with 5?
+- **Skip the admin page?** — yes/no. The emails alone are enough for most people.
 
-Keep `react-vendor` and `ui-vendor` chunks as-is. Recharts will be bundled into whichever route-level chunk imports it (or into a shared chunk Rollup picks automatically), and the React interop wrapper will land in the same chunk.
-
-# Verification steps
-
-1. Edit `vite.config.ts` (remove the recharts manualChunk).
-2. Republish (frontend changes require Publish → Update to go live).
-3. Load `https://app.exotiq.ai` in a fresh tab — the dashboard should render.
-4. Confirm no `forwardRef` error in the console.
-5. Spot-check a page that uses recharts (Dashboard / Analytics) to confirm charts still render.
-
-# Why not other approaches
-
-- **Pin/upgrade recharts**: would also work but is riskier (breaking API changes) and doesn't address the underlying chunk-split fragility.
-- **Add recharts to `react-vendor`**: works, but a one-line removal is simpler and equally effective.
-- **Tell users to hard-refresh**: the SW already auto-updates; the broken bundle is the deployed artifact, so a refresh changes nothing until we republish.
-
-# Reassurance for users mid-outage
-
-Since the database is untouched, no data is lost. The moment the new bundle is published, the app comes back.
+I'll wait for those answers, then build it in one pass.
