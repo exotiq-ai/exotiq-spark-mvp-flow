@@ -12,7 +12,7 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-type DocType = "terms" | "privacy" | "aup" | "dpa" | "order_form" | "sms" | "cookies" | "dmca";
+type DocType = "terms" | "privacy" | "aup" | "dpa" | "order_form" | "sms" | "cookies" | "dmca" | "transfer_addendum";
 type EventType = "signup" | "reacceptance" | "terms_update" | "order_form";
 type Method = "checkbox_click" | "button_click";
 
