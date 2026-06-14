@@ -1223,6 +1223,7 @@ export type Database = {
           created_at: string
           document_type: Database["public"]["Enums"]["legal_document_type"]
           effective_date: string
+          hash_algorithm: string
           id: string
           published_at: string
           url: string
@@ -1234,6 +1235,7 @@ export type Database = {
           created_at?: string
           document_type: Database["public"]["Enums"]["legal_document_type"]
           effective_date: string
+          hash_algorithm?: string
           id?: string
           published_at?: string
           url: string
@@ -1245,6 +1247,7 @@ export type Database = {
           created_at?: string
           document_type?: Database["public"]["Enums"]["legal_document_type"]
           effective_date?: string
+          hash_algorithm?: string
           id?: string
           published_at?: string
           url?: string
@@ -4924,6 +4927,7 @@ export type Database = {
         | "reacceptance"
         | "terms_update"
         | "order_form"
+        | "sms_opt_out"
       terms_acceptance_method: "checkbox_click" | "button_click"
     }
     CompositeTypes: {
@@ -5068,6 +5072,7 @@ export const Constants = {
         "reacceptance",
         "terms_update",
         "order_form",
+        "sms_opt_out",
       ],
       terms_acceptance_method: ["checkbox_click", "button_click"],
     },

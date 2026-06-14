@@ -16,7 +16,8 @@ import {
   CreditCard, 
   Puzzle, 
   Database,
-  Banknote
+  Banknote,
+  ShieldCheck
 } from "lucide-react";
 
 // Settings sections
@@ -28,6 +29,7 @@ import { SubscriptionSection } from "./SubscriptionSection";
 import { IntegrationsSection } from "./IntegrationsSection";
 import { DataManagementSection } from "./DataManagementSection";
 import { PaymentMethodsSection } from "@/components/settings/PaymentMethodsSection";
+import { LegalSection } from "./LegalSection";
 
 interface SettingsTab {
   id: string;
@@ -45,6 +47,7 @@ const allSettingsTabs: SettingsTab[] = [
   { id: "integrations", label: "Integrations", icon: Puzzle },
   { id: "data", label: "Data", icon: Database },
   { id: "payments", label: "Payments", icon: Banknote },
+  { id: "legal", label: "Legal", icon: ShieldCheck },
 ];
 
 export const SettingsLayout = () => {
@@ -117,6 +120,8 @@ export const SettingsLayout = () => {
         return <DataManagementSection />;
       case "payments":
         return <PaymentMethodsSection />;
+      case "legal":
+        return <LegalSection />;
       default:
         return <MyAccountSection />;
     }
