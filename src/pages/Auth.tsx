@@ -13,6 +13,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { validators } from '@/lib/validation';
 import { supabase } from '@/integrations/supabase/client';
 import { PasswordStrengthMeter } from '@/components/auth/PasswordStrengthMeter';
+import { ConsentCheckbox } from '@/components/legal/ConsentCheckbox';
+import {
+  REQUIRED_AT_SIGNUP,
+  CURRENT_CONSENT_STATEMENT,
+  buildDocumentsPayload,
+} from '@/lib/legal/versions';
 
 type AuthMode = 'signin' | 'signup' | 'magiclink' | 'reset' | 'update-password';
 
@@ -55,6 +61,7 @@ export default function Auth() {
   const [success, setSuccess] = useState<string | null>(null);
   const [magicLinkCooldown, setMagicLinkCooldown] = useState(0);
   const [resetCooldown, setResetCooldown] = useState(0);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   
   // Track recovery email for display
   const [recoveryEmail, setRecoveryEmail] = useState<string | null>(null);
@@ -169,6 +176,24 @@ export default function Auth() {
     }
   }, [user, authLoading, navigate, authMode, isPasswordRecovery, isRecoveryFromUrl]);
 
+  const recordSignupAcceptance = async () => {
+    try {
+      await supabase.functions.invoke('record-terms-acceptance', {
+        body: {
+          event_type: 'signup',
+          documents: buildDocumentsPayload(REQUIRED_AT_SIGNUP),
+          consent_statement: CURRENT_CONSENT_STATEMENT,
+          acceptance_method: 'checkbox_click',
+          page_url: window.location.href,
+          is_authorized_representative: !invitation,
+        },
+      });
+    } catch (err) {
+      // Logged for audit; do not block account creation that already succeeded.
+      console.error('Failed to record terms acceptance:', err);
+    }
+  };
+
   const handlePasswordAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -197,6 +222,11 @@ export default function Auth() {
       return;
     }
 
+    if (authMode === 'signup' && !agreedToTerms) {
+      setError("Please accept the Terms, Privacy Policy, and Acceptable Use Policy to continue.");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -206,11 +236,15 @@ export default function Auth() {
           const { error: signUpError } = await signUpWithInvite(email, password, fullName, inviteToken);
           if (signUpError) {
             setError(signUpError.message || "Failed to create account. Please try again.");
+          } else {
+            await recordSignupAcceptance();
           }
         } else {
           const { error: signUpError } = await signUp(email, password, fullName);
           if (signUpError) {
             setError(signUpError.message || "Failed to create account. Please try again.");
+          } else {
+            await recordSignupAcceptance();
           }
         }
       } else {
@@ -628,10 +662,12 @@ export default function Auth() {
                 />
               </div>
 
+              <ConsentCheckbox id="invite-accept-terms" checked={agreedToTerms} onCheckedChange={setAgreedToTerms} />
+
               <Button
                 type="submit"
                 className="w-full btn-premium"
-                disabled={loading}
+                disabled={loading || !agreedToTerms}
                 size="lg"
               >
                 {loading ? (
@@ -844,10 +880,12 @@ export default function Auth() {
                     />
                   </div>
 
+                  <ConsentCheckbox id="signup-accept-terms" checked={agreedToTerms} onCheckedChange={setAgreedToTerms} />
+
                   <Button
                     type="submit"
                     className="w-full btn-premium"
-                    disabled={loading}
+                    disabled={loading || !agreedToTerms}
                   >
                     {loading ? (
                       <>
