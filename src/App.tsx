@@ -85,7 +85,14 @@ const AppWithRouter = () => {
           } />
           <Route path="/dashboard/*" element={
             <ProtectedRoute>
-              <Dashboard />
+              <TermsReacceptanceGate>
+                <Dashboard />
+              </TermsReacceptanceGate>
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/terms-acceptances" element={
+            <ProtectedRoute>
+              <TermsAcceptancesAdmin />
             </ProtectedRoute>
           } />
           <Route path="/super-admin" element={
