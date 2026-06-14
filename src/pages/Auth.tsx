@@ -177,6 +177,24 @@ export default function Auth() {
     }
   }, [user, authLoading, navigate, authMode, isPasswordRecovery, isRecoveryFromUrl]);
 
+  const recordSignupAcceptance = async () => {
+    try {
+      await supabase.functions.invoke('record-terms-acceptance', {
+        body: {
+          event_type: 'signup',
+          documents: buildDocumentsPayload(REQUIRED_AT_SIGNUP),
+          consent_statement: CURRENT_CONSENT_STATEMENT,
+          acceptance_method: 'checkbox_click',
+          page_url: window.location.href,
+          is_authorized_representative: !invitation,
+        },
+      });
+    } catch (err) {
+      // Logged for audit; do not block account creation that already succeeded.
+      console.error('Failed to record terms acceptance:', err);
+    }
+  };
+
   const handlePasswordAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
