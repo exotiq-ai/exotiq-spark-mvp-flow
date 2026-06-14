@@ -896,11 +896,14 @@ export type Database = {
         Row: {
           created_at: string
           evidence_url: string | null
+          executed_at: string | null
           export_expires_at: string | null
           export_url: string | null
           fulfilled_at: string | null
           id: string
           notes: string | null
+          preview_counts: Json | null
+          receipt_id: string | null
           request_type: string
           requester_email: string | null
           requester_user_id: string | null
@@ -915,11 +918,14 @@ export type Database = {
         Insert: {
           created_at?: string
           evidence_url?: string | null
+          executed_at?: string | null
           export_expires_at?: string | null
           export_url?: string | null
           fulfilled_at?: string | null
           id?: string
           notes?: string | null
+          preview_counts?: Json | null
+          receipt_id?: string | null
           request_type: string
           requester_email?: string | null
           requester_user_id?: string | null
@@ -934,11 +940,14 @@ export type Database = {
         Update: {
           created_at?: string
           evidence_url?: string | null
+          executed_at?: string | null
           export_expires_at?: string | null
           export_url?: string | null
           fulfilled_at?: string | null
           id?: string
           notes?: string | null
+          preview_counts?: Json | null
+          receipt_id?: string | null
           request_type?: string
           requester_email?: string | null
           requester_user_id?: string | null
@@ -968,8 +977,11 @@ export type Database = {
           confirmation_token: string | null
           confirmed_at: string | null
           created_at: string | null
+          executed_at: string | null
           id: string
           ip_address: string | null
+          preview_counts: Json | null
+          receipt_id: string | null
           request_type: string
           requested_by: string
           scheduled_deletion_at: string | null
@@ -984,8 +996,11 @@ export type Database = {
           confirmation_token?: string | null
           confirmed_at?: string | null
           created_at?: string | null
+          executed_at?: string | null
           id?: string
           ip_address?: string | null
+          preview_counts?: Json | null
+          receipt_id?: string | null
           request_type: string
           requested_by: string
           scheduled_deletion_at?: string | null
@@ -1000,8 +1015,11 @@ export type Database = {
           confirmation_token?: string | null
           confirmed_at?: string | null
           created_at?: string | null
+          executed_at?: string | null
           id?: string
           ip_address?: string | null
+          preview_counts?: Json | null
+          receipt_id?: string | null
           request_type?: string
           requested_by?: string
           scheduled_deletion_at?: string | null
@@ -3209,6 +3227,9 @@ export type Database = {
           deleted_at: string | null
           deleted_by: string | null
           deletion_scheduled_for: string | null
+          eu_representative_address: string | null
+          eu_representative_email: string | null
+          eu_representative_name: string | null
           expense_auto_approve_under: number
           expense_review_required_types: string[]
           id: string
@@ -3232,6 +3253,9 @@ export type Database = {
           timezone: string | null
           trial_end: string | null
           trial_start: string | null
+          uk_representative_address: string | null
+          uk_representative_email: string | null
+          uk_representative_name: string | null
           updated_at: string | null
         }
         Insert: {
@@ -3249,6 +3273,9 @@ export type Database = {
           deleted_at?: string | null
           deleted_by?: string | null
           deletion_scheduled_for?: string | null
+          eu_representative_address?: string | null
+          eu_representative_email?: string | null
+          eu_representative_name?: string | null
           expense_auto_approve_under?: number
           expense_review_required_types?: string[]
           id?: string
@@ -3272,6 +3299,9 @@ export type Database = {
           timezone?: string | null
           trial_end?: string | null
           trial_start?: string | null
+          uk_representative_address?: string | null
+          uk_representative_email?: string | null
+          uk_representative_name?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -3289,6 +3319,9 @@ export type Database = {
           deleted_at?: string | null
           deleted_by?: string | null
           deletion_scheduled_for?: string | null
+          eu_representative_address?: string | null
+          eu_representative_email?: string | null
+          eu_representative_name?: string | null
           expense_auto_approve_under?: number
           expense_review_required_types?: string[]
           id?: string
@@ -3312,6 +3345,9 @@ export type Database = {
           timezone?: string | null
           trial_end?: string | null
           trial_start?: string | null
+          uk_representative_address?: string | null
+          uk_representative_email?: string | null
+          uk_representative_name?: string | null
           updated_at?: string | null
         }
         Relationships: []
