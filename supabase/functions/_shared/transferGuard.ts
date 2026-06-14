@@ -204,5 +204,46 @@ export async function withTransferGuard(
   };
 }
 
+/**
+ * Log-only variant for callers whose payload contains no renter PII
+ * (vehicle metadata, aggregate analytics, etc). Skips redaction so prompt
+ * content is untouched, but still records the cross-border transfer for
+ * the TIA evidence log.
+ */
+export async function logTransfer(opts: {
+  team_id: string | null;
+  user_id?: string | null;
+  caller: string;
+  model: string;
+  provider: string;
+  provider_region?: string;
+  request_bytes?: number;
+  response_bytes?: number;
+  status?: "ok" | "error";
+}) {
+  try {
+    const level = await resolveLevel(opts.team_id);
+    // deno-lint-ignore no-explicit-any
+    await (admin().from("ai_transfer_log") as any).insert({
+      team_id: opts.team_id,
+      user_id: opts.user_id ?? null,
+      caller: opts.caller,
+      model: opts.model,
+      provider: opts.provider,
+      provider_region: opts.provider_region ?? null,
+      minimization_level: level,
+      payload_field_hashes: {},
+      field_count: null,
+      redacted_field_count: 0,
+      request_bytes: opts.request_bytes ?? null,
+      response_bytes: opts.response_bytes ?? null,
+      status: opts.status ?? "ok",
+    });
+  } catch (e) {
+    console.warn("[logTransfer] insert failed", e);
+  }
+}
+
 // Exported for tests
 export const __test = { redact, pseudonymFor };
+
