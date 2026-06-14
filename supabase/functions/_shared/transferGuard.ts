@@ -174,7 +174,8 @@ export async function withTransferGuard(
 
   const log = async (result: { status?: "ok" | "error"; response_bytes?: number }) => {
     try {
-      await admin().from("ai_transfer_log").insert({
+      // deno-lint-ignore no-explicit-any
+      await (admin().from("ai_transfer_log") as any).insert({
         team_id: opts.team_id,
         user_id: opts.user_id ?? null,
         caller: opts.caller,
