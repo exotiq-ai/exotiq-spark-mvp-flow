@@ -34,6 +34,9 @@ export const TermsReacceptanceGate = ({ children }: { children: React.ReactNode 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const teamId = currentTeam?.id ?? null;
+  const jurisdiction = (currentTeam as { primary_jurisdiction?: string | null } | null)?.primary_jurisdiction ?? null;
+  const requiredDocs = requiredDocsForJurisdiction(jurisdiction);
+  const consentStatement = consentStatementForJurisdiction(jurisdiction);
   const canAcceptForTeam = userRole === "owner" || userRole === "admin";
 
   const evaluate = useCallback(async () => {
