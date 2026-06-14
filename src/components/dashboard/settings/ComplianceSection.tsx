@@ -59,7 +59,7 @@ export const ComplianceSection = () => {
   const [loading, setLoading] = useState(true);
   const [savingJurisdiction, setSavingJurisdiction] = useState(false);
   const [jurisdiction, setJurisdiction] = useState<string>(
-    currentTeam?.primary_jurisdiction ?? ""
+    (currentTeam as any)?.primary_jurisdiction ?? ""
   );
 
   const canEdit = userRole === "owner" || userRole === "admin";
