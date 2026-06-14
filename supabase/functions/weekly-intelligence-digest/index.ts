@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.77.0';
+import { logTransfer } from "../_shared/transferGuard.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -169,6 +170,16 @@ serve(async (req) => {
           const aiData = await aiResponse.json();
           const content = aiData.choices?.[0]?.message?.content;
           if (content) topAction = content.trim();
+          logTransfer({
+            team_id: teamId ?? null,
+            user_id: userId ?? null,
+            caller: "weekly-intelligence-digest",
+            model: "google/gemini-3-flash-preview",
+            provider: "Google (Gemini via Lovable AI Gateway)",
+            provider_region: "United States / Global",
+            response_bytes: content ? content.length : 0,
+            status: "ok",
+          }).catch(() => {});
         }
       } catch (err) {
         console.error('AI recommendation failed:', err);

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.77.0';
+import { logTransfer } from "../_shared/transferGuard.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -176,9 +177,28 @@ Only include REAL events that actually happen in this city and time period. Do N
             geminiEvents = parsed.events || [];
             console.log(`Gemini returned ${geminiEvents.length} events for ${cityLabel}`);
           }
+          logTransfer({
+            team_id: ((claimsData.claims as any).team_id as string) ?? null,
+            user_id: ((claimsData.claims as any).sub as string) ?? null,
+            caller: "ai-event-intelligence",
+            model: "google/gemini-3-flash-preview",
+            provider: "Google (Gemini via Lovable AI Gateway)",
+            provider_region: "United States / Global",
+            response_bytes: JSON.stringify(data).length,
+            status: "ok",
+          }).catch(() => {});
         } else {
           const errText = await response.text();
           console.error('Gemini API error:', response.status, errText);
+          logTransfer({
+            team_id: ((claimsData.claims as any).team_id as string) ?? null,
+            user_id: ((claimsData.claims as any).sub as string) ?? null,
+            caller: "ai-event-intelligence",
+            model: "google/gemini-3-flash-preview",
+            provider: "Google (Gemini via Lovable AI Gateway)",
+            provider_region: "United States / Global",
+            status: "error",
+          }).catch(() => {});
         }
       } catch (geminiErr) {
         console.error('Gemini call failed, using PEAK_SEASONS only:', geminiErr);

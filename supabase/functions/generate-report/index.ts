@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.77.0';
+import { logTransfer } from "../_shared/transferGuard.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -88,6 +89,16 @@ serve(async (req) => {
         if (aiResponse.ok) {
           const aiData = await aiResponse.json();
           aiInsights = aiData.choices?.[0]?.message?.content || null;
+          logTransfer({
+            team_id: ((claimsData.claims as any).team_id as string) ?? null,
+            user_id: ((claimsData.claims as any).sub as string) ?? null,
+            caller: "generate-report",
+            model: "google/gemini-2.5-flash",
+            provider: "Google (Gemini via Lovable AI Gateway)",
+            provider_region: "United States / Global",
+            response_bytes: aiInsights ? aiInsights.length : 0,
+            status: "ok",
+          }).catch(() => {});
         }
       } catch (aiError) {
         console.error("AI insights error:", aiError);
