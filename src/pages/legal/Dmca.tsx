@@ -6,19 +6,13 @@ const Dmca = () => {
       title="DMCA and Copyright Policy"
       subtitle="Digital Millennium Copyright Act Notice and Takedown Procedures"
       effectiveDate="January 1, 2026"
-      lastUpdated="June 2026"
+      lastUpdated="June 14, 2026"
     >
-      <p>
-        Exotiq Inc. ("Exotiq," "we," "us," or "our") respects the intellectual property rights of others and expects users of the Exotiq Command Center (app.exotiq.ai), the Drive Exotiq marketplace (driveexotiq.com), and our websites (collectively, the "Services") to do the same. This policy explains how we handle claims of copyright infringement and how rights holders and users can interact with us regarding copyright concerns.
-      </p>
-      <p>
-        Exotiq's response to notices of claimed copyright infringement complies with the Digital Millennium Copyright Act, 17 U.S.C. Section 512 (the "DMCA"). This policy applies to content that users upload to or publish through the Services, including vehicle photographs, listing descriptions, documents, and other materials.
-      </p>
+      <p>Exotiq Inc. ("Exotiq," "we," "us," or "our") respects the intellectual property rights of others and expects users of the Exotiq Command Center (app.exotiq.ai), the Drive Exotiq marketplace (driveexotiq.com), and our websites (collectively, the "Services") to do the same. This policy explains how we handle claims of copyright infringement and how rights holders and users can interact with us regarding copyright concerns.</p>
+      <p>Exotiq's response to notices of claimed copyright infringement complies with the Digital Millennium Copyright Act, 17 U.S.C. Section 512 (the "DMCA"). This policy applies to content that users upload to or publish through the Services, including vehicle photographs, listing descriptions, documents, and other materials.</p>
 
       <h2>Designated Copyright Agent</h2>
-      <p>
-        Exotiq has designated a copyright agent to receive notifications of claimed infringement. Notices must be sent to the agent at the contact details below. Notices sent to any other address may not be reviewed promptly.
-      </p>
+      <p>Exotiq has designated a copyright agent to receive notifications of claimed infringement. Notices must be sent to the agent at the contact details below. Notices sent to any other address may not be reviewed promptly.</p>
       <blockquote>
         Exotiq Copyright Agent<br />
         Exotiq Inc.<br />
@@ -29,9 +23,7 @@ const Dmca = () => {
       </blockquote>
 
       <h2>Reporting Copyright Infringement</h2>
-      <p>
-        If you believe that content available through the Services infringes your copyright, you may submit a DMCA takedown notice to our designated copyright agent.
-      </p>
+      <p>If you believe that content available through the Services infringes your copyright, you may submit a DMCA takedown notice to our designated copyright agent.</p>
 
       <h3>Required Elements of a Takedown Notice</h3>
       <p>To be valid under 17 U.S.C. Section 512(c)(3), your notice must include all of the following, in the order given:</p>
@@ -45,9 +37,7 @@ const Dmca = () => {
       </ol>
 
       <h3>How to Submit</h3>
-      <p>
-        Email your complete notice to <a href="mailto:dmca@exotiq.ai">dmca@exotiq.ai</a>. We process notices received at that address only.
-      </p>
+      <p>Email your complete notice to <a href="mailto:dmca@exotiq.ai">dmca@exotiq.ai</a>. We process notices received at that address only.</p>
 
       <h2>What Happens After You Submit a Notice</h2>
       <ol type="a">
@@ -58,9 +48,7 @@ const Dmca = () => {
       </ol>
 
       <h2>Counter-Notification (Disputing a Takedown)</h2>
-      <p>
-        If you are a user whose content was removed or disabled and you believe this was a mistake or misidentification, for example because you have the right to use the content, you may submit a counter-notification.
-      </p>
+      <p>If you are a user whose content was removed or disabled and you believe this was a mistake or misidentification, for example because you have the right to use the content, you may submit a counter-notification.</p>
 
       <h3>Required Elements of a Counter-Notification</h3>
       <p>Under 17 U.S.C. Section 512(g)(3), your counter-notification must include:</p>
@@ -74,9 +62,7 @@ const Dmca = () => {
       </ol>
 
       <h3>How to Submit a Counter-Notification</h3>
-      <p>
-        Email your counter-notification to <a href="mailto:dmca@exotiq.ai">dmca@exotiq.ai</a>.
-      </p>
+      <p>Email your counter-notification to <a href="mailto:dmca@exotiq.ai">dmca@exotiq.ai</a>.</p>
 
       <h3>What Happens After You Submit a Counter-Notification</h3>
       <ol type="a">
@@ -87,23 +73,15 @@ const Dmca = () => {
       </ol>
 
       <h2>Repeat Infringer Policy</h2>
-      <p>
-        In accordance with the DMCA and our Terms and Conditions, Exotiq maintains a policy of terminating, in appropriate circumstances, the accounts of users who are determined to be repeat infringers. Exotiq may apply a graduated response, which may include a warning, a temporary suspension of content-posting privileges, and ultimately termination of the account, depending on the nature and frequency of the infringement.
-      </p>
+      <p>In accordance with the DMCA and our Terms and Conditions, Exotiq maintains a policy of terminating, in appropriate circumstances, the accounts of users who are determined to be repeat infringers. Exotiq may apply a graduated response, which may include a warning, a temporary suspension of content-posting privileges, and ultimately termination of the account, depending on the nature and frequency of the infringement.</p>
 
       <h2>Misrepresentation</h2>
-      <p>
-        Please be aware that, under 17 U.S.C. Section 512(f), any person who knowingly materially misrepresents that material is infringing, or that material was removed or disabled by mistake or misidentification, may be liable for damages, including costs and attorneys' fees.
-      </p>
+      <p>Please be aware that, under 17 U.S.C. Section 512(f), any person who knowingly materially misrepresents that material is infringing, or that material was removed or disabled by mistake or misidentification, may be liable for damages, including costs and attorneys' fees.</p>
 
       <h2>Questions</h2>
-      <p>
-        If you have questions about this policy, contact us at <a href="mailto:dmca@exotiq.ai">dmca@exotiq.ai</a>.
-      </p>
+      <p>If you have questions about this policy, contact us at <a href="mailto:dmca@exotiq.ai">dmca@exotiq.ai</a>.</p>
 
-      <p>
-        <em>This policy applies to content hosted on or published through the Services. Exotiq is not a law firm and this page does not constitute legal advice. We encourage you to consult an attorney if you have questions about your specific situation.</em>
-      </p>
+      <p><em>This policy applies to content hosted on or published through the Services. Exotiq is not a law firm and this page does not constitute legal advice. We encourage you to consult an attorney if you have questions about your specific situation.</em></p>
 
       <h2>Contact</h2>
       <p><strong>Email:</strong> <a href="mailto:dmca@exotiq.ai">dmca@exotiq.ai</a></p>

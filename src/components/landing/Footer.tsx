@@ -71,6 +71,9 @@ export const Footer = () => {
               <li>
                 <Link to="/dmca" className="hover:text-foreground transition-colors">DMCA</Link>
               </li>
+              <li>
+                <Link to="/cookies" className="hover:text-foreground transition-colors">Cookies</Link>
+              </li>
             </ul>
           </div>
         </div>

@@ -74,6 +74,7 @@ export const LegalPageLayout = ({
             <Link to="/data-processing" className="hover:text-foreground transition-colors">Data Processing</Link>
             <Link to="/sms" className="hover:text-foreground transition-colors">SMS Policy</Link>
             <Link to="/dmca" className="hover:text-foreground transition-colors">DMCA</Link>
+            <Link to="/cookies" className="hover:text-foreground transition-colors">Cookies</Link>
           </div>
           <p className="mt-4 text-xs text-muted-foreground">
             © {new Date().getFullYear()} Exotiq Inc. All rights reserved.
