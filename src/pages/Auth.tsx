@@ -15,8 +15,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { PasswordStrengthMeter } from '@/components/auth/PasswordStrengthMeter';
 import { ConsentCheckbox } from '@/components/legal/ConsentCheckbox';
 import {
+  LEGAL_DOCS,
   REQUIRED_AT_SIGNUP,
   CURRENT_CONSENT_STATEMENT,
+  SMS_CONSENT_STATEMENT,
   buildDocumentsPayload,
 } from '@/lib/legal/versions';
 
@@ -62,6 +64,8 @@ export default function Auth() {
   const [magicLinkCooldown, setMagicLinkCooldown] = useState(0);
   const [resetCooldown, setResetCooldown] = useState(0);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [smsOptIn, setSmsOptIn] = useState(false);
+  const [smsPhone, setSmsPhone] = useState('');
   
   // Track recovery email for display
   const [recoveryEmail, setRecoveryEmail] = useState<string | null>(null);
@@ -188,6 +192,24 @@ export default function Auth() {
           is_authorized_representative: !invitation,
         },
       });
+
+      // Optional SMS opt-in is a separate, independent consent record.
+      if (smsOptIn && smsPhone.trim()) {
+        try {
+          await supabase.functions.invoke('record-terms-acceptance', {
+            body: {
+              event_type: 'signup',
+              documents: buildDocumentsPayload(['sms']),
+              consent_statement: `${SMS_CONSENT_STATEMENT} (Phone provided: ${smsPhone.trim()})`,
+              acceptance_method: 'checkbox_click',
+              page_url: window.location.href,
+              is_authorized_representative: false,
+            },
+          });
+        } catch (smsErr) {
+          console.error('Failed to record SMS opt-in:', smsErr);
+        }
+      }
     } catch (err) {
       // Logged for audit; do not block account creation that already succeeded.
       console.error('Failed to record terms acceptance:', err);
