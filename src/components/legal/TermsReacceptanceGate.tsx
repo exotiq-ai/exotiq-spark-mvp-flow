@@ -14,6 +14,7 @@ import {
   buildDocumentsPayload,
   type LegalDocType,
 } from "@/lib/legal/versions";
+import { getChangeSummary } from "@/lib/legal/changelog";
 
 interface AcceptanceRow {
   documents_accepted: Array<{ document_type: LegalDocType; version: string }>;
@@ -132,21 +133,31 @@ export const TermsReacceptanceGate = ({ children }: { children: React.ReactNode 
 
           <div className="space-y-3">
             <ul className="space-y-2 text-sm">
-              {outdated.map((t) => (
-                <li key={t} className="flex justify-between gap-3 rounded-md border border-border/60 px-3 py-2">
-                  <a
-                    href={LEGAL_DOCS[t].url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-medium text-foreground hover:underline"
-                  >
-                    {LEGAL_DOCS[t].label}
-                  </a>
-                  <span className="text-muted-foreground">
-                    Effective {LEGAL_DOCS[t].effectiveDate}
-                  </span>
-                </li>
-              ))}
+              {outdated.map((t) => {
+                const summary = getChangeSummary(t, LEGAL_DOCS[t].version);
+                return (
+                  <li key={t} className="rounded-md border border-border/60 px-3 py-2">
+                    <div className="flex justify-between gap-3">
+                      <a
+                        href={LEGAL_DOCS[t].url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium text-foreground hover:underline"
+                      >
+                        {LEGAL_DOCS[t].label}
+                      </a>
+                      <span className="text-muted-foreground">
+                        Effective {LEGAL_DOCS[t].effectiveDate}
+                      </span>
+                    </div>
+                    {summary && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        What's changed: {summary}
+                      </p>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
 
             {canAcceptForTeam ? (
