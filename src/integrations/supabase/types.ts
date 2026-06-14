@@ -4918,6 +4918,7 @@ export type Database = {
         | "order_form"
         | "sms"
         | "cookies"
+        | "dmca"
       terms_acceptance_event:
         | "signup"
         | "reacceptance"
@@ -5060,6 +5061,7 @@ export const Constants = {
         "order_form",
         "sms",
         "cookies",
+        "dmca",
       ],
       terms_acceptance_event: [
         "signup",
