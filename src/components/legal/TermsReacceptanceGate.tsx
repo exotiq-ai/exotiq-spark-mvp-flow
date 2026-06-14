@@ -75,7 +75,7 @@ export const TermsReacceptanceGate = ({ children }: { children: React.ReactNode 
     );
     setOutdated(stale);
     setChecking(false);
-  }, [user]);
+  }, [user, requiredDocs]);
 
   useEffect(() => {
     evaluate();
