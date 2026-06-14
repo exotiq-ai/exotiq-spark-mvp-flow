@@ -2,7 +2,7 @@
 // Hard-erasure executor for GDPR Art. 17 / equivalent.
 // Two-phase: mode="preview" returns row counts per table; mode="execute"
 // performs the cascaded delete + anonymization, scoped to the caller's
-// team and the deletion_requests row's subject.
+// team and the data_subject_requests row's subject.
 //
 // Legal-floor deny list (hardcoded): tables that we cannot delete from
 // under tax / AML / consent-evidence retention floors. For those tables
@@ -23,9 +23,6 @@ function admin() {
   return createClient(url, key);
 }
 
-// Tables read/erased for a customer subject. fk = column on the table
-// that holds the customer id. anonymize=true means we NULL out the PII
-// columns rather than delete the row (legal-retention floor).
 const CUSTOMER_TARGETS: {
   table: string;
   fk: string;
@@ -35,51 +32,7 @@ const CUSTOMER_TARGETS: {
   { table: "messages", fk: "customer_id" },
   { table: "damage_claims", fk: "customer_id" },
   { table: "documents", fk: "customer_id" },
-  // Legal-floor: tax/AML — keep totals, drop PII.
-  {
-    table: "payments",
-    fk: "customer_id",
-    anonymize: { columns: ["customer_id"] },
-  },
-  {
-    table: "bookings",
-    fk: "customer_id",
-    anonymize: { columns: ["customer_id", "renter_email", "renter_phone", "renter_name"] },
-  },
-  // Customer row itself is anonymized so historical FK refs remain valid.
-  {
-    table: "customers",
-    fk: "id",
-    anonymize: {
-      columns: [
-        "first_name",
-        "last_name",
-        "email",
-        "phone",
-        "address_line1",
-        "address_line2",
-        "city",
-        "state",
-        "postal_code",
-        "date_of_birth",
-        "notes",
-      ],
-    },
-  },
-];
-
-// Operator-user targets. Some are deleted (preferences); profiles row
-// is anonymized to keep audit-log FK integrity.
-const CUSTOMER_TARGETS: {
-  table: string;
-  fk: string;
-  anonymize?: { columns: string[] };
-}[] = [
-  { table: "customer_notes", fk: "customer_id" },
-  { table: "messages", fk: "customer_id" },
-  { table: "damage_claims", fk: "customer_id" },
-  { table: "documents", fk: "customer_id" },
-  // Legal-floor: tax/AML — keep totals, drop PII.
+  // Legal-floor: tax/AML — keep totals, drop PII linkage.
   {
     table: "payments",
     fk: "customer_id",
@@ -114,8 +67,6 @@ const CUSTOMER_TARGETS: {
   },
 ];
 
-// Operator-user targets. Preferences are deleted; profile is anonymized
-// to keep audit-log FK integrity.
 const USER_TARGETS: {
   table: string;
   fk: string;
@@ -209,27 +160,33 @@ Deno.serve(async (req) => {
     }
 
     // deno-lint-ignore no-explicit-any
-    const { data: dr } = await (db.from("deletion_requests") as any)
+    const { data: dsr } = await (db.from("data_subject_requests") as any)
       .select("*")
       .eq("id", body.request_id)
       .maybeSingle();
-    if (!dr) {
+    if (!dsr) {
       return new Response(JSON.stringify({ error: "request not found" }), {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    if (dr.team_id && dr.team_id !== teamId) {
+    if (dsr.team_id && dsr.team_id !== teamId) {
       return new Response(JSON.stringify({ error: "cross-team request" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    if (!["erasure", "deletion"].includes(String(dsr.request_type))) {
+      return new Response(
+        JSON.stringify({ error: `request_type ${dsr.request_type} is not erasable here` }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
-    const subjectCustomerId = dr.subject_customer_id ?? dr.customer_id ?? null;
-    const subjectUserId = dr.subject_user_id ?? dr.user_id ?? null;
+    const subjectCustomerId = dsr.subject_customer_id ?? null;
+    const subjectUserId = dsr.subject_user_id ?? null;
     if (!subjectCustomerId && !subjectUserId) {
-      return new Response(JSON.stringify({ error: "no subject on deletion request" }), {
+      return new Response(JSON.stringify({ error: "no subject on request" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -240,7 +197,6 @@ Deno.serve(async (req) => {
     const previewCounts: Record<string, number> = {};
     const actionCounts: Record<string, { deleted: number; anonymized: number }> = {};
 
-    // Preview pass — count rows
     for (const t of targets) {
       // deno-lint-ignore no-explicit-any
       let q = (db.from(t.table) as any).select("id", { count: "exact", head: true });
@@ -252,7 +208,7 @@ Deno.serve(async (req) => {
 
     if (body.mode === "preview") {
       // deno-lint-ignore no-explicit-any
-      await (db.from("deletion_requests") as any)
+      await (db.from("data_subject_requests") as any)
         .update({ preview_counts: previewCounts })
         .eq("id", body.request_id);
       return new Response(
@@ -261,30 +217,17 @@ Deno.serve(async (req) => {
       );
     }
 
-    // EXECUTE — delete / anonymize per target
     for (const t of targets) {
       try {
         if (t.anonymize) {
           const patch: Record<string, unknown> = {};
           for (const c of t.anonymize.columns) patch[c] = null;
-          patch["deleted_at" as string] = new Date().toISOString();
           // deno-lint-ignore no-explicit-any
           let q = (db.from(t.table) as any).update(patch);
           if (subjectCustomerId) q = q.eq("team_id", teamId);
           q = q.eq(t.fk, subjectId);
-          const { error, count } = await q.select("id", { count: "exact" });
-          if (error && !/column .* does not exist/.test(error.message)) {
-            // Fallback without deleted_at column
-            delete patch["deleted_at"];
-            // deno-lint-ignore no-explicit-any
-            let q2 = (db.from(t.table) as any).update(patch);
-            if (subjectCustomerId) q2 = q2.eq("team_id", teamId);
-            q2 = q2.eq(t.fk, subjectId);
-            const r = await q2.select("id", { count: "exact" });
-            actionCounts[t.table] = { deleted: 0, anonymized: r.count ?? 0 };
-          } else {
-            actionCounts[t.table] = { deleted: 0, anonymized: count ?? 0 };
-          }
+          const r = await q.select("id", { count: "exact" });
+          actionCounts[t.table] = { deleted: 0, anonymized: r.count ?? 0 };
         } else {
           // deno-lint-ignore no-explicit-any
           let q = (db.from(t.table) as any).delete();
@@ -299,7 +242,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Storage cleanup — DSR exports for this team subject
+    // Storage cleanup — DSR exports tied to this team subject
     try {
       // deno-lint-ignore no-explicit-any
       const { data: files } = await (db.storage.from("dsr-exports") as any).list(
@@ -318,13 +261,12 @@ Deno.serve(async (req) => {
       console.error("storage cleanup", (e as Error).message);
     }
 
-    // Receipt to audit log
     // deno-lint-ignore no-explicit-any
     const { data: rec } = await (db.from("data_access_log") as any)
       .insert({
         team_id: teamId,
         actor_user_id: callerId,
-        entity: "deletion_requests",
+        entity: "data_subject_requests",
         record_id: body.request_id,
         action: "erasure_completed",
         metadata: {
@@ -338,12 +280,13 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     // deno-lint-ignore no-explicit-any
-    await (db.from("deletion_requests") as any)
+    await (db.from("data_subject_requests") as any)
       .update({
         preview_counts: previewCounts,
         executed_at: new Date().toISOString(),
         receipt_id: (rec as { id?: string } | null)?.id ?? null,
-        status: "completed",
+        fulfilled_at: new Date().toISOString(),
+        status: "fulfilled",
       })
       .eq("id", body.request_id);
 

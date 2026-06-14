@@ -1,5 +1,5 @@
-// Two-step erasure UI: preview then execute. Owner/admin only.
-// Pairs with the dsr-erase edge function.
+// Two-step erasure UI for data_subject_requests of type erasure/deletion.
+// Preview, then execute. Owner/admin only.
 
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,11 +21,10 @@ import { useToast } from "@/hooks/use-toast";
 
 interface Row {
   id: string;
-  user_id: string | null;
-  customer_id: string | null;
+  request_type: string;
+  subject_email: string | null;
   subject_user_id: string | null;
   subject_customer_id: string | null;
-  reason: string | null;
   status: string;
   preview_counts: Record<string, number> | null;
   executed_at: string | null;
@@ -41,8 +40,9 @@ export const ErasurePanel = () => {
 
   const load = async () => {
     setLoading(true);
-    const { data } = await (supabase.from("deletion_requests") as any)
+    const { data } = await (supabase.from("data_subject_requests") as any)
       .select("*")
+      .in("request_type", ["erasure", "deletion"])
       .order("created_at", { ascending: false })
       .limit(50);
     setRows((data ?? []) as Row[]);
@@ -64,9 +64,10 @@ export const ErasurePanel = () => {
       return;
     }
     const counts = (data as any)?.counts ?? {};
+    const total = Object.values(counts).reduce((a: number, b) => a + (b as number), 0);
     toast({
       title: "Preview ready",
-      description: `${Object.values(counts).reduce((a: number, b: any) => a + (b as number), 0)} rows across ${Object.keys(counts).length} tables.`,
+      description: `${total} rows across ${Object.keys(counts).length} tables.`,
     });
     load();
   };
@@ -91,6 +92,9 @@ export const ErasurePanel = () => {
   };
 
   const target = rows.find((r) => r.id === confirmId);
+  const totalRows = target?.preview_counts
+    ? Object.values(target.preview_counts).reduce((a: number, b) => a + (b as number), 0)
+    : 0;
 
   return (
     <Card>
@@ -123,8 +127,11 @@ export const ErasurePanel = () => {
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-medium truncate">
-                        {r.subject_customer_id ?? r.customer_id ?? r.subject_user_id ?? r.user_id ?? "—"}
+                        {r.subject_email ?? r.subject_customer_id ?? r.subject_user_id ?? "—"}
                       </p>
+                      <Badge variant="outline" className="text-[10px]">
+                        {r.request_type}
+                      </Badge>
                       <Badge variant={done ? "default" : "secondary"} className="text-[10px]">
                         {done ? "completed" : r.status}
                       </Badge>
@@ -168,10 +175,8 @@ export const ErasurePanel = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Execute hard erasure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will delete or anonymize {target?.preview_counts
-                ? Object.values(target.preview_counts).reduce((a, b) => a + (b as number), 0)
-                : 0}{" "}
-              rows across {target?.preview_counts ? Object.keys(target.preview_counts).length : 0} tables.
+              This will delete or anonymize {totalRows} rows across{" "}
+              {target?.preview_counts ? Object.keys(target.preview_counts).length : 0} tables.
               Financial and consent records are anonymized in place. A signed
               receipt is written to the access log. This action cannot be
               undone.
