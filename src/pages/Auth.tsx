@@ -663,10 +663,12 @@ export default function Auth() {
                 />
               </div>
 
+              <ConsentCheckbox id="invite-accept-terms" checked={agreedToTerms} onCheckedChange={setAgreedToTerms} />
+
               <Button
                 type="submit"
                 className="w-full btn-premium"
-                disabled={loading}
+                disabled={loading || !agreedToTerms}
                 size="lg"
               >
                 {loading ? (
