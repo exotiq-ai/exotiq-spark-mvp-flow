@@ -531,7 +531,9 @@ const DashboardInner = () => {
         >
           <div className="max-w-7xl mx-auto mobile-spacing">
             <PaymentDueBanner />
+            <ComplianceBanner />
             <LocationContextBanner className="mb-4" />
+
             {renderModuleContent()}
           </div>
         </main>
