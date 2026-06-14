@@ -14,6 +14,7 @@ import { validators } from '@/lib/validation';
 import { supabase } from '@/integrations/supabase/client';
 import { PasswordStrengthMeter } from '@/components/auth/PasswordStrengthMeter';
 import { ConsentCheckbox } from '@/components/legal/ConsentCheckbox';
+import { SmsOptInCheckbox } from '@/components/legal/SmsOptInCheckbox';
 import {
   LEGAL_DOCS,
   REQUIRED_AT_SIGNUP,
@@ -686,6 +687,14 @@ export default function Auth() {
 
               <ConsentCheckbox id="invite-accept-terms" checked={agreedToTerms} onCheckedChange={setAgreedToTerms} />
 
+              <SmsOptInCheckbox
+                id="invite-sms-opt-in"
+                checked={smsOptIn}
+                onCheckedChange={setSmsOptIn}
+                phone={smsPhone}
+                onPhoneChange={setSmsPhone}
+              />
+
               <Button
                 type="submit"
                 className="w-full btn-premium"
@@ -903,6 +912,14 @@ export default function Auth() {
                   </div>
 
                   <ConsentCheckbox id="signup-accept-terms" checked={agreedToTerms} onCheckedChange={setAgreedToTerms} />
+
+                  <SmsOptInCheckbox
+                    id="signup-sms-opt-in"
+                    checked={smsOptIn}
+                    onCheckedChange={setSmsOptIn}
+                    phone={smsPhone}
+                    onPhoneChange={setSmsPhone}
+                  />
 
                   <Button
                     type="submit"
