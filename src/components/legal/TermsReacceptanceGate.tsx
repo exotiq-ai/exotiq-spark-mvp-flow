@@ -9,9 +9,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTeam } from "@/contexts/TeamContext";
 import {
   LEGAL_DOCS,
-  REQUIRED_AT_SIGNUP,
-  CURRENT_CONSENT_STATEMENT,
   buildDocumentsPayload,
+  consentStatementForJurisdiction,
+  requiredDocsForJurisdiction,
   type LegalDocType,
 } from "@/lib/legal/versions";
 import { getChangeSummary } from "@/lib/legal/changelog";
