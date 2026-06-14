@@ -62,6 +62,7 @@ export default function Auth() {
   const [success, setSuccess] = useState<string | null>(null);
   const [magicLinkCooldown, setMagicLinkCooldown] = useState(0);
   const [resetCooldown, setResetCooldown] = useState(0);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   
   // Track recovery email for display
   const [recoveryEmail, setRecoveryEmail] = useState<string | null>(null);
