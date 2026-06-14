@@ -16,7 +16,6 @@ import { PasswordStrengthMeter } from '@/components/auth/PasswordStrengthMeter';
 import { ConsentCheckbox } from '@/components/legal/ConsentCheckbox';
 import { SmsOptInCheckbox } from '@/components/legal/SmsOptInCheckbox';
 import {
-  LEGAL_DOCS,
   REQUIRED_AT_SIGNUP,
   CURRENT_CONSENT_STATEMENT,
   SMS_CONSENT_STATEMENT,
