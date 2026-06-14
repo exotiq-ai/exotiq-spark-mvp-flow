@@ -70,7 +70,7 @@ export const TermsReacceptanceGate = ({ children }: { children: React.ReactNode 
       }
     }
 
-    const stale = REQUIRED_AT_SIGNUP.filter(
+    const stale = requiredDocs.filter(
       (t) => latest.get(t) !== LEGAL_DOCS[t].version
     );
     setOutdated(stale);
@@ -90,8 +90,8 @@ export const TermsReacceptanceGate = ({ children }: { children: React.ReactNode 
         body: {
           team_id: teamId,
           event_type: "terms_update",
-          documents: buildDocumentsPayload(REQUIRED_AT_SIGNUP),
-          consent_statement: CURRENT_CONSENT_STATEMENT,
+          documents: buildDocumentsPayload(requiredDocs),
+          consent_statement: consentStatement,
           acceptance_method: "checkbox_click",
           page_url: window.location.href,
           is_authorized_representative: canAcceptForTeam,
@@ -172,7 +172,7 @@ export const TermsReacceptanceGate = ({ children }: { children: React.ReactNode 
                     onCheckedChange={(v) => setAgreed(v === true)}
                     className="mt-0.5"
                   />
-                  <span>{CURRENT_CONSENT_STATEMENT}</span>
+                  <span>{consentStatement}</span>
                 </label>
 
                 {error && (
