@@ -14,6 +14,11 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useTeam } from "@/contexts/TeamContext";
 import { useToast } from "@/hooks/use-toast";
+import {
+  RetentionSweepsPanel,
+  DsrRequestsPanel,
+  AccessLogPanel,
+} from "./ComplianceOpsPanels";
 
 interface SubProcessorRow {
   id: string;
@@ -320,6 +325,15 @@ export const ComplianceSection = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Owner/admin-only operational compliance panels */}
+      {canEdit && (
+        <>
+          <RetentionSweepsPanel />
+          <DsrRequestsPanel />
+          <AccessLogPanel />
+        </>
+      )}
     </div>
   );
 };
