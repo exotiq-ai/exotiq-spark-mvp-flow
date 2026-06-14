@@ -70,6 +70,52 @@ const CUSTOMER_TARGETS: {
 
 // Operator-user targets. Some are deleted (preferences); profiles row
 // is anonymized to keep audit-log FK integrity.
+const CUSTOMER_TARGETS: {
+  table: string;
+  fk: string;
+  anonymize?: { columns: string[] };
+}[] = [
+  { table: "customer_notes", fk: "customer_id" },
+  { table: "messages", fk: "customer_id" },
+  { table: "damage_claims", fk: "customer_id" },
+  { table: "documents", fk: "customer_id" },
+  // Legal-floor: tax/AML — keep totals, drop PII.
+  {
+    table: "payments",
+    fk: "customer_id",
+    anonymize: { columns: ["customer_id"] },
+  },
+  {
+    table: "bookings",
+    fk: "customer_id",
+    anonymize: { columns: ["customer_email", "customer_name", "customer_phone"] },
+  },
+  // Customer row itself is anonymized so historical FK refs stay valid.
+  {
+    table: "customers",
+    fk: "id",
+    anonymize: {
+      columns: [
+        "full_name",
+        "email",
+        "phone",
+        "secondary_phone",
+        "address",
+        "date_of_birth",
+        "drivers_license",
+        "notes",
+        "emergency_contact_name",
+        "emergency_contact_phone",
+        "id_document_url",
+        "insurance_document_url",
+        "stripe_customer_id",
+      ],
+    },
+  },
+];
+
+// Operator-user targets. Preferences are deleted; profile is anonymized
+// to keep audit-log FK integrity.
 const USER_TARGETS: {
   table: string;
   fk: string;
@@ -83,7 +129,18 @@ const USER_TARGETS: {
   {
     table: "profiles",
     fk: "id",
-    anonymize: { columns: ["first_name", "last_name", "email", "phone", "avatar_url"] },
+    anonymize: {
+      columns: [
+        "full_name",
+        "email",
+        "phone",
+        "avatar_url",
+        "company_name",
+        "website",
+        "business_address",
+        "location",
+      ],
+    },
   },
 ];
 
