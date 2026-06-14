@@ -896,11 +896,14 @@ export type Database = {
         Row: {
           created_at: string
           evidence_url: string | null
+          executed_at: string | null
           export_expires_at: string | null
           export_url: string | null
           fulfilled_at: string | null
           id: string
           notes: string | null
+          preview_counts: Json | null
+          receipt_id: string | null
           request_type: string
           requester_email: string | null
           requester_user_id: string | null
@@ -915,11 +918,14 @@ export type Database = {
         Insert: {
           created_at?: string
           evidence_url?: string | null
+          executed_at?: string | null
           export_expires_at?: string | null
           export_url?: string | null
           fulfilled_at?: string | null
           id?: string
           notes?: string | null
+          preview_counts?: Json | null
+          receipt_id?: string | null
           request_type: string
           requester_email?: string | null
           requester_user_id?: string | null
@@ -934,11 +940,14 @@ export type Database = {
         Update: {
           created_at?: string
           evidence_url?: string | null
+          executed_at?: string | null
           export_expires_at?: string | null
           export_url?: string | null
           fulfilled_at?: string | null
           id?: string
           notes?: string | null
+          preview_counts?: Json | null
+          receipt_id?: string | null
           request_type?: string
           requester_email?: string | null
           requester_user_id?: string | null
