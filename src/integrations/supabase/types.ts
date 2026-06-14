@@ -4910,7 +4910,14 @@ export type Database = {
     }
     Enums: {
       app_role: "owner" | "admin" | "manager" | "operator" | "viewer"
-      legal_document_type: "terms" | "privacy" | "aup" | "dpa" | "order_form"
+      legal_document_type:
+        | "terms"
+        | "privacy"
+        | "aup"
+        | "dpa"
+        | "order_form"
+        | "sms"
+        | "cookies"
       terms_acceptance_event:
         | "signup"
         | "reacceptance"
@@ -5045,7 +5052,15 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["owner", "admin", "manager", "operator", "viewer"],
-      legal_document_type: ["terms", "privacy", "aup", "dpa", "order_form"],
+      legal_document_type: [
+        "terms",
+        "privacy",
+        "aup",
+        "dpa",
+        "order_form",
+        "sms",
+        "cookies",
+      ],
       terms_acceptance_event: [
         "signup",
         "reacceptance",

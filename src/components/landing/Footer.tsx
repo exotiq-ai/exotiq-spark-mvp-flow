@@ -65,6 +65,9 @@ export const Footer = () => {
               <li>
                 <Link to="/data-processing" className="hover:text-foreground transition-colors">Data Processing</Link>
               </li>
+              <li>
+                <Link to="/sms" className="hover:text-foreground transition-colors">SMS Policy</Link>
+              </li>
             </ul>
           </div>
         </div>
