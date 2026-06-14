@@ -205,6 +205,11 @@ export default function Auth() {
       return;
     }
 
+    if (authMode === 'signup' && !agreedToTerms) {
+      setError("Please accept the Terms, Privacy Policy, and Acceptable Use Policy to continue.");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -214,11 +219,15 @@ export default function Auth() {
           const { error: signUpError } = await signUpWithInvite(email, password, fullName, inviteToken);
           if (signUpError) {
             setError(signUpError.message || "Failed to create account. Please try again.");
+          } else {
+            await recordSignupAcceptance();
           }
         } else {
           const { error: signUpError } = await signUp(email, password, fullName);
           if (signUpError) {
             setError(signUpError.message || "Failed to create account. Please try again.");
+          } else {
+            await recordSignupAcceptance();
           }
         }
       } else {
