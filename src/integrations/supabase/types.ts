@@ -1216,6 +1216,42 @@ export type Database = {
         }
         Relationships: []
       }
+      legal_document_versions: {
+        Row: {
+          content_hash: string
+          content_text: string
+          created_at: string
+          document_type: Database["public"]["Enums"]["legal_document_type"]
+          effective_date: string
+          id: string
+          published_at: string
+          url: string
+          version: string
+        }
+        Insert: {
+          content_hash: string
+          content_text: string
+          created_at?: string
+          document_type: Database["public"]["Enums"]["legal_document_type"]
+          effective_date: string
+          id?: string
+          published_at?: string
+          url: string
+          version: string
+        }
+        Update: {
+          content_hash?: string
+          content_text?: string
+          created_at?: string
+          document_type?: Database["public"]["Enums"]["legal_document_type"]
+          effective_date?: string
+          id?: string
+          published_at?: string
+          url?: string
+          version?: string
+        }
+        Relationships: []
+      }
       location_staff: {
         Row: {
           assigned_at: string | null
@@ -2925,6 +2961,71 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      terms_acceptances: {
+        Row: {
+          acceptance_method: Database["public"]["Enums"]["terms_acceptance_method"]
+          accepted_at: string
+          actor_display_name: string | null
+          actor_email: string | null
+          auth_context: string | null
+          consent_statement: string
+          created_at: string
+          documents_accepted: Json
+          event_type: Database["public"]["Enums"]["terms_acceptance_event"]
+          id: string
+          ip_address: unknown
+          is_authorized_representative: boolean
+          page_url: string | null
+          team_id: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          acceptance_method?: Database["public"]["Enums"]["terms_acceptance_method"]
+          accepted_at?: string
+          actor_display_name?: string | null
+          actor_email?: string | null
+          auth_context?: string | null
+          consent_statement: string
+          created_at?: string
+          documents_accepted: Json
+          event_type: Database["public"]["Enums"]["terms_acceptance_event"]
+          id?: string
+          ip_address?: unknown
+          is_authorized_representative?: boolean
+          page_url?: string | null
+          team_id?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          acceptance_method?: Database["public"]["Enums"]["terms_acceptance_method"]
+          accepted_at?: string
+          actor_display_name?: string | null
+          actor_email?: string | null
+          auth_context?: string | null
+          consent_statement?: string
+          created_at?: string
+          documents_accepted?: Json
+          event_type?: Database["public"]["Enums"]["terms_acceptance_event"]
+          id?: string
+          ip_address?: unknown
+          is_authorized_representative?: boolean
+          page_url?: string | null
+          team_id?: string | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "terms_acceptances_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       unmatched_photos: {
         Row: {
@@ -4809,6 +4910,13 @@ export type Database = {
     }
     Enums: {
       app_role: "owner" | "admin" | "manager" | "operator" | "viewer"
+      legal_document_type: "terms" | "privacy" | "aup" | "dpa" | "order_form"
+      terms_acceptance_event:
+        | "signup"
+        | "reacceptance"
+        | "terms_update"
+        | "order_form"
+      terms_acceptance_method: "checkbox_click" | "button_click"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -4937,6 +5045,14 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["owner", "admin", "manager", "operator", "viewer"],
+      legal_document_type: ["terms", "privacy", "aup", "dpa", "order_form"],
+      terms_acceptance_event: [
+        "signup",
+        "reacceptance",
+        "terms_update",
+        "order_form",
+      ],
+      terms_acceptance_method: ["checkbox_click", "button_click"],
     },
   },
 } as const
