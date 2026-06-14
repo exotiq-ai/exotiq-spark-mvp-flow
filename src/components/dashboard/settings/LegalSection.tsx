@@ -285,6 +285,8 @@ export const LegalSection = () => {
           )}
         </CardContent>
       </Card>
+
+      {featureFlags.complianceEuUk && <ComplianceSection />}
     </div>
   );
 };
