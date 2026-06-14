@@ -13,7 +13,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { validators } from '@/lib/validation';
 import { supabase } from '@/integrations/supabase/client';
 import { PasswordStrengthMeter } from '@/components/auth/PasswordStrengthMeter';
-import { Checkbox } from '@/components/ui/checkbox';
 import { ConsentCheckbox } from '@/components/legal/ConsentCheckbox';
 import {
   REQUIRED_AT_SIGNUP,
