@@ -2,7 +2,7 @@
 // To bump a version: update here, then insert a new legal_document_versions
 // row via migration so the edge function can resolve the new version.
 
-export type LegalDocType = "terms" | "privacy" | "aup" | "dpa" | "sms" | "cookies" | "dmca";
+export type LegalDocType = "terms" | "privacy" | "aup" | "dpa" | "sms" | "cookies" | "dmca" | "transfer_addendum";
 
 export interface LegalDocMeta {
   version: string;        // ISO date string identifier, e.g. "2026-06-14"
