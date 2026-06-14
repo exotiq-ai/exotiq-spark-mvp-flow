@@ -14,6 +14,68 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_transfer_log: {
+        Row: {
+          caller: string
+          created_at: string
+          field_count: number | null
+          id: string
+          minimization_level: string
+          model: string
+          payload_field_hashes: Json
+          provider: string
+          provider_region: string | null
+          redacted_field_count: number | null
+          request_bytes: number | null
+          response_bytes: number | null
+          status: string
+          team_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          caller: string
+          created_at?: string
+          field_count?: number | null
+          id?: string
+          minimization_level?: string
+          model: string
+          payload_field_hashes?: Json
+          provider: string
+          provider_region?: string | null
+          redacted_field_count?: number | null
+          request_bytes?: number | null
+          response_bytes?: number | null
+          status?: string
+          team_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          caller?: string
+          created_at?: string
+          field_count?: number | null
+          id?: string
+          minimization_level?: string
+          model?: string
+          payload_field_hashes?: Json
+          provider?: string
+          provider_region?: string | null
+          redacted_field_count?: number | null
+          request_bytes?: number | null
+          response_bytes?: number | null
+          status?: string
+          team_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_transfer_log_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       automated_messages: {
         Row: {
           body: string
@@ -694,6 +756,50 @@ export type Database = {
           },
         ]
       }
+      data_access_log: {
+        Row: {
+          action: string
+          actor_email: string | null
+          actor_user_id: string | null
+          created_at: string
+          entity: string
+          id: string
+          metadata: Json
+          record_id: string | null
+          team_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_email?: string | null
+          actor_user_id?: string | null
+          created_at?: string
+          entity: string
+          id?: string
+          metadata?: Json
+          record_id?: string | null
+          team_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_email?: string | null
+          actor_user_id?: string | null
+          created_at?: string
+          entity?: string
+          id?: string
+          metadata?: Json
+          record_id?: string | null
+          team_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "data_access_log_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       data_backups: {
         Row: {
           backup_name: string
@@ -731,6 +837,116 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "data_backups_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      data_processing_inventory: {
+        Row: {
+          category: string
+          created_at: string
+          description: string | null
+          entity: string
+          field: string
+          id: string
+          lawful_basis: string
+          never_transfer: boolean
+          notes: string | null
+          region_partitionable: boolean
+          retention_days: number | null
+          sub_processor_names: string[]
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          description?: string | null
+          entity: string
+          field: string
+          id?: string
+          lawful_basis: string
+          never_transfer?: boolean
+          notes?: string | null
+          region_partitionable?: boolean
+          retention_days?: number | null
+          sub_processor_names?: string[]
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          entity?: string
+          field?: string
+          id?: string
+          lawful_basis?: string
+          never_transfer?: boolean
+          notes?: string | null
+          region_partitionable?: boolean
+          retention_days?: number | null
+          sub_processor_names?: string[]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      data_subject_requests: {
+        Row: {
+          created_at: string
+          evidence_url: string | null
+          fulfilled_at: string | null
+          id: string
+          notes: string | null
+          request_type: string
+          requester_email: string | null
+          requester_user_id: string | null
+          scheduled_purge_at: string | null
+          status: string
+          subject_customer_id: string | null
+          subject_email: string | null
+          subject_user_id: string | null
+          team_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          evidence_url?: string | null
+          fulfilled_at?: string | null
+          id?: string
+          notes?: string | null
+          request_type: string
+          requester_email?: string | null
+          requester_user_id?: string | null
+          scheduled_purge_at?: string | null
+          status?: string
+          subject_customer_id?: string | null
+          subject_email?: string | null
+          subject_user_id?: string | null
+          team_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          evidence_url?: string | null
+          fulfilled_at?: string | null
+          id?: string
+          notes?: string | null
+          request_type?: string
+          requester_email?: string | null
+          requester_user_id?: string | null
+          scheduled_purge_at?: string | null
+          status?: string
+          subject_customer_id?: string | null
+          subject_email?: string | null
+          subject_user_id?: string | null
+          team_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "data_subject_requests_team_id_fkey"
             columns: ["team_id"]
             isOneToOne: false
             referencedRelation: "teams"
@@ -2542,6 +2758,51 @@ export type Database = {
         }
         Relationships: []
       }
+      retention_policies: {
+        Row: {
+          action: string
+          basis: string
+          created_at: string
+          enabled: boolean
+          entity_type: string
+          id: string
+          last_affected_count: number | null
+          last_run_at: string | null
+          last_run_dry_run: boolean | null
+          notes: string | null
+          retention_days: number
+          updated_at: string
+        }
+        Insert: {
+          action?: string
+          basis: string
+          created_at?: string
+          enabled?: boolean
+          entity_type: string
+          id?: string
+          last_affected_count?: number | null
+          last_run_at?: string | null
+          last_run_dry_run?: boolean | null
+          notes?: string | null
+          retention_days: number
+          updated_at?: string
+        }
+        Update: {
+          action?: string
+          basis?: string
+          created_at?: string
+          enabled?: boolean
+          entity_type?: string
+          id?: string
+          last_affected_count?: number | null
+          last_run_at?: string | null
+          last_run_dry_run?: boolean | null
+          notes?: string | null
+          retention_days?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       role_audit_log: {
         Row: {
           action: string
@@ -2613,6 +2874,48 @@ export type Database = {
           payload?: Json | null
           processed_at?: string
           stripe_event_id?: string
+        }
+        Relationships: []
+      }
+      sub_processors: {
+        Row: {
+          created_at: string
+          dpa_url: string | null
+          id: string
+          name: string
+          notes: string | null
+          privacy_policy_url: string | null
+          purpose: string
+          region: string
+          status: string
+          transfer_mechanism: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          dpa_url?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          privacy_policy_url?: string | null
+          purpose: string
+          region: string
+          status?: string
+          transfer_mechanism?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          dpa_url?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          privacy_policy_url?: string | null
+          purpose?: string
+          region?: string
+          status?: string
+          transfer_mechanism?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
@@ -2853,6 +3156,7 @@ export type Database = {
       }
       teams: {
         Row: {
+          ai_data_minimization_level: string
           assumed_plan_fleet_size: number | null
           assumed_plan_is_annual: boolean | null
           assumed_plan_tier: string | null
@@ -2862,6 +3166,7 @@ export type Database = {
           billing_dunning_set_by: string | null
           billing_dunning_stage: string | null
           created_at: string | null
+          data_region: string
           deleted_at: string | null
           deleted_by: string | null
           deletion_scheduled_for: string | null
@@ -2875,6 +3180,7 @@ export type Database = {
           name: string
           owner_id: string
           platform_fee_percent: number
+          primary_jurisdiction: string | null
           rental_buffer_minutes: number | null
           seat_audit_reviewed_at: string | null
           seat_audit_reviewed_by: string | null
@@ -2890,6 +3196,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          ai_data_minimization_level?: string
           assumed_plan_fleet_size?: number | null
           assumed_plan_is_annual?: boolean | null
           assumed_plan_tier?: string | null
@@ -2899,6 +3206,7 @@ export type Database = {
           billing_dunning_set_by?: string | null
           billing_dunning_stage?: string | null
           created_at?: string | null
+          data_region?: string
           deleted_at?: string | null
           deleted_by?: string | null
           deletion_scheduled_for?: string | null
@@ -2912,6 +3220,7 @@ export type Database = {
           name: string
           owner_id: string
           platform_fee_percent?: number
+          primary_jurisdiction?: string | null
           rental_buffer_minutes?: number | null
           seat_audit_reviewed_at?: string | null
           seat_audit_reviewed_by?: string | null
@@ -2927,6 +3236,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          ai_data_minimization_level?: string
           assumed_plan_fleet_size?: number | null
           assumed_plan_is_annual?: boolean | null
           assumed_plan_tier?: string | null
@@ -2936,6 +3246,7 @@ export type Database = {
           billing_dunning_set_by?: string | null
           billing_dunning_stage?: string | null
           created_at?: string | null
+          data_region?: string
           deleted_at?: string | null
           deleted_by?: string | null
           deletion_scheduled_for?: string | null
@@ -2949,6 +3260,7 @@ export type Database = {
           name?: string
           owner_id?: string
           platform_fee_percent?: number
+          primary_jurisdiction?: string | null
           rental_buffer_minutes?: number | null
           seat_audit_reviewed_at?: string | null
           seat_audit_reviewed_by?: string | null
