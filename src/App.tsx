@@ -35,6 +35,7 @@ const Terms = lazy(() => import("./pages/legal/Terms"));
 const Privacy = lazy(() => import("./pages/legal/Privacy"));
 const AcceptableUse = lazy(() => import("./pages/legal/AcceptableUse"));
 const DataProcessing = lazy(() => import("./pages/legal/DataProcessing"));
+const Sms = lazy(() => import("./pages/legal/Sms"));
 const TermsAcceptancesAdmin = lazy(() => import("./pages/admin/TermsAcceptancesAdmin"));
 import { TermsReacceptanceGate } from "@/components/legal/TermsReacceptanceGate";
 
@@ -109,6 +110,7 @@ const AppWithRouter = () => {
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/acceptable-use" element={<AcceptableUse />} />
           <Route path="/data-processing" element={<DataProcessing />} />
+          <Route path="/sms" element={<Sms />} />
           <Route path="/welcome" element={<Welcome />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
