@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { logTransfer } from "../_shared/transferGuard.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -152,6 +153,16 @@ serve(async (req) => {
 
     const aiResponse = await response.json();
     const images = aiResponse.choices?.[0]?.message?.images;
+    logTransfer({
+      team_id: teamId ?? null,
+      user_id: userId ?? null,
+      caller: "generate-hero-image",
+      model: "google/gemini-2.5-flash-image",
+      provider: "Google (Gemini Image via Lovable AI Gateway)",
+      provider_region: "United States / Global",
+      response_bytes: images?.[0]?.image_url?.url?.length ?? 0,
+      status: "ok",
+    }).catch(() => {});
 
     if (!images || images.length === 0) {
       console.error("No images in AI response:", JSON.stringify(aiResponse));

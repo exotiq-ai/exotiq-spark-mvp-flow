@@ -2,6 +2,7 @@
 // extracts fields via Lovable AI Gateway, matches vehicle/booking,
 // inserts a pending_review row with smart routing metadata.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { logTransfer } from "../_shared/transferGuard.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -160,6 +161,16 @@ Deno.serve(async (req) => {
       parseFailed = true;
       parseFailReason = e instanceof Error ? e.message : "AI call failed";
     }
+
+    logTransfer({
+      team_id,
+      user_id: userId,
+      caller: "parse-expense-receipt",
+      model: "google/gemini-3-flash-preview",
+      provider: "Google (Gemini Vision via Lovable AI Gateway)",
+      provider_region: "United States / Global",
+      status: parseFailed ? "error" : "ok",
+    }).catch(() => {});
 
     // ----- Match cascade -----
     let matchedVehicleId: string | null = null;

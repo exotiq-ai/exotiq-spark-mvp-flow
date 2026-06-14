@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { logTransfer } from "../_shared/transferGuard.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -135,6 +136,17 @@ If this is not a vehicle, set isVehicle to false and leave other fields empty or
 
     const aiResponse = await response.json();
     const content = aiResponse.choices?.[0]?.message?.content;
+    logTransfer({
+      team_id: null,
+      user_id: null,
+      caller: "identify-vehicle",
+      model: "google/gemini-2.5-flash",
+      provider: "Google (Gemini Vision via Lovable AI Gateway)",
+      provider_region: "United States / Global",
+      response_bytes: content ? content.length : 0,
+      status: "ok",
+    }).catch(() => {});
+
 
     if (!content) {
       console.error("No content in AI response");

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.77.0';
+import { logTransfer } from "../_shared/transferGuard.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -229,6 +230,16 @@ High-end vehicles (supercars, exotics) see even larger demand spikes during even
 
     const aiResponse = await response.json();
     console.log("AI response received");
+    logTransfer({
+      team_id: ((claimsData.claims as any).team_id as string) ?? null,
+      user_id: ((claimsData.claims as any).sub as string) ?? null,
+      caller: "ai-demand-forecast",
+      model: "google/gemini-2.5-flash",
+      provider: "Google (Gemini via Lovable AI Gateway)",
+      provider_region: "United States / Global",
+      response_bytes: JSON.stringify(aiResponse).length,
+      status: "ok",
+    }).catch(() => {});
 
     // Extract the tool call result
     const toolCall = aiResponse.choices?.[0]?.message?.tool_calls?.[0];

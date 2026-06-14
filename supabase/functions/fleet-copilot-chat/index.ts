@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
+import { logTransfer } from "../_shared/transferGuard.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -711,6 +712,19 @@ Remember: You're not just a database assistant - you're an automotive enthusiast
 
         const duration = Date.now() - requestStartTime;
         console.log(`⏱️ AI gateway response: ${response.status} (${duration}ms, model: ${modelToUse})`);
+
+        if (response.ok && retryCount === 0) {
+          logTransfer({
+            team_id: null,
+            user_id: userId ?? null,
+            caller: "fleet-copilot-chat",
+            model: modelToUse,
+            provider: "Google (Gemini via Lovable AI Gateway)",
+            provider_region: "United States / Global",
+            status: "ok",
+          }).catch(() => {});
+        }
+
 
         // Handle rate limits - no retry
         if (response.status === 429) {
