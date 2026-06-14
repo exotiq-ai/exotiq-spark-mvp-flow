@@ -59,12 +59,14 @@ async function recordLedger(payload: StoredConsent) {
     if (!u.user) return;
     await (supabase.from("terms_acceptances") as any).insert({
       user_id: u.user.id,
-      document_type: "cookie_consent_v2",
-      version: payload.version,
+      event_type: "cookie_consent_v2",
+      acceptance_method: "banner",
       accepted_at: payload.decided_at,
-      ip_address: null,
       user_agent: navigator.userAgent,
       consent_statement: `Cookie preferences set: ${JSON.stringify(payload.categories)}`,
+      documents_accepted: [
+        { document_type: "cookies", version: payload.version, categories: payload.categories },
+      ],
     });
   } catch {
     // Non-blocking; localStorage is the source of truth at runtime.
