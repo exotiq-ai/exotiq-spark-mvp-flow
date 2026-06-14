@@ -1,5 +1,17 @@
 # Plan: Phase 2 Compliance Close-Out
 
+**Status (June 14, 2026):** ✅ Items 1 & 2 complete. ➡️ Item 3 handed off to Codex 5.5.
+
+- Item 1 (Transfer Addendum → DPA flow): shipped. `transfer_addendum` doc type added, jurisdiction-aware required-doc helper landed, migration registered v2026-06-14, 7 vitest cases green.
+- Item 2 (static audit): see `docs/compliance/PHASE_2_AUDIT.md` — verdict ship-with-fixes, three medium findings (F-1 partner_payouts deny-list, F-2 retention runbook, F-5 panel jurisdiction-gating).
+- Item 3 (E2E handoff): see `docs/compliance/E2E_TEST_HANDOFF.md` — Codex 5.5 owns runtime validation, produces `PHASE_2_E2E_REPORT.md`.
+
+Phase 2 is closed pending (a) Codex E2E sign-off and (b) Lovable next-pass on F-1 and F-5.
+
+---
+
+## Original plan (for reference)
+
 Three deliverables. I execute 1 and 2; Codex 5.5 picks up 3.
 
 ---
