@@ -64,6 +64,11 @@ export const featureFlags = {
   idVerification: false, // Driver's license image upload / OCR
   receiptScanning: false, // Receipt/invoice OCR via AI Gateway → Gemini
   driversLicenseNumberField: false, // Typed government identifier input
+
+  // International compliance (Phase 1 EU/UK)
+  // Ships dark; flip to true only after attorney-reviewed GDPR/UK
+  // privacy notice, DPA SCC annexes, IDTA, TIA, and DPIA are published.
+  complianceEuUk: false,
 } as const;
 
 export type FeatureFlag = keyof typeof featureFlags;

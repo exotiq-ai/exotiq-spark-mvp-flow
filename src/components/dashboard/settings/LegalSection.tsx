@@ -14,6 +14,8 @@ import {
   buildDocumentsPayload,
   type LegalDocType,
 } from "@/lib/legal/versions";
+import { featureFlags } from "@/lib/featureFlags";
+import { ComplianceSection } from "./ComplianceSection";
 
 interface AcceptanceRow {
   id: string;
@@ -283,6 +285,8 @@ export const LegalSection = () => {
           )}
         </CardContent>
       </Card>
+
+      {featureFlags.complianceEuUk && <ComplianceSection />}
     </div>
   );
 };
