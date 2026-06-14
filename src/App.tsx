@@ -35,6 +35,8 @@ const Terms = lazy(() => import("./pages/legal/Terms"));
 const Privacy = lazy(() => import("./pages/legal/Privacy"));
 const AcceptableUse = lazy(() => import("./pages/legal/AcceptableUse"));
 const DataProcessing = lazy(() => import("./pages/legal/DataProcessing"));
+const TermsAcceptancesAdmin = lazy(() => import("./pages/admin/TermsAcceptancesAdmin"));
+import { TermsReacceptanceGate } from "@/components/legal/TermsReacceptanceGate";
 
 const queryClient = new QueryClient({
   defaultOptions: {
