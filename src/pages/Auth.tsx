@@ -14,8 +14,8 @@ import { validators } from '@/lib/validation';
 import { supabase } from '@/integrations/supabase/client';
 import { PasswordStrengthMeter } from '@/components/auth/PasswordStrengthMeter';
 import { Checkbox } from '@/components/ui/checkbox';
+import { ConsentCheckbox } from '@/components/legal/ConsentCheckbox';
 import {
-  LEGAL_DOCS,
   REQUIRED_AT_SIGNUP,
   CURRENT_CONSENT_STATEMENT,
   buildDocumentsPayload,
