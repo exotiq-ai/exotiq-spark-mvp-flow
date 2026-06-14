@@ -38,8 +38,12 @@ const DataProcessing = lazy(() => import("./pages/legal/DataProcessing"));
 const Sms = lazy(() => import("./pages/legal/Sms"));
 const Dmca = lazy(() => import("./pages/legal/Dmca"));
 const Cookies = lazy(() => import("./pages/legal/Cookies"));
+const PrivacyEU = lazy(() => import("./pages/legal/PrivacyEU"));
+const PrivacyUAE = lazy(() => import("./pages/legal/PrivacyUAE"));
+const TransferAddendum = lazy(() => import("./pages/legal/TransferAddendum"));
 const TermsAcceptancesAdmin = lazy(() => import("./pages/admin/TermsAcceptancesAdmin"));
 import { TermsReacceptanceGate } from "@/components/legal/TermsReacceptanceGate";
+import { CookieConsentBanner } from "@/components/compliance/CookieConsentBanner";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -115,6 +119,9 @@ const AppWithRouter = () => {
           <Route path="/sms" element={<Sms />} />
           <Route path="/dmca" element={<Dmca />} />
           <Route path="/cookies" element={<Cookies />} />
+          <Route path="/privacy-eu" element={<PrivacyEU />} />
+          <Route path="/privacy-uae" element={<PrivacyUAE />} />
+          <Route path="/transfer-addendum" element={<TransferAddendum />} />
           <Route path="/welcome" element={<Welcome />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
@@ -134,6 +141,7 @@ const AppContent = () => {
       <BrowserRouter>
         <AppWithRouter />
       </BrowserRouter>
+      <CookieConsentBanner />
     </>
   );
 };

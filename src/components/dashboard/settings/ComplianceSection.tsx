@@ -19,6 +19,8 @@ import {
   DsrRequestsPanel,
   AccessLogPanel,
 } from "./ComplianceOpsPanels";
+import { ErasurePanel } from "@/components/compliance/ErasurePanel";
+import { EuRepresentativeForm } from "@/components/compliance/EuRepresentativeForm";
 
 interface SubProcessorRow {
   id: string;
@@ -329,8 +331,10 @@ export const ComplianceSection = () => {
       {/* Owner/admin-only operational compliance panels */}
       {canEdit && (
         <>
+          {isEuUk && <EuRepresentativeForm />}
           <RetentionSweepsPanel />
           <DsrRequestsPanel />
+          <ErasurePanel />
           <AccessLogPanel />
         </>
       )}
