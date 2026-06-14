@@ -13,6 +13,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { validators } from '@/lib/validation';
 import { supabase } from '@/integrations/supabase/client';
 import { PasswordStrengthMeter } from '@/components/auth/PasswordStrengthMeter';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  LEGAL_DOCS,
+  REQUIRED_AT_SIGNUP,
+  CURRENT_CONSENT_STATEMENT,
+  buildDocumentsPayload,
+} from '@/lib/legal/versions';
 
 type AuthMode = 'signin' | 'signup' | 'magiclink' | 'reset' | 'update-password';
 
