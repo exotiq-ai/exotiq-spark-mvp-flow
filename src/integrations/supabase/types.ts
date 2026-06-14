@@ -896,6 +896,8 @@ export type Database = {
         Row: {
           created_at: string
           evidence_url: string | null
+          export_expires_at: string | null
+          export_url: string | null
           fulfilled_at: string | null
           id: string
           notes: string | null
@@ -913,6 +915,8 @@ export type Database = {
         Insert: {
           created_at?: string
           evidence_url?: string | null
+          export_expires_at?: string | null
+          export_url?: string | null
           fulfilled_at?: string | null
           id?: string
           notes?: string | null
@@ -930,6 +934,8 @@ export type Database = {
         Update: {
           created_at?: string
           evidence_url?: string | null
+          export_expires_at?: string | null
+          export_url?: string | null
           fulfilled_at?: string | null
           id?: string
           notes?: string | null
@@ -2800,6 +2806,39 @@ export type Database = {
           notes?: string | null
           retention_days?: number
           updated_at?: string
+        }
+        Relationships: []
+      }
+      retention_sweep_log: {
+        Row: {
+          deleted_count: number
+          dry_run: boolean
+          entity_type: string
+          error: string | null
+          id: string
+          ran_at: string
+          retention_days: number
+          would_delete_count: number
+        }
+        Insert: {
+          deleted_count?: number
+          dry_run: boolean
+          entity_type: string
+          error?: string | null
+          id?: string
+          ran_at?: string
+          retention_days: number
+          would_delete_count?: number
+        }
+        Update: {
+          deleted_count?: number
+          dry_run?: boolean
+          entity_type?: string
+          error?: string | null
+          id?: string
+          ran_at?: string
+          retention_days?: number
+          would_delete_count?: number
         }
         Relationships: []
       }
@@ -4887,12 +4926,131 @@ export type Database = {
         }[]
       }
       generate_recurring_expenses: { Args: never; Returns: number }
+      get_customer_full: {
+        Args: { p_customer_id: string }
+        Returns: {
+          address: string | null
+          blacklist_reason: string | null
+          created_at: string | null
+          customer_status: string | null
+          date_of_birth: string | null
+          drivers_license: string | null
+          email: string
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
+          full_name: string
+          id: string
+          id_document_url: string | null
+          id_verified: boolean | null
+          id_verified_at: string | null
+          insurance_document_url: string | null
+          insurance_expiry: string | null
+          insurance_policy: string | null
+          insurance_provider: string | null
+          insurance_verified: boolean | null
+          insurance_verified_at: string | null
+          license_expiry: string | null
+          lifetime_value: number | null
+          notes: string | null
+          phone: string | null
+          preferences: Json | null
+          secondary_phone: string | null
+          stripe_customer_id: string | null
+          tags: string[] | null
+          team_id: string | null
+          total_bookings: number | null
+          updated_at: string | null
+          user_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "customers"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      get_document: {
+        Args: { p_document_id: string }
+        Returns: {
+          billing_frequency: string | null
+          booking_id: string | null
+          created_at: string | null
+          customer_id: string | null
+          doc_ref: string | null
+          email_sent_at: string | null
+          expires_at: string | null
+          file_size: number | null
+          file_url: string
+          id: string
+          is_default: boolean | null
+          name: string
+          parent_document_id: string | null
+          premium_amount: number | null
+          signature_image_url: string | null
+          signed_at: string | null
+          signed_by_name: string | null
+          signing_metadata: Json | null
+          status: string | null
+          team_id: string | null
+          type: string
+          updated_at: string | null
+          user_id: string
+          vehicle_id: string | null
+          verification_status: string | null
+          verified_at: string | null
+          verified_by: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "documents"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      get_inspection_photo_meta: {
+        Args: { p_photo_id: string }
+        Returns: {
+          captured_at: string | null
+          description: string | null
+          id: string
+          inspection_id: string
+          photo_role: string | null
+          photo_type: string | null
+          photo_url: string
+          quality_warning: boolean | null
+          skipped: boolean | null
+          uploaded_at: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "inspection_photos"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       get_my_role: {
         Args: never
         Returns: {
           permissions: string[]
           role: Database["public"]["Enums"]["app_role"]
         }[]
+      }
+      get_rari_message: {
+        Args: { p_message_id: string }
+        Returns: {
+          content: string
+          conversation_id: string
+          created_at: string
+          entities: Json | null
+          id: string
+          role: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "rari_messages"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       get_super_admin_audit_logs: {
         Args: never
@@ -5060,6 +5218,10 @@ export type Database = {
       log_admin_action: {
         Args: { p_action: string; p_details?: Json }
         Returns: string
+      }
+      log_pii_read: {
+        Args: { p_entity: string; p_fields?: string[]; p_record_id: string }
+        Returns: undefined
       }
       log_user_activity: {
         Args: {

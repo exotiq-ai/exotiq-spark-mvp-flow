@@ -1,94 +1,139 @@
-# Phase 1 — EU/UK Compliance Foundation (Buildable Scope)
+# Phase 1.5 Compliance Build — Safe & High-Impact
 
-Scope locked from your answers: EU/UK dev foundation only, single-region with contractual transfer path (architected for a future EU project split), soft-gated onboarding, DSR tooling for both the authenticated user and operators acting on behalf of their renters. Legal instruments (SCC annexes, IDTA, TIA, DPIA, privacy notices) are listed but flagged for attorney drafting — this plan does not generate them.
+**Status:** THE PLAN (supersedes the ranked list in `docs/compliance/NEXT_STEPS.md` §4).
+**Constraint:** zero behavior change for existing customers. Everything new is additive, owner-only, or dry-run by default. Gated behind `featureFlags.complianceEuUk` where user-visible.
 
-## 1. Data inventory & sub-processor registry
+---
 
-- New `data_processing_inventory` table seeded from a code-side manifest (`src/lib/compliance/dataInventory.ts`) listing every personal-data category, the table/column it lives in, retention period, lawful basis, and which sub-processor(s) receive it (Stripe, MotorIQ, Gemini, OpenAI, Anthropic, ElevenLabs, Google Calendar, Twilio/SMS provider).
-- New `sub_processors` table (name, purpose, region, transfer mechanism, DPA URL, status). Surfaced read-only in Settings → Legal → "Sub-processors" and in the DPA page so it stays in sync.
-- Owner-only "Export ROPA" action in Settings → Legal renders the inventory + active sub-processors as a CSV/JSON the operator's counsel can hand to a regulator.
+## Why these four
 
-## 2. Cross-border AI transfer controls (the highest-risk item)
+From the 11 items in NEXT_STEPS §4, these are the ones that (a) close a real regulator-visible gap, (b) can ship without touching any existing user flow, and (c) don't require attorney-drafted text to be useful.
 
-- Central `src/lib/ai/transferGuard.ts` wraps every outbound AI call (MotorIQ, Rari, Gemini, OpenAI, Anthropic). Responsibilities:
-  - Strip/redact direct identifiers (renter name, email, phone, license #, address, DOB) before the request leaves Lovable Cloud. Replace with stable pseudonyms scoped to the request.
-  - Block fields tagged "never_transfer" in the data inventory.
-  - Log every transfer to a new `ai_transfer_log` table: caller, model, sub-processor region, payload field hashes, team_id, timestamp. Used as evidence for TIA.
-- Refactor existing AI edge functions (`ai-pricing`, `rari-*`, `generate-hero-image`, `photo-vision-*`, demand-forecast) to route through the guard. No payload changes for non-EU/UK teams beyond the redaction; EU/UK teams get a stricter allowlist.
-- Team setting `ai_data_minimization_level` (standard / strict). EU/UK auto-strict.
+Deferred to a later pass: cookie-consent v2 (touches every page's first paint — needs design review), counsel privacy-notice rendering (waiting on the narrowing edits in NEXT_STEPS §3.5), EU/UK rep field (waiting on appointment), UAE phase 2.
 
-## 3. Region-portable data layer (defer EU project, don't paint into a corner)
+---
 
-- Add `data_region` column to `teams` (`us` default, `eu` reserved). All AI guard logic, sub-processor display, and DSR exports key off this field.
-- Tag every personal-data table in the inventory manifest with a `region_partitionable` flag so a future migration to an EU project is a data move, not a schema rewrite.
-- No infrastructure split this phase — single US region with contractual mechanisms (SCCs/IDTA, drafted by counsel).
+## 1. Retention enforcement — dry-run first
 
-## 4. Jurisdiction & soft-gating
+**Gap:** every retention period in our privacy notice is currently a policy promise with no executor. Highest legal exposure per dev hour.
 
-- Extend onboarding (`Welcome` / Business profile step) with a "Primary operating jurisdiction" picker: US / EU member state / UK / Other. Stored on `teams.primary_jurisdiction` + `teams.data_region`.
-- Soft gate: if jurisdiction = EU/UK and (a) DPA not executed or (b) privacy notice acknowledgement missing, show persistent dashboard banner + Settings → Legal task list. Never blocks usage.
-- DPA execution (already built in Phase 8) auto-required for EU/UK teams; banner links straight to it.
+**Build:**
+- New edge function `retention-sweeper` (scheduled daily at 03:00 UTC via `pg_cron` + `pg_net`).
+- Reads `retention_policies`; for each `(entity, retention_days)` pair, finds rows older than the window.
+- **Two modes via `retention_policies.enforcement_mode` column (new):**
+  - `dry_run` (default for every existing row) — writes a `retention_sweep_log` entry showing what *would* be deleted, deletes nothing.
+  - `enforce` — soft-deletes (sets `deleted_at`) on tables that have it, hard-deletes on append-only logs past their floor.
+- Owner-only Settings → Legal panel surfaces the last 7 sweep reports with row counts per entity. Owner flips to `enforce` per-entity only after reviewing a dry-run report.
+- Legal-floor exceptions (tax/AML/consent ledger) hard-coded as a deny-list inside the function; cannot be overridden from UI.
 
-## 5. Consent ledger extensions
+**Safety:** dry-run default means turning the job on deletes nothing. Enforce requires an explicit owner action per entity.
 
-- Extend `terms_acceptances` event types: `privacy_notice_eu`, `privacy_notice_uk`, `marketing_opt_in`, `marketing_opt_out`, `cookies_consent` (reserved — no banner unless analytics/marketing cookies are ever added).
-- New `data_subject_requests` table (request type, subject, requester, team_id, status, fulfilled_at, evidence_url, immutability trigger like `terms_acceptances`).
+---
 
-## 6. DSR tooling — user-facing (extends existing Legal section)
+## 2. DSR export edge function
 
-- Self-serve **Export my data** (JSON, signed download) — pulls profile, acceptances, bookings as renter, messages, notifications, AI transfer log entries about the user.
-- Self-serve **Request erasure** — opens a `data_subject_requests` row of type `erasure`, ties into the existing `deletion_requests` cascade pipeline, surfaces status + ETA.
-- Self-serve **Request correction** — light form that routes to the operator (if user is a renter of one) or to Exotiq support.
+**Gap:** `data_subject_requests` table exists with no executor; GDPR Art. 15/20 unmet.
 
-## 7. DSR tooling — operator-facing (new)
+**Build:**
+- New edge function `dsr-export` accepting `{ request_id }` from an authorized owner.
+- Schema-walker: introspects `information_schema` for FKs to `customers.id` and `profiles.id`, then `SELECT *` from each table filtered by the data subject's id AND `team_id = caller.team_id` (tenant safety belt — prevents cross-tenant leak even if a FK is misconfigured).
+- Pulls Storage objects from `inspection-photos`, `documents`, `vehicle-photos` buckets where the row is owned by the subject.
+- Emits a single ZIP: `manifest.json` (table → row count, generated timestamp, request id), one `<table>.json` per table, `storage/<bucket>/<object>` for files.
+- Uploads ZIP to a private `dsr-exports` Storage bucket, signed URL valid 7 days, link returned to requester.
+- `data_subject_requests.fulfilled_at` + `export_url` columns added.
+- Owner UI: existing Settings → Legal → DSR list gets a "Generate export" button per request.
 
-- Settings → Legal → "Renter DSRs" tab, visible to owner/admin only.
-- Search a renter (by email/phone/customer record), then for that subject:
-  - **Export** — bundles their `customers` row, bookings, payments (redacted to last4), messages, inspection photos metadata, AI transfer log entries.
-  - **Erase** — soft-delete + scheduled hard purge after legal retention window (configurable, default 30 days), with explicit warnings about bookings that have unresolved financial/legal obligations (those rows are preserved with the identifiers redacted, the records themselves retained).
-  - **Correct** — opens an edit drawer of the customer record, logged.
-- Every action writes a row to `data_subject_requests` + `user_activity_log`. Immutable.
+**Safety:** read-only on every existing table; only writes to `data_subject_requests` (status fields) and a new bucket.
 
-## 8. Retention enforcement
+---
 
-- New `retention_policies` table (entity_type, retention_days, basis, last_run_at).
-- Scheduled edge function `enforce-retention` (cron daily): purges/anonymizes per policy. Examples seeded: AI transfer logs 13 months, inactive customer PII 7 years after last booking (insurance/tax floor), messages 3 years, raw inspection photos 2 years (metadata retained).
-- Dry-run mode + admin preview in Settings → Legal before first real run.
+## 3. Read-side audit logging on renter PII
 
-## 9. RLS & audit hardening sweep
+**Gap:** writes are logged across 4 tables; **reads of renter PII have no audit trail** — flagged in NEXT_STEPS §3.2.
 
-- Audit script (`scripts/compliance/rls-coverage.ts`) cross-references the data inventory against `pg_policies` — fails CI if a PII-tagged table is missing per-team or per-user RLS.
-- Add `data_access_log` table fed by triggers on the highest-sensitivity tables (`customers`, `documents`, `payments`, `damage_claims`) capturing who read what — required for the GDPR "Article 30 plus" posture EU regulators expect from operators handling driver license + payment data.
+**Build:**
+- Postgres `SECURITY DEFINER` function `log_pii_read(p_entity text, p_record_id uuid, p_fields text[])` that inserts into existing `data_access_log` (no new table).
+- Wrap four high-sensitivity read paths with a thin RPC: `get_customer_full`, `get_document`, `get_inspection_photo_meta`, `get_rari_message`. Existing direct-`SELECT` callers keep working — these new RPCs are opt-in, used by:
+  - Anywhere we render full renter PII in a dialog (CustomerDetailsDialog, CheckInOutDialog reviewer view).
+  - DSR export function (so the export action itself is logged).
+- Owner-only audit viewer in Settings → Legal → "Access log" — searchable by user, entity, date range, last 90 days.
 
-## 10. Legal-doc placeholders wired to the existing acceptance system (NO drafting)
+**Safety:** purely additive RPCs. No existing query is rewritten. Hooks are switched over incrementally; if a hook isn't migrated, behavior is unchanged.
 
-- Add `legal_document_versions` rows for `gdpr_privacy_notice`, `uk_privacy_notice_addendum`, `tia`, `dpia_ai`, `scc_module_two`, `idta_uk` — all with `status='attorney_review_required'` and stub bodies that render an "Attorney review required" notice in the UI. They become part of the gating list once counsel publishes real content.
-- Sub-processor registry (Section 1) auto-renders into the DPA page so it stays accurate without re-papering.
+---
 
-## What this plan explicitly does NOT do
+## 4. Sub-processor registry reconciliation
 
-- Does not draft SCCs, IDTA, TIA, DPIA, or privacy notice content. Those are attorney deliverables; we ship the rails.
-- Does not stand up an EU-hosted project. Architecture stays portable.
-- Does not touch UAE (Phase 2).
-- Does not hard-block onboarding.
+**Gap:** NEXT_STEPS §3.3 — `subProcessors.ts` may be stale vs. actually-integrated vendors.
 
-## Technical details
+**Build (pure docs/data, zero runtime risk):**
+- Grep the codebase + edge functions for outbound vendor SDK/API calls (`twilio`, `resend`, `gohighlevel`/`ghl`, telematics provider names, `elevenlabs`, etc.).
+- Produce `docs/compliance/sub-processor-reconciliation.md` listing each detected vendor, the file:line where it's called, and whether it's in `subProcessors.ts` / `sub_processors` table.
+- Update `SUB_PROCESSORS` registry + seed migration with any missing-but-active vendors, and mark `status: "retired"` (not delete) for any listed-but-unused vendors.
+- DPA page already reads from this registry, so the public-facing list refreshes automatically.
 
-- New tables: `data_processing_inventory`, `sub_processors`, `ai_transfer_log`, `data_subject_requests`, `retention_policies`, `data_access_log`. All team-scoped RLS; immutability triggers on `data_subject_requests` and `ai_transfer_log` (UPDATE/DELETE blocked, same pattern as `terms_acceptances`).
-- New edge functions: `ai-transfer-guard` (shared lib + middleware), `dsr-export` (user + operator modes, JWT-validated, Zod-validated), `dsr-erase`, `enforce-retention` (cron).
-- New code modules: `src/lib/compliance/dataInventory.ts`, `src/lib/ai/transferGuard.ts`, `src/lib/compliance/dsr.ts`, `src/components/dashboard/settings/RenterDsrTab.tsx`, jurisdiction picker extension to `Welcome.tsx` and `BusinessProfileStep`.
-- Feature flag: `complianceEuUk` in `src/lib/featureFlags.ts` — ships dark, enabled once attorney-reviewed legal docs are published.
-- Tests: vitest coverage for `transferGuard` redaction, DSR export shape, retention dry-run, RLS coverage script; Deno tests for the three new edge functions.
+**Safety:** registry is reference data surfaced in legal pages; not in any control flow.
 
-## Order of implementation (one PR per group)
+---
 
-1. Inventory + sub-processor registry + feature flag scaffolding.
-2. AI transfer guard + log + refactor existing AI functions.
-3. Jurisdiction picker + soft-gating banner + region column.
-4. Consent ledger extensions + legal-doc placeholders.
-5. User-facing DSR export/erase/correct.
-6. Operator-facing renter DSR console.
-7. Retention policies + cron + dry-run UI.
-8. RLS coverage script in CI + data_access_log triggers.
+## What stays untouched
 
-Each group is independently shippable behind `complianceEuUk`.
+- Existing edge functions (already instrumented with `transferGuard` last cycle — no further edits).
+- All booking/fleet/messaging flows.
+- `terms_acceptances` schema (consent ledger already adequate).
+- Cookie banner (deferred — needs UX pass).
+- Counsel-drafted privacy notice rendering (deferred — text needs narrowing per NEXT_STEPS §3.5).
+
+---
+
+## Technical sketch
+
+### New migrations (one file)
+- `retention_policies`: add `enforcement_mode text default 'dry_run' check (enforcement_mode in ('dry_run','enforce','disabled'))`.
+- New table `retention_sweep_log` (entity, would_delete_count, deleted_count, dry_run boolean, ran_at, error). Owner-read-only via `has_role(auth.uid(),'owner')`.
+- `data_subject_requests`: add `fulfilled_at timestamptz`, `export_url text`, `export_expires_at timestamptz`.
+- New Storage bucket `dsr-exports` (private, owner-only read via signed URL).
+- New RPCs: `get_customer_full`, `get_document`, `get_inspection_photo_meta`, `get_rari_message`, `log_pii_read`. All `SECURITY DEFINER`, all enforce `team_id = (select team_id from team_members where user_id = auth.uid())`.
+- All migrations follow the public-schema GRANT rule.
+
+### New edge functions
+- `supabase/functions/retention-sweeper/index.ts` — cron-invoked, service-role only (no JWT). Deny-list inside the file.
+- `supabase/functions/dsr-export/index.ts` — owner-JWT validated via `getClaims()`, calls `has_role(uid,'owner')`.
+
+### Cron job
+- Daily 03:00 UTC `retention-sweeper` via `pg_cron` + `pg_net` (uses the `supabase--insert` workflow per the scheduled-jobs rule — keeps the anon-key URL out of migrations).
+
+### Frontend (additive only)
+- `src/components/dashboard/settings/ComplianceSection.tsx` gains three accordion panels:
+  - "Retention sweeps" — last 7 reports, per-entity `dry_run ↔ enforce` toggle (owner only).
+  - "Data subject requests" — list with "Generate export" button.
+  - "Access log" — paginated table, last 90 days.
+- All gated behind `featureFlags.complianceEuUk` (already exists and currently true).
+
+### Tests
+- Deno tests for `retention-sweeper` deny-list and dry-run-by-default.
+- Deno tests for `dsr-export` cross-tenant guard (synthetic two-team fixture).
+- Vitest for the new owner-only panels (visibility gating).
+
+---
+
+## Rollout
+
+1. Migrations + RPCs land first (no behavior change — nothing calls the new RPCs yet).
+2. Edge functions deploy, both in dry-run / read-only modes.
+3. Cron scheduled — first sweep populates `retention_sweep_log` with zero deletions.
+4. UI panels surface — owner can inspect dry-run reports before flipping anything to enforce.
+5. Sub-processor reconciliation doc + registry update lands as a separate commit (docs-only change).
+
+No existing customer sees anything different until an owner opens Settings → Legal. Nothing is deleted until an owner explicitly flips a per-entity toggle to `enforce`.
+
+---
+
+## Out of scope (explicit)
+
+- Hard-deletion executor for DSR erasure requests (need a design pass on cascade rules + Stripe-side deletion API — separate plan).
+- Counsel-drafted privacy notice React pages (waiting on text narrowing).
+- UAE phase 2.
+- Cookie consent v2.
+
+These remain in `NEXT_STEPS.md` and are the next plan after this one ships.
