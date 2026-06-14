@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.77.0';
+import { logTransfer } from "../_shared/transferGuard.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -161,7 +162,20 @@ Respond with ONLY a valid JSON object in this exact format:
 
     const aiResponse = await response.json();
     const content = aiResponse.choices?.[0]?.message?.content;
-    
+    const userId = (claimsData.claims as any).sub as string | undefined;
+    const teamId = (claimsData.claims as any).team_id as string | undefined;
+    // Fire-and-forget compliance log; never blocks the user-visible result.
+    logTransfer({
+      team_id: teamId ?? null,
+      user_id: userId ?? null,
+      caller: "ai-pricing",
+      model: "google/gemini-2.5-flash",
+      provider: "Google (Gemini / Vision via Lovable AI Gateway)",
+      provider_region: "United States / Global",
+      response_bytes: content ? content.length : 0,
+      status: "ok",
+    }).catch(() => {});
+
     console.log('AI Response:', content);
 
     // Parse JSON from response (handle markdown code blocks)
