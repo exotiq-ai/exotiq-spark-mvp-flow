@@ -20,6 +20,8 @@ export const VERSION_CHANGELOG: Record<string, Partial<Record<LegalDocType, stri
       "First publication: documents the strictly-necessary cookies Exotiq uses.",
     dmca:
       "Updated designated agent contact and counter-notice procedure.",
+    transfer_addendum:
+      "First publication: documents Standard Contractual Clauses and UK IDTA safeguards for transfers of EU/UK personal data to processors abroad.",
   },
 };
 
