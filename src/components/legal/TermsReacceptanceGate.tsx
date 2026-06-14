@@ -9,9 +9,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTeam } from "@/contexts/TeamContext";
 import {
   LEGAL_DOCS,
-  REQUIRED_AT_SIGNUP,
-  CURRENT_CONSENT_STATEMENT,
   buildDocumentsPayload,
+  consentStatementForJurisdiction,
+  requiredDocsForJurisdiction,
   type LegalDocType,
 } from "@/lib/legal/versions";
 import { getChangeSummary } from "@/lib/legal/changelog";
@@ -34,6 +34,9 @@ export const TermsReacceptanceGate = ({ children }: { children: React.ReactNode 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const teamId = currentTeam?.id ?? null;
+  const jurisdiction = (currentTeam as { primary_jurisdiction?: string | null } | null)?.primary_jurisdiction ?? null;
+  const requiredDocs = requiredDocsForJurisdiction(jurisdiction);
+  const consentStatement = consentStatementForJurisdiction(jurisdiction);
   const canAcceptForTeam = userRole === "owner" || userRole === "admin";
 
   const evaluate = useCallback(async () => {
@@ -67,12 +70,12 @@ export const TermsReacceptanceGate = ({ children }: { children: React.ReactNode 
       }
     }
 
-    const stale = REQUIRED_AT_SIGNUP.filter(
+    const stale = requiredDocs.filter(
       (t) => latest.get(t) !== LEGAL_DOCS[t].version
     );
     setOutdated(stale);
     setChecking(false);
-  }, [user]);
+  }, [user, requiredDocs]);
 
   useEffect(() => {
     evaluate();
@@ -87,8 +90,8 @@ export const TermsReacceptanceGate = ({ children }: { children: React.ReactNode 
         body: {
           team_id: teamId,
           event_type: "terms_update",
-          documents: buildDocumentsPayload(REQUIRED_AT_SIGNUP),
-          consent_statement: CURRENT_CONSENT_STATEMENT,
+          documents: buildDocumentsPayload(requiredDocs),
+          consent_statement: consentStatement,
           acceptance_method: "checkbox_click",
           page_url: window.location.href,
           is_authorized_representative: canAcceptForTeam,
@@ -169,7 +172,7 @@ export const TermsReacceptanceGate = ({ children }: { children: React.ReactNode 
                     onCheckedChange={(v) => setAgreed(v === true)}
                     className="mt-0.5"
                   />
-                  <span>{CURRENT_CONSENT_STATEMENT}</span>
+                  <span>{consentStatement}</span>
                 </label>
 
                 {error && (

@@ -5432,6 +5432,7 @@ export type Database = {
         | "sms"
         | "cookies"
         | "dmca"
+        | "transfer_addendum"
       terms_acceptance_event:
         | "signup"
         | "reacceptance"
@@ -5576,6 +5577,7 @@ export const Constants = {
         "sms",
         "cookies",
         "dmca",
+        "transfer_addendum",
       ],
       terms_acceptance_event: [
         "signup",
