@@ -29,7 +29,9 @@ interface SignBody {
     width: number;
     height: number;
   }>;
+  form_values?: Record<string, string | boolean>;
 }
+
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -130,7 +132,41 @@ Deno.serve(async (req) => {
     const sigBytes = decodeDataUrl(body.signature_image_data_url);
     const sigImage = await pdfDoc.embedPng(sigBytes);
 
+    // Apply AcroForm values (if any), then flatten so values become permanent
+    // and the certificate hash covers them.
+    if (body.form_values && Object.keys(body.form_values).length > 0) {
+      try {
+        const form = pdfDoc.getForm();
+        for (const [name, raw] of Object.entries(body.form_values)) {
+          try {
+            const field = form.getFieldMaybe?.(name) ?? null;
+            if (!field) continue;
+            const kind = field.constructor?.name ?? "";
+            if (kind.includes("CheckBox")) {
+              if (raw === true || raw === "true" || raw === "Yes" || raw === "On") form.getCheckBox(name).check();
+              else form.getCheckBox(name).uncheck();
+            } else if (kind.includes("RadioGroup")) {
+              if (typeof raw === "string" && raw) form.getRadioGroup(name).select(raw);
+            } else if (kind.includes("Dropdown")) {
+              if (typeof raw === "string" && raw) form.getDropdown(name).select(raw);
+            } else if (kind.includes("OptionList")) {
+              if (typeof raw === "string" && raw) form.getOptionList(name).select(raw);
+            } else {
+              // Default: text field
+              form.getTextField(name).setText(typeof raw === "boolean" ? (raw ? "Yes" : "") : String(raw));
+            }
+          } catch (fieldErr) {
+            console.warn("form field apply skipped", name, (fieldErr as Error).message);
+          }
+        }
+        try { form.flatten(); } catch (flatErr) { console.warn("form flatten failed", flatErr); }
+      } catch (formErr) {
+        console.warn("AcroForm not available on this PDF", (formErr as Error).message);
+      }
+    }
+
     const pages = pdfDoc.getPages();
+
     const stamped = new Date();
     const dateStr = stamped.toLocaleDateString("en-US", {
       year: "numeric", month: "long", day: "numeric",
@@ -355,12 +391,108 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Fire-and-forget: email signed PDF to the Exotiq compliance inbox.
+    // Failure must NOT roll back the signature.
+    try {
+      const complianceInbox = Deno.env.get("COMPLIANCE_INBOX") || "hello@exotiq.ai";
+      const internalToken = Deno.env.get("INTERNAL_FUNCTION_TOKEN");
+      if (internalToken) {
+        // Look up team name for the subject line
+        const { data: team } = await admin
+          .from("teams")
+          .select("name")
+          .eq("id", td.team_id)
+          .maybeSingle();
+        const teamName = team?.name ?? "Tenant";
+
+        // Base64-encode the signed PDF (chunked to avoid stack overflow)
+        let binary = "";
+        const chunk = 0x8000;
+        for (let i = 0; i < finalBytes.length; i += chunk) {
+          binary += String.fromCharCode(...finalBytes.subarray(i, i + chunk));
+        }
+        const attachmentB64 = btoa(binary);
+
+        const subject = `Signed: ${td.doc_ref ?? td.id} — ${teamName}`;
+        const html = `
+          <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#0a0a0a;line-height:1.5;">
+            <h2 style="margin:0 0 16px;font-size:18px;">Tenant document signed</h2>
+            <table style="border-collapse:collapse;font-size:14px;">
+              <tr><td style="padding:4px 12px 4px 0;color:#666;">Document</td><td style="padding:4px 0;">${td.title}</td></tr>
+              <tr><td style="padding:4px 12px 4px 0;color:#666;">Reference</td><td style="padding:4px 0;font-family:monospace;">${td.doc_ref ?? td.id}</td></tr>
+              <tr><td style="padding:4px 12px 4px 0;color:#666;">Tenant</td><td style="padding:4px 0;">${teamName}</td></tr>
+              <tr><td style="padding:4px 12px 4px 0;color:#666;">Signer</td><td style="padding:4px 0;">${body.printed_name}, ${body.title}</td></tr>
+              <tr><td style="padding:4px 12px 4px 0;color:#666;">Email</td><td style="padding:4px 0;">${user.email ?? "unknown"}</td></tr>
+              <tr><td style="padding:4px 12px 4px 0;color:#666;">Signed (UTC)</td><td style="padding:4px 0;">${stamped.toISOString()}</td></tr>
+              <tr><td style="padding:4px 12px 4px 0;color:#666;">IP</td><td style="padding:4px 0;">${ip}</td></tr>
+              <tr><td style="padding:4px 12px 4px 0;color:#666;">SHA-256</td><td style="padding:4px 0;font-family:monospace;font-size:11px;">${finalSha}</td></tr>
+            </table>
+            <p style="margin-top:20px;font-size:12px;color:#666;">The fully executed PDF (including Certificate of Completion) is attached. A sealed copy is retained in the Exotiq compliance archive.</p>
+          </div>`;
+
+        const emailRes = await fetch(`${supabaseUrl}/functions/v1/send-compliance-email`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-internal-token": internalToken,
+            Authorization: `Bearer ${serviceKey}`,
+          },
+          body: JSON.stringify({
+            to: complianceInbox,
+            subject,
+            html,
+            idempotency_key: `signed-${td.id}`,
+            tags: [
+              { name: "category", value: "tenant_document_signed" },
+              { name: "doc_ref", value: (td.doc_ref ?? td.id).replace(/[^a-zA-Z0-9_-]/g, "_") },
+            ],
+            attachments: [{
+              filename: `${td.doc_ref ?? td.id}-signed.pdf`,
+              content_base64: attachmentB64,
+              content_type: "application/pdf",
+            }],
+          }),
+        });
+
+        const emailOk = emailRes.ok;
+        const emailDetail = emailOk ? await emailRes.json().catch(() => ({})) : await emailRes.text().catch(() => "");
+        await admin.from("tenant_document_audit").insert({
+          tenant_document_id: td.id,
+          event_type: emailOk ? "email_sent" : "email_failed",
+          actor_user_id: user.id,
+          ip_address: ip,
+          user_agent: ua,
+          metadata: {
+            to: complianceInbox,
+            kind: "signed_copy",
+            status: emailRes.status,
+            detail: emailDetail,
+          },
+        });
+      } else {
+        console.warn("INTERNAL_FUNCTION_TOKEN missing; skipping compliance email");
+      }
+    } catch (e) {
+      console.error("compliance email dispatch failed", e);
+      try {
+        await admin.from("tenant_document_audit").insert({
+          tenant_document_id: td.id,
+          event_type: "email_failed",
+          actor_user_id: user.id,
+          ip_address: ip,
+          user_agent: ua,
+          metadata: { kind: "signed_copy", error: (e as Error).message },
+        });
+      } catch { /* swallow */ }
+    }
+
     return jsonResponse({
       tenant_document_id: td.id,
       doc_ref: td.doc_ref,
       vault_document_id: vaultDoc.id,
       signed_sha256: finalSha,
     });
+
   } catch (err) {
     console.error("sign-tenant-document error", err);
     return jsonResponse({ error: (err as Error).message || "Unknown error" }, 500);
