@@ -4,6 +4,7 @@ import {
   consentStatementForJurisdiction,
   LEGAL_DOCS,
   REQUIRED_AT_SIGNUP,
+  buildDocumentsPayload,
 } from "../versions";
 
 describe("requiredDocsForJurisdiction", () => {
@@ -30,6 +31,18 @@ describe("requiredDocsForJurisdiction", () => {
     const docs = requiredDocsForJurisdiction("UAE");
     expect(docs).not.toContain("transfer_addendum");
   });
+
+  it("requires exactly 5 documents for EU teams", () => {
+    expect(requiredDocsForJurisdiction("EU")).toHaveLength(5);
+  });
+
+  it("requires exactly 5 documents for UK teams", () => {
+    expect(requiredDocsForJurisdiction("UK")).toHaveLength(5);
+  });
+
+  it("requires exactly 3 documents for US teams", () => {
+    expect(requiredDocsForJurisdiction("US")).toHaveLength(3);
+  });
 });
 
 describe("consentStatementForJurisdiction", () => {
@@ -42,11 +55,30 @@ describe("consentStatementForJurisdiction", () => {
   it("omits DPA/Addendum for US/other", () => {
     expect(consentStatementForJurisdiction("US")).not.toMatch(/Transfer Addendum/);
   });
+
+  it("keeps EU and UK consent statements in parity", () => {
+    expect(consentStatementForJurisdiction("UK")).toBe(
+      consentStatementForJurisdiction("EU")
+    );
+  });
 });
 
 describe("LEGAL_DOCS catalog", () => {
   it("registers transfer_addendum with a /transfer-addendum url", () => {
     expect(LEGAL_DOCS.transfer_addendum.url).toBe("/transfer-addendum");
     expect(LEGAL_DOCS.transfer_addendum.version).toBe("2026-06-14");
+  });
+});
+
+describe("buildDocumentsPayload", () => {
+  it("produces the expected payload shape for EU teams", () => {
+    const payload = buildDocumentsPayload(requiredDocsForJurisdiction("EU"));
+
+    expect(payload).toHaveLength(5);
+    expect(payload.map((d) => d.document_type)).toContain("transfer_addendum");
+    payload.forEach((d) => {
+      expect(d.document_type).toBeTruthy();
+      expect(d.version).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    });
   });
 });

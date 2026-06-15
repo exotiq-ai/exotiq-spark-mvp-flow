@@ -101,7 +101,10 @@ export const CookieConsentBanner = () => {
 
   return (
     <>
-      <div className="fixed bottom-0 inset-x-0 z-50 p-3 sm:p-4">
+      <div
+        className="fixed bottom-0 inset-x-0 z-50 p-3 sm:p-4"
+        data-testid="cookie-consent-banner"
+      >
         <div className="mx-auto max-w-3xl rounded-lg border border-border bg-background/95 backdrop-blur shadow-lg p-4">
           <div className="flex items-start gap-3">
             <Cookie className="h-5 w-5 text-primary shrink-0 mt-0.5" />
@@ -120,6 +123,7 @@ export const CookieConsentBanner = () => {
                 <Button
                   size="sm"
                   variant="outline"
+                  data-testid="cookie-customize"
                   onClick={() => setCustomize(true)}
                 >
                   Customize
@@ -127,6 +131,7 @@ export const CookieConsentBanner = () => {
                 <Button
                   size="sm"
                   variant="ghost"
+                  data-testid="cookie-reject-all"
                   onClick={() =>
                     accept({
                       necessary: true,
@@ -140,6 +145,7 @@ export const CookieConsentBanner = () => {
                 </Button>
                 <Button
                   size="sm"
+                  data-testid="cookie-accept-all"
                   onClick={() =>
                     accept({
                       necessary: true,
@@ -178,18 +184,21 @@ export const CookieConsentBanner = () => {
               title="Functional"
               desc="Remembers UI preferences such as dashboard layout and locale."
               checked={cats.functional}
+              testId="cookie-functional-toggle"
               onToggle={(v) => setCats({ ...cats, functional: v })}
             />
             <Row
               title="Analytics"
               desc="Internal analytics only. We do not load third-party trackers today."
               checked={cats.analytics}
+              testId="cookie-analytics-toggle"
               onToggle={(v) => setCats({ ...cats, analytics: v })}
             />
             <Row
               title="Marketing"
               desc="Used for attribution if/when we run paid campaigns. Off today."
               checked={cats.marketing}
+              testId="cookie-marketing-toggle"
               onToggle={(v) => setCats({ ...cats, marketing: v })}
             />
           </ul>
@@ -198,7 +207,7 @@ export const CookieConsentBanner = () => {
             <Button variant="outline" onClick={() => accept({ necessary: true, functional: false, analytics: false, marketing: false })}>
               Reject all
             </Button>
-            <Button onClick={() => accept(cats)}>Save preferences</Button>
+            <Button data-testid="cookie-save-preferences" onClick={() => accept(cats)}>Save preferences</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -212,12 +221,14 @@ const Row = ({
   checked,
   onToggle,
   locked,
+  testId,
 }: {
   title: string;
   desc: string;
   checked: boolean;
   onToggle?: (v: boolean) => void;
   locked?: boolean;
+  testId?: string;
 }) => (
   <li className="flex items-start justify-between gap-3 rounded-md border border-border/60 p-3">
     <div className="min-w-0">
@@ -227,6 +238,7 @@ const Row = ({
     <Switch
       checked={checked}
       disabled={locked}
+      data-testid={testId}
       onCheckedChange={(v) => onToggle?.(v)}
       aria-label={`Toggle ${title}`}
     />
