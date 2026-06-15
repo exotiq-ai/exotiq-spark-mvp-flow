@@ -90,6 +90,17 @@ export default function Auth() {
   } = useAuth();
   const navigate = useNavigate();
 
+  // Warm the Dashboard chunk once the user touches the form, so the
+  // post-login transition is instant instead of showing a loader.
+  const preloadedRef = useRef(false);
+  const preloadDashboard = () => {
+    if (preloadedRef.current) return;
+    preloadedRef.current = true;
+    void import('./Dashboard');
+  };
+
+
+
   // Cooldown timers for rate-limited actions
   useEffect(() => {
     if (magicLinkCooldown <= 0) return;
