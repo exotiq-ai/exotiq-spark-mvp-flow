@@ -74,7 +74,7 @@ export const featureFlags = {
   // Exotiq super admins can send PDFs to a tenant for in-app signing.
   // Super-admin surface is always available for internal testing; the
   // tenant-facing banner / Vault section is gated by this flag.
-  tenantEsignature: false,
+  tenantEsignature: true,
 } as const;
 
 export type FeatureFlag = keyof typeof featureFlags;
