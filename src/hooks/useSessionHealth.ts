@@ -127,31 +127,54 @@ export function useSessionHealth(config: SessionHealthConfig) {
     }
   }, [isAuthenticated, onSessionExpired, toast]);
 
-  // Visibility change handler - refresh session when returning from idle
+  // Visibility change handler — refresh session ONLY if it's actually near
+  // expiry. A 60s hide/show shouldn't refresh a token that's valid for another
+  // 50 minutes; doing so emits a SIGNED_IN event that cascades into context
+  // re-inits and a visible "the app just reloaded" flash.
   useEffect(() => {
     if (!isAuthenticated) return;
 
+    const REFRESH_IF_EXPIRES_WITHIN_MS = 5 * 60 * 1000; // 5 minutes
+
     const handleVisibilityChange = async () => {
       if (document.hidden) {
-        // Tab is being hidden, record timestamp
         lastVisibleTimestamp.current = Date.now();
         devLog('[SessionHealth] Tab hidden at:', new Date().toISOString());
-      } else {
-        // Tab is becoming visible again
-        const hiddenDuration = Date.now() - lastVisibleTimestamp.current;
-        devLog('[SessionHealth] Tab visible after:', Math.round(hiddenDuration / 1000), 'seconds');
+        return;
+      }
 
-        if (hiddenDuration >= minHiddenDuration) {
-          // Tab was hidden for a significant time, refresh session proactively
-          devLog('[SessionHealth] Hidden duration exceeded threshold, refreshing session...');
-          await refreshSession();
+      const hiddenDuration = Date.now() - lastVisibleTimestamp.current;
+      devLog('[SessionHealth] Tab visible after:', Math.round(hiddenDuration / 1000), 'seconds');
+
+      if (hiddenDuration < minHiddenDuration) return;
+
+      // Check whether the existing session is actually near expiry before
+      // calling refreshSession(). If we have plenty of runway, do nothing.
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          devWarn('[SessionHealth] No session on visibility resume — treating as expired');
+          await onSessionExpired();
+          return;
         }
+        const expiresAtMs = (session.expires_at ?? 0) * 1000;
+        const timeRemaining = expiresAtMs - Date.now();
+        if (timeRemaining > REFRESH_IF_EXPIRES_WITHIN_MS) {
+          devLog('[SessionHealth] Session healthy on resume, skipping refresh', {
+            minutesRemaining: Math.round(timeRemaining / 60000),
+          });
+          return;
+        }
+        devLog('[SessionHealth] Session near expiry on resume, refreshing...');
+        await refreshSession();
+      } catch (err) {
+        devError('[SessionHealth] Exception during visibility resume check:', err);
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [isAuthenticated, minHiddenDuration, refreshSession]);
+  }, [isAuthenticated, minHiddenDuration, refreshSession, onSessionExpired]);
 
   // Activity tracking for inactivity timeout
   useEffect(() => {

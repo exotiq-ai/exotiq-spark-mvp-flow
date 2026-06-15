@@ -6,33 +6,25 @@ interface PageTransitionProps {
   className?: string;
 }
 
+// Apple-style: subtle, fast, and crucially — no scale.
+// Scaling a full-height page changes content height by a pixel or two and
+// causes the scrollbar to flash on every transition. Opacity + a 4px y-shift
+// gives a polished feel without any layout impact.
 const pageVariants = {
-  initial: {
-    opacity: 0,
-    y: 20,
-    scale: 0.98,
-  },
-  in: {
-    opacity: 1,
-    y: 0,
-    scale: 1,
-  },
-  out: {
-    opacity: 0,
-    y: -20,
-    scale: 1.02,
-  },
+  initial: { opacity: 0, y: 4 },
+  in: { opacity: 1, y: 0 },
+  out: { opacity: 0, y: -4 },
 };
 
 const pageTransition = {
   type: 'tween' as const,
-  ease: 'anticipate' as const,
-  duration: 0.3,
+  ease: [0.22, 1, 0.36, 1] as const, // standard Apple easing
+  duration: 0.18,
 };
 
-export const PageTransition: React.FC<PageTransitionProps> = ({ 
-  children, 
-  className 
+export const PageTransition: React.FC<PageTransitionProps> = ({
+  children,
+  className,
 }) => {
   return (
     <motion.div
@@ -53,9 +45,9 @@ interface AnimatedRouteProps {
   location: { pathname: string };
 }
 
-export const AnimatedRoute: React.FC<AnimatedRouteProps> = ({ 
-  children, 
-  location 
+export const AnimatedRoute: React.FC<AnimatedRouteProps> = ({
+  children,
+  location,
 }) => {
   return (
     <AnimatePresence mode="wait" initial={false}>

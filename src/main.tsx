@@ -23,9 +23,14 @@ const isPreviewHost =
     window.location.hostname.includes('localhost'));
 
 if (!isPreviewHost) {
-  const updateSW = registerSW({
+  // Register the SW but DO NOT auto-activate updates. Auto-activation triggers
+  // `controllerchange` → silent page reload, which users perceive as "the app
+  // randomly reloaded". Instead we expose the waiting SW on a window event so
+  // `ServiceWorkerUpdatePrompt` can show a non-intrusive "Update available"
+  // pill and the reload only happens when the user clicks it.
+  registerSW({
     immediate: true,
-    onRegisteredSW(swUrl, registration) {
+    onRegisteredSW(_swUrl, registration) {
       if (!registration) return;
       // Poll for updates every 60 minutes — catches long-lived tabs / installed PWAs
       setInterval(() => {
@@ -35,11 +40,9 @@ if (!isPreviewHost) {
       }, 60 * 60 * 1000);
     },
     onNeedRefresh() {
-      // Auto-activate the new SW immediately. The existing
-      // ServiceWorkerUpdatePrompt listens for `controllerchange` and reloads.
-      updateSW(true).catch(() => {
-        // ignore
-      });
+      // Tell the in-app prompt a new version is waiting. Do NOT call
+      // updateSW(true) here — that would silently reload the tab.
+      window.dispatchEvent(new CustomEvent('sw-update-available'));
     },
     onRegisterError(error) {
       console.warn('[SW] Registration failed:', error);
