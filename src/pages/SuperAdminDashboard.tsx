@@ -223,11 +223,16 @@ export const SuperAdminDashboard = () => {
               <Wrench className="h-4 w-4 mr-2" />
               Maintenance
             </TabsTrigger>
+            <TabsTrigger value="documents">
+              <FileSignature className="h-4 w-4 mr-2" />
+              Documents
+            </TabsTrigger>
             <TabsTrigger value="audit">
               <Database className="h-4 w-4 mr-2" />
               Audit Log
             </TabsTrigger>
           </TabsList>
+
 
           <TabsContent value="tenants" className="space-y-4">
             <TenantHealthTab />
