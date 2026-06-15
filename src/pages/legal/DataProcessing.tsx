@@ -1,12 +1,13 @@
 import { LegalPageLayout } from "@/components/layout/LegalPageLayout";
+import { LEGAL_DOCS } from "@/lib/legal/versions";
 
 const DataProcessing = () => {
   return (
     <LegalPageLayout
       title="Data Processing Agreement"
       subtitle="Controller-Processor Agreement for Customer Data"
-      effectiveDate="January 1, 2026"
-      lastUpdated="June 14, 2026"
+      effectiveDate={LEGAL_DOCS.dpa.effectiveDate}
+      lastUpdated={LEGAL_DOCS.dpa.lastUpdated}
     >
       <p>This Data Processing Agreement ("DPA") supplements the Terms and Conditions between you ("Controller" or "Customer") and Exotiq Inc. ("Processor" or "Exotiq"), and governs the processing of personal data by Exotiq on behalf of the Customer.</p>
       <p>This DPA applies to the extent that Exotiq processes personal data subject to the CCPA, Colorado Privacy Act, VCDPA, and where applicable, the GDPR.</p>

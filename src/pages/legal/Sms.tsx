@@ -1,12 +1,13 @@
 import { LegalPageLayout } from "@/components/layout/LegalPageLayout";
+import { LEGAL_DOCS } from "@/lib/legal/versions";
 
 const Sms = () => {
   return (
     <LegalPageLayout
       title="SMS/Text Messaging Consent and Disclosure"
       subtitle="TCPA and CTIA Compliance"
-      effectiveDate="January 1, 2026"
-      lastUpdated="June 14, 2026"
+      effectiveDate={LEGAL_DOCS.sms.effectiveDate}
+      lastUpdated={LEGAL_DOCS.sms.lastUpdated}
     >
       <p>This SMS Policy describes the text messaging programs operated by Exotiq Inc., a Delaware C-Corporation, doing business as Drive Exotiq ("Exotiq," "Drive Exotiq," "we," "us," or "our"). For consumer-facing SMS, the brand name "Drive Exotiq" is used. For operator-facing SMS, "Exotiq" is used. Both are the same legal entity.</p>
       <p>This policy complies with the Telephone Consumer Protection Act ("TCPA"), 47 U.S.C. § 227, the Cellular Telecommunications Industry Association ("CTIA") Messaging Principles and Best Practices, applicable FCC regulations, and applicable state laws.</p>
