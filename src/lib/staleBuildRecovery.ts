@@ -14,6 +14,11 @@ const RELOAD_COOLDOWN_MS = 30000; // 30 seconds between auto-reloads
 const SW_RESCUE_FLAG = 'exotiq_sw_v2_initialized'; // Versioned: bump to force re-rescue
 const SW_RESCUE_COMPLETED = 'exotiq_sw_v2_rescued';
 
+// Require TWO stale-asset errors within this window before triggering a hard
+// reload. One transient 503 / preload race shouldn't yank the user's tab.
+const ERROR_CONFIRM_WINDOW_MS = 10_000;
+let firstErrorAt: number | null = null;
+
 /**
  * One-time rescue for users with a stale/broken pre-fix service worker
  * stuck in their browser. Detects an active SW controller from before
@@ -157,16 +162,26 @@ export const handleStaleAssetError = (error: Error | string): boolean => {
   if (!isStaleAssetError(error)) {
     return false;
   }
-  
+
   devWarn('[Recovery] Stale asset error detected:', error);
-  
+
   // Don't auto-reload if we recently tried
   if (hasRecentReloadAttempt()) {
     devWarn('[Recovery] Recent reload attempt, not auto-reloading');
     return false;
   }
-  
-  // Auto-reload
+
+  // Require TWO failures within the confirm window before reloading. This
+  // avoids yanking the tab on a single transient network blip.
+  const now = Date.now();
+  if (firstErrorAt === null || now - firstErrorAt > ERROR_CONFIRM_WINDOW_MS) {
+    firstErrorAt = now;
+    devWarn('[Recovery] First stale-asset error logged; waiting for confirmation before reload');
+    return false;
+  }
+
+  // Second confirmed failure — reload.
+  firstErrorAt = null;
   performHardReload();
   return true;
 };
@@ -195,27 +210,11 @@ export const initStaleAssetRecovery = (): void => {
     }
   });
   
-  // Also check for 404s on script/link elements
-  const observer = new MutationObserver((mutations) => {
-    mutations.forEach((mutation) => {
-      mutation.addedNodes.forEach((node) => {
-        if (node instanceof HTMLScriptElement || node instanceof HTMLLinkElement) {
-          node.addEventListener('error', () => {
-            const src = (node as HTMLScriptElement).src || (node as HTMLLinkElement).href;
-            if (src && (src.includes('.js') || src.includes('.css'))) {
-              devWarn('[Recovery] Failed to load asset:', src);
-              handleStaleAssetError(`Failed to load ${src}`);
-            }
-          });
-        }
-      });
-    });
-  });
-  
-  observer.observe(document.documentElement, {
-    childList: true,
-    subtree: true,
-  });
+  // NOTE: We intentionally do NOT install a MutationObserver on every <script>
+  // and <link> in the DOM. That observer fires for normal preload races and
+  // third-party widgets and was a major source of "the app reloaded itself"
+  // reports. The unhandledrejection + error listeners above already catch the
+  // real ChunkLoadError / dynamic-import failures that warrant a reload.
 };
 
 /**

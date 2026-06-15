@@ -214,6 +214,19 @@
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   }
 
+  /* Reserve gutter for the vertical scrollbar so content height/width changes
+     never cause a horizontal jump or right-edge "flash" when the scrollbar
+     appears/disappears (tab switches, dialogs, route changes, data loads). */
+  html {
+    scrollbar-gutter: stable;
+  }
+  /* Safari < 16 fallback: force the scrollbar to always be present. */
+  @supports not (scrollbar-gutter: stable) {
+    html {
+      overflow-y: scroll;
+    }
+  }
+
   body {
     @apply bg-background text-foreground;
     font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
