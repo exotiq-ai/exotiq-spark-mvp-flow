@@ -29,7 +29,9 @@ interface SignBody {
     width: number;
     height: number;
   }>;
+  form_values?: Record<string, string | boolean>;
 }
+
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -130,7 +132,41 @@ Deno.serve(async (req) => {
     const sigBytes = decodeDataUrl(body.signature_image_data_url);
     const sigImage = await pdfDoc.embedPng(sigBytes);
 
+    // Apply AcroForm values (if any), then flatten so values become permanent
+    // and the certificate hash covers them.
+    if (body.form_values && Object.keys(body.form_values).length > 0) {
+      try {
+        const form = pdfDoc.getForm();
+        for (const [name, raw] of Object.entries(body.form_values)) {
+          try {
+            const field = form.getFieldMaybe?.(name) ?? null;
+            if (!field) continue;
+            const kind = field.constructor?.name ?? "";
+            if (kind.includes("CheckBox")) {
+              if (raw === true || raw === "true" || raw === "Yes" || raw === "On") form.getCheckBox(name).check();
+              else form.getCheckBox(name).uncheck();
+            } else if (kind.includes("RadioGroup")) {
+              if (typeof raw === "string" && raw) form.getRadioGroup(name).select(raw);
+            } else if (kind.includes("Dropdown")) {
+              if (typeof raw === "string" && raw) form.getDropdown(name).select(raw);
+            } else if (kind.includes("OptionList")) {
+              if (typeof raw === "string" && raw) form.getOptionList(name).select(raw);
+            } else {
+              // Default: text field
+              form.getTextField(name).setText(typeof raw === "boolean" ? (raw ? "Yes" : "") : String(raw));
+            }
+          } catch (fieldErr) {
+            console.warn("form field apply skipped", name, (fieldErr as Error).message);
+          }
+        }
+        try { form.flatten(); } catch (flatErr) { console.warn("form flatten failed", flatErr); }
+      } catch (formErr) {
+        console.warn("AcroForm not available on this PDF", (formErr as Error).message);
+      }
+    }
+
     const pages = pdfDoc.getPages();
+
     const stamped = new Date();
     const dateStr = stamped.toLocaleDateString("en-US", {
       year: "numeric", month: "long", day: "numeric",
