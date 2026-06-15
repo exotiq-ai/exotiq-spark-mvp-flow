@@ -1,12 +1,13 @@
 import { LegalPageLayout } from "@/components/layout/LegalPageLayout";
+import { LEGAL_DOCS } from "@/lib/legal/versions";
 
 const Privacy = () => {
   return (
     <LegalPageLayout
       title="Privacy Policy"
       subtitle="How Exotiq Collects, Uses, and Protects Your Information"
-      effectiveDate="January 1, 2026"
-      lastUpdated="June 14, 2026"
+      effectiveDate={LEGAL_DOCS.privacy.effectiveDate}
+      lastUpdated={LEGAL_DOCS.privacy.lastUpdated}
     >
       <p>Exotiq Inc. ("Exotiq," "we," "us," or "our"), a Delaware C-Corporation, is committed to protecting the privacy and security of information collected through the Exotiq Command Center platform ("Platform") and the Drive Exotiq marketplace. This Privacy Policy explains what information we collect, how we use it, who we share it with, and how we protect it.</p>
       <p>This Privacy Policy applies to all users of the Platform, including fleet operators ("Customers"), their authorized users, Vehicle Partners, and renters who interact with Drive Exotiq.</p>

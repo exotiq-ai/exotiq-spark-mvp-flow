@@ -68,6 +68,28 @@ describe("LEGAL_DOCS catalog", () => {
     expect(LEGAL_DOCS.transfer_addendum.url).toBe("/transfer-addendum");
     expect(LEGAL_DOCS.transfer_addendum.version).toBe("2026-06-14");
   });
+
+  it("provides a lastUpdated date for every document", () => {
+    for (const t of Object.keys(LEGAL_DOCS) as Array<keyof typeof LEGAL_DOCS>) {
+      expect(LEGAL_DOCS[t].lastUpdated, `${t} missing lastUpdated`).toBeTruthy();
+    }
+  });
+
+  it("preserves the original January 1, 2026 publication for the seven core docs", () => {
+    const core = ["terms", "privacy", "aup", "dpa", "sms", "cookies", "dmca"] as const;
+    for (const t of core) {
+      const prior = LEGAL_DOCS[t].priorVersions;
+      expect(prior, `${t} missing priorVersions`).toBeDefined();
+      expect(prior?.some((p) => p.version === "2026-01-01")).toBe(true);
+    }
+  });
+
+  it("uses the June 14, 2026 effective date for the current core revisions", () => {
+    const core = ["terms", "privacy", "aup", "dpa", "sms", "cookies", "dmca"] as const;
+    for (const t of core) {
+      expect(LEGAL_DOCS[t].effectiveDate).toBe("June 14, 2026");
+    }
+  });
 });
 
 describe("buildDocumentsPayload", () => {

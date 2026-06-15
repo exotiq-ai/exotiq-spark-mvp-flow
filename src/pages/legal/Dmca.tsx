@@ -1,12 +1,13 @@
 import { LegalPageLayout } from "@/components/layout/LegalPageLayout";
+import { LEGAL_DOCS } from "@/lib/legal/versions";
 
 const Dmca = () => {
   return (
     <LegalPageLayout
       title="DMCA and Copyright Policy"
       subtitle="Digital Millennium Copyright Act Notice and Takedown Procedures"
-      effectiveDate="January 1, 2026"
-      lastUpdated="June 14, 2026"
+      effectiveDate={LEGAL_DOCS.dmca.effectiveDate}
+      lastUpdated={LEGAL_DOCS.dmca.lastUpdated}
     >
       <p>Exotiq Inc. ("Exotiq," "we," "us," or "our") respects the intellectual property rights of others and expects users of the Exotiq Command Center (app.exotiq.ai), the Drive Exotiq marketplace (driveexotiq.com), and our websites (collectively, the "Services") to do the same. This policy explains how we handle claims of copyright infringement and how rights holders and users can interact with us regarding copyright concerns.</p>
       <p>Exotiq's response to notices of claimed copyright infringement complies with the Digital Millennium Copyright Act, 17 U.S.C. Section 512 (the "DMCA"). This policy applies to content that users upload to or publish through the Services, including vehicle photographs, listing descriptions, documents, and other materials.</p>

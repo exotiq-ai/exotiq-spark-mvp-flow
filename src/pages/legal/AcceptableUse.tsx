@@ -1,12 +1,13 @@
 import { LegalPageLayout } from "@/components/layout/LegalPageLayout";
+import { LEGAL_DOCS } from "@/lib/legal/versions";
 
 const AcceptableUse = () => {
   return (
     <LegalPageLayout
       title="Acceptable Use Policy"
       subtitle="Standards of Conduct for the Exotiq Command Center"
-      effectiveDate="January 1, 2026"
-      lastUpdated="June 14, 2026"
+      effectiveDate={LEGAL_DOCS.aup.effectiveDate}
+      lastUpdated={LEGAL_DOCS.aup.lastUpdated}
     >
       <p>This Acceptable Use Policy ("AUP") governs your use of the Exotiq Command Center platform and the Drive Exotiq marketplace (collectively, the "Platform"). This AUP is incorporated into and forms part of the Terms and Conditions.</p>
       <p>Violation of this AUP may result in suspension or termination of your account at Exotiq's sole discretion.</p>

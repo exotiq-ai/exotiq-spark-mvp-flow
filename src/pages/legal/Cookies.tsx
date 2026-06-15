@@ -1,12 +1,13 @@
 import { LegalPageLayout } from "@/components/layout/LegalPageLayout";
+import { LEGAL_DOCS } from "@/lib/legal/versions";
 
 const Cookies = () => {
   return (
     <LegalPageLayout
       title="Cookie Policy"
       subtitle="Use of Cookies and Similar Technologies"
-      effectiveDate="January 1, 2026"
-      lastUpdated="June 14, 2026"
+      effectiveDate={LEGAL_DOCS.cookies.effectiveDate}
+      lastUpdated={LEGAL_DOCS.cookies.lastUpdated}
     >
       <p>This Cookie Policy explains how Exotiq Inc. uses cookies and similar technologies on exotiq.ai, app.exotiq.ai, and driveexotiq.com.</p>
 
