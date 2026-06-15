@@ -16,6 +16,7 @@ import { TeamProvider } from "@/contexts/TeamContext";
 import { ProtectedRoute } from "@/components/common/ProtectedRoute";
 import { SuperAdminGuard } from "@/components/guards/SuperAdminGuard";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
+import { DashboardSkeleton, MinimalRouteFallback } from "@/components/common/DashboardSkeleton";
 import { MaintenanceOverlay } from "./components/common/MaintenanceOverlay";
 
 // Lazy-loaded page routes
