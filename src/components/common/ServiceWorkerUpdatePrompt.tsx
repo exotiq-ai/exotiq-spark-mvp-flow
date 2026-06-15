@@ -34,6 +34,7 @@ export const ServiceWorkerUpdatePrompt = () => {
   const [showUpdate, setShowUpdate] = useState(false);
   const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
   const [dismissed, setDismissed] = useState(false);
+  const userInitiatedRef = useRef(false);
 
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
