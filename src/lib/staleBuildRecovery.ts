@@ -15,9 +15,17 @@ const SW_RESCUE_FLAG = 'exotiq_sw_v2_initialized'; // Versioned: bump to force r
 const SW_RESCUE_COMPLETED = 'exotiq_sw_v2_rescued';
 
 // Require TWO stale-asset errors within this window before triggering a hard
-// reload. One transient 503 / preload race shouldn't yank the user's tab.
-const ERROR_CONFIRM_WINDOW_MS = 10_000;
+// reload, AND the second failure must reference a different chunk — transient
+// preload races typically repeat on the same chunk and shouldn't yank the tab.
+const ERROR_CONFIRM_WINDOW_MS = 20_000;
 let firstErrorAt: number | null = null;
+let firstErrorKey: string | null = null;
+
+const errorKey = (error: Error | string): string => {
+  const msg = typeof error === 'string' ? error : error.message || '';
+  const match = msg.match(/[\w-]+\.(?:js|mjs|css)/);
+  return match ? match[0] : msg.slice(0, 80);
+};
 
 /**
  * One-time rescue for users with a stale/broken pre-fix service worker
