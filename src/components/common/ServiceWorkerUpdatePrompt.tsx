@@ -45,9 +45,14 @@ export const ServiceWorkerUpdatePrompt = () => {
     }
 
     // Reload exactly once after the user opts in and the new SW takes control.
+    // We intentionally do NOT reload on every controllerchange — that's what
+    // caused the "the app reloaded itself right after I logged in" reports.
+    // The reload is gated behind userInitiatedRef which only flips when the
+    // user clicks the "Reload" pill below.
     let reloading = false;
     const handleControllerChange = () => {
       if (reloading) return;
+      if (!userInitiatedRef.current) return; // ignore silent SW takeovers
       reloading = true;
       window.location.reload();
     };
