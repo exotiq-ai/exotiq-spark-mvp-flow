@@ -179,17 +179,24 @@ export const handleStaleAssetError = (error: Error | string): boolean => {
     return false;
   }
 
-  // Require TWO failures within the confirm window before reloading. This
-  // avoids yanking the tab on a single transient network blip.
+  // Require TWO failures within the confirm window, on DIFFERENT chunks,
+  // before reloading. Avoids reloads from transient preload races.
   const now = Date.now();
+  const key = errorKey(error);
   if (firstErrorAt === null || now - firstErrorAt > ERROR_CONFIRM_WINDOW_MS) {
     firstErrorAt = now;
-    devWarn('[Recovery] First stale-asset error logged; waiting for confirmation before reload');
+    firstErrorKey = key;
+    devWarn('[Recovery] First stale-asset error logged; waiting for confirmation');
+    return false;
+  }
+  if (key === firstErrorKey) {
+    devWarn('[Recovery] Repeat failure on same chunk — likely transient, not reloading');
     return false;
   }
 
-  // Second confirmed failure — reload.
+  // Second confirmed failure on a different chunk — reload.
   firstErrorAt = null;
+  firstErrorKey = null;
   performHardReload();
   return true;
 };
