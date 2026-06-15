@@ -302,6 +302,9 @@ export const UnifiedNotificationCenter = ({ onNavigate }: { onNavigate?: (module
     } else if (nType === 'maintenance') {
       params.module = 'fleet';
       params.tab = 'maintenance';
+    } else if (nType === 'tenant_document_sent' || nType === 'tenant_document_signed') {
+      params.module = 'vault';
+      if (data.tenant_document_id) params.sign = String(data.tenant_document_id);
     } else {
       return;
     }
