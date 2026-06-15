@@ -69,6 +69,12 @@ export const featureFlags = {
   // Ships dark; flip to true only after attorney-reviewed GDPR/UK
   // privacy notice, DPA SCC annexes, IDTA, TIA, and DPIA are published.
   complianceEuUk: false,
+
+  // Tenant-facing e-signature (Phase 1)
+  // Exotiq super admins can send PDFs to a tenant for in-app signing.
+  // Super-admin surface is always available for internal testing; the
+  // tenant-facing banner / Vault section is gated by this flag.
+  tenantEsignature: false,
 } as const;
 
 export type FeatureFlag = keyof typeof featureFlags;
