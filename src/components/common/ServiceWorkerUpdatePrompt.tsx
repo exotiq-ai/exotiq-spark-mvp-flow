@@ -92,6 +92,7 @@ export const ServiceWorkerUpdatePrompt = () => {
   }, []);
 
   const handleUpdate = () => {
+    userInitiatedRef.current = true;
     if (registration?.waiting) {
       registration.waiting.postMessage({ type: 'SKIP_WAITING' });
     } else {
