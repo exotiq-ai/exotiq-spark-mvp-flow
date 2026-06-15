@@ -3352,6 +3352,143 @@ export type Database = {
         }
         Relationships: []
       }
+      tenant_document_audit: {
+        Row: {
+          actor_user_id: string | null
+          created_at: string
+          event_type: string
+          id: string
+          ip_address: unknown
+          metadata: Json
+          tenant_document_id: string
+          user_agent: string | null
+        }
+        Insert: {
+          actor_user_id?: string | null
+          created_at?: string
+          event_type: string
+          id?: string
+          ip_address?: unknown
+          metadata?: Json
+          tenant_document_id: string
+          user_agent?: string | null
+        }
+        Update: {
+          actor_user_id?: string | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          ip_address?: unknown
+          metadata?: Json
+          tenant_document_id?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_document_audit_tenant_document_id_fkey"
+            columns: ["tenant_document_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tenant_documents: {
+        Row: {
+          created_at: string
+          doc_ref: string | null
+          field_overlay: Json
+          id: string
+          original_sha256: string | null
+          original_storage_path: string
+          sent_at: string
+          sent_by_super_admin_id: string
+          signed_at: string | null
+          signed_document_id: string | null
+          signed_sha256: string | null
+          signed_storage_path: string | null
+          signer_email: string | null
+          signer_name: string | null
+          signer_title: string | null
+          signing_metadata: Json
+          status: Database["public"]["Enums"]["tenant_document_status"]
+          team_id: string
+          template: Database["public"]["Enums"]["tenant_document_template"]
+          title: string
+          updated_at: string
+          viewed_at: string | null
+          voided_at: string | null
+          voided_reason: string | null
+        }
+        Insert: {
+          created_at?: string
+          doc_ref?: string | null
+          field_overlay?: Json
+          id?: string
+          original_sha256?: string | null
+          original_storage_path: string
+          sent_at?: string
+          sent_by_super_admin_id: string
+          signed_at?: string | null
+          signed_document_id?: string | null
+          signed_sha256?: string | null
+          signed_storage_path?: string | null
+          signer_email?: string | null
+          signer_name?: string | null
+          signer_title?: string | null
+          signing_metadata?: Json
+          status?: Database["public"]["Enums"]["tenant_document_status"]
+          team_id: string
+          template?: Database["public"]["Enums"]["tenant_document_template"]
+          title: string
+          updated_at?: string
+          viewed_at?: string | null
+          voided_at?: string | null
+          voided_reason?: string | null
+        }
+        Update: {
+          created_at?: string
+          doc_ref?: string | null
+          field_overlay?: Json
+          id?: string
+          original_sha256?: string | null
+          original_storage_path?: string
+          sent_at?: string
+          sent_by_super_admin_id?: string
+          signed_at?: string | null
+          signed_document_id?: string | null
+          signed_sha256?: string | null
+          signed_storage_path?: string | null
+          signer_email?: string | null
+          signer_name?: string | null
+          signer_title?: string | null
+          signing_metadata?: Json
+          status?: Database["public"]["Enums"]["tenant_document_status"]
+          team_id?: string
+          template?: Database["public"]["Enums"]["tenant_document_template"]
+          title?: string
+          updated_at?: string
+          viewed_at?: string | null
+          voided_at?: string | null
+          voided_reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_documents_signed_document_id_fkey"
+            columns: ["signed_document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tenant_documents_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       terms_acceptances: {
         Row: {
           acceptance_method: Database["public"]["Enums"]["terms_acceptance_method"]
@@ -5433,6 +5570,8 @@ export type Database = {
         | "cookies"
         | "dmca"
         | "transfer_addendum"
+      tenant_document_status: "sent" | "viewed" | "signed" | "voided"
+      tenant_document_template: "order_form" | "addendum" | "custom"
       terms_acceptance_event:
         | "signup"
         | "reacceptance"
@@ -5579,6 +5718,8 @@ export const Constants = {
         "dmca",
         "transfer_addendum",
       ],
+      tenant_document_status: ["sent", "viewed", "signed", "voided"],
+      tenant_document_template: ["order_form", "addendum", "custom"],
       terms_acceptance_event: [
         "signup",
         "reacceptance",
