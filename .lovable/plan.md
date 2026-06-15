@@ -1,56 +1,45 @@
-# Stop the flicker and the random reloads
+## Bring legal version metadata into compliance
 
-Two distinct problems, both caused by code we already have. Neither is "background loading" in the data sense — it's a mix of layout-shifting animations and over-eager auto-reload behavior.
+The June 14, 2026 revisions to the core legal docs were **material** (new EU/UK privacy notice, UAE notice, International Transfer Addendum / SCCs / UK IDTA, updated sub-processor disclosures). The compliant pattern is: each version carries its own effective date, the prior version is retained in audit history, and re-acceptance is forced before users continue.
 
-## Problem 1 — Scrollbar flicker
+The `version` key already changed to `2026-06-14`, so the re-acceptance gate will fire on next login. What's missing is honest **effective date** display and a transparent **last updated** label.
 
-Three causes, ordered by impact:
+### Changes
 
-1. **`src/components/common/PageTransition.tsx` animates `scale: 0.98 → 1 → 1.02`** on every route/tab key change. Scaling a full-height page momentarily changes content height by a few pixels, so the vertical scrollbar appears/disappears — that's the flash you see on the right edge.
-2. **No stable scrollbar gutter.** Any time content height crosses the viewport (data loads, dialogs open, tabs switch), the page width changes by ~15px because the scrollbar reclaims/releases space. This causes a visible horizontal jump in addition to the flash.
-3. **Settings tab content remount.** `SettingsLayout` swaps `renderContent()` synchronously, so each tab click hard-mounts a new subtree under the (animated) parent — compounding cause #1.
+**1. `src/lib/legal/versions.ts`**
+- Add `lastUpdated: string` to `LegalDocMeta`.
+- For all seven core docs (`terms`, `privacy`, `aup`, `dpa`, `sms`, `cookies`, `dmca`): set `effectiveDate: "June 14, 2026"` and `lastUpdated: "June 14, 2026"`.
+- `transfer_addendum` is already `June 14, 2026` — just add matching `lastUpdated`.
+- Add a `priorVersions` array per doc capturing `{ version: "2026-01-01", effectiveDate: "January 1, 2026" }` so audit history can still surface the original effective date.
 
-### Fix
+**2. `src/components/dashboard/settings/LegalSection.tsx`** (~line 165)
+- Render `v{doc.version} · Effective {doc.effectiveDate} · Updated {doc.lastUpdated}`.
+- When `effectiveDate === lastUpdated` (which will be true for all 7 after this change), render once: `v{version} · Effective {effectiveDate}`.
 
-- **`src/index.css`**: add `html { scrollbar-gutter: stable; }` (and `overflow-y: scroll` as a fallback for browsers without `scrollbar-gutter` — Safari < 16). This alone kills the horizontal "jump" everywhere.
-- **`src/components/common/PageTransition.tsx`**: remove the `scale` keys from `pageVariants`. Keep opacity + a 4px y-translate, drop duration from 300ms → 180ms, and use `ease: [0.22, 1, 0.36, 1]` (Apple-style standard easing). Best-in-class transitions = fast, subtle, never layout-shifting.
-- **Disable enter animation on first paint** by setting `initial={false}` on `AnimatePresence` (already correct in `AnimatedRoute`, missing on `PageTransition`). Prevents the flash on hard navigations and tab returns.
+**3. `src/components/legal/TermsReacceptanceGate.tsx`** (~line 158)
+- Show `Effective {effectiveDate}` (now June 14) alongside the existing change summary. The gate copy already says "Updated terms require your acceptance," which is now factually correct.
 
-## Problem 2 — Random reloads
+**4. Standalone legal pages** (`Privacy.tsx`, `AcceptableUse.tsx`, `Cookies.tsx`, `DataProcessing.tsx`, `Dmca.tsx`, `Sms.tsx`, and `Terms` if present)
+- Replace hardcoded `Effective: January 1, 2026` and `Last Updated:` literals with reads from `LEGAL_DOCS[<type>]`. Show both lines.
+- `PrivacyEU.tsx`, `PrivacyUAE.tsx`, `TransferAddendum.tsx` already align — leave them.
 
-You have **four independent code paths** that can reload the tab without warning. At least one of them is firing on you.
+**5. `src/pages/admin/TermsAcceptancesAdmin.tsx`** (verify only)
+- Confirm the admin view still surfaces acceptances against prior versions (`2026-01-01`) so we don't lose audit history for users who already accepted the Jan 1 text. No change expected — the table stores the version that was accepted at acceptance time.
 
-1. **`src/main.tsx` — `registerSW({ onNeedRefresh: () => updateSW(true) })`.** Whenever the SW detects a new build (it polls every 60 min plus on every navigation), it immediately activates and the `ServiceWorkerUpdatePrompt` reloads via `controllerchange`. **Silent. No user prompt.** This is almost certainly your "random reload."
-2. **`src/lib/staleBuildRecovery.ts` — `initStaleAssetRecovery`** calls `performHardReload()` on any chunk-load failure or even a single failed script/link tag (the `MutationObserver` is broad). One transient 503 on a lazy chunk → hard reload.
-3. **`rescueStuckServiceWorker`** one-shot reload — gated by `localStorage`, so should only fire once, but if storage is cleared (incognito, "clear site data") it re-fires.
-4. **`useSessionHealth`** isn't a reload, but every time the tab is hidden ≥60s and returns, it calls `supabase.auth.refreshSession()`. This emits `SIGNED_IN` (you can see `seq: 14` in your logs at 15:05:00) which causes `FleetContext` and `TeamContext` to re-init, re-fetch 55 vehicles, and visibly re-render the shell. To a user this looks like a reload.
+**6. Tests**
+- Extend `src/lib/legal/__tests__/versions.test.ts`: assert every doc has `lastUpdated`, assert effective date is no earlier than the version's date string, assert `priorVersions` contains the Jan 1 entry for the seven core docs.
 
-### Fix
+### Explicitly out of scope
 
-- **`src/main.tsx`**: change `onNeedRefresh` to *not* auto-activate. Instead, set a flag that `ServiceWorkerUpdatePrompt` reads to show a non-intrusive "Update available — Reload" pill (the component already exists for this). Updates ship only when the user clicks. Best-in-class behavior.
-- **`src/lib/staleBuildRecovery.ts`**: tighten `handleStaleAssetError` — require the error to actually be a `ChunkLoadError` / dynamic-import failure (drop the broad `<script>`/`<link>` `MutationObserver`, which fires on perfectly normal preload races). Also require **two** failures within 10s before reloading, not one.
-- **`src/hooks/useSessionHealth.ts`**: only call `refreshSession()` if the existing session is actually near expiry (check `session.expires_at` vs now + 5min). A 60s hidden → visible transition shouldn't refresh a token that's good for another 50 minutes. Eliminates the cascading `SIGNED_IN` → context re-init → visible re-render.
-- **`src/contexts/FleetContext.tsx`** (light touch): on `SIGNED_IN` for the *same* user id, skip the full refresh — only re-init when `user.id` actually changes. Quick guard, kills the visible re-render even if a refresh does happen.
+- No DB migration. The `legal_document_versions` table already stores per-version records; the new `2026-06-14` rows should already exist from the prior session. If they don't, that's a separate fix and I'll flag it before edits.
+- No copy changes to the document bodies.
+- No forward-dated effective date (user chose immediate).
+- No banner / email notification flow — the existing re-acceptance gate is the notification surface.
 
-## Verification
+### Verification
 
-After the changes I'll:
-1. Reload the preview, sit on `/dashboard/settings`, switch tabs rapidly → confirm no scrollbar flash and no horizontal jump.
-2. Hide the tab for 90s, return → confirm console no longer shows `SIGNED_IN seq:14` cascade and no FleetContext re-init.
-3. Trigger a chunk-load failure manually (DevTools → block a chunk URL) → confirm we show the offline/update banner instead of insta-reloading.
-4. `npm run build` to confirm types are clean.
-
-## Out of scope
-
-- Not touching data-fetching logic, RLS, or any business behavior.
-- Not changing the SW registration strategy itself — just the auto-activation behavior.
-- Not removing animations entirely; keeping subtle Apple-style fade.
-
-## Files changed
-
-- `src/index.css` — add stable scrollbar gutter
-- `src/components/common/PageTransition.tsx` — remove scale, shorten timing, `initial={false}`
-- `src/main.tsx` — disable silent SW auto-activation
-- `src/lib/staleBuildRecovery.ts` — narrow error matching, require 2 hits
-- `src/hooks/useSessionHealth.ts` — only refresh near expiry
-- `src/contexts/FleetContext.tsx` — skip re-init when user id unchanged
+- `vitest run src/lib/legal` green.
+- `/dashboard/settings` Legal panel shows `v2026-06-14 · Effective June 14, 2026` for all rows.
+- Forcing the gate on a test account shows `Effective June 14, 2026`.
+- All standalone legal pages render dates from a single source.
+- Spot-check `terms_acceptances` rows that pre-date today still show their original `2026-01-01` version in admin history (audit integrity preserved).
