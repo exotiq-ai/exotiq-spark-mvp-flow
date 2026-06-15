@@ -120,6 +120,7 @@ export const TermsReacceptanceGate = ({ children }: { children: React.ReactNode 
       <Dialog open={true} onOpenChange={() => { /* non-dismissable */ }}>
         <DialogContent
           className="max-w-lg z-[60]"
+          data-testid="terms-reacceptance-gate"
           onPointerDownOutside={(e) => e.preventDefault()}
           onEscapeKeyDown={(e) => e.preventDefault()}
         >
@@ -139,7 +140,11 @@ export const TermsReacceptanceGate = ({ children }: { children: React.ReactNode 
               {outdated.map((t) => {
                 const summary = getChangeSummary(t, LEGAL_DOCS[t].version);
                 return (
-                  <li key={t} className="rounded-md border border-border/60 px-3 py-2">
+                  <li
+                    key={t}
+                    className="rounded-md border border-border/60 px-3 py-2"
+                    data-testid={`terms-gate-doc-${t}`}
+                  >
                     <div className="flex justify-between gap-3">
                       <a
                         href={LEGAL_DOCS[t].url}
@@ -169,6 +174,7 @@ export const TermsReacceptanceGate = ({ children }: { children: React.ReactNode 
                   <Checkbox
                     id="reaccept-terms"
                     checked={agreed}
+                    data-testid="terms-gate-checkbox"
                     onCheckedChange={(v) => setAgreed(v === true)}
                     className="mt-0.5"
                   />
@@ -184,6 +190,7 @@ export const TermsReacceptanceGate = ({ children }: { children: React.ReactNode 
 
                 <Button
                   className="w-full"
+                  data-testid="terms-gate-accept"
                   disabled={!agreed || submitting}
                   onClick={handleAccept}
                 >
