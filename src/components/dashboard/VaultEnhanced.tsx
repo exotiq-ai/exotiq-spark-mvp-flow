@@ -21,6 +21,8 @@ import { useToast } from "@/hooks/use-toast";
 import { DocumentPreviewDialog } from "@/components/common/DocumentPreviewDialog";
 import { SkeletonCard, SkeletonMetric } from "@/components/ui/skeleton-card";
 import { EmptyState } from "@/components/common/EmptyState";
+import { AwaitingSignatureBanner } from "@/components/dashboard/AwaitingSignatureBanner";
+import { TenantDocumentSigner } from "@/components/signing/TenantDocumentSigner";
 import { 
   Shield, 
   FileText, 
@@ -61,6 +63,18 @@ export const VaultEnhanced = () => {
   const [alertExpanded, setAlertExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [previewDoc, setPreviewDoc] = useState<{ url: string; name: string } | null>(null);
+  const [signDocId, setSignDocId] = useState<string | null>(null);
+
+  // Deep-link: ?sign=<tenantDocId> opens the signing ceremony
+  useEffect(() => {
+    const id = searchParams.get('sign');
+    if (id) {
+      setSignDocId(id);
+      const next = new URLSearchParams(searchParams);
+      next.delete('sign');
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   // Deep-link: read view param to auto-select tab
   useEffect(() => {
@@ -262,6 +276,15 @@ export const VaultEnhanced = () => {
         onSubmit={uploadDocument}
       />
 
+      {signDocId && (
+        <TenantDocumentSigner
+          documentId={signDocId}
+          open={!!signDocId}
+          onOpenChange={(v) => { if (!v) setSignDocId(null); }}
+          onSigned={() => setSignDocId(null)}
+        />
+      )}
+
       <ModuleTabs
         tabs={[
           { id: "documents", label: "Documents", shortLabel: "Docs", icon: FileText },
@@ -275,6 +298,8 @@ export const VaultEnhanced = () => {
         data-tour="vault-tabs"
       >
         <TabsContent value="documents" className="space-y-4 sm:space-y-6">
+      <AwaitingSignatureBanner />
+
       {/* Compact Urgent Alert */}
       {urgentAlert && !alertDismissed && (
         <Collapsible open={alertExpanded} onOpenChange={setAlertExpanded}>

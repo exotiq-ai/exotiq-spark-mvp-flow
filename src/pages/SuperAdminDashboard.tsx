@@ -17,6 +17,7 @@ import { MaintenanceModeSection } from '@/components/super-admin/MaintenanceMode
 import { PlatformPulseStrip } from '@/components/super-admin/PlatformPulseStrip';
 import { TenantHealthTab } from '@/components/super-admin/TenantHealthTab';
 import { VehicleAuditTab } from '@/components/super-admin/VehicleAuditTab';
+import { SuperAdminTenantDocumentsTab } from '@/components/super-admin/SuperAdminTenantDocumentsTab';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -30,6 +31,7 @@ import {
   Wrench,
   Activity,
   Car,
+  FileSignature,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -221,11 +223,16 @@ export const SuperAdminDashboard = () => {
               <Wrench className="h-4 w-4 mr-2" />
               Maintenance
             </TabsTrigger>
+            <TabsTrigger value="documents">
+              <FileSignature className="h-4 w-4 mr-2" />
+              Documents
+            </TabsTrigger>
             <TabsTrigger value="audit">
               <Database className="h-4 w-4 mr-2" />
               Audit Log
             </TabsTrigger>
           </TabsList>
+
 
           <TabsContent value="tenants" className="space-y-4">
             <TenantHealthTab />
@@ -242,6 +249,12 @@ export const SuperAdminDashboard = () => {
           <TabsContent value="maintenance" className="space-y-4">
             <MaintenanceModeSection />
           </TabsContent>
+
+          <TabsContent value="documents" className="space-y-4">
+            <SuperAdminTenantDocumentsTab />
+          </TabsContent>
+
+
 
 
 
