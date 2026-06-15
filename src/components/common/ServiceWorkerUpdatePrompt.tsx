@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { RefreshCw, X } from 'lucide-react';
 
@@ -34,6 +34,7 @@ export const ServiceWorkerUpdatePrompt = () => {
   const [showUpdate, setShowUpdate] = useState(false);
   const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
   const [dismissed, setDismissed] = useState(false);
+  const userInitiatedRef = useRef(false);
 
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
@@ -45,9 +46,14 @@ export const ServiceWorkerUpdatePrompt = () => {
     }
 
     // Reload exactly once after the user opts in and the new SW takes control.
+    // We intentionally do NOT reload on every controllerchange — that's what
+    // caused the "the app reloaded itself right after I logged in" reports.
+    // The reload is gated behind userInitiatedRef which only flips when the
+    // user clicks the "Reload" pill below.
     let reloading = false;
     const handleControllerChange = () => {
       if (reloading) return;
+      if (!userInitiatedRef.current) return; // ignore silent SW takeovers
       reloading = true;
       window.location.reload();
     };
@@ -86,6 +92,7 @@ export const ServiceWorkerUpdatePrompt = () => {
   }, []);
 
   const handleUpdate = () => {
+    userInitiatedRef.current = true;
     if (registration?.waiting) {
       registration.waiting.postMessage({ type: 'SKIP_WAITING' });
     } else {

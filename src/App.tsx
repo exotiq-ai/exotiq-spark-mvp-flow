@@ -16,6 +16,7 @@ import { TeamProvider } from "@/contexts/TeamContext";
 import { ProtectedRoute } from "@/components/common/ProtectedRoute";
 import { SuperAdminGuard } from "@/components/guards/SuperAdminGuard";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
+import { DashboardSkeleton, MinimalRouteFallback } from "@/components/common/DashboardSkeleton";
 import { MaintenanceOverlay } from "./components/common/MaintenanceOverlay";
 
 // Lazy-loaded page routes
@@ -72,62 +73,60 @@ const ProvidersWrapper = () => {
 
 const AppWithRouter = () => {
   return (
-    <Suspense fallback={<LoadingSpinner fullScreen />}>
-      <Routes>
-        {/* Nuclear reset & signout routes - OUTSIDE all providers to prevent interference */}
-        <Route path="/reset" element={<Reset />} />
-        <Route path="/signout" element={<SignOut />} />
+    <Routes>
+      {/* Nuclear reset & signout routes - OUTSIDE all providers to prevent interference */}
+      <Route path="/reset" element={<Suspense fallback={<MinimalRouteFallback />}><Reset /></Suspense>} />
+      <Route path="/signout" element={<Suspense fallback={<MinimalRouteFallback />}><SignOut /></Suspense>} />
 
-        {/* All other routes use layout route pattern with ProvidersWrapper */}
-        <Route element={<ProvidersWrapper />}>
-          <Route path="/" element={<Index />} />
-          <Route path="/auth" element={<Auth />} />
-          <Route path="/onboarding" element={
-            <ProtectedRoute>
-              <Onboarding />
-            </ProtectedRoute>
-          } />
-          <Route path="/team-onboarding" element={
-            <ProtectedRoute>
-              <TeamMemberOnboarding />
-            </ProtectedRoute>
-          } />
-          <Route path="/dashboard/*" element={
-            <ProtectedRoute>
-              <TermsReacceptanceGate>
-                <Dashboard />
-              </TermsReacceptanceGate>
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/terms-acceptances" element={
-            <ProtectedRoute>
-              <TermsAcceptancesAdmin />
-            </ProtectedRoute>
-          } />
-          <Route path="/super-admin" element={
-            <SuperAdminGuard>
-              <SuperAdminDashboard />
-            </SuperAdminGuard>
-          } />
-          {/* Demo pages temporarily disabled - demo login uses /dashboard */}
-          <Route path="/demo-landing" element={<Navigate to="/auth" replace />} />
-          <Route path="/demo" element={<Navigate to="/auth" replace />} />
-          <Route path="/terms" element={<Terms />} />
-          <Route path="/privacy" element={<Privacy />} />
-          <Route path="/acceptable-use" element={<AcceptableUse />} />
-          <Route path="/data-processing" element={<DataProcessing />} />
-          <Route path="/sms" element={<Sms />} />
-          <Route path="/dmca" element={<Dmca />} />
-          <Route path="/cookies" element={<Cookies />} />
-          <Route path="/privacy-eu" element={<PrivacyEU />} />
-          <Route path="/privacy-uae" element={<PrivacyUAE />} />
-          <Route path="/transfer-addendum" element={<TransferAddendum />} />
-          <Route path="/welcome" element={<Welcome />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Route>
-      </Routes>
-    </Suspense>
+      {/* All other routes use layout route pattern with ProvidersWrapper */}
+      <Route element={<ProvidersWrapper />}>
+        <Route path="/" element={<Suspense fallback={<MinimalRouteFallback />}><Index /></Suspense>} />
+        <Route path="/auth" element={<Suspense fallback={<MinimalRouteFallback />}><Auth /></Suspense>} />
+        <Route path="/onboarding" element={
+          <ProtectedRoute>
+            <Suspense fallback={<MinimalRouteFallback />}><Onboarding /></Suspense>
+          </ProtectedRoute>
+        } />
+        <Route path="/team-onboarding" element={
+          <ProtectedRoute>
+            <Suspense fallback={<MinimalRouteFallback />}><TeamMemberOnboarding /></Suspense>
+          </ProtectedRoute>
+        } />
+        <Route path="/dashboard/*" element={
+          <ProtectedRoute>
+            <TermsReacceptanceGate>
+              <Suspense fallback={<DashboardSkeleton />}><Dashboard /></Suspense>
+            </TermsReacceptanceGate>
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/terms-acceptances" element={
+          <ProtectedRoute>
+            <Suspense fallback={<MinimalRouteFallback />}><TermsAcceptancesAdmin /></Suspense>
+          </ProtectedRoute>
+        } />
+        <Route path="/super-admin" element={
+          <SuperAdminGuard>
+            <Suspense fallback={<DashboardSkeleton />}><SuperAdminDashboard /></Suspense>
+          </SuperAdminGuard>
+        } />
+        {/* Demo pages temporarily disabled - demo login uses /dashboard */}
+        <Route path="/demo-landing" element={<Navigate to="/auth" replace />} />
+        <Route path="/demo" element={<Navigate to="/auth" replace />} />
+        <Route path="/terms" element={<Suspense fallback={<MinimalRouteFallback />}><Terms /></Suspense>} />
+        <Route path="/privacy" element={<Suspense fallback={<MinimalRouteFallback />}><Privacy /></Suspense>} />
+        <Route path="/acceptable-use" element={<Suspense fallback={<MinimalRouteFallback />}><AcceptableUse /></Suspense>} />
+        <Route path="/data-processing" element={<Suspense fallback={<MinimalRouteFallback />}><DataProcessing /></Suspense>} />
+        <Route path="/sms" element={<Suspense fallback={<MinimalRouteFallback />}><Sms /></Suspense>} />
+        <Route path="/dmca" element={<Suspense fallback={<MinimalRouteFallback />}><Dmca /></Suspense>} />
+        <Route path="/cookies" element={<Suspense fallback={<MinimalRouteFallback />}><Cookies /></Suspense>} />
+        <Route path="/privacy-eu" element={<Suspense fallback={<MinimalRouteFallback />}><PrivacyEU /></Suspense>} />
+        <Route path="/privacy-uae" element={<Suspense fallback={<MinimalRouteFallback />}><PrivacyUAE /></Suspense>} />
+        <Route path="/transfer-addendum" element={<Suspense fallback={<MinimalRouteFallback />}><TransferAddendum /></Suspense>} />
+        <Route path="/welcome" element={<Suspense fallback={<MinimalRouteFallback />}><Welcome /></Suspense>} />
+        {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+        <Route path="*" element={<Suspense fallback={<MinimalRouteFallback />}><NotFound /></Suspense>} />
+      </Route>
+    </Routes>
   );
 };
 

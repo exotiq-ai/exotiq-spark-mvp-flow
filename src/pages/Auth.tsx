@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Card } from '@/components/ui/card';
@@ -89,6 +89,17 @@ export default function Auth() {
     clearPasswordRecovery
   } = useAuth();
   const navigate = useNavigate();
+
+  // Warm the Dashboard chunk once the user touches the form, so the
+  // post-login transition is instant instead of showing a loader.
+  const preloadedRef = useRef(false);
+  const preloadDashboard = () => {
+    if (preloadedRef.current) return;
+    preloadedRef.current = true;
+    void import('./Dashboard');
+  };
+
+
 
   // Cooldown timers for rate-limited actions
   useEffect(() => {
@@ -738,6 +749,7 @@ export default function Auth() {
                     <Input
                       id="signin-email"
                       type="email"
+                      onFocus={preloadDashboard}
                       placeholder="you@example.com"
                       value={email}
                       onChange={(e) => {
@@ -800,6 +812,7 @@ export default function Auth() {
                     <Input
                       id="magic-email"
                       type="email"
+                      onFocus={preloadDashboard}
                       placeholder="you@example.com"
                       value={email}
                       onChange={(e) => {
@@ -861,6 +874,7 @@ export default function Auth() {
                     <Input
                       id="signup-email"
                       type="email"
+                      onFocus={preloadDashboard}
                       placeholder="you@example.com"
                       value={email}
                       onChange={(e) => {
@@ -955,6 +969,7 @@ export default function Auth() {
                   <Input
                     id="reset-email"
                     type="email"
+                    onFocus={preloadDashboard}
                     placeholder="you@example.com"
                     value={email}
                     onChange={(e) => {

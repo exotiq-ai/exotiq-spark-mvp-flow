@@ -1,84 +1,60 @@
+# Smooth loading + cookie banner answers
 
-# Plan: Tenant Signing — Form-Fill + Compliance Email + Signed Copy Visibility
+## Answers to your questions
 
-Three independent workstreams, in priority order.
+### 1. Cookie popup — does it show every visit?
+**No, only the first visit per browser** (and again if we publish a new cookie policy version). It's controlled by `localStorage["exotiq.cookie_consent.v2"]` in `CookieConsentBanner.tsx`. Once a visitor clicks Accept / Reject / Save, the choice persists.
 
----
+**Why you see it repeatedly in the Lovable preview:** the preview runs in a sandboxed iframe whose `localStorage` is often partitioned or cleared between sessions, so the banner thinks every visit is a "first visit." Real users on `app.exotiq.ai` and `exotiq.ai` will see it exactly once.
 
-## 1. PDF form-fill (AcroForm) support in the signer
+No code change needed for cookies — it already behaves correctly in production.
 
-Replace the read-only iframe with PDF.js so tenants can fill any AcroForm fields the PDF already has (text boxes, checkboxes, dropdowns) before signing. Field values flow through the existing sign function and get flattened into the final PDF alongside the signature.
+### 2. The "extra loading" / "updated version" flash after login
+There are three real causes, in order of impact:
 
-**Files**
-- `src/components/signing/TenantDocumentSigner.tsx` — swap `<iframe>` for `react-pdf` `<Document>`/`<Page>` with `renderAnnotationLayer` + `renderForms` enabled. Track field values in local state via PDF.js `annotationStorage`. On submit, serialize values and pass as `form_values: Record<string, string|boolean>`.
-- `supabase/functions/sign-tenant-document/index.ts` — before stamping the signature, iterate `form_values` and apply via `pdf-lib`'s `form.getTextField(name).setText(v)` / `getCheckBox(name).check()` / `getDropdown(name).select(v)`. Then `form.flatten()` so values become permanent and the certificate hash covers them.
-- `package.json` — add `react-pdf` (which bundles `pdfjs-dist`).
-- `index.html` — already allows `*.supabase.co` in `frame-src`; PDF.js uses a worker, so add a `worker-src 'self' blob:` directive if not present.
+**(a) Double Suspense fallback flash.** `App.tsx` lazy-loads `Dashboard` behind one full-screen `<LoadingSpinner fullScreen />`. Then `Dashboard.tsx` itself lazy-loads its 9 sub-modules behind another fallback. After login the user sees: spinner → shell → spinner → content. That's the "extra loading thing."
 
-**Edge cases**
-- PDFs without AcroForm fields: render normally; no field UI shown.
-- Required-field validation: block Sign button until all `required` AcroForm fields are filled.
-- Large PDFs: lazy-render pages with `react-pdf`'s page virtualization.
+**(b) Service Worker update prompt is wired correctly** (manual "Reload" pill, no silent reload) — but on the very first visit after a deploy, the new SW takes control while the page is loading, and `controllerchange` fires → `window.location.reload()`. That's the "loading to an updated version" moment right after login.
 
----
+**(c) Stale-asset auto-recovery hard-reloads** on chunk-load failures. Runtime errors confirm this fired once already this session (`Failed to fetch dynamically imported module Index.tsx`). It already requires 2 failures in 10s before reloading, so it's rare, but worth tightening.
 
-## 2. Email the signed PDF to `hello@exotiq.ai` (compliance inbox)
+## Plan
 
-Today, on successful signature, only an in-app notification fires. Add a fire-and-forget email to a configurable compliance inbox (default `hello@exotiq.ai`) with the signed PDF + certificate attached.
+### Fix A — Eliminate the double spinner (highest impact)
+- Replace the single global `<LoadingSpinner fullScreen />` Suspense fallback in `App.tsx` with **route-aware fallbacks**:
+  - Public routes (`/`, `/auth`, legal): keep a minimal centered logo (no big spinner).
+  - `/dashboard/*`: render the dashboard **shell skeleton** (sidebar + topbar + content placeholder) instead of a full-screen spinner, so when the inner lazy modules resolve there's no second full-page flash — just the content area filling in.
+- In `Dashboard.tsx`, swap the inner lazy fallback for a lightweight content-area skeleton (same height as the module) so transitions feel like Stripe/Linear — content morphs in, layout never jumps.
 
-**Files**
-- `supabase/functions/send-compliance-email/index.ts` — extend to accept an optional `attachments: [{ filename, content_base64 }]` array and forward to Resend's `attachments` field. Already gated by `INTERNAL_FUNCTION_TOKEN`.
-- `supabase/functions/sign-tenant-document/index.ts` — after both bucket uploads succeed, fetch the signed PDF bytes, base64-encode, and invoke `send-compliance-email` with:
-  - `to: COMPLIANCE_INBOX` (env var, default `hello@exotiq.ai`)
-  - subject: `Signed: {doc_ref} — {team_name}`
-  - body: signer name/title/email, team name, doc ref, timestamp, SHA-256, links to both Vault and compliance bucket
-  - attachment: the signed PDF
-  - Log `email_sent` / `email_failed` to `tenant_document_audit`. Failure must NOT roll back the signature.
-- New secret: `COMPLIANCE_INBOX` (optional; defaults to `hello@exotiq.ai`).
+### Fix B — Preload the Dashboard chunk during auth
+- In `Auth.tsx`, when the email field gets focus or the user starts typing the password, fire `import('./Dashboard')` (fire-and-forget). By the time login resolves the chunk is warm and the post-login spinner is essentially invisible.
+- Add `<link rel="modulepreload">` hints in `index.html` for the Dashboard entry chunk so first-time visitors get it during idle.
 
-**Why fire-and-forget**: signature must succeed even if Resend is down.
+### Fix C — Tame the SW "auto-reload after deploy"
+- Keep the manual update pill (already correct), but **suppress the automatic `controllerchange` reload** when the SW activates during the very first load (no prior controller). Only auto-reload if the user explicitly clicked "Reload" in the pill. This kills the "app reloaded itself right after I logged in" moment.
+- In `ServiceWorkerUpdatePrompt.tsx`: track whether the controller change was user-initiated (set a flag in `handleUpdate`). If not, ignore it.
 
----
+### Fix D — Quiet the realtime reconnect noise
+- `FleetContext` logs `❌ Realtime subscription error` every few minutes then silently reconnects. Downgrade to `devWarn` and only surface to the user if reconnect fails 3× in a row. No UX change, just cleaner console + no false alarm if we ever add a toast there.
 
-## 3. Visibility of the signed copy in the tenant Vault
+### Fix E — Tighten stale-asset recovery
+- Increase the confirm window from 10s → 20s and require the second failure to be a **different** chunk (transient preload races usually repeat on the same chunk). Reduces unnecessary hard reloads further.
 
-Confirm the existing Vault UI lists `tenant_documents` rows with `status = 'signed'` and exposes a "Download signed copy" action that fetches a signed URL from the `customer-documents` bucket using `signed_storage_path`.
+### Out of scope (call out, don't do)
+- Replacing `framer-motion` or adding vendor `manualChunks` (audit P3/P6) — separate perf pass, bigger surface area.
+- Converting more routes to skeletons beyond Dashboard — can follow if you like the pattern.
 
-**Files to verify (read-only this phase)**
-- `src/pages/dashboard/Vault.tsx` (or equivalent) — ensure signed docs show:
-  - Status badge (Sent / Viewed / **Signed** / Voided)
-  - Signed date + signer name
-  - "View signed PDF" button → opens signed URL in new tab
-  - "Download certificate page" if separable (currently bundled in the same PDF, so one download covers both)
-- If missing, add a `SignedDocumentCard` that renders these affordances.
+## Files touched
+- `src/App.tsx` — route-aware Suspense fallbacks.
+- `src/pages/Dashboard.tsx` — inner skeleton fallback.
+- `src/pages/Auth.tsx` — preload Dashboard on form interaction.
+- `index.html` — modulepreload hint.
+- `src/components/common/ServiceWorkerUpdatePrompt.tsx` — only reload on user-initiated activation.
+- `src/contexts/FleetContext.tsx` — quieter realtime reconnect.
+- `src/lib/staleBuildRecovery.ts` — tighter confirm rule.
+- New: `src/components/common/DashboardSkeleton.tsx` (shell skeleton).
 
-**For `hello@exotiq.ai` access (super admin):**
-- Confirm `SuperAdminDashboard.tsx` has a "Compliance archive" tab listing all signed `tenant_documents` across teams with signed URLs from the `exotiq-compliance` bucket. If not, add one (super-admin-only via `super_admins` table check).
-
----
-
-## Out of scope (deferred)
-
-- Drag-and-drop field placement editor for super admins (Phase 2 — schema already exists in `tenant_documents.field_overlay`).
-- SMS notifications on signature.
-- Per-signer email (multi-party signing).
-- Counter-signature by Exotiq.
-
----
-
-## Technical notes
-
-- **react-pdf** workers: must configure `pdfjs.GlobalWorkerOptions.workerSrc` to a CDN or `import.meta.url` worker bundle. Vite needs the `?url` import pattern.
-- **pdf-lib form flattening** happens before signature stamping so the stamp lands on a stable, non-editable copy. Certificate's SHA-256 is computed against the final flattened+stamped bytes.
-- **Resend attachment limit**: 40 MB total payload, well above typical signed PDFs (~1–3 MB).
-- **CSP**: `frame-src` already allows `*.supabase.co`; PDF.js renders to `<canvas>`, no iframe needed once swapped.
-
----
-
-## Rollout
-
-1. Ship #2 first (email to compliance inbox) — smallest change, immediate value, no UI risk.
-2. Ship #3 (Vault visibility audit + fixes).
-3. Ship #1 (PDF.js + form-fill) — largest change, behind a quick smoke test on the Order Form PDF.
-
-Approve and I'll start with #2.
+## Expected result
+- Login → dashboard: one smooth fade from auth form into the dashboard shell, content fills in without a second full-page spinner.
+- No surprise reloads after deploys — users see the small "Update available" pill and choose when to reload.
+- Cookie banner: shown exactly once per real visitor (already correct in prod).
