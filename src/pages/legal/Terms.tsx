@@ -1,12 +1,13 @@
 import { LegalPageLayout } from "@/components/layout/LegalPageLayout";
+import { LEGAL_DOCS } from "@/lib/legal/versions";
 
 const Terms = () => {
   return (
     <LegalPageLayout
       title="Terms and Conditions"
       subtitle="Exotiq Command Center Platform Agreement"
-      effectiveDate="January 1, 2026"
-      lastUpdated="June 14, 2026"
+      effectiveDate={LEGAL_DOCS.terms.effectiveDate}
+      lastUpdated={LEGAL_DOCS.terms.lastUpdated}
     >
       <p>These Terms and Conditions ("Terms") constitute a legally binding agreement between you ("Customer," "you," or "your") and Exotiq Inc., a Delaware C-Corporation ("Exotiq," "we," "us," or "our"), governing your access to and use of the Exotiq Command Center platform, including all associated modules, tools, APIs, AI-powered features, and the Drive Exotiq marketplace (collectively, the "Platform").</p>
       <p>By accessing or using the Platform, you acknowledge that you have read, understood, and agree to be bound by these Terms. If you are entering into these Terms on behalf of a business entity, you represent that you have the authority to bind that entity.</p>
