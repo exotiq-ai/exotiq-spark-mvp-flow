@@ -749,6 +749,7 @@ export default function Auth() {
                     <Input
                       id="signin-email"
                       type="email"
+                      onFocus={preloadDashboard}
                       placeholder="you@example.com"
                       value={email}
                       onChange={(e) => {
@@ -811,6 +812,7 @@ export default function Auth() {
                     <Input
                       id="magic-email"
                       type="email"
+                      onFocus={preloadDashboard}
                       placeholder="you@example.com"
                       value={email}
                       onChange={(e) => {
@@ -872,6 +874,7 @@ export default function Auth() {
                     <Input
                       id="signup-email"
                       type="email"
+                      onFocus={preloadDashboard}
                       placeholder="you@example.com"
                       value={email}
                       onChange={(e) => {
@@ -966,6 +969,7 @@ export default function Auth() {
                   <Input
                     id="reset-email"
                     type="email"
+                    onFocus={preloadDashboard}
                     placeholder="you@example.com"
                     value={email}
                     onChange={(e) => {
