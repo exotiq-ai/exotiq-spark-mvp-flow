@@ -16,7 +16,11 @@ interface SendBody {
   idempotency_key?: string;
   tags?: Array<{ name: string; value: string }>;
   reply_to?: string;
+  cc?: string | string[];
+  bcc?: string | string[];
+  attachments?: Array<{ filename: string; content_base64: string; content_type?: string }>;
 }
+
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -52,6 +56,16 @@ Deno.serve(async (req) => {
     };
     if (body.text) payload.text = body.text;
     if (body.tags) payload.tags = body.tags;
+    if (body.cc) payload.cc = Array.isArray(body.cc) ? body.cc : [body.cc];
+    if (body.bcc) payload.bcc = Array.isArray(body.bcc) ? body.bcc : [body.bcc];
+    if (body.attachments?.length) {
+      payload.attachments = body.attachments.map((a) => ({
+        filename: a.filename,
+        content: a.content_base64,
+        content_type: a.content_type ?? "application/pdf",
+      }));
+    }
+
 
     const headers: Record<string, string> = {
       Authorization: `Bearer ${apiKey}`,
