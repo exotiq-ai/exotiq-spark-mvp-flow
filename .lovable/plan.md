@@ -1,60 +1,52 @@
-## Fix "View Details" + add email notification for tenant documents
+## Send tenant-document signature emails through Resend (notify.exotiq.ai)
 
-### Problem
-1. The bell-notification's **View Details** does nothing for `tenant_document_sent` — `handleSystemAction` in `UnifiedNotificationCenter.tsx` only routes booking/payment/damage/maintenance types.
-2. No email is sent when a document is queued for signature; the tenant only sees the in-app banner/bell.
+You verified `notify.exotiq.ai` directly in Resend (not in Lovable's email domain system), so the cleanest path is to keep sending through Resend rather than re-delegate the subdomain to Lovable. Lovable Emails would require removing the Resend DNS records and waiting on NS delegation — not worth it for a single template.
 
-### Fix 1 — Route the notification
+### Approach
+- Connect Resend (via Lovable connector) so the API key is injected as `RESEND_API_KEY` and routed through the Lovable connector gateway. If you'd rather skip the connector, we'll fall back to storing `RESEND_API_KEY` as a project secret and calling `api.resend.com` directly.
+- Add ONE new edge function `send-compliance-email` dedicated to Exotiq compliance mail from `compliance@notify.exotiq.ai`. Kept separate from any future tenant white-label sender so branding never leaks.
+- Hook it into `prepare-tenant-document` after the in-app notification, owner-only, fire-and-forget with audit logging.
 
-In `src/components/common/UnifiedNotificationCenter.tsx`, extend `handleSystemAction`:
+### Files to change
 
-```ts
-} else if (nType === 'tenant_document_sent' || nType === 'tenant_document_signed') {
-  params.module = 'vault';
-  if (data.tenant_document_id) params.sign = data.tenant_document_id;
-}
-```
+1. **New** `supabase/functions/send-compliance-email/index.ts`
+   - POST body: `{ to, subject, html, text, idempotency_key, tags? }`
+   - Auth: `verify_jwt = false`, but only callable from other edge functions — gate with a shared secret header `x-internal-token` checked against `INTERNAL_FUNCTION_TOKEN` (new secret) so it can't be hit from the browser.
+   - Sends via Resend gateway:
+     - From: `Exotiq Compliance <compliance@notify.exotiq.ai>`
+     - Reply-To: `compliance@exotiq.ai`
+     - Tags: `{ category: 'tenant_document', doc_ref }`
+   - Returns `{ message_id }` or `{ error }`.
 
-`VaultEnhanced` already reads `?sign=<id>` and opens `TenantDocumentSigner`. For super admins receiving a `tenant_document_signed` notification, the param is harmless (the signer modal only opens for the document's owning team).
+2. **New** inline HTML template builder inside that function (single small file, no React Email needed — keeps it self-contained):
+   - White background, Exotiq wordmark, doc title, doc_ref, short ESIGN line, CTA button → `https://app.exotiq.ai/dashboard?module=vault&sign=<id>`, plain-text fallback.
 
-Also add an icon/color treatment for the new type so the row visually matches existing system notifications (no UI changes beyond that — keeps the minimalist style).
+3. **Edit** `supabase/functions/prepare-tenant-document/index.ts`
+   - After existing notifications insert, look up team **owner** via `team_members` (`role=owner`, `is_active=true`) → get `profiles.email` (fallback to `auth.admin.getUserById` for email).
+   - Build sign URL using `Deno.env.get('APP_PUBLIC_URL')` (new secret, default `https://app.exotiq.ai`).
+   - `supabase.functions.invoke('send-compliance-email', { body: …, headers: { 'x-internal-token': … } })` wrapped in try/catch.
+   - Log `tenant_document_audit` event: `email_sent` (with `message_id`) or `email_failed` (with `error`).
+   - Email failure must NOT roll back the document send.
 
-### Fix 2 — Email the team owner
+4. **Edit** `.lovable/plan.md` — mark email step as implemented via Resend.
 
-Default flow uses Lovable's built-in app emails (no third-party SDK), sent from **`compliance@<sender domain>`** with Exotiq branding.
-
-**Template** — `supabase/functions/_shared/transactional-email-templates/tenant-document-awaiting-signature.tsx`:
-- Subject: `Action required: signature requested on {title}`
-- Body: doc title, doc_ref (e.g. `EXQ-TDOC-2026-00001`), sender = "Exotiq", short ESIGN line, CTA button → `https://app.exotiq.ai/dashboard?module=vault&sign=<id>`
-- Inline styles only, white `Body` background, brand accent, no `<style>` tag
-- Registered in `registry.ts` as `tenant-document-awaiting-signature`
-
-**Trigger** — extend `supabase/functions/prepare-tenant-document/index.ts`:
-1. After inserting the `tenant_documents` row and the in-app notification, look up the **team owner** via `team_members` where `role = 'owner'` for the target `team_id`, then fetch their `profiles.email` (fallback to `auth.users.email` via admin client).
-2. Invoke `send-transactional-email` with:
-   - `templateName: 'tenant-document-awaiting-signature'`
-   - `recipientEmail: owner.email`
-   - `idempotencyKey: 'tdoc-sent-' + tenant_document.id`
-   - `templateData: { ownerName, title, docRef, signUrl }`
-3. Wrap in try/catch — email failure must not roll back the document send. Log to `tenant_document_audit` with event `email_sent` or `email_failed`.
-
-If no email domain / app-email infra is configured yet, run `email_domain--check_email_domain_status` → if missing, prompt the user to complete the setup dialog before deploying the trigger change.
-
-### Files changed
-- `src/components/common/UnifiedNotificationCenter.tsx` — add tenant_document branch + icon
-- `supabase/functions/_shared/transactional-email-templates/tenant-document-awaiting-signature.tsx` — new
-- `supabase/functions/_shared/transactional-email-templates/registry.ts` — register template
-- `supabase/functions/prepare-tenant-document/index.ts` — owner lookup + email invoke + audit row
-- Deploy: `send-transactional-email`, `prepare-tenant-document`
-
-### Out of scope
-- Reminder emails (e.g. nudge after 48h unsigned) — defer to Phase 2
-- Cc'ing admins — explicitly chose owner-only
-- SMS — not requested
-- Email to Exotiq on signature completion — already covered by existing `tenant_document_signed` notification; can add later if you want a copy in compliance@
+### Secrets needed
+- `RESEND_API_KEY` (via connector — preferred — or manual secret)
+- `INTERNAL_FUNCTION_TOKEN` (random string, function-to-function auth)
+- `APP_PUBLIC_URL` = `https://app.exotiq.ai`
 
 ### Verification
-- Send a new document from /super-admin → Documents
-- Confirm: bell notification's **View Details** opens the signing modal
-- Confirm: owner's inbox receives the Exotiq-branded email; CTA opens the modal
-- Confirm `tenant_document_audit` shows `email_sent`
+1. Send a document from `/super-admin → Documents` to a test tenant.
+2. Confirm owner's inbox receives email from `compliance@notify.exotiq.ai` with working CTA.
+3. CTA opens `/dashboard?module=vault&sign=<id>` → signing modal.
+4. `tenant_document_audit` shows `email_sent` row with `message_id`.
+5. Bell notification's **View Details** opens the same modal (already fixed last turn).
+
+### Out of scope
+- Reminder/nudge emails (Phase 2)
+- Tenant white-label sender domain
+- Email on `tenant_document_signed` to compliance@ (can add later)
+- Migrating to Lovable Emails
+
+### Decision needed before I implement
+**Do you want to connect Resend via the Lovable connector** (recommended — gateway handles auth, no key in code), **or paste the Resend API key as a project secret** so the function calls Resend directly?
