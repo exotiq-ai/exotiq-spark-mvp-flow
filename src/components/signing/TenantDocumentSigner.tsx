@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from "react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -174,6 +175,12 @@ export const TenantDocumentSigner = ({ documentId, open, onOpenChange, onSigned 
         className="max-w-[1100px] w-[95vw] h-[92vh] p-0 flex flex-col gap-0 overflow-hidden"
         data-testid="tenant-document-signer"
       >
+        <VisuallyHidden>
+          <DialogTitle>{doc?.title ?? "Sign document"}</DialogTitle>
+          <DialogDescription>
+            Review and electronically sign {doc?.doc_ref ?? "this document"}.
+          </DialogDescription>
+        </VisuallyHidden>
         <div className="flex items-center justify-between px-4 py-3 border-b">
           <div className="flex items-center gap-2 min-w-0">
             <ShieldCheck className="h-5 w-5 text-primary shrink-0" />
