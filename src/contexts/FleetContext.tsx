@@ -646,7 +646,9 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
           devLog('[FleetContext] ✅ Realtime subscriptions active');
           recordRealtimeEvent(); // Mark initial subscription as "event"
         } else if (status === 'CHANNEL_ERROR') {
-          devError('[FleetContext] ❌ Realtime subscription error');
+          // Transient — Supabase realtime auto-reconnects. Downgrade to warn
+          // so it doesn't surface as a red error and look like a real failure.
+          devWarn('[FleetContext] Realtime subscription dropped, reconnecting…');
         }
       });
     
