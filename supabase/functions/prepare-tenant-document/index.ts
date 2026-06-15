@@ -159,6 +159,140 @@ Deno.serve(async (req) => {
       await admin.from("notifications").insert(rows);
     }
 
+    // Email the team owner (fire-and-forget, never blocks the send)
+    try {
+      const { data: owners } = await admin
+        .from("team_members")
+        .select("user_id")
+        .eq("team_id", body.team_id)
+        .eq("is_active", true)
+        .eq("role", "owner")
+        .limit(1);
+
+      const ownerUserId = owners?.[0]?.user_id as string | undefined;
+      if (ownerUserId) {
+        // Get profile name + email
+        const { data: prof } = await admin
+          .from("profiles")
+          .select("email, full_name")
+          .eq("id", ownerUserId)
+          .maybeSingle();
+
+        let ownerEmail = prof?.email as string | undefined;
+        const ownerName = (prof?.full_name as string | undefined) ?? "there";
+
+        if (!ownerEmail) {
+          const { data: au } = await admin.auth.admin.getUserById(ownerUserId);
+          ownerEmail = au?.user?.email ?? undefined;
+        }
+
+        if (ownerEmail) {
+          const appUrl = Deno.env.get("APP_PUBLIC_URL") ?? "https://app.exotiq.ai";
+          const signUrl = `${appUrl}/dashboard?module=vault&sign=${td.id}`;
+          const safeTitleHtml = body.title
+            .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+          const html = `<!doctype html>
+<html><body style="margin:0;padding:0;background:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#111111;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#ffffff;">
+    <tr><td align="center" style="padding:40px 16px;">
+      <table role="presentation" width="560" cellspacing="0" cellpadding="0" border="0" style="max-width:560px;width:100%;">
+        <tr><td style="padding:0 0 24px 0;">
+          <div style="font-size:18px;font-weight:600;letter-spacing:0.02em;">EXOTIQ</div>
+        </td></tr>
+        <tr><td style="padding:0 0 8px 0;">
+          <h1 style="margin:0;font-size:22px;line-height:1.3;font-weight:600;color:#111111;">Signature requested</h1>
+        </td></tr>
+        <tr><td style="padding:0 0 16px 0;">
+          <p style="margin:0;font-size:15px;line-height:1.6;color:#333333;">
+            Hi ${ownerName.replace(/[<>&]/g, "")},<br/><br/>
+            Exotiq has sent <strong>${safeTitleHtml}</strong> for your signature.
+            Please review and sign in your account.
+          </p>
+        </td></tr>
+        <tr><td style="padding:8px 0 24px 0;">
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr><td style="border-radius:8px;background:#111111;">
+            <a href="${signUrl}" style="display:inline-block;padding:12px 22px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;">Review &amp; sign</a>
+          </td></tr></table>
+        </td></tr>
+        <tr><td style="padding:0 0 24px 0;">
+          <p style="margin:0;font-size:13px;line-height:1.6;color:#666666;">
+            Reference: <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;">${td.doc_ref}</span>
+          </p>
+        </td></tr>
+        <tr><td style="padding:16px 0 0 0;border-top:1px solid #eeeeee;">
+          <p style="margin:0;font-size:12px;line-height:1.6;color:#888888;">
+            By clicking <em>Review &amp; sign</em> and completing the in-app signature, you agree to sign this document electronically under the U.S. ESIGN Act and equivalent regulations. Questions? Reply to this email or contact compliance@exotiq.ai.
+          </p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`;
+          const text = `Exotiq has sent "${body.title}" for your signature.\n\nReview and sign: ${signUrl}\n\nReference: ${td.doc_ref}\n\nBy completing the in-app signature you agree to sign electronically under the ESIGN Act. Questions: compliance@exotiq.ai`;
+
+          const internalToken = Deno.env.get("INTERNAL_FUNCTION_TOKEN") ?? "";
+          const sendUrl = `${supabaseUrl}/functions/v1/send-compliance-email`;
+          const sendRes = await fetch(sendUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-internal-token": internalToken,
+              Authorization: `Bearer ${serviceKey}`,
+              apikey: serviceKey,
+            },
+            body: JSON.stringify({
+              to: ownerEmail,
+              subject: `Action required: signature requested on ${body.title}`,
+              html,
+              text,
+              idempotency_key: `tdoc-sent-${td.id}`,
+              tags: [
+                { name: "category", value: "tenant_document" },
+                { name: "doc_ref", value: td.doc_ref ?? "" },
+              ],
+            }),
+          });
+          const sendJson = await sendRes.json().catch(() => ({}));
+          if (sendRes.ok) {
+            await admin.from("tenant_document_audit").insert({
+              tenant_document_id: td.id,
+              event_type: "email_sent",
+              actor_user_id: user.id,
+              metadata: {
+                recipient: ownerEmail,
+                message_id: (sendJson as { message_id?: string })?.message_id ?? null,
+              },
+            });
+          } else {
+            await admin.from("tenant_document_audit").insert({
+              tenant_document_id: td.id,
+              event_type: "email_failed",
+              actor_user_id: user.id,
+              metadata: { recipient: ownerEmail, status: sendRes.status, detail: sendJson },
+            });
+          }
+        } else {
+          await admin.from("tenant_document_audit").insert({
+            tenant_document_id: td.id,
+            event_type: "email_failed",
+            actor_user_id: user.id,
+            metadata: { reason: "owner has no email on file" },
+          });
+        }
+      }
+    } catch (emailErr) {
+      console.error("tenant doc email send failed", emailErr);
+      try {
+        await admin.from("tenant_document_audit").insert({
+          tenant_document_id: td.id,
+          event_type: "email_failed",
+          actor_user_id: user.id,
+          metadata: { error: (emailErr as Error).message },
+        });
+      } catch (_) { /* ignore */ }
+    }
+
+
     return jsonResponse({
       tenant_document_id: td.id,
       doc_ref: td.doc_ref,
