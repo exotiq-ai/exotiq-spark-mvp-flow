@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, ShieldCheck, AlertCircle, X } from "lucide-react";
+import { Loader2, ShieldCheck, AlertCircle, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -18,6 +18,15 @@ import {
   ESIGN_ACKNOWLEDGEMENT,
   type TenantDocField,
 } from "@/lib/signing/tenantDocTemplates";
+import { Document, Page, pdfjs } from "react-pdf";
+import "react-pdf/dist/Page/AnnotationLayer.css";
+import "react-pdf/dist/Page/TextLayer.css";
+
+// Configure worker (Vite-friendly URL import)
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+  "pdfjs-dist/build/pdf.worker.min.mjs",
+  import.meta.url,
+).toString();
 
 interface TenantDoc {
   id: string;
@@ -38,18 +47,14 @@ interface Props {
   onSigned?: () => void;
 }
 
-/**
- * Tenant signing ceremony. Loads the pending tenant_documents row, renders the
- * original PDF via native browser viewer (iframe), and captures signature +
- * printed name + title. On submit, calls the sign-tenant-document edge function
- * which overlays the signature, appends a Certificate of Completion, and stores
- * the signed PDF in both the tenant Vault and the Exotiq compliance bucket.
- */
 export const TenantDocumentSigner = ({ documentId, open, onOpenChange, onSigned }: Props) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [doc, setDoc] = useState<TenantDoc | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [numPages, setNumPages] = useState<number>(0);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageWidth, setPageWidth] = useState<number>(700);
   const [loading, setLoading] = useState(true);
   const [printedName, setPrintedName] = useState("");
   const [title, setTitle] = useState("");
@@ -58,11 +63,14 @@ export const TenantDocumentSigner = ({ documentId, open, onOpenChange, onSigned 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const sigRef = useRef<SignatureCanvasRef>(null);
+  const pdfDocRef = useRef<any>(null);
+  const viewerRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
     if (!documentId) return;
     setLoading(true); setError(null);
     setPrintedName(""); setTitle(""); setAcknowledged(false); setReviewed(false);
+    setNumPages(0); setCurrentPage(1);
 
     const { data, error: qErr } = await supabase
       .from("tenant_documents")
@@ -79,7 +87,6 @@ export const TenantDocumentSigner = ({ documentId, open, onOpenChange, onSigned 
     setPrintedName(td.signer_name ?? "");
     setTitle(td.signer_title ?? "");
 
-    // Mark viewed if still 'sent'
     if (td.status === "sent") {
       await supabase
         .from("tenant_documents")
@@ -87,7 +94,6 @@ export const TenantDocumentSigner = ({ documentId, open, onOpenChange, onSigned 
         .eq("id", td.id);
     }
 
-    // Signed URL for the original PDF in the compliance bucket
     const { data: signed, error: urlErr } = await supabase.storage
       .from("exotiq-compliance")
       .createSignedUrl(td.original_storage_path, 60 * 30);
@@ -101,6 +107,21 @@ export const TenantDocumentSigner = ({ documentId, open, onOpenChange, onSigned 
 
   useEffect(() => { if (open) load(); }, [open, load]);
 
+  // Track viewer width for responsive page rendering
+  useEffect(() => {
+    if (!viewerRef.current) return;
+    const ro = new ResizeObserver((entries) => {
+      for (const e of entries) {
+        const w = Math.max(320, Math.min(900, e.contentRect.width - 32));
+        setPageWidth(w);
+      }
+    });
+    ro.observe(viewerRef.current);
+    return () => ro.disconnect();
+  }, [loading]);
+
+  const pdfFile = useMemo(() => (pdfUrl ? { url: pdfUrl } : null), [pdfUrl]);
+
   const canSubmit =
     doc &&
     doc.status !== "signed" &&
@@ -113,6 +134,39 @@ export const TenantDocumentSigner = ({ documentId, open, onOpenChange, onSigned 
     !sigRef.current.isEmpty() &&
     !submitting;
 
+  /**
+   * Read filled AcroForm values out of the loaded pdf.js document via
+   * annotationStorage. Returns a flat string/boolean map keyed by field name.
+   */
+  const collectFormValues = async (): Promise<Record<string, string | boolean>> => {
+    const result: Record<string, string | boolean> = {};
+    const pdf = pdfDocRef.current;
+    if (!pdf) return result;
+    try {
+      const storage = pdf.annotationStorage?.getAll?.() ?? {};
+      // pdf.js keys storage entries by annotation id, not field name. Resolve
+      // each to its underlying field name via the page's annotation list.
+      const idToName = new Map<string, string>();
+      for (let p = 1; p <= pdf.numPages; p++) {
+        const page = await pdf.getPage(p);
+        const anns = await page.getAnnotations({ intent: "display" });
+        for (const a of anns) {
+          if (a.id && a.fieldName) idToName.set(a.id, a.fieldName);
+        }
+      }
+      for (const [id, entry] of Object.entries(storage)) {
+        const name = idToName.get(id);
+        if (!name) continue;
+        const e = entry as { value?: unknown };
+        if (typeof e.value === "boolean") result[name] = e.value;
+        else if (e.value != null) result[name] = String(e.value);
+      }
+    } catch (err) {
+      console.warn("collectFormValues failed", err);
+    }
+    return result;
+  };
+
   const handleSign = async () => {
     if (!doc || !sigRef.current) return;
     if (sigRef.current.isEmpty()) {
@@ -121,21 +175,7 @@ export const TenantDocumentSigner = ({ documentId, open, onOpenChange, onSigned 
     }
     setSubmitting(true); setError(null);
     try {
-      // Get original page count via fetching the bytes once
-      let pageCount = 1;
-      if (pdfUrl) {
-        try {
-          const head = await fetch(pdfUrl);
-          const buf = await head.arrayBuffer();
-          // Count "/Type /Page" not "/Type /Pages" — quick heuristic
-          const text = new TextDecoder("latin1").decode(new Uint8Array(buf));
-          const matches = text.match(/\/Type\s*\/Page[^s]/g);
-          pageCount = matches?.length ?? 1;
-        } catch {
-          pageCount = 1;
-        }
-      }
-
+      const pageCount = numPages || 1;
       const templateFields: TenantDocField[] = TENANT_DOC_TEMPLATES[doc.template].fields;
       const resolved = resolveFieldPages(templateFields, pageCount).map((f) => ({
         type: f.type, page: f.resolvedPage,
@@ -143,6 +183,7 @@ export const TenantDocumentSigner = ({ documentId, open, onOpenChange, onSigned 
       }));
 
       const signatureDataUrl = sigRef.current.toDataURL();
+      const form_values = await collectFormValues();
 
       const { data, error: fnErr } = await supabase.functions.invoke("sign-tenant-document", {
         body: {
@@ -152,6 +193,7 @@ export const TenantDocumentSigner = ({ documentId, open, onOpenChange, onSigned 
           title: title.trim(),
           acknowledged: true,
           fields: resolved,
+          form_values,
         },
       });
       if (fnErr) throw fnErr;
@@ -215,14 +257,54 @@ export const TenantDocumentSigner = ({ documentId, open, onOpenChange, onSigned 
           </div>
         ) : (
           <div className="flex-1 grid grid-cols-1 md:grid-cols-[1fr_360px] overflow-hidden">
-            {/* PDF viewer */}
-            <div className="bg-muted/30 min-h-[300px]">
-              {pdfUrl && (
-                <iframe
-                  src={pdfUrl}
-                  className="w-full h-full"
-                  title={doc?.title ?? "Document"}
-                />
+            {/* PDF viewer (react-pdf w/ AcroForm) */}
+            <div ref={viewerRef} className="bg-muted/30 min-h-[300px] overflow-auto flex flex-col items-center">
+              {pdfFile && (
+                <Document
+                  file={pdfFile}
+                  onLoadSuccess={(pdf) => {
+                    pdfDocRef.current = pdf;
+                    setNumPages(pdf.numPages);
+                  }}
+                  onLoadError={(err) => {
+                    console.error("PDF load error", err);
+                    setError("Could not render the document.");
+                  }}
+                  loading={
+                    <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Rendering…
+                    </div>
+                  }
+                >
+                  <Page
+                    pageNumber={currentPage}
+                    width={pageWidth}
+                    renderAnnotationLayer
+                    renderForms
+                    renderTextLayer={false}
+                  />
+                </Document>
+              )}
+              {numPages > 1 && (
+                <div className="sticky bottom-0 left-0 right-0 flex items-center justify-center gap-2 py-2 bg-background/90 backdrop-blur border-t w-full">
+                  <Button
+                    size="sm" variant="ghost"
+                    disabled={currentPage <= 1}
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-xs text-muted-foreground">
+                    Page {currentPage} of {numPages}
+                  </span>
+                  <Button
+                    size="sm" variant="ghost"
+                    disabled={currentPage >= numPages}
+                    onClick={() => setCurrentPage((p) => Math.min(numPages, p + 1))}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
               )}
             </div>
 
@@ -231,7 +313,8 @@ export const TenantDocumentSigner = ({ documentId, open, onOpenChange, onSigned 
               <div>
                 <h3 className="text-sm font-semibold">Sign this document</h3>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Your signature will be stamped on the document and stored in your Vault.
+                  Fill any form fields directly in the document, then sign below. Your
+                  signature will be stamped on the document and stored in your Vault.
                   Exotiq retains a sealed copy for compliance.
                 </p>
               </div>
@@ -266,9 +349,7 @@ export const TenantDocumentSigner = ({ documentId, open, onOpenChange, onSigned 
                   onCheckedChange={(v) => setReviewed(v === true)}
                   className="mt-0.5"
                 />
-                <span>
-                  I have reviewed the document in full.
-                </span>
+                <span>I have reviewed the document in full.</span>
               </label>
 
               <label className="flex items-start gap-2 text-xs">
