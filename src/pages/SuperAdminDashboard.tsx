@@ -17,6 +17,7 @@ import { MaintenanceModeSection } from '@/components/super-admin/MaintenanceMode
 import { PlatformPulseStrip } from '@/components/super-admin/PlatformPulseStrip';
 import { TenantHealthTab } from '@/components/super-admin/TenantHealthTab';
 import { VehicleAuditTab } from '@/components/super-admin/VehicleAuditTab';
+import { SuperAdminTenantDocumentsTab } from '@/components/super-admin/SuperAdminTenantDocumentsTab';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import {
