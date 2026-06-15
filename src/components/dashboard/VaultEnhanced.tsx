@@ -276,6 +276,15 @@ export const VaultEnhanced = () => {
         onSubmit={uploadDocument}
       />
 
+      {signDocId && (
+        <TenantDocumentSigner
+          documentId={signDocId}
+          open={!!signDocId}
+          onOpenChange={(v) => { if (!v) setSignDocId(null); }}
+          onSigned={() => setSignDocId(null)}
+        />
+      )}
+
       <ModuleTabs
         tabs={[
           { id: "documents", label: "Documents", shortLabel: "Docs", icon: FileText },
@@ -289,6 +298,8 @@ export const VaultEnhanced = () => {
         data-tour="vault-tabs"
       >
         <TabsContent value="documents" className="space-y-4 sm:space-y-6">
+      <AwaitingSignatureBanner />
+
       {/* Compact Urgent Alert */}
       {urgentAlert && !alertDismissed && (
         <Collapsible open={alertExpanded} onOpenChange={setAlertExpanded}>
