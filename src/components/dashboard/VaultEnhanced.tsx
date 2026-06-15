@@ -21,6 +21,8 @@ import { useToast } from "@/hooks/use-toast";
 import { DocumentPreviewDialog } from "@/components/common/DocumentPreviewDialog";
 import { SkeletonCard, SkeletonMetric } from "@/components/ui/skeleton-card";
 import { EmptyState } from "@/components/common/EmptyState";
+import { AwaitingSignatureBanner } from "@/components/dashboard/AwaitingSignatureBanner";
+import { TenantDocumentSigner } from "@/components/signing/TenantDocumentSigner";
 import { 
   Shield, 
   FileText, 
