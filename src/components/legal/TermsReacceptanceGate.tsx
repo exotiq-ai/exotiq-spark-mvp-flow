@@ -154,8 +154,14 @@ export const TermsReacceptanceGate = ({ children }: { children: React.ReactNode 
                       >
                         {LEGAL_DOCS[t].label}
                       </a>
-                      <span className="text-muted-foreground">
-                        Effective {LEGAL_DOCS[t].effectiveDate}
+                      <span className="text-muted-foreground text-right">
+                        <span className="block">Effective {LEGAL_DOCS[t].effectiveDate}</span>
+                        {LEGAL_DOCS[t].lastUpdated &&
+                          LEGAL_DOCS[t].lastUpdated !== LEGAL_DOCS[t].effectiveDate && (
+                            <span className="block text-[11px]">
+                              Updated {LEGAL_DOCS[t].lastUpdated}
+                            </span>
+                          )}
                       </span>
                     </div>
                     {summary && (

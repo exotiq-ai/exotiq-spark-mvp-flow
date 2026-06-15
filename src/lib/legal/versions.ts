@@ -4,62 +4,92 @@
 
 export type LegalDocType = "terms" | "privacy" | "aup" | "dpa" | "sms" | "cookies" | "dmca" | "transfer_addendum";
 
-export interface LegalDocMeta {
-  version: string;        // ISO date string identifier, e.g. "2026-06-14"
-  effectiveDate: string;  // human-printable effective date
-  url: string;            // canonical in-app URL
-  label: string;          // display name in consent statement
+export interface PriorVersionMeta {
+  version: string;
+  effectiveDate: string;
 }
 
-// All six core docs refreshed June 14, 2026. Effective date remains the
-// document's original effective date (January 1, 2026); the version key
-// reflects the last revision so we can force re-acceptance.
+export interface LegalDocMeta {
+  version: string;        // ISO date string identifier, e.g. "2026-06-14"
+  effectiveDate: string;  // human-printable date this version takes legal force
+  lastUpdated: string;    // human-printable date the text was last revised
+  url: string;            // canonical in-app URL
+  label: string;          // display name in consent statement
+  priorVersions?: PriorVersionMeta[]; // audit lineage for prior published versions
+}
+
+// All seven core documents were materially revised on June 14, 2026
+// (new EU/UK privacy notice, UAE privacy notice, International Transfer
+// Addendum / SCCs / UK IDTA, refreshed sub-processor disclosures). Each
+// version's effective date matches the date the revised text takes force.
+// The original January 1, 2026 publication is retained in `priorVersions`
+// so the admin audit history can resolve acceptances against earlier text.
+const ORIGINAL_PUBLICATION: PriorVersionMeta = {
+  version: "2026-01-01",
+  effectiveDate: "January 1, 2026",
+};
+
 export const LEGAL_DOCS: Record<LegalDocType, LegalDocMeta> = {
   terms: {
     version: "2026-06-14",
-    effectiveDate: "January 1, 2026",
+    effectiveDate: "June 14, 2026",
+    lastUpdated: "June 14, 2026",
     url: "/terms",
     label: "Terms and Conditions",
+    priorVersions: [ORIGINAL_PUBLICATION],
   },
   privacy: {
     version: "2026-06-14",
-    effectiveDate: "January 1, 2026",
+    effectiveDate: "June 14, 2026",
+    lastUpdated: "June 14, 2026",
     url: "/privacy",
     label: "Privacy Policy",
+    priorVersions: [ORIGINAL_PUBLICATION],
   },
   aup: {
     version: "2026-06-14",
-    effectiveDate: "January 1, 2026",
+    effectiveDate: "June 14, 2026",
+    lastUpdated: "June 14, 2026",
     url: "/acceptable-use",
     label: "Acceptable Use Policy",
+    priorVersions: [ORIGINAL_PUBLICATION],
   },
   dpa: {
     version: "2026-06-14",
-    effectiveDate: "January 1, 2026",
+    effectiveDate: "June 14, 2026",
+    lastUpdated: "June 14, 2026",
     url: "/data-processing",
     label: "Data Processing Agreement",
+    priorVersions: [ORIGINAL_PUBLICATION],
   },
   sms: {
     version: "2026-06-14",
-    effectiveDate: "January 1, 2026",
+    effectiveDate: "June 14, 2026",
+    lastUpdated: "June 14, 2026",
     url: "/sms",
     label: "SMS/Text Messaging Consent and Disclosure",
+    priorVersions: [ORIGINAL_PUBLICATION],
   },
   cookies: {
     version: "2026-06-14",
-    effectiveDate: "January 1, 2026",
+    effectiveDate: "June 14, 2026",
+    lastUpdated: "June 14, 2026",
     url: "/cookies",
     label: "Cookie Policy",
+    priorVersions: [ORIGINAL_PUBLICATION],
   },
   dmca: {
     version: "2026-06-14",
-    effectiveDate: "January 1, 2026",
+    effectiveDate: "June 14, 2026",
+    lastUpdated: "June 14, 2026",
     url: "/dmca",
     label: "DMCA and Copyright Policy",
+    priorVersions: [ORIGINAL_PUBLICATION],
   },
   transfer_addendum: {
     version: "2026-06-14",
     effectiveDate: "June 14, 2026",
+    lastUpdated: "June 14, 2026",
     url: "/transfer-addendum",
     label: "International Data Transfer Addendum (SCCs / UK IDTA)",
   },

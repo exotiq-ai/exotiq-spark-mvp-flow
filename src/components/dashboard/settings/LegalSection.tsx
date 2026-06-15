@@ -163,6 +163,9 @@ export const LegalSection = () => {
                     </a>
                     <p className="text-xs text-muted-foreground">
                       v{doc.version} · Effective {doc.effectiveDate}
+                      {doc.lastUpdated && doc.lastUpdated !== doc.effectiveDate
+                        ? ` · Updated ${doc.lastUpdated}`
+                        : ""}
                     </p>
                   </div>
                   {isCurrent ? (
