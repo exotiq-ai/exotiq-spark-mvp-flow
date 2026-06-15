@@ -250,6 +250,12 @@ export const SuperAdminDashboard = () => {
             <MaintenanceModeSection />
           </TabsContent>
 
+          <TabsContent value="documents" className="space-y-4">
+            <SuperAdminTenantDocumentsTab />
+          </TabsContent>
+
+
+
 
 
 
