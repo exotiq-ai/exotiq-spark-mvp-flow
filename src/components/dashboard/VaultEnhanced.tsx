@@ -63,6 +63,18 @@ export const VaultEnhanced = () => {
   const [alertExpanded, setAlertExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [previewDoc, setPreviewDoc] = useState<{ url: string; name: string } | null>(null);
+  const [signDocId, setSignDocId] = useState<string | null>(null);
+
+  // Deep-link: ?sign=<tenantDocId> opens the signing ceremony
+  useEffect(() => {
+    const id = searchParams.get('sign');
+    if (id) {
+      setSignDocId(id);
+      const next = new URLSearchParams(searchParams);
+      next.delete('sign');
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   // Deep-link: read view param to auto-select tab
   useEffect(() => {
