@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, lazy, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
+import { lazyWithRetry } from "@/lib/lazyWithRetry";
 import { useProfile } from "@/hooks/useProfile";
 import { useSearchParams, useLocation, useNavigate } from "react-router-dom";
 import { pathToModuleId, moduleIdToPath, MODULE_TITLES } from "@/lib/moduleRoutes";
