@@ -928,7 +928,15 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       if (error instanceof z.ZodError) {
         toast({ title: "Validation Error", description: error.errors[0].message, variant: "destructive" });
       } else {
-        throw error;
+        // Network / chunk-load / unexpected errors. Surface them instead of
+        // letting the click silently no-op (which looks like "save is broken").
+        const message = error instanceof Error ? error.message : "Please check your connection and try again.";
+        devError('createBooking failed:', error);
+        toast({
+          title: "Couldn't save booking",
+          description: message,
+          variant: "destructive",
+        });
       }
     }
   };

@@ -10,21 +10,32 @@ import { devLog, devWarn, devError } from './logger';
 
 const RELOAD_FLAG = 'exotiq_reload_attempted';
 const RELOAD_TIMESTAMP = 'exotiq_reload_ts';
-const RELOAD_COOLDOWN_MS = 30000; // 30 seconds between auto-reloads
+const RELOAD_COOLDOWN_MS = 60_000; // 60s between auto-reloads
 const SW_RESCUE_FLAG = 'exotiq_sw_v2_initialized'; // Versioned: bump to force re-rescue
 const SW_RESCUE_COMPLETED = 'exotiq_sw_v2_rescued';
 
-// Require TWO stale-asset errors within this window before triggering a hard
-// reload, AND the second failure must reference a different chunk — transient
-// preload races typically repeat on the same chunk and shouldn't yank the tab.
+// For ambiguous preload races we still require TWO failures on DIFFERENT
+// chunks. For deterministic module URLs (versioned `/assets/*.js|css`, or a
+// concrete `Foo.tsx` from a dynamic import) one failure is enough — those
+// don't fail transiently, so waiting for a second strike just keeps the user
+// staring at a blank screen.
 const ERROR_CONFIRM_WINDOW_MS = 20_000;
 let firstErrorAt: number | null = null;
 let firstErrorKey: string | null = null;
 
 const errorKey = (error: Error | string): string => {
   const msg = typeof error === 'string' ? error : error.message || '';
-  const match = msg.match(/[\w-]+\.(?:js|mjs|css)/);
+  const match = msg.match(/[\w-]+\.(?:js|mjs|css|tsx|ts|jsx)/);
   return match ? match[0] : msg.slice(0, 80);
+};
+
+/** Deterministic asset URLs we can fail-fast on after a single error. */
+const isDeterministicAssetError = (error: Error | string): boolean => {
+  const msg = typeof error === 'string' ? error : error.message || '';
+  return (
+    /\/assets\/[\w-]+\.[a-f0-9]{6,}\.(?:js|mjs|css)/i.test(msg) ||
+    /\/src\/[^\s"']+\.(?:tsx|ts|jsx|js)/i.test(msg)
+  );
 };
 
 /**
@@ -148,16 +159,34 @@ const isStaleAssetError = (error: Error | string): boolean => {
 };
 
 /**
- * Perform a hard reload that bypasses cache but preserves auth
+ * Perform a hard reload that bypasses cache but preserves auth.
+ * Also purges any active service worker + caches so a stale shell
+ * can't immediately re-serve the broken chunk reference.
  */
-export const performHardReload = (): void => {
+export const performHardReload = async (): Promise<void> => {
   devLog('[Recovery] Performing hard reload...');
   markReloadAttempt();
-  
+
+  // Best-effort purge of SW + caches BEFORE reload. Time-boxed so we
+  // never block the reload itself on a hung SW.
+  try {
+    if ('serviceWorker' in navigator) {
+      const purge = (async () => {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((r) => r.unregister()));
+        const names = await caches.keys();
+        await Promise.all(names.map((n) => caches.delete(n)));
+      })();
+      await Promise.race([purge, new Promise((r) => setTimeout(r, 1500))]);
+    }
+  } catch (err) {
+    devWarn('[Recovery] SW/cache purge failed (continuing reload):', err);
+  }
+
   // Add cache-busting query parameter
   const url = new URL(window.location.href);
   url.searchParams.set('_cb', Date.now().toString());
-  
+
   // Use replace to avoid adding to history
   window.location.replace(url.toString());
 };
@@ -179,8 +208,18 @@ export const handleStaleAssetError = (error: Error | string): boolean => {
     return false;
   }
 
-  // Require TWO failures within the confirm window, on DIFFERENT chunks,
-  // before reloading. Avoids reloads from transient preload races.
+  // Deterministic chunk URLs (hashed /assets/* or a concrete /src/*.tsx
+  // dynamic import) don't fail transiently. One strike is enough.
+  if (isDeterministicAssetError(error)) {
+    firstErrorAt = null;
+    firstErrorKey = null;
+    void performHardReload();
+    return true;
+  }
+
+  // Ambiguous failures: require TWO failures within the confirm window, on
+  // DIFFERENT chunks, before reloading. Avoids reloads from transient
+  // preload races.
   const now = Date.now();
   const key = errorKey(error);
   if (firstErrorAt === null || now - firstErrorAt > ERROR_CONFIRM_WINDOW_MS) {
@@ -197,7 +236,7 @@ export const handleStaleAssetError = (error: Error | string): boolean => {
   // Second confirmed failure on a different chunk — reload.
   firstErrorAt = null;
   firstErrorKey = null;
-  performHardReload();
+  void performHardReload();
   return true;
 };
 

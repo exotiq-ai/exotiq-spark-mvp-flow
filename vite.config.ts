@@ -6,6 +6,16 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
+  define: {
+    // Stamped into the bundle so the console shows which build is running.
+    // Used by main.tsx to log `[Exotiq] build <id>` on boot.
+    __BUILD_ID__: JSON.stringify(
+      process.env.LOVABLE_BUILD_ID ||
+        process.env.VERCEL_GIT_COMMIT_SHA ||
+        process.env.COMMIT_REF ||
+        new Date().toISOString(),
+    ),
+  },
   server: {
     host: "::",
     port: 8080,
