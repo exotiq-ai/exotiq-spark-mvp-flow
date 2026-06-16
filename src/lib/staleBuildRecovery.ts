@@ -159,16 +159,34 @@ const isStaleAssetError = (error: Error | string): boolean => {
 };
 
 /**
- * Perform a hard reload that bypasses cache but preserves auth
+ * Perform a hard reload that bypasses cache but preserves auth.
+ * Also purges any active service worker + caches so a stale shell
+ * can't immediately re-serve the broken chunk reference.
  */
-export const performHardReload = (): void => {
+export const performHardReload = async (): Promise<void> => {
   devLog('[Recovery] Performing hard reload...');
   markReloadAttempt();
-  
+
+  // Best-effort purge of SW + caches BEFORE reload. Time-boxed so we
+  // never block the reload itself on a hung SW.
+  try {
+    if ('serviceWorker' in navigator) {
+      const purge = (async () => {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((r) => r.unregister()));
+        const names = await caches.keys();
+        await Promise.all(names.map((n) => caches.delete(n)));
+      })();
+      await Promise.race([purge, new Promise((r) => setTimeout(r, 1500))]);
+    }
+  } catch (err) {
+    devWarn('[Recovery] SW/cache purge failed (continuing reload):', err);
+  }
+
   // Add cache-busting query parameter
   const url = new URL(window.location.href);
   url.searchParams.set('_cb', Date.now().toString());
-  
+
   // Use replace to avoid adding to history
   window.location.replace(url.toString());
 };
@@ -190,8 +208,18 @@ export const handleStaleAssetError = (error: Error | string): boolean => {
     return false;
   }
 
-  // Require TWO failures within the confirm window, on DIFFERENT chunks,
-  // before reloading. Avoids reloads from transient preload races.
+  // Deterministic chunk URLs (hashed /assets/* or a concrete /src/*.tsx
+  // dynamic import) don't fail transiently. One strike is enough.
+  if (isDeterministicAssetError(error)) {
+    firstErrorAt = null;
+    firstErrorKey = null;
+    void performHardReload();
+    return true;
+  }
+
+  // Ambiguous failures: require TWO failures within the confirm window, on
+  // DIFFERENT chunks, before reloading. Avoids reloads from transient
+  // preload races.
   const now = Date.now();
   const key = errorKey(error);
   if (firstErrorAt === null || now - firstErrorAt > ERROR_CONFIRM_WINDOW_MS) {
@@ -208,7 +236,7 @@ export const handleStaleAssetError = (error: Error | string): boolean => {
   // Second confirmed failure on a different chunk — reload.
   firstErrorAt = null;
   firstErrorKey = null;
-  performHardReload();
+  void performHardReload();
   return true;
 };
 
