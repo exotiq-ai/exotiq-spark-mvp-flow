@@ -353,7 +353,7 @@ const DashboardInner = () => {
     }
 
     return (
-      <Suspense fallback={getModuleSkeleton(activeModule)}>
+      <Suspense fallback={<DelayedFallback>{getModuleSkeleton(activeModule)}</DelayedFallback>}>
         <div key={activeModule} className="animate-fade-in-up">
           {content}
         </div>
