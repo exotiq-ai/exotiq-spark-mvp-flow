@@ -17,8 +17,9 @@ interface FloatingActionMenuProps {
   onMainClick?: () => void;
 }
 
-export const FloatingActionMenu = ({ actions, className }: FloatingActionMenuProps) => {
+export const FloatingActionMenu = ({ actions, className, onMainClick }: FloatingActionMenuProps) => {
   const [isOpen, setIsOpen] = useState(false);
+  const isMenuMode = !onMainClick;
 
   const toggleMenu = () => {
     if (navigator.vibrate) navigator.vibrate(isOpen ? 5 : 15);
@@ -31,6 +32,15 @@ export const FloatingActionMenu = ({ actions, className }: FloatingActionMenuPro
     setIsOpen(false);
   };
 
+  const handleMainClick = () => {
+    if (onMainClick) {
+      if (navigator.vibrate) navigator.vibrate(15);
+      onMainClick();
+    } else {
+      toggleMenu();
+    }
+  };
+
   return (
     <div 
       className={cn("fixed right-4 z-40 md:hidden", className)}
@@ -39,66 +49,70 @@ export const FloatingActionMenu = ({ actions, className }: FloatingActionMenuPro
       }}
     >
       {/* Backdrop */}
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 bg-background/60 backdrop-blur-sm"
-            onClick={() => setIsOpen(false)}
-          />
-        )}
-      </AnimatePresence>
+      {isMenuMode && (
+        <AnimatePresence>
+          {isOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 bg-background/60 backdrop-blur-sm"
+              onClick={() => setIsOpen(false)}
+            />
+          )}
+        </AnimatePresence>
+      )}
 
       {/* Action Items */}
-      <AnimatePresence>
-        {isOpen && (
-          <div className="absolute bottom-16 right-0 flex flex-col-reverse gap-2.5">
-            {actions.map((action, index) => (
-              <motion.button
-                key={action.id}
-                initial={{ opacity: 0, y: 20, scale: 0.8 }}
-                animate={{ 
-                  opacity: 1, 
-                  y: 0, 
-                  scale: 1,
-                }}
-                exit={{ 
-                  opacity: 0, 
-                  y: 10, 
-                  scale: 0.8,
-                }}
-                transition={{
-                  type: "spring",
-                  stiffness: 400,
-                  damping: 25,
-                  delay: index * 0.04,
-                }}
-                onClick={() => handleAction(action)}
-                whileTap={{ scale: 0.95 }}
-                whileHover={{ scale: 1.02 }}
-                className="flex items-center gap-3 pl-3 pr-4 py-2.5 bg-card/90 backdrop-blur-lg rounded-full shadow-lg border border-border/80 hover:border-border active:bg-muted hover:shadow-xl transition-all duration-200"
-              >
-                <div className={cn(
-                  "w-9 h-9 rounded-full flex items-center justify-center shadow-sm",
-                  action.color || "bg-primary text-primary-foreground"
-                )}>
-                  {action.icon}
-                </div>
-                <span className="text-sm font-medium whitespace-nowrap pr-1">{action.label}</span>
-              </motion.button>
-            ))}
-          </div>
-        )}
-      </AnimatePresence>
+      {isMenuMode && (
+        <AnimatePresence>
+          {isOpen && (
+            <div className="absolute bottom-16 right-0 flex flex-col-reverse gap-2.5">
+              {actions.map((action, index) => (
+                <motion.button
+                  key={action.id}
+                  initial={{ opacity: 0, y: 20, scale: 0.8 }}
+                  animate={{ 
+                    opacity: 1, 
+                    y: 0, 
+                    scale: 1,
+                  }}
+                  exit={{ 
+                    opacity: 0, 
+                    y: 10, 
+                    scale: 0.8,
+                  }}
+                  transition={{
+                    type: "spring",
+                    stiffness: 400,
+                    damping: 25,
+                    delay: index * 0.04,
+                  }}
+                  onClick={() => handleAction(action)}
+                  whileTap={{ scale: 0.95 }}
+                  whileHover={{ scale: 1.02 }}
+                  className="flex items-center gap-3 pl-3 pr-4 py-2.5 bg-card/90 backdrop-blur-lg rounded-full shadow-lg border border-border/80 hover:border-border active:bg-muted hover:shadow-xl transition-all duration-200"
+                >
+                  <div className={cn(
+                    "w-9 h-9 rounded-full flex items-center justify-center shadow-sm",
+                    action.color || "bg-primary text-primary-foreground"
+                  )}>
+                    {action.icon}
+                  </div>
+                  <span className="text-sm font-medium whitespace-nowrap pr-1">{action.label}</span>
+                </motion.button>
+              ))}
+            </div>
+          )}
+        </AnimatePresence>
+      )}
 
       {/* Main FAB Button - Enhanced with Glassmorphism */}
       <motion.button
         whileTap={{ scale: 0.9 }}
         whileHover={{ scale: 1.05 }}
-        onClick={toggleMenu}
+        onClick={handleMainClick}
         className={cn(
           "w-14 h-14 rounded-full flex items-center justify-center",
           "backdrop-blur-xl border transition-all duration-300",
@@ -113,7 +127,7 @@ export const FloatingActionMenu = ({ actions, className }: FloatingActionMenuPro
             ? undefined 
             : '0 8px 30px hsla(var(--primary), 0.35), 0 0 60px hsla(var(--primary), 0.15), inset 0 1px 1px rgba(255,255,255,0.15)'
         }}
-        aria-label={isOpen ? "Close menu" : "Open quick actions"}
+        aria-label={isOpen ? "Close menu" : (onMainClick ? "New booking" : "Open quick actions")}
       >
         <motion.div
           animate={{ rotate: isOpen ? 45 : 0 }}
