@@ -522,7 +522,15 @@ const DashboardInner = () => {
         </div>
 
         {/* Floating Action Button for quick actions - hide in Settings */}
-        {activeModule !== "settings" && <FloatingActionMenu actions={fabActions} />}
+        {activeModule !== "settings" && (
+          <FloatingActionMenu
+            actions={fabActions}
+            onMainClick={activeModule === "book" ? () => {
+              track('fab_new_booking_direct', { from_module: activeModule });
+              nav(moduleIdToPath('book', { action: 'new' }));
+            } : undefined}
+          />
+        )}
 
         {/* Main Content */}
         <main
