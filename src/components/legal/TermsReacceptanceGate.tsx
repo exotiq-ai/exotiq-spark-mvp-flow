@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -35,46 +35,55 @@ export const TermsReacceptanceGate = ({ children }: { children: React.ReactNode 
   const [error, setError] = useState<string | null>(null);
   const teamId = currentTeam?.id ?? null;
   const jurisdiction = (currentTeam as { primary_jurisdiction?: string | null } | null)?.primary_jurisdiction ?? null;
-  const requiredDocs = requiredDocsForJurisdiction(jurisdiction);
+  // Memoize so requiredDocs identity is stable across renders. Otherwise the
+  // evaluate effect retriggers every render and fires dozens of reads.
+  const requiredDocs = useMemo(
+    () => requiredDocsForJurisdiction(jurisdiction),
+    [jurisdiction]
+  );
   const consentStatement = consentStatementForJurisdiction(jurisdiction);
   const canAcceptForTeam = userRole === "owner" || userRole === "admin";
+  const inFlightRef = useRef(false);
 
   const evaluate = useCallback(async () => {
     if (!user) {
       setChecking(false);
       return;
     }
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
     setChecking(true);
     setError(null);
 
-    // Latest version accepted per doc type for this user
-    const { data, error: qErr } = await supabase
-      .from("terms_acceptances")
-      .select("documents_accepted")
-      .eq("user_id", user.id)
-      .order("accepted_at", { ascending: false })
-      .limit(50);
+    try {
+      const { data, error: qErr } = await supabase
+        .from("terms_acceptances")
+        .select("documents_accepted")
+        .eq("user_id", user.id)
+        .order("accepted_at", { ascending: false })
+        .limit(50);
 
-    if (qErr) {
-      // Fail open on a transient read error rather than locking the user out
-      console.warn("TermsReacceptanceGate: read failed, allowing entry", qErr);
-      setOutdated([]);
-      setChecking(false);
-      return;
-    }
-
-    const latest = new Map<LegalDocType, string>();
-    for (const row of (data ?? []) as AcceptanceRow[]) {
-      for (const d of row.documents_accepted ?? []) {
-        if (!latest.has(d.document_type)) latest.set(d.document_type, d.version);
+      if (qErr) {
+        console.warn("TermsReacceptanceGate: read failed, allowing entry", qErr);
+        setOutdated([]);
+        return;
       }
-    }
 
-    const stale = requiredDocs.filter(
-      (t) => latest.get(t) !== LEGAL_DOCS[t].version
-    );
-    setOutdated(stale);
-    setChecking(false);
+      const latest = new Map<LegalDocType, string>();
+      for (const row of (data ?? []) as AcceptanceRow[]) {
+        for (const d of row.documents_accepted ?? []) {
+          if (!latest.has(d.document_type)) latest.set(d.document_type, d.version);
+        }
+      }
+
+      const stale = requiredDocs.filter(
+        (t) => latest.get(t) !== LEGAL_DOCS[t].version
+      );
+      setOutdated(stale);
+    } finally {
+      setChecking(false);
+      inFlightRef.current = false;
+    }
   }, [user, requiredDocs]);
 
   useEffect(() => {
