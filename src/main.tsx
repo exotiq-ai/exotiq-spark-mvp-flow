@@ -5,6 +5,16 @@ import { ThemeProvider } from '@/components/providers/theme-provider'
 import { initStaleAssetRecovery, rescueStuckServiceWorker } from '@/lib/staleBuildRecovery'
 import { registerSW } from 'virtual:pwa-register'
 
+// Stamp the current build id in the console so support can tell at a glance
+// whether a user is on the latest deploy or a stale service-worker shell.
+// __BUILD_ID__ is injected by vite.config.ts.
+declare const __BUILD_ID__: string;
+try {
+  console.info('[Exotiq] build', typeof __BUILD_ID__ !== 'undefined' ? __BUILD_ID__ : 'dev');
+} catch {
+  // ignore
+}
+
 // Initialize stale asset auto-recovery BEFORE React renders
 // This catches chunk load errors and auto-reloads once
 initStaleAssetRecovery();
