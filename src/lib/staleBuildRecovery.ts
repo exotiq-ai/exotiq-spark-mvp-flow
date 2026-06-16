@@ -10,21 +10,32 @@ import { devLog, devWarn, devError } from './logger';
 
 const RELOAD_FLAG = 'exotiq_reload_attempted';
 const RELOAD_TIMESTAMP = 'exotiq_reload_ts';
-const RELOAD_COOLDOWN_MS = 30000; // 30 seconds between auto-reloads
+const RELOAD_COOLDOWN_MS = 60_000; // 60s between auto-reloads
 const SW_RESCUE_FLAG = 'exotiq_sw_v2_initialized'; // Versioned: bump to force re-rescue
 const SW_RESCUE_COMPLETED = 'exotiq_sw_v2_rescued';
 
-// Require TWO stale-asset errors within this window before triggering a hard
-// reload, AND the second failure must reference a different chunk — transient
-// preload races typically repeat on the same chunk and shouldn't yank the tab.
+// For ambiguous preload races we still require TWO failures on DIFFERENT
+// chunks. For deterministic module URLs (versioned `/assets/*.js|css`, or a
+// concrete `Foo.tsx` from a dynamic import) one failure is enough — those
+// don't fail transiently, so waiting for a second strike just keeps the user
+// staring at a blank screen.
 const ERROR_CONFIRM_WINDOW_MS = 20_000;
 let firstErrorAt: number | null = null;
 let firstErrorKey: string | null = null;
 
 const errorKey = (error: Error | string): string => {
   const msg = typeof error === 'string' ? error : error.message || '';
-  const match = msg.match(/[\w-]+\.(?:js|mjs|css)/);
+  const match = msg.match(/[\w-]+\.(?:js|mjs|css|tsx|ts|jsx)/);
   return match ? match[0] : msg.slice(0, 80);
+};
+
+/** Deterministic asset URLs we can fail-fast on after a single error. */
+const isDeterministicAssetError = (error: Error | string): boolean => {
+  const msg = typeof error === 'string' ? error : error.message || '';
+  return (
+    /\/assets\/[\w-]+\.[a-f0-9]{6,}\.(?:js|mjs|css)/i.test(msg) ||
+    /\/src\/[^\s"']+\.(?:tsx|ts|jsx|js)/i.test(msg)
+  );
 };
 
 /**
