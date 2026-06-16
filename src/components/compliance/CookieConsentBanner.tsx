@@ -102,10 +102,11 @@ export const CookieConsentBanner = () => {
   return (
     <>
       <div
-        className="fixed bottom-0 inset-x-0 z-50 p-3 sm:p-4"
+        className="fixed inset-x-0 z-40 px-3 sm:p-4 pointer-events-none"
+        style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 88px)" }}
         data-testid="cookie-consent-banner"
       >
-        <div className="mx-auto max-w-3xl rounded-lg border border-border bg-background/95 backdrop-blur shadow-lg p-4">
+        <div className="mx-auto max-w-3xl rounded-lg border border-border bg-background/95 backdrop-blur shadow-lg p-3 sm:p-4 pointer-events-auto md:!mb-0" style={{ marginBottom: 0 }}>
           <div className="flex items-start gap-3">
             <Cookie className="h-5 w-5 text-primary shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
