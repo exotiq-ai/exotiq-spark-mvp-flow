@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/skeleton-specialized";
 import { UnifiedNotificationCenter } from "@/components/common/UnifiedNotificationCenter";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
+import { DelayedFallback } from "@/components/common/DelayedFallback";
 import { LocationContextBanner } from "@/components/common/LocationBadge";
 import { PaymentDueBanner } from "@/components/dashboard/PaymentDueBanner";
 import { ComplianceBanner } from "@/components/compliance/ComplianceBanner";
