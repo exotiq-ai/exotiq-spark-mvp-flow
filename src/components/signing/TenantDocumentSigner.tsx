@@ -313,9 +313,9 @@ export const TenantDocumentSigner = ({ documentId, open, onOpenChange, onSigned 
               <div>
                 <h3 className="text-sm font-semibold">Sign this document</h3>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Fill any form fields directly in the document, then sign below. Your
-                  signature will be stamped on the document and stored in your Vault.
-                  Exotiq retains a sealed copy for compliance.
+                  Review the document, then sign below. Your signature will be
+                  stamped on the last page and a signed copy saved to your
+                  Vault. Exotiq retains a sealed compliance copy.
                 </p>
               </div>
 
