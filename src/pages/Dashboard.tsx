@@ -40,17 +40,17 @@ import {
   MessageSquare
 } from "lucide-react";
 // Lazy-loaded dashboard modules for code splitting
-const MotorIQEnhanced = lazy(() => import('@/components/dashboard/MotorIQEnhanced'));
-const PulseEnhanced = lazy(() => import('@/components/dashboard/PulseEnhanced'));
-const BookEnhanced = lazy(() => import('@/components/dashboard/BookEnhanced'));
-const VaultEnhanced = lazy(() => import('@/components/dashboard/VaultEnhanced'));
-const CoreEnhanced = lazy(() => import('@/components/dashboard/CoreEnhanced'));
-const FleetPageEnhanced = lazy(() => import('@/components/fleet/FleetPageEnhanced'));
-const DashboardOverviewEnhanced = lazy(() => import('@/components/dashboard/DashboardOverviewEnhanced'));
-const SettingsLayout = lazy(() => import('@/components/dashboard/settings/SettingsLayout'));
-const TeamHub = lazy(() => import('@/components/dashboard/TeamHub'));
-const TeamMessaging = lazy(() => import('@/components/messaging/TeamMessaging'));
-const MarginEnhanced = lazy(() => import('@/components/dashboard/MarginEnhanced'));
+const MotorIQEnhanced = lazyWithRetry(() => import('@/components/dashboard/MotorIQEnhanced'));
+const PulseEnhanced = lazyWithRetry(() => import('@/components/dashboard/PulseEnhanced'));
+const BookEnhanced = lazyWithRetry(() => import('@/components/dashboard/BookEnhanced'));
+const VaultEnhanced = lazyWithRetry(() => import('@/components/dashboard/VaultEnhanced'));
+const CoreEnhanced = lazyWithRetry(() => import('@/components/dashboard/CoreEnhanced'));
+const FleetPageEnhanced = lazyWithRetry(() => import('@/components/fleet/FleetPageEnhanced'));
+const DashboardOverviewEnhanced = lazyWithRetry(() => import('@/components/dashboard/DashboardOverviewEnhanced'));
+const SettingsLayout = lazyWithRetry(() => import('@/components/dashboard/settings/SettingsLayout'));
+const TeamHub = lazyWithRetry(() => import('@/components/dashboard/TeamHub'));
+const TeamMessaging = lazyWithRetry(() => import('@/components/messaging/TeamMessaging'));
+const MarginEnhanced = lazyWithRetry(() => import('@/components/dashboard/MarginEnhanced'));
 
 import { DashboardSidebarEnhanced } from "@/components/dashboard/DashboardSidebarEnhanced";
 import { KeyboardShortcutsHelp } from "@/components/common/KeyboardShortcutsHelp";
