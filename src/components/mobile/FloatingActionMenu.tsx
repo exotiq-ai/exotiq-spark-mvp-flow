@@ -14,6 +14,7 @@ interface ActionItem {
 interface FloatingActionMenuProps {
   actions: ActionItem[];
   className?: string;
+  onMainClick?: () => void;
 }
 
 export const FloatingActionMenu = ({ actions, className }: FloatingActionMenuProps) => {
