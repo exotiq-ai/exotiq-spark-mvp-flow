@@ -167,7 +167,7 @@ export const TenantHealthTab = () => {
                       <td className="py-2 pr-3 text-right tabular-nums">{r.active_rentals}</td>
                       <td className="py-2 pr-3 text-right tabular-nums">{r.util_30d}%</td>
                       <td className="py-2 pr-3 text-right tabular-nums">{fmtCurrency(r.revenue_30d)}</td>
-                      <td className="py-2 pr-3 text-muted-foreground">{relTime(r.last_login)}</td>
+                      <td className="py-2 pr-3 text-muted-foreground">{relTime(r.last_activity)}</td>
                       <td className="py-2">
                         <div className="flex flex-wrap gap-1">
                           {r.risk_flags.map((f) => (
