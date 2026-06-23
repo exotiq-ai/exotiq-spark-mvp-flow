@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTeam } from '@/contexts/TeamContext';
 import { toast } from 'sonner';
 import { buildMessageAttachmentPath } from './teamMessagingPaths';
 
@@ -73,39 +74,19 @@ export const useTeamMessaging = () => {
   const [loading, setLoading] = useState(true);
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [teamMembers, setTeamMembers] = useState<{ id: string; name: string; email: string; avatar_url: string | null }[]>([]);
-  const [currentTeamId, setCurrentTeamId] = useState<string | null>(null);
   const { user } = useAuth();
+  const { currentTeam } = useTeam();
+  const currentTeamId = currentTeam?.id || null;
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
-
-  // Fetch current user's team ID
-  const fetchCurrentTeamId = useCallback(async () => {
-    if (!user) return null;
-    const { data } = await supabase
-      .from('team_members')
-      .select('team_id')
-      .eq('user_id', user.id)
-      .eq('is_active', true)
-      .limit(1)
-      .maybeSingle();
-    const teamId = data?.team_id || null;
-    setCurrentTeamId(teamId);
-    return teamId;
-  }, [user]);
 
   // Fetch team members scoped to current user's team only
   const fetchTeamMembers = useCallback(async () => {
-    if (!user) return;
-    
-    let teamId = currentTeamId;
-    if (!teamId) {
-      teamId = await fetchCurrentTeamId();
-    }
-    if (!teamId) return;
+    if (!user || !currentTeamId) return;
 
     const { data, error } = await supabase
       .from('team_members')
       .select('user_id, profiles(id, full_name, email, avatar_url)')
-      .eq('team_id', teamId)
+      .eq('team_id', currentTeamId)
       .eq('is_active', true);
 
     if (!error && data) {
@@ -122,16 +103,11 @@ export const useTeamMessaging = () => {
         })
       );
     }
-  }, [user, currentTeamId, fetchCurrentTeamId]);
+  }, [user?.id, currentTeamId]);
 
-  // Fetch all conversations for current user
+  // Fetch all conversations for current user (batched, no N+1)
   const fetchConversations = useCallback(async () => {
     if (!user) return;
-
-    let teamId = currentTeamId;
-    if (!teamId) {
-      teamId = await fetchCurrentTeamId();
-    }
 
     try {
       // Get conversations where user is a member
@@ -149,11 +125,11 @@ export const useTeamMessaging = () => {
         .from('team_conversations')
         .select('*')
         .eq('is_company_wide', true);
-      
-      if (teamId) {
-        companyQuery.eq('team_id', teamId);
+
+      if (currentTeamId) {
+        companyQuery.eq('team_id', currentTeamId);
       }
-      
+
       const { data: companyConvs, error: companyError } = await companyQuery;
 
       if (companyError) throw companyError;
@@ -172,44 +148,65 @@ export const useTeamMessaging = () => {
 
       // Merge and dedupe
       const allConvs = [...userConvs, ...(companyConvs || []).filter(c => !convIds.includes(c.id))] as Conversation[];
+      const allConvIds = allConvs.map(c => c.id);
 
-      // Get last message and members for each conversation
-      const enrichedConvs = await Promise.all(allConvs.map(async (conv) => {
-        // Get last message
-        const { data: lastMsg } = await supabase
-          .from('team_messages')
-          .select('*')
-          .eq('conversation_id', conv.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
+      if (allConvIds.length === 0) {
+        setConversations([]);
+        return;
+      }
 
-        const lastMessage = lastMsg as unknown as TeamMessage | null;
+      // Batch: fetch all members for all conversations in one query
+      const { data: allMembers } = await supabase
+        .from('conversation_members')
+        .select('*')
+        .in('conversation_id', allConvIds);
 
-        // Get members
-        const { data: members } = await supabase
-          .from('conversation_members')
-          .select('*')
-          .eq('conversation_id', conv.id);
+      // Batch: fetch all member profiles in one query
+      const memberUserIds = Array.from(new Set((allMembers || []).map(m => m.user_id)));
+      const { data: allProfiles } = memberUserIds.length > 0
+        ? await supabase
+            .from('profiles')
+            .select('id, full_name, email, avatar_url')
+            .in('id', memberUserIds)
+        : { data: [] as { id: string; full_name: string | null; email: string; avatar_url: string | null }[] };
 
-        // Get member profiles
-        const memberIds = members?.map(m => m.user_id) || [];
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, full_name, email, avatar_url')
-          .in('id', memberIds);
+      const profileMap = new Map((allProfiles || []).map(p => [p.id, p]));
 
-        const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
-        
-        const enrichedMembers = members?.map(m => ({
+      // Batch: fetch recent messages for all conversations (capped) for last-message + unread calc
+      // Pull up to 200 recent messages across these conversations; sufficient for badge + last-message preview.
+      const { data: recentMsgs } = await supabase
+        .from('team_messages')
+        .select('*')
+        .in('conversation_id', allConvIds)
+        .order('created_at', { ascending: false })
+        .limit(200);
+
+      // Build per-conversation last message map
+      const lastMsgByConv = new Map<string, TeamMessage>();
+      for (const m of ((recentMsgs || []) as unknown as TeamMessage[])) {
+        if (!lastMsgByConv.has(m.conversation_id)) {
+          lastMsgByConv.set(m.conversation_id, m);
+        }
+      }
+
+      // Group members per conversation
+      const membersByConv = new Map<string, typeof allMembers>();
+      for (const m of allMembers || []) {
+        const list = membersByConv.get(m.conversation_id) || [];
+        list.push(m);
+        membersByConv.set(m.conversation_id, list);
+      }
+
+      const enrichedConvs: Conversation[] = allConvs.map((conv) => {
+        const members = membersByConv.get(conv.id) || [];
+        const enrichedMembers = members.map(m => ({
           ...m,
           role: m.role as 'admin' | 'member',
           user_name: profileMap.get(m.user_id)?.full_name || 'Unknown',
           user_email: profileMap.get(m.user_id)?.email || '',
           user_avatar: profileMap.get(m.user_id)?.avatar_url,
-        })) || [];
+        }));
 
-        // For direct messages, get the other user
         let otherUser;
         if (conv.type === 'direct' && enrichedMembers.length > 0) {
           const other = enrichedMembers.find(m => m.user_id !== user?.id);
@@ -222,27 +219,24 @@ export const useTeamMessaging = () => {
           }
         }
 
-        // Calculate unread count
-        const myMembership = members?.find(m => m.user_id === user?.id);
-        let unreadCount = 0;
-        if (myMembership) {
-          const { count } = await supabase
-            .from('team_messages')
-            .select('*', { count: 'exact', head: true })
-            .eq('conversation_id', conv.id)
-            .gt('created_at', myMembership.last_read_at);
-          unreadCount = count || 0;
-        }
+        // Approximate unread from the recent-messages window, using this user's last_read_at
+        const myMembership = members.find(m => m.user_id === user?.id);
+        const lastReadAt = myMembership?.last_read_at;
+        const unreadCount = lastReadAt
+          ? (recentMsgs || []).filter(
+              m => m.conversation_id === conv.id && m.created_at > lastReadAt && m.sender_id !== user?.id
+            ).length
+          : 0;
 
         return {
           ...conv,
           type: conv.type as 'direct' | 'group' | 'channel',
-          last_message: lastMessage || undefined,
+          last_message: lastMsgByConv.get(conv.id),
           members: enrichedMembers,
           other_user: otherUser,
           unread_count: unreadCount,
         };
-      }));
+      });
 
       // Sort by last message time
       enrichedConvs.sort((a, b) => {
@@ -257,7 +251,7 @@ export const useTeamMessaging = () => {
     } finally {
       setLoading(false);
     }
-  }, [user, currentTeamId, fetchCurrentTeamId]);
+  }, [user?.id, currentTeamId]);
 
   // Fetch messages for a conversation
   const fetchMessages = useCallback(async (conversationId: string) => {
@@ -336,15 +330,12 @@ export const useTeamMessaging = () => {
     };
   }, [activeConversation, fetchMessages]);
 
-  // Initial load - fetch team ID first, then conversations and members
+  // Initial load - fetch conversations and members when user/team are known
   useEffect(() => {
-    const init = async () => {
-      await fetchCurrentTeamId();
-      fetchConversations();
-      fetchTeamMembers();
-    };
-    init();
-  }, [fetchCurrentTeamId, fetchConversations, fetchTeamMembers]);
+    if (!user?.id) return;
+    fetchConversations();
+    fetchTeamMembers();
+  }, [user?.id, currentTeamId, fetchConversations, fetchTeamMembers]);
 
   // Send message
   const sendMessage = useCallback(async (
