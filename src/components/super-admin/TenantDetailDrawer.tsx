@@ -28,7 +28,7 @@ interface Detail {
   bookings: { active_now: number; pending: number; this_week: number; last_week: number };
   revenue_30d: number;
   last_payment_at: string | null;
-  last_login: string | null;
+  last_activity: string | null;
   active_users_7d: number;
   onboarding_pct: number | null;
   seat_audit_reviewed_at: string | null;
@@ -80,7 +80,7 @@ export const TenantDetailDrawer = ({ teamId, onClose }: Props) => {
       `Vehicles in use: ${detail.fleet.active + detail.fleet.maintenance}`,
       `Active rentals: ${detail.bookings.active_now}`,
       `Revenue 30d: ${fmtCurrency(detail.revenue_30d)}`,
-      `Last login: ${fmtDate(detail.last_login)}`,
+      `Last activity: ${fmtDate(detail.last_activity)}`,
       detail.trial_end ? `Trial ends: ${fmtDate(detail.trial_end)}` : null,
     ]
       .filter(Boolean)
@@ -175,7 +175,7 @@ export const TenantDetailDrawer = ({ teamId, onClose }: Props) => {
 
               <Card>
                 <CardContent className="p-4 grid grid-cols-3 gap-3">
-                  <Stat label="Last login" value={fmtDate(detail.last_login)} />
+                  <Stat label="Last activity" value={fmtDate(detail.last_activity)} />
                   <Stat label="Active users 7d" value={detail.active_users_7d} />
                   <Stat
                     label="Onboarding"

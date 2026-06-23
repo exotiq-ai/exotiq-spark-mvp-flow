@@ -5294,7 +5294,7 @@ export type Database = {
           city: string
           fleet_size_cap: number
           is_demo: boolean
-          last_login: string
+          last_activity: string
           plan_tier: string
           revenue_30d: number
           risk_flags: string[]

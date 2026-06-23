@@ -17,7 +17,7 @@ interface Row {
   active_rentals: number;
   util_30d: number;
   revenue_30d: number;
-  last_login: string | null;
+  last_activity: string | null;
   trial_end: string | null;
   is_demo: boolean;
   stripe_connected: boolean;
@@ -134,7 +134,7 @@ export const TenantHealthTab = () => {
                   <th className="text-right py-2 pr-3 font-medium">Active</th>
                   <th className="text-right py-2 pr-3 font-medium">Util 30d</th>
                   <th className="text-right py-2 pr-3 font-medium">Rev 30d</th>
-                  <th className="text-left py-2 pr-3 font-medium">Last login</th>
+                  <th className="text-left py-2 pr-3 font-medium">Last activity</th>
                   <th className="text-left py-2 font-medium">Flags</th>
                 </tr>
               </thead>
@@ -167,7 +167,7 @@ export const TenantHealthTab = () => {
                       <td className="py-2 pr-3 text-right tabular-nums">{r.active_rentals}</td>
                       <td className="py-2 pr-3 text-right tabular-nums">{r.util_30d}%</td>
                       <td className="py-2 pr-3 text-right tabular-nums">{fmtCurrency(r.revenue_30d)}</td>
-                      <td className="py-2 pr-3 text-muted-foreground">{relTime(r.last_login)}</td>
+                      <td className="py-2 pr-3 text-muted-foreground">{relTime(r.last_activity)}</td>
                       <td className="py-2">
                         <div className="flex flex-wrap gap-1">
                           {r.risk_flags.map((f) => (
