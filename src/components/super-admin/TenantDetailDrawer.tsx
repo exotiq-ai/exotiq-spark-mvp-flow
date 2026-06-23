@@ -175,7 +175,7 @@ export const TenantDetailDrawer = ({ teamId, onClose }: Props) => {
 
               <Card>
                 <CardContent className="p-4 grid grid-cols-3 gap-3">
-                  <Stat label="Last login" value={fmtDate(detail.last_login)} />
+                  <Stat label="Last activity" value={fmtDate(detail.last_activity)} />
                   <Stat label="Active users 7d" value={detail.active_users_7d} />
                   <Stat
                     label="Onboarding"
