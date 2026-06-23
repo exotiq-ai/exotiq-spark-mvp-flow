@@ -17,7 +17,7 @@ interface Row {
   active_rentals: number;
   util_30d: number;
   revenue_30d: number;
-  last_login: string | null;
+  last_activity: string | null;
   trial_end: string | null;
   is_demo: boolean;
   stripe_connected: boolean;
