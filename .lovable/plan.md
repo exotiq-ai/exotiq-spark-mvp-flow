@@ -1,61 +1,49 @@
-## Goal
+## What's actually slow
 
-Rename **Last login** → **Last activity** on the Super Admin → Tenant Health table (and the matching stat in the tenant detail drawer), and back it with a signal that reflects whether anyone on the team is actually *using* the platform — not just the last time they re-entered their password.
+The HAR from `app.exotiq.ai` shows ~160 requests on a single navigation, dominated by **duplicate Supabase calls fired by the team-messaging hook**, not by your recent Super Admin change:
 
-## Why the original signal is wrong
+| Count | Endpoint |
+|---|---|
+| 36 | `rest/v1/team_messages` |
+| 24 | `rest/v1/profiles` |
+| 24 | `rest/v1/conversation_members` |
+| 18 | `rest/v1/team_members` (always the same query) |
+| 12 | `rest/v1/team_conversations` |
 
-`auth.users.last_sign_in_at` only ticks on a fresh sign-in. Sessions on this app are long-lived, so an active customer who hasn't been kicked out in a month still shows "1mo ago" — exactly the misleading data the screenshot is highlighting.
+All of those come from `src/hooks/useTeamMessaging.ts`, which is mounted in `DashboardHeader` and therefore runs on every page. The big asset load times (`Auth-*.js` 9.7s, `chartExport-*.js` 15s) are network/CDN noise — the dev-server change to "Last activity" is not implicated.
 
-## Activity signal — use the table we already have
+## Root cause
 
-The project already has `public.user_activity_log` with `user_id`, `team_id`, `activity_type`, `created_at`, indexed on `created_at DESC` and (via the hardening migration) on `team_id`. It's written to by `useTeamActivity` on real in-app actions (navigation, CRUD, etc.), which is the definition of "on the platform."
+`useTeamMessaging` has a self-feeding `useEffect` loop and a heavy N+1 enrichment pass:
 
-`last_activity` per team =
-```sql
-GREATEST(
-  (SELECT max(created_at) FROM public.user_activity_log WHERE team_id = t.id),
-  (SELECT max(u.last_sign_in_at) FROM auth.users u
-     JOIN public.team_members tm ON tm.user_id = u.id
-    WHERE tm.team_id = t.id)
-)
-```
+1. `fetchCurrentTeamId` reads `team_members` even though `TeamContext` already exposes `currentTeam.id`. It also `setCurrentTeamId(...)`, which is in the dep array of `fetchConversations`/`fetchTeamMembers`, so those callbacks get new identities → the init `useEffect` (deps: those callbacks) re-runs → re-fetches everything. This is why the same `team_members?team_id=…` query fires 10–18 times.
+2. `fetchConversations` then loops every conversation and issues **4 separate queries per conversation** (last message, members, member profiles, unread count). With a handful of conversations that's the 36 / 24 / 24 we see.
+3. `DashboardHeader` only needs an unread badge but pulls the full hook, so the entire pipeline runs on every dashboard route.
 
-`last_sign_in_at` stays in the `GREATEST` as a floor so older tenants from before `user_activity_log` was wired up don't suddenly show "—".
+## Fix
 
-## Changes
+### `src/hooks/useTeamMessaging.ts`
+- Drop `fetchCurrentTeamId` and the local `currentTeamId` state. Read team id from `useTeam()` (`TeamContext`).
+- Stabilize callback deps: `fetchConversations` and `fetchTeamMembers` depend on `[user?.id, currentTeam?.id]` only. Remove cross-callback deps that cause re-creation.
+- Replace the per-conversation N+1 enrichment with batched queries:
+  - One `team_messages` query: latest row per `conversation_id` via `order(created_at desc)` + `in('conversation_id', ids)` then dedupe client-side (or a SQL view / RPC if we want it tighter later).
+  - One `conversation_members` query with `in('conversation_id', ids)`.
+  - One `profiles` query with the union of member ids.
+  - Unread counts: compute client-side from the batched messages + each member's `last_read_at` instead of a `count head:true` per conversation.
+- Init `useEffect` deps become `[user?.id, currentTeam?.id]` so it runs once per user/team, not on every callback re-creation.
 
-### Database — new migration
+### `src/components/dashboard/DashboardHeader.tsx`
+- Stop calling `useTeamMessaging` just for the unread badge. Use a lightweight selector — either expose `unreadTotal` from a new `useUnreadMessagesCount(teamId)` hook (single `count head:true` query + realtime channel on `team_messages` for that team), or read it from the slimmed-down `useTeamMessaging` only on the messaging route.
 
-Replace two SECURITY DEFINER functions in `supabase/migrations/20260605163938_…sql`:
-
-- `public.get_super_admin_tenant_health()` — rename returned column `last_login` → `last_activity`, compute via the `GREATEST(...)` above. All other columns / risk flags untouched.
-- `public.get_super_admin_tenant_detail(team_id uuid)` — rename JSON key `last_login` → `last_activity`, same computation.
-
-Re-`GRANT EXECUTE … TO authenticated` on both to match current grants. No table changes, no RLS changes.
-
-### Frontend
-
-- `src/components/super-admin/TenantHealthTab.tsx`
-  - Row type field `last_login` → `last_activity`.
-  - Header text "Last login" → "Last activity".
-  - Cell `relTime(r.last_login)` → `relTime(r.last_activity)`.
-  - Update sort key if the column is sortable.
-- `src/components/super-admin/TenantDetailDrawer.tsx`
-  - Detail type field `last_login` → `last_activity`.
-  - `<Stat label="Last login" value={fmtDate(detail.last_login)} />` → `<Stat label="Last activity" value={fmtDate(detail.last_activity)} />`.
-  - Clipboard export line `Last login: …` → `Last activity: …`.
-
-`rg` confirms no other call sites reference these fields.
-
-## Out of scope
-
-- No new heartbeat/ping table — `user_activity_log` already exists and is being written to.
-- No change to `profiles.last_login_at` or the auth `last_sign_in_at` column.
-- Column ordering, styling, and the surrounding "30d" / "Flags" columns are unchanged.
+### Out of scope
+- No schema changes, no RLS changes, no edge-function changes.
+- No rollback of the "Last activity" Super Admin change — it isn't the cause.
+- No service worker / Workbox changes (the slow JS chunks are CDN-side and unrelated to the regression pattern).
 
 ## Verification
 
-1. As a super admin, open Tenant Health: header reads **Last activity**; teams that were stale on "Last login" but have recent in-app actions show a much fresher relative time.
-2. Open a tenant drawer: stat reads **Last activity** with the same value as the row; clipboard export shows `Last activity: …`.
-3. A team with no `user_activity_log` rows still renders (falls back to `last_sign_in_at`, or "—" if both are null).
-4. No new console errors; existing super-admin RPC still returns one row per team.
+After the change, a fresh load of any dashboard page should show in the network tab:
+- `team_members` for the user fires **0–1** times (TeamContext already has it).
+- `team_conversations`, `conversation_members`, `profiles`, `team_messages` each fire **1–2** times total on initial load instead of 12–36.
+- Switching routes inside the dashboard does not re-issue messaging queries unless `currentTeam.id` changes.
+- Unread badge in the header still updates when a new message arrives (realtime subscription on `team_messages`).
