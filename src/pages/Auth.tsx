@@ -146,9 +146,6 @@ export default function Auth() {
       const { data, error } = await supabase.functions.invoke('accept-invite', {
         body: { token },
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
       });
 
       if (error || data?.error) {
