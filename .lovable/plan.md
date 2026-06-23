@@ -1,72 +1,57 @@
-## What's broken
+## Goal
 
-When a user clicks the invite link, the app calls the `accept-invite` edge function twice (validate on page load, then accept after sign-up). Both calls are malformed, so the edge function receives a body that is literally the string `"[object Object]"` and crashes on `await req.json()`:
+Make the "Current policies" list on the Legal settings page actionable: owners and admins can accept any document inline (one at a time) via a small confirm dialog. The existing forced re-acceptance modal, DPA card, and acceptance history are untouched.
 
-```
-Error in accept-invite function: SyntaxError: "[object Object]" is not valid JSON
-  at packageData (ext:deno_fetch/22_body.js:408:14)
-  at async Server.<anonymous> (.../accept-invite/index.ts:97:25)
-```
+## Scope
 
-### Bug 1 — validate call (`src/pages/Auth.tsx` ~line 146)
+Only `src/components/dashboard/settings/LegalSection.tsx`. No DB, RLS, or edge-function changes — the existing `record-terms-acceptance` function already handles everything we need.
 
-```ts
-await supabase.functions.invoke('accept-invite', {
-  body: { token },
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' }, // ← this
-});
-```
+## Behavior
 
-`supabase-js` auto-serializes a plain object body and sets `Content-Type` for you. When you also pass an explicit `Content-Type` header, the SDK assumes you've already serialized and forwards the body to `fetch` as-is. `fetch` then coerces the object to a string and sends `"[object Object]"`.
+For each row in "Current policies":
 
-### Bug 2 — accept call (`src/contexts/AuthContext.tsx` ~line 203)
+- **Already accepted at current version** → keep the existing `Accepted` badge. No action.
+- **Older version on file** → show the badge plus an `Accept update` button (owner/admin only).
+- **Not yet accepted** → show the badge plus an `Accept` button (owner/admin only).
+- **Non-owner / non-admin** → status badge only, no buttons. Hover tooltip: "Only an account owner or admin can accept on behalf of your organization." This matches the answer "Owners and admins only".
 
-```ts
-await supabase.functions.invoke('accept-invite?action=accept', {
-  body: { token, userId },
-  method: 'POST',
-});
-```
+Clicking the button opens a small confirm dialog with:
 
-`functions.invoke` URL-encodes the function name, so the `?` becomes `%3F` and the function never sees `action=accept` — it falls through into the default `validate` branch, where the body shape is wrong too. This also triggers the same body-coercion path under some SDK versions.
+- Doc title, version, effective date, and a link to open the full text in a new tab.
+- A single checkbox bound to a per-document consent statement (see below).
+- `Cancel` and `Accept` buttons. `Accept` is disabled until the checkbox is ticked and shows a spinner while submitting.
 
-## Fix
+On submit:
 
-Two small, scoped client-side changes. The edge function itself is correct and stays untouched.
+- Call `supabase.functions.invoke("record-terms-acceptance", { body: { team_id, event_type: "terms_update", documents: buildDocumentsPayload([docType]), consent_statement, acceptance_method: "checkbox_click", page_url, is_authorized_representative: true } })`.
+- For `dpa`, use `event_type: "order_form"` and the existing `DPA_CONSENT_STATEMENT` so it stays consistent with the dedicated DPA card. The DPA card stays as a richer, more prominent entry point but the row button also works.
+- On success: toast, close dialog, `await load()` to refresh the badge.
+- On error: toast destructive, leave dialog open so the user can retry.
 
-1. **`src/pages/Auth.tsx`** — remove the manual `Content-Type` header so `supabase-js` properly serializes the body:
-   ```ts
-   await supabase.functions.invoke('accept-invite', {
-     body: { token },
-     method: 'POST',
-   });
-   ```
+## Per-document consent statements
 
-2. **`src/contexts/AuthContext.tsx`** — move `action=accept` out of the function name and into a real query param via the underlying URL. The cleanest way that works with `supabase.functions.invoke` is to pass the action in the body and switch the edge function's branching to prefer body action when present — but to keep the edge function untouched, we instead call the function via `fetch` to the functions endpoint with the query string preserved:
-   ```ts
-   const url = `${SUPABASE_URL}/functions/v1/accept-invite?action=accept`;
-   const res = await fetch(url, {
-     method: 'POST',
-     headers: {
-       'Content-Type': 'application/json',
-       Authorization: `Bearer ${session?.access_token ?? SUPABASE_ANON_KEY}`,
-       apikey: SUPABASE_ANON_KEY,
-     },
-     body: JSON.stringify({ token, userId }),
-   });
-   const data = await res.json();
-   ```
-   (Using the existing `SUPABASE_URL` / `SUPABASE_PUBLISHABLE_KEY` already imported in the project's supabase client module.)
+A small lookup keyed by `LegalDocType`, each phrased to match what the document actually binds:
 
-## Verification
+- `terms` — "I have read and agree to the Exotiq Terms and Conditions. I represent that I am authorized to bind my organization to these terms."
+- `privacy` — "I acknowledge the Exotiq Privacy Policy and how my organization's data is processed."
+- `aup` — "On behalf of my organization, I agree to the Exotiq Acceptable Use Policy."
+- `dpa` — reuse `DPA_CONSENT_STATEMENT`.
+- `sms` — reuse `SMS_CONSENT_STATEMENT` from `src/lib/legal/versions.ts`.
+- `cookies` — "I acknowledge the Exotiq Cookie Policy."
+- `dmca` — "I acknowledge the Exotiq DMCA and Copyright Policy."
+- `transfer_addendum` — "On behalf of my organization, I execute the International Data Transfer Addendum (SCCs / UK IDTA) for transfers of personal data outside the EEA/UK."
 
-- Send a fresh invite from `hello@exotiq.ai` to a test address, click the email link:
-  - Auth page loads with the invitation pre-filled (validate succeeds, no edge error).
-  - After sign-up, the user is added to the team and lands in the dashboard (accept succeeds, role + team_members rows created, invitation marked `accepted`).
-- Check `accept-invite` logs: no `SyntaxError: "[object Object]" is not valid JSON`.
-- Re-test the existing invite to `thefreshprinceofbenblair@gmail.com` by resending (the old token may already be marked expired/used — if so, send a new one).
+These will live as a `PER_DOC_CONSENT_STATEMENT: Record<LegalDocType, string>` constant inside `LegalSection.tsx` (kept local for now since no other surface needs them; promote to `versions.ts` only if a second consumer appears).
 
 ## Out of scope
 
-- No changes to the edge function, the invite email, the invitations table, or any auth flow other than fixing the two malformed calls.
+- No bulk "Accept all outstanding" button (per the user's answer).
+- No changes to the forced re-acceptance gate.
+- No DB schema changes.
+- Audit fields (`ip_address`, `user_agent`) continue to be filled in by the edge function exactly as today.
+
+## Verification
+
+- As `hello@exotiq.ai` (owner): the SMS, Cookies, DMCA, Transfer Addendum rows show `Accept` buttons; clicking one opens the dialog, ticking the box and confirming records the acceptance and the badge flips to `Accepted` without a refresh. New row appears in "Acceptance history".
+- As a viewer: no buttons shown anywhere; status badges only.
+- Forced re-acceptance gate is unaffected when stale required docs exist.
