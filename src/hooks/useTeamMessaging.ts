@@ -183,7 +183,7 @@ export const useTeamMessaging = () => {
 
       // Build per-conversation last message map
       const lastMsgByConv = new Map<string, TeamMessage>();
-      for (const m of (recentMsgs || []) as TeamMessage[]) {
+      for (const m of ((recentMsgs || []) as unknown as TeamMessage[])) {
         if (!lastMsgByConv.has(m.conversation_id)) {
           lastMsgByConv.set(m.conversation_id, m);
         }
