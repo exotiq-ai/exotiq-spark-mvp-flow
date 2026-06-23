@@ -28,7 +28,7 @@ interface Detail {
   bookings: { active_now: number; pending: number; this_week: number; last_week: number };
   revenue_30d: number;
   last_payment_at: string | null;
-  last_login: string | null;
+  last_activity: string | null;
   active_users_7d: number;
   onboarding_pct: number | null;
   seat_audit_reviewed_at: string | null;
