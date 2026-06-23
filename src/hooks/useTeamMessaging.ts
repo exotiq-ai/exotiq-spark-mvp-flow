@@ -330,15 +330,12 @@ export const useTeamMessaging = () => {
     };
   }, [activeConversation, fetchMessages]);
 
-  // Initial load - fetch team ID first, then conversations and members
+  // Initial load - fetch conversations and members when user/team are known
   useEffect(() => {
-    const init = async () => {
-      await fetchCurrentTeamId();
-      fetchConversations();
-      fetchTeamMembers();
-    };
-    init();
-  }, [fetchCurrentTeamId, fetchConversations, fetchTeamMembers]);
+    if (!user?.id) return;
+    fetchConversations();
+    fetchTeamMembers();
+  }, [user?.id, currentTeamId, fetchConversations, fetchTeamMembers]);
 
   // Send message
   const sendMessage = useCallback(async (
