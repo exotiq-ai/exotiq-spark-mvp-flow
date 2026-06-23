@@ -80,7 +80,7 @@ export const TenantDetailDrawer = ({ teamId, onClose }: Props) => {
       `Vehicles in use: ${detail.fleet.active + detail.fleet.maintenance}`,
       `Active rentals: ${detail.bookings.active_now}`,
       `Revenue 30d: ${fmtCurrency(detail.revenue_30d)}`,
-      `Last login: ${fmtDate(detail.last_login)}`,
+      `Last activity: ${fmtDate(detail.last_activity)}`,
       detail.trial_end ? `Trial ends: ${fmtDate(detail.trial_end)}` : null,
     ]
       .filter(Boolean)
