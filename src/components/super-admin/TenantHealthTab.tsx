@@ -134,7 +134,7 @@ export const TenantHealthTab = () => {
                   <th className="text-right py-2 pr-3 font-medium">Active</th>
                   <th className="text-right py-2 pr-3 font-medium">Util 30d</th>
                   <th className="text-right py-2 pr-3 font-medium">Rev 30d</th>
-                  <th className="text-left py-2 pr-3 font-medium">Last login</th>
+                  <th className="text-left py-2 pr-3 font-medium">Last activity</th>
                   <th className="text-left py-2 font-medium">Flags</th>
                 </tr>
               </thead>
