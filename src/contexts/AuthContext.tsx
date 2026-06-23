@@ -199,11 +199,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const processPendingInvite = useCallback(async (userId: string, token: string) => {
     try {
       devLog('Processing pending invite for user:', userId);
-      
-      const { data, error } = await supabase.functions.invoke('accept-invite?action=accept', {
-        body: { token, userId },
+
+      // Call edge function via fetch so the `?action=accept` query string is preserved.
+      // supabase.functions.invoke() URL-encodes the function name, which would break the `?`.
+      const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+      const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token ?? SUPABASE_ANON_KEY;
+
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/accept-invite?action=accept`, {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+          apikey: SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({ token, userId }),
       });
+      const data = await res.json().catch(() => ({}));
+      const error = !res.ok ? new Error(data?.error || `Request failed (${res.status})`) : null;
 
       if (error || data?.error) {
         devError('Error accepting invite:', error || data?.error);
