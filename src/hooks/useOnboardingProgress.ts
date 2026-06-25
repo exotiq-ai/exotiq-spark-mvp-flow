@@ -316,10 +316,23 @@ export function useOnboardingProgress() {
     [updateProgress]
   );
 
-  // Mark onboarding as complete
+  // Mark onboarding as complete. Writes BOTH onboarding_progress.completed_at
+  // and profiles.onboarding_completed=true so the two stores can't drift apart
+  // if the tab closes between writes (which would otherwise strand the user
+  // on /onboarding forever on next login).
   const markComplete = useCallback(async () => {
     await updateProgress({ completedAt: new Date().toISOString() });
-  }, [updateProgress]);
+    if (user?.id) {
+      const { error: profileErr } = await supabase
+        .from('profiles')
+        .update({ onboarding_completed: true })
+        .eq('id', user.id);
+      if (profileErr) {
+        devError('[OnboardingProgress] Failed to set profiles.onboarding_completed', profileErr);
+      }
+    }
+  }, [updateProgress, user?.id]);
+
 
   // Cleanup timeout on unmount
   useEffect(() => {
