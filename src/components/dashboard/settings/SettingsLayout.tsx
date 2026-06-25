@@ -43,6 +43,7 @@ interface SettingsTab {
 const allSettingsTabs: SettingsTab[] = [
   { id: "account", label: "My Account", icon: User },
   { id: "team", label: "Team", icon: Users },
+  { id: "business", label: "Business", icon: Globe, requiresAdmin: true },
   { id: "locations", label: "Locations", icon: MapPin, requiresAdmin: true },
   { id: "notifications", label: "Notifications", icon: Bell },
   { id: "subscription", label: "Billing", icon: CreditCard },
