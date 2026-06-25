@@ -54,7 +54,7 @@ serve(async (req) => {
     // Check if team already has a Stripe account
     const { data: team } = await supabaseClient
       .from("teams")
-      .select("stripe_account_id, stripe_onboarding_complete")
+      .select("stripe_account_id, stripe_onboarding_complete, country_code")
       .eq("id", teamMember.team_id)
       .single();
 
@@ -62,9 +62,15 @@ serve(async (req) => {
     let accountId = team?.stripe_account_id;
 
     if (!accountId) {
+      // Country is captured in onboarding/settings and drives the Connect
+      // account's settlement currency. Defaults to US to preserve existing
+      // behaviour for tenants who haven't set a country.
+      const country = (team?.country_code || "US").toUpperCase();
+
       // Create new Express account
       const account = await stripe.accounts.create({
         type: "express",
+        country,
         email: user.email,
         capabilities: {
           card_payments: { requested: true },
@@ -73,10 +79,11 @@ serve(async (req) => {
         metadata: {
           team_id: teamMember.team_id,
           created_by: user.id,
+          country,
         },
       });
       accountId = account.id;
-      logStep("Created Express account", { accountId });
+      logStep("Created Express account", { accountId, country });
 
       // Store on team
       await supabaseClient
