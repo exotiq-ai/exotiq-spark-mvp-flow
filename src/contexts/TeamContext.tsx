@@ -21,6 +21,16 @@ export interface Team {
   stripe_onboarding_complete?: boolean | null;
   // Free-form team settings (jsonb)
   settings?: any;
+  // Multi-currency / VAT (Phase 1) — backfilled US defaults for every team
+  country_code?: string;          // ISO 3166-1 alpha-2, default 'US'
+  currency?: string;              // ISO 4217, default 'USD'
+  locale?: string;                // BCP 47, default 'en-US'
+  tax_label?: string;             // 'Tax' | 'VAT' | 'GST' | ..., default 'Tax'
+  tax_rate_percent?: number;      // 0..100, default 0
+  tax_inclusive?: boolean;        // default false
+  vat_number?: string | null;
+  business_address?: Record<string, any> | null;
+  invoice_sequence?: number;
 }
 
 export interface Location {
