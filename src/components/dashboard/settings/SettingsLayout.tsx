@@ -111,6 +111,8 @@ export const SettingsLayout = () => {
         return <MyAccountSection />;
       case "team":
         return <TeamHub />;
+      case "business":
+        return isAdmin ? <BusinessProfileSection /> : null;
       case "locations":
         return isAdmin ? <LocationsSection /> : null;
       case "notifications":
