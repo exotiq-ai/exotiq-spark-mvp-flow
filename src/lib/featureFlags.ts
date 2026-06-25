@@ -75,6 +75,12 @@ export const featureFlags = {
   // Super-admin surface is always available for internal testing; the
   // tenant-facing banner / Vault section is gated by this flag.
   tenantEsignature: true,
+
+  // Multi-currency & VAT (Phase 1)
+  // Master kill-switch for non-USD tenants. Default ON. If a regression hits
+  // US tenants, flip OFF — every code path falls back to USD/`Tax`/0% and
+  // existing behaviour is preserved.
+  multiCurrencyEnabled: true,
 } as const;
 
 export type FeatureFlag = keyof typeof featureFlags;
