@@ -176,7 +176,25 @@ export const EnhancedBookingDialog = ({
 
   const bookingDays = currentPricing?.rentalDays || 0;
   const dailyRate = Number(vehicle?.current_rate || booking?.daily_rate || 0);
-  const newTotal = currentPricing?.grandTotal || 0;
+
+  // Tenant-aware currency & tax config (defaults preserve US behaviour)
+  const currency = currentTeam?.currency || "USD";
+  const locale = currentTeam?.locale || "en-US";
+  const taxLabel = currentTeam?.tax_label || "Tax";
+  const taxRate = Number(currentTeam?.tax_rate_percent ?? 0);
+  const taxInclusive = !!currentTeam?.tax_inclusive;
+  const fmt = (n: number) => formatMoney(n, { currency, locale, decimals: 2 });
+
+  // Tax breakdown: when rate=0 (US default), total == grandTotal — zero behaviour change.
+  const taxBreakdown = useMemo(() => {
+    const gt = currentPricing?.grandTotal || 0;
+    return computeBookingTotals(
+      { daily_rate: gt, days: 1 }, // treat grandTotal as the pre-tax/gross base
+      { tax_rate_percent: taxRate, tax_inclusive: taxInclusive },
+    );
+  }, [currentPricing?.grandTotal, taxRate, taxInclusive]);
+
+  const newTotal = taxBreakdown.total;
 
   // Calculate price difference from original
   const priceDifference = useMemo(() => {
