@@ -52,12 +52,16 @@ serve(async (req) => {
 
     const { data: team } = await supabaseClient
       .from("teams")
-      .select("stripe_account_id, stripe_charges_enabled")
+      .select("stripe_account_id, stripe_charges_enabled, currency")
       .eq("id", teamMember.team_id)
       .single();
 
     if (!team?.stripe_account_id) throw new Error("Stripe account not connected. Please complete onboarding first.");
     if (!team.stripe_charges_enabled) throw new Error("Stripe account is not yet enabled for charges. Please complete onboarding.");
+
+    // Tenant currency drives the hold currency. Defaults to USD so existing
+    // US tenants see identical behaviour.
+    const currency = (team.currency || "USD").toLowerCase();
 
     // Check booking source for fee calculation
     const { data: booking } = await supabaseClient
@@ -74,7 +78,7 @@ serve(async (req) => {
     // Create PaymentIntent with manual capture on connected account
     const piParams: Stripe.PaymentIntentCreateParams = {
       amount: Math.round(amount * 100),
-      currency: "usd",
+      currency,
       capture_method: "manual",
       description: description || `Security deposit hold for booking ${booking_id.substring(0, 8)}`,
       metadata: {
