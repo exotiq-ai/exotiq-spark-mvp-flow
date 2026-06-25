@@ -416,8 +416,13 @@ export const EnhancedBookingDialog = ({
         pickup_location: editValues.pickupLocation,
         dropoff_location: editValues.dropoffLocation || null,
         notes: editValues.notes || null,
-        total_value: newTotal
-      });
+        total_value: newTotal,
+        subtotal: taxBreakdown.subtotal,
+        tax_amount: taxBreakdown.tax_amount,
+        tax_rate_percent: taxRate,
+        tax_inclusive: taxInclusive,
+        currency,
+      } as any);
 
       // If Save & Approve, also update status
       if (andApprove) {
