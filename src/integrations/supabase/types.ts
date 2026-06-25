@@ -216,6 +216,7 @@ export type Database = {
           cancelled_at: string | null
           confirmed_at: string | null
           created_at: string | null
+          currency: string
           customer_email: string | null
           customer_id: string | null
           customer_name: string
@@ -233,6 +234,8 @@ export type Database = {
           gas_fee_waived: boolean | null
           google_calendar_event_id: string | null
           id: string
+          invoice_issued_at: string | null
+          invoice_number: string | null
           mileage_limit: number | null
           mileage_overage_fee: number | null
           notes: string | null
@@ -252,6 +255,10 @@ export type Database = {
           security_deposit_status: string | null
           start_date: string
           status: string | null
+          subtotal: number
+          tax_amount: number
+          tax_inclusive: boolean
+          tax_rate_percent: number
           team_id: string | null
           total_value: number
           updated_at: string | null
@@ -267,6 +274,7 @@ export type Database = {
           cancelled_at?: string | null
           confirmed_at?: string | null
           created_at?: string | null
+          currency?: string
           customer_email?: string | null
           customer_id?: string | null
           customer_name: string
@@ -284,6 +292,8 @@ export type Database = {
           gas_fee_waived?: boolean | null
           google_calendar_event_id?: string | null
           id?: string
+          invoice_issued_at?: string | null
+          invoice_number?: string | null
           mileage_limit?: number | null
           mileage_overage_fee?: number | null
           notes?: string | null
@@ -303,6 +313,10 @@ export type Database = {
           security_deposit_status?: string | null
           start_date: string
           status?: string | null
+          subtotal?: number
+          tax_amount?: number
+          tax_inclusive?: boolean
+          tax_rate_percent?: number
           team_id?: string | null
           total_value: number
           updated_at?: string | null
@@ -318,6 +332,7 @@ export type Database = {
           cancelled_at?: string | null
           confirmed_at?: string | null
           created_at?: string | null
+          currency?: string
           customer_email?: string | null
           customer_id?: string | null
           customer_name?: string
@@ -335,6 +350,8 @@ export type Database = {
           gas_fee_waived?: boolean | null
           google_calendar_event_id?: string | null
           id?: string
+          invoice_issued_at?: string | null
+          invoice_number?: string | null
           mileage_limit?: number | null
           mileage_overage_fee?: number | null
           notes?: string | null
@@ -354,6 +371,10 @@ export type Database = {
           security_deposit_status?: string | null
           start_date?: string
           status?: string | null
+          subtotal?: number
+          tax_amount?: number
+          tax_inclusive?: boolean
+          tax_rate_percent?: number
           team_id?: string | null
           total_value?: number
           updated_at?: string | null
@@ -3222,7 +3243,10 @@ export type Database = {
           billing_dunning_set_at: string | null
           billing_dunning_set_by: string | null
           billing_dunning_stage: string | null
+          business_address: Json | null
+          country_code: string
           created_at: string | null
+          currency: string
           data_region: string
           deleted_at: string | null
           deleted_by: string | null
@@ -3233,8 +3257,10 @@ export type Database = {
           expense_auto_approve_under: number
           expense_review_required_types: string[]
           id: string
+          invoice_sequence: number
           is_deleted: boolean | null
           is_demo_account: boolean | null
+          locale: string
           logo_url: string | null
           min_rate: number | null
           name: string
@@ -3250,6 +3276,9 @@ export type Database = {
           stripe_charges_enabled: boolean
           stripe_onboarding_complete: boolean
           stripe_payouts_enabled: boolean
+          tax_inclusive: boolean
+          tax_label: string
+          tax_rate_percent: number
           timezone: string | null
           trial_end: string | null
           trial_start: string | null
@@ -3257,6 +3286,7 @@ export type Database = {
           uk_representative_email: string | null
           uk_representative_name: string | null
           updated_at: string | null
+          vat_number: string | null
         }
         Insert: {
           ai_data_minimization_level?: string
@@ -3268,7 +3298,10 @@ export type Database = {
           billing_dunning_set_at?: string | null
           billing_dunning_set_by?: string | null
           billing_dunning_stage?: string | null
+          business_address?: Json | null
+          country_code?: string
           created_at?: string | null
+          currency?: string
           data_region?: string
           deleted_at?: string | null
           deleted_by?: string | null
@@ -3279,8 +3312,10 @@ export type Database = {
           expense_auto_approve_under?: number
           expense_review_required_types?: string[]
           id?: string
+          invoice_sequence?: number
           is_deleted?: boolean | null
           is_demo_account?: boolean | null
+          locale?: string
           logo_url?: string | null
           min_rate?: number | null
           name: string
@@ -3296,6 +3331,9 @@ export type Database = {
           stripe_charges_enabled?: boolean
           stripe_onboarding_complete?: boolean
           stripe_payouts_enabled?: boolean
+          tax_inclusive?: boolean
+          tax_label?: string
+          tax_rate_percent?: number
           timezone?: string | null
           trial_end?: string | null
           trial_start?: string | null
@@ -3303,6 +3341,7 @@ export type Database = {
           uk_representative_email?: string | null
           uk_representative_name?: string | null
           updated_at?: string | null
+          vat_number?: string | null
         }
         Update: {
           ai_data_minimization_level?: string
@@ -3314,7 +3353,10 @@ export type Database = {
           billing_dunning_set_at?: string | null
           billing_dunning_set_by?: string | null
           billing_dunning_stage?: string | null
+          business_address?: Json | null
+          country_code?: string
           created_at?: string | null
+          currency?: string
           data_region?: string
           deleted_at?: string | null
           deleted_by?: string | null
@@ -3325,8 +3367,10 @@ export type Database = {
           expense_auto_approve_under?: number
           expense_review_required_types?: string[]
           id?: string
+          invoice_sequence?: number
           is_deleted?: boolean | null
           is_demo_account?: boolean | null
+          locale?: string
           logo_url?: string | null
           min_rate?: number | null
           name?: string
@@ -3342,6 +3386,9 @@ export type Database = {
           stripe_charges_enabled?: boolean
           stripe_onboarding_complete?: boolean
           stripe_payouts_enabled?: boolean
+          tax_inclusive?: boolean
+          tax_label?: string
+          tax_rate_percent?: number
           timezone?: string | null
           trial_end?: string | null
           trial_start?: string | null
@@ -3349,6 +3396,7 @@ export type Database = {
           uk_representative_email?: string | null
           uk_representative_name?: string | null
           updated_at?: string | null
+          vat_number?: string | null
         }
         Relationships: []
       }
@@ -3482,6 +3530,98 @@ export type Database = {
           },
           {
             foreignKeyName: "tenant_documents_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tenant_invoices: {
+        Row: {
+          booking_id: string | null
+          created_at: string
+          currency: string
+          customer_snapshot: Json
+          id: string
+          invoice_number: string
+          issued_at: string
+          line_items: Json
+          pdf_storage_path: string | null
+          subtotal: number
+          supplier_snapshot: Json
+          tax_amount: number
+          tax_inclusive: boolean
+          tax_point_date: string
+          tax_rate_percent: number
+          team_id: string
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          booking_id?: string | null
+          created_at?: string
+          currency: string
+          customer_snapshot: Json
+          id?: string
+          invoice_number: string
+          issued_at?: string
+          line_items?: Json
+          pdf_storage_path?: string | null
+          subtotal: number
+          supplier_snapshot: Json
+          tax_amount: number
+          tax_inclusive?: boolean
+          tax_point_date: string
+          tax_rate_percent: number
+          team_id: string
+          total: number
+          updated_at?: string
+        }
+        Update: {
+          booking_id?: string | null
+          created_at?: string
+          currency?: string
+          customer_snapshot?: Json
+          id?: string
+          invoice_number?: string
+          issued_at?: string
+          line_items?: Json
+          pdf_storage_path?: string | null
+          subtotal?: number
+          supplier_snapshot?: Json
+          tax_amount?: number
+          tax_inclusive?: boolean
+          tax_point_date?: string
+          tax_rate_percent?: number
+          team_id?: string
+          total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_invoices_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: true
+            referencedRelation: "booking_payment_summary"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "tenant_invoices_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: true
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tenant_invoices_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: true
+            referencedRelation: "deposit_ledger"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "tenant_invoices_team_id_fkey"
             columns: ["team_id"]
             isOneToOne: false
             referencedRelation: "teams"
@@ -5418,6 +5558,7 @@ export type Database = {
           users_migrated: number
         }[]
       }
+      next_invoice_number: { Args: { p_team_id: string }; Returns: string }
       purge_old_notifications: { Args: never; Returns: undefined }
       purge_vehicle_now: { Args: { p_vehicle_id: string }; Returns: undefined }
       reactivate_team_member:
