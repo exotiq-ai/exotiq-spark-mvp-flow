@@ -7,17 +7,18 @@ import { useBreakpoint } from "@/hooks/use-mobile";
 import { useUserRole } from "@/hooks/useUserRole";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { 
-  Settings, 
-  User, 
-  Users, 
-  MapPin, 
-  Bell, 
-  CreditCard, 
-  Puzzle, 
+import {
+  Settings,
+  User,
+  Users,
+  MapPin,
+  Bell,
+  CreditCard,
+  Puzzle,
   Database,
   Banknote,
-  ShieldCheck
+  ShieldCheck,
+  Globe,
 } from "lucide-react";
 
 // Settings sections
@@ -30,6 +31,7 @@ import { IntegrationsSection } from "./IntegrationsSection";
 import { DataManagementSection } from "./DataManagementSection";
 import { PaymentMethodsSection } from "@/components/settings/PaymentMethodsSection";
 import { LegalSection } from "./LegalSection";
+import { BusinessProfileSection } from "./BusinessProfileSection";
 
 interface SettingsTab {
   id: string;
@@ -41,6 +43,7 @@ interface SettingsTab {
 const allSettingsTabs: SettingsTab[] = [
   { id: "account", label: "My Account", icon: User },
   { id: "team", label: "Team", icon: Users },
+  { id: "business", label: "Business", icon: Globe, requiresAdmin: true },
   { id: "locations", label: "Locations", icon: MapPin, requiresAdmin: true },
   { id: "notifications", label: "Notifications", icon: Bell },
   { id: "subscription", label: "Billing", icon: CreditCard },
@@ -108,6 +111,8 @@ export const SettingsLayout = () => {
         return <MyAccountSection />;
       case "team":
         return <TeamHub />;
+      case "business":
+        return isAdmin ? <BusinessProfileSection /> : null;
       case "locations":
         return isAdmin ? <LocationsSection /> : null;
       case "notifications":

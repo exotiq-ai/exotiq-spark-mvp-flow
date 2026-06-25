@@ -70,7 +70,7 @@ serve(async (req) => {
 
     const { data: team, error: teamError } = await supabaseClient
       .from("teams")
-      .select("stripe_account_id, stripe_charges_enabled")
+      .select("stripe_account_id, stripe_charges_enabled, currency")
       .eq("id", teamId)
       .single();
 
@@ -97,6 +97,9 @@ serve(async (req) => {
     }
 
     const stripeAccountId: string = team.stripe_account_id;
+    // Tenant currency drives Stripe checkout currency. Defaults to USD so
+    // existing US tenants see identical behaviour.
+    const currency: string = (team.currency || "USD").toLowerCase();
 
     // Check booking source for marketplace fee
     let platformFee = 0;
@@ -141,7 +144,7 @@ serve(async (req) => {
       customer_email: stripeCustomerId ? undefined : customer_email,
       line_items: [{
         price_data: {
-          currency: "usd",
+          currency,
           product_data: {
             name: `${payment_type.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())} - Booking`,
             description: description || `Payment for booking ${booking_id?.substring(0, 8) || 'N/A'}`,
