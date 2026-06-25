@@ -7,17 +7,18 @@ import { useBreakpoint } from "@/hooks/use-mobile";
 import { useUserRole } from "@/hooks/useUserRole";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { 
-  Settings, 
-  User, 
-  Users, 
-  MapPin, 
-  Bell, 
-  CreditCard, 
-  Puzzle, 
+import {
+  Settings,
+  User,
+  Users,
+  MapPin,
+  Bell,
+  CreditCard,
+  Puzzle,
   Database,
   Banknote,
-  ShieldCheck
+  ShieldCheck,
+  Globe,
 } from "lucide-react";
 
 // Settings sections
