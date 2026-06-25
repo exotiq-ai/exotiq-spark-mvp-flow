@@ -5548,6 +5548,30 @@ export type Database = {
         }
         Returns: string
       }
+      lovable_rollback_snapshot: {
+        Args: never
+        Returns: {
+          captured_at: string
+          datname: string
+          rollback_ratio: number
+          xact_commit: number
+          xact_rollback: number
+        }[]
+      }
+      lovable_table_churn_snapshot: {
+        Args: never
+        Returns: {
+          idx_scan: number
+          n_dead_tup: number
+          n_live_tup: number
+          n_tup_del: number
+          n_tup_ins: number
+          n_tup_upd: number
+          relname: string
+          schemaname: string
+          seq_scan: number
+        }[]
+      }
       mark_expired_invitations: { Args: never; Returns: undefined }
       mark_tenant_seat_review: {
         Args: { p_note?: string; p_team_id: string }
