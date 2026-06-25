@@ -801,39 +801,52 @@ export const EnhancedBookingDialog = ({
                     <div className="flex items-center justify-between text-muted-foreground">
                       <span className="flex items-center gap-2">
                         <Clock className="h-4 w-4" />
-                        Rental ({currentPricing.rentalDays} day{currentPricing.rentalDays !== 1 ? "s" : ""} × ${dailyRate.toLocaleString()})
+                        Rental ({currentPricing.rentalDays} day{currentPricing.rentalDays !== 1 ? "s" : ""} × {fmt(dailyRate)})
                       </span>
-                      <span className="font-medium text-foreground">${currentPricing.rentalSubtotal.toLocaleString()}</span>
+                      <span className="font-medium text-foreground">{fmt(currentPricing.rentalSubtotal)}</span>
                     </div>
                     {currentPricing.discountAmount > 0 && (
                       <div className="flex items-center justify-between text-success">
                         <span>Discount {booking.discount_reason && `(${booking.discount_reason})`}</span>
-                        <span>-${currentPricing.discountAmount.toLocaleString()}</span>
+                        <span>-{fmt(currentPricing.discountAmount)}</span>
                       </div>
                     )}
                     {currentPricing.gasFee > 0 && (
                       <div className="flex items-center justify-between text-muted-foreground">
                         <span>Gas/Re-fueling Fee</span>
-                        <span className="font-medium text-foreground">${currentPricing.gasFee.toFixed(2)}</span>
+                        <span className="font-medium text-foreground">{fmt(currentPricing.gasFee)}</span>
                       </div>
                     )}
                     {currentPricing.deliveryFee > 0 && (
                       <div className="flex items-center justify-between text-muted-foreground">
                         <span>Delivery Fee</span>
-                        <span className="font-medium text-foreground">${currentPricing.deliveryFee.toLocaleString()}</span>
+                        <span className="font-medium text-foreground">{fmt(currentPricing.deliveryFee)}</span>
                       </div>
+                    )}
+                    {taxRate > 0 && (
+                      <>
+                        <Separator className="my-2" />
+                        <div className="flex items-center justify-between text-muted-foreground">
+                          <span>Subtotal {taxInclusive ? `(excl. ${taxLabel.toLowerCase()})` : ""}</span>
+                          <span className="font-medium text-foreground">{fmt(taxBreakdown.subtotal)}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-muted-foreground">
+                          <span>{taxLabel} ({taxRate}%{taxInclusive ? ", included" : ""})</span>
+                          <span className="font-medium text-foreground">{fmt(taxBreakdown.tax_amount)}</span>
+                        </div>
+                      </>
                     )}
                     <Separator className="my-2" />
                     <div className="flex items-center justify-between">
                       <span className="font-medium">Total</span>
-                      <span className="font-bold text-primary text-lg">${currentPricing.grandTotal.toLocaleString()}</span>
+                      <span className="font-bold text-primary text-lg">{fmt(taxBreakdown.total)}</span>
                     </div>
                     {priceDifference !== 0 && (
                       <div className={cn(
                         "text-xs text-right",
                         priceDifference > 0 ? "text-success" : "text-warning"
                       )}>
-                        {priceDifference > 0 ? "+" : ""}${priceDifference.toLocaleString()} from original
+                        {priceDifference > 0 ? "+" : ""}{fmt(priceDifference)} from original
                       </div>
                     )}
                   </div>
