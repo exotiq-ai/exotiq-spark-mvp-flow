@@ -29,7 +29,7 @@ export interface Team {
   tax_rate_percent?: number;      // 0..100, default 0
   tax_inclusive?: boolean;        // default false
   vat_number?: string | null;
-  business_address?: Record<string, any> | null;
+  business_address?: any;
   invoice_sequence?: number;
 }
 
