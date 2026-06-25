@@ -39,6 +39,8 @@ import { openGoogleCalendar } from "@/lib/googleCalendar";
 import { cn } from "@/lib/utils";
 import { calculateBookingTotal, getGasFeeForTeam } from "@/lib/pricingUtils";
 import { useTeamGasFeeSettings } from '@/hooks/useTeamGasFeeSettings';
+import { computeBookingTotals } from "@/lib/pricing";
+import { formatMoney } from "@/lib/format";
 import {
   Calendar as CalendarIcon,
   MapPin,
