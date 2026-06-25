@@ -1972,6 +1972,7 @@ export type Database = {
           id: string
           message: string
           read: boolean
+          ref: string | null
           title: string
           type: string
           user_id: string
@@ -1982,6 +1983,7 @@ export type Database = {
           id?: string
           message: string
           read?: boolean
+          ref?: string | null
           title: string
           type: string
           user_id: string
@@ -1992,6 +1994,7 @@ export type Database = {
           id?: string
           message?: string
           read?: boolean
+          ref?: string | null
           title?: string
           type?: string
           user_id?: string
