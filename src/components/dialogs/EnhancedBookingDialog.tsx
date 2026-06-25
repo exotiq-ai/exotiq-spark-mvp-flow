@@ -855,6 +855,24 @@ export const EnhancedBookingDialog = ({
                         {priceDifference > 0 ? "+" : ""}{fmt(priceDifference)} from original
                       </div>
                     )}
+                    {taxRate > 0 && !isEditMode && (
+                      <div className="pt-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={generatingInvoice}
+                          onClick={handleDownloadInvoice}
+                          className="w-full"
+                        >
+                          {generatingInvoice
+                            ? "Generating…"
+                            : booking.invoice_number
+                              ? `Download ${taxLabel} invoice (${booking.invoice_number})`
+                              : `Issue ${taxLabel} invoice`}
+                        </Button>
+                      </div>
+                    )}
                   </div>
                   )}
 
