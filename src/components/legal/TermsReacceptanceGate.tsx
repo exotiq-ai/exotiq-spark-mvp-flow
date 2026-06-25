@@ -96,7 +96,7 @@ export const TermsReacceptanceGate = ({ children }: { children: React.ReactNode 
       }
 
       const latest = new Map<LegalDocType, string>();
-      for (const row of (data ?? []) as AcceptanceRow[]) {
+      for (const row of (data ?? []) as unknown as AcceptanceRow[]) {
         for (const d of row.documents_accepted ?? []) {
           if (!latest.has(d.document_type)) latest.set(d.document_type, d.version);
         }
