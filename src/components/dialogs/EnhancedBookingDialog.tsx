@@ -203,6 +203,41 @@ export const EnhancedBookingDialog = ({
     return newTotal - Number(booking.total_value);
   }, [newTotal, booking]);
 
+  // Download/generate the VAT invoice PDF via edge function.
+  const handleDownloadInvoice = async () => {
+    if (!booking) return;
+    setGeneratingInvoice(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-vat-invoice", {
+        body: { booking_id: booking.id },
+      });
+      if (error) throw error;
+      const payload = data as { pdf_base64: string; filename: string; invoice_number: string };
+      const binary = atob(payload.pdf_base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      const blob = new Blob([bytes], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = payload.filename || `invoice-${payload.invoice_number}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      await refreshData();
+      toast({ title: `${taxLabel} invoice ready`, description: payload.invoice_number });
+    } catch (err) {
+      toast({
+        title: "Could not generate invoice",
+        description: err instanceof Error ? err.message : String(err),
+        variant: "destructive",
+      });
+    } finally {
+      setGeneratingInvoice(false);
+    }
+  };
+
   // Form validation
   const isFormValid = useMemo(() => {
     if (!editValues.startDate || !editValues.endDate) return false;
