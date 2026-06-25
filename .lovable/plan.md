@@ -1,146 +1,75 @@
+## Denver Exotics (J Davidson's Fleet) health snapshot
 
-## Goal
+Team `c71d6655…` · owner `denverexoticrentalcars@gmail.com` · manager `chantaralynn@gmail.com` · 95 bookings, last on 2026‑06‑23. Auth-side: no failed logins for either user in the 7‑day auth log window. App-side, four real issues surfaced:
 
-Onboard tenants outside the US — starting with one UK customer in GBP with 20% VAT — while guaranteeing **zero behavioural change for existing US customers**.
+1. **Manager Chantara cannot get past the Terms gate.** She has **zero** rows in `terms_acceptances`. The gate (`TermsReacceptanceGate.tsx`) checks the *signed-in user's own* acceptance history. Non-owner/admin roles see the read-only "your account owner must accept" screen with no checkbox — so she is permanently blocked even though the owner accepted on 2026‑06‑16. This is almost certainly what her teammate reported.
+2. **Cross-tenant blast radius is large.** 18 active team members exist platform-wide, but only **4 distinct users** have ever written to `terms_acceptances`. Every non-admin in every tenant is in the same locked state as Chantara.
+3. **Owner J Davidson's acceptance is stale.** His 2026‑06‑16 row covers only `terms / privacy / aup` (3 docs). The current required set written by newer signups is 8 docs (adds `dpa, sms, cookies, dmca, transfer_addendum`). On his next login the gate will fire again — fine on its own, but combined with #1 it means he must accept before Chantara is unblocked, and her unblock still won't happen without code changes.
+4. **Two pending Denver invites expired on 2026‑05‑26** (`mariamedinadesigns@gmail.com` admin, `aronnovoseletsky@yahoo.com` viewer). If either tried to click their invite link recently they'd hit "invitation expired."
 
-## Zero-Impact Guarantee for Current Customers
+Minor noise (not user-facing blockers): owner's `onboarding_progress` is stuck at step 1 since Jan despite heavy app use; the 2026‑06‑25 late-return notifier fired duplicate notifications (12 events written twice in the same second) for each member. Worth a follow-up, not part of this fix.
 
-Every step below is engineered so the existing US fleet sees no visible or functional change. Concretely:
+## Plan — make the terms gate tenant-safe, then notify Denver
 
-1. **All new `teams` columns default to US values** in the same migration that adds them:
-   - `country_code = 'US'`, `currency = 'USD'`, `locale = 'en-US'`
-   - `tax_label = 'Tax'`, `tax_rate_percent = 0`, `tax_inclusive = false`
-   - `vat_number = null`, `business_address = null`, `invoice_sequence = 0`
-2. **All new `bookings` columns are backfilled in the same migration**:
-   - `currency = 'USD'`, `tax_rate_percent = 0`, `tax_inclusive = false`
-   - `subtotal = total_value`, `tax_amount = 0`
-   - `invoice_number = null`, `invoice_issued_at = null`
-   - Columns are `NOT NULL` with defaults so in-flight inserts can't fail.
-3. **`formatCurrency()` keeps its exact current signature and behaviour.** It becomes a thin wrapper that calls `formatMoney(value, { currency: 'USD', locale: 'en-US' })`. None of the ~99 call sites change. Output for US is byte-identical (`$1,234`).
-4. **VAT line is conditionally rendered**: hidden whenever `tax_rate_percent = 0`. US booking dialog looks identical.
-5. **Pricing math is mathematically identical for US**: with `tax_rate_percent = 0` and `tax_inclusive = false`, `computeBookingTotals` returns `subtotal = base`, `tax_amount = 0`, `total = base` — same number `total_value` holds today.
-6. **Stripe checkout passes `currency: 'usd'` for US tenants** — Stripe's default for a US Connect account, so no behavioural change. Existing Connect accounts are untouched (no account update calls).
-7. **VAT invoice generator is a no-op for `tax_rate_percent = 0`**: it emits the same plain receipt PDF format we have today, or simply isn't called from US-tenant flows.
-8. **Onboarding country step defaults to `US` and is pre-filled** from `navigator.language`. Existing tenants don't go back through onboarding, so they never see it.
-9. **Subscription billing (Lovable → tenant) stays USD** — no change to anyone's bill.
-10. **Margin / P&L module is untouched in Phase 1** — uses the USD shim; US tenants see exactly what they see today.
-11. **Super Admin** drops cross-tenant currency rollups in favour of counts/percentages. The only visible change is platform totals stop showing dollar figures — this is a Super Admin–only surface (you), no customer impact.
-12. **Feature flag `multiCurrencyEnabled`** gates the new UI bits so we can kill-switch instantly if a regression slips through.
+### 1. Fix `TermsReacceptanceGate.tsx` (the root cause of the cross-tenant freeze)
 
-### Verification checklist before flipping the UK tenant
+Change the gate's acceptance evaluation from "this user has rows" to "this user is covered." A user is covered if **either** their own `user_id` has accepted every required doc at the current version, **or** any owner/admin on their current team has accepted every required doc at the current version. This matches the legal model already in the schema (`is_authorized_representative = true` when admins accept "on behalf of" the team) and unblocks all existing non-admin members the moment their owner accepts.
 
-- US smoke test: open a US tenant, create a booking, take a payment, generate a receipt, export a statement — diff against pre-migration screenshots. Must be pixel/number identical except for any intentional copy.
-- Run existing Playwright suite (per testing/playwright-selectors memory) — must pass unchanged.
-- Spot-check the 5 highest-traffic US tenants' dashboards post-deploy.
-- Database sanity: `SELECT count(*) FROM teams WHERE country_code <> 'US'` returns `0` immediately post-migration. Same for `bookings WHERE currency <> 'USD'`.
+Specifically:
+- Query `terms_acceptances` for `user_id = me OR (team_id = currentTeam.id AND user_id IN (owners/admins of that team))`, ordered desc, limited.
+- Compute `latest` doc→version map from the combined rows; keep the existing `stale` check against `LEGAL_DOCS`.
+- Keep the existing UI: owners/admins see the checkbox+accept button; non-admins still see the read-only "ask your owner" screen, but only when the team genuinely has no current admin acceptance.
+- Keep `inFlightRef` guard, the `limit(50)`, and the "read failed → allow entry" fallback.
 
-## Decisions locked from prior round
+No DB changes, no migration, no RLS change — the existing `Users read their own acceptances` policy already grants `SELECT` on rows where `team_id IS NOT NULL AND is_team_member(auth.uid(), team_id)`, so the broader query is already allowed.
 
-- **Country captured on the Business Profile onboarding step**, required, defaults from browser locale. Drives currency, locale, tax defaults, and Stripe Connect account country.
-- **CSV/PDF exports**: keep numeric columns, add a separate `currency` column. No inline symbols in numeric fields.
-- **Margin / P&L module deferred to Phase 2.** Phase 1 UK tenants see `£` on bookings, payments, statements, dashboard KPIs, renter receipts. Margin stays on the USD shim.
-- **VAT invoice is HMRC-compliant**: sequential invoice number, supplier name/address/VAT number, customer name/address, invoice date, tax point, line items with net/VAT/gross by rate, totals, currency.
+### 2. Verify the fix in-app (Playwright, scoped, no writes)
 
-## Phase 1 — UK / GBP + VAT
+- Authenticated as Chantara would require her credentials, so instead verify with the existing managed session: load `/dashboard`, then in the page evaluate the new query against `terms_acceptances` with `user_id = '264d5889…'` plus the team-admin OR clause and assert it would resolve as "covered" once the owner's row is current.
+- Static check: assert non-admin role still sees the read-only screen when the team has no admin acceptance (force the state with a stubbed return in a unit-style check inside the page console).
 
-### 1. Schema
+### 3. Communicate to Denver
 
-`teams` adds: `country_code`, `currency`, `locale`, `tax_label`, `tax_rate_percent`, `tax_inclusive`, `vat_number`, `business_address jsonb`, `invoice_sequence bigint`. Defaults = US values above.
+Once the gate is shipped, draft a short note for J Davidson covering:
+- "Re-accept the updated terms once when you next sign in (you'll see the dialog — 5 new documents added since June)."
+- "Chantara will be unblocked automatically after you accept."
+- Offer to re-send the two expired invitations (`mariamedinadesigns@gmail.com`, `aronnovoseletsky@yahoo.com`). I will not auto-resend without your go-ahead because invite emails are user-visible.
 
-`bookings` adds (snapshot at create): `currency`, `tax_rate_percent`, `tax_inclusive`, `subtotal`, `tax_amount`, `invoice_number`, `invoice_issued_at`. Defaults = US values; backfill in same migration.
+### Out of scope for this pass (flagged for a separate ticket)
+- Duplicate `late_return` notifications fired on 2026‑06‑25 01:06 (looks like the alerts cron ran twice).
+- Owner's `onboarding_progress` stuck at step 1 — cosmetic, but should auto-complete when key milestones are hit.
 
-New table `tenant_invoices` (immutable once issued): `team_id`, `booking_id`, `invoice_number` (unique per team), `issued_at`, `tax_point_date`, `currency`, `subtotal`, `tax_amount`, `total`, `tax_rate_percent`, `supplier_snapshot jsonb`, `customer_snapshot jsonb`, `pdf_storage_path`. Tenant-scoped RLS by `team_id`; GRANTs for `authenticated` + `service_role`.
+### Technical details
 
-DB function `public.next_invoice_number(p_team_id uuid) returns text` — `SECURITY DEFINER`, atomically increments `teams.invoice_sequence`, returns `INV-2026-000123`. Never called for US tenants in Phase 1.
+**File touched:** `src/components/legal/TermsReacceptanceGate.tsx` only.
 
-### 2. Onboarding — country first
+**New query shape** (inside `evaluate`):
+```ts
+// 1. Get admin user_ids on the current team (if any).
+const adminIds: string[] = [];
+if (teamId) {
+  const { data: admins } = await supabase
+    .from("team_members")
+    .select("user_id")
+    .eq("team_id", teamId)
+    .eq("is_active", true)
+    .in("role", ["owner", "admin"]);
+  for (const a of admins ?? []) adminIds.push(a.user_id);
+}
 
-`Business Profile` step adds required **Country** dropdown (defaults from `navigator.language`), required **Business address** block, and a context-labelled **Tax registration number** for non-US countries (`VAT number`, `GST number`, etc.). On submit, atomically writes `country_code` and the derived defaults from `src/lib/countryDefaults.ts`:
-
-```text
-GB → GBP, en-GB, VAT, 20, inclusive=true
-US → USD, en-US, Tax,  0, inclusive=false
+// 2. Pull this user's rows plus any admin rows scoped to this team.
+const userIds = Array.from(new Set([user.id, ...adminIds]));
+const { data, error: qErr } = await supabase
+  .from("terms_acceptances")
+  .select("documents_accepted,user_id,team_id,accepted_at")
+  .in("user_id", userIds)
+  .or(`team_id.eq.${teamId ?? "00000000-0000-0000-0000-000000000000"},user_id.eq.${user.id}`)
+  .order("accepted_at", { ascending: false })
+  .limit(100);
 ```
+Then fold all matching rows into the `latest` map exactly as today. The `stale` derivation, the dialog, the consent statement, the `record-terms-acceptance` invoke for admins, and the "ask your owner" read-only path are unchanged.
 
-Each derived field is individually overridable in Settings → Business Profile.
-
-Stripe Connect onboarding reads `team.country_code` and passes it to `stripe.accounts.create({ country })`. Existing US Connect accounts are not touched.
-
-### 3. Currency-aware formatting
-
-- `src/lib/format.ts`: `formatMoney(value, { currency, locale, decimals? })` using `Intl.NumberFormat`.
-- `useMoney()` hook reads `currency` + `locale` from `TeamContext`.
-- `formatCurrency` becomes a USD-only shim — **no signature change, no call-site changes required.**
-- Phase 1 migration surfaces: booking dialogs, bookings list, payments list + receipts, statements (`statementExport.ts`), dashboard KPIs, vehicle rate-edit UIs, refund UI.
-- ROI calculator + landing pricing stay USD (marketing, pre-signup).
-- Super Admin scope-cut: per-tenant detail shows `£1,234 GBP`; platform totals switch to counts/percentages.
-
-### 4. Pricing math + VAT line
-
-`src/lib/pricing.ts` exports a pure `computeBookingTotals(input, taxConfig)`:
-
-```text
-base = daily_rate * days + delivery_fee + (gas_fee_waived ? 0 : gas_fee) + adjustments - discount_amount
-if tax_inclusive:
-    subtotal   = base / (1 + rate/100)
-    tax_amount = base - subtotal
-    total      = base
-else:
-    subtotal   = base
-    tax_amount = base * rate/100
-    total      = base + tax_amount
-```
-
-VAT applies to the full base (gas, delivery, mileage overage all standard-rated under UK rules). Booking dialog renders a VAT line labelled from `team.tax_label`, **hidden when `tax_rate_percent = 0`** (US is unaffected). Both client dialog and `create-payment` edge function use the same helper; server is authoritative.
-
-### 5. Stripe Connect + checkout
-
-- `create-payment`, deposit/auth-hold, and refund edge functions look up `teams.currency` by `team_id` and pass `currency: currency.toLowerCase()` on every Stripe call. US value is `'usd'` — Stripe's existing default, so behaviour is unchanged.
-- `src/lib/money.ts`: `toMinorUnits(amount, currency)` / `fromMinorUnits(minor, currency)` — codifies decimal handling for future currencies (JPY etc.).
-- Webhook handlers audited for hardcoded `/100` + `$` in receipt-email templates.
-- Lovable → tenant SaaS billing stays USD across the board (in-app display + actual charge). Documented in code comment.
-
-### 6. HMRC-compliant VAT invoice PDF
-
-`generate-vat-invoice` edge function:
-1. Loads booking + team + customer.
-2. Calls `next_invoice_number(team_id)`, writes back to `bookings.invoice_number`.
-3. Renders PDF with supplier (team name/address/VAT number), customer, invoice number, issued/tax-point dates, line items net/VAT/gross, totals, rate, currency.
-4. Uploads to `tenant-invoices/{team_id}/{invoice_number}.pdf` (private bucket, signed URLs).
-5. Inserts `tenant_invoices` row.
-
-Triggered when booking → `confirmed` + payment captured, and on demand. Idempotent on `booking_id`. **For `tax_rate_percent = 0` it short-circuits to the existing plain receipt format** — US tenants get exactly today's receipt.
-
-### 7. Copy + legal
-
-- Literal "Tax" in booking UIs, receipts, statements, renter acknowledgements → `{team.tax_label}`. For US (`Tax`) the rendered string is identical.
-- Statement CSV adds `currency` column (additive, won't break existing parsers that select by name). PDF header adds `Currency: USD`/`GBP` and a VAT line when rate > 0.
-
-### 8. Tests
-
-- Unit tests for `computeBookingTotals` (inclusive/exclusive, zero-rate, gas waived, discount edge cases) — including a regression test asserting US inputs return today's `total_value` exactly.
-- Unit tests for `toMinorUnits` (GBP, USD, JPY).
-- Playwright smoke for both a US tenant (no visible change) and a seeded GB tenant (price breakdown `£` + VAT line, invoice PDF generated, sequential numbering).
-
-### 9. Feature flag
-
-`multiCurrencyEnabled` in `src/lib/featureFlags.ts`. Default on. Kill-switch if a regression hits US tenants.
-
-## Out of scope (Phase 2+)
-
-- Margin / P&L currency migration.
-- Multi-currency per single tenant; FX conversion / historical re-statement.
-- EU OSS, B2B reverse-charge, US sales-tax nexus, MTD direct filing.
-- Cross-tenant currency rollups in Super Admin.
-- Localised dates / units — dates stay ISO `yyyy-mm-dd` app-wide.
-
-## Rollout
-
-1. Migration (schema + same-migration backfill of US defaults).
-2. Onboarding country step + Settings → Business Profile updates.
-3. `useMoney` + `formatMoney` + `toMinorUnits` + USD shim. **Run US smoke + Playwright; verify pixel/number parity.**
-4. `computeBookingTotals` + conditional VAT line + booking-row snapshots.
-5. Stripe Connect onboarding passes `country`; edge functions pass `currency`.
-6. `generate-vat-invoice` edge function + "Download VAT invoice" button.
-7. Flip the UK tenant: set `country_code='GB'` etc., run end-to-end.
-8. Phase 2: Margin/P&L sweep, remove USD shim.
+**Why this is safe for existing customers**
+- Owners/admins behavior is identical: same dialog, same payload, same edge function.
+- Non-admins only gain access — never lose it. If no admin has accepted, they still see the read-only blocker.
+- No schema migration, no backfill, no policy change. Reversible by reverting one file.

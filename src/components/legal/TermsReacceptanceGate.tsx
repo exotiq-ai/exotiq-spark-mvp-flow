@@ -56,12 +56,38 @@ export const TermsReacceptanceGate = ({ children }: { children: React.ReactNode 
     setError(null);
 
     try {
-      const { data, error: qErr } = await supabase
+      // 1. Find owners/admins on the current team. Their acceptance covers
+      //    every member (they sign as authorized representative).
+      const adminIds: string[] = [];
+      if (teamId) {
+        const { data: admins } = await supabase
+          .from("team_members")
+          .select("user_id")
+          .eq("team_id", teamId)
+          .eq("is_active", true)
+          .in("role", ["owner", "admin"]);
+        for (const a of (admins ?? []) as Array<{ user_id: string }>) {
+          if (a.user_id) adminIds.push(a.user_id);
+        }
+      }
+
+      // 2. Pull this user's own acceptances plus any team-admin acceptances
+      //    scoped to the current team. RLS allows team members to read rows
+      //    where team_id matches their team.
+      const userIds = Array.from(new Set([user.id, ...adminIds]));
+      let query = supabase
         .from("terms_acceptances")
-        .select("documents_accepted")
-        .eq("user_id", user.id)
+        .select("documents_accepted,user_id,team_id,accepted_at")
+        .in("user_id", userIds)
         .order("accepted_at", { ascending: false })
-        .limit(50);
+        .limit(100);
+      if (teamId) {
+        // Either the row is the user's own, or it's a team-admin row scoped
+        // to this team. Avoids picking up admin rows from a different team
+        // the admin also belongs to.
+        query = query.or(`user_id.eq.${user.id},team_id.eq.${teamId}`);
+      }
+      const { data, error: qErr } = await query;
 
       if (qErr) {
         console.warn("TermsReacceptanceGate: read failed, allowing entry", qErr);
@@ -70,7 +96,7 @@ export const TermsReacceptanceGate = ({ children }: { children: React.ReactNode 
       }
 
       const latest = new Map<LegalDocType, string>();
-      for (const row of (data ?? []) as AcceptanceRow[]) {
+      for (const row of (data ?? []) as unknown as AcceptanceRow[]) {
         for (const d of row.documents_accepted ?? []) {
           if (!latest.has(d.document_type)) latest.set(d.document_type, d.version);
         }
@@ -84,7 +110,8 @@ export const TermsReacceptanceGate = ({ children }: { children: React.ReactNode 
       setChecking(false);
       inFlightRef.current = false;
     }
-  }, [user, requiredDocs]);
+  }, [user, requiredDocs, teamId]);
+
 
   useEffect(() => {
     evaluate();
