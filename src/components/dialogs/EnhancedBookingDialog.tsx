@@ -39,6 +39,8 @@ import { openGoogleCalendar } from "@/lib/googleCalendar";
 import { cn } from "@/lib/utils";
 import { calculateBookingTotal, getGasFeeForTeam } from "@/lib/pricingUtils";
 import { useTeamGasFeeSettings } from '@/hooks/useTeamGasFeeSettings';
+import { computeBookingTotals } from "@/lib/pricing";
+import { formatMoney } from "@/lib/format";
 import {
   Calendar as CalendarIcon,
   MapPin,
@@ -127,6 +129,7 @@ export const EnhancedBookingDialog = ({
   const [activeTab, setActiveTab] = useState("details");
   const [locations, setLocations] = useState<Array<{ id: string; name: string }>>([]);
   const [preparingDocument, setPreparingDocument] = useState(false);
+  const [generatingInvoice, setGeneratingInvoice] = useState(false);
   
   // Inline edit mode state
   const [isEditMode, setIsEditMode] = useState(false);
@@ -174,13 +177,66 @@ export const EnhancedBookingDialog = ({
 
   const bookingDays = currentPricing?.rentalDays || 0;
   const dailyRate = Number(vehicle?.current_rate || booking?.daily_rate || 0);
-  const newTotal = currentPricing?.grandTotal || 0;
+
+  // Tenant-aware currency & tax config (defaults preserve US behaviour)
+  const currency = currentTeam?.currency || "USD";
+  const locale = currentTeam?.locale || "en-US";
+  const taxLabel = currentTeam?.tax_label || "Tax";
+  const taxRate = Number(currentTeam?.tax_rate_percent ?? 0);
+  const taxInclusive = !!currentTeam?.tax_inclusive;
+  const fmt = (n: number) => formatMoney(n, { currency, locale, decimals: 2 });
+
+  // Tax breakdown: when rate=0 (US default), total == grandTotal — zero behaviour change.
+  const taxBreakdown = useMemo(() => {
+    const gt = currentPricing?.grandTotal || 0;
+    return computeBookingTotals(
+      { daily_rate: gt, days: 1 }, // treat grandTotal as the pre-tax/gross base
+      { tax_rate_percent: taxRate, tax_inclusive: taxInclusive },
+    );
+  }, [currentPricing?.grandTotal, taxRate, taxInclusive]);
+
+  const newTotal = taxBreakdown.total;
 
   // Calculate price difference from original
   const priceDifference = useMemo(() => {
     if (!booking) return 0;
     return newTotal - Number(booking.total_value);
   }, [newTotal, booking]);
+
+  // Download/generate the VAT invoice PDF via edge function.
+  const handleDownloadInvoice = async () => {
+    if (!booking) return;
+    setGeneratingInvoice(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-vat-invoice", {
+        body: { booking_id: booking.id },
+      });
+      if (error) throw error;
+      const payload = data as { pdf_base64: string; filename: string; invoice_number: string };
+      const binary = atob(payload.pdf_base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      const blob = new Blob([bytes], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = payload.filename || `invoice-${payload.invoice_number}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      await refreshData();
+      toast({ title: `${taxLabel} invoice ready`, description: payload.invoice_number });
+    } catch (err) {
+      toast({
+        title: "Could not generate invoice",
+        description: err instanceof Error ? err.message : String(err),
+        variant: "destructive",
+      });
+    } finally {
+      setGeneratingInvoice(false);
+    }
+  };
 
   // Form validation
   const isFormValid = useMemo(() => {
@@ -396,8 +452,13 @@ export const EnhancedBookingDialog = ({
         pickup_location: editValues.pickupLocation,
         dropoff_location: editValues.dropoffLocation || null,
         notes: editValues.notes || null,
-        total_value: newTotal
-      });
+        total_value: newTotal,
+        subtotal: taxBreakdown.subtotal,
+        tax_amount: taxBreakdown.tax_amount,
+        tax_rate_percent: taxRate,
+        tax_inclusive: taxInclusive,
+        currency,
+      } as any);
 
       // If Save & Approve, also update status
       if (andApprove) {
@@ -781,39 +842,70 @@ export const EnhancedBookingDialog = ({
                     <div className="flex items-center justify-between text-muted-foreground">
                       <span className="flex items-center gap-2">
                         <Clock className="h-4 w-4" />
-                        Rental ({currentPricing.rentalDays} day{currentPricing.rentalDays !== 1 ? "s" : ""} × ${dailyRate.toLocaleString()})
+                        Rental ({currentPricing.rentalDays} day{currentPricing.rentalDays !== 1 ? "s" : ""} × {fmt(dailyRate)})
                       </span>
-                      <span className="font-medium text-foreground">${currentPricing.rentalSubtotal.toLocaleString()}</span>
+                      <span className="font-medium text-foreground">{fmt(currentPricing.rentalSubtotal)}</span>
                     </div>
                     {currentPricing.discountAmount > 0 && (
                       <div className="flex items-center justify-between text-success">
                         <span>Discount {booking.discount_reason && `(${booking.discount_reason})`}</span>
-                        <span>-${currentPricing.discountAmount.toLocaleString()}</span>
+                        <span>-{fmt(currentPricing.discountAmount)}</span>
                       </div>
                     )}
                     {currentPricing.gasFee > 0 && (
                       <div className="flex items-center justify-between text-muted-foreground">
                         <span>Gas/Re-fueling Fee</span>
-                        <span className="font-medium text-foreground">${currentPricing.gasFee.toFixed(2)}</span>
+                        <span className="font-medium text-foreground">{fmt(currentPricing.gasFee)}</span>
                       </div>
                     )}
                     {currentPricing.deliveryFee > 0 && (
                       <div className="flex items-center justify-between text-muted-foreground">
                         <span>Delivery Fee</span>
-                        <span className="font-medium text-foreground">${currentPricing.deliveryFee.toLocaleString()}</span>
+                        <span className="font-medium text-foreground">{fmt(currentPricing.deliveryFee)}</span>
                       </div>
+                    )}
+                    {taxRate > 0 && (
+                      <>
+                        <Separator className="my-2" />
+                        <div className="flex items-center justify-between text-muted-foreground">
+                          <span>Subtotal {taxInclusive ? `(excl. ${taxLabel.toLowerCase()})` : ""}</span>
+                          <span className="font-medium text-foreground">{fmt(taxBreakdown.subtotal)}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-muted-foreground">
+                          <span>{taxLabel} ({taxRate}%{taxInclusive ? ", included" : ""})</span>
+                          <span className="font-medium text-foreground">{fmt(taxBreakdown.tax_amount)}</span>
+                        </div>
+                      </>
                     )}
                     <Separator className="my-2" />
                     <div className="flex items-center justify-between">
                       <span className="font-medium">Total</span>
-                      <span className="font-bold text-primary text-lg">${currentPricing.grandTotal.toLocaleString()}</span>
+                      <span className="font-bold text-primary text-lg">{fmt(taxBreakdown.total)}</span>
                     </div>
                     {priceDifference !== 0 && (
                       <div className={cn(
                         "text-xs text-right",
                         priceDifference > 0 ? "text-success" : "text-warning"
                       )}>
-                        {priceDifference > 0 ? "+" : ""}${priceDifference.toLocaleString()} from original
+                        {priceDifference > 0 ? "+" : ""}{fmt(priceDifference)} from original
+                      </div>
+                    )}
+                    {taxRate > 0 && !isEditMode && (
+                      <div className="pt-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={generatingInvoice}
+                          onClick={handleDownloadInvoice}
+                          className="w-full"
+                        >
+                          {generatingInvoice
+                            ? "Generating…"
+                            : booking.invoice_number
+                              ? `Download ${taxLabel} invoice (${booking.invoice_number})`
+                              : `Issue ${taxLabel} invoice`}
+                        </Button>
                       </div>
                     )}
                   </div>

@@ -170,3 +170,7 @@ verify_jwt = false
 
 [functions.stripe-create-refund]
 verify_jwt = false
+
+[functions.generate-vat-invoice]
+verify_jwt = false
+
