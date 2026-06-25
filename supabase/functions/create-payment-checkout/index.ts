@@ -144,7 +144,7 @@ serve(async (req) => {
       customer_email: stripeCustomerId ? undefined : customer_email,
       line_items: [{
         price_data: {
-          currency: "usd",
+          currency,
           product_data: {
             name: `${payment_type.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())} - Booking`,
             description: description || `Payment for booking ${booking_id?.substring(0, 8) || 'N/A'}`,
