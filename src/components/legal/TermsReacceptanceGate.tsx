@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { useState, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -7,6 +7,7 @@ import { Loader2, ShieldCheck, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTeam } from "@/contexts/TeamContext";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   LEGAL_DOCS,
   buildDocumentsPayload,
@@ -28,34 +29,33 @@ interface AcceptanceRow {
 export const TermsReacceptanceGate = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAuth();
   const { currentTeam, userRole } = useTeam();
-  const [checking, setChecking] = useState(true);
-  const [outdated, setOutdated] = useState<LegalDocType[]>([]);
+  const queryClient = useQueryClient();
   const [agreed, setAgreed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const teamId = currentTeam?.id ?? null;
   const jurisdiction = (currentTeam as { primary_jurisdiction?: string | null } | null)?.primary_jurisdiction ?? null;
-  // Memoize so requiredDocs identity is stable across renders. Otherwise the
-  // evaluate effect retriggers every render and fires dozens of reads.
   const requiredDocs = useMemo(
     () => requiredDocsForJurisdiction(jurisdiction),
     [jurisdiction]
   );
   const consentStatement = consentStatementForJurisdiction(jurisdiction);
   const canAcceptForTeam = userRole === "owner" || userRole === "admin";
-  const inFlightRef = useRef(false);
 
-  const evaluate = useCallback(async () => {
-    if (!user) {
-      setChecking(false);
-      return;
-    }
-    if (inFlightRef.current) return;
-    inFlightRef.current = true;
-    setChecking(true);
-    setError(null);
+  const requiredKey = requiredDocs.join(",");
+  const gateQueryKey = ["terms-gate", user?.id, teamId, requiredKey] as const;
 
-    try {
+  const { data: outdated = [], isLoading: checking, refetch } = useQuery({
+    queryKey: gateQueryKey,
+    enabled: !!user,
+    // 60s cache absorbs the StrictMode double-mount + tab switches that
+    // were driving the rolled-back read storm, without making fresh
+    // acceptances feel stale (the mutation below invalidates on accept).
+    staleTime: 60_000,
+    gcTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    queryFn: async (): Promise<LegalDocType[]> => {
       // 1. Find owners/admins on the current team. Their acceptance covers
       //    every member (they sign as authorized representative).
       const adminIds: string[] = [];
@@ -72,9 +72,8 @@ export const TermsReacceptanceGate = ({ children }: { children: React.ReactNode 
       }
 
       // 2. Pull this user's own acceptances plus any team-admin acceptances
-      //    scoped to the current team. RLS allows team members to read rows
-      //    where team_id matches their team.
-      const userIds = Array.from(new Set([user.id, ...adminIds]));
+      //    scoped to the current team.
+      const userIds = Array.from(new Set([user!.id, ...adminIds]));
       let query = supabase
         .from("terms_acceptances")
         .select("documents_accepted,user_id,team_id,accepted_at")
@@ -82,17 +81,13 @@ export const TermsReacceptanceGate = ({ children }: { children: React.ReactNode 
         .order("accepted_at", { ascending: false })
         .limit(100);
       if (teamId) {
-        // Either the row is the user's own, or it's a team-admin row scoped
-        // to this team. Avoids picking up admin rows from a different team
-        // the admin also belongs to.
-        query = query.or(`user_id.eq.${user.id},team_id.eq.${teamId}`);
+        query = query.or(`user_id.eq.${user!.id},team_id.eq.${teamId}`);
       }
       const { data, error: qErr } = await query;
 
       if (qErr) {
         console.warn("TermsReacceptanceGate: read failed, allowing entry", qErr);
-        setOutdated([]);
-        return;
+        return [];
       }
 
       const latest = new Map<LegalDocType, string>();
@@ -102,20 +97,11 @@ export const TermsReacceptanceGate = ({ children }: { children: React.ReactNode 
         }
       }
 
-      const stale = requiredDocs.filter(
+      return requiredDocs.filter(
         (t) => latest.get(t) !== LEGAL_DOCS[t].version
       );
-      setOutdated(stale);
-    } finally {
-      setChecking(false);
-      inFlightRef.current = false;
-    }
-  }, [user, requiredDocs, teamId]);
-
-
-  useEffect(() => {
-    evaluate();
-  }, [evaluate]);
+    },
+  });
 
   const handleAccept = async () => {
     if (!agreed || submitting) return;
@@ -134,7 +120,11 @@ export const TermsReacceptanceGate = ({ children }: { children: React.ReactNode 
         },
       });
       if (fnErr) throw fnErr;
-      await evaluate();
+      // Invalidate the gate cache + any compliance reads keyed off this user
+      // so the dialog closes immediately and the banner re-evaluates.
+      await queryClient.invalidateQueries({ queryKey: ["terms-gate", user?.id] });
+      await queryClient.invalidateQueries({ queryKey: ["compliance-dpa", user?.id] });
+      await refetch();
       setAgreed(false);
     } catch (e) {
       console.error(e);

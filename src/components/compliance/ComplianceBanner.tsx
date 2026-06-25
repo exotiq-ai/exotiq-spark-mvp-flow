@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { featureFlags } from "@/lib/featureFlags";
 import { LEGAL_DOCS } from "@/lib/legal/versions";
+import { useQuery } from "@tanstack/react-query";
 
 const DISMISS_KEY_PREFIX = "exotiq.compliance-banner.dismissed.";
 
@@ -22,7 +23,6 @@ const DISMISS_KEY_PREFIX = "exotiq.compliance-banner.dismissed.";
 export const ComplianceBanner = () => {
   const { user } = useAuth();
   const { currentTeam } = useTeam();
-  const [dpaAccepted, setDpaAccepted] = useState<boolean | null>(null);
   const [dismissed, setDismissed] = useState(false);
 
   const jurisdiction = (currentTeam as any)?.primary_jurisdiction as
@@ -30,24 +30,32 @@ export const ComplianceBanner = () => {
     | undefined;
   const isEuUk = jurisdiction === "eu" || jurisdiction === "uk";
 
-  useEffect(() => {
-    if (!user || !isEuUk) return;
-    (async () => {
+  // Cached read: this query previously fired 1.4M+ times across the fleet
+  // because the bare useEffect re-ran on every mount. Cache for 5 minutes
+  // and skip window-focus refetches — worst case the banner is stale for a
+  // few minutes after a fresh DPA acceptance, which is strictly fail-safe.
+  const { data: dpaAccepted } = useQuery({
+    queryKey: ["compliance-dpa", user?.id, jurisdiction, LEGAL_DOCS.dpa.version],
+    enabled: !!user && isEuUk,
+    staleTime: 5 * 60_000,
+    gcTime: 10 * 60_000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    queryFn: async () => {
       const { data } = await supabase
         .from("terms_acceptances")
         .select("documents_accepted")
-        .eq("user_id", user.id)
+        .eq("user_id", user!.id)
         .order("accepted_at", { ascending: false })
         .limit(50);
-      const accepted = (data ?? []).some((row: any) =>
+      return (data ?? []).some((row: any) =>
         (row.documents_accepted ?? []).some(
           (d: any) =>
             d.document_type === "dpa" && d.version === LEGAL_DOCS.dpa.version
         )
       );
-      setDpaAccepted(accepted);
-    })();
-  }, [user?.id, isEuUk]);
+    },
+  });
 
   useEffect(() => {
     if (!currentTeam?.id) return;
