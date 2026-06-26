@@ -24,6 +24,8 @@ interface ImportSummaryProps {
   fileName?: string;
   columnMappings?: { sourceColumn: string; targetField: string | null }[];
   failedRows?: FailedRowInfo[];
+  /** Photo filenames referenced by the CSV but not uploadable (e.g. local Mac paths). */
+  photoReferences?: string[];
 }
 
 const ENTITY_CONFIG: Record<ImportEntityType, { 
