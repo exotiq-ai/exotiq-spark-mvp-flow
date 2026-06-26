@@ -1,37 +1,64 @@
-## Tara (Chantara) — Denver Exotics / J Davidson's Fleet
+## Cleanup for Denver Exotics (J Davidson's Fleet)
 
-**Account:** chantaralynn@gmail.com · role: manager · team_member.is_active: true · invitation: accepted (2026-04-10).
+Tenant: `J Davidson's Fleet` · users: **J Davidson** (owner) & **Chantara/Tara** (manager).
 
-### Active blockers
+### What the data shows
 
-1. **No terms acceptances on record (hard block).**
-   `terms_acceptances` is empty for her user. Current required docs (terms, privacy, aup, dpa) all have effective versions she has never accepted, so `TermsReacceptanceGate` will keep her behind the gate on every authenticated route. This is the only true "she can't use the app" blocker.
+**Stale reservations (team-scoped):**
+| status | count | oldest end_date | newest end_date |
+|---|---|---|---|
+| confirmed | 53 | 2026-02-22 | 2026-05-24 |
+| completed | 11 | already closed — no action |
+| cancelled | 5 | already closed — no action |
 
-2. **Onboarding row mis-categorized (soft block / UI confusion).**
-   `onboarding_progress` for her user has:
-   - `onboarding_type = 'owner'` (she's an invited manager — should be the 2-step invitee flow)
-   - `team_id = NULL` (should be `c71d6655…` = J's fleet)
-   - `steps_completed = [1, 2, 4]` (step 3 skipped) but `completed_at` is set and `current_step = 4`
-   She likely went through the owner wizard before her invite was reconciled. Not blocking auth, but it means the onboarding hook may re-prompt her, and her progress doesn't reflect that she's on J's team.
+→ **53 `confirmed` rows with `end_date` more than 30 days in the past** are the stale-open reservations.
 
-### Not blockers, but worth noting
+**Notifications across both users (J + Tara):**
+- `pending_pickup`: 128 (114 reference bookings already past/closed)
+- `late_return`: 126 (112 reference bookings already past/closed)
+- `booking_update`: 56 (34 reference closed/past bookings)
+- `booking`: 40 (18 reference closed/past bookings)
+- `team_member_joined`: 1 — keep
+- `tenant_document_sent`: 1 — keep
 
-- **175 unread notifications.** Noise from the duplicate `late_return` storm + general backlog; she'll be drowning when she next signs in. Worth a one-time mark-as-read for items older than the Phase 1 fix window.
-- **No `user_settings` row.** Auto-created on first write — not a blocker, just means she's never opened settings.
+Every "booking-bearing" notification carries `data->>'booking_id'`, so we can safely classify each row by joining to `bookings`.
 
-### Proposed remediation (read-only until you approve)
+### Plan
 
-a. **Unblock terms gate** — insert `terms_acceptances` rows for her *only if* J's team confirms she's re-accepted out-of-band, OR surface the gate to her so she clicks through herself. Recommend the latter (clean audit trail). No code change needed; she just needs to sign in and accept.
+**1. Close the 53 stale `confirmed` reservations — safe close, not delete.**
+   - For `team_id = J Davidson's Fleet` AND `status = 'confirmed'` AND `end_date < now() - 30 days`:
+     - `status = 'completed'`
+     - `updated_at = now()`
+     - `notes = coalesce(notes,'') || E'\n[auto-closed 2026-06-26: rental end date >30d past, no manual close]'`
+   - **No money movement** (no refunds, no payouts touched, no payments rows altered).
+   - **No vehicle state changes** — `vehicles.status` is independent.
+   - **No customer-facing notifications fired** — pure backend reconciliation.
+   - Wrapped in a single transaction; affects exactly 53 rows.
 
-b. **Reconcile onboarding row** — one-row UPDATE on `onboarding_progress`:
-   - `onboarding_type = 'invitee'`
-   - `team_id = 'c71d6655-710a-46da-95b4-f9b0e5f91386'`
-   - leave `completed_at` as-is so she's not re-prompted
-   Mirrors the J Davidson fix from Phase 1.
+**2. Delete stale, booking-attached notifications for both Denver users.**
+   For `user_id IN (J, Tara)` AND `data->>'booking_id'` resolves to a booking whose `status IN ('completed','cancelled')` OR `end_date < now() - 14 days`:
+   - **Delete** the row (the underlying booking is closed/past, the notification is noise — including the duplicate `late_return` / `pending_pickup` burst from the pre-Phase-1 cron bug).
+   - Keep all notifications tied to bookings that are still `pending` / `confirmed` / `active` AND end within the last 14 days or future.
+   - Keep all non-booking notifications (`team_member_joined`, `tenant_document_sent`, anything with no `booking_id`).
 
-c. **Notification hygiene (optional)** — mark her `late_return` duplicates from 2026-06-25 as read so she isn't greeted by the bug we already fixed. Strictly cosmetic.
+   Expected removal: ~278 rows across both users. Expected to keep: ~72 rows (the ones for live/recent bookings) plus the 2 non-booking notices.
 
-d. **Add to the Denver email** — flag (a) and (b) to J's team so they know Tara needs to sign in and click through terms once, and that we corrected her onboarding categorization.
+### Safety guardrails
+- All writes scoped by `team_id = 'c71d6655-710a-46da-95b4-f9b0e5f91386'` (bookings) and the two specific `user_id`s (notifications). No other tenant touched.
+- No schema changes. No RLS changes. No edge function or cron changes.
+- We do a `SELECT count(*)` preflight to confirm the row counts before mutating, and a `SELECT count(*)` postflight to confirm landing.
+- The booking close is reversible (a tenant can flip status back; row is preserved with an audit note). Notification delete is destructive but the rows are duplicates / stale and have no downstream references — `notifications` is a leaf table.
+- We do **not** touch Exotiq's 161 stale rows or Zachary Schneider's 1 stale row — those are different tenants and are flagged separately to their owners.
 
 ### Out of scope
-No schema changes, no policy changes, no auto-accepting terms on her behalf, no edits to tenant-owned data beyond the onboarding row reconciliation (same scope as J's Phase 1 fix).
+- Closing `pending` bookings (none qualify here, and `pending` may still represent a customer inquiry).
+- Bulk close for any other tenant.
+- Re-issuing the 2 expired Denver invitations (separate ask).
+- Auto-accepting Tara's terms (she'll click through on next sign-in).
+
+### Files / tools
+- One `supabase--insert` call: UPDATE 53 bookings + DELETE stale notifications.
+- No code changes. No migration.
+
+### Email follow-up
+Append to the Denver email draft: "We closed 53 stale `confirmed` reservations (rental ended >30 days ago) and trimmed ~278 obsolete notifications across both seats so your inbox reflects only current work."
