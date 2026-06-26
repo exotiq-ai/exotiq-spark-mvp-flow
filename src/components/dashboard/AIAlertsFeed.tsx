@@ -17,7 +17,7 @@ import {
   Volume2,
   VolumeX
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { differenceInDays, differenceInHours, isBefore, addDays } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
@@ -88,7 +88,7 @@ const generateAlertsFromData = (
           type: 'high',
           category: 'revenue',
           title: 'Pricing Opportunity Detected',
-          description: `${vehicle.name} has ${vehicle.utilization}% utilization but rate is ${rateDifference.toFixed(0)}% below market. Potential +$${potentialIncrease.toFixed(0)}/mo.`,
+          description: `${vehicle.name} has ${vehicle.utilization}% utilization but rate is ${rateDifference.toFixed(0)}% below market. Potential +${formatCurrency(potentialIncrease)}/mo.`,
           action: { label: 'Optimize Price', moduleId: 'motoriq' },
           timestamp: new Date(vehicle.updated_at)
         });
@@ -134,7 +134,7 @@ const generateAlertsFromData = (
           type: 'critical',
           category: 'maintenance',
           title: 'Unresolved Damage Claim',
-          description: `${vehicle?.name || 'Vehicle'} has ${claim.severity} damage (${claim.claim_type}) open for ${Math.floor(hoursOpen/24)} days. Est. cost: $${claim.estimated_cost?.toFixed(0) || 'TBD'}`,
+          description: `${vehicle?.name || 'Vehicle'} has ${claim.severity} damage (${claim.claim_type}) open for ${Math.floor(hoursOpen/24)} days. Est. cost: ${claim.estimated_cost ? formatCurrency(claim.estimated_cost) : 'TBD'}`,
           action: { label: 'Review Claim', moduleId: 'vault' },
           timestamp: new Date(claim.reported_date)
         });

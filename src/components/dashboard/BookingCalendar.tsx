@@ -699,7 +699,7 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
               </div>
               <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-success/10 text-xs">
                 <DollarSign className="h-3 w-3 text-success" />
-                <span className="font-medium text-success">${monthStats.totalRevenue.toLocaleString()}</span>
+                <span className="font-medium text-success">{formatCurrency(monthStats.totalRevenue)}</span>
               </div>
               <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 text-xs">
                 <Car className="h-3 w-3 text-primary" />
@@ -899,7 +899,7 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
                           <span className="font-medium">{dayBookings.length} booking{dayBookings.length !== 1 ? 's' : ''}</span>
                           {dayBookings.length > 0 && (
                             <span className="text-success font-semibold">
-                              ${dayBookings.reduce((sum, b) => sum + Number(b.total_value || 0), 0).toLocaleString()}
+                              {formatCurrency(dayBookings.reduce((sum, b) => sum + Number(b.total_value || 0), 0))}
                             </span>
                           )}
                         </div>
@@ -944,7 +944,7 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
                                       </div>
                                     </div>
                                     <div className="flex items-center gap-2 flex-shrink-0">
-                                      <span className="font-bold text-success text-sm">${Number(booking.total_value).toLocaleString()}</span>
+                                      <span className="font-bold text-success text-sm">{formatCurrency(Number(booking.total_value))}</span>
                                       <Badge variant="outline" className={`text-[10px] ${
                                         booking.status === 'confirmed' ? 'bg-success/10 text-success border-success/30' :
                                         booking.status === 'completed' ? 'bg-primary/10 text-primary border-primary/30' :
