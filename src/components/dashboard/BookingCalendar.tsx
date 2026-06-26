@@ -59,6 +59,7 @@ import {
 } from "@/components/ui/hover-card";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth, startOfDay, addDays, differenceInHours } from "date-fns";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { formatCurrency } from "@/lib/utils";
 
 interface BookingCalendarProps {
   onNavigateToModule?: (moduleId: string, context?: Record<string, any>) => void;

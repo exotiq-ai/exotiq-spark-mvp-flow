@@ -29,7 +29,7 @@ import {
   Clock,
   TrendingUp
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, formatCurrency } from '@/lib/utils';
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   LogIn,
