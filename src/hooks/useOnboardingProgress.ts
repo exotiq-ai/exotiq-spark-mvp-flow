@@ -57,6 +57,7 @@ const defaultFormData: OnboardingFormData = {
   website: '',
   phone: '',
   email: '',
+  countryCode: '',
   fleetSize: '',
   businessType: '',
   locations: [],
