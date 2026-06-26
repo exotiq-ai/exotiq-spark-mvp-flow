@@ -122,7 +122,7 @@ function downloadReport(content: string, entityType: string) {
   URL.revokeObjectURL(url);
 }
 
-export function ImportSummary({ entityType, stats, onClose, onViewData, fileName, columnMappings, failedRows }: ImportSummaryProps) {
+export function ImportSummary({ entityType, stats, onClose, onViewData, fileName, columnMappings, failedRows, photoReferences }: ImportSummaryProps) {
   const config = ENTITY_CONFIG[entityType];
   const Icon = config.icon;
   const totalProcessed = stats.imported + stats.skipped + stats.failed;
