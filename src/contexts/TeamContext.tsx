@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { AppRole } from '@/hooks/useUserRole';
 import { devLog, devError } from '@/lib/logger';
+import { setActiveMoneyContext } from '@/lib/utils';
 
 export interface Team {
   id: string;
