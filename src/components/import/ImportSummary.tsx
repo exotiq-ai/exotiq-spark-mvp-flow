@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle2, AlertTriangle, XCircle, ExternalLink, Users, Car, Calendar, MapPin, Download } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, XCircle, ExternalLink, Users, Car, Calendar, MapPin, Download, Image as ImageIcon } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
