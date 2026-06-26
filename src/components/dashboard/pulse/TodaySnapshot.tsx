@@ -2,6 +2,7 @@ import { Card } from "@/components/ui/card";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { useNavigate } from "react-router-dom";
 import { moduleIdToPath } from "@/lib/moduleRoutes";
+import { formatCurrency } from "@/lib/utils";
 import { 
   Car, 
   ArrowUpRight, 
@@ -72,7 +73,7 @@ export const TodaySnapshot = () => {
     },
     { 
       label: "Collected Today", 
-      value: `$${todayRevenue.toLocaleString()}`,
+      value: formatCurrency(todayRevenue),
       subtext: format(new Date(), 'MMM d'),
       icon: DollarSign,
       color: "text-success",

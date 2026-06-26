@@ -22,6 +22,7 @@ import {
   XCircle
 } from "lucide-react";
 import { format } from "date-fns";
+import { formatCurrency } from "@/lib/utils";
 
 export const DamageClaimsSection = () => {
   const { damageClaims, vehicles, maintenance } = useLocationFilteredFleet();
@@ -172,7 +173,7 @@ export const DamageClaimsSection = () => {
               <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-destructive flex-shrink-0" />
               <span className="text-xs sm:text-sm text-muted-foreground">Total Cost</span>
             </div>
-            <div className="text-xl sm:text-2xl font-bold">${claimStats.totalCost.toLocaleString()}</div>
+            <div className="text-xl sm:text-2xl font-bold">{formatCurrency(claimStats.totalCost)}</div>
           </Card>
         </div>
 

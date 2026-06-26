@@ -83,7 +83,7 @@ const ActivityItem = ({ activity, index }: ActivityItemProps) => {
       description = activity.metadata.vehicle_name as string;
     }
     if (activity.metadata.amount) {
-      description = `$${Number(activity.metadata.amount).toLocaleString()}`;
+      description = formatCurrency(Number(activity.metadata.amount));
     }
     if (activity.metadata.new_role) {
       description = `→ ${activity.metadata.new_role}`;

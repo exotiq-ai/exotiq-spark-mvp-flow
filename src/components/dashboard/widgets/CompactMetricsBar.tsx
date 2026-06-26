@@ -1,6 +1,6 @@
 import { Calendar, Car, BarChart3 } from "lucide-react";
 import { motion } from "framer-motion";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 
 interface CompactMetricsBarProps {
   activeBookings: number;
@@ -37,7 +37,7 @@ export const CompactMetricsBar = ({
     {
       id: "motoriq",
       label: "Avg Rate",
-      value: `$${averageRate.toLocaleString()}`,
+      value: formatCurrency(averageRate),
       icon: BarChart3,
       color: "text-warning",
       borderColor: "hover:border-warning/50",

@@ -295,7 +295,7 @@ export const PaymentTracker = () => {
               <DollarSign className="h-5 w-5 text-success" />
               <TrendingUp className="h-4 w-4 text-success" />
             </div>
-            <div className="text-2xl font-bold">${totalPending.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{formatCurrency(totalPending)}</div>
             <div className="text-sm text-muted-foreground">Pending Payments</div>
             <div className="text-xs text-muted-foreground mt-1">{pendingPayments.length} bookings</div>
           </Card>
@@ -305,7 +305,7 @@ export const PaymentTracker = () => {
               <AlertCircle className="h-5 w-5 text-destructive" />
               <Badge className="bg-destructive/10 text-destructive">{overduePayments.length}</Badge>
             </div>
-            <div className="text-2xl font-bold text-destructive">${totalOverdue.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-destructive">{formatCurrency(totalOverdue)}</div>
             <div className="text-sm text-muted-foreground">Overdue Payments</div>
           </Card>
 
@@ -359,16 +359,16 @@ export const PaymentTracker = () => {
                   <div className="grid grid-cols-2 gap-4 mb-3 text-sm">
                     <div>
                       <div className="text-muted-foreground">Total Amount</div>
-                      <div className="font-medium">${Number(booking.total_value).toLocaleString()}</div>
+                      <div className="font-medium">{formatCurrency(Number(booking.total_value))}</div>
                     </div>
                     <div>
                       <div className="text-muted-foreground">Paid</div>
-                      <div className="font-medium text-success">${booking.totalPaid.toLocaleString()}</div>
+                      <div className="font-medium text-success">{formatCurrency(booking.totalPaid)}</div>
                     </div>
                     <div>
                       <div className="text-muted-foreground">Balance Due</div>
                       <div className="font-medium text-destructive">
-                        ${(Number(booking.total_value) - booking.totalPaid).toLocaleString()}
+                        {formatCurrency(Number(booking.total_value) - booking.totalPaid)}
                       </div>
                     </div>
                     <div>
@@ -385,7 +385,7 @@ export const PaymentTracker = () => {
                         <span className="font-medium text-blue-600">Authorization Hold Active</span>
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        ${Number(booking.activeHold.amount).toLocaleString()} held on customer's card
+                        {formatCurrency(Number(booking.activeHold.amount))} held on customer's card
                         {(booking.activeHold as any).hold_expires_at && (
                           <> • Expires {new Date((booking.activeHold as any).hold_expires_at).toLocaleDateString()}</>
                         )}

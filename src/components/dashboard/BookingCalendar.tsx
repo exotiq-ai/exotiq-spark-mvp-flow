@@ -86,7 +86,7 @@ const BookingPreviewCard = ({
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
           <div className="absolute bottom-2 left-3 right-3">
             <h4 className="text-white font-bold text-sm truncate">{vehicle?.name}</h4>
-            <p className="text-white/80 text-xs">${Number(vehicle?.current_rate || 0).toLocaleString()}/day</p>
+            <p className="text-white/80 text-xs">{formatCurrency(Number(vehicle?.current_rate || 0))}/day</p>
           </div>
         </div>
       )}
@@ -113,7 +113,7 @@ const BookingPreviewCard = ({
         </div>
         <div className="flex items-center gap-2 text-xs">
           <DollarSign className="h-3 w-3 text-muted-foreground" />
-          <span className="font-semibold text-success">${Number(booking.total_value).toLocaleString()}</span>
+          <span className="font-semibold text-success">{formatCurrency(Number(booking.total_value))}</span>
         </div>
       </div>
       <div className="flex gap-2 mt-3 pt-3 border-t">
@@ -164,7 +164,7 @@ const DayDetailContent = ({
         </div>
         <div className="p-2.5 rounded-xl bg-success/10 text-center">
           <div className="text-lg font-bold text-success">
-            ${selectedDayBookings.reduce((sum, b) => sum + Number(b.total_value || 0), 0).toLocaleString()}
+            {formatCurrency(selectedDayBookings.reduce((sum, b) => sum + Number(b.total_value || 0), 0))}
           </div>
           <div className="text-[10px] text-muted-foreground">Revenue</div>
         </div>
@@ -241,7 +241,7 @@ const DayDetailContent = ({
                   </div>
                   <div className="flex items-center justify-between pt-1.5 border-t border-dashed">
                     <span className="font-bold text-success text-sm">
-                      ${Number(booking.total_value).toLocaleString()}
+                      {formatCurrency(Number(booking.total_value))}
                     </span>
                     <div className="flex gap-0.5">
                       {booking.customer_phone && (
