@@ -535,11 +535,15 @@ export const vehicleImportValidation = z.object({
   ),
   license_plate: z.string().optional().nullable(),
   vin: z.string().max(17, 'VIN cannot exceed 17 characters').optional().nullable().or(z.literal('')).transform(val => val === '' ? null : val),
-  current_rate: z.coerce.number().min(0, 'Rate must be positive').default(0),
-  status: z.enum(['available', 'rented', 'maintenance', 'unavailable', 'booked']).optional().nullable().default('available'),
+  current_rate: z.preprocess(cleanNumeric, z.coerce.number().min(0, 'Rate must be positive').default(0)),
+  status: z.preprocess(
+    normalizeVehicleStatus,
+    z.enum(['available', 'rented', 'maintenance', 'unavailable', 'booked', 'retired']).optional().nullable().default('available')
+  ),
   location: z.string().optional().nullable(),
   color: z.string().optional().nullable(),
-  mileage: z.coerce.number().min(0).optional().nullable()
+  mileage: z.preprocess(cleanNumeric, z.coerce.number().min(0).optional().nullable()),
+  image: z.string().optional().nullable(),
 });
 
 export const customerImportValidation = z.object({
