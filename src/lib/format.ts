@@ -49,3 +49,28 @@ export function formatMoney(
 
   return options.showCode ? `${formatted} ${currency}` : formatted;
 }
+
+/**
+ * Compact currency for tiles ("$1.2K", "£3.4M"). Uses Intl's compact notation.
+ */
+export function formatCompactMoney(
+  value: number | string | null | undefined,
+  options: Pick<MoneyFormatOptions, 'currency' | 'locale'> = {},
+): string {
+  const num = typeof value === 'string' ? parseFloat(value) : (value ?? 0);
+  if (!Number.isFinite(num)) return formatCompactMoney(0, options);
+
+  const currency = (options.currency || DEFAULTS.currency).toUpperCase();
+  const locale = options.locale || DEFAULTS.locale;
+
+  try {
+    return new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency,
+      notation: 'compact',
+      maximumFractionDigits: 1,
+    }).format(num);
+  } catch {
+    return '$' + (num / 1000).toFixed(1) + 'K';
+  }
+}
