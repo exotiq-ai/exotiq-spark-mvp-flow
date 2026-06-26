@@ -4,6 +4,7 @@ import { CollapsibleSection } from "@/components/ui/collapsible-section";
 import { VehicleThumbnail } from "@/components/common/VehicleThumbnail";
 import { History, DollarSign } from "lucide-react";
 import { Tables } from "@/integrations/supabase/types";
+import { formatCurrency } from "@/lib/utils";
 
 type Booking = Tables<"bookings">;
 type Vehicle = Tables<"vehicles">;
@@ -57,7 +58,7 @@ export const PreviousBookingsCard = ({ bookings, vehicles, onBookingClick }: Pre
         <div className="flex items-center gap-2">
           <Badge variant="secondary" className="text-xs">{previousBookings.length}</Badge>
           {totalRevenue > 0 && (
-            <span className="text-xs text-muted-foreground">${totalRevenue.toLocaleString()} collected</span>
+            <span className="text-xs text-muted-foreground">{formatCurrency(totalRevenue)} collected</span>
           )}
         </div>
       }
@@ -87,7 +88,7 @@ export const PreviousBookingsCard = ({ bookings, vehicles, onBookingClick }: Pre
               </span>
               <div className="flex items-center gap-1.5 flex-shrink-0">
                 <DollarSign className="h-3 w-3 text-muted-foreground" />
-                <span className="text-sm font-medium">${Number(booking.total_value).toLocaleString()}</span>
+                <span className="text-sm font-medium">{formatCurrency(Number(booking.total_value))}</span>
               </div>
               <Badge className="bg-success/20 text-success border-success/30 text-[10px]">completed</Badge>
             </div>

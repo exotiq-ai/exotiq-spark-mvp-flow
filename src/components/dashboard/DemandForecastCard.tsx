@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { supabase } from "@/integrations/supabase/client";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrency, formatCurrencyCompact } from "@/lib/utils";
 import { Tables } from "@/integrations/supabase/types";
 import {
   TrendingUp,
@@ -835,7 +835,7 @@ export const DemandForecastCard = ({ bookings = [] }: DemandForecastCardProps) =
                               {cat.avgImpact} avg impact
                             </Badge>
                             <span className="font-semibold text-success">
-                              +${cat.revenueImpact.toLocaleString()}
+                              +{formatCurrency(cat.revenueImpact)}
                             </span>
                           </div>
                         </div>
@@ -951,7 +951,7 @@ export const DemandForecastCard = ({ bookings = [] }: DemandForecastCardProps) =
                     <DollarSign className="h-4 w-4 text-success" />
                   </div>
                   <div className="text-2xl font-bold text-success">
-                    ${(aiForecast.summary.projectedRevenue / 1000).toFixed(1)}K
+                    {formatCurrencyCompact(aiForecast.summary.projectedRevenue)}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
                     {aiForecast.summary.comparedToLastPeriod > 0 ? '+' : ''}{aiForecast.summary.comparedToLastPeriod}% vs last period
@@ -1040,10 +1040,10 @@ export const DemandForecastCard = ({ bookings = [] }: DemandForecastCardProps) =
                           </div>
                           <div className="text-right ml-4">
                             <div className="text-sm text-muted-foreground line-through">
-                              ${adj.currentRate.toLocaleString()}/day
+                              {formatCurrency(adj.currentRate)}/day
                             </div>
                             <div className="text-lg font-bold text-success">
-                              ${adj.suggestedRate.toLocaleString()}/day
+                              {formatCurrency(adj.suggestedRate)}/day
                             </div>
                           </div>
                         </div>
@@ -1096,7 +1096,7 @@ export const DemandForecastCard = ({ bookings = [] }: DemandForecastCardProps) =
                         </span>
                       </div>
                       <div className="text-lg font-bold text-success mb-1">
-                        +${(opp.potentialRevenue / 1000).toFixed(1)}K
+                        +{formatCurrencyCompact(opp.potentialRevenue)}
                       </div>
                       <p className="text-xs text-muted-foreground">{opp.reason}</p>
                       {opp.eventName && (
@@ -1139,7 +1139,7 @@ export const DemandForecastCard = ({ bookings = [] }: DemandForecastCardProps) =
                         {pred.confidence}%
                       </Badge>
                       <span className="text-[10px] text-muted-foreground">
-                        ${(pred.projectedRevenue / 1000).toFixed(1)}K
+                        {formatCurrencyCompact(pred.projectedRevenue)}
                       </span>
                     </div>
                   ))}

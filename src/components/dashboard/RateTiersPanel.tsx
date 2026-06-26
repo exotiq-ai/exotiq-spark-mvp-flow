@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/table";
 import { Save, DollarSign, Car, Loader2, Info, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { formatCurrency } from "@/lib/utils";
 
 interface VehicleRates {
   id: string;
@@ -144,7 +145,7 @@ export const RateTiersPanel = () => {
 
   const formatRate = (rate: number | null) => {
     if (rate == null) return "—";
-    return `$${rate.toLocaleString()}`;
+    return formatCurrency(rate);
   };
 
   if (vehicles.length === 0) {

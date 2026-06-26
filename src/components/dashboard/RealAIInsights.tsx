@@ -19,6 +19,7 @@ import {
   Zap,
   Car
 } from 'lucide-react';
+import { formatCurrency } from '@/lib/utils';
 
 /**
  * Types of AI insights we can generate from fleet data
@@ -182,7 +183,7 @@ export function RealAIInsights({
         type: 'pricing',
         title: 'Pricing Optimization',
         description: `${pricingInsight.vehicleName} could support a ${pricingInsight.suggestedIncreasePercent}% rate increase. ${pricingInsight.reason}`,
-        impact: `+$${pricingInsight.potentialMonthlyRevenue.toLocaleString()}/month`,
+        impact: `+${formatCurrency(pricingInsight.potentialMonthlyRevenue)}/month`,
         priority: pricingInsight.confidence >= 80 ? 'high' : 'medium',
         actionLabel: 'Review pricing',
         confidence: pricingInsight.confidence,
@@ -243,7 +244,7 @@ export function RealAIInsights({
           description: inactiveVIPs.length === 1
             ? `${inactiveVIPs[0].full_name} (VIP) hasn't booked in 30+ days`
             : `${inactiveVIPs.length} VIP customers haven't booked in 30+ days`,
-          impact: avgLifetimeValue > 0 ? `$${Math.round(avgLifetimeValue).toLocaleString()} avg LTV at risk` : 'Customer retention',
+          impact: avgLifetimeValue > 0 ? `${formatCurrency(Math.round(avgLifetimeValue))} avg LTV at risk` : 'Customer retention',
           priority: 'high',
           actionLabel: 'View customers',
           confidence: 80,

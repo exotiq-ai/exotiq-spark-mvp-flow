@@ -5,6 +5,7 @@ import { ProgressiveDisclosure } from "@/components/common/ProgressiveDisclosure
 import { CountUp } from "@/components/common/MicroInteractions";
 import { Tachometer } from "@/components/automotive/RacingStripe";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
+import { formatCurrency } from "@/lib/utils";
 import { useMemo } from "react";
 import { startOfMonth, subMonths, isWithinInterval, endOfMonth } from "date-fns";
 
@@ -132,7 +133,7 @@ export const RevenueWidget = ({ isLoading }: RevenueWidgetProps) => {
         <div className="space-y-2">
           <p className="text-sm text-muted-foreground">Avg Revenue/Vehicle</p>
           <p className="text-3xl font-dfaalt font-bold text-gulf-blue">
-            ${Math.round(avgRevenuePerVehicle).toLocaleString()}
+            {formatCurrency(Math.round(avgRevenuePerVehicle))}
           </p>
           <div className={`flex items-center gap-2 text-sm ${monthlyChange >= 0 ? 'text-success' : 'text-destructive'}`}>
             {monthlyChange >= 0 ? (
@@ -175,7 +176,7 @@ export const RevenueWidget = ({ isLoading }: RevenueWidgetProps) => {
                 </div>
                 <div className="text-right">
                   <p className="font-dfaalt font-bold text-gulf-blue">
-                    ${vehicle.actualRevenue.toLocaleString()}
+                    {formatCurrency(vehicle.actualRevenue)}
                   </p>
                   <p className="text-xs text-muted-foreground">total revenue</p>
                 </div>

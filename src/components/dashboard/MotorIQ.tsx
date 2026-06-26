@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { PriceOptimizationDialog } from "@/components/dialogs/PriceOptimizationDialog";
+import { formatCurrency } from "@/lib/utils";
 
 export const MotorIQ = () => {
   const { vehicles, bookings, applyPriceOptimization, isAllLocations, currentLocation } = useLocationFilteredFleet();
@@ -35,7 +36,7 @@ export const MotorIQ = () => {
     return {
       id: vehicle.id,
       vehicle: `${vehicle.year} ${vehicle.make} ${vehicle.model}`,
-      revenue: `$${revenue.toLocaleString()}`,
+      revenue: formatCurrency(revenue),
       margin,
       trend: marginTrend,
       currentRate: vehicle.current_rate

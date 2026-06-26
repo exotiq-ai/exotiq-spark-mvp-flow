@@ -30,7 +30,7 @@ import {
   Clock,
 } from "lucide-react";
 import { format, startOfWeek, endOfWeek, subWeeks } from "date-fns";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrencyCompact } from "@/lib/utils";
 
 interface DigestData {
   id: string;
@@ -174,7 +174,7 @@ export const WeeklyDigestCard = ({ bookings, vehicles }: WeeklyDigestCardProps) 
                 <DollarSign className="h-3 w-3" />
                 Revenue
               </div>
-              <div className="font-bold text-lg">${(summary.weekInReview.revenue / 1000).toFixed(1)}K</div>
+              <div className="font-bold text-lg">{formatCurrencyCompact(summary.weekInReview.revenue)}</div>
               <div className={cn("text-xs font-medium", summary.weekInReview.revenueChange >= 0 ? 'text-success' : 'text-destructive')}>
                 {summary.weekInReview.revenueChange >= 0 ? '+' : ''}{summary.weekInReview.revenueChange}%
               </div>
@@ -193,7 +193,7 @@ export const WeeklyDigestCard = ({ bookings, vehicles }: WeeklyDigestCardProps) 
                 Top Vehicle
               </div>
               <div className="font-bold text-sm truncate">{summary.weekInReview.topVehicle.name}</div>
-              <div className="text-xs text-success">${(summary.weekInReview.topVehicle.revenue / 1000).toFixed(1)}K</div>
+              <div className="text-xs text-success">{formatCurrencyCompact(summary.weekInReview.topVehicle.revenue)}</div>
             </div>
             <div className="space-y-1">
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -244,7 +244,7 @@ export const WeeklyDigestCard = ({ bookings, vehicles }: WeeklyDigestCardProps) 
                   <div className="grid grid-cols-2 gap-3">
                     <div className="p-3 rounded-lg bg-success/10 border border-success/20">
                       <div className="text-xs text-muted-foreground mb-1">Revenue</div>
-                      <div className="text-xl font-bold text-success">${(summary.weekInReview.revenue / 1000).toFixed(1)}K</div>
+                      <div className="text-xl font-bold text-success">{formatCurrencyCompact(summary.weekInReview.revenue)}</div>
                       <div className={cn("text-xs", summary.weekInReview.revenueChange >= 0 ? 'text-success' : 'text-destructive')}>
                         {summary.weekInReview.revenueChange >= 0 ? '+' : ''}{summary.weekInReview.revenueChange}% vs last week
                       </div>
@@ -257,7 +257,7 @@ export const WeeklyDigestCard = ({ bookings, vehicles }: WeeklyDigestCardProps) 
                     <div className="p-3 rounded-lg bg-accent/10 border border-accent/20">
                       <div className="text-xs text-muted-foreground mb-1">Top Vehicle</div>
                       <div className="text-sm font-bold">{summary.weekInReview.topVehicle.name}</div>
-                      <div className="text-xs text-success">${(summary.weekInReview.topVehicle.revenue / 1000).toFixed(1)}K revenue</div>
+                      <div className="text-xs text-success">{formatCurrencyCompact(summary.weekInReview.topVehicle.revenue)} revenue</div>
                     </div>
                     <div className="p-3 rounded-lg bg-warning/10 border border-warning/20">
                       <div className="text-xs text-muted-foreground mb-1">Fleet Utilization</div>

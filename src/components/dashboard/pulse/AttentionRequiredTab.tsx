@@ -23,6 +23,7 @@ import {
   ClipboardList
 } from "lucide-react";
 import { isPast, isToday, isTomorrow, addDays, isWithinInterval, format } from "date-fns";
+import { formatCurrency } from "@/lib/utils";
 
 interface AlertItem {
   id: string;
@@ -146,7 +147,7 @@ export const AttentionRequiredTab = () => {
         const booking = bookings.find(b => b.id === p.booking_id);
         return {
           id: p.id,
-          label: `$${p.amount?.toLocaleString() || 0}`,
+          label: formatCurrency(p.amount || 0),
           sublabel: booking?.customer_name || 'Unknown Customer',
           onClick: () => navigate(moduleIdToPath("vault", { tab: "payments", paymentId: p.id }))
         };

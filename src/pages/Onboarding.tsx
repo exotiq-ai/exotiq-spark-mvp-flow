@@ -565,19 +565,6 @@ export default function Onboarding() {
 
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="companyName">Company Name *</Label>
-                    <Input
-                      id="companyName"
-                      placeholder="Your Rental Company"
-                      value={formData.companyName}
-                      onChange={(e) => updateFormData('companyName', e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <CompanyLogoUpload compact label="Company Logo" />
-
-                  <div className="space-y-2">
                     <Label htmlFor="country" className="flex items-center gap-2">
                       <Globe className="w-4 h-4 text-muted-foreground" />
                       Country / Region *
@@ -597,10 +584,33 @@ export default function Onboarding() {
                         ))}
                       </SelectContent>
                     </Select>
-                    <p className="text-xs text-muted-foreground">
-                      Sets your tenant currency, locale, and tax defaults. You can fine-tune these later in Settings.
-                    </p>
+                    {(() => {
+                      const code = (formData.countryCode || detectCountryFromBrowser()).toUpperCase();
+                      const def = getCountryDefaults(code);
+                      return (
+                        <p className="text-xs text-muted-foreground">
+                          We'll set your currency to <span className="font-semibold text-foreground">{def.currency}</span>
+                          {def.tax_rate_percent > 0 && (
+                            <> and tax to <span className="font-semibold text-foreground">{def.tax_rate_percent}% {def.tax_label}</span></>
+                          )}
+                          . You can change this anytime in Settings.
+                        </p>
+                      );
+                    })()}
                   </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="companyName">Company Name *</Label>
+                    <Input
+                      id="companyName"
+                      placeholder="Your Rental Company"
+                      value={formData.companyName}
+                      onChange={(e) => updateFormData('companyName', e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <CompanyLogoUpload compact label="Company Logo" />
 
                   <div className="space-y-2">
                     <Label>Business Address *</Label>

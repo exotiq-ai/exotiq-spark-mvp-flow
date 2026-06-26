@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { SkeletonScheduleItem } from "@/components/ui/skeleton-specialized";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
+import { formatCurrency } from "@/lib/utils";
 import { DollarSign, Clock, CalendarDays } from "lucide-react";
 import { differenceInDays, format, isToday, isTomorrow } from "date-fns";
 
@@ -52,7 +53,7 @@ const ScheduleExpandedContent = () => {
           <DollarSign className="h-4 w-4 mx-auto mb-1 text-primary" />
           <p className="text-xs text-muted-foreground">Pipeline</p>
           <p className="font-semibold text-sm text-foreground">
-            ${totalValue.toLocaleString()}
+            {formatCurrency(totalValue)}
           </p>
         </div>
         <div className="text-center p-2 rounded-lg bg-muted/50">

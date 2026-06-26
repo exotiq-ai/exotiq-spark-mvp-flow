@@ -29,6 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { formatCurrency } from "@/lib/utils";
 
 interface StripePayment {
   id: string;
@@ -205,7 +206,7 @@ export const PaymentsSection = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-emerald-600">
-              ${balanceData?.balance.available.toLocaleString() || "0.00"}
+              {formatCurrency(balanceData?.balance.available || 0)}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               Ready for payout
@@ -220,7 +221,7 @@ export const PaymentsSection = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-amber-600">
-              ${balanceData?.balance.pending.toLocaleString() || "0.00"}
+              {formatCurrency(balanceData?.balance.pending || 0)}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               Processing payments
@@ -235,7 +236,7 @@ export const PaymentsSection = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600">
-              ${balanceData?.summary.total_collected.toLocaleString() || "0.00"}
+              {formatCurrency(balanceData?.summary.total_collected || 0)}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               All time revenue
@@ -273,7 +274,7 @@ export const PaymentsSection = () => {
               {balanceData.payouts.slice(0, 3).map((payout) => (
                 <div key={payout.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                   <div>
-                    <p className="font-medium">${payout.amount.toLocaleString()}</p>
+                    <p className="font-medium">{formatCurrency(payout.amount)}</p>
                     <p className="text-sm text-muted-foreground">
                       Arriving {format(new Date(payout.arrival_date), "MMM d, yyyy")}
                     </p>
@@ -302,7 +303,7 @@ export const PaymentsSection = () => {
                   <div>
                     <p className="font-medium">{deposit.customer_name}</p>
                     <p className="text-sm text-muted-foreground">
-                      ${deposit.security_deposit_amount?.toLocaleString()}
+                      {formatCurrency(deposit.security_deposit_amount || 0)}
                     </p>
                   </div>
                   <Badge variant="secondary">Held</Badge>
@@ -380,7 +381,7 @@ export const PaymentsSection = () => {
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="text-right">
-                      <p className="font-semibold">${payment.amount?.toLocaleString()}</p>
+                      <p className="font-semibold">{formatCurrency(payment.amount || 0)}</p>
                       <p className="text-xs text-muted-foreground">
                         {payment.created_at ? format(new Date(payment.created_at), "MMM d, yyyy") : "N/A"}
                       </p>

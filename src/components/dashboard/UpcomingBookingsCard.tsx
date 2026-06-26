@@ -4,6 +4,7 @@ import { CollapsibleSection } from "@/components/ui/collapsible-section";
 import { VehicleThumbnail } from "@/components/common/VehicleThumbnail";
 import { CalendarIcon, DollarSign, ArrowRight } from "lucide-react";
 import { Tables } from "@/integrations/supabase/types";
+import { formatCurrency } from "@/lib/utils";
 
 type Booking = Tables<"bookings">;
 type Vehicle = Tables<"vehicles">;
@@ -61,7 +62,7 @@ export const UpcomingBookingsCard = ({ bookings, vehicles, onBookingClick }: Upc
         <div className="flex items-center gap-2">
           <Badge variant="secondary" className="text-xs">{upcomingBookings.length}</Badge>
           {totalValue > 0 && (
-            <span className="text-xs text-muted-foreground">${totalValue.toLocaleString()} pipeline</span>
+            <span className="text-xs text-muted-foreground">{formatCurrency(totalValue)} pipeline</span>
           )}
         </div>
       }
@@ -92,7 +93,7 @@ export const UpcomingBookingsCard = ({ bookings, vehicles, onBookingClick }: Upc
                 <span className="text-muted-foreground">{getDuration(booking.start_date, booking.end_date)}</span>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
-                <span className="text-sm font-medium">${Number(booking.total_value).toLocaleString()}</span>
+                <span className="text-sm font-medium">{formatCurrency(Number(booking.total_value))}</span>
                 <Badge className={`text-[10px] ${
                   booking.status === 'confirmed' ? 'bg-success/20 text-success border-success/30' :
                   'bg-warning/20 text-warning border-warning/30'

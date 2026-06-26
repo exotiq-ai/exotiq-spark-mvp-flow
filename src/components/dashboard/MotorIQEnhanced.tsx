@@ -44,6 +44,7 @@ import {
 } from "lucide-react";
 import { createExportActions } from "@/lib/exportUtils";
 import { useToast } from "@/hooks/use-toast";
+import { formatCurrency } from "@/lib/utils";
 
 export const MotorIQEnhanced = () => {
   const { vehicles, bookings, applyPriceOptimization, loading, createVehicle } = useLocationFilteredFleet();
@@ -145,7 +146,7 @@ export const MotorIQEnhanced = () => {
     .map(v => ({
       ...v,
       opportunity: v.suggested_rate && v.suggested_rate > v.current_rate 
-        ? `$${((v.suggested_rate - v.current_rate) * 30).toFixed(0)}` 
+        ? formatCurrency((v.suggested_rate - v.current_rate) * 30) 
         : null
     }));
 
@@ -314,13 +315,13 @@ export const MotorIQEnhanced = () => {
                         {topRecommendation.name}
                       </p>
                         <p className="text-xs text-muted-foreground">
-                          ${Number(topRecommendation.current_rate).toLocaleString()}/day → ${Number(topRecommendation.suggested_rate).toLocaleString()}/day
+                          {formatCurrency(Number(topRecommendation.current_rate))}/day → {formatCurrency(Number(topRecommendation.suggested_rate))}/day
                         </p>
                       </div>
                       <div className="h-10 w-px bg-border hidden sm:block"></div>
                       <div>
                         <p className="text-2xl font-bold text-success">
-                          +${Math.round(potentialIncrease).toLocaleString()}
+                          +{formatCurrency(Math.round(potentialIncrease))}
                         </p>
                         <p className="text-xs text-muted-foreground">Monthly opportunity</p>
                       </div>
@@ -378,7 +379,7 @@ export const MotorIQEnhanced = () => {
                 </Badge>
               )}
             </div>
-            <div className="text-2xl font-bold mb-1">${weeklyRevenue.toLocaleString()}</div>
+            <div className="text-2xl font-bold mb-1">{formatCurrency(weeklyRevenue)}</div>
             <div className="text-sm text-muted-foreground">Total Fleet Revenue</div>
             <div className="text-xs text-muted-foreground mt-1">This week</div>
           </Card>

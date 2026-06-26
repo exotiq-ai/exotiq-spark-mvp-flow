@@ -13,6 +13,7 @@ import {
   MapPin
 } from "lucide-react";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
+import { formatCurrency } from "@/lib/utils";
 import { format, isToday, isTomorrow, startOfWeek, endOfWeek, subWeeks } from "date-fns";
 
 export const Pulse = () => {
@@ -56,7 +57,7 @@ export const Pulse = () => {
     },
     { 
       label: "Collected Today", 
-      value: `$${todayRevenue.toLocaleString()}`, 
+      value: formatCurrency(todayRevenue), 
       change: `${revenueChange >= 0 ? '+' : ''}${revenueChange}% vs yesterday`, 
       trend: revenueChange >= 0 ? "up" : "down" 
     },
@@ -68,7 +69,7 @@ export const Pulse = () => {
     },
     { 
       label: "Avg Daily Rate", 
-      value: `$${avgDailyRate.toLocaleString()}`,
+      value: formatCurrency(avgDailyRate),
       change: avgDailyRate > 300 ? "+5% vs last week" : "Stable", 
       trend: avgDailyRate > 300 ? "up" : "neutral" 
     }
@@ -85,7 +86,7 @@ export const Pulse = () => {
           type: "booking",
           message: `New booking: ${vehicle ? `${vehicle.make} ${vehicle.model}` : 'Vehicle'}`,
           time: b.created_at ? format(new Date(b.created_at), 'MMM d, h:mm a') : 'Recently',
-          value: `$${b.total_value?.toLocaleString() || 0}`
+          value: formatCurrency(b.total_value || 0)
         };
       }),
     ...payments
@@ -95,7 +96,7 @@ export const Pulse = () => {
         type: "payment",
         message: `Payment received`,
         time: p.created_at ? format(new Date(p.created_at), 'MMM d, h:mm a') : 'Recently',
-        value: `$${p.amount.toLocaleString()}`
+        value: formatCurrency(p.amount)
       })),
     ...maintenance
       .filter(m => m.status === 'completed')
@@ -295,7 +296,7 @@ export const Pulse = () => {
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="text-center p-4 rounded-lg bg-gradient-to-br from-primary/10 to-primary/5">
-            <div className="text-3xl font-bold text-primary mb-2">${thisWeekRevenue.toLocaleString()}</div>
+            <div className="text-3xl font-bold text-primary mb-2">{formatCurrency(thisWeekRevenue)}</div>
             <div className="text-sm text-muted-foreground">Total Revenue (7 days)</div>
             <div className={`text-xs mt-1 ${weeklyRevenueChange >= 0 ? 'text-success' : 'text-destructive'}`}>
               {weeklyRevenueChange >= 0 ? '+' : ''}{weeklyRevenueChange}% vs last week

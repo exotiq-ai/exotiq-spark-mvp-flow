@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { AppRole } from '@/hooks/useUserRole';
 import { devLog, devError } from '@/lib/logger';
+import { setActiveMoneyContext } from '@/lib/utils';
 
 export interface Team {
   id: string;
@@ -106,6 +107,16 @@ export const TeamProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     return locations.find(l => l.id === selectedLocationId) || null;
   }, [selectedLocationId, locations]);
+
+  // Phase 1: push tenant currency/locale into the formatCurrency shim so every
+  // existing call site renders in the right currency without code changes.
+  useEffect(() => {
+    setActiveMoneyContext({
+      currency: currentTeam?.currency,
+      locale: currentTeam?.locale,
+    });
+  }, [currentTeam?.currency, currentTeam?.locale]);
+
 
   // Check if user can access a specific location
   const canAccessLocation = useCallback((locationId: string): boolean => {
