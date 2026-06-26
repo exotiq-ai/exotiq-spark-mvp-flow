@@ -64,6 +64,7 @@ export default function Onboarding() {
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const isEditMode = searchParams.get('edit') === 'true';
+  const selectedCountryDefaults = getCountryDefaults((formData.countryCode || detectCountryFromBrowser()).toUpperCase());
   
   // Database-backed progress with localStorage fallback
   const {
@@ -961,7 +962,7 @@ export default function Onboarding() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="dailyRate">Daily Rate ($)</Label>
+                      <Label htmlFor="dailyRate">Daily Rate ({selectedCountryDefaults.currency})</Label>
                       <Input
                         id="dailyRate"
                         type="number"
