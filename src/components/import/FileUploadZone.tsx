@@ -93,7 +93,7 @@ export function FileUploadZone({
   };
 
   const handleDownloadTemplate = (entityType: ImportEntityType) => {
-    downloadTemplate(entityType);
+    downloadTemplate(entityType, countryCode);
   };
 
   return (
