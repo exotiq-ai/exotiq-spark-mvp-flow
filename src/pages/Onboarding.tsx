@@ -223,6 +223,25 @@ export default function Onboarding() {
 
       if (error) throw error;
 
+      // Propagate country / currency / locale / tax defaults to the tenant team
+      const countryCode = (formData.countryCode || detectCountryFromBrowser()).toUpperCase();
+      const defaults = getCountryDefaults(countryCode);
+      if (currentTeam?.id) {
+        const { error: teamError } = await supabase
+          .from('teams')
+          .update({
+            country_code: defaults.country_code,
+            currency: defaults.currency,
+            locale: defaults.locale,
+            tax_label: defaults.tax_label,
+            tax_rate_percent: defaults.tax_rate_percent,
+            tax_inclusive: defaults.tax_inclusive,
+          } as any)
+          .eq('id', currentTeam.id);
+        if (teamError) console.warn('[Onboarding] team region update failed:', teamError.message);
+        else await refreshTeam();
+      }
+
       await handleStepChange(2);
     } catch (error: any) {
       toast({
