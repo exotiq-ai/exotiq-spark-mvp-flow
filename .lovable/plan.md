@@ -1,64 +1,63 @@
-## Cleanup for Denver Exotics (J Davidson's Fleet)
+# Email Communications — Status & Build Plan
 
-Tenant: `J Davidson's Fleet` · users: **J Davidson** (owner) & **Chantara/Tara** (manager).
+Deliverable: a single new markdown file at `docs/EMAIL_COMMS_STATUS.md` (no code or schema changes). It will document where Exotiq stands today on tenant + guest email, what's missing, provider options with real costs, and a recommended build path.
 
-### What the data shows
+## What I already know from the codebase
 
-**Stale reservations (team-scoped):**
-| status | count | oldest end_date | newest end_date |
-|---|---|---|---|
-| confirmed | 53 | 2026-02-22 | 2026-05-24 |
-| completed | 11 | already closed — no action |
-| cancelled | 5 | already closed — no action |
+**Currently wired (all via Resend SDK directly, no queue, no logging, no templates package):**
 
-→ **53 `confirmed` rows with `end_date` more than 30 days in the past** are the stale-open reservations.
+| Edge function | Purpose | From address |
+|---|---|---|
+| `invite-user` / `resend-invite` | Team member invites | `noreply@mail.exotiq.ai` |
+| `accept-invite` | Invite acceptance confirmation | `notifications@exotiq.io` |
+| `role-change-notification` | RBAC role updates | `noreply@mail.exotiq.ai` |
+| `mention-notification` | @mentions in comments/messages | `notifications@resend.dev` (Resend sandbox — not branded) |
+| `send-compliance-email` | GDPR / compliance notices | `compliance@notify.exotiq.ai` |
+| `send-deletion-confirmation` | Account deletion confirms | `noreply@resend.dev` (sandbox) |
+| `send-signed-document` | Signed rental docs to guests | `noreply@exotiq.io` |
+| `rari-email-summary` | Rari AI daily summary | `noreply@exotiq.ai` |
+| `uptime-check` | Internal alerts | Resend |
 
-**Notifications across both users (J + Tara):**
-- `pending_pickup`: 128 (114 reference bookings already past/closed)
-- `late_return`: 126 (112 reference bookings already past/closed)
-- `booking_update`: 56 (34 reference closed/past bookings)
-- `booking`: 40 (18 reference closed/past bookings)
-- `team_member_joined`: 1 — keep
-- `tenant_document_sent`: 1 — keep
+**Inconsistencies worth calling out in the doc:**
+- 4 different sender domains in use: `exotiq.ai`, `mail.exotiq.ai`, `notify.exotiq.ai`, `exotiq.io`, plus 2 fallbacks on `resend.dev`.
+- No central template package, no shared layout/branding, no React Email components.
+- No queue, no retry, no `email_send_log`, no suppression list, no unsubscribe.
+- No per-tenant sender (every email comes "from Exotiq", not from the rental company).
 
-Every "booking-bearing" notification carries `data->>'booking_id'`, so we can safely classify each row by joining to `bookings`.
+**What is NOT built (the heart of your question):**
+- Booking confirmation to guest
+- Booking confirmation/receipt to tenant
+- Pickup reminder (T-24h / T-2h)
+- Post-rental thank-you + review request
+- Payment receipt / VAT invoice email (VAT invoice exists as PDF; not emailed)
+- Damage claim notice to guest
+- Refund issued notice
+- Cancellation notice
+- Tenant white-label sender (per-fleet "from" domain)
 
-### Plan
+**Lovable Emails (built-in) is NOT set up** — no `setup_email_infra` run, no `_shared/email-templates/`, no `_shared/transactional-email-templates/`, no `process-email-queue`.
 
-**1. Close the 53 stale `confirmed` reservations — safe close, not delete.**
-   - For `team_id = J Davidson's Fleet` AND `status = 'confirmed'` AND `end_date < now() - 30 days`:
-     - `status = 'completed'`
-     - `updated_at = now()`
-     - `notes = coalesce(notes,'') || E'\n[auto-closed 2026-06-26: rental end date >30d past, no manual close]'`
-   - **No money movement** (no refunds, no payouts touched, no payments rows altered).
-   - **No vehicle state changes** — `vehicles.status` is independent.
-   - **No customer-facing notifications fired** — pure backend reconciliation.
-   - Wrapped in a single transaction; affects exactly 53 rows.
+## Document structure I'll write
 
-**2. Delete stale, booking-attached notifications for both Denver users.**
-   For `user_id IN (J, Tara)` AND `data->>'booking_id'` resolves to a booking whose `status IN ('completed','cancelled')` OR `end_date < now() - 14 days`:
-   - **Delete** the row (the underlying booking is closed/past, the notification is noise — including the duplicate `late_return` / `pending_pickup` burst from the pre-Phase-1 cron bug).
-   - Keep all notifications tied to bookings that are still `pending` / `confirmed` / `active` AND end within the last 14 days or future.
-   - Keep all non-booking notifications (`team_member_joined`, `tenant_document_sent`, anything with no `booking_id`).
+1. **Executive summary** — one-paragraph "where we stand."
+2. **Current state inventory** — the table above + the inconsistencies list.
+3. **Gap analysis** — every missing guest- and tenant-facing email, grouped by booking lifecycle (pre-book, confirm, pre-pickup, in-rental, post-return, exception flows).
+4. **Architecture options** — four routes, with honest trade-offs:
+   - **A. Lovable Emails (built-in)** — managed queue, retry, DLQ, suppression, unsubscribe, React Email templates, dashboard. Cost: included in Lovable Cloud; sending via Lovable's pooled Mailgun. Best for: fastest path, single sender domain, low ops.
+   - **B. Resend direct (what we have today, hardened)** — keep Resend, add a shared `send-email` function, React Email templates package, `email_send_log` table, idempotency keys, basic suppression. Cost: Resend $0 (3k/mo, 100/day) → $20/mo (50k) → $90/mo (100k). Best for: full control over sender domains incl. per-tenant.
+   - **C. Postmark / SendGrid / Mailgun** — comparison row only (Postmark ~$15/10k, best deliverability for transactional; SendGrid $19.95/50k; Mailgun pay-as-you-go).
+   - **D. Agentic / workflow tools** — Resend + Inngest (durable retries, fan-out, scheduled "T-24h" reminders without cron-in-Postgres), or n8n / Trigger.dev for visual flows. Cost: Inngest free tier 50k steps/mo, $20/mo for 200k.
+5. **Per-tenant white-label sender** — what each provider supports (Resend domains API: programmatic add + DNS verify; Lovable Emails: single delegated subdomain only today). This is the deciding factor for the marketplace path.
+6. **Customization model** — React Email templates, brand tokens pulled from `teams` (logo, color, business name), preview data, snapshot tests.
+7. **Cost model** — projected monthly volume at 100 / 500 / 2,000 active rentals, mapped to each provider's pricing tier, including DKIM/domain add-on costs.
+8. **Recommendation** — staged plan:
+   - **Phase 1 (this sprint):** consolidate existing 10 functions onto one shared sender + one verified domain (`mail.exotiq.ai`), add `email_send_log`, kill `resend.dev` fallbacks. No new templates yet.
+   - **Phase 2:** ship the 6 booking-lifecycle templates (confirm, receipt, T-24h reminder, post-return thank-you, review request, cancellation) as React Email components. Trigger from existing booking state changes.
+   - **Phase 3 (marketplace prereq):** per-tenant verified sender domains via Resend Domains API, with a self-serve "verify your domain" flow in tenant Settings → Branding.
+   - **Phase 4:** move scheduled sends (reminders, review nudges) onto Inngest for durable retries and easy delay logic instead of pg_cron.
+9. **Open questions for you** — single sender vs per-tenant, whether guests reply to tenant or to Exotiq, SMS/in-app parity, marketplace timing.
 
-   Expected removal: ~278 rows across both users. Expected to keep: ~72 rows (the ones for live/recent bookings) plus the 2 non-booking notices.
+## Out of scope for this turn
+- No code, no migrations, no template scaffolding, no provider switch — just the markdown analysis.
 
-### Safety guardrails
-- All writes scoped by `team_id = 'c71d6655-710a-46da-95b4-f9b0e5f91386'` (bookings) and the two specific `user_id`s (notifications). No other tenant touched.
-- No schema changes. No RLS changes. No edge function or cron changes.
-- We do a `SELECT count(*)` preflight to confirm the row counts before mutating, and a `SELECT count(*)` postflight to confirm landing.
-- The booking close is reversible (a tenant can flip status back; row is preserved with an audit note). Notification delete is destructive but the rows are duplicates / stale and have no downstream references — `notifications` is a leaf table.
-- We do **not** touch Exotiq's 161 stale rows or Zachary Schneider's 1 stale row — those are different tenants and are flagged separately to their owners.
-
-### Out of scope
-- Closing `pending` bookings (none qualify here, and `pending` may still represent a customer inquiry).
-- Bulk close for any other tenant.
-- Re-issuing the 2 expired Denver invitations (separate ask).
-- Auto-accepting Tara's terms (she'll click through on next sign-in).
-
-### Files / tools
-- One `supabase--insert` call: UPDATE 53 bookings + DELETE stale notifications.
-- No code changes. No migration.
-
-### Email follow-up
-Append to the Denver email draft: "We closed 53 stale `confirmed` reservations (rental ended >30 days ago) and trimmed ~278 obsolete notifications across both seats so your inbox reflects only current work."
+Approve and I'll write the file.
