@@ -18,6 +18,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { useOnboardingProgress, OnboardingFormData } from '@/hooks/useOnboardingProgress';
 import { AddressAutocomplete, AddressData } from '@/components/ui/address-autocomplete';
+import { SUPPORTED_COUNTRIES, getCountryDefaults, detectCountryFromBrowser } from '@/lib/countryDefaults';
 import { LocationInput, LocationData } from '@/components/onboarding/LocationInput';
 import { 
   Building2, 
