@@ -150,6 +150,7 @@ export default function Onboarding() {
             website: profile.website || '',
             phone: profile.phone || '',
             email: user.email || '',
+            countryCode: (currentTeam as { country_code?: string } | null)?.country_code || '',
             fleetSize: profile.fleet_size || '',
             businessType: profile.business_type || '',
             locations: locations?.map(loc => ({
