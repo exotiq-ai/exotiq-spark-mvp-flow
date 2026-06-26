@@ -64,7 +64,6 @@ export default function Onboarding() {
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const isEditMode = searchParams.get('edit') === 'true';
-  const selectedCountryDefaults = getCountryDefaults((formData.countryCode || detectCountryFromBrowser()).toUpperCase());
   
   // Database-backed progress with localStorage fallback
   const {
@@ -85,6 +84,7 @@ export default function Onboarding() {
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(isEditMode);
   const [formData, setFormData] = useState<OnboardingFormData>(initialFormData);
+  const selectedCountryDefaults = getCountryDefaults((formData.countryCode || detectCountryFromBrowser()).toUpperCase());
 
   // Vehicle data (not persisted - optional step)
   const [vehicleName, setVehicleName] = useState('');
