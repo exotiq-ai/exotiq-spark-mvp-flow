@@ -537,6 +537,7 @@ export function ImportWizard({ onClose, onComplete }: ImportWizardProps) {
               row: r.row,
               errors: r.errors.map(e => ({ field: e.field, message: e.message }))
             }))}
+            photoReferences={photoReferences}
             onClose={() => {
               resetWizard();
             }}
