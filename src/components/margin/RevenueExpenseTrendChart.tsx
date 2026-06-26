@@ -4,7 +4,7 @@ import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianG
 import { useMarginData } from "./useMarginData";
 import { useMarginFilters } from "./MarginFiltersContext";
 import { differenceInDays, format, startOfWeek, startOfDay } from "date-fns";
-import { formatCurrency } from "@/lib/marginCsv";
+import { formatCurrency, formatCurrencyCompact } from "@/lib/utils";
 
 export function RevenueExpenseTrendChart() {
   const { bookings, expenses, loading } = useMarginData();
@@ -64,7 +64,7 @@ export function RevenueExpenseTrendChart() {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis dataKey="label" stroke="hsl(var(--muted-foreground))" fontSize={11} />
-                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
+                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} tickFormatter={(v) => formatCurrencyCompact(v)} />
                 <Tooltip
                   contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
                   formatter={(v: number) => formatCurrency(v)}

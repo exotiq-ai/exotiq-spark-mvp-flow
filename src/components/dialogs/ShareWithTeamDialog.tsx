@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { useTeamMessaging } from "@/hooks/useTeamMessaging";
 import { useToast } from "@/hooks/use-toast";
+import { formatCurrency } from "@/lib/utils";
 import { 
   MessageSquare, 
   Send, 
@@ -86,7 +87,7 @@ export function ShareWithTeamDialog({
 📋 **Type:** ${claim.claim_type.replace('_', ' ')}
 ⚠️ **Severity:** ${claim.severity}
 📊 **Status:** ${claim.claim_status || 'Open'}
-💰 **Estimated Cost:** $${claim.estimated_cost?.toLocaleString() || 0}
+💰 **Estimated Cost:** ${formatCurrency(claim.estimated_cost || 0)}
 
 📝 **Description:**
 ${claim.description}
@@ -152,7 +153,7 @@ ${additionalNote ? `\n💬 **Note:**\n${additionalNote}` : ''}
               {claim.estimated_cost && (
                 <Badge variant="outline">
                   <DollarSign className="h-3 w-3 mr-0.5" />
-                  ${claim.estimated_cost.toLocaleString()}
+                  {formatCurrency(claim.estimated_cost)}
                 </Badge>
               )}
             </div>

@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useTeam } from "@/contexts/TeamContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { useMoney } from "@/hooks/useMoney";
 import { toast } from "sonner";
 
 const TYPES = [
@@ -20,6 +21,7 @@ export function AddExpenseDialog({
 }: { open: boolean; onOpenChange: (v: boolean) => void; onCreated: () => void }) {
   const { currentTeam } = useTeam();
   const { user } = useAuth();
+  const { currency } = useMoney();
   const [vehicles, setVehicles] = useState<{ id: string; label: string }[]>([]);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
@@ -97,7 +99,7 @@ export function AddExpenseDialog({
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Amount (USD)</Label>
+              <Label>Amount ({currency})</Label>
               <Input type="number" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
             </div>
           </div>
