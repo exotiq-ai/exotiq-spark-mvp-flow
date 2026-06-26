@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { VehicleThumbnail } from '@/components/common/VehicleThumbnail';
 import { useWorkOrders, WorkOrder, WorkOrderEvent, WORK_ORDER_STATUSES, type WorkOrderStatus } from '@/hooks/useWorkOrders';
 import { useLocationFilteredFleet } from '@/hooks/useLocationFilteredFleet';
+import { useMoney } from '@/hooks/useMoney';
 import {
   Clock, AlertTriangle, CheckCircle2, Ban,
 } from 'lucide-react';
@@ -38,6 +39,7 @@ const STATUS_FLOW: Record<string, WorkOrderStatus[]> = {
 export const WorkOrderDetailSheet = ({ workOrder, open, onOpenChange, vehicleMap }: WorkOrderDetailSheetProps) => {
   const { updateWorkOrderStatus, toggleOutOfRotation, fetchEvents, updateWorkOrder } = useWorkOrders();
   const { bookings } = useLocationFilteredFleet();
+  const { currency } = useMoney();
   const [events, setEvents] = useState<WorkOrderEvent[]>([]);
   const [showComplete, setShowComplete] = useState(false);
   const [resolutionSummary, setResolutionSummary] = useState('');
@@ -250,7 +252,7 @@ export const WorkOrderDetailSheet = ({ workOrder, open, onOpenChange, vehicleMap
                 <Textarea placeholder="Describe what was done..." value={resolutionSummary} onChange={(e) => setResolutionSummary(e.target.value)} rows={3} />
               </div>
               <div className="space-y-2">
-                <Label>Actual Cost ($)</Label>
+                <Label>Actual Cost ({currency})</Label>
                 <Input type="number" placeholder="0.00" value={actualCost} onChange={(e) => setActualCost(e.target.value)} min="0" step="0.01" />
               </div>
               <div className="flex gap-2">

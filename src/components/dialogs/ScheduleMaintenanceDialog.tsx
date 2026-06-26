@@ -11,6 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { TimeInput } from "@/components/ui/time-input";
 import { Database } from "@/integrations/supabase/types";
 import { useTeam } from "@/contexts/TeamContext";
+import { useMoney } from "@/hooks/useMoney";
 import { MapPin, Loader2, RotateCcw, Calendar as CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -41,6 +42,7 @@ const MAINTENANCE_TYPES = [
 
 export const ScheduleMaintenanceDialog = ({ open, onOpenChange, vehicles, onSubmit }: ScheduleMaintenanceDialogProps) => {
   const { selectedLocationId, locations } = useTeam();
+  const { currency } = useMoney();
   
   const [vehicleId, setVehicleId] = useState("");
   const [maintenanceType, setMaintenanceType] = useState("");
@@ -197,7 +199,7 @@ export const ScheduleMaintenanceDialog = ({ open, onOpenChange, vehicles, onSubm
           </div>
 
           <div className="space-y-2">
-            <Label>Estimated Cost ($)</Label>
+            <Label>Estimated Cost ({currency})</Label>
             <Input type="number" placeholder="500" value={estimatedCost} onChange={(e) => setEstimatedCost(e.target.value)} min="0" step="0.01" />
           </div>
 

@@ -26,7 +26,7 @@ import {
   Gauge,
 } from "lucide-react";
 import { format } from "date-fns";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 
 interface DamageClaim {
   id: string;
@@ -155,7 +155,7 @@ export function VehicleDetailsDialog({
                     </div>
                      <div>
                        <p className="text-sm text-muted-foreground">Daily Rate</p>
-                       <p className="font-medium">${vehicleDetails.dailyRate.toLocaleString()}</p>
+                       <p className="font-medium">{formatCurrency(vehicleDetails.dailyRate)}</p>
                      </div>
                    </div>
 
@@ -170,7 +170,7 @@ export function VehicleDetailsDialog({
                      </div>
                      <div>
                        <p className="text-sm text-muted-foreground">Overage Rate</p>
-                       <p className="font-medium">${Number(vehicleDetails.mileage_overage_rate ?? 1.50).toFixed(2)}/mi</p>
+                        <p className="font-medium">{formatCurrency(Number(vehicleDetails.mileage_overage_rate ?? 1.50), 2)}/mi</p>
                      </div>
                    </div>
 
@@ -215,7 +215,7 @@ export function VehicleDetailsDialog({
                                 </div>
                                 <div className="flex items-center gap-2 text-sm">
                                   <DollarSign className="h-4 w-4 text-muted-foreground" />
-                                  <span>Est. Cost: ${claim.estimated_cost?.toLocaleString() || 0}</span>
+                                  <span>Est. Cost: {formatCurrency(claim.estimated_cost || 0)}</span>
                                 </div>
                               </div>
 
@@ -291,7 +291,7 @@ export function VehicleDetailsDialog({
                               {schedule.estimated_cost && (
                                 <span className="flex items-center gap-1">
                                   <DollarSign className="h-3 w-3" />
-                                  ${schedule.estimated_cost.toLocaleString()}
+                                  {formatCurrency(schedule.estimated_cost)}
                                 </span>
                               )}
                             </div>

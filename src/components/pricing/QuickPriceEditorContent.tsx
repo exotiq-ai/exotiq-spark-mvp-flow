@@ -19,6 +19,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useMoney } from "@/hooks/useMoney";
 import type { PricingContext } from "@/components/dashboard/DynamicPricingCard";
 
 interface Vehicle {
@@ -53,6 +54,7 @@ export const QuickPriceEditorContent = ({
   const [newRate, setNewRate] = useState<number>(0);
   const [isSaving, setIsSaving] = useState(false);
   const { hasRoleOrHigher } = useUserRole();
+  const { currency } = useMoney();
 
   useEffect(() => {
     const suggestedRate = pricingContext
@@ -250,12 +252,12 @@ export const QuickPriceEditorContent = ({
         <div className="space-y-3">
           <div className="flex items-center gap-4">
             <div className="relative flex-1">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">{currency}</span>
               <Input
                 type="number"
                 value={newRate}
                 onChange={(e) => setNewRate(Number(e.target.value))}
-                className="pl-7 pr-12 text-xl font-bold h-12"
+                className="pl-14 pr-12 text-xl font-bold h-12"
                 min={minRate}
                 max={maxRate}
               />

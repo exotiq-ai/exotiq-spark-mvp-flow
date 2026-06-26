@@ -37,7 +37,7 @@ import {
   ArrowRight,
   Sparkles,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 import { formatDistanceToNow, format } from "date-fns";
 import type { VehicleTask } from "@/hooks/useFleetTasks";
 import type { OpsStatus } from "@/hooks/useVehicleOpsStatus";
@@ -209,7 +209,7 @@ export function VehicleImageDialog({
             {vehicleDetails?.dailyRate != null && (
               <div className="text-right flex-shrink-0">
                 <div className="text-xs text-muted-foreground">Rate</div>
-                <div className="text-xl font-bold">${vehicleDetails.dailyRate}</div>
+                <div className="text-xl font-bold">{formatCurrency(vehicleDetails.dailyRate)}</div>
                 <div className="text-xs text-muted-foreground">/day</div>
               </div>
             )}
@@ -377,7 +377,7 @@ export function VehicleImageDialog({
                             <DollarSign className="h-3.5 w-3.5 text-success" />
                             <span className="text-xs text-muted-foreground">Revenue</span>
                           </div>
-                          <div className="text-2xl font-bold">${vehicleDetails.revenue?.toLocaleString()}</div>
+                          <div className="text-2xl font-bold">{formatCurrency(vehicleDetails.revenue || 0)}</div>
                         </div>
                       )}
                     </div>
@@ -512,7 +512,7 @@ export function VehicleImageDialog({
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Daily Rate</p>
-                  <p className="font-medium">${vehicleDetails.dailyRate}</p>
+                  <p className="font-medium">{formatCurrency(vehicleDetails.dailyRate)}</p>
                 </div>
               </div>
             )}
@@ -558,7 +558,8 @@ function VehicleChangeHistory({ vehicleId }: { vehicleId: string }) {
 
   const formatValue = (field: string, value: string | null) => {
     if (value === null || value === '') return '—';
-    if (field === 'current_rate' || field === 'mileage_overage_rate') return `$${value}`;
+    if (field === 'current_rate') return formatCurrency(value);
+    if (field === 'mileage_overage_rate') return formatCurrency(value, 2);
     return value;
   };
 

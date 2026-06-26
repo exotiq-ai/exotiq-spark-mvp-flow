@@ -84,6 +84,7 @@ export default function Onboarding() {
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(isEditMode);
   const [formData, setFormData] = useState<OnboardingFormData>(initialFormData);
+  const selectedCountryDefaults = getCountryDefaults((formData.countryCode || detectCountryFromBrowser()).toUpperCase());
 
   // Vehicle data (not persisted - optional step)
   const [vehicleName, setVehicleName] = useState('');
@@ -961,7 +962,7 @@ export default function Onboarding() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="dailyRate">Daily Rate ($)</Label>
+                      <Label htmlFor="dailyRate">Daily Rate ({selectedCountryDefaults.currency})</Label>
                       <Input
                         id="dailyRate"
                         type="number"

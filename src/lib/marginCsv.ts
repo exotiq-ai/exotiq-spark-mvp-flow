@@ -1,4 +1,7 @@
 // CSV export helpers for Margin module
+import { formatMoney } from "@/lib/format";
+import { getActiveMoneyContext } from "@/lib/utils";
+
 export function toCsv(rows: Record<string, unknown>[], columns: { key: string; label: string }[]): string {
   const esc = (v: unknown) => {
     if (v == null) return "";
@@ -22,8 +25,14 @@ export function downloadCsv(filename: string, csv: string) {
   URL.revokeObjectURL(url);
 }
 
-export const formatCurrency = (n: number | null | undefined, currency = "USD") =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency }).format(Number(n ?? 0));
+export const formatCurrency = (n: number | null | undefined, currency?: string) => {
+  const active = getActiveMoneyContext();
+  return formatMoney(n, {
+    currency: currency || active.currency,
+    locale: active.locale,
+    decimals: 2,
+  });
+};
 
 export const formatPercent = (n: number | null | undefined) =>
   `${(Number(n ?? 0)).toFixed(1)}%`;

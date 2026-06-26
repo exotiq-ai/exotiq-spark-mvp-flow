@@ -36,6 +36,7 @@ import { validators, validateForm } from '@/lib/validation';
 import { toast } from '@/hooks/use-toast';
 import { useAIPricing } from '@/hooks/useAIPricing';
 import { useTeam } from '@/contexts/TeamContext';
+import { useMoney } from '@/hooks/useMoney';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { calculateBookingTotal, getRateForDuration, getAvailableDurations, getDurationLabel, getGasFeeForTeam, type RentalDurationType } from '@/lib/pricingUtils';
@@ -61,6 +62,7 @@ export const NewBookingDialog = ({
   prefillCustomer,
 }: NewBookingDialogProps) => {
   const { selectedLocationId, currentLocation, locations, currentTeam } = useTeam();
+  const { currency, money } = useMoney();
   const { bookings: allBookings } = useLocationFilteredFleet();
   const gasFeeSettings = useTeamGasFeeSettings();
   const teamGasFee = getGasFeeForTeam(gasFeeSettings.gasFeeAmount);
@@ -641,7 +643,7 @@ export const NewBookingDialog = ({
                     <DollarSign className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm font-medium">Apply Discount</span>
                     {Number(discountAmount) > 0 && (
-                      <Badge variant="secondary" className="text-xs">-${discountAmount}</Badge>
+                      <Badge variant="secondary" className="text-xs">-{money(discountAmount)}</Badge>
                     )}
                   </div>
                   <ChevronDown className={cn(
@@ -654,7 +656,7 @@ export const NewBookingDialog = ({
                 <div className="pt-3 space-y-3">
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-2">
-                      <Label htmlFor="discount">Discount ($)</Label>
+                      <Label htmlFor="discount">Discount ({currency})</Label>
                       <div className="relative">
                         <DollarSign className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                         <Input

@@ -10,6 +10,7 @@ import { PriceOptimizationDialog } from "@/components/dialogs/PriceOptimizationD
 import { useToast } from "@/hooks/use-toast";
 import { useChartHeight } from "@/components/ui/adaptive-chart";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { formatCurrency } from "@/lib/utils";
 
 export const PriceUtilizationScatterPlot = () => {
   const { vehicles, applyPriceOptimization } = useLocationFilteredFleet();
@@ -101,11 +102,10 @@ export const PriceUtilizationScatterPlot = () => {
           <p className="font-semibold mb-2">{dataPoint.name}</p>
           <div className="space-y-1 text-sm">
             <p className="text-muted-foreground">Utilization: {dataPoint.utilization}%</p>
-            <p className="text-muted-foreground">Daily Rate: ${dataPoint.dailyRate}</p>
+            <p className="text-muted-foreground">Daily Rate: {formatCurrency(dataPoint.dailyRate)}</p>
             {Math.abs(priceDiff) > 5 && (
               <p className="text-primary font-medium">
-                AI suggests: ${dataPoint.suggestedRate} 
-                {priceDiff > 0 ? ` (+$${priceDiff.toFixed(0)})` : ` ($${priceDiff.toFixed(0)})`}
+                AI suggests: {formatCurrency(dataPoint.suggestedRate)} ({priceDiff > 0 ? '+' : ''}{formatCurrency(priceDiff)})
               </p>
             )}
           </div>
@@ -190,7 +190,7 @@ export const PriceUtilizationScatterPlot = () => {
                 type="number" 
                 dataKey="dailyRate" 
                 name="Daily Rate" 
-                unit="$"
+                tickFormatter={(value) => formatCurrency(value)}
                 stroke="hsl(var(--muted-foreground))"
                 tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: isMobile ? 10 : 12 }}
                 width={isMobile ? 40 : 50}

@@ -91,7 +91,7 @@ export const vehicleImportSchema: ImportEntitySchema = {
       required: false,
       type: 'number',
       aliases: ['daily_rate', 'rate', 'price', 'rental_rate', 'price_per_day', 'day_rate'],
-      description: 'Daily rental rate in dollars',
+      description: 'Daily rental rate in your account currency',
       example: '250'
     },
     {

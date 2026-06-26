@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Sparkles, X, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 
 interface CompactAIInsightBannerProps {
   vehicleName: string;
@@ -82,7 +82,7 @@ export const CompactAIInsightBanner = ({
             </span>
             {potentialRevenue > 0 && (
               <span className="text-success font-semibold ml-1">
-                — +${potentialRevenue}/mo potential
+                — +{formatCurrency(potentialRevenue)}/mo potential
               </span>
             )}
           </div>

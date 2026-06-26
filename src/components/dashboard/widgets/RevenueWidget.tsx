@@ -2,7 +2,6 @@ import { RevenueLineChart } from "@/components/charts/RevenueLineChart";
 import { TrendingUp, TrendingDown } from "lucide-react";
 import { SkeletonLineChart } from "@/components/ui/skeleton-card";
 import { ProgressiveDisclosure } from "@/components/common/ProgressiveDisclosure";
-import { CountUp } from "@/components/common/MicroInteractions";
 import { Tachometer } from "@/components/automotive/RacingStripe";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { formatCurrency } from "@/lib/utils";
@@ -103,13 +102,13 @@ export const RevenueWidget = ({ isLoading }: RevenueWidgetProps) => {
         <div>
           <p className="text-sm text-muted-foreground mb-1">This Month</p>
           <p className="text-2xl font-dfaalt font-bold text-foreground">
-            <CountUp value={monthlyRevenue} prefix="$" decimals={0} />
+            {formatCurrency(monthlyRevenue)}
           </p>
         </div>
         <div>
           <p className="text-sm text-muted-foreground mb-1">Total Revenue</p>
           <p className="text-2xl font-dfaalt font-bold text-foreground">
-            <CountUp value={totalRevenue} prefix="$" decimals={0} />
+            {formatCurrency(totalRevenue)}
           </p>
         </div>
       </div>
