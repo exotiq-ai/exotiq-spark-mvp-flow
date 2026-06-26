@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { getAllTemplates, downloadTemplate } from '@/lib/importTemplates';
 import { ImportEntityType } from '@/lib/importSchemas';
+import { useTeam } from '@/contexts/TeamContext';
 import {
   DropdownMenu,
   DropdownMenuContent,
