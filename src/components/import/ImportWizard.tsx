@@ -79,6 +79,7 @@ export function ImportWizard({ onClose, onComplete }: ImportWizardProps) {
     setDuplicateResolutions(new Map());
     setImportProgress({ status: 'idle', totalRows: 0, processedRows: 0, importedCount: 0, skippedCount: 0, failedCount: 0, currentBatch: 0, totalBatches: 0 });
     setBookingsNeedingAttention(0);
+    setPhotoReferences([]);
   }, []);
 
   const handleFileSelect = async (file: File) => {
