@@ -30,7 +30,7 @@ import {
   Clock,
 } from "lucide-react";
 import { format, startOfWeek, endOfWeek, subWeeks } from "date-fns";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrencyCompact } from "@/lib/utils";
 
 interface DigestData {
   id: string;

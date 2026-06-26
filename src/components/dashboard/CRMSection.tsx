@@ -28,6 +28,7 @@ import {
 import { CustomerProfileDialog } from "@/components/dialogs/CustomerProfileDialog";
 import { AddCustomerDialog } from "@/components/dialogs/AddCustomerDialog";
 import { NewBookingDialog } from "@/components/dialogs/NewBookingDialog";
+import { formatCurrency } from "@/lib/utils";
 import { Database } from "@/integrations/supabase/types";
 import { formatDistanceToNow } from "date-fns";
 
@@ -206,7 +207,7 @@ export const CRMSection = () => {
               </span>
             )}
           </div>
-          <div className="text-2xl font-bold">${totalRevenue.toLocaleString()}</div>
+          <div className="text-2xl font-bold">{formatCurrency(totalRevenue)}</div>
           <div className="text-sm text-muted-foreground">Total CLV</div>
         </Card>
 
@@ -300,7 +301,7 @@ export const CRMSection = () => {
                 </div>
                 <div>
                   <div className="text-muted-foreground text-xs">Lifetime Value</div>
-                  <div className="font-medium text-success">${(customer.lifetime_value || 0).toLocaleString()}</div>
+                  <div className="font-medium text-success">{formatCurrency(customer.lifetime_value || 0)}</div>
                 </div>
                 <div>
                   <div className="text-muted-foreground text-xs">Last Booking</div>
