@@ -48,6 +48,14 @@ export function formatCurrency(value: number | string, decimals = 0): string {
   });
 }
 
+/** Compact tenant-aware currency: "$1.2K", "£3.4M". */
+export function formatCurrencyCompact(value: number | string): string {
+  return formatCompactMoney(value, {
+    currency: activeMoneyContext.currency,
+    locale: activeMoneyContext.locale,
+  });
+}
+
 export function formatNumber(value: number | string, decimals = 0): string {
   const num = typeof value === 'string' ? parseFloat(value) : value;
   if (isNaN(num)) return '0';
