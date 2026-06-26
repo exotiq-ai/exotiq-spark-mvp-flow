@@ -31,7 +31,9 @@ export function FileUploadZone({
   error = null
 }: FileUploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
-  const templates = getAllTemplates();
+  const { currentTeam } = useTeam();
+  const countryCode = (currentTeam as { country_code?: string } | null)?.country_code || undefined;
+  const templates = getAllTemplates(countryCode);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
