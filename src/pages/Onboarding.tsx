@@ -559,6 +559,31 @@ export default function Onboarding() {
                   <CompanyLogoUpload compact label="Company Logo" />
 
                   <div className="space-y-2">
+                    <Label htmlFor="country" className="flex items-center gap-2">
+                      <Globe className="w-4 h-4 text-muted-foreground" />
+                      Country / Region *
+                    </Label>
+                    <Select
+                      value={formData.countryCode || detectCountryFromBrowser()}
+                      onValueChange={(value) => updateFormData('countryCode', value)}
+                    >
+                      <SelectTrigger id="country">
+                        <SelectValue placeholder="Select your country" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SUPPORTED_COUNTRIES.map((c) => (
+                          <SelectItem key={c.country_code} value={c.country_code}>
+                            {c.country_name} — {c.currency} · {c.tax_label} {c.tax_rate_percent}%
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Sets your tenant currency, locale, and tax defaults. You can fine-tune these later in Settings.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
                     <Label>Business Address *</Label>
                     <AddressAutocomplete
                       value={formData.businessAddress}
