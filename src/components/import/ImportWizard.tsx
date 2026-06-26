@@ -62,6 +62,7 @@ export function ImportWizard({ onClose, onComplete }: ImportWizardProps) {
     skippedCount: 0, failedCount: 0, currentBatch: 0, totalBatches: 0
   });
   const [bookingsNeedingAttention, setBookingsNeedingAttention] = useState(0);
+  const [photoReferences, setPhotoReferences] = useState<string[]>([]);
 
   const currentStepIndex = steps.findIndex(s => s.key === currentStep);
 
@@ -78,6 +79,7 @@ export function ImportWizard({ onClose, onComplete }: ImportWizardProps) {
     setDuplicateResolutions(new Map());
     setImportProgress({ status: 'idle', totalRows: 0, processedRows: 0, importedCount: 0, skippedCount: 0, failedCount: 0, currentBatch: 0, totalBatches: 0 });
     setBookingsNeedingAttention(0);
+    setPhotoReferences([]);
   }, []);
 
   const handleFileSelect = async (file: File) => {
@@ -187,6 +189,27 @@ export function ImportWizard({ onClose, onComplete }: ImportWizardProps) {
         user_id: user.id,
         team_id: currentTeam.id
       }));
+    }
+
+    // Vehicles: extract photo references (CSV `image` column) into a sidecar list
+    // so we can surface a "drop these files into Photo Hub" banner. Strip the
+    // field before insert — vehicles table has no `image` column.
+    if (selectedEntity === 'vehicles') {
+      const refs: string[] = [];
+      recordsToProcess = recordsToProcess.map(row => {
+        const { image, ...rest } = row as Record<string, unknown> & { image?: unknown };
+        if (image && typeof image === 'string') {
+          const trimmed = image.trim();
+          // Only collect non-URL local paths / filenames; URLs are stored elsewhere
+          if (trimmed && !/^https?:\/\//i.test(trimmed)) {
+            // Use basename for display (handles Windows + POSIX paths)
+            const base = trimmed.split(/[\\/]/).pop() || trimmed;
+            refs.push(base);
+          }
+        }
+        return rest;
+      });
+      setPhotoReferences(refs);
     }
 
     // For bookings, auto-create customers and link entities
@@ -514,6 +537,7 @@ export function ImportWizard({ onClose, onComplete }: ImportWizardProps) {
               row: r.row,
               errors: r.errors.map(e => ({ field: e.field, message: e.message }))
             }))}
+            photoReferences={photoReferences}
             onClose={() => {
               resetWizard();
             }}

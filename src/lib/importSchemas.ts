@@ -100,8 +100,8 @@ export const vehicleImportSchema: ImportEntitySchema = {
       required: false,
       type: 'enum',
       aliases: ['vehicle_status', 'availability', 'state'],
-      enumValues: ['available', 'rented', 'maintenance', 'unavailable'],
-      description: 'Current vehicle status',
+      enumValues: ['available', 'rented', 'maintenance', 'unavailable', 'booked', 'retired'],
+      description: 'Current vehicle status (active, in service, rented, etc. accepted)',
       example: 'available'
     },
     {
@@ -130,8 +130,53 @@ export const vehicleImportSchema: ImportEntitySchema = {
       aliases: ['odometer', 'miles', 'current_mileage', 'km', 'kilometers'],
       description: 'Current odometer reading',
       example: '15000'
+    },
+    {
+      // Pseudo-field: not stored on the vehicle row. Collected separately so the
+      // importer can surface a "drop these files into Photo Hub" banner when a
+      // CSV references local image paths (e.g. exported from a spreadsheet).
+      name: 'image',
+      label: 'Photo Reference',
+      required: false,
+      type: 'string',
+      aliases: ['photo', 'image_url', 'hero_image', 'photo_path', 'picture', 'thumbnail'],
+      description: 'Filename or URL of the vehicle photo. Local paths are surfaced as a Photo Hub upload prompt after import.',
+      example: 'rolls-royce_cullinan_black.jpeg'
     }
   ]
+};
+
+// Strip currency symbols, thousands separators, and trailing rate units
+// ("/day", "/night", "per day", "pd") so values like "£2500/day" coerce cleanly.
+const cleanNumeric = (val: unknown): unknown => {
+  if (val === null || val === undefined || val === '') return val;
+  if (typeof val === 'number') return val;
+  const str = String(val).trim();
+  if (!str) return null;
+  const cleaned = str
+    .replace(/[£$€¥₹]/g, '')
+    .replace(/,/g, '')
+    .replace(/\s*(per\s*(day|night|hour|week|month)|\/\s*(day|night|hr|hour|wk|week|mo|month)|pd|p\/d)\s*$/i, '')
+    .trim();
+  return cleaned === '' ? null : cleaned;
+};
+
+// Vehicle status synonyms → canonical enum. Returns the original value when no
+// synonym matches so zod's enum validator can produce a useful error.
+const VEHICLE_STATUS_SYNONYMS: Record<string, string> = {
+  active: 'available', 'in service': 'available', 'in-service': 'available',
+  live: 'available', ready: 'available', listed: 'available',
+  'on rent': 'rented', 'rented out': 'rented', 'out on rent': 'rented',
+  'in maintenance': 'maintenance', service: 'maintenance', repair: 'maintenance',
+  'in repair': 'maintenance', shop: 'maintenance',
+  inactive: 'unavailable', 'off road': 'unavailable', 'off-road': 'unavailable',
+  'out of service': 'unavailable', sold: 'retired', archived: 'retired',
+  'off fleet': 'retired', 'off-fleet': 'retired', decommissioned: 'retired',
+};
+const normalizeVehicleStatus = (val: unknown): unknown => {
+  if (val === null || val === undefined || val === '') return val;
+  const key = String(val).trim().toLowerCase();
+  return VEHICLE_STATUS_SYNONYMS[key] ?? key;
 };
 
 // Customer import schema
@@ -490,11 +535,15 @@ export const vehicleImportValidation = z.object({
   ),
   license_plate: z.string().optional().nullable(),
   vin: z.string().max(17, 'VIN cannot exceed 17 characters').optional().nullable().or(z.literal('')).transform(val => val === '' ? null : val),
-  current_rate: z.coerce.number().min(0, 'Rate must be positive').default(0),
-  status: z.enum(['available', 'rented', 'maintenance', 'unavailable', 'booked']).optional().nullable().default('available'),
+  current_rate: z.preprocess(cleanNumeric, z.coerce.number().min(0, 'Rate must be positive').default(0)),
+  status: z.preprocess(
+    normalizeVehicleStatus,
+    z.enum(['available', 'rented', 'maintenance', 'unavailable', 'booked', 'retired']).optional().nullable().default('available')
+  ),
   location: z.string().optional().nullable(),
   color: z.string().optional().nullable(),
-  mileage: z.coerce.number().min(0).optional().nullable()
+  mileage: z.preprocess(cleanNumeric, z.coerce.number().min(0).optional().nullable()),
+  image: z.string().optional().nullable(),
 });
 
 export const customerImportValidation = z.object({
@@ -524,8 +573,8 @@ export const bookingImportValidation = z.object({
   end_date: z.string().min(1, 'End date is required'),
   pickup_location: z.string().min(1, 'Pickup location is required'),
   dropoff_location: z.string().optional().nullable(),
-  daily_rate: z.coerce.number().min(0, 'Daily rate must be positive'),
-  total_value: z.coerce.number().min(0, 'Total value must be positive'),
+  daily_rate: z.preprocess(cleanNumeric, z.coerce.number().min(0, 'Daily rate must be positive')),
+  total_value: z.preprocess(cleanNumeric, z.coerce.number().min(0, 'Total value must be positive')),
   status: z.enum(['pending', 'confirmed', 'active', 'completed', 'cancelled']).optional().default('pending'),
   notes: z.string().optional().nullable()
 });

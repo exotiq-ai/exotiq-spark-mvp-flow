@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { getAllTemplates, downloadTemplate } from '@/lib/importTemplates';
 import { ImportEntityType } from '@/lib/importSchemas';
+import { useTeam } from '@/contexts/TeamContext';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,7 +31,9 @@ export function FileUploadZone({
   error = null
 }: FileUploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
-  const templates = getAllTemplates();
+  const { currentTeam } = useTeam();
+  const countryCode = (currentTeam as { country_code?: string } | null)?.country_code || undefined;
+  const templates = getAllTemplates(countryCode);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -90,7 +93,7 @@ export function FileUploadZone({
   };
 
   const handleDownloadTemplate = (entityType: ImportEntityType) => {
-    downloadTemplate(entityType);
+    downloadTemplate(entityType, countryCode);
   };
 
   return (

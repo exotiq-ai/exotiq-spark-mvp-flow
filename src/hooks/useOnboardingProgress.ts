@@ -18,6 +18,8 @@ export interface OnboardingFormData {
   website: string;
   phone: string;
   email: string;
+  /** ISO 3166-1 alpha-2 country code — drives tenant currency, locale, and tax defaults. */
+  countryCode: string;
   fleetSize: string;
   businessType: string;
   locations: Array<{
@@ -55,6 +57,7 @@ const defaultFormData: OnboardingFormData = {
   website: '',
   phone: '',
   email: '',
+  countryCode: '',
   fleetSize: '',
   businessType: '',
   locations: [],

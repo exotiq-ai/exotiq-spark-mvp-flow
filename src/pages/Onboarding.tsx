@@ -18,6 +18,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { useOnboardingProgress, OnboardingFormData } from '@/hooks/useOnboardingProgress';
 import { AddressAutocomplete, AddressData } from '@/components/ui/address-autocomplete';
+import { SUPPORTED_COUNTRIES, getCountryDefaults, detectCountryFromBrowser } from '@/lib/countryDefaults';
 import { LocationInput, LocationData } from '@/components/onboarding/LocationInput';
 import { 
   Building2, 
@@ -49,6 +50,7 @@ const initialFormData: OnboardingFormData = {
   website: '',
   phone: '',
   email: '',
+  countryCode: '',
   fleetSize: '',
   businessType: '',
   locations: [],
@@ -149,6 +151,7 @@ export default function Onboarding() {
             website: profile.website || '',
             phone: profile.phone || '',
             email: user.email || '',
+            countryCode: (currentTeam as { country_code?: string } | null)?.country_code || '',
             fleetSize: profile.fleet_size || '',
             businessType: profile.business_type || '',
             locations: locations?.map(loc => ({
@@ -219,6 +222,25 @@ export default function Onboarding() {
         .eq('id', user.id);
 
       if (error) throw error;
+
+      // Propagate country / currency / locale / tax defaults to the tenant team
+      const countryCode = (formData.countryCode || detectCountryFromBrowser()).toUpperCase();
+      const defaults = getCountryDefaults(countryCode);
+      if (currentTeam?.id) {
+        const { error: teamError } = await supabase
+          .from('teams')
+          .update({
+            country_code: defaults.country_code,
+            currency: defaults.currency,
+            locale: defaults.locale,
+            tax_label: defaults.tax_label,
+            tax_rate_percent: defaults.tax_rate_percent,
+            tax_inclusive: defaults.tax_inclusive,
+          } as any)
+          .eq('id', currentTeam.id);
+        if (teamError) console.warn('[Onboarding] team region update failed:', teamError.message);
+        else await refreshTeam();
+      }
 
       await handleStepChange(2);
     } catch (error: any) {
@@ -554,6 +576,31 @@ export default function Onboarding() {
                   </div>
 
                   <CompanyLogoUpload compact label="Company Logo" />
+
+                  <div className="space-y-2">
+                    <Label htmlFor="country" className="flex items-center gap-2">
+                      <Globe className="w-4 h-4 text-muted-foreground" />
+                      Country / Region *
+                    </Label>
+                    <Select
+                      value={formData.countryCode || detectCountryFromBrowser()}
+                      onValueChange={(value) => updateFormData('countryCode', value)}
+                    >
+                      <SelectTrigger id="country">
+                        <SelectValue placeholder="Select your country" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SUPPORTED_COUNTRIES.map((c) => (
+                          <SelectItem key={c.country_code} value={c.country_code}>
+                            {c.country_name} — {c.currency} · {c.tax_label} {c.tax_rate_percent}%
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Sets your tenant currency, locale, and tax defaults. You can fine-tune these later in Settings.
+                    </p>
+                  </div>
 
                   <div className="space-y-2">
                     <Label>Business Address *</Label>

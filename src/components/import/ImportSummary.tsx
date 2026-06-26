@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle2, AlertTriangle, XCircle, ExternalLink, Users, Car, Calendar, MapPin, Download } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, XCircle, ExternalLink, Users, Car, Calendar, MapPin, Download, Image as ImageIcon } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -24,6 +24,8 @@ interface ImportSummaryProps {
   fileName?: string;
   columnMappings?: { sourceColumn: string; targetField: string | null }[];
   failedRows?: FailedRowInfo[];
+  /** Photo filenames referenced by the CSV but not uploadable (e.g. local Mac paths). */
+  photoReferences?: string[];
 }
 
 const ENTITY_CONFIG: Record<ImportEntityType, { 
@@ -120,7 +122,7 @@ function downloadReport(content: string, entityType: string) {
   URL.revokeObjectURL(url);
 }
 
-export function ImportSummary({ entityType, stats, onClose, onViewData, fileName, columnMappings, failedRows }: ImportSummaryProps) {
+export function ImportSummary({ entityType, stats, onClose, onViewData, fileName, columnMappings, failedRows, photoReferences }: ImportSummaryProps) {
   const config = ENTITY_CONFIG[entityType];
   const Icon = config.icon;
   const totalProcessed = stats.imported + stats.skipped + stats.failed;
@@ -181,6 +183,39 @@ export function ImportSummary({ entityType, stats, onClose, onViewData, fileName
                   ? 'Some bookings are missing customer or vehicle links. You can link them from the Bookings view.'
                   : 'Some records may have incomplete information that you can complete in the data view.'}
               </p>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {photoReferences && photoReferences.length > 0 && (
+        <Card className="p-4 border-primary/30 bg-primary/5">
+          <div className="flex items-start gap-3">
+            <ImageIcon className="w-5 h-5 text-primary mt-0.5 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <h4 className="font-medium">
+                {photoReferences.length} {photoReferences.length === 1 ? 'photo' : 'photos'} to upload
+              </h4>
+              <p className="text-sm text-muted-foreground mt-1">
+                Your CSV referenced photos by filename. Drag these files into the Photo Hub and they'll auto-match to the right vehicle:
+              </p>
+              <div className="mt-2 max-h-32 overflow-y-auto text-xs font-mono text-muted-foreground bg-background/50 rounded p-2 border">
+                {photoReferences.slice(0, 20).map((name) => (
+                  <div key={name} className="truncate">{name}</div>
+                ))}
+                {photoReferences.length > 20 && (
+                  <div className="text-muted-foreground/60 italic">+ {photoReferences.length - 20} more…</div>
+                )}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-3"
+                onClick={() => onViewData('photos')}
+              >
+                Open Photo Hub
+                <ExternalLink className="w-3 h-3 ml-2" />
+              </Button>
             </div>
           </div>
         </Card>
