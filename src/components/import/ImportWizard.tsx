@@ -62,6 +62,7 @@ export function ImportWizard({ onClose, onComplete }: ImportWizardProps) {
     skippedCount: 0, failedCount: 0, currentBatch: 0, totalBatches: 0
   });
   const [bookingsNeedingAttention, setBookingsNeedingAttention] = useState(0);
+  const [photoReferences, setPhotoReferences] = useState<string[]>([]);
 
   const currentStepIndex = steps.findIndex(s => s.key === currentStep);
 
