@@ -84,6 +84,15 @@ const DEMO_INSIGHTS: RealInsight[] = [
   }
 ];
 
+const localizeDemoInsight = (insight: RealInsight): RealInsight => ({
+  ...insight,
+  description: insight.description.replace('$75/day', `${formatCurrency(75)}/day`),
+  impact: insight.impact
+    .replace('+$2,250/month', `+${formatCurrency(2250)}/month`)
+    .replace('+$840/week', `+${formatCurrency(840)}/week`)
+    .replace('-$1,200/month', `-${formatCurrency(1200)}/month`),
+});
+
 const ICON_MAP: Record<InsightType, typeof Brain> = {
   pricing: TrendingUp,
   utilization: Car,
@@ -412,7 +421,7 @@ export function RealAIInsights({
           </Badge>
         </div>
         <div className="space-y-4">
-          {DEMO_INSIGHTS.slice(0, maxInsights).map(insight => (
+          {DEMO_INSIGHTS.map(localizeDemoInsight).slice(0, maxInsights).map(insight => (
             <InsightCard key={insight.id} insight={insight} />
           ))}
         </div>

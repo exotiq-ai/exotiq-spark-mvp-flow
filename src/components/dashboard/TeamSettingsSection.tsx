@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useUserSettings } from "@/hooks/useUserSettings";
+import { useMoney } from "@/hooks/useMoney";
 import { Save, Building2, Clock, Bell, Loader2, DollarSign, Fuel } from "lucide-react";
 
 interface TeamSettings {
@@ -38,6 +39,7 @@ const defaultSettings: TeamSettings = {
 
 export const TeamSettingsSection = () => {
   const { toast } = useToast();
+  const { currency } = useMoney();
   
   const {
     settings,
@@ -198,7 +200,7 @@ export const TeamSettingsSection = () => {
         </div>
         
         <div className="space-y-2">
-          <Label htmlFor="minRate">Minimum Rental Rate ($)</Label>
+          <Label htmlFor="minRate">Minimum Rental Rate ({currency})</Label>
           <p className="text-sm text-muted-foreground">
             The minimum allowed rate across all tiers (3hr, 6hr, daily, multi-day). 
             Rates below this will be rejected when setting vehicle prices.
@@ -238,7 +240,7 @@ export const TeamSettingsSection = () => {
           {settings.gasFeeEnabled && (
             <>
               <div className="space-y-2">
-                <Label htmlFor="gasFeeAmount">Gas Fee Amount ($)</Label>
+                <Label htmlFor="gasFeeAmount">Gas Fee Amount ({currency})</Label>
                 <Input
                   id="gasFeeAmount"
                   type="number"

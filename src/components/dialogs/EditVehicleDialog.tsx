@@ -8,6 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, Loader2, MapPin, Users } from "lucide-react";
 import { useTeam } from "@/contexts/TeamContext";
+import { useMoney } from "@/hooks/useMoney";
 import { useUserRole } from "@/hooks/useUserRole";
 import { usePartners } from "@/hooks/usePartners";
 import { MILEAGE_RATE_TIERS } from "@/lib/pricingUtils";
@@ -43,6 +44,7 @@ interface EditVehicleDialogProps {
 
 export const EditVehicleDialog = ({ open, onOpenChange, vehicle, onSave }: EditVehicleDialogProps) => {
   const { locations } = useTeam();
+  const { currency } = useMoney();
   const { role, hasRoleOrHigher } = useUserRole();
 
   const { partners } = usePartners();
@@ -217,7 +219,7 @@ export const EditVehicleDialog = ({ open, onOpenChange, vehicle, onSave }: EditV
                 <Input id="edit-vin" value={vin} onChange={(e) => setVin(e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-rate">Daily Rate ($) *</Label>
+                <Label htmlFor="edit-rate">Daily Rate ({currency}) *</Label>
                 <Input id="edit-rate" type="number" value={currentRate} onChange={(e) => setCurrentRate(e.target.value)} required min="0" step="0.01" />
               </div>
               <div className="space-y-2">
@@ -241,7 +243,7 @@ export const EditVehicleDialog = ({ open, onOpenChange, vehicle, onSave }: EditV
                 <Input id="edit-mileage" type="number" value={defaultMileageLimit} onChange={(e) => setDefaultMileageLimit(e.target.value)} min="0" />
               </div>
               <div className="space-y-2 col-span-2">
-                <Label htmlFor="edit-overage">Overage Rate ($/mi)</Label>
+                <Label htmlFor="edit-overage">Overage Rate ({currency}/mi)</Label>
                 <Select value={mileageOverageRate} onValueChange={setMileageOverageRate}>
                   <SelectTrigger><SelectValue placeholder="Select rate" /></SelectTrigger>
                   <SelectContent>
@@ -306,7 +308,7 @@ export const EditVehicleDialog = ({ open, onOpenChange, vehicle, onSave }: EditV
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs text-muted-foreground">
-                      {splitType === "percentage" ? "Partner Share (%)" : "Flat $ / day"}
+                      {splitType === "percentage" ? "Partner Share (%)" : `Flat ${currency} / day`}
                     </Label>
                     <Input
                       type="number"

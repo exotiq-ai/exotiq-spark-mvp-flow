@@ -39,6 +39,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { format, subMonths, subYears } from "date-fns";
+import { formatCurrency, formatCurrencyCompact } from "@/lib/utils";
 
 interface AppliedVehicle {
   oldRate: number;
@@ -269,7 +270,7 @@ export const DynamicPricingCard = ({ onApplyOptimization, onOpenPriceEditor }: D
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4 text-primary" />
-            <span className="font-semibold text-lg">${currentMonthRevenue.toLocaleString()}</span>
+            <span className="font-semibold text-lg">{formatCurrency(currentMonthRevenue)}</span>
             <span className="text-xs text-muted-foreground">{format(now, 'MMM yyyy')}</span>
           </div>
           <div className="flex items-center gap-4">
@@ -297,7 +298,7 @@ export const DynamicPricingCard = ({ onApplyOptimization, onOpenPriceEditor }: D
                 </TooltipTrigger>
                 <TooltipContent>
                   {momChange !== null 
-                    ? <p>${lastMonthRevenue.toLocaleString()} in {format(lastMonth, 'MMM yyyy')}</p>
+                    ? <p>{formatCurrency(lastMonthRevenue)} in {format(lastMonth, 'MMM yyyy')}</p>
                     : <p>No prior month data available</p>
                   }
                 </TooltipContent>
@@ -330,7 +331,7 @@ export const DynamicPricingCard = ({ onApplyOptimization, onOpenPriceEditor }: D
                 </TooltipTrigger>
                 <TooltipContent>
                   {yoyChange !== null 
-                    ? <p>${lastYearRevenue.toLocaleString()} in {format(lastYear, 'MMM yyyy')}</p>
+                    ? <p>{formatCurrency(lastYearRevenue)} in {format(lastYear, 'MMM yyyy')}</p>
                     : <p>No prior year data available</p>
                   }
                 </TooltipContent>
@@ -478,15 +479,12 @@ export const DynamicPricingCard = ({ onApplyOptimization, onOpenPriceEditor }: D
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div>
             <div className="text-xs text-muted-foreground">Avg Rate</div>
-            <div className="text-xl font-bold">${avgRate}/day</div>
+            <div className="text-xl font-bold">{formatCurrency(avgRate)}/day</div>
           </div>
           <div>
             <div className="text-xs text-muted-foreground">Fleet Revenue</div>
             <div className="text-xl font-bold">
-              ${currentMonthRevenue >= 1000 
-                ? `${(currentMonthRevenue / 1000).toFixed(0)}K` 
-                : currentMonthRevenue.toLocaleString()
-              }
+              {formatCurrencyCompact(currentMonthRevenue)}
             </div>
           </div>
           <div>
