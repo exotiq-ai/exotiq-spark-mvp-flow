@@ -190,6 +190,7 @@ export const PriceUtilizationScatterPlot = () => {
                 type="number" 
                 dataKey="dailyRate" 
                 name="Daily Rate" 
+                tickFormatter={(value) => formatCurrency(value)}
                 stroke="hsl(var(--muted-foreground))"
                 tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: isMobile ? 10 : 12 }}
                 width={isMobile ? 40 : 50}
