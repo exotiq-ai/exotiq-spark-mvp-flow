@@ -573,8 +573,8 @@ export const bookingImportValidation = z.object({
   end_date: z.string().min(1, 'End date is required'),
   pickup_location: z.string().min(1, 'Pickup location is required'),
   dropoff_location: z.string().optional().nullable(),
-  daily_rate: z.coerce.number().min(0, 'Daily rate must be positive'),
-  total_value: z.coerce.number().min(0, 'Total value must be positive'),
+  daily_rate: z.preprocess(cleanNumeric, z.coerce.number().min(0, 'Daily rate must be positive')),
+  total_value: z.preprocess(cleanNumeric, z.coerce.number().min(0, 'Total value must be positive')),
   status: z.enum(['pending', 'confirmed', 'active', 'completed', 'cancelled']).optional().default('pending'),
   notes: z.string().optional().nullable()
 });
