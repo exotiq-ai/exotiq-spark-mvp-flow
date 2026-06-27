@@ -69,11 +69,58 @@ serve(async (req) => {
 
     console.log("Processing mention notifications for users:", mentionedUserIds);
 
+    // Re-validate: only notify users who are actually members of the conversation
+    // (prevents cross-channel leaks via group expansion or stale client lists)
+    const { data: convMembers } = await supabaseAdmin
+      .from("conversation_members")
+      .select("user_id")
+      .eq("conversation_id", conversationId)
+      .in("user_id", mentionedUserIds);
+    const memberSet = new Set((convMembers || []).map((m) => m.user_id));
+
+    // Filter out inactive team members
+    const { data: activeMembership } = await supabaseAdmin
+      .from("team_members")
+      .select("user_id, is_active")
+      .in("user_id", mentionedUserIds);
+    const activeSet = new Set(
+      (activeMembership || [])
+        .filter((m) => m.is_active !== false)
+        .map((m) => m.user_id),
+    );
+
+    // 60-second dedupe per (recipient, conversation, sender, channel)
+    const sinceIso = new Date(Date.now() - 60_000).toISOString();
+    const { data: recentLogs } = await supabaseAdmin
+      .from("mention_notifications_log")
+      .select("recipient_id, channel")
+      .eq("conversation_id", conversationId)
+      .eq("sender_id", senderId)
+      .in("recipient_id", mentionedUserIds)
+      .gte("created_at", sinceIso);
+    const recentlyNotifiedEmail = new Set(
+      (recentLogs || []).filter((r) => r.channel === "email").map((r) => r.recipient_id),
+    );
+    const recentlyNotifiedSlack = new Set(
+      (recentLogs || []).filter((r) => r.channel === "slack").map((r) => r.recipient_id),
+    );
+
+    const allowedUserIds = mentionedUserIds.filter(
+      (id) => id !== senderId && memberSet.has(id) && activeSet.has(id),
+    );
+
+    if (allowedUserIds.length === 0) {
+      console.log("No eligible recipients after filtering");
+      return new Response(JSON.stringify({ success: true, emailsSent: 0, slackSent: 0 }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Get mentioned users' profiles and notification preferences
     const { data: mentionedUsers, error: usersError } = await supabaseAdmin
       .from("profiles")
       .select("id, email, full_name")
-      .in("id", mentionedUserIds);
+      .in("id", allowedUserIds);
 
     if (usersError) {
       console.error("Error fetching mentioned users:", usersError);
@@ -91,7 +138,7 @@ serve(async (req) => {
     const { data: preferences } = await supabaseAdmin
       .from("notification_preferences")
       .select("user_id, email_mentions, slack_enabled, slack_mentions, slack_webhook_url")
-      .in("user_id", mentionedUserIds);
+      .in("user_id", allowedUserIds);
 
     const prefsMap = new Map(preferences?.map(p => [p.user_id, p]) || []);
 
