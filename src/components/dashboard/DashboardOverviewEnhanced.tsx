@@ -43,6 +43,7 @@ import { performHardReload, isInRecoveryMode } from "@/lib/staleBuildRecovery";
 import { supabase } from "@/integrations/supabase/client";
 import { isFeatureEnabled } from "@/lib/featureFlags";
 import { DailyBriefCard } from "./DailyBriefCard";
+import { PulseStrip } from "./PulseStrip";
 import { 
   TrendingUp, 
   Calendar, 
