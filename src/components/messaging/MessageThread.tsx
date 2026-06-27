@@ -846,7 +846,7 @@ export const MessageThread = ({
                       onEdit={() => handleEditMessage(msg)}
                       onDelete={() => handleDeleteMessage(msg.id)}
                       isPinned={pinnedMessageIds.has(msg.id)}
-                      teamMembers={teamMembers}
+                      mentionContext={mentionContext}
                       readers={readers}
                       currentUserId={user?.id}
                     />
