@@ -973,48 +973,12 @@ export const MessageThread = ({
       <div className="p-3 border-t border-border relative">
         {/* Mention Autocomplete Popup */}
         <AnimatePresence>
-          {showMentionPopup && filteredMembers.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 10 }}
-              className="absolute bottom-full left-3 right-3 mb-2 bg-popover border border-border rounded-lg shadow-lg max-h-[200px] overflow-y-auto z-50"
-            >
-              <div className="p-1">
-                <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground flex items-center gap-1">
-                  <AtSign className="h-3 w-3" />
-                  Mention someone
-                </div>
-                {filteredMembers.slice(0, 6).map((member, index) => {
-                  const isOnline = onlineUsers.has(member.id);
-                  return (
-                    <button
-                      key={member.id}
-                      onClick={() => insertMention(member)}
-                      className={cn(
-                        "w-full flex items-center gap-2 px-2 py-1.5 rounded text-left transition-colors",
-                        index === mentionIndex ? "bg-accent" : "hover:bg-muted"
-                      )}
-                    >
-                      <div className="relative">
-                        <Avatar className="h-6 w-6">
-                          <AvatarImage src={member.avatar_url || undefined} />
-                          <AvatarFallback className="text-[10px]">
-                            {member.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <OnlineIndicator 
-                          isOnline={isOnline} 
-                          size="sm" 
-                          className="absolute -bottom-0.5 -right-0.5" 
-                        />
-                      </div>
-                      <span className="text-sm font-medium">{member.name}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </motion.div>
+          {showMentionPopup && pickerItems.length > 0 && (
+            <MentionPicker
+              items={pickerItems}
+              activeIndex={mentionIndex}
+              onPick={insertMention}
+            />
           )}
         </AnimatePresence>
 
