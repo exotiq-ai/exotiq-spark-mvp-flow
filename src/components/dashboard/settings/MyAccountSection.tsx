@@ -105,14 +105,29 @@ export const MyAccountSection = () => {
   const handleSaveProfile = async () => {
     setIsLoading(true);
     try {
+      const newHandle = formData.handle.trim().toLowerCase();
+      const updates: Record<string, unknown> = {
+        full_name: formData.fullName,
+        phone: formData.phone,
+        company_name: formData.companyName,
+        updated_at: new Date().toISOString(),
+      };
+      // Only attempt handle update if changed AND valid
+      if (newHandle && newHandle !== (profile?.handle || "")) {
+        if (handleError || handleAvailable === false) {
+          toast({
+            title: "Handle unavailable",
+            description: handleError || "That handle is already taken.",
+            variant: "destructive",
+          });
+          setIsLoading(false);
+          return;
+        }
+        updates.handle = newHandle;
+      }
       const { error } = await supabase
         .from('profiles')
-        .update({
-          full_name: formData.fullName,
-          phone: formData.phone,
-          company_name: formData.companyName,
-          updated_at: new Date().toISOString()
-        })
+        .update(updates)
         .eq('id', user?.id);
 
       if (error) throw error;
@@ -121,10 +136,12 @@ export const MyAccountSection = () => {
         title: "Profile Updated",
         description: "Your account information has been saved."
       });
-    } catch (error) {
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : "Failed to update profile. Please try again.";
       toast({
         title: "Error",
-        description: "Failed to update profile. Please try again.",
+        description: message,
         variant: "destructive"
       });
     } finally {
