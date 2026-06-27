@@ -473,11 +473,11 @@ export const MessageThread = ({
     currentUserRole === 'owner' || currentUserRole === 'admin';
 
   // Autocomplete items
-  const [mentionSearch2, _setMentionSearch2] = useState(''); // placeholder for compile
   const pickerItems: PickerItem[] = useMemo(
     () => buildPickerItems(mentionSearch, mentionContext, canMentionAll, user?.id),
     [mentionSearch, mentionContext, canMentionAll, user?.id],
   );
+
 
 
   // Auto-scroll to bottom on new messages
