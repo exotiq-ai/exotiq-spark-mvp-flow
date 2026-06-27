@@ -51,6 +51,8 @@ import { EnhancedBookingDialog } from "@/components/dialogs/EnhancedBookingDialo
 import { EditCustomerDialog } from "@/components/dialogs/EditCustomerDialog";
 import { formatCurrency } from "@/lib/utils";
 import { CustomerTimeline } from "@/components/crm/CustomerTimeline";
+import { EntityCommentThread } from "@/components/comments/EntityCommentThread";
+import { useTeam } from "@/contexts/TeamContext";
 
 type Customer = Database['public']['Tables']['customers']['Row'];
 type Booking = Database['public']['Tables']['bookings']['Row'];
@@ -71,6 +73,7 @@ export const CustomerProfileDialog = ({
   onAddBooking,
 }: CustomerProfileDialogProps) => {
   const { user } = useAuth();
+  const { currentTeam } = useTeam();
   const { addCustomerNote, updateCustomer, blacklistCustomer, deleteCustomer, customerNotes, refreshCustomers } = useFleet();
   const [newNote, setNewNote] = useState("");
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
@@ -301,6 +304,17 @@ export const CustomerProfileDialog = ({
 
           <TabsContent value="activity" className="space-y-4">
             <CustomerTimeline bookings={bookings} notes={customerNotesList} />
+            {currentTeam?.id && (
+              <div className="space-y-2 pt-2">
+                <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Team Discussion</h4>
+                <EntityCommentThread
+                  entityType="customer"
+                  entityId={customer.id}
+                  teamId={currentTeam.id}
+                  recordLabel={customer.full_name}
+                />
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="bookings" className="space-y-4">

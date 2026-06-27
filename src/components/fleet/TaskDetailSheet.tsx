@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { VehicleTask, TaskType, TaskPriority, TaskStatus } from '@/hooks/useFleetTasks';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTeam } from '@/contexts/TeamContext';
+import { EntityCommentThread } from '@/components/comments/EntityCommentThread';
 import {
   CheckCircle2, Clock, User,
   Droplets, Fuel, ClipboardCheck, Wrench, LogIn, LogOut, Sparkles, AlertCircle,
@@ -51,6 +53,7 @@ export const TaskDetailSheet = ({
   task, open, onOpenChange, vehicleMap, onStatusChange, onClaim, onConvertToWorkOrder,
 }: TaskDetailSheetProps) => {
   const { user } = useAuth();
+  const { currentTeam } = useTeam();
 
   if (!task) return null;
 
@@ -165,6 +168,20 @@ export const TaskDetailSheet = ({
               )}
             </div>
           </div>
+
+          {/* Activity / @mentions */}
+          {currentTeam?.id && (
+            <div className="space-y-2">
+              <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Activity</h4>
+              <EntityCommentThread
+                entityType="vehicle_task"
+                entityId={task.id}
+                teamId={currentTeam.id}
+                recordLabel={task.title}
+                density="compact"
+              />
+            </div>
+          )}
         </div>
 
         {/* Sticky Action Footer */}
