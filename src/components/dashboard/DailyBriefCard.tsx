@@ -283,7 +283,12 @@ export const DailyBriefCard = ({ onModuleClick }: DailyBriefCardProps) => {
                 <li key={issue.id}>
                   <button
                     type="button"
-                    onClick={() => issue.module && onModuleClick(issue.module)}
+              const clickable = Boolean(issue.module);
+              return (
+                <li key={issue.id}>
+                  <button
+                    type="button"
+                    onClick={() => handleIssueClick(issue)}
                     disabled={!clickable}
                     className={cn(
                       "group w-full flex items-center gap-4 py-3.5 sm:py-3 text-left",
