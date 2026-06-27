@@ -210,9 +210,11 @@ const Sparkline = ({ values }: { values: number[] }) => {
   const points = values
     .map((v, i) => `${(i * step).toFixed(1)},${(h - ((v - min) / range) * h).toFixed(1)}`)
     .join(" ");
+  const areaPoints = `0,${h} ${points} ${w},${h}`;
   const last = values[values.length - 1];
   const lastY = h - ((last - min) / range) * h;
   const lastX = (values.length - 1) * step;
+  const gradId = `pulse-spark-grad-${values.length}`;
   return (
     <svg
       viewBox={`0 0 ${w} ${h}`}
@@ -220,6 +222,13 @@ const Sparkline = ({ values }: { values: number[] }) => {
       className="h-10 w-full overflow-visible"
       aria-hidden
     >
+      <defs>
+        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.28" />
+          <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <polygon points={areaPoints} fill={`url(#${gradId})`} />
       <polyline
         points={points}
         fill="none"
