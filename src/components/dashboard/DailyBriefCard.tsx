@@ -476,47 +476,6 @@ const BriefHeader = ({
   </header>
 );
 
-const StatusLine = ({
-  onRent,
-  pickupsToday,
-  returnsToday,
-  revenueToday,
-  utilization,
-}: {
-  onRent: number;
-  pickupsToday: number;
-  returnsToday: number;
-  revenueToday: number;
-  utilization: number;
-}) => {
-  const facts = [
-    { label: "out", value: onRent.toLocaleString() },
-    { label: "pickups", value: pickupsToday.toLocaleString() },
-    { label: "returns", value: returnsToday.toLocaleString() },
-    revenueToday > 0
-      ? { label: "collected", value: formatMoney(revenueToday) }
-      : { label: "utilization", value: `${utilization}%` },
-  ];
-  return (
-    <div className="flex flex-wrap items-baseline gap-x-5 gap-y-2 text-foreground">
-      {facts.map((f, i) => (
-        <span key={f.label} className="flex items-baseline gap-1.5">
-          {i > 0 && (
-            <span className="text-muted-foreground/40 mr-3 hidden sm:inline" aria-hidden>
-              ·
-            </span>
-          )}
-          <span className="text-xl sm:text-2xl font-semibold tracking-tight tabular-nums">
-            {f.value}
-          </span>
-          <span className="text-xs uppercase tracking-wider text-muted-foreground">
-            {f.label}
-          </span>
-        </span>
-      ))}
-    </div>
-  );
-};
 
 const AllClear = () => (
   <div className="flex items-center gap-3 py-4">
