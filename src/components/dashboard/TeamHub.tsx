@@ -31,7 +31,7 @@ export const TeamHub = () => {
       </div>
 
       <Tabs defaultValue="activity" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5 lg:w-[600px]">
+        <TabsList className="grid w-full grid-cols-6 lg:w-[700px]">
           <TabsTrigger value="activity" className="flex items-center gap-2">
             <Activity className="h-4 w-4" />
             <span className="hidden sm:inline">Activity</span>
@@ -39,6 +39,10 @@ export const TeamHub = () => {
           <TabsTrigger value="directory" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             <span className="hidden sm:inline">Directory</span>
+          </TabsTrigger>
+          <TabsTrigger value="groups" className="flex items-center gap-2">
+            <AtSign className="h-4 w-4" />
+            <span className="hidden sm:inline">Groups</span>
           </TabsTrigger>
           {isAdmin && (
             <TabsTrigger value="invitations" className="flex items-center gap-2">
