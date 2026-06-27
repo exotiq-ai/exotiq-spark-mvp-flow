@@ -156,8 +156,11 @@ serve(async (req) => {
     const emailPromises = mentionedUsers
       .filter(user => {
         if (user.id === senderId || !user.email) return false;
+        if (recentlyNotifiedEmail.has(user.id)) {
+          console.log(`Skipping email to ${user.id} (deduped within 60s)`);
+          return false;
+        }
         const userPrefs = prefsMap.get(user.id);
-        // Default to true if no preferences exist
         return userPrefs?.email_mentions !== false;
       })
       .map(async (user) => {
