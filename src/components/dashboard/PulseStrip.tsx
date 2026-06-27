@@ -194,6 +194,38 @@ const Tile = ({
   </button>
 );
 
+const HorizonTimeline = () => {
+  const ticks = useMemo(() => {
+    const now = new Date();
+    return [1, 2, 3, 4].map((h) => {
+      const t = new Date(now.getTime() + h * 60 * 60 * 1000);
+      return format(t, "h a").toLowerCase();
+    });
+  }, []);
+  return (
+    <div className="space-y-2 py-1">
+      <div className="relative h-px bg-border/60">
+        {[0, 1, 2, 3].map((i) => (
+          <span
+            key={i}
+            className="absolute top-1/2 -translate-y-1/2 h-1.5 w-px bg-muted-foreground/40"
+            style={{ left: `${(i / 3) * 100}%` }}
+          />
+        ))}
+      </div>
+      <div className="flex justify-between text-[10px] text-muted-foreground/70 tabular-nums">
+        {ticks.map((t) => (
+          <span key={t}>{t}</span>
+        ))}
+      </div>
+      <div className="flex items-center gap-2 text-xs text-muted-foreground pt-1">
+        <Clock className="h-3 w-3" />
+        Quiet stretch ahead.
+      </div>
+    </div>
+  );
+};
+
 const Sparkline = ({ values }: { values: number[] }) => {
   if (values.length === 0) {
     return <div className="h-10 text-xs text-muted-foreground">No revenue yet.</div>;
