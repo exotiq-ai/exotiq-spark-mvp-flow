@@ -1126,7 +1126,7 @@ export const DemandForecastCard = ({ bookings = [] }: DemandForecastCardProps) =
                   {aiForecast.dailyPredictions.slice(0, 7).map((pred, idx) => (
                     <div key={idx} className="flex flex-col items-center gap-1 p-2 rounded-lg bg-background/50">
                       <span className="text-xs text-muted-foreground">
-                        {format(new Date(pred.date), 'EEE')}
+                        {safeFormat(pred.date, 'EEE')}
                       </span>
                       <div className={`text-lg font-bold ${
                         pred.demandLevel === 'peak' ? 'text-success' :
