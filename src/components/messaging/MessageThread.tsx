@@ -24,6 +24,18 @@ import { useReadReceipts } from '@/hooks/useReadReceipts';
 import { usePinnedMessages } from '@/hooks/usePinnedMessages';
 import { useMessageSearch } from '@/hooks/useMessageSearch';
 import { useMessageActions } from '@/hooks/useMessageActions';
+import { useTeamGroups } from '@/hooks/useTeamGroups';
+import { useUserRole } from '@/hooks/useUserRole';
+import {
+  buildPickerItems,
+  parseMentions,
+  resolveMention,
+  type MentionableMember,
+  type MentionContext,
+  type PickerItem,
+} from '@/lib/mentions';
+import { MentionPicker } from './MentionPicker';
+import { MentionConfirmDialog } from './MentionConfirmDialog';
 import { TypingIndicator } from './TypingIndicator';
 import { OnlineIndicator } from './OnlineIndicator';
 import { ReadReceipts } from './ReadReceipts';
@@ -62,7 +74,7 @@ interface MessageThreadProps {
   onSendMessage: (content: string, attachments?: Attachment[], mentions?: string[], replyTo?: string) => void;
   onReaction: (messageId: string, emoji: string) => void;
   onUploadAttachment: (file: File) => Promise<Attachment | null>;
-  teamMembers: { id: string; name: string; email?: string; avatar_url: string | null }[];
+  teamMembers: MentionableMember[];
 }
 
 const EMOJI_LIST = ['👍', '❤️', '😂', '😮', '😢', '🎉', '🔥', '✅'];
