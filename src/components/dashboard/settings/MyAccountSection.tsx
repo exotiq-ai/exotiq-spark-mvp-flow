@@ -62,23 +62,45 @@ export const MyAccountSection = () => {
       
       const { data } = await supabase
         .from('profiles')
-        .select('full_name, phone, company_name, avatar_url')
+        .select('full_name, phone, company_name, avatar_url, handle, handle_changed_at')
         .eq('id', user.id)
         .single();
-      
+
       if (data) {
-        setProfile(data);
+        setProfile(data as Profile);
         setFormData({
           fullName: data.full_name || "",
           email: user.email || "",
           phone: data.phone || "",
-          companyName: data.company_name || ""
+          companyName: data.company_name || "",
+          handle: data.handle || ""
         });
       }
     };
 
     fetchProfile();
   }, [user]);
+
+  // Live handle availability check (debounced)
+  useEffect(() => {
+    const h = formData.handle.trim().toLowerCase();
+    setHandleError(null);
+    setHandleAvailable(null);
+    if (!h || h === (profile?.handle || "")) return;
+    if (!/^[a-z0-9][a-z0-9_.]{1,23}$/.test(h)) {
+      setHandleError("2–24 chars, letters/numbers/underscore/dot, starts with letter or number");
+      return;
+    }
+    const t = setTimeout(async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('handle', h)
+        .maybeSingle();
+      setHandleAvailable(!data || data.id === user?.id);
+    }, 350);
+    return () => clearTimeout(t);
+  }, [formData.handle, profile?.handle, user?.id]);
 
   const handleSaveProfile = async () => {
     setIsLoading(true);
