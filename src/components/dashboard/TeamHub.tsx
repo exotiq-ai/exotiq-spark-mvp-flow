@@ -72,6 +72,10 @@ export const TeamHub = () => {
           <TeamDirectorySection />
         </TabsContent>
 
+        <TabsContent value="groups">
+          <TeamGroupsPanel />
+        </TabsContent>
+
         {isAdmin && (
           <TabsContent value="invitations">
             <TeamInvitationsSection />
