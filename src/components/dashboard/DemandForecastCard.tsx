@@ -59,6 +59,12 @@ import { format, addDays, differenceInDays, startOfDay, subMonths, subYears } fr
 import { DateRange } from "react-day-picker";
 import { useAIDemandForecast, type DemandForecast, type PricingAdjustment, type Opportunity } from "@/hooks/useAIDemandForecast";
 
+const safeFormat = (value: unknown, fmt: string, fallback = '—') => {
+  if (!value) return fallback;
+  const d = value instanceof Date ? value : new Date(value as string);
+  return isNaN(d.getTime()) ? fallback : format(d, fmt);
+};
+
 type Booking = Tables<'bookings'>;
 
 interface EventData {
