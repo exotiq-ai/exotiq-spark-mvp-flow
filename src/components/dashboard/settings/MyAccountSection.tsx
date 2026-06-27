@@ -242,6 +242,41 @@ export const MyAccountSection = () => {
 
               <div className="space-y-2">
                 <Label className="flex items-center gap-2">
+                  <span className="text-muted-foreground font-mono">@</span>
+                  Handle
+                </Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm pointer-events-none">@</span>
+                  <Input
+                    value={formData.handle}
+                    onChange={(e) =>
+                      setFormData(prev => ({ ...prev, handle: e.target.value.toLowerCase() }))
+                    }
+                    placeholder="yourhandle"
+                    className="pl-7"
+                    maxLength={24}
+                  />
+                </div>
+                <p className={cn(
+                  "text-xs",
+                  handleError ? "text-destructive" :
+                    handleAvailable === true ? "text-success" :
+                    handleAvailable === false ? "text-destructive" :
+                    "text-muted-foreground"
+                )}>
+                  {handleError
+                    ? handleError
+                    : handleAvailable === true
+                      ? "Available"
+                      : handleAvailable === false
+                        ? "Already taken"
+                        : "Teammates use this to @mention you. Can be changed once every 30 days."}
+                </p>
+              </div>
+
+
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
                   <Mail className="w-4 h-4 text-muted-foreground" />
                   Email Address
                 </Label>
