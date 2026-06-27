@@ -87,8 +87,46 @@ export const featureFlags = {
 
 export type FeatureFlag = keyof typeof featureFlags;
 
-// Helper function to check if a feature is enabled
+/**
+ * Per-account flag override.
+ *
+ * Resolution order (highest priority first):
+ *   1. URL query param `?ff=<flag>` or `?ff=<flag>:off`
+ *      (also sets a persistent localStorage override, so you only paste once).
+ *   2. localStorage `ff_<flag>` === '1' | '0'.
+ *   3. Static default from `featureFlags` above.
+ *
+ * This lets the owner flip a feature on for just their browser without a deploy,
+ * keeping the global default off until verified.
+ */
+const readQueryOverrides = (): void => {
+  if (typeof window === 'undefined') return;
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const raw = params.getAll('ff');
+    if (raw.length === 0) return;
+    raw.forEach((entry) => {
+      const [name, state] = entry.split(':');
+      if (!name) return;
+      const key = `ff_${name}`;
+      window.localStorage.setItem(key, state === 'off' ? '0' : '1');
+    });
+  } catch {
+    /* ignore */
+  }
+};
+readQueryOverrides();
+
 export const isFeatureEnabled = (feature: FeatureFlag): boolean => {
+  if (typeof window !== 'undefined') {
+    try {
+      const override = window.localStorage.getItem(`ff_${feature}`);
+      if (override === '1') return true;
+      if (override === '0') return false;
+    } catch {
+      /* ignore */
+    }
+  }
   return featureFlags[feature];
 };
 
