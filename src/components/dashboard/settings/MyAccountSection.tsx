@@ -44,8 +44,11 @@ export const MyAccountSection = () => {
     fullName: "",
     email: user?.email || "",
     phone: "",
-    companyName: ""
+    companyName: "",
+    handle: ""
   });
+  const [handleAvailable, setHandleAvailable] = useState<null | boolean>(null);
+  const [handleError, setHandleError] = useState<string | null>(null);
   const [passwordData, setPasswordData] = useState({
     currentPassword: "",
     newPassword: "",
