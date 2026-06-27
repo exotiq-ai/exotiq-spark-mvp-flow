@@ -76,9 +76,45 @@ interface NarrativePayload {
 export const DailyBriefCard = ({ onModuleClick }: DailyBriefCardProps) => {
   const facts = useDailyBrief();
   const fleet = useLocationFilteredFleet();
+  const nav = useModuleNavigation();
+  const navigate = useNavigate();
   const [mode, setMode] = useState<Mode>("today");
   const [showAllIssues, setShowAllIssues] = useState(false);
   const [narrative, setNarrative] = useState<string | null>(null);
+
+  const greeting = useMemo(() => greetingFor(new Date().getHours()), []);
+
+  const handleIssueClick = (issue: DailyBriefIssue) => {
+    const meta = issue.meta ?? {};
+    const bookingId = meta.bookingId ? String(meta.bookingId) : undefined;
+    const taskId = meta.taskId ? String(meta.taskId) : undefined;
+    const damageClaimId = meta.damageClaimId ? String(meta.damageClaimId) : undefined;
+    const vehicleId = meta.vehicleId ? String(meta.vehicleId) : undefined;
+
+    switch (issue.id) {
+      case "overdue-returns":
+      case "pending-confirmations":
+        if (bookingId) return nav.goToBookingDetails(bookingId);
+        break;
+      case "outstanding-balance":
+        return nav.goToPayments(bookingId);
+      case "overdue-tasks":
+      case "urgent-tasks":
+        if (taskId) return nav.goToTask(taskId);
+        break;
+      case "open-damage":
+        if (damageClaimId) return nav.goToDamageReport(damageClaimId);
+        break;
+      case "maintenance":
+        return nav.goToMaintenance();
+      case "pricing-opportunity":
+        if (vehicleId) {
+          return navigate(moduleIdToPath("motoriq", { vehicleId }));
+        }
+        break;
+    }
+    if (issue.module) onModuleClick(issue.module);
+  };
 
   const greeting = useMemo(() => greetingFor(new Date().getHours()), []);
 
