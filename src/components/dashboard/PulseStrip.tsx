@@ -134,10 +134,7 @@ export const PulseStrip = ({ onModuleClick }: PulseStripProps) => {
         onClick={() => onModuleClick("book")}
       >
         {upcoming.length === 0 ? (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
-            <Clock className="h-4 w-4" />
-            Quiet stretch ahead.
-          </div>
+          <HorizonTimeline />
         ) : (
           <ul className="space-y-1.5">
             {upcoming.map((u) => (
