@@ -690,6 +690,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         throw sessionError;
       }
 
+      // Enable Daily Brief (Command Center) by default for the demo account.
+      // Per-browser localStorage override; honors `?ff=dailyBrief:off` to disable.
+      try {
+        if (window.localStorage.getItem('ff_dailyBrief') === null) {
+          window.localStorage.setItem('ff_dailyBrief', '1');
+        }
+      } catch { /* ignore */ }
+
       // Session is now set - onAuthStateChange will fire and handle navigation
       toast({
         title: "Welcome to Demo Mode!",
