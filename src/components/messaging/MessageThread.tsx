@@ -439,6 +439,14 @@ export const MessageThread = ({
   const { pinnedMessages, pinMessage, unpinMessage } = usePinnedMessages(conversation.id);
   const { searchResults, isSearching, searchQuery, searchMessages, clearSearch } = useMessageSearch(conversation.id);
   const { editMessage, deleteMessage, isEditing, isDeleting } = useMessageActions();
+  const { groups } = useTeamGroups();
+  const { role: currentUserRole } = useUserRole();
+
+  // Confirmation modal state
+  const [pendingSendRecipients, setPendingSendRecipients] = useState<
+    { id: string; name: string; avatar_url?: string | null }[] | null
+  >(null);
+  const [pendingHasGroupMention, setPendingHasGroupMention] = useState(false);
 
   // Get typing users for this conversation
   const typingUsers = getTypingUsers(conversation.id);
@@ -447,32 +455,30 @@ export const MessageThread = ({
     .map(id => teamMembers.find(m => m.id === id)?.name?.split(' ')[0] || 'Someone')
     .filter(Boolean);
 
-  // Filter team members for mention autocomplete
-  const filteredMembers = useMemo(() => {
-    if (!mentionSearch) return teamMembers.filter(m => m.id !== user?.id);
-    return teamMembers
-      .filter(m => m.id !== user?.id)
-      .filter(m => m.name.toLowerCase().includes(mentionSearch.toLowerCase()));
-  }, [teamMembers, mentionSearch, user?.id]);
+  // Build the mention context (members + groups + conversation members)
+  const conversationMemberIds = useMemo(
+    () => (conversation.members || []).map((m) => m.user_id),
+    [conversation.members],
+  );
+  const mentionContext: MentionContext = useMemo(
+    () => ({
+      conversationMemberIds,
+      teamMembers,
+      groups: groups.map((g) => ({ slug: g.slug, name: g.name, member_ids: g.member_ids })),
+    }),
+    [conversationMemberIds, teamMembers, groups],
+  );
 
-  // Parse mentions from message content
-  const parseMentions = useCallback((content: string): string[] => {
-    const mentionRegex = /@(\w+(?:\s+\w+)?)/g;
-    const mentions: string[] = [];
-    let match;
-    
-    while ((match = mentionRegex.exec(content)) !== null) {
-      const mentionName = match[1];
-      const matchedMember = teamMembers.find(m => 
-        m.name.toLowerCase() === mentionName.toLowerCase() ||
-        m.name.toLowerCase().startsWith(mentionName.toLowerCase())
-      );
-      if (matchedMember && !mentions.includes(matchedMember.id)) {
-        mentions.push(matchedMember.id);
-      }
-    }
-    return mentions;
-  }, [teamMembers]);
+  const canMentionAll =
+    currentUserRole === 'owner' || currentUserRole === 'admin';
+
+  // Autocomplete items
+  const [mentionSearch2, _setMentionSearch2] = useState(''); // placeholder for compile
+  const pickerItems: PickerItem[] = useMemo(
+    () => buildPickerItems(mentionSearch, mentionContext, canMentionAll, user?.id),
+    [mentionSearch, mentionContext, canMentionAll, user?.id],
+  );
+
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
