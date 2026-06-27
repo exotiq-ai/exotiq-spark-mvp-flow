@@ -110,9 +110,10 @@ const AppWithRouter = () => {
             <Suspense fallback={<DashboardSkeleton />}><SuperAdminDashboard /></Suspense>
           </SuperAdminGuard>
         } />
-        {/* Demo pages temporarily disabled - demo login uses /dashboard */}
-        <Route path="/demo-landing" element={<Navigate to="/auth" replace />} />
-        <Route path="/demo" element={<Navigate to="/auth" replace />} />
+        {/* Demo: auto-signs in as the demo account and renders the dashboard */}
+        <Route path="/demo-landing" element={<Navigate to="/demo" replace />} />
+        <Route path="/demo" element={<Suspense fallback={<DashboardSkeleton />}><Demo /></Suspense>} />
+
         <Route path="/terms" element={<Suspense fallback={<MinimalRouteFallback />}><Terms /></Suspense>} />
         <Route path="/privacy" element={<Suspense fallback={<MinimalRouteFallback />}><Privacy /></Suspense>} />
         <Route path="/acceptable-use" element={<Suspense fallback={<MinimalRouteFallback />}><AcceptableUse /></Suspense>} />
