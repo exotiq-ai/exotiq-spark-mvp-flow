@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { motion } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import {
@@ -18,6 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useModuleNavigation } from "@/hooks/useModuleNavigation";
 import { useNavigate } from "react-router-dom";
 import { moduleIdToPath } from "@/lib/moduleRoutes";
+import { HeroKpiRail } from "./widgets/HeroKpiRail";
 
 interface DailyBriefCardProps {
   onModuleClick: (moduleId: string) => void;
