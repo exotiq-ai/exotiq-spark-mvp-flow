@@ -24,6 +24,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { CompanyLogoUpload } from "@/components/shared/CompanyLogoUpload";
+import { cn } from "@/lib/utils";
 
 interface Profile {
   full_name: string | null;
