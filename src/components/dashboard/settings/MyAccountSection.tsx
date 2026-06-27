@@ -30,6 +30,8 @@ interface Profile {
   phone: string | null;
   company_name: string | null;
   avatar_url: string | null;
+  handle: string | null;
+  handle_changed_at: string | null;
 }
 
 export const MyAccountSection = () => {
