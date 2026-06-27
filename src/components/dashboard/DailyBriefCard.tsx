@@ -239,8 +239,8 @@ export const DailyBriefCard = ({ onModuleClick }: DailyBriefCardProps) => {
         showWeekToggle={showWeekToggle}
       />
 
-      {/* Status line — inline typography, no boxes */}
-      <StatusLine
+      {/* KPI rail — large tabular numerals, delta chips, hairline dividers */}
+      <HeroKpiRail
         onRent={facts.onRent}
         pickupsToday={facts.pickupsToday}
         returnsToday={facts.returnsToday}
@@ -248,80 +248,208 @@ export const DailyBriefCard = ({ onModuleClick }: DailyBriefCardProps) => {
         utilization={facts.utilization}
       />
 
-      {/* Rari's read — italic, muted, the "why" */}
+      {/* Rari's read — editorial lede: first sentence foreground, rest muted */}
       {narrative && (
-        <p className="text-[15px] leading-relaxed italic text-muted-foreground max-w-2xl">
-          {narrative}
-        </p>
+        <motion.div
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.25 }}
+          className="max-w-[68ch]"
+        >
+          <NarrativeLede text={narrative} />
+        </motion.div>
       )}
 
-      {/* Punch list — the work */}
+      {/* Punch list — tiered: critical above, heads-up below */}
       {facts.isClear ? (
         <AllClear />
       ) : (
-        <div className="space-y-3">
-          <div className="flex items-baseline justify-between">
-            <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-              Needs you
-              <span className="ml-2 text-foreground/80 tracking-normal normal-case font-medium">
-                {rankedIssues.length}
-              </span>
-            </h2>
-            {rankedIssues.length > 5 && (
-              <button
-                type="button"
-                onClick={() => setShowAllIssues((s) => !s)}
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-              >
-                {showAllIssues ? "Show top 5" : `View all (${rankedIssues.length})`}
-              </button>
-            )}
-          </div>
+        <TieredPunchList
+          issues={rankedIssues}
+          visibleIssues={visibleIssues}
+          showAllIssues={showAllIssues}
+          onToggleShowAll={() => setShowAllIssues((s) => !s)}
+          onIssueClick={handleIssueClick}
+        />
+      )}
+    </section>
+  );
+};
 
-          <ul className="divide-y divide-border/60 border-y border-border/60">
-            {visibleIssues.map((issue) => {
-              const clickable = Boolean(issue.module);
-              return (
-                <li key={issue.id}>
-                  <button
-                    type="button"
-                    onClick={() => handleIssueClick(issue)}
-                    disabled={!clickable}
-                    className={cn(
-                      "group w-full flex items-center gap-4 py-3.5 sm:py-3 text-left",
-                      "min-h-[56px] sm:min-h-[52px]",
-                      "transition-colors hover:bg-muted/30 disabled:hover:bg-transparent disabled:cursor-default",
-                      "-mx-2 px-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                    )}
-                  >
-                    <span
-                      aria-hidden
-                      className={cn(
-                        "flex-shrink-0 h-2 w-2 rounded-full",
-                        dotClass[issue.severity],
-                      )}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[15px] font-medium text-foreground leading-snug truncate">
-                        {issue.title}
-                      </p>
-                      {issue.detail && (
-                        <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                          {issue.detail}
-                        </p>
-                      )}
-                    </div>
-                    {clickable && (
-                      <ChevronRight className="h-4 w-4 text-muted-foreground/60 group-hover:text-foreground group-hover:translate-x-0.5 transition-all flex-shrink-0" />
-                    )}
-                  </button>
-                </li>
-              );
-            })}
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Editorial lede treatment: first sentence in foreground, rest muted. */
+const NarrativeLede = ({ text }: { text: string }) => {
+  const splitAt = text.search(/[.!?]\s/);
+  if (splitAt === -1) {
+    return (
+      <p className="text-[15px] leading-[1.7] text-foreground">{text}</p>
+    );
+  }
+  const lede = text.slice(0, splitAt + 1);
+  const rest = text.slice(splitAt + 1).trim();
+  return (
+    <p className="text-[15px] leading-[1.7]">
+      <span className="text-foreground">{lede}</span>{" "}
+      <span className="text-muted-foreground">{rest}</span>
+    </p>
+  );
+};
+
+const TieredPunchList = ({
+  issues,
+  visibleIssues,
+  showAllIssues,
+  onToggleShowAll,
+  onIssueClick,
+}: {
+  issues: DailyBriefIssue[];
+  visibleIssues: DailyBriefIssue[];
+  showAllIssues: boolean;
+  onToggleShowAll: () => void;
+  onIssueClick: (issue: DailyBriefIssue) => void;
+}) => {
+  const critical = visibleIssues.filter((i) => i.severity === "high");
+  const headsUp = visibleIssues.filter((i) => i.severity !== "high");
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-baseline justify-between">
+        <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+          Needs you
+          <span className="ml-2 text-foreground/80 tracking-normal normal-case font-medium">
+            {issues.length}
+          </span>
+        </h2>
+        {issues.length > 5 && (
+          <button
+            type="button"
+            onClick={onToggleShowAll}
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {showAllIssues ? "Show top 5" : `View all (${issues.length})`}
+          </button>
+        )}
+      </div>
+
+      {critical.length > 0 && (
+        <ul className="space-y-1">
+          {critical.map((issue, i) => (
+            <IssueRow
+              key={issue.id}
+              issue={issue}
+              tier="critical"
+              index={i}
+              onClick={() => onIssueClick(issue)}
+            />
+          ))}
+        </ul>
+      )}
+
+      {headsUp.length > 0 && (
+        <div className="space-y-2">
+          {critical.length > 0 && (
+            <p className="text-[10.5px] font-medium uppercase tracking-[0.16em] text-muted-foreground/70 pt-1">
+              Heads up
+            </p>
+          )}
+          <ul className="divide-y divide-border/50 border-y border-border/50">
+            {headsUp.map((issue, i) => (
+              <IssueRow
+                key={issue.id}
+                issue={issue}
+                tier="headsup"
+                index={critical.length + i}
+                onClick={() => onIssueClick(issue)}
+              />
+            ))}
           </ul>
         </div>
       )}
-    </section>
+    </div>
+  );
+};
+
+const IssueRow = ({
+  issue,
+  tier,
+  index,
+  onClick,
+}: {
+  issue: DailyBriefIssue;
+  tier: "critical" | "headsup";
+  index: number;
+  onClick: () => void;
+}) => {
+  const clickable = Boolean(issue.module);
+  const isCritical = tier === "critical";
+
+  return (
+    <motion.li
+      initial={{ opacity: 0, y: 3 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25, delay: 0.08 + index * 0.04 }}
+    >
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={!clickable}
+        className={cn(
+          "group w-full text-left",
+          "transition-all hover:bg-muted/40 disabled:hover:bg-transparent disabled:cursor-default",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          isCritical
+            ? [
+                "flex items-center gap-4 rounded-lg px-3 py-3.5 min-h-[60px]",
+                "border-l-2 border-destructive/70 bg-destructive/[0.035] hover:bg-destructive/[0.06]",
+              ]
+            : [
+                "flex items-center gap-4 py-3 sm:py-2.5 min-h-[48px]",
+                "-mx-2 px-2 rounded-md",
+              ],
+        )}
+      >
+        <span
+          aria-hidden
+          className={cn(
+            "flex-shrink-0 rounded-full",
+            isCritical
+              ? "h-2 w-2 bg-destructive animate-pulse"
+              : issue.severity === "medium"
+                ? "h-2 w-2 bg-warning"
+                : "h-2 w-2 bg-muted-foreground/40",
+          )}
+        />
+        <div className="flex-1 min-w-0">
+          <p
+            className={cn(
+              "leading-snug truncate text-foreground",
+              isCritical ? "text-[15px] font-semibold" : "text-[14.5px] font-medium",
+            )}
+          >
+            {issue.title}
+          </p>
+          {issue.detail && (
+            <p
+              className={cn(
+                "text-xs text-muted-foreground mt-0.5 truncate",
+                isCritical && "text-foreground/60",
+              )}
+            >
+              {issue.detail}
+            </p>
+          )}
+        </div>
+        {clickable && (
+          <ChevronRight
+            className={cn(
+              "h-4 w-4 flex-shrink-0 transition-all duration-150",
+              "text-muted-foreground/50 group-hover:text-foreground group-hover:translate-x-0.5",
+            )}
+          />
+        )}
+      </button>
+    </motion.li>
   );
 };
 
