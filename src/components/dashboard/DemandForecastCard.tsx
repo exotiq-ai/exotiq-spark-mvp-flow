@@ -1098,7 +1098,7 @@ export const DemandForecastCard = ({ bookings = [] }: DemandForecastCardProps) =
                           {idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'} #{idx + 1}
                         </Badge>
                         <span className="text-xs text-muted-foreground">
-                          {format(new Date(opp.date), 'MMM d')}
+                          {safeFormat(opp.date, 'MMM d')}
                         </span>
                       </div>
                       <div className="text-lg font-bold text-success mb-1">
