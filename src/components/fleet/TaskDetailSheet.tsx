@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { VehicleTask, TaskType, TaskPriority, TaskStatus } from '@/hooks/useFleetTasks';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTeam } from '@/contexts/TeamContext';
+import { EntityCommentThread } from '@/components/comments/EntityCommentThread';
 import {
   CheckCircle2, Clock, User,
   Droplets, Fuel, ClipboardCheck, Wrench, LogIn, LogOut, Sparkles, AlertCircle,
