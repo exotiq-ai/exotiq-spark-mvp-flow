@@ -282,7 +282,7 @@ const MessageBubble = ({
         )}>
           {message.content && (
             <p className="text-sm whitespace-pre-wrap break-words">
-              {renderMessageWithMentions(message.content, teamMembers, isOwn)}
+              {renderMessageWithMentions(message.content, mentionContext, isOwn)}
             </p>
           )}
           
