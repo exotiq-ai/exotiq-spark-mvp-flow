@@ -59,6 +59,12 @@ import { format, addDays, differenceInDays, startOfDay, subMonths, subYears } fr
 import { DateRange } from "react-day-picker";
 import { useAIDemandForecast, type DemandForecast, type PricingAdjustment, type Opportunity } from "@/hooks/useAIDemandForecast";
 
+const safeFormat = (value: unknown, fmt: string, fallback = '—') => {
+  if (!value) return fallback;
+  const d = value instanceof Date ? value : new Date(value as string);
+  return isNaN(d.getTime()) ? fallback : format(d, fmt);
+};
+
 type Booking = Tables<'bookings'>;
 
 interface EventData {
@@ -875,7 +881,7 @@ export const DemandForecastCard = ({ bookings = [] }: DemandForecastCardProps) =
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-sm truncate">{event.name}</p>
                           <p className="text-xs text-muted-foreground">
-                            {format(new Date(event.date), 'MMM d')} • {event.attendance.toLocaleString()} attendees
+                            {safeFormat(event.date, 'MMM d')} • {event.attendance.toLocaleString()} attendees
                           </p>
                         </div>
                         <Badge className="bg-warning/20 text-warning">{event.impactScore}</Badge>
@@ -1092,7 +1098,7 @@ export const DemandForecastCard = ({ bookings = [] }: DemandForecastCardProps) =
                           {idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'} #{idx + 1}
                         </Badge>
                         <span className="text-xs text-muted-foreground">
-                          {format(new Date(opp.date), 'MMM d')}
+                          {safeFormat(opp.date, 'MMM d')}
                         </span>
                       </div>
                       <div className="text-lg font-bold text-success mb-1">
@@ -1120,7 +1126,7 @@ export const DemandForecastCard = ({ bookings = [] }: DemandForecastCardProps) =
                   {aiForecast.dailyPredictions.slice(0, 7).map((pred, idx) => (
                     <div key={idx} className="flex flex-col items-center gap-1 p-2 rounded-lg bg-background/50">
                       <span className="text-xs text-muted-foreground">
-                        {format(new Date(pred.date), 'EEE')}
+                        {safeFormat(pred.date, 'EEE')}
                       </span>
                       <div className={`text-lg font-bold ${
                         pred.demandLevel === 'peak' ? 'text-success' :
@@ -1209,7 +1215,7 @@ export const DemandForecastCard = ({ bookings = [] }: DemandForecastCardProps) =
                     <div className="flex-1 min-w-0">
                       <div className="font-medium text-sm truncate">{event.name}</div>
                       <div className="text-xs text-muted-foreground flex items-center gap-2">
-                        <span>{format(new Date(event.date), 'MMM d, h:mm a')}</span>
+                        <span>{safeFormat(event.date, 'MMM d, h:mm a')}</span>
                         <span>•</span>
                         <span className={catData.color}>{event.category}</span>
                       </div>
