@@ -15,6 +15,9 @@ import {
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { WeeklyDigestCard } from "./WeeklyDigestCard";
 import { supabase } from "@/integrations/supabase/client";
+import { useModuleNavigation } from "@/hooks/useModuleNavigation";
+import { useNavigate } from "react-router-dom";
+import { moduleIdToPath } from "@/lib/moduleRoutes";
 
 interface DailyBriefCardProps {
   onModuleClick: (moduleId: string) => void;
