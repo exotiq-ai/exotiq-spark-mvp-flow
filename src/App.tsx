@@ -32,6 +32,7 @@ const Welcome = lazy(() => import("./pages/Welcome"));
 const SignOut = lazy(() => import("./pages/SignOut"));
 const Reset = lazy(() => import("./pages/Reset"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const Demo = lazy(() => import("./pages/Demo"));
 const Terms = lazy(() => import("./pages/legal/Terms"));
 const Privacy = lazy(() => import("./pages/legal/Privacy"));
 const AcceptableUse = lazy(() => import("./pages/legal/AcceptableUse"));
