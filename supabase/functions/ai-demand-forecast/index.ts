@@ -260,6 +260,9 @@ High-end vehicles (supercars, exotics) see even larger demand spikes during even
       });
     }
 
+    // Sanitize AI-returned dates so the UI never receives an unparseable string.
+    forecast = sanitizeForecastDates(forecast, dateRange);
+
     return new Response(JSON.stringify(forecast), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

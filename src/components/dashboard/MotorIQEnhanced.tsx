@@ -13,6 +13,7 @@ import { PriceUtilizationScatterPlot } from "@/components/charts/PriceUtilizatio
 import { DynamicPricingCard } from "@/components/dashboard/DynamicPricingCard";
 import type { PricingContext } from "@/components/dashboard/DynamicPricingCard";
 import { DemandForecastCard } from "@/components/dashboard/DemandForecastCard";
+import { DemandForecastErrorBoundary } from "@/components/dashboard/DemandForecastErrorBoundary";
 import { RateTiersPanel } from "@/components/dashboard/RateTiersPanel";
 import { PricingCalendar } from "@/components/dashboard/PricingCalendar";
 import { WeeklyDigestCard } from "@/components/dashboard/WeeklyDigestCard";
@@ -508,7 +509,9 @@ export const MotorIQEnhanced = () => {
           </TabsContent>
 
           <TabsContent value="forecast" className="space-y-6">
-            <DemandForecastCard bookings={bookings} />
+            <DemandForecastErrorBoundary>
+              <DemandForecastCard bookings={bookings} />
+            </DemandForecastErrorBoundary>
           </TabsContent>
 
           <TabsContent value="rate-tiers" className="space-y-6">
