@@ -53,6 +53,7 @@ export const TaskDetailSheet = ({
   task, open, onOpenChange, vehicleMap, onStatusChange, onClaim, onConvertToWorkOrder,
 }: TaskDetailSheetProps) => {
   const { user } = useAuth();
+  const { currentTeam } = useTeam();
 
   if (!task) return null;
 
