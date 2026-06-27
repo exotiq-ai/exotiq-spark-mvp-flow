@@ -116,7 +116,6 @@ export const DailyBriefCard = ({ onModuleClick }: DailyBriefCardProps) => {
     if (issue.module) onModuleClick(issue.module);
   };
 
-  const greeting = useMemo(() => greetingFor(new Date().getHours()), []);
 
   // Operator role hides the "This Week" toggle — they live in the now.
   const showWeekToggle = facts.role !== "operator";
