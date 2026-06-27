@@ -73,32 +73,36 @@ export const useTeamMessaging = () => {
   const [messages, setMessages] = useState<TeamMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [messagesLoading, setMessagesLoading] = useState(false);
-  const [teamMembers, setTeamMembers] = useState<{ id: string; name: string; email: string; avatar_url: string | null }[]>([]);
+  const [teamMembers, setTeamMembers] = useState<{ id: string; name: string; email: string; avatar_url: string | null; handle: string | null; role: string | null; is_active: boolean }[]>([]);
   const { user } = useAuth();
   const { currentTeam } = useTeam();
   const currentTeamId = currentTeam?.id || null;
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
-  // Fetch team members scoped to current user's team only
+  // Fetch team members scoped to current user's team only.
+  // Returns active + recently-inactive members so old @mentions can be rendered
+  // with an "(inactive)" tag; the picker filters to active-only.
   const fetchTeamMembers = useCallback(async () => {
     if (!user || !currentTeamId) return;
 
     const { data, error } = await supabase
       .from('team_members')
-      .select('user_id, profiles(id, full_name, email, avatar_url)')
-      .eq('team_id', currentTeamId)
-      .eq('is_active', true);
+      .select('user_id, role, is_active, profiles(id, full_name, email, avatar_url, handle)')
+      .eq('team_id', currentTeamId);
 
     if (!error && data) {
       setTeamMembers(data
         .filter(tm => tm.profiles)
         .map(tm => {
-          const p = tm.profiles as unknown as { id: string; full_name: string | null; email: string; avatar_url: string | null };
+          const p = tm.profiles as unknown as { id: string; full_name: string | null; email: string; avatar_url: string | null; handle: string | null };
           return {
             id: p.id,
             name: p.full_name || p.email,
             email: p.email,
             avatar_url: p.avatar_url,
+            handle: p.handle,
+            role: (tm as { role?: string }).role ?? null,
+            is_active: (tm as { is_active?: boolean }).is_active !== false,
           };
         })
       );

@@ -24,12 +24,15 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { CompanyLogoUpload } from "@/components/shared/CompanyLogoUpload";
+import { cn } from "@/lib/utils";
 
 interface Profile {
   full_name: string | null;
   phone: string | null;
   company_name: string | null;
   avatar_url: string | null;
+  handle: string | null;
+  handle_changed_at: string | null;
 }
 
 export const MyAccountSection = () => {
@@ -42,8 +45,11 @@ export const MyAccountSection = () => {
     fullName: "",
     email: user?.email || "",
     phone: "",
-    companyName: ""
+    companyName: "",
+    handle: ""
   });
+  const [handleAvailable, setHandleAvailable] = useState<null | boolean>(null);
+  const [handleError, setHandleError] = useState<string | null>(null);
   const [passwordData, setPasswordData] = useState({
     currentPassword: "",
     newPassword: "",
@@ -57,17 +63,18 @@ export const MyAccountSection = () => {
       
       const { data } = await supabase
         .from('profiles')
-        .select('full_name, phone, company_name, avatar_url')
+        .select('full_name, phone, company_name, avatar_url, handle, handle_changed_at')
         .eq('id', user.id)
         .single();
-      
+
       if (data) {
-        setProfile(data);
+        setProfile(data as Profile);
         setFormData({
           fullName: data.full_name || "",
           email: user.email || "",
           phone: data.phone || "",
-          companyName: data.company_name || ""
+          companyName: data.company_name || "",
+          handle: data.handle || ""
         });
       }
     };
@@ -75,17 +82,53 @@ export const MyAccountSection = () => {
     fetchProfile();
   }, [user]);
 
+  // Live handle availability check (debounced)
+  useEffect(() => {
+    const h = formData.handle.trim().toLowerCase();
+    setHandleError(null);
+    setHandleAvailable(null);
+    if (!h || h === (profile?.handle || "")) return;
+    if (!/^[a-z0-9][a-z0-9_.]{1,23}$/.test(h)) {
+      setHandleError("2–24 chars, letters/numbers/underscore/dot, starts with letter or number");
+      return;
+    }
+    const t = setTimeout(async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('handle', h)
+        .maybeSingle();
+      setHandleAvailable(!data || data.id === user?.id);
+    }, 350);
+    return () => clearTimeout(t);
+  }, [formData.handle, profile?.handle, user?.id]);
+
   const handleSaveProfile = async () => {
     setIsLoading(true);
     try {
+      const newHandle = formData.handle.trim().toLowerCase();
+      const updates: Record<string, unknown> = {
+        full_name: formData.fullName,
+        phone: formData.phone,
+        company_name: formData.companyName,
+        updated_at: new Date().toISOString(),
+      };
+      // Only attempt handle update if changed AND valid
+      if (newHandle && newHandle !== (profile?.handle || "")) {
+        if (handleError || handleAvailable === false) {
+          toast({
+            title: "Handle unavailable",
+            description: handleError || "That handle is already taken.",
+            variant: "destructive",
+          });
+          setIsLoading(false);
+          return;
+        }
+        updates.handle = newHandle;
+      }
       const { error } = await supabase
         .from('profiles')
-        .update({
-          full_name: formData.fullName,
-          phone: formData.phone,
-          company_name: formData.companyName,
-          updated_at: new Date().toISOString()
-        })
+        .update(updates)
         .eq('id', user?.id);
 
       if (error) throw error;
@@ -94,10 +137,12 @@ export const MyAccountSection = () => {
         title: "Profile Updated",
         description: "Your account information has been saved."
       });
-    } catch (error) {
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : "Failed to update profile. Please try again.";
       toast({
         title: "Error",
-        description: "Failed to update profile. Please try again.",
+        description: message,
         variant: "destructive"
       });
     } finally {
@@ -195,6 +240,41 @@ export const MyAccountSection = () => {
                   placeholder="John Doe"
                 />
               </div>
+
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <span className="text-muted-foreground font-mono">@</span>
+                  Handle
+                </Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm pointer-events-none">@</span>
+                  <Input
+                    value={formData.handle}
+                    onChange={(e) =>
+                      setFormData(prev => ({ ...prev, handle: e.target.value.toLowerCase() }))
+                    }
+                    placeholder="yourhandle"
+                    className="pl-7"
+                    maxLength={24}
+                  />
+                </div>
+                <p className={cn(
+                  "text-xs",
+                  handleError ? "text-destructive" :
+                    handleAvailable === true ? "text-success" :
+                    handleAvailable === false ? "text-destructive" :
+                    "text-muted-foreground"
+                )}>
+                  {handleError
+                    ? handleError
+                    : handleAvailable === true
+                      ? "Available"
+                      : handleAvailable === false
+                        ? "Already taken"
+                        : "Teammates use this to @mention you. Can be changed once every 30 days."}
+                </p>
+              </div>
+
 
               <div className="space-y-2">
                 <Label className="flex items-center gap-2">

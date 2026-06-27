@@ -24,6 +24,18 @@ import { useReadReceipts } from '@/hooks/useReadReceipts';
 import { usePinnedMessages } from '@/hooks/usePinnedMessages';
 import { useMessageSearch } from '@/hooks/useMessageSearch';
 import { useMessageActions } from '@/hooks/useMessageActions';
+import { useTeamGroups } from '@/hooks/useTeamGroups';
+import { useUserRole } from '@/hooks/useUserRole';
+import {
+  buildPickerItems,
+  parseMentions,
+  resolveMention,
+  type MentionableMember,
+  type MentionContext,
+  type PickerItem,
+} from '@/lib/mentions';
+import { MentionPicker } from './MentionPicker';
+import { MentionConfirmDialog } from './MentionConfirmDialog';
 import { TypingIndicator } from './TypingIndicator';
 import { OnlineIndicator } from './OnlineIndicator';
 import { ReadReceipts } from './ReadReceipts';
@@ -62,51 +74,69 @@ interface MessageThreadProps {
   onSendMessage: (content: string, attachments?: Attachment[], mentions?: string[], replyTo?: string) => void;
   onReaction: (messageId: string, emoji: string) => void;
   onUploadAttachment: (file: File) => Promise<Attachment | null>;
-  teamMembers: { id: string; name: string; email?: string; avatar_url: string | null }[];
+  teamMembers: MentionableMember[];
 }
 
 const EMOJI_LIST = ['👍', '❤️', '😂', '😮', '😢', '🎉', '🔥', '✅'];
 
 // Helper to render message content with highlighted @mentions
-const renderMessageWithMentions = (content: string, teamMembers: { id: string; name: string }[], isOwn: boolean) => {
-  const mentionRegex = /@(\w+(?:\s+\w+)?)/g;
+const renderMessageWithMentions = (
+  content: string,
+  ctx: MentionContext,
+  isOwn: boolean,
+) => {
+  const mentionRegex = /@([a-zA-Z0-9_.-]{1,32})/g;
   const parts: (string | JSX.Element)[] = [];
   let lastIndex = 0;
-  let match;
+  let match: RegExpExecArray | null;
 
   while ((match = mentionRegex.exec(content)) !== null) {
     if (match.index > lastIndex) {
       parts.push(content.slice(lastIndex, match.index));
     }
-    
-    const mentionName = match[1];
-    const matchedMember = teamMembers.find(m => 
-      m.name.toLowerCase().includes(mentionName.toLowerCase())
-    );
-    
-    if (matchedMember) {
+    const ref = match[1];
+    const token = resolveMention(ref, ctx);
+
+    if (token) {
+      const isInactiveUser =
+        token.kind === 'user' &&
+        ctx.teamMembers.find((m) => m.id === token.userIds[0])?.is_active === false;
+
+      const tint =
+        token.kind === 'all'
+          ? 'bg-destructive/15 text-destructive'
+          : token.kind === 'role'
+            ? 'bg-warning/15 text-warning'
+            : token.kind === 'group'
+              ? 'bg-primary/15 text-primary'
+              : isOwn
+                ? 'bg-primary-foreground/20 text-primary-foreground'
+                : 'bg-primary/20 text-primary';
+
       parts.push(
-        <span 
-          key={match.index} 
+        <span
+          key={match.index}
           className={cn(
-            "font-semibold px-1 rounded",
-            isOwn ? "bg-primary-foreground/20 text-primary-foreground" : "bg-primary/20 text-primary"
+            'font-semibold px-1 rounded',
+            isInactiveUser && 'opacity-60 line-through',
+            tint,
           )}
+          title={isInactiveUser ? 'Inactive teammate' : undefined}
         >
-          @{mentionName}
-        </span>
+          {token.label}
+          {isInactiveUser && ' (inactive)'}
+        </span>,
       );
     } else {
       parts.push(match[0]);
     }
-    
     lastIndex = match.index + match[0].length;
   }
-  
+
   if (lastIndex < content.length) {
     parts.push(content.slice(lastIndex));
   }
-  
+
   return parts.length > 0 ? parts : content;
 };
 
@@ -135,7 +165,7 @@ interface MessageBubbleProps {
   onEdit: () => void;
   onDelete: () => void;
   isPinned: boolean;
-  teamMembers: { id: string; name: string }[];
+  mentionContext: MentionContext;
   readers: { user_id: string; read_at: string }[];
   currentUserId?: string;
 }
@@ -151,7 +181,7 @@ const MessageBubble = ({
   onEdit,
   onDelete,
   isPinned,
-  teamMembers,
+  mentionContext,
   readers,
   currentUserId
 }: MessageBubbleProps) => {
@@ -252,7 +282,7 @@ const MessageBubble = ({
         )}>
           {message.content && (
             <p className="text-sm whitespace-pre-wrap break-words">
-              {renderMessageWithMentions(message.content, teamMembers, isOwn)}
+              {renderMessageWithMentions(message.content, mentionContext, isOwn)}
             </p>
           )}
           
@@ -409,6 +439,14 @@ export const MessageThread = ({
   const { pinnedMessages, pinMessage, unpinMessage } = usePinnedMessages(conversation.id);
   const { searchResults, isSearching, searchQuery, searchMessages, clearSearch } = useMessageSearch(conversation.id);
   const { editMessage, deleteMessage, isEditing, isDeleting } = useMessageActions();
+  const { groups } = useTeamGroups();
+  const { role: currentUserRole } = useUserRole();
+
+  // Confirmation modal state
+  const [pendingSendRecipients, setPendingSendRecipients] = useState<
+    { id: string; name: string; avatar_url?: string | null }[] | null
+  >(null);
+  const [pendingHasGroupMention, setPendingHasGroupMention] = useState(false);
 
   // Get typing users for this conversation
   const typingUsers = getTypingUsers(conversation.id);
@@ -417,32 +455,30 @@ export const MessageThread = ({
     .map(id => teamMembers.find(m => m.id === id)?.name?.split(' ')[0] || 'Someone')
     .filter(Boolean);
 
-  // Filter team members for mention autocomplete
-  const filteredMembers = useMemo(() => {
-    if (!mentionSearch) return teamMembers.filter(m => m.id !== user?.id);
-    return teamMembers
-      .filter(m => m.id !== user?.id)
-      .filter(m => m.name.toLowerCase().includes(mentionSearch.toLowerCase()));
-  }, [teamMembers, mentionSearch, user?.id]);
+  // Build the mention context (members + groups + conversation members)
+  const conversationMemberIds = useMemo(
+    () => (conversation.members || []).map((m) => m.user_id),
+    [conversation.members],
+  );
+  const mentionContext: MentionContext = useMemo(
+    () => ({
+      conversationMemberIds,
+      teamMembers,
+      groups: groups.map((g) => ({ slug: g.slug, name: g.name, member_ids: g.member_ids })),
+    }),
+    [conversationMemberIds, teamMembers, groups],
+  );
 
-  // Parse mentions from message content
-  const parseMentions = useCallback((content: string): string[] => {
-    const mentionRegex = /@(\w+(?:\s+\w+)?)/g;
-    const mentions: string[] = [];
-    let match;
-    
-    while ((match = mentionRegex.exec(content)) !== null) {
-      const mentionName = match[1];
-      const matchedMember = teamMembers.find(m => 
-        m.name.toLowerCase() === mentionName.toLowerCase() ||
-        m.name.toLowerCase().startsWith(mentionName.toLowerCase())
-      );
-      if (matchedMember && !mentions.includes(matchedMember.id)) {
-        mentions.push(matchedMember.id);
-      }
-    }
-    return mentions;
-  }, [teamMembers]);
+  const canMentionAll =
+    currentUserRole === 'owner' || currentUserRole === 'admin';
+
+  // Autocomplete items
+  const pickerItems: PickerItem[] = useMemo(
+    () => buildPickerItems(mentionSearch, mentionContext, canMentionAll, user?.id),
+    [mentionSearch, mentionContext, canMentionAll, user?.id],
+  );
+
+
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -470,9 +506,18 @@ export const MessageThread = ({
     }
   }, [newMessage, setTyping]);
 
+  const performSend = (recipientIds: string[]) => {
+    onSendMessage(newMessage.trim(), attachments, recipientIds, replyTo?.id);
+    setNewMessage('');
+    setAttachments([]);
+    setReplyTo(null);
+    setShowMentionPopup(false);
+    setTyping(false);
+  };
+
   const handleSend = async () => {
     if (!newMessage.trim() && attachments.length === 0) return;
-    
+
     // Handle edit mode
     if (editingMessage) {
       await editMessage(editingMessage.id, newMessage.trim());
@@ -480,21 +525,31 @@ export const MessageThread = ({
       setNewMessage('');
       return;
     }
-    
-    const mentions = parseMentions(newMessage);
-    
-    onSendMessage(
-      newMessage.trim(),
-      attachments,
-      mentions,
-      replyTo?.id
+
+    const { tokens, recipientIds } = parseMentions(
+      newMessage,
+      mentionContext,
+      user?.id,
     );
-    
-    setNewMessage('');
-    setAttachments([]);
-    setReplyTo(null);
-    setShowMentionPopup(false);
-    setTyping(false);
+
+    const hasGroupMention = tokens.some(
+      (t) => t.kind === 'all' || t.kind === 'role' || t.kind === 'group',
+    );
+
+    // Confirm if blast radius is large or any group/role/@all mention is used
+    if (hasGroupMention || recipientIds.length > 3) {
+      const recipients = recipientIds
+        .map((id) => {
+          const m = teamMembers.find((tm) => tm.id === id);
+          return m ? { id, name: m.name, avatar_url: m.avatar_url } : null;
+        })
+        .filter(Boolean) as { id: string; name: string; avatar_url?: string | null }[];
+      setPendingHasGroupMention(hasGroupMention);
+      setPendingSendRecipients(recipients);
+      return;
+    }
+
+    performSend(recipientIds);
   };
 
   const handleMessageChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -504,8 +559,8 @@ export const MessageThread = ({
     setCursorPosition(cursor);
 
     const textBeforeCursor = value.slice(0, cursor);
-    const atMatch = textBeforeCursor.match(/@(\w*)$/);
-    
+    const atMatch = textBeforeCursor.match(/@([a-zA-Z0-9_.-]*)$/);
+
     if (atMatch) {
       setMentionSearch(atMatch[1]);
       setShowMentionPopup(true);
@@ -516,18 +571,17 @@ export const MessageThread = ({
     }
   };
 
-  const insertMention = (member: { id: string; name: string }) => {
+  const insertMention = (item: PickerItem) => {
     const textBeforeCursor = newMessage.slice(0, cursorPosition);
     const textAfterCursor = newMessage.slice(cursorPosition);
-    
-    const atMatch = textBeforeCursor.match(/@(\w*)$/);
+
+    const atMatch = textBeforeCursor.match(/@([a-zA-Z0-9_.-]*)$/);
     if (atMatch) {
       const beforeMention = textBeforeCursor.slice(0, atMatch.index);
-      const firstName = member.name.split(' ')[0];
-      const newText = beforeMention + '@' + firstName + ' ' + textAfterCursor;
+      const newText = beforeMention + '@' + item.ref + ' ' + textAfterCursor;
       setNewMessage(newText);
-      
-      const newCursorPos = beforeMention.length + firstName.length + 2;
+
+      const newCursorPos = beforeMention.length + item.ref.length + 2;
       setTimeout(() => {
         if (textareaRef.current) {
           textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
@@ -535,26 +589,26 @@ export const MessageThread = ({
         }
       }, 0);
     }
-    
+
     setShowMentionPopup(false);
     setMentionSearch('');
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (showMentionPopup && filteredMembers.length > 0) {
+    if (showMentionPopup && pickerItems.length > 0) {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
-        setMentionIndex(prev => (prev + 1) % filteredMembers.length);
+        setMentionIndex(prev => (prev + 1) % pickerItems.length);
         return;
       }
       if (e.key === 'ArrowUp') {
         e.preventDefault();
-        setMentionIndex(prev => (prev - 1 + filteredMembers.length) % filteredMembers.length);
+        setMentionIndex(prev => (prev - 1 + pickerItems.length) % pickerItems.length);
         return;
       }
       if (e.key === 'Enter' || e.key === 'Tab') {
         e.preventDefault();
-        insertMention(filteredMembers[mentionIndex]);
+        insertMention(pickerItems[mentionIndex]);
         return;
       }
       if (e.key === 'Escape') {
@@ -792,7 +846,7 @@ export const MessageThread = ({
                       onEdit={() => handleEditMessage(msg)}
                       onDelete={() => handleDeleteMessage(msg.id)}
                       isPinned={pinnedMessageIds.has(msg.id)}
-                      teamMembers={teamMembers}
+                      mentionContext={mentionContext}
                       readers={readers}
                       currentUserId={user?.id}
                     />
@@ -919,48 +973,12 @@ export const MessageThread = ({
       <div className="p-3 border-t border-border relative">
         {/* Mention Autocomplete Popup */}
         <AnimatePresence>
-          {showMentionPopup && filteredMembers.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 10 }}
-              className="absolute bottom-full left-3 right-3 mb-2 bg-popover border border-border rounded-lg shadow-lg max-h-[200px] overflow-y-auto z-50"
-            >
-              <div className="p-1">
-                <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground flex items-center gap-1">
-                  <AtSign className="h-3 w-3" />
-                  Mention someone
-                </div>
-                {filteredMembers.slice(0, 6).map((member, index) => {
-                  const isOnline = onlineUsers.has(member.id);
-                  return (
-                    <button
-                      key={member.id}
-                      onClick={() => insertMention(member)}
-                      className={cn(
-                        "w-full flex items-center gap-2 px-2 py-1.5 rounded text-left transition-colors",
-                        index === mentionIndex ? "bg-accent" : "hover:bg-muted"
-                      )}
-                    >
-                      <div className="relative">
-                        <Avatar className="h-6 w-6">
-                          <AvatarImage src={member.avatar_url || undefined} />
-                          <AvatarFallback className="text-[10px]">
-                            {member.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <OnlineIndicator 
-                          isOnline={isOnline} 
-                          size="sm" 
-                          className="absolute -bottom-0.5 -right-0.5" 
-                        />
-                      </div>
-                      <span className="text-sm font-medium">{member.name}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </motion.div>
+          {showMentionPopup && pickerItems.length > 0 && (
+            <MentionPicker
+              items={pickerItems}
+              activeIndex={mentionIndex}
+              onPick={insertMention}
+            />
           )}
         </AnimatePresence>
 
@@ -1008,6 +1026,23 @@ export const MessageThread = ({
           </Button>
         </div>
       </div>
+
+      {/* Mention confirmation */}
+      <MentionConfirmDialog
+        open={pendingSendRecipients !== null}
+        recipients={pendingSendRecipients || []}
+        hasGroupMention={pendingHasGroupMention}
+        onConfirm={() => {
+          const ids = (pendingSendRecipients || []).map((r) => r.id);
+          setPendingSendRecipients(null);
+          setPendingHasGroupMention(false);
+          performSend(ids);
+        }}
+        onCancel={() => {
+          setPendingSendRecipients(null);
+          setPendingHasGroupMention(false);
+        }}
+      />
     </div>
   );
 };

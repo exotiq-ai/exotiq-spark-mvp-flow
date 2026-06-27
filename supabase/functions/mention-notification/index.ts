@@ -69,11 +69,58 @@ serve(async (req) => {
 
     console.log("Processing mention notifications for users:", mentionedUserIds);
 
+    // Re-validate: only notify users who are actually members of the conversation
+    // (prevents cross-channel leaks via group expansion or stale client lists)
+    const { data: convMembers } = await supabaseAdmin
+      .from("conversation_members")
+      .select("user_id")
+      .eq("conversation_id", conversationId)
+      .in("user_id", mentionedUserIds);
+    const memberSet = new Set((convMembers || []).map((m) => m.user_id));
+
+    // Filter out inactive team members
+    const { data: activeMembership } = await supabaseAdmin
+      .from("team_members")
+      .select("user_id, is_active")
+      .in("user_id", mentionedUserIds);
+    const activeSet = new Set(
+      (activeMembership || [])
+        .filter((m) => m.is_active !== false)
+        .map((m) => m.user_id),
+    );
+
+    // 60-second dedupe per (recipient, conversation, sender, channel)
+    const sinceIso = new Date(Date.now() - 60_000).toISOString();
+    const { data: recentLogs } = await supabaseAdmin
+      .from("mention_notifications_log")
+      .select("recipient_id, channel")
+      .eq("conversation_id", conversationId)
+      .eq("sender_id", senderId)
+      .in("recipient_id", mentionedUserIds)
+      .gte("created_at", sinceIso);
+    const recentlyNotifiedEmail = new Set(
+      (recentLogs || []).filter((r) => r.channel === "email").map((r) => r.recipient_id),
+    );
+    const recentlyNotifiedSlack = new Set(
+      (recentLogs || []).filter((r) => r.channel === "slack").map((r) => r.recipient_id),
+    );
+
+    const allowedUserIds = mentionedUserIds.filter(
+      (id) => id !== senderId && memberSet.has(id) && activeSet.has(id),
+    );
+
+    if (allowedUserIds.length === 0) {
+      console.log("No eligible recipients after filtering");
+      return new Response(JSON.stringify({ success: true, emailsSent: 0, slackSent: 0 }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Get mentioned users' profiles and notification preferences
     const { data: mentionedUsers, error: usersError } = await supabaseAdmin
       .from("profiles")
       .select("id, email, full_name")
-      .in("id", mentionedUserIds);
+      .in("id", allowedUserIds);
 
     if (usersError) {
       console.error("Error fetching mentioned users:", usersError);
@@ -91,7 +138,7 @@ serve(async (req) => {
     const { data: preferences } = await supabaseAdmin
       .from("notification_preferences")
       .select("user_id, email_mentions, slack_enabled, slack_mentions, slack_webhook_url")
-      .in("user_id", mentionedUserIds);
+      .in("user_id", allowedUserIds);
 
     const prefsMap = new Map(preferences?.map(p => [p.user_id, p]) || []);
 
@@ -109,8 +156,11 @@ serve(async (req) => {
     const emailPromises = mentionedUsers
       .filter(user => {
         if (user.id === senderId || !user.email) return false;
+        if (recentlyNotifiedEmail.has(user.id)) {
+          console.log(`Skipping email to ${user.id} (deduped within 60s)`);
+          return false;
+        }
         const userPrefs = prefsMap.get(user.id);
-        // Default to true if no preferences exist
         return userPrefs?.email_mentions !== false;
       })
       .map(async (user) => {
@@ -170,6 +220,10 @@ serve(async (req) => {
     const slackPromises = mentionedUsers
       .filter(user => {
         if (user.id === senderId) return false;
+        if (recentlyNotifiedSlack.has(user.id)) {
+          console.log(`Skipping Slack to ${user.id} (deduped within 60s)`);
+          return false;
+        }
         const userPrefs = prefsMap.get(user.id);
         return userPrefs?.slack_enabled && userPrefs?.slack_mentions && userPrefs?.slack_webhook_url;
       })
@@ -209,6 +263,20 @@ serve(async (req) => {
     const allResults = await Promise.all([...emailPromises, ...slackPromises]);
     const emailSuccess = allResults.filter(r => r.type === "email" && r.success).length;
     const slackSuccess = allResults.filter(r => r.type === "slack" && r.success).length;
+
+    // Write dedupe log rows for every successful send
+    const logRows = allResults
+      .filter((r) => r.success)
+      .map((r) => ({
+        conversation_id: conversationId,
+        message_id: messageId,
+        sender_id: senderId,
+        recipient_id: r.userId,
+        channel: r.type,
+      }));
+    if (logRows.length > 0) {
+      await supabaseAdmin.from("mention_notifications_log").insert(logRows);
+    }
 
     console.log(`Successfully sent ${emailSuccess} emails and ${slackSuccess} Slack notifications`);
 
