@@ -143,14 +143,9 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
     }
   }, [refreshData, toast]);
   
-  // Collapsible state persistence
+  // Collapsible state persistence (legacy dashboard only)
   const [showFleetSchedule, setShowFleetSchedule] = useLocalStorage<boolean>("dashboardFleetSchedule", false);
   const dailyBriefEnabled = isFeatureEnabled('dailyBrief');
-  // When Daily Brief is on, the legacy hero banner shrinks to a hideable toggle (default hidden,
-  // since the brief replaces it). When the flag is off, this state is ignored and BannerWidget
-  // renders unchanged below for byte-identical behaviour.
-  const [showHeroBanner, setShowHeroBanner] = useLocalStorage<boolean>("dashboardHeroVisible", false);
-  const isManagerPlus = isManagerOrHigher('manager');
 
   // Calculate vehicles currently out (confirmed bookings spanning today)
   const { activeVehicleIds, activeBookingsCount, pendingCount } = useMemo(() => {
