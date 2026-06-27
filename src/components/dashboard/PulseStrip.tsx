@@ -134,10 +134,7 @@ export const PulseStrip = ({ onModuleClick }: PulseStripProps) => {
         onClick={() => onModuleClick("book")}
       >
         {upcoming.length === 0 ? (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
-            <Clock className="h-4 w-4" />
-            Quiet stretch ahead.
-          </div>
+          <HorizonTimeline />
         ) : (
           <ul className="space-y-1.5">
             {upcoming.map((u) => (
@@ -197,6 +194,38 @@ const Tile = ({
   </button>
 );
 
+const HorizonTimeline = () => {
+  const ticks = useMemo(() => {
+    const now = new Date();
+    return [1, 2, 3, 4].map((h) => {
+      const t = new Date(now.getTime() + h * 60 * 60 * 1000);
+      return format(t, "h a").toLowerCase();
+    });
+  }, []);
+  return (
+    <div className="space-y-2 py-1">
+      <div className="relative h-px bg-border/60">
+        {[0, 1, 2, 3].map((i) => (
+          <span
+            key={i}
+            className="absolute top-1/2 -translate-y-1/2 h-1.5 w-px bg-muted-foreground/40"
+            style={{ left: `${(i / 3) * 100}%` }}
+          />
+        ))}
+      </div>
+      <div className="flex justify-between text-[10px] text-muted-foreground/70 tabular-nums">
+        {ticks.map((t) => (
+          <span key={t}>{t}</span>
+        ))}
+      </div>
+      <div className="flex items-center gap-2 text-xs text-muted-foreground pt-1">
+        <Clock className="h-3 w-3" />
+        Quiet stretch ahead.
+      </div>
+    </div>
+  );
+};
+
 const Sparkline = ({ values }: { values: number[] }) => {
   if (values.length === 0) {
     return <div className="h-10 text-xs text-muted-foreground">No revenue yet.</div>;
@@ -210,9 +239,11 @@ const Sparkline = ({ values }: { values: number[] }) => {
   const points = values
     .map((v, i) => `${(i * step).toFixed(1)},${(h - ((v - min) / range) * h).toFixed(1)}`)
     .join(" ");
+  const areaPoints = `0,${h} ${points} ${w},${h}`;
   const last = values[values.length - 1];
   const lastY = h - ((last - min) / range) * h;
   const lastX = (values.length - 1) * step;
+  const gradId = `pulse-spark-grad-${values.length}`;
   return (
     <svg
       viewBox={`0 0 ${w} ${h}`}
@@ -220,6 +251,13 @@ const Sparkline = ({ values }: { values: number[] }) => {
       className="h-10 w-full overflow-visible"
       aria-hidden
     >
+      <defs>
+        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.28" />
+          <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <polygon points={areaPoints} fill={`url(#${gradId})`} />
       <polyline
         points={points}
         fill="none"

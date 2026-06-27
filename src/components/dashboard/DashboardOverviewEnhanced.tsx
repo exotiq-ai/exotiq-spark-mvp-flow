@@ -44,6 +44,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { isFeatureEnabled } from "@/lib/featureFlags";
 import { DailyBriefCard } from "./DailyBriefCard";
 import { PulseStrip } from "./PulseStrip";
+import { LiveActivityStrip } from "./widgets/LiveActivityStrip";
+import { QuickJumpTiles } from "./widgets/QuickJumpTiles";
 import { 
   TrendingUp, 
   Calendar, 
@@ -491,10 +493,28 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
       {/* Content wrapper */}
       <div className="relative">
         {dailyBriefEnabled ? (
-          /* Quiet Command — one decisive surface + quiet supporting context */
-          <div className="space-y-8 sm:space-y-10 pb-6 md:pb-24 max-w-5xl">
+          /* Quiet Command — three editorial bands */
+          <div className="space-y-10 sm:space-y-12 pb-6 md:pb-24 max-w-5xl">
+            {/* Band 1 — Hero brief */}
             <DailyBriefCard onModuleClick={onModuleClick} />
+
+            {/* Band 2 — Today at a glance */}
             <PulseStrip onModuleClick={onModuleClick} />
+
+            {/* Band 3 — Live activity + module jumps */}
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.15 }}
+              className="grid grid-cols-1 lg:grid-cols-3 gap-6"
+            >
+              <div className="lg:col-span-2">
+                <LiveActivityStrip />
+              </div>
+              <div className="lg:col-span-1">
+                <QuickJumpTiles onModuleClick={onModuleClick} />
+              </div>
+            </motion.div>
           </div>
         ) : (
           /* Legacy dashboard — byte-identical to before the flag */
