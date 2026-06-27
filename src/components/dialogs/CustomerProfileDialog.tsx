@@ -304,6 +304,17 @@ export const CustomerProfileDialog = ({
 
           <TabsContent value="activity" className="space-y-4">
             <CustomerTimeline bookings={bookings} notes={customerNotesList} />
+            {currentTeam?.id && (
+              <div className="space-y-2 pt-2">
+                <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Team Discussion</h4>
+                <EntityCommentThread
+                  entityType="customer"
+                  entityId={customer.id}
+                  teamId={currentTeam.id}
+                  recordLabel={customer.full_name}
+                />
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="bookings" className="space-y-4">
