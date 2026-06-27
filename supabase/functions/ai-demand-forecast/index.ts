@@ -327,6 +327,47 @@ ${events.slice(0, 10).map(e => `- ${e.name} (${e.date}): ${e.attendance.toLocale
   return prompt;
 }
 
+function toIsoDate(value: unknown): string | null {
+  if (!value) return null;
+  const d = new Date(String(value));
+  if (isNaN(d.getTime())) return null;
+  return d.toISOString().split('T')[0];
+}
+
+function sanitizeForecastDates(
+  forecast: ForecastResponse,
+  dateRange: { from: string; to: string },
+): ForecastResponse {
+  const fallbackStart = new Date(dateRange.from);
+  const startIsValid = !isNaN(fallbackStart.getTime());
+
+  // Daily predictions: drop unparseable, then fill missing dates sequentially
+  // from dateRange.from so the daily grid stays complete.
+  const cleanedPredictions = (forecast.dailyPredictions || [])
+    .map((p, idx) => {
+      const iso = toIsoDate(p?.date);
+      if (iso) return { ...p, date: iso };
+      if (!startIsValid) return null;
+      const d = new Date(fallbackStart);
+      d.setDate(d.getDate() + idx);
+      return { ...p, date: d.toISOString().split('T')[0] };
+    })
+    .filter(Boolean) as DailyPrediction[];
+
+  const cleanedOpportunities = (forecast.opportunities || [])
+    .map((o) => {
+      const iso = toIsoDate(o?.date);
+      return iso ? { ...o, date: iso } : null;
+    })
+    .filter(Boolean) as Opportunity[];
+
+  return {
+    ...forecast,
+    dailyPredictions: cleanedPredictions,
+    opportunities: cleanedOpportunities,
+  };
+}
+
 function getFallbackForecast(): ForecastResponse {
   const today = new Date();
   const predictions: DailyPrediction[] = [];
