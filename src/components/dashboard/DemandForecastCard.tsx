@@ -1215,7 +1215,7 @@ export const DemandForecastCard = ({ bookings = [] }: DemandForecastCardProps) =
                     <div className="flex-1 min-w-0">
                       <div className="font-medium text-sm truncate">{event.name}</div>
                       <div className="text-xs text-muted-foreground flex items-center gap-2">
-                        <span>{format(new Date(event.date), 'MMM d, h:mm a')}</span>
+                        <span>{safeFormat(event.date, 'MMM d, h:mm a')}</span>
                         <span>•</span>
                         <span className={catData.color}>{event.category}</span>
                       </div>
