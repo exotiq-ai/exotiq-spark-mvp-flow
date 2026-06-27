@@ -165,7 +165,7 @@ interface MessageBubbleProps {
   onEdit: () => void;
   onDelete: () => void;
   isPinned: boolean;
-  teamMembers: { id: string; name: string }[];
+  mentionContext: MentionContext;
   readers: { user_id: string; read_at: string }[];
   currentUserId?: string;
 }
