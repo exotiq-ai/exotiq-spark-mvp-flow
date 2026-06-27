@@ -1316,6 +1316,18 @@ export const EnhancedBookingDialog = ({
                         </div>
                       )}
                     </TabsContent>
+
+                    {/* Activity Tab — @mentions + record-scoped comments */}
+                    <TabsContent value="activity" className="space-y-2 mt-4">
+                      {booking.team_id && (
+                        <EntityCommentThread
+                          entityType="booking"
+                          entityId={booking.id}
+                          teamId={booking.team_id}
+                          recordLabel={booking.booking_reference || "this booking"}
+                        />
+                      )}
+                    </TabsContent>
                   </Tabs>
 
                   <Separator />
