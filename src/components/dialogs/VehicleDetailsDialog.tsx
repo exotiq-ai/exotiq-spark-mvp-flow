@@ -78,6 +78,7 @@ export function VehicleDetailsDialog({
   maintenanceSchedules = [],
 }: VehicleDetailsDialogProps) {
   const imageUrl = getVehicleImage(vehicleName);
+  const { currentTeam } = useTeam();
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [selectedClaimForShare, setSelectedClaimForShare] = useState<DamageClaim | null>(null);
 
