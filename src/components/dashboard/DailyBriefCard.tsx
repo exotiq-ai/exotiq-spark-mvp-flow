@@ -283,11 +283,6 @@ export const DailyBriefCard = ({ onModuleClick }: DailyBriefCardProps) => {
                 <li key={issue.id}>
                   <button
                     type="button"
-              const clickable = Boolean(issue.module);
-              return (
-                <li key={issue.id}>
-                  <button
-                    type="button"
                     onClick={() => handleIssueClick(issue)}
                     disabled={!clickable}
                     className={cn(
