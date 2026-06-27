@@ -41,6 +41,8 @@ import { SkeletonLineChart, SkeletonDonutChart, SkeletonTable } from "@/componen
 import { useUserRole } from "@/hooks/useUserRole";
 import { performHardReload, isInRecoveryMode } from "@/lib/staleBuildRecovery";
 import { supabase } from "@/integrations/supabase/client";
+import { isFeatureEnabled } from "@/lib/featureFlags";
+import { DailyBriefCard } from "./DailyBriefCard";
 import { 
   TrendingUp, 
   Calendar, 
@@ -142,6 +144,12 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
   
   // Collapsible state persistence
   const [showFleetSchedule, setShowFleetSchedule] = useLocalStorage<boolean>("dashboardFleetSchedule", false);
+  const dailyBriefEnabled = isFeatureEnabled('dailyBrief');
+  // When Daily Brief is on, the legacy hero banner shrinks to a hideable toggle (default hidden,
+  // since the brief replaces it). When the flag is off, this state is ignored and BannerWidget
+  // renders unchanged below for byte-identical behaviour.
+  const [showHeroBanner, setShowHeroBanner] = useLocalStorage<boolean>("dashboardHeroVisible", false);
+  const isManagerPlus = isManagerOrHigher('manager');
 
   // Calculate vehicles currently out (confirmed bookings spanning today)
   const { activeVehicleIds, activeBookingsCount, pendingCount } = useMemo(() => {
