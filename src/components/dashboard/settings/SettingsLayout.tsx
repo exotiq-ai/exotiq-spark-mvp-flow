@@ -63,7 +63,7 @@ export const SettingsLayout = () => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showRightFade, setShowRightFade] = useState(true);
 
-  // Sync activeTab when URL ?tab= changes (e.g. Stripe Connect onboarding return)
+  // Sync activeTab when URL ?tab= changes (e.g. Stripe Connect onboarding return, deep links).
   useEffect(() => {
     const urlTab = searchParams.get('tab');
     if (urlTab && urlTab !== activeTab) {
@@ -71,6 +71,17 @@ export const SettingsLayout = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
+
+  // Push activeTab into URL so the tab is shareable / refresh-stable.
+  // Preserves any other query params already on the URL.
+  useEffect(() => {
+    const urlTab = searchParams.get('tab');
+    if (urlTab === activeTab) return;
+    const next = new URLSearchParams(searchParams);
+    next.set('tab', activeTab);
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
   const [showLeftFade, setShowLeftFade] = useState(false);
 
   // Filter tabs based on user role

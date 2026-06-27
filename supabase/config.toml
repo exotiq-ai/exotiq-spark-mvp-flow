@@ -114,6 +114,9 @@ verify_jwt = false
 [functions.weekly-intelligence-digest]
 verify_jwt = false
 
+[functions.daily-brief-narrative]
+verify_jwt = true
+
 [functions.generate-signed-pdf]
 verify_jwt = false
 

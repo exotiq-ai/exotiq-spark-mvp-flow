@@ -29,6 +29,8 @@ export const featureFlags = {
   savedViews: false,
   advancedFilters: false,
   customReports: false,
+  dailyBrief: false, // Command Center — Daily Brief hero card (verify per-account before global flip)
+  
   
   // Settings Features
   slackIntegration: false,

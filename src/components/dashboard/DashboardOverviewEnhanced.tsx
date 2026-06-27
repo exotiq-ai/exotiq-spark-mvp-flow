@@ -41,6 +41,8 @@ import { SkeletonLineChart, SkeletonDonutChart, SkeletonTable } from "@/componen
 import { useUserRole } from "@/hooks/useUserRole";
 import { performHardReload, isInRecoveryMode } from "@/lib/staleBuildRecovery";
 import { supabase } from "@/integrations/supabase/client";
+import { isFeatureEnabled } from "@/lib/featureFlags";
+import { DailyBriefCard } from "./DailyBriefCard";
 import { 
   TrendingUp, 
   Calendar, 
@@ -142,6 +144,12 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
   
   // Collapsible state persistence
   const [showFleetSchedule, setShowFleetSchedule] = useLocalStorage<boolean>("dashboardFleetSchedule", false);
+  const dailyBriefEnabled = isFeatureEnabled('dailyBrief');
+  // When Daily Brief is on, the legacy hero banner shrinks to a hideable toggle (default hidden,
+  // since the brief replaces it). When the flag is off, this state is ignored and BannerWidget
+  // renders unchanged below for byte-identical behaviour.
+  const [showHeroBanner, setShowHeroBanner] = useLocalStorage<boolean>("dashboardHeroVisible", false);
+  const isManagerPlus = isManagerOrHigher('manager');
 
   // Calculate vehicles currently out (confirmed bookings spanning today)
   const { activeVehicleIds, activeBookingsCount, pendingCount } = useMemo(() => {
@@ -487,8 +495,43 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
       {/* Content wrapper with sticky dock */}
       <div className="relative">
         <div className="space-y-5 sm:space-y-6 pb-6 md:pb-24">
-          {/* Hero Banner */}
-          <BannerWidget />
+          {dailyBriefEnabled ? (
+            <>
+              {/* Daily Brief — new hero (flag-gated) */}
+              <DailyBriefCard onModuleClick={onModuleClick} />
+
+              {/* Shrunk hero: hidden by default, surfaced via small toggle */}
+              <div className="space-y-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowHeroBanner(!showHeroBanner)}
+                  className="flex items-center gap-2 px-0 hover:bg-transparent h-7 text-xs text-muted-foreground"
+                >
+                  <ChevronDown
+                    className={`h-3.5 w-3.5 transition-transform ${showHeroBanner ? 'rotate-180' : ''}`}
+                  />
+                  {showHeroBanner ? 'Hide banner' : 'Show banner'}
+                </Button>
+                <AnimatePresence>
+                  {showHeroBanner && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.25 }}
+                      className="overflow-hidden"
+                    >
+                      <BannerWidget />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </>
+          ) : (
+            /* Hero Banner */
+            <BannerWidget />
+          )}
 
           {/* Compact Metrics Bar - Clickable chips */}
           <div className="space-y-2">
@@ -505,11 +548,16 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
             />
           </div>
 
-          {/* Revenue Analytics - Prominently displayed */}
-          <div className="space-y-3" data-tour="revenue-widget">
+          {/* Revenue Analytics - prominent for Manager+; quieter for viewer/operator (still visible) */}
+          <div
+            className="space-y-3"
+            data-tour="revenue-widget"
+          >
             <div className="flex items-center gap-2">
-              <DollarSign className="h-4 w-4 text-success" />
-              <h2 className="text-sm sm:text-lg font-semibold text-foreground">Revenue Analytics</h2>
+              <DollarSign className={`h-4 w-4 ${dailyBriefEnabled && !isManagerPlus ? 'text-muted-foreground' : 'text-success'}`} />
+              <h2 className={`font-semibold text-foreground ${dailyBriefEnabled && !isManagerPlus ? 'text-sm' : 'text-sm sm:text-lg'}`}>
+                Revenue Analytics
+              </h2>
             </div>
             <RevenueWidget />
           </div>
