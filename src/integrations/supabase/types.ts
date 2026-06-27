@@ -1802,6 +1802,36 @@ export type Database = {
           },
         ]
       }
+      mention_notifications_log: {
+        Row: {
+          channel: string
+          conversation_id: string
+          created_at: string
+          id: string
+          message_id: string
+          recipient_id: string
+          sender_id: string
+        }
+        Insert: {
+          channel: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          message_id: string
+          recipient_id: string
+          sender_id: string
+        }
+        Update: {
+          channel?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          message_id?: string
+          recipient_id?: string
+          sender_id?: string
+        }
+        Relationships: []
+      }
       message_read_receipts: {
         Row: {
           id: string
@@ -2500,6 +2530,8 @@ export type Database = {
           email: string
           fleet_size: string | null
           full_name: string | null
+          handle: string | null
+          handle_changed_at: string | null
           id: string
           is_active: boolean
           location: string | null
@@ -2519,6 +2551,8 @@ export type Database = {
           email: string
           fleet_size?: string | null
           full_name?: string | null
+          handle?: string | null
+          handle_changed_at?: string | null
           id: string
           is_active?: boolean
           location?: string | null
@@ -2538,6 +2572,8 @@ export type Database = {
           email?: string
           fleet_size?: string | null
           full_name?: string | null
+          handle?: string | null
+          handle_changed_at?: string | null
           id?: string
           is_active?: boolean
           location?: string | null
@@ -3076,6 +3112,79 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "team_conversations_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      team_group_members: {
+        Row: {
+          added_by: string | null
+          created_at: string
+          group_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          added_by?: string | null
+          created_at?: string
+          group_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          added_by?: string | null
+          created_at?: string
+          group_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_group_members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "team_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      team_groups: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          name: string
+          slug: string
+          team_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          slug: string
+          team_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          slug?: string
+          team_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_groups_team_id_fkey"
             columns: ["team_id"]
             isOneToOne: false
             referencedRelation: "teams"
@@ -5156,6 +5265,7 @@ export type Database = {
         Args: { _location_id: string; _user_id: string }
         Returns: boolean
       }
+      can_manage_team_groups: { Args: { _team_id: string }; Returns: boolean }
       clear_billing_dunning: {
         Args: { p_note?: string; p_team_id: string }
         Returns: undefined
@@ -5519,10 +5629,9 @@ export type Database = {
         Args: { _team_id: string; _user_id: string }
         Returns: boolean
       }
-      is_team_member: {
-        Args: { _team_id: string; _user_id: string }
-        Returns: boolean
-      }
+      is_team_member:
+        | { Args: { _team_id: string }; Returns: boolean }
+        | { Args: { _team_id: string; _user_id: string }; Returns: boolean }
       is_team_member_of_record: {
         Args: { _team_id: string; _user_id: string }
         Returns: boolean
