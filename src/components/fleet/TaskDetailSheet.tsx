@@ -168,6 +168,20 @@ export const TaskDetailSheet = ({
               )}
             </div>
           </div>
+
+          {/* Activity / @mentions */}
+          {currentTeam?.id && (
+            <div className="space-y-2">
+              <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Activity</h4>
+              <EntityCommentThread
+                entityType="vehicle_task"
+                entityId={task.id}
+                teamId={currentTeam.id}
+                recordLabel={task.title}
+                density="compact"
+              />
+            </div>
+          )}
         </div>
 
         {/* Sticky Action Footer */}
