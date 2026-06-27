@@ -44,6 +44,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { isFeatureEnabled } from "@/lib/featureFlags";
 import { DailyBriefCard } from "./DailyBriefCard";
 import { PulseStrip } from "./PulseStrip";
+import { LiveActivityStrip } from "./widgets/LiveActivityStrip";
+import { QuickJumpTiles } from "./widgets/QuickJumpTiles";
 import { 
   TrendingUp, 
   Calendar, 
