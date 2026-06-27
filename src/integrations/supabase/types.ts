@@ -1235,6 +1235,27 @@ export type Database = {
           },
         ]
       }
+      entity_comment_reads: {
+        Row: {
+          entity_id: string
+          entity_type: string
+          last_read_at: string
+          user_id: string
+        }
+        Insert: {
+          entity_id: string
+          entity_type: string
+          last_read_at?: string
+          user_id: string
+        }
+        Update: {
+          entity_id?: string
+          entity_type?: string
+          last_read_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       entity_comments: {
         Row: {
           attachments: Json | null
@@ -1805,28 +1826,37 @@ export type Database = {
       mention_notifications_log: {
         Row: {
           channel: string
-          conversation_id: string
+          comment_id: string | null
+          conversation_id: string | null
           created_at: string
+          entity_id: string | null
+          entity_type: string | null
           id: string
-          message_id: string
+          message_id: string | null
           recipient_id: string
           sender_id: string
         }
         Insert: {
           channel: string
-          conversation_id: string
+          comment_id?: string | null
+          conversation_id?: string | null
           created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
           id?: string
-          message_id: string
+          message_id?: string | null
           recipient_id: string
           sender_id: string
         }
         Update: {
           channel?: string
-          conversation_id?: string
+          comment_id?: string | null
+          conversation_id?: string | null
           created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
           id?: string
-          message_id?: string
+          message_id?: string | null
           recipient_id?: string
           sender_id?: string
         }
@@ -1948,6 +1978,7 @@ export type Database = {
           email_mentions: boolean
           email_team_updates: boolean
           id: string
+          muted_threads: Json
           push_enabled: boolean
           slack_bookings: boolean
           slack_enabled: boolean
@@ -1966,6 +1997,7 @@ export type Database = {
           email_mentions?: boolean
           email_team_updates?: boolean
           id?: string
+          muted_threads?: Json
           push_enabled?: boolean
           slack_bookings?: boolean
           slack_enabled?: boolean
@@ -1984,6 +2016,7 @@ export type Database = {
           email_mentions?: boolean
           email_team_updates?: boolean
           id?: string
+          muted_threads?: Json
           push_enabled?: boolean
           slack_bookings?: boolean
           slack_enabled?: boolean
@@ -5261,6 +5294,10 @@ export type Database = {
         Returns: undefined
       }
       auto_purge_expired_vehicles: { Args: never; Returns: number }
+      can_access_entity: {
+        Args: { _entity_id: string; _entity_type: string; _user_id: string }
+        Returns: boolean
+      }
       can_access_location: {
         Args: { _location_id: string; _user_id: string }
         Returns: boolean

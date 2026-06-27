@@ -77,6 +77,7 @@ import type { Database } from "@/integrations/supabase/types";
 type CustomerNote = Database["public"]["Tables"]["customer_notes"]["Row"];
 
 import { useBlockIfRestricted } from "@/components/guards/PaymentDueGuard";
+import { EntityCommentThread } from "@/components/comments/EntityCommentThread";
 interface EnhancedBookingDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -1019,11 +1020,12 @@ export const EnhancedBookingDialog = ({
                 /* View Mode Content */
                 <>
                   <Tabs value={activeTab} onValueChange={setActiveTab}>
-                    <TabsList className="grid grid-cols-4 w-full">
+                    <TabsList className="grid grid-cols-5 w-full">
                       <TabsTrigger value="details" className="text-xs sm:text-sm">Details</TabsTrigger>
                       <TabsTrigger value="payments" className="text-xs sm:text-sm">Payments</TabsTrigger>
                       <TabsTrigger value="customer" className="text-xs sm:text-sm">Customer</TabsTrigger>
                       <TabsTrigger value="notes" className="text-xs sm:text-sm">Notes</TabsTrigger>
+                      <TabsTrigger value="activity" className="text-xs sm:text-sm">Activity</TabsTrigger>
                     </TabsList>
 
                     {/* Details Tab */}
@@ -1313,6 +1315,18 @@ export const EnhancedBookingDialog = ({
                             </div>
                           ))}
                         </div>
+                      )}
+                    </TabsContent>
+
+                    {/* Activity Tab — @mentions + record-scoped comments */}
+                    <TabsContent value="activity" className="space-y-2 mt-4">
+                      {booking.team_id && (
+                        <EntityCommentThread
+                          entityType="booking"
+                          entityId={booking.id}
+                          teamId={booking.team_id}
+                          recordLabel={booking.booking_ref || "this booking"}
+                        />
                       )}
                     </TabsContent>
                   </Tabs>

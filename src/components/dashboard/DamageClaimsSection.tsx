@@ -19,10 +19,13 @@ import {
   Calendar,
   CheckCircle2,
   Clock,
-  XCircle
+  XCircle,
+  MessageSquare,
+  ChevronDown,
 } from "lucide-react";
 import { format } from "date-fns";
 import { formatCurrency } from "@/lib/utils";
+import { EntityCommentThread } from "@/components/comments/EntityCommentThread";
 
 export const DamageClaimsSection = () => {
   const { damageClaims, vehicles, maintenance } = useLocationFilteredFleet();
@@ -39,6 +42,7 @@ export const DamageClaimsSection = () => {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [showVehicleDetails, setShowVehicleDetails] = useState(false);
+  const [expandedThreads, setExpandedThreads] = useState<Set<string>>(new Set());
   const [selectedVehicle, setSelectedVehicle] = useState<{
     id: string;
     name: string;
@@ -287,6 +291,41 @@ export const DamageClaimsSection = () => {
                         </div>
                       )}
                     </div>
+
+                    {/* Activity (mentions) — audit-log style */}
+                    {claim.team_id && (
+                      <div className="mt-3 pt-3 border-t border-border/40">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setExpandedThreads((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(claim.id)) next.delete(claim.id);
+                              else next.add(claim.id);
+                              return next;
+                            });
+                          }}
+                          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          <MessageSquare className="h-3.5 w-3.5" />
+                          {expandedThreads.has(claim.id) ? "Hide" : "Discuss"}
+                          <ChevronDown
+                            className={`h-3 w-3 transition-transform ${expandedThreads.has(claim.id) ? "rotate-180" : ""}`}
+                          />
+                        </button>
+                        {expandedThreads.has(claim.id) && (
+                          <div className="mt-2">
+                            <EntityCommentThread
+                              entityType="damage_claim"
+                              entityId={claim.id}
+                              teamId={claim.team_id}
+                              recordLabel={`claim on ${vehicle?.name || "vehicle"}`}
+                              density="compact"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })

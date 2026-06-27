@@ -15,6 +15,7 @@ import {
   Clock, AlertTriangle, CheckCircle2, Ban,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { EntityCommentThread } from '@/components/comments/EntityCommentThread';
 import { format, formatDistanceToNow, isPast } from 'date-fns';
 
 interface WorkOrderDetailSheetProps {
@@ -242,6 +243,21 @@ export const WorkOrderDetailSheet = ({ workOrder, open, onOpenChange, vehicleMap
               {events.length === 0 && <p className="text-sm text-muted-foreground">No events recorded yet</p>}
             </div>
           </div>
+
+          {/* Activity (mentions) */}
+          {workOrder.team_id && (
+            <div className="space-y-2 pt-2">
+              <EntityCommentThread
+                entityType="work_order"
+                entityId={workOrder.id}
+                teamId={workOrder.team_id}
+                recordLabel={workOrder.title}
+                density="compact"
+              />
+            </div>
+          )}
+
+
 
           {/* Completion Form */}
           {showComplete && (

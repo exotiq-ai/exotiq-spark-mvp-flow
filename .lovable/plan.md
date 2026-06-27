@@ -1,81 +1,151 @@
 
-# Safer @mentions for Team Chat
+# Contextual @mentions — Tier 1 + Tier 2 (v2)
 
-Goal: make tagging teammates unambiguous, abuse-resistant, and respectful of attention — without changing the look of Team Chat.
+Bring @mentions to the records where work actually happens. Same engine as team chat; new home: inside bookings, inspections, work orders, damage claims, customer profiles, vehicles, documents, and Daily Brief items.
 
-## 1. Identity model: display name + unique @handle
+## What the user gets
 
-Add a `handle` field to `profiles` (citext, unique per team, 2–24 chars, `[a-z0-9_.]`).
+A new **Activity** thread on every meaningful record. Supports `@handle`, `@owners/@admins/@managers`, `@all`, custom `@<group>`. Deep-linked notifications: *"Mike mentioned you on Booking BK-01042"* → one click opens the record with the thread auto-scrolled to the comment.
 
-- Backfill from `full_name` (slugified) or email-prefix, with numeric suffix on collision (`mike`, `mike2`).
-- Settings → Profile gains a "Display name" and "@handle" field. Handle edits are rate-limited (1/30 days) and old handle reserved for 90 days so stale mentions don't re-bind.
-- Autocomplete searches **both** `full_name` and `handle`; rendered token is always `@handle`. Hover/tap shows full name + role.
-- Onboarding nudge banner for users with empty `full_name` ("Set your display name so teammates can @mention you").
+```text
+┌─ Booking BK-01042 ────────────────────────────────────┐
+│  [Details] [Documents] [Payments] [Activity (3) •]   │
+├───────────────────────────────────────────────────────┤
+│  💬 @mike can deposit be confirmed?         2h  ⋯    │
+│      Resolved ✓ by @mike                              │
+│  💬 @ops prep car Friday AM                 12m       │
+│  ─────────────────────────────────────────────────── │
+│  Comment… type @ to mention      [📎]  ⌘↵ to send    │
+└───────────────────────────────────────────────────────┘
+```
 
-## 2. Group mentions
+The "•" pulses when there are unread mentions for the current user.
 
-Three tiers, all gated and confirmed:
+## Surfaces (build order)
 
-| Mention | Who can use | Resolves to |
-|---|---|---|
-| `@owners` / `@admins` / `@managers` | Any member | Users with that role in `user_roles` for the team |
-| `@all` (everyone in this conversation) | Admin+ only | All `conversation_members` |
-| `@<group-name>` (custom departments) | Any member; managed by Admin+ | Members of a new `team_groups` table |
+**Tier 1**
+1. BookingDetailsDialog / EnhancedBookingDialog — Activity tab
+2. WorkOrderDetailSheet + TaskDetailSheet — inline thread
+3. CheckInOutDialog / InspectionWidget — thread on the inspection
+4. DamageReportDialog / DamageClaimsSection — thread on the claim (immutable, see Risks)
 
-New tables (migration):
-- `team_groups` (id, team_id, name, slug, description, created_by) + GRANTs + RLS scoped by team.
-- `team_group_members` (group_id, user_id) + GRANTs + RLS.
+**Tier 2**
+5. CustomerProfileDialog — Activity tab (separate from existing CustomerTimeline)
+6. VehicleDetailsDialog / Vehicle Command Center — per-vehicle ops thread
+7. Tenant document viewer — comment on uploaded docs
+8. DailyBriefCard "Needs" items — **"Assign to…"** affordance that posts a templated comment on the underlying record and tags the chosen teammate
 
-Settings → Team gains a "Groups" panel (Admin+) to create groups like `@detailing`, `@sales`, `@front-desk` and assign members. No fake/preset groups — only what the team creates.
+## Shared building blocks
 
-**Confirmation modal** appears in the composer before send when a message contains a group mention OR resolves to >3 unique recipients: "This will notify N people: [avatars]. Send?" with Cancel / Send.
+### `<EntityCommentThread />`
+```tsx
+<EntityCommentThread
+  entityType="booking" | "work_order" | "vehicle_task" | "inspection"
+            | "damage_claim" | "customer" | "vehicle" | "document"
+  entityId={record.id}
+  teamId={record.team_id}
+  recordLabel="BK-01042"
+  recordHref="/dashboard/bookings/BK-01042"
+  density="compact" | "comfortable"
+  allowAttachments={false}    // v1: text + mentions only
+  immutable={false}           // true for damage_claim → no edit/delete
+/>
+```
 
-## 3. Notification guardrails
+Internals: realtime-subscribed query on `entity_comments`, reuses `MentionPicker`, `MentionConfirmDialog`, `parseMentions()`. Optimistic insert with RLS-failure rollback + toast.
 
-In `mention-notification` edge function:
+### `<EntityCommentBadge count unread />`
+Tab/row chip showing total + unread-for-me. Drives the pulsing dot.
 
-- **Membership check**: for every `mentionedUserId`, verify they're in `conversation_members` for `conversationId`. Drop any that aren't (prevents cross-channel pings via group expansion).
-- **Dedupe window**: skip email/Slack if a row exists in a new `mention_notifications_log` table for (recipient, conversation, sender) within the last 60s. Always write a log row on send.
-- **Self-exclusion**: never notify the sender (already done; keep).
-- **Inactive filter**: skip users where `team_members.is_active = false`.
+### Hooks
+- `useEntityComments(entityType, entityId)` — list + realtime + post + resolve + delete
+- `useEntityMentionContext(teamId)` — resolves team members + groups; **shared cache** across all open threads to avoid N queries
+- `useEntityCommentUnread(entityType, entityId)` — count of mentions of me since my last read receipt
+- `useEntityCommentSearch(query)` — feeds global Cmd+K
 
-Client-side expansion of group mentions happens before invoking the function, so the function receives a flat `mentionedUserIds[]` — but the function re-validates membership server-side. Never trust the client list.
+### Edge function `entity-mention-notification`
+- Allow-list of valid `entityType` values (defense-in-depth vs RLS).
+- Re-runs the SELECT-policy access check per recipient before notifying (prevents leaks through stale client state).
+- 60s dedupe via `mention_notifications_log`; key `(recipient, entity_type, entity_id, sender)`.
+- Rate-limit: max 30 comment-notifications/user/hour (returns 429, comment still saved).
+- Email subject + Slack message include record label + deep link; payload typed.
 
-## 4. Inactive / deactivated teammates
+### Notification routing
+Add notification type `entity_mention` with payload `{ entityType, entityId, commentId }`. UnifiedNotificationCenter routes click → record detail → auto-open Activity tab → scroll-to + flash the comment.
 
-- Autocomplete picker filters out `team_members.is_active = false`.
-- Existing mention tokens in old messages render as `@Name (inactive)` in muted color, non-clickable, non-notifying.
-- Reactivation restores normal rendering automatically (resolution is live, not snapshotted).
+### Read receipts / unread state
+New tiny table `entity_comment_reads(user_id, entity_type, entity_id, last_read_at, PK)`. Upserted on thread open. Unread count = comments with `created_at > last_read_at` AND user is in `mentions`.
 
-## 5. UI changes (presentation only)
+### Mute per thread
+`notification_preferences.muted_threads jsonb` array of `{entityType,entityId}`. "Mute this thread" item in thread overflow menu. Edge function skips muted recipients.
 
-- `MessageThread` mention picker: shows avatar, display name, @handle, role chip. Recent mentions float to top. Mobile uses bottom-sheet with sticky search.
-- Mention token rendering: `@handle` pill, role-colored for group mentions (`@admins` = warning tint, `@all` = destructive tint to signal blast radius).
-- Composer shows a small "Will notify N" hint next to the send button when mentions are present.
+## Database changes (single migration)
 
-## 6. Out of scope (flagging for later)
+1. **Rewrite `entity_comments` SELECT policy** as a `SECURITY DEFINER` helper function `public.can_access_entity(user_id, entity_type, entity_id)` returning bool. Policy becomes a one-liner. Covers: booking, vehicle, customer, payment, damage_claim *(existing)* + work_order, vehicle_task, vehicle_inspection, tenant_document, customer_note, partner_payout *(new)*. Avoids the giant OR chain and fixes future-extensibility.
+2. **Tighten INSERT policy** — currently only checks `auth.uid() = user_id`. Add `AND public.can_access_entity(auth.uid(), entity_type, entity_id)` so users can't post comments on records they can't see.
+3. **Add UPDATE policy clause** preventing edits when `entity_type = 'damage_claim'` (audit-trail integrity for insurance/legal).
+4. Index: `entity_comments(entity_type, entity_id, created_at desc)`.
+5. New table `entity_comment_reads` with grants + RLS (user_id = auth.uid()).
+6. Realtime: `ALTER PUBLICATION supabase_realtime ADD TABLE public.entity_comments;`
+7. Add `'entity_mention'` value to notifications type (text column; no enum change needed per current schema).
 
-- `@here` (only-online users) — needs presence integration, defer.
-- Quiet hours respect — you opted out for v1; easy to add later by checking `notification_preferences` time window.
-- Cross-conversation mentions (mentioning someone not in the channel to pull them in) — risky, defer.
-- Push notifications for mentions (currently email + Slack only).
+All policies re-checked with `supabase--linter` post-migration.
 
-## Technical notes
+## File map
 
-**Files touched**
-- New migration: `profiles.handle`, `team_groups`, `team_group_members`, `mention_notifications_log` (all with GRANTs + RLS scoped by team).
-- `src/hooks/useTeamMessaging.ts` — expand group mentions client-side, pass flat user-id list.
-- `src/components/messaging/MessageThread.tsx` (or mention picker subcomponent) — handle-based search, role/group entries, recipient-count hint.
-- `src/components/messaging/MentionConfirmDialog.tsx` (new) — recipient-count modal.
-- `src/components/settings/ProfileSettings.tsx` — handle field with availability check.
-- `src/components/settings/TeamGroupsPanel.tsx` (new) — Admin+ group management.
-- `supabase/functions/mention-notification/index.ts` — membership check, dedupe via `mention_notifications_log`, inactive filter.
+**New (10)**
+- `src/components/comments/EntityCommentThread.tsx`
+- `src/components/comments/EntityCommentComposer.tsx`
+- `src/components/comments/EntityCommentItem.tsx`
+- `src/components/comments/EntityCommentBadge.tsx`
+- `src/hooks/useEntityComments.ts`
+- `src/hooks/useEntityMentionContext.ts`
+- `src/hooks/useEntityCommentUnread.ts`
+- `src/lib/entityCommentRoutes.ts`
+- `supabase/functions/entity-mention-notification/index.ts`
+- `supabase/migrations/<ts>_entity_comments_v2.sql`
 
-**Backwards compatibility**
-- Existing messages keep their stored mention markup. Resolution is live against `profiles.handle` / `full_name`, so renamed handles just re-render.
-- Notification email template unchanged in v1.
+**Edited (wire-in only)**
+BookingDetailsDialog, EnhancedBookingDialog, WorkOrderDetailSheet, TaskDetailSheet, CheckInOutDialog, InspectionWidget, DamageReportDialog, DamageClaimsSection (badge on rows), CustomerProfileDialog, VehicleDetailsDialog, tenant document viewer, DailyBriefCard, UnifiedNotificationCenter, global Cmd+K search.
 
-**Risks called out**
-- Handle uniqueness is per-team, not global. Cross-team DMs (if you ever add them) would need a global namespace.
-- Group expansion can balloon recipient counts — the confirmation modal is the primary safeguard. The 60s dedupe is the secondary one.
-- `mention_notifications_log` grows unbounded; add a 30-day retention sweep alongside your existing `retention_sweep_log` pattern.
+**Tests**
+- `mentions.test.ts` extended with entity-context expansion
+- `entityCommentRoutes.test.ts` — every entityType → label + href
+- RLS contract test: cross-team user cannot SELECT/INSERT comments on another team's records
+- E2E (Playwright): mention on booking → notification appears → click → record opens → comment flashed
+
+## UX details that matter
+
+- **Composer keyboard**: ⌘/Ctrl+Enter sends; Esc closes picker; ↑/↓ navigates picker; Tab/Enter selects.
+- **Empty state**: first-time copy — *"Tag a teammate with @ to start a conversation about this booking."*
+- **Accessibility**: `aria-live="polite"` on the thread; focus returns to composer after send; mention pills have `aria-label="Mention: Mike Chen, owner"`.
+- **Mobile**: thread becomes a bottom-sheet on `<sm`; picker is full-width with larger tap targets.
+- **Inactive teammates**: hidden from picker; historical mentions render `@Name (inactive)` muted, non-clickable, no notify.
+- **Group safety**: `MentionConfirmDialog` triggers on any group mention OR recipient count > 3.
+- **Resolve workflow**: any team member can mark a comment resolved; resolved comments collapse to one line with strike-through option; reopen available.
+- **Demo seed**: add 2–3 realistic comments to the demo team's top bookings/work orders so the panel doesn't look empty on `/demo`.
+
+## Telemetry
+
+Lightweight client event `entity_mention.posted { entityType, recipientCount, hasGroupMention }`. No PII. Feeds the decision on whether Tier 3 surfaces (photo review, partner payouts) are worth building.
+
+## Rollout
+
+1. Migration + edge function + shared components — dark ship.
+2. Feature flag `entityMentions`: on for demo team only.
+3. Tier 1 wired (booking → work order → inspection → damage claim).
+4. Flip flag on for all teams. Monitor mention volume + 429 rate for a week.
+5. Tier 2 wired in follow-up PR.
+
+## Risks & mitigations
+
+- **Notification spam** → 60s dedupe, group confirm, per-thread mute, hourly rate-limit.
+- **Cross-tenant leak via malformed entityType** → server-side allow-list + `can_access_entity()` helper re-check.
+- **Realtime cost** → one channel per open dialog, torn down on close; shared `useEntityMentionContext` cache; throttle re-fetch on rapid postgres_changes.
+- **Damage-claim audit integrity** → comments on `damage_claim` are immutable (no edit/delete) at the RLS layer.
+- **Optimistic insert reveals forbidden record** → optimistic UI only renders own comment; rollback + toast on RLS reject.
+- **N+1 on lists with badges** → single batched query `select entity_id, count, max(created_at)` keyed by the visible record ids.
+
+## Out of scope (v1)
+
+- Emoji reactions, file attachments (column exists, wire later), inline photo/line-item quoting, push notifications, SLA escalation, AI-suggested assignee. All callable as v2.
