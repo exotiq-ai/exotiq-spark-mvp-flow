@@ -1026,6 +1026,23 @@ export const MessageThread = ({
           </Button>
         </div>
       </div>
+
+      {/* Mention confirmation */}
+      <MentionConfirmDialog
+        open={pendingSendRecipients !== null}
+        recipients={pendingSendRecipients || []}
+        hasGroupMention={pendingHasGroupMention}
+        onConfirm={() => {
+          const ids = (pendingSendRecipients || []).map((r) => r.id);
+          setPendingSendRecipients(null);
+          setPendingHasGroupMention(false);
+          performSend(ids);
+        }}
+        onCancel={() => {
+          setPendingSendRecipients(null);
+          setPendingHasGroupMention(false);
+        }}
+      />
     </div>
   );
 };
