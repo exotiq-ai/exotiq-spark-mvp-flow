@@ -80,45 +80,63 @@ interface MessageThreadProps {
 const EMOJI_LIST = ['👍', '❤️', '😂', '😮', '😢', '🎉', '🔥', '✅'];
 
 // Helper to render message content with highlighted @mentions
-const renderMessageWithMentions = (content: string, teamMembers: { id: string; name: string }[], isOwn: boolean) => {
-  const mentionRegex = /@(\w+(?:\s+\w+)?)/g;
+const renderMessageWithMentions = (
+  content: string,
+  ctx: MentionContext,
+  isOwn: boolean,
+) => {
+  const mentionRegex = /@([a-zA-Z0-9_.-]{1,32})/g;
   const parts: (string | JSX.Element)[] = [];
   let lastIndex = 0;
-  let match;
+  let match: RegExpExecArray | null;
 
   while ((match = mentionRegex.exec(content)) !== null) {
     if (match.index > lastIndex) {
       parts.push(content.slice(lastIndex, match.index));
     }
-    
-    const mentionName = match[1];
-    const matchedMember = teamMembers.find(m => 
-      m.name.toLowerCase().includes(mentionName.toLowerCase())
-    );
-    
-    if (matchedMember) {
+    const ref = match[1];
+    const token = resolveMention(ref, ctx);
+
+    if (token) {
+      const isInactiveUser =
+        token.kind === 'user' &&
+        ctx.teamMembers.find((m) => m.id === token.userIds[0])?.is_active === false;
+
+      const tint =
+        token.kind === 'all'
+          ? 'bg-destructive/15 text-destructive'
+          : token.kind === 'role'
+            ? 'bg-warning/15 text-warning'
+            : token.kind === 'group'
+              ? 'bg-primary/15 text-primary'
+              : isOwn
+                ? 'bg-primary-foreground/20 text-primary-foreground'
+                : 'bg-primary/20 text-primary';
+
       parts.push(
-        <span 
-          key={match.index} 
+        <span
+          key={match.index}
           className={cn(
-            "font-semibold px-1 rounded",
-            isOwn ? "bg-primary-foreground/20 text-primary-foreground" : "bg-primary/20 text-primary"
+            'font-semibold px-1 rounded',
+            isInactiveUser && 'opacity-60 line-through',
+            tint,
           )}
+          title={isInactiveUser ? 'Inactive teammate' : undefined}
         >
-          @{mentionName}
-        </span>
+          {token.label}
+          {isInactiveUser && ' (inactive)'}
+        </span>,
       );
     } else {
       parts.push(match[0]);
     }
-    
     lastIndex = match.index + match[0].length;
   }
-  
+
   if (lastIndex < content.length) {
     parts.push(content.slice(lastIndex));
   }
-  
+
   return parts.length > 0 ? parts : content;
 };
 
