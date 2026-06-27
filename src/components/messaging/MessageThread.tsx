@@ -506,9 +506,18 @@ export const MessageThread = ({
     }
   }, [newMessage, setTyping]);
 
+  const performSend = (recipientIds: string[]) => {
+    onSendMessage(newMessage.trim(), attachments, recipientIds, replyTo?.id);
+    setNewMessage('');
+    setAttachments([]);
+    setReplyTo(null);
+    setShowMentionPopup(false);
+    setTyping(false);
+  };
+
   const handleSend = async () => {
     if (!newMessage.trim() && attachments.length === 0) return;
-    
+
     // Handle edit mode
     if (editingMessage) {
       await editMessage(editingMessage.id, newMessage.trim());
@@ -516,21 +525,31 @@ export const MessageThread = ({
       setNewMessage('');
       return;
     }
-    
-    const mentions = parseMentions(newMessage);
-    
-    onSendMessage(
-      newMessage.trim(),
-      attachments,
-      mentions,
-      replyTo?.id
+
+    const { tokens, recipientIds } = parseMentions(
+      newMessage,
+      mentionContext,
+      user?.id,
     );
-    
-    setNewMessage('');
-    setAttachments([]);
-    setReplyTo(null);
-    setShowMentionPopup(false);
-    setTyping(false);
+
+    const hasGroupMention = tokens.some(
+      (t) => t.kind === 'all' || t.kind === 'role' || t.kind === 'group',
+    );
+
+    // Confirm if blast radius is large or any group/role/@all mention is used
+    if (hasGroupMention || recipientIds.length > 3) {
+      const recipients = recipientIds
+        .map((id) => {
+          const m = teamMembers.find((tm) => tm.id === id);
+          return m ? { id, name: m.name, avatar_url: m.avatar_url } : null;
+        })
+        .filter(Boolean) as { id: string; name: string; avatar_url?: string | null }[];
+      setPendingHasGroupMention(hasGroupMention);
+      setPendingSendRecipients(recipients);
+      return;
+    }
+
+    performSend(recipientIds);
   };
 
   const handleMessageChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -540,8 +559,8 @@ export const MessageThread = ({
     setCursorPosition(cursor);
 
     const textBeforeCursor = value.slice(0, cursor);
-    const atMatch = textBeforeCursor.match(/@(\w*)$/);
-    
+    const atMatch = textBeforeCursor.match(/@([a-zA-Z0-9_.-]*)$/);
+
     if (atMatch) {
       setMentionSearch(atMatch[1]);
       setShowMentionPopup(true);
@@ -552,18 +571,17 @@ export const MessageThread = ({
     }
   };
 
-  const insertMention = (member: { id: string; name: string }) => {
+  const insertMention = (item: PickerItem) => {
     const textBeforeCursor = newMessage.slice(0, cursorPosition);
     const textAfterCursor = newMessage.slice(cursorPosition);
-    
-    const atMatch = textBeforeCursor.match(/@(\w*)$/);
+
+    const atMatch = textBeforeCursor.match(/@([a-zA-Z0-9_.-]*)$/);
     if (atMatch) {
       const beforeMention = textBeforeCursor.slice(0, atMatch.index);
-      const firstName = member.name.split(' ')[0];
-      const newText = beforeMention + '@' + firstName + ' ' + textAfterCursor;
+      const newText = beforeMention + '@' + item.ref + ' ' + textAfterCursor;
       setNewMessage(newText);
-      
-      const newCursorPos = beforeMention.length + firstName.length + 2;
+
+      const newCursorPos = beforeMention.length + item.ref.length + 2;
       setTimeout(() => {
         if (textareaRef.current) {
           textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
@@ -571,26 +589,26 @@ export const MessageThread = ({
         }
       }, 0);
     }
-    
+
     setShowMentionPopup(false);
     setMentionSearch('');
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (showMentionPopup && filteredMembers.length > 0) {
+    if (showMentionPopup && pickerItems.length > 0) {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
-        setMentionIndex(prev => (prev + 1) % filteredMembers.length);
+        setMentionIndex(prev => (prev + 1) % pickerItems.length);
         return;
       }
       if (e.key === 'ArrowUp') {
         e.preventDefault();
-        setMentionIndex(prev => (prev - 1 + filteredMembers.length) % filteredMembers.length);
+        setMentionIndex(prev => (prev - 1 + pickerItems.length) % pickerItems.length);
         return;
       }
       if (e.key === 'Enter' || e.key === 'Tab') {
         e.preventDefault();
-        insertMention(filteredMembers[mentionIndex]);
+        insertMention(pickerItems[mentionIndex]);
         return;
       }
       if (e.key === 'Escape') {
