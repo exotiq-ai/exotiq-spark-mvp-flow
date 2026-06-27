@@ -12,6 +12,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { getVehicleImage } from "@/lib/vehicleImageMapping";
 import { ShareWithTeamDialog } from "@/components/dialogs/ShareWithTeamDialog";
+import { EntityCommentThread } from "@/components/comments/EntityCommentThread";
+import { useTeam } from "@/contexts/TeamContext";
 import { 
   Calendar, 
   DollarSign, 
