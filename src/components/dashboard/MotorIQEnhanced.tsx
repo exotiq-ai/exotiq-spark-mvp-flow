@@ -17,6 +17,7 @@ import { DemandForecastErrorBoundary } from "@/components/dashboard/DemandForeca
 import { RateTiersPanel } from "@/components/dashboard/RateTiersPanel";
 import { PricingCalendar } from "@/components/dashboard/PricingCalendar";
 import { WeeklyDigestCard } from "@/components/dashboard/WeeklyDigestCard";
+import { isFeatureEnabled } from "@/lib/featureFlags";
 import { LocationBadge } from "@/components/common/LocationBadge";
 import { VehicleThumbnail } from "@/components/common/VehicleThumbnail";
 import { useSwipeGesture } from "@/hooks/useSwipeGesture";
@@ -265,8 +266,10 @@ export const MotorIQEnhanced = () => {
           onValueChange={setActiveTab}
         >
           <TabsContent value="overview" className="space-y-6">
-        {/* Weekly Intelligence Digest */}
-        <WeeklyDigestCard bookings={bookings} vehicles={vehicles} />
+        {/* Weekly Intelligence Digest — hidden when Daily Brief owns the digest on the dashboard */}
+        {!isFeatureEnabled('dailyBrief') && (
+          <WeeklyDigestCard bookings={bookings} vehicles={vehicles} />
+        )}
 
         <AnimatePresence mode="wait">
           {showRecommendationCard ? (
