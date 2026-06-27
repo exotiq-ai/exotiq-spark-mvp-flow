@@ -1,20 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import {
-  Brain,
-  Sparkles,
   ChevronRight,
   CheckCircle2,
-  AlertTriangle,
-  AlertCircle,
-  Info,
   CalendarDays,
+  Sun,
 } from "lucide-react";
-import { useDailyBrief, type DailyBriefIssue, type DailyBriefMetric } from "@/hooks/useDailyBrief";
+import {
+  useDailyBrief,
+  type DailyBriefIssue,
+  type IssueSeverity,
+} from "@/hooks/useDailyBrief";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { WeeklyDigestCard } from "./WeeklyDigestCard";
 import { supabase } from "@/integrations/supabase/client";
@@ -32,22 +29,29 @@ const greetingFor = (hour: number) => {
   return "Good evening";
 };
 
-const formatAmount = (n: number) => {
+const formatMoney = (n: number) => {
   if (n >= 1000) return `$${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k`;
   return `$${Math.round(n).toLocaleString()}`;
 };
 
-const toneClasses: Record<NonNullable<DailyBriefMetric["tone"]>, string> = {
-  default: "text-foreground",
-  success: "text-success",
-  warning: "text-warning",
-  danger: "text-destructive",
+const dotClass: Record<IssueSeverity, string> = {
+  high: "bg-destructive",
+  medium: "bg-warning",
+  low: "bg-muted-foreground/50",
 };
 
-const severityBadge: Record<DailyBriefIssue["severity"], { className: string; icon: typeof AlertCircle; label: string }> = {
-  high: { className: "bg-destructive/15 text-destructive border-destructive/30", icon: AlertCircle, label: "High" },
-  medium: { className: "bg-warning/15 text-warning border-warning/30", icon: AlertTriangle, label: "Medium" },
-  low: { className: "bg-muted text-muted-foreground border-border", icon: Info, label: "Low" },
+// Role-aware re-rank: nudge the most relevant categories to the top
+// without changing the underlying severity contract.
+const roleBoost = (role: string | null) => (issue: DailyBriefIssue): number => {
+  const base = issue.severity === "high" ? 30 : issue.severity === "medium" ? 20 : 10;
+  if (role === "owner" || role === "admin") {
+    if (issue.category === "payment" || issue.category === "pricing") return base + 5;
+  } else if (role === "manager") {
+    if (issue.category === "booking" || issue.category === "task") return base + 5;
+  } else if (role === "operator") {
+    if (issue.category === "task" || issue.category === "maintenance") return base + 5;
+  }
+  return base;
 };
 
 interface NarrativePayload {
@@ -74,7 +78,17 @@ export const DailyBriefCard = ({ onModuleClick }: DailyBriefCardProps) => {
   const [narrative, setNarrative] = useState<string | null>(null);
 
   const greeting = useMemo(() => greetingFor(new Date().getHours()), []);
-  const visibleIssues = showAllIssues ? facts.issues : facts.issues.slice(0, 5);
+
+  // Operator role hides the "This Week" toggle — they live in the now.
+  const showWeekToggle = facts.role !== "operator";
+
+  // Role-aware re-rank on top of severity sort
+  const rankedIssues = useMemo(() => {
+    const boost = roleBoost(facts.role);
+    return [...facts.issues].sort((a, b) => boost(b) - boost(a));
+  }, [facts.issues, facts.role]);
+
+  const visibleIssues = showAllIssues ? rankedIssues : rankedIssues.slice(0, 5);
 
   // ----- AI narrative (DPA §3.8 safe: counts + non-PII titles only) -----
   useEffect(() => {
@@ -93,10 +107,9 @@ export const DailyBriefCard = ({ onModuleClick }: DailyBriefCardProps) => {
       /* ignore */
     }
 
-    // Strip any potentially-PII fields. Only send counts + sanitized titles.
     const sanitizedTitles = facts.issues
       .slice(0, 8)
-      .map((i) => i.title.replace(/\(([^)]+)\)/g, "").trim()); // strip "(customer name)" parens
+      .map((i) => i.title.replace(/\(([^)]+)\)/g, "").trim());
 
     const payload: NarrativePayload = {
       role: facts.role,
@@ -126,10 +139,10 @@ export const DailyBriefCard = ({ onModuleClick }: DailyBriefCardProps) => {
         try {
           localStorage.setItem(cacheKey, data.narrative);
         } catch {
-          /* ignore quota errors */
+          /* ignore */
         }
       } catch {
-        /* silent — deterministic facts already stand on their own */
+        /* silent */
       }
     })();
     return () => {
@@ -138,194 +151,251 @@ export const DailyBriefCard = ({ onModuleClick }: DailyBriefCardProps) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [facts.loading, facts.role]);
 
-  // ----- Loading state -----
+  // ----- Loading -----
   if (facts.loading) {
     return (
-      <Card className="card-premium p-5 bg-gradient-to-br from-primary/5 via-accent/5 to-transparent space-y-4">
-        <div className="flex items-center gap-3">
-          <Skeleton className="h-10 w-10 rounded-xl" />
-          <div className="flex-1 space-y-2">
-            <Skeleton className="h-5 w-48" />
-            <Skeleton className="h-3 w-64" />
-          </div>
+      <section className="space-y-6">
+        <div className="space-y-3">
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="h-4 w-80" />
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-          {Array.from({ length: 6 }).map((_, i) => (
+        <div className="space-y-2">
+          {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-14 rounded-lg" />
           ))}
         </div>
-        <div className="space-y-2">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-12 rounded-lg" />
-          ))}
-        </div>
-      </Card>
+      </section>
     );
   }
 
-  // ----- This Week mode: defer to existing WeeklyDigestCard -----
+  // ----- This Week -----
   if (mode === "week") {
     return (
-      <div className="space-y-3">
-        <ModeToggle mode={mode} onChange={setMode} />
+      <section className="space-y-5">
+        <BriefHeader
+          greeting={greeting}
+          name={facts.greetingName}
+          company={facts.companyName}
+          dateLabel={facts.dateLabel}
+          mode={mode}
+          onModeChange={setMode}
+          showWeekToggle={showWeekToggle}
+        />
         <WeeklyDigestCard bookings={fleet.bookings} vehicles={fleet.vehicles} />
-      </div>
+      </section>
     );
   }
 
-  // ----- Today mode -----
+  // ----- Today -----
   return (
-    <div className="space-y-3">
-      <ModeToggle mode={mode} onChange={setMode} />
+    <section className="space-y-6 sm:space-y-7" aria-label="Daily brief">
+      <BriefHeader
+        greeting={greeting}
+        name={facts.greetingName}
+        company={facts.companyName}
+        dateLabel={facts.dateLabel}
+        mode={mode}
+        onModeChange={setMode}
+        showWeekToggle={showWeekToggle}
+      />
 
-      <Card className="card-premium p-5 bg-gradient-to-br from-primary/5 via-accent/5 to-transparent">
-        {/* Header */}
-        <div className="flex items-start gap-3 mb-4">
-          <div className="p-2.5 bg-primary/10 rounded-xl">
-            <Brain className="h-5 w-5 text-primary" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <h3 className="font-semibold flex items-center gap-2">
-              {greeting}, {facts.greetingName}
-              <Sparkles className="h-3.5 w-3.5 text-primary/70" />
-            </h3>
-            <p className="text-xs text-muted-foreground">
-              {facts.companyName ? `${facts.companyName} • ` : ""}
-              {facts.dateLabel}
-            </p>
-          </div>
-        </div>
+      {/* Status line — inline typography, no boxes */}
+      <StatusLine
+        onRent={facts.onRent}
+        pickupsToday={facts.pickupsToday}
+        returnsToday={facts.returnsToday}
+        revenueToday={facts.revenueToday}
+        utilization={facts.utilization}
+      />
 
-        {/* AI narrative placeholder slot — wired in Prompt D */}
-        {narrative && (
-          <p className="text-sm italic text-muted-foreground mb-4 leading-relaxed">
-            {narrative}
-          </p>
-        )}
+      {/* Rari's read — italic, muted, the "why" */}
+      {narrative && (
+        <p className="text-[15px] leading-relaxed italic text-muted-foreground max-w-2xl">
+          {narrative}
+        </p>
+      )}
 
-        {/* Punch-list metric chips */}
-        {facts.metrics.length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-5">
-            {facts.metrics.map((m) => (
+      {/* Punch list — the work */}
+      {facts.isClear ? (
+        <AllClear />
+      ) : (
+        <div className="space-y-3">
+          <div className="flex items-baseline justify-between">
+            <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              Needs you
+              <span className="ml-2 text-foreground/80 tracking-normal normal-case font-medium">
+                {rankedIssues.length}
+              </span>
+            </h2>
+            {rankedIssues.length > 5 && (
               <button
-                key={m.key}
                 type="button"
-                onClick={() => m.module && onModuleClick(m.module)}
-                disabled={!m.module}
-                className={cn(
-                  "text-left rounded-lg border border-border/60 bg-card/60 px-3 py-2 transition-all",
-                  "hover:border-primary/40 hover:bg-card disabled:opacity-70 disabled:hover:border-border/60 disabled:cursor-default touch-target",
-                )}
+                onClick={() => setShowAllIssues((s) => !s)}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
-                <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{m.label}</div>
-                <div className={cn("font-semibold text-lg leading-tight", toneClasses[m.tone ?? "default"])}>
-                  {m.key === "utilization" ? `${m.count}%` : m.count.toLocaleString()}
-                </div>
-                {typeof m.amount === "number" && m.amount > 0 && (
-                  <div className="text-[11px] text-success font-medium">{formatAmount(m.amount)}</div>
-                )}
+                {showAllIssues ? "Show top 5" : `View all (${rankedIssues.length})`}
               </button>
-            ))}
+            )}
           </div>
-        )}
 
-        {/* Needs you / All clear */}
-        {facts.isClear ? (
-          <div className="flex items-center gap-3 p-4 rounded-lg bg-success/5 border border-success/20">
-            <CheckCircle2 className="h-5 w-5 text-success flex-shrink-0" />
-            <div>
-              <p className="text-sm font-medium">All clear</p>
-              <p className="text-xs text-muted-foreground">Nothing needs your attention right now.</p>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <h4 className="text-sm font-semibold flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 text-warning" />
-                Needs you
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                  {facts.issues.length}
-                </Badge>
-              </h4>
-              {facts.issues.length > 5 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 text-xs"
-                  onClick={() => setShowAllIssues((s) => !s)}
-                >
-                  {showAllIssues ? "Show top 5" : `View all (${facts.issues.length})`}
-                </Button>
-              )}
-            </div>
-
-            <div className="space-y-1.5">
-              {visibleIssues.map((issue) => {
-                const sev = severityBadge[issue.severity];
-                const SevIcon = sev.icon;
-                const clickable = Boolean(issue.module);
-                return (
+          <ul className="divide-y divide-border/60 border-y border-border/60">
+            {visibleIssues.map((issue) => {
+              const clickable = Boolean(issue.module);
+              return (
+                <li key={issue.id}>
                   <button
-                    key={issue.id}
                     type="button"
                     onClick={() => issue.module && onModuleClick(issue.module)}
                     disabled={!clickable}
                     className={cn(
-                      "w-full flex items-start gap-3 rounded-lg border border-border/60 bg-card/40 px-3 py-2.5 text-left transition-all",
-                      "hover:bg-card hover:border-primary/40 disabled:hover:border-border/60 disabled:cursor-default touch-target group",
+                      "group w-full flex items-center gap-4 py-3.5 sm:py-3 text-left",
+                      "min-h-[56px] sm:min-h-[52px]",
+                      "transition-colors hover:bg-muted/30 disabled:hover:bg-transparent disabled:cursor-default",
+                      "-mx-2 px-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                     )}
                   >
                     <span
+                      aria-hidden
                       className={cn(
-                        "mt-0.5 inline-flex items-center justify-center h-6 w-6 rounded-md border",
-                        sev.className,
+                        "flex-shrink-0 h-2 w-2 rounded-full",
+                        dotClass[issue.severity],
                       )}
-                      aria-label={sev.label}
-                    >
-                      <SevIcon className="h-3.5 w-3.5" />
-                    </span>
+                    />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium leading-snug">{issue.title}</p>
+                      <p className="text-[15px] font-medium text-foreground leading-snug truncate">
+                        {issue.title}
+                      </p>
                       {issue.detail && (
-                        <p className="text-xs text-muted-foreground mt-0.5 truncate">{issue.detail}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                          {issue.detail}
+                        </p>
                       )}
                     </div>
                     {clickable && (
-                      <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all flex-shrink-0 mt-0.5" />
+                      <ChevronRight className="h-4 w-4 text-muted-foreground/60 group-hover:text-foreground group-hover:translate-x-0.5 transition-all flex-shrink-0" />
                     )}
                   </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </Card>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+    </section>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+const BriefHeader = ({
+  greeting,
+  name,
+  company,
+  dateLabel,
+  mode,
+  onModeChange,
+  showWeekToggle,
+}: {
+  greeting: string;
+  name: string;
+  company?: string;
+  dateLabel: string;
+  mode: Mode;
+  onModeChange: (m: Mode) => void;
+  showWeekToggle: boolean;
+}) => (
+  <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+    <div className="min-w-0">
+      <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-foreground">
+        {greeting}, {name}.
+      </h1>
+      <p className="mt-1 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+        {company ? `${company} · ` : ""}
+        {dateLabel}
+      </p>
+    </div>
+    {showWeekToggle && <ModeToggle mode={mode} onChange={onModeChange} />}
+  </header>
+);
+
+const StatusLine = ({
+  onRent,
+  pickupsToday,
+  returnsToday,
+  revenueToday,
+  utilization,
+}: {
+  onRent: number;
+  pickupsToday: number;
+  returnsToday: number;
+  revenueToday: number;
+  utilization: number;
+}) => {
+  const facts = [
+    { label: "out", value: onRent.toLocaleString() },
+    { label: "pickups", value: pickupsToday.toLocaleString() },
+    { label: "returns", value: returnsToday.toLocaleString() },
+    revenueToday > 0
+      ? { label: "collected", value: formatMoney(revenueToday) }
+      : { label: "utilization", value: `${utilization}%` },
+  ];
+  return (
+    <div className="flex flex-wrap items-baseline gap-x-5 gap-y-2 text-foreground">
+      {facts.map((f, i) => (
+        <span key={f.label} className="flex items-baseline gap-1.5">
+          {i > 0 && (
+            <span className="text-muted-foreground/40 mr-3 hidden sm:inline" aria-hidden>
+              ·
+            </span>
+          )}
+          <span className="text-xl sm:text-2xl font-semibold tracking-tight tabular-nums">
+            {f.value}
+          </span>
+          <span className="text-xs uppercase tracking-wider text-muted-foreground">
+            {f.label}
+          </span>
+        </span>
+      ))}
     </div>
   );
 };
+
+const AllClear = () => (
+  <div className="flex items-center gap-3 py-4">
+    <CheckCircle2 className="h-5 w-5 text-success flex-shrink-0" />
+    <div>
+      <p className="text-sm font-medium text-foreground">All clear.</p>
+      <p className="text-xs text-muted-foreground">Nothing needs your attention right now.</p>
+    </div>
+  </div>
+);
 
 const ModeToggle = ({ mode, onChange }: { mode: Mode; onChange: (m: Mode) => void }) => (
   <div
     role="tablist"
     aria-label="Brief timeframe"
-    className="inline-flex items-center p-1 rounded-lg border border-border/60 bg-muted/40 text-xs"
+    className="inline-flex items-center p-0.5 rounded-full border border-border bg-muted/40 text-xs self-start sm:self-auto"
   >
-    {(["today", "week"] as Mode[]).map((m) => (
+    {(
+      [
+        { id: "today" as Mode, label: "Today", icon: Sun },
+        { id: "week" as Mode, label: "This Week", icon: CalendarDays },
+      ]
+    ).map(({ id, label, icon: Icon }) => (
       <button
-        key={m}
+        key={id}
         role="tab"
-        aria-selected={mode === m}
-        onClick={() => onChange(m)}
+        aria-selected={mode === id}
+        onClick={() => onChange(id)}
         className={cn(
-          "px-3 py-1.5 rounded-md font-medium transition-colors flex items-center gap-1.5",
-          mode === m
-            ? "bg-background text-foreground shadow-sm border border-border/50"
+          "px-3 py-1.5 rounded-full font-medium transition-colors flex items-center gap-1.5 min-h-[32px]",
+          mode === id
+            ? "bg-background text-foreground shadow-sm"
             : "text-muted-foreground hover:text-foreground",
         )}
       >
-        {m === "today" ? <Sparkles className="h-3 w-3" /> : <CalendarDays className="h-3 w-3" />}
-        {m === "today" ? "Today" : "This Week"}
+        <Icon className="h-3 w-3" />
+        {label}
       </button>
     ))}
   </div>
