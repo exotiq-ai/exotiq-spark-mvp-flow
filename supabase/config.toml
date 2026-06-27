@@ -112,7 +112,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.weekly-intelligence-digest]
-verify_jwt = false
+verify_jwt = true
 
 [functions.daily-brief-narrative]
 verify_jwt = true
