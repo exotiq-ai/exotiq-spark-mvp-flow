@@ -308,6 +308,22 @@ export function VehicleDetailsDialog({
                   </div>
                 </>
               )}
+
+              {/* Team Activity / @mentions */}
+              {vehicleDetails?.id && currentTeam?.id && (
+                <div className="space-y-3 pt-2 border-t">
+                  <h4 className="text-sm font-semibold flex items-center gap-2">
+                    <MessageSquare className="h-4 w-4 text-primary" />
+                    Team Activity
+                  </h4>
+                  <EntityCommentThread
+                    entityType="vehicle"
+                    entityId={vehicleDetails.id}
+                    teamId={currentTeam.id}
+                    recordLabel={vehicleName}
+                  />
+                </div>
+              )}
             </div>
           </ScrollArea>
         </DialogContent>
