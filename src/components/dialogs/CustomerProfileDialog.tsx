@@ -51,6 +51,8 @@ import { EnhancedBookingDialog } from "@/components/dialogs/EnhancedBookingDialo
 import { EditCustomerDialog } from "@/components/dialogs/EditCustomerDialog";
 import { formatCurrency } from "@/lib/utils";
 import { CustomerTimeline } from "@/components/crm/CustomerTimeline";
+import { EntityCommentThread } from "@/components/comments/EntityCommentThread";
+import { useTeam } from "@/contexts/TeamContext";
 
 type Customer = Database['public']['Tables']['customers']['Row'];
 type Booking = Database['public']['Tables']['bookings']['Row'];
