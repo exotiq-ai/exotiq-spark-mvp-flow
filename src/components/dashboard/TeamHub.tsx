@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Users, UserPlus, Settings, Activity, History } from "lucide-react";
+import { Users, UserPlus, Settings, Activity, History, AtSign } from "lucide-react";
 import { TeamDirectorySection } from "./TeamDirectorySection";
 import { TeamInvitationsSection } from "./TeamInvitationsSection";
 import { TeamSettingsSection } from "./TeamSettingsSection";
 import { TeamActivityDashboard } from "./TeamActivityDashboard";
 import { RoleAuditLogSection } from "./RoleAuditLogSection";
+import { TeamGroupsPanel } from "./TeamGroupsPanel";
 import { useUserRole } from "@/hooks/useUserRole";
 import { InviteUserDialog } from "@/components/dialogs/InviteUserDialog";
 
