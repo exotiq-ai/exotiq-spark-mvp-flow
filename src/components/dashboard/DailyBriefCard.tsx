@@ -34,16 +34,6 @@ const greetingFor = (hour: number) => {
   return "Good evening";
 };
 
-const formatMoney = (n: number) => {
-  if (n >= 1000) return `$${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k`;
-  return `$${Math.round(n).toLocaleString()}`;
-};
-
-const dotClass: Record<IssueSeverity, string> = {
-  high: "bg-destructive",
-  medium: "bg-warning",
-  low: "bg-muted-foreground/50",
-};
 
 // Role-aware re-rank: nudge the most relevant categories to the top
 // without changing the underlying severity contract.
