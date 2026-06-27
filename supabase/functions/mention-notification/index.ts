@@ -220,6 +220,10 @@ serve(async (req) => {
     const slackPromises = mentionedUsers
       .filter(user => {
         if (user.id === senderId) return false;
+        if (recentlyNotifiedSlack.has(user.id)) {
+          console.log(`Skipping Slack to ${user.id} (deduped within 60s)`);
+          return false;
+        }
         const userPrefs = prefsMap.get(user.id);
         return userPrefs?.slack_enabled && userPrefs?.slack_mentions && userPrefs?.slack_webhook_url;
       })
@@ -259,6 +263,20 @@ serve(async (req) => {
     const allResults = await Promise.all([...emailPromises, ...slackPromises]);
     const emailSuccess = allResults.filter(r => r.type === "email" && r.success).length;
     const slackSuccess = allResults.filter(r => r.type === "slack" && r.success).length;
+
+    // Write dedupe log rows for every successful send
+    const logRows = allResults
+      .filter((r) => r.success)
+      .map((r) => ({
+        conversation_id: conversationId,
+        message_id: messageId,
+        sender_id: senderId,
+        recipient_id: r.userId,
+        channel: r.type,
+      }));
+    if (logRows.length > 0) {
+      await supabaseAdmin.from("mention_notifications_log").insert(logRows);
+    }
 
     console.log(`Successfully sent ${emailSuccess} emails and ${slackSuccess} Slack notifications`);
 
