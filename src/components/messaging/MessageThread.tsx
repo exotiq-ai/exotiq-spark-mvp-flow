@@ -181,7 +181,7 @@ const MessageBubble = ({
   onEdit,
   onDelete,
   isPinned,
-  teamMembers,
+  mentionContext,
   readers,
   currentUserId
 }: MessageBubbleProps) => {
