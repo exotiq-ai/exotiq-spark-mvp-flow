@@ -1,151 +1,113 @@
+# Dashboard — Next-Level Visual & Information Design
 
-# Contextual @mentions — Tier 1 + Tier 2 (v2)
+Frontend-only refinement of `DashboardOverviewEnhanced` + its child widgets. No business logic, no data model changes. All wins come from typography, hierarchy, density, motion, and one new compact widget to fill the empty lower half.
 
-Bring @mentions to the records where work actually happens. Same engine as team chat; new home: inside bookings, inspections, work orders, damage claims, customer profiles, vehicles, documents, and Daily Brief items.
+## What's wrong with it today
 
-## What the user gets
+Looking at the live preview:
 
-A new **Activity** thread on every meaningful record. Supports `@handle`, `@owners/@admins/@managers`, `@all`, custom `@<group>`. Deep-linked notifications: *"Mike mentioned you on Booking BK-01042"* → one click opens the record with the thread auto-scrolled to the comment.
+1. **Editorial top, abandoned bottom.** Strong "Good evening, Gregory" hero, then a vast empty page below the three small cards. The eye falls off a cliff.
+2. **KPI strip is flat text.** `20 OUT · 6 PICKUPS · 4 RETURNS · $37k COLLECTED` reads like a caption, not a dashboard headline. No deltas, no spark, no color signal.
+3. **Needs-You list is monotone.** Five rows with identical visual weight; severity dots are tiny and the only differentiator. The $3.18M outstanding deserves a different treatment than "1 open damage claim."
+4. **Three bottom cards feel orphaned.** Revenue / Fleet / Next 4 Hours are visually inconsistent (sparkline vs bar vs empty state) and don't tile with the brief above.
+5. **No "second screen."** Everything important is above the fold but nothing rewards scrolling — no this-week view, no fleet pulse, no recent activity.
+6. **Motion is absent.** Numbers don't count up, the brief doesn't reveal, the severity dots don't pulse.
+
+## The design move
+
+Treat the dashboard as an **editorial command center** — three deliberate bands, each with its own visual register, separated by generous whitespace. Apple Newsroom meets Bloomberg Terminal meets Linear.
 
 ```text
-┌─ Booking BK-01042 ────────────────────────────────────┐
-│  [Details] [Documents] [Payments] [Activity (3) •]   │
-├───────────────────────────────────────────────────────┤
-│  💬 @mike can deposit be confirmed?         2h  ⋯    │
-│      Resolved ✓ by @mike                              │
-│  💬 @ops prep car Friday AM                 12m       │
-│  ─────────────────────────────────────────────────── │
-│  Comment… type @ to mention      [📎]  ⌘↵ to send    │
-└───────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────┐
+│ BAND 1 — HERO BRIEF                                       │
+│  Greeting · date · live KPI rail (count-up + delta chips) │
+│  Narrative paragraph                                      │
+│  Needs-You punch list (tiered: critical / warn / fyi)     │
+├───────────────────────────────────────────────────────────┤
+│ BAND 2 — TODAY AT A GLANCE                                │
+│  Revenue · Fleet donut+bar · Next 4 hours timeline        │
+│  (unified card chrome, equal heights, shared accent)      │
+├───────────────────────────────────────────────────────────┤
+│ BAND 3 — PULSE (new, fills the void)                      │
+│  Live activity feed + module quick-jump tiles             │
+└───────────────────────────────────────────────────────────┘
 ```
 
-The "•" pulses when there are unread mentions for the current user.
+## Concrete refinements
 
-## Surfaces (build order)
+### 1. Hero KPI rail — from caption to instrument
+- Replace inline `20 OUT · 6 PICKUPS …` text with a 4-cell rail of large tabular numerals (use existing `useCountUp` hook for entrance).
+- Each cell gets: number, label (uppercase 11px tracking), and a delta chip vs yesterday (`+3 ▲` in success / `−2 ▼` in destructive). Delta uses semantic tokens only.
+- Subtle vertical divider between cells (1px `border-border/40`), no boxes — keeps the editorial feel.
+- `$37k collected` cell gets a 24px sparkline of last-7-day collections behind the number at 20% opacity.
 
-**Tier 1**
-1. BookingDetailsDialog / EnhancedBookingDialog — Activity tab
-2. WorkOrderDetailSheet + TaskDetailSheet — inline thread
-3. CheckInOutDialog / InspectionWidget — thread on the inspection
-4. DamageReportDialog / DamageClaimsSection — thread on the claim (immutable, see Risks)
+### 2. Narrative paragraph — typographic polish
+- Drop to `text-[15px] leading-[1.7] text-muted-foreground max-w-[68ch]` for readability.
+- First sentence becomes `text-foreground` (lead), rest stays muted — classic editorial lede treatment.
+- Inline numbers (`37%`, `170`, `14%`) get `font-medium text-foreground` so they pop without color.
 
-**Tier 2**
-5. CustomerProfileDialog — Activity tab (separate from existing CustomerTimeline)
-6. VehicleDetailsDialog / Vehicle Command Center — per-vehicle ops thread
-7. Tenant document viewer — comment on uploaded docs
-8. DailyBriefCard "Needs" items — **"Assign to…"** affordance that posts a templated comment on the underlying record and tags the chosen teammate
+### 3. Needs-You — tiered punch list
+- Split into **Critical** (red dot, larger row, bold first line) and **Heads-up** (amber/blue dot, compact row). Currently everything is one flat list.
+- Critical rows get a left accent bar (`border-l-2 border-destructive/60`) and a one-line "fix it" CTA on hover (e.g., "Send dunning batch →" for balance-due).
+- Resolved items animate out with a checkmark sweep instead of just disappearing.
+- Row hover: subtle `bg-muted/40` + chevron slides right 2px. Already exists, but tighten the timing to 150ms ease-out.
 
-## Shared building blocks
+### 4. Today-at-a-glance cards — unify the chrome
+- Same card shell, same header pattern (label left / metric right / icon ghosted top-right at 8% opacity).
+- Revenue card: sparkline becomes a proper area gradient (`from-primary/20 to-transparent`), add "vs last Sat" delta chip in the header.
+- Fleet card: keep the stacked bar but add tiny labels under each segment and make the donut/bar choice consistent with Pulse.
+- Next-4-hours card: when empty, replace the dead-feeling "Quiet stretch ahead" with a horizon timeline (4 ticks showing the next 4 hours, even when empty) so the card has visual structure either way.
 
-### `<EntityCommentThread />`
-```tsx
-<EntityCommentThread
-  entityType="booking" | "work_order" | "vehicle_task" | "inspection"
-            | "damage_claim" | "customer" | "vehicle" | "document"
-  entityId={record.id}
-  teamId={record.team_id}
-  recordLabel="BK-01042"
-  recordHref="/dashboard/bookings/BK-01042"
-  density="compact" | "comfortable"
-  allowAttachments={false}    // v1: text + mentions only
-  immutable={false}           // true for damage_claim → no edit/delete
-/>
-```
+### 5. New "Pulse" band — kill the empty void below
+Add a third band below the three cards (still part of `DashboardOverviewEnhanced`, no nav changes):
+- **Left (2/3 width):** Live activity strip — last 6 events (bookings created, check-ins, payments) as a vertical timeline with relative timestamps. Reuses existing `useTeamActivity` data; no new queries.
+- **Right (1/3 width):** Quick-jump module tiles — 2×2 grid of Bookings / Fleet / Pulse / MotorIQ as small icon tiles with the current count (`12 today`, `54 vehicles`). Replaces the implicit "scroll down to find more" with explicit affordances.
 
-Internals: realtime-subscribed query on `entity_comments`, reuses `MentionPicker`, `MentionConfirmDialog`, `parseMentions()`. Optimistic insert with RLS-failure rollback + toast.
+### 6. Motion — restrained but alive
+- Hero numbers: count-up on mount (existing `useCountUp`, 600ms, ease-out).
+- Brief paragraph: 200ms fade + 4px rise, staggered after KPIs.
+- Needs-You rows: 40ms stagger fade-in.
+- Critical-severity dot: very subtle `animate-pulse` (already in CSS) at 2s interval — only on critical, not on warn/fyi.
+- No bouncing, no spinning, no gradient flow. Reject the AI-dashboard cliché.
 
-### `<EntityCommentBadge count unread />`
-Tab/row chip showing total + unread-for-me. Drives the pulsing dot.
+### 7. Typography & spacing pass
+- Greeting "Good evening, Gregory." stays at current size but switches to `tracking-tight` and pairs with a single-line subhead `text-xs uppercase tracking-[0.18em] text-muted-foreground/70`.
+- `NEEDS YOU 7` header treatment becomes the canonical section label across all three bands.
+- Vertical rhythm: bump band separators from current spacing to `mt-10` between bands; tighten within-band to `gap-4` so density stays high inside but bands breathe between.
+- All numerals use `tabular-nums` so columns don't jitter on update.
 
-### Hooks
-- `useEntityComments(entityType, entityId)` — list + realtime + post + resolve + delete
-- `useEntityMentionContext(teamId)` — resolves team members + groups; **shared cache** across all open threads to avoid N queries
-- `useEntityCommentUnread(entityType, entityId)` — count of mentions of me since my last read receipt
-- `useEntityCommentSearch(query)` — feeds global Cmd+K
+### 8. Density & responsiveness
+- Today | This Week pill stays top-right but loses the icons (cleaner).
+- On `<md` the KPI rail wraps 2×2 with the same dividers.
+- The new Pulse band stacks vertically on `<md`.
 
-### Edge function `entity-mention-notification`
-- Allow-list of valid `entityType` values (defense-in-depth vs RLS).
-- Re-runs the SELECT-policy access check per recipient before notifying (prevents leaks through stale client state).
-- 60s dedupe via `mention_notifications_log`; key `(recipient, entity_type, entity_id, sender)`.
-- Rate-limit: max 30 comment-notifications/user/hour (returns 429, comment still saved).
-- Email subject + Slack message include record label + deep link; payload typed.
+## Out of scope (explicitly)
 
-### Notification routing
-Add notification type `entity_mention` with payload `{ entityType, entityId, commentId }`. UnifiedNotificationCenter routes click → record detail → auto-open Activity tab → scroll-to + flash the comment.
+- No sidebar changes, no nav changes, no new routes.
+- No new tables, no new edge functions, no new realtime channels (reuse `useTeamActivity`).
+- No drag-and-drop layout, no widget marketplace (the dormant `CustomizableDashboard` stays parked).
+- No color palette change — pure refinement on existing semantic tokens.
+- Mobile-specific polish beyond responsive stacking is a follow-up.
 
-### Read receipts / unread state
-New tiny table `entity_comment_reads(user_id, entity_type, entity_id, last_read_at, PK)`. Upserted on thread open. Unread count = comments with `created_at > last_read_at` AND user is in `mentions`.
+## Files touched
 
-### Mute per thread
-`notification_preferences.muted_threads jsonb` array of `{entityType,entityId}`. "Mute this thread" item in thread overflow menu. Edge function skips muted recipients.
+**Edit:**
+- `src/components/dashboard/DashboardOverviewEnhanced.tsx` — band structure, motion wiring
+- `src/components/dashboard/DailyBriefCard.tsx` — KPI rail, tiered Needs-You, narrative typography
+- `src/components/dashboard/widgets/RevenueWidget.tsx` — gradient sparkline + delta chip
+- `src/components/dashboard/widgets/FleetStatusWidget.tsx` — unified chrome
+- `src/components/dashboard/widgets/ScheduleWidget.tsx` (Next 4 Hours) — horizon timeline empty state
+- `src/index.css` — one new utility for the tabular-numerals + tracking pairing if needed
 
-## Database changes (single migration)
+**New (small, focused):**
+- `src/components/dashboard/widgets/HeroKpiRail.tsx` — the 4-cell rail with count-up + deltas
+- `src/components/dashboard/widgets/LiveActivityStrip.tsx` — Band 3 left side, wraps `useTeamActivity`
+- `src/components/dashboard/widgets/QuickJumpTiles.tsx` — Band 3 right side, 2×2 module grid
 
-1. **Rewrite `entity_comments` SELECT policy** as a `SECURITY DEFINER` helper function `public.can_access_entity(user_id, entity_type, entity_id)` returning bool. Policy becomes a one-liner. Covers: booking, vehicle, customer, payment, damage_claim *(existing)* + work_order, vehicle_task, vehicle_inspection, tenant_document, customer_note, partner_payout *(new)*. Avoids the giant OR chain and fixes future-extensibility.
-2. **Tighten INSERT policy** — currently only checks `auth.uid() = user_id`. Add `AND public.can_access_entity(auth.uid(), entity_type, entity_id)` so users can't post comments on records they can't see.
-3. **Add UPDATE policy clause** preventing edits when `entity_type = 'damage_claim'` (audit-trail integrity for insurance/legal).
-4. Index: `entity_comments(entity_type, entity_id, created_at desc)`.
-5. New table `entity_comment_reads` with grants + RLS (user_id = auth.uid()).
-6. Realtime: `ALTER PUBLICATION supabase_realtime ADD TABLE public.entity_comments;`
-7. Add `'entity_mention'` value to notifications type (text column; no enum change needed per current schema).
+## Validation
 
-All policies re-checked with `supabase--linter` post-migration.
+After build, capture a Playwright screenshot of `/dashboard` at 1280×1800 and compare side-by-side with the current capture to confirm: empty void is gone, KPI rail reads as the hero metric, Needs-You has visible tiering, no horizontal overflow, motion fires once on mount.
 
-## File map
+---
 
-**New (10)**
-- `src/components/comments/EntityCommentThread.tsx`
-- `src/components/comments/EntityCommentComposer.tsx`
-- `src/components/comments/EntityCommentItem.tsx`
-- `src/components/comments/EntityCommentBadge.tsx`
-- `src/hooks/useEntityComments.ts`
-- `src/hooks/useEntityMentionContext.ts`
-- `src/hooks/useEntityCommentUnread.ts`
-- `src/lib/entityCommentRoutes.ts`
-- `supabase/functions/entity-mention-notification/index.ts`
-- `supabase/migrations/<ts>_entity_comments_v2.sql`
-
-**Edited (wire-in only)**
-BookingDetailsDialog, EnhancedBookingDialog, WorkOrderDetailSheet, TaskDetailSheet, CheckInOutDialog, InspectionWidget, DamageReportDialog, DamageClaimsSection (badge on rows), CustomerProfileDialog, VehicleDetailsDialog, tenant document viewer, DailyBriefCard, UnifiedNotificationCenter, global Cmd+K search.
-
-**Tests**
-- `mentions.test.ts` extended with entity-context expansion
-- `entityCommentRoutes.test.ts` — every entityType → label + href
-- RLS contract test: cross-team user cannot SELECT/INSERT comments on another team's records
-- E2E (Playwright): mention on booking → notification appears → click → record opens → comment flashed
-
-## UX details that matter
-
-- **Composer keyboard**: ⌘/Ctrl+Enter sends; Esc closes picker; ↑/↓ navigates picker; Tab/Enter selects.
-- **Empty state**: first-time copy — *"Tag a teammate with @ to start a conversation about this booking."*
-- **Accessibility**: `aria-live="polite"` on the thread; focus returns to composer after send; mention pills have `aria-label="Mention: Mike Chen, owner"`.
-- **Mobile**: thread becomes a bottom-sheet on `<sm`; picker is full-width with larger tap targets.
-- **Inactive teammates**: hidden from picker; historical mentions render `@Name (inactive)` muted, non-clickable, no notify.
-- **Group safety**: `MentionConfirmDialog` triggers on any group mention OR recipient count > 3.
-- **Resolve workflow**: any team member can mark a comment resolved; resolved comments collapse to one line with strike-through option; reopen available.
-- **Demo seed**: add 2–3 realistic comments to the demo team's top bookings/work orders so the panel doesn't look empty on `/demo`.
-
-## Telemetry
-
-Lightweight client event `entity_mention.posted { entityType, recipientCount, hasGroupMention }`. No PII. Feeds the decision on whether Tier 3 surfaces (photo review, partner payouts) are worth building.
-
-## Rollout
-
-1. Migration + edge function + shared components — dark ship.
-2. Feature flag `entityMentions`: on for demo team only.
-3. Tier 1 wired (booking → work order → inspection → damage claim).
-4. Flip flag on for all teams. Monitor mention volume + 429 rate for a week.
-5. Tier 2 wired in follow-up PR.
-
-## Risks & mitigations
-
-- **Notification spam** → 60s dedupe, group confirm, per-thread mute, hourly rate-limit.
-- **Cross-tenant leak via malformed entityType** → server-side allow-list + `can_access_entity()` helper re-check.
-- **Realtime cost** → one channel per open dialog, torn down on close; shared `useEntityMentionContext` cache; throttle re-fetch on rapid postgres_changes.
-- **Damage-claim audit integrity** → comments on `damage_claim` are immutable (no edit/delete) at the RLS layer.
-- **Optimistic insert reveals forbidden record** → optimistic UI only renders own comment; rollback + toast on RLS reject.
-- **N+1 on lists with badges** → single batched query `select entity_id, count, max(created_at)` keyed by the visible record ids.
-
-## Out of scope (v1)
-
-- Emoji reactions, file attachments (column exists, wire later), inline photo/line-item quoting, push notifications, SLA escalation, AI-suggested assignee. All callable as v2.
+Want me to push on this as-is, or would you rather I generate 2–3 rendered visual directions for the hero band first so you can pick the typographic register before I build?
