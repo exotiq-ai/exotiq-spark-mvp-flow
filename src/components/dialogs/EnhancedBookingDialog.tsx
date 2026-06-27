@@ -77,6 +77,7 @@ import type { Database } from "@/integrations/supabase/types";
 type CustomerNote = Database["public"]["Tables"]["customer_notes"]["Row"];
 
 import { useBlockIfRestricted } from "@/components/guards/PaymentDueGuard";
+import { EntityCommentThread } from "@/components/comments/EntityCommentThread";
 interface EnhancedBookingDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -1324,7 +1325,7 @@ export const EnhancedBookingDialog = ({
                           entityType="booking"
                           entityId={booking.id}
                           teamId={booking.team_id}
-                          recordLabel={booking.booking_reference || "this booking"}
+                          recordLabel={booking.booking_ref || "this booking"}
                         />
                       )}
                     </TabsContent>
