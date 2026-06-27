@@ -19,10 +19,13 @@ import {
   Calendar,
   CheckCircle2,
   Clock,
-  XCircle
+  XCircle,
+  MessageSquare,
+  ChevronDown,
 } from "lucide-react";
 import { format } from "date-fns";
 import { formatCurrency } from "@/lib/utils";
+import { EntityCommentThread } from "@/components/comments/EntityCommentThread";
 
 export const DamageClaimsSection = () => {
   const { damageClaims, vehicles, maintenance } = useLocationFilteredFleet();
@@ -39,6 +42,7 @@ export const DamageClaimsSection = () => {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [showVehicleDetails, setShowVehicleDetails] = useState(false);
+  const [expandedThreads, setExpandedThreads] = useState<Set<string>>(new Set());
   const [selectedVehicle, setSelectedVehicle] = useState<{
     id: string;
     name: string;
