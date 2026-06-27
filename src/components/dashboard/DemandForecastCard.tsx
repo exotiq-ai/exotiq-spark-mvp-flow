@@ -881,7 +881,7 @@ export const DemandForecastCard = ({ bookings = [] }: DemandForecastCardProps) =
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-sm truncate">{event.name}</p>
                           <p className="text-xs text-muted-foreground">
-                            {format(new Date(event.date), 'MMM d')} • {event.attendance.toLocaleString()} attendees
+                            {safeFormat(event.date, 'MMM d')} • {event.attendance.toLocaleString()} attendees
                           </p>
                         </div>
                         <Badge className="bg-warning/20 text-warning">{event.impactScore}</Badge>
