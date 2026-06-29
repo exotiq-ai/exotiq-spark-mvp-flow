@@ -51,6 +51,14 @@ interface DigestData {
     };
     topAction: string;
     generatedAt: string;
+    data_sources?: string[];
+    coverage?: {
+      week_start?: string;
+      week_end?: string;
+      vehicles_counted?: number;
+      bookings_counted?: number;
+      city_resolved?: string | null;
+    };
   };
   created_at: string;
 }
