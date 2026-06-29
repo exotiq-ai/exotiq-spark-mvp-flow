@@ -14,22 +14,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import {
-  Brain,
-  TrendingUp,
-  TrendingDown,
-  Calendar,
-  DollarSign,
-  Car,
-  Sparkles,
   ChevronRight,
   RefreshCw,
-  Zap,
-  BarChart3,
-  Target,
-  Mail,
-  Clock,
+  Sparkles,
+  TrendingUp,
+  TrendingDown,
 } from "lucide-react";
-import { format, startOfWeek, endOfWeek, subWeeks } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import { cn, formatCurrencyCompact } from "@/lib/utils";
 
 interface DigestData {
@@ -66,32 +57,38 @@ interface DigestData {
 interface WeeklyDigestCardProps {
   bookings: any[];
   vehicles: any[];
+  /** "card" = full digest card (week view); "strip" = single-row glance (today view) */
+  variant?: "card" | "strip";
+  onExpand?: () => void;
 }
 
-export const WeeklyDigestCard = ({ bookings, vehicles }: WeeklyDigestCardProps) => {
+export const WeeklyDigestCard = ({
+  bookings,
+  vehicles,
+  variant = "card",
+  onExpand,
+}: WeeklyDigestCardProps) => {
   const { user } = useAuth();
   const [digest, setDigest] = useState<DigestData | null>(null);
-  const [loading, setLoading] = useState(false);
   const [showFullDigest, setShowFullDigest] = useState(false);
   const [generating, setGenerating] = useState(false);
 
-  // Load latest digest from DB
   useEffect(() => {
     const loadDigest = async () => {
       if (!user) return;
       try {
         const { data, error } = await supabase
-          .from('weekly_digests')
-          .select('*')
-          .order('created_at', { ascending: false })
+          .from("weekly_digests")
+          .select("*")
+          .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();
-        
+
         if (!error && data) {
           setDigest(data as unknown as DigestData);
         }
       } catch (err) {
-        console.error('Failed to load digest:', err);
+        console.error("Failed to load digest:", err);
       }
     };
     loadDigest();
@@ -101,44 +98,125 @@ export const WeeklyDigestCard = ({ bookings, vehicles }: WeeklyDigestCardProps) 
     if (!user) return;
     setGenerating(true);
     try {
-      const { data, error } = await supabase.functions.invoke('weekly-intelligence-digest', {
-        body: { userId: user.id },
-      });
-      
+      const { data, error } = await supabase.functions.invoke(
+        "weekly-intelligence-digest",
+        { body: { userId: user.id } },
+      );
       if (error) throw error;
-      
       if (data?.digest) {
         setDigest(data.digest as DigestData);
-        toast.success('Weekly digest generated');
+        toast.success("Weekly digest generated");
       }
     } catch (err) {
-      console.error('Failed to generate digest:', err);
-      toast.error('Failed to generate weekly digest');
+      console.error("Failed to generate digest:", err);
+      toast.error("Failed to generate weekly digest");
     } finally {
       setGenerating(false);
     }
   };
 
-  const isNew = digest && (Date.now() - new Date(digest.created_at).getTime()) < 24 * 60 * 60 * 1000;
   const summary = digest?.summary_json;
+  const isNew =
+    digest &&
+    Date.now() - new Date(digest.created_at).getTime() < 24 * 60 * 60 * 1000;
 
+  // ── STRIP VARIANT ────────────────────────────────────────────────────────
+  // One-line week glance for the Today view footer.
+  if (variant === "strip") {
+    if (!digest || !summary) {
+      return (
+        <button
+          type="button"
+          onClick={handleGenerateDigest}
+          disabled={generating}
+          className="w-full flex items-center justify-between gap-3 py-2.5 border-t border-border/50 text-[12.5px] text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <span className="flex items-center gap-2">
+            {generating ? (
+              <RefreshCw className="h-3 w-3 animate-spin" />
+            ) : (
+              <Sparkles className="h-3 w-3" />
+            )}
+            {generating ? "Generating weekly digest…" : "Generate this week's digest"}
+          </span>
+          <ChevronRight className="h-3.5 w-3.5" />
+        </button>
+      );
+    }
+    const wir = summary.weekInReview;
+    const handleClick = () => (onExpand ? onExpand() : setShowFullDigest(true));
+    return (
+      <>
+        <button
+          type="button"
+          onClick={handleClick}
+          className="w-full flex items-center justify-between gap-3 py-2.5 border-t border-border/50 text-[12.5px] hover:bg-muted/30 transition-colors group"
+        >
+          <span className="flex items-center gap-3 min-w-0 text-muted-foreground">
+            <span className="uppercase tracking-[0.14em] text-[10.5px] font-medium text-foreground/70">
+              Week
+            </span>
+            <span className="tabular-nums text-foreground font-medium">
+              {formatCurrencyCompact(wir.revenue)}
+            </span>
+            <span aria-hidden>·</span>
+            <span className="tabular-nums">
+              {wir.bookingsCompleted} bookings
+            </span>
+            <span aria-hidden>·</span>
+            <span className="tabular-nums">
+              {wir.utilizationChange.to}% util
+            </span>
+            {wir.revenueChange !== 0 && (
+              <span
+                className={cn(
+                  "inline-flex items-center gap-0.5 tabular-nums text-[11px]",
+                  wir.revenueChange >= 0 ? "text-success" : "text-destructive",
+                )}
+              >
+                {wir.revenueChange >= 0 ? (
+                  <TrendingUp className="h-3 w-3" />
+                ) : (
+                  <TrendingDown className="h-3 w-3" />
+                )}
+                {wir.revenueChange >= 0 ? "+" : ""}
+                {wir.revenueChange}%
+              </span>
+            )}
+          </span>
+          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50 group-hover:text-foreground group-hover:translate-x-0.5 transition-all" />
+        </button>
+        {!onExpand && (
+          <FullDigestDialog
+            open={showFullDigest}
+            onOpenChange={setShowFullDigest}
+            digest={digest}
+            generating={generating}
+            onRegenerate={handleGenerateDigest}
+          />
+        )}
+      </>
+    );
+  }
+
+  // ── CARD VARIANT (Week mode) ─────────────────────────────────────────────
   if (!digest) {
     return (
-      <Card className="card-premium p-5 bg-gradient-to-br from-primary/5 via-accent/5 to-transparent">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-primary/10 rounded-xl">
-              <Brain className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <h4 className="font-semibold flex items-center gap-2">
-                FleetCopilot™ Weekly Digest
-                <Badge variant="outline" className="text-[10px]">New</Badge>
-              </h4>
-              <p className="text-xs text-muted-foreground">AI-powered fleet intelligence report</p>
-            </div>
+      <Card className="p-4 border-border/60">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h4 className="text-sm font-semibold">FleetCopilot™ Weekly Digest</h4>
+            <p className="text-xs text-muted-foreground">
+              AI-powered fleet intelligence report
+            </p>
           </div>
-          <Button onClick={handleGenerateDigest} disabled={generating} size="sm" className="gap-2">
+          <Button
+            onClick={handleGenerateDigest}
+            disabled={generating}
+            size="sm"
+            variant="outline"
+            className="gap-2"
+          >
             {generating ? (
               <RefreshCw className="h-3.5 w-3.5 animate-spin" />
             ) : (
@@ -151,223 +229,309 @@ export const WeeklyDigestCard = ({ bookings, vehicles }: WeeklyDigestCardProps) 
     );
   }
 
+  const wir = summary!.weekInReview;
+  const weekEnd = digest.summary_json.coverage?.week_end;
+  const headerLine = `Week of ${format(new Date(digest.week_start), "MMM d")}${
+    weekEnd ? ` – ${format(new Date(weekEnd), "MMM d")}` : ""
+  }`;
+  const generatedAgo = formatDistanceToNow(new Date(digest.created_at), {
+    addSuffix: true,
+  });
+
   return (
     <>
-      <Card 
-        className="card-premium p-5 bg-gradient-to-br from-primary/5 via-accent/5 to-transparent cursor-pointer hover:border-primary/30 transition-all group"
+      <Card
+        className="p-4 border-border/60 cursor-pointer hover:border-primary/40 transition-colors group"
         onClick={() => setShowFullDigest(true)}
       >
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-primary/10 rounded-xl">
-              <Brain className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <h4 className="font-semibold flex items-center gap-2">
-                FleetCopilot™ Weekly Digest
-                {isNew && <Badge className="bg-success/20 text-success text-[10px] px-1.5 py-0">New</Badge>}
-              </h4>
-              <p className="text-xs text-muted-foreground">
-                Week of {digest.week_start ? format(new Date(digest.week_start), 'MMM d') : '—'}
-              </p>
-            </div>
+        {/* Slim header row */}
+        <div className="flex items-center justify-between gap-3 text-[12px] text-muted-foreground">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="font-medium text-foreground/80 truncate">
+              {headerLine}
+            </span>
+            <span aria-hidden>·</span>
+            <span className="truncate">Generated {generatedAgo}</span>
+            {isNew && (
+              <Badge className="bg-success/15 text-success text-[10px] px-1.5 py-0 border-0 h-4">
+                New
+              </Badge>
+            )}
           </div>
-          <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleGenerateDigest();
+            }}
+            disabled={generating}
+            className="text-[11px] hover:text-foreground transition-colors flex items-center gap-1"
+          >
+            <RefreshCw
+              className={cn("h-3 w-3", generating && "animate-spin")}
+            />
+            Regenerate
+          </button>
         </div>
 
-        {summary && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="space-y-1">
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <DollarSign className="h-3 w-3" />
-                Revenue
-              </div>
-              <div className="font-bold text-lg">{formatCurrencyCompact(summary.weekInReview.revenue)}</div>
-              <div className={cn("text-xs font-medium", summary.weekInReview.revenueChange >= 0 ? 'text-success' : 'text-destructive')}>
-                {summary.weekInReview.revenueChange >= 0 ? '+' : ''}{summary.weekInReview.revenueChange}%
-              </div>
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Calendar className="h-3 w-3" />
-                Bookings
-              </div>
-              <div className="font-bold text-lg">{summary.weekInReview.bookingsCompleted}</div>
-              <div className="text-xs text-muted-foreground">+{summary.weekInReview.newBookings} new</div>
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Car className="h-3 w-3" />
-                Top Vehicle
-              </div>
-              <div className="font-bold text-sm truncate">{summary.weekInReview.topVehicle.name}</div>
-              <div className="text-xs text-success">{formatCurrencyCompact(summary.weekInReview.topVehicle.revenue)}</div>
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <BarChart3 className="h-3 w-3" />
-                Utilization
-              </div>
-              <div className="font-bold text-lg">{summary.weekInReview.utilizationChange.to}%</div>
-              <div className={cn("text-xs font-medium",
-                summary.weekInReview.utilizationChange.to > summary.weekInReview.utilizationChange.from 
-                  ? 'text-success' : 'text-destructive'
-              )}>
-                {summary.weekInReview.utilizationChange.from}% → {summary.weekInReview.utilizationChange.to}%
-              </div>
-            </div>
-          </div>
-        )}
+        {/* KPI strip — 4-up tabular numerals, hairline dividers, no icons */}
+        <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-y-3 sm:divide-x divide-border/50">
+          <KpiCell
+            label="Revenue"
+            value={formatCurrencyCompact(wir.revenue)}
+            deltaPct={wir.revenueChange}
+          />
+          <KpiCell
+            label="Bookings"
+            value={wir.bookingsCompleted.toLocaleString()}
+            sub={`+${wir.newBookings} new`}
+          />
+          <KpiCell
+            label="Top vehicle"
+            value={wir.topVehicle.name}
+            sub={formatCurrencyCompact(wir.topVehicle.revenue)}
+            compact
+          />
+          <KpiCell
+            label="Utilization"
+            value={`${wir.utilizationChange.to}%`}
+            sub={`from ${wir.utilizationChange.from}%`}
+          />
+        </div>
 
+        {/* Top action — pull-quote, no panel */}
         {summary?.topAction && (
-          <div className="mt-4 p-3 rounded-lg bg-success/5 border border-success/20">
-            <div className="flex items-start gap-2">
-              <Zap className="h-4 w-4 text-success flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-muted-foreground">{summary.topAction}</p>
-            </div>
-          </div>
+          <p className="mt-4 text-[14px] leading-snug italic text-foreground/90 max-w-[68ch]">
+            {summary.topAction}
+          </p>
         )}
 
-        {summary && (
-          <div className="mt-3 text-[10px] text-muted-foreground/80">
-            Sources: {(summary.data_sources && summary.data_sources.length > 0
-              ? summary.data_sources.join(' · ')
-              : 'bookings · vehicles')}
-            {summary.coverage?.city_resolved
-              ? ` · ${summary.coverage.city_resolved}`
-              : ' · no city set'}
-          </div>
-        )}
+        {/* Sources hairline */}
+        <p className="mt-3 pt-2 border-t border-border/40 text-[10.5px] text-muted-foreground/80 tabular-nums">
+          {(summary?.data_sources && summary.data_sources.length > 0
+            ? summary.data_sources.join(" · ")
+            : "bookings · vehicles")}
+          {summary?.coverage?.city_resolved
+            ? ` · ${summary.coverage.city_resolved}`
+            : " · no city set"}
+        </p>
       </Card>
 
-      {/* Full Digest Dialog */}
-      <Dialog open={showFullDigest} onOpenChange={setShowFullDigest}>
-        <DialogContent className="sm:max-w-[600px] max-h-[80vh]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Brain className="h-5 w-5 text-primary" />
-              FleetCopilot™ Weekly Intelligence
-              {isNew && <Badge className="bg-success/20 text-success text-xs">New</Badge>}
-            </DialogTitle>
-          </DialogHeader>
-          
-          {summary && (
-            <ScrollArea className="max-h-[60vh] pr-4">
-              <div className="space-y-6 py-2">
-                {/* Week in Review */}
-                <div>
-                  <h4 className="font-semibold flex items-center gap-2 mb-3">
-                    <BarChart3 className="h-4 w-4 text-primary" />
-                    Week in Review
-                  </h4>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="p-3 rounded-lg bg-success/10 border border-success/20">
-                      <div className="text-xs text-muted-foreground mb-1">Revenue</div>
-                      <div className="text-xl font-bold text-success">{formatCurrencyCompact(summary.weekInReview.revenue)}</div>
-                      <div className={cn("text-xs", summary.weekInReview.revenueChange >= 0 ? 'text-success' : 'text-destructive')}>
-                        {summary.weekInReview.revenueChange >= 0 ? '+' : ''}{summary.weekInReview.revenueChange}% vs last week
-                      </div>
-                    </div>
-                    <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
-                      <div className="text-xs text-muted-foreground mb-1">Bookings</div>
-                      <div className="text-xl font-bold text-primary">{summary.weekInReview.bookingsCompleted}</div>
-                      <div className="text-xs text-muted-foreground">{summary.weekInReview.newBookings} new this week</div>
-                    </div>
-                    <div className="p-3 rounded-lg bg-accent/10 border border-accent/20">
-                      <div className="text-xs text-muted-foreground mb-1">Top Vehicle</div>
-                      <div className="text-sm font-bold">{summary.weekInReview.topVehicle.name}</div>
-                      <div className="text-xs text-success">{formatCurrencyCompact(summary.weekInReview.topVehicle.revenue)} revenue</div>
-                    </div>
-                    <div className="p-3 rounded-lg bg-warning/10 border border-warning/20">
-                      <div className="text-xs text-muted-foreground mb-1">Fleet Utilization</div>
-                      <div className="text-xl font-bold">{summary.weekInReview.utilizationChange.to}%</div>
-                      <div className="text-xs text-muted-foreground">
-                        {summary.weekInReview.utilizationChange.from}% → {summary.weekInReview.utilizationChange.to}%
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <Separator />
-
-                {/* Next Week Outlook */}
-                <div>
-                  <h4 className="font-semibold flex items-center gap-2 mb-3">
-                    <Target className="h-4 w-4 text-accent" />
-                    Next Week Outlook
-                  </h4>
-                  {summary.nextWeekOutlook.events.length > 0 ? (
-                    <div className="space-y-2 mb-3">
-                      {summary.nextWeekOutlook.events.map((event, i) => (
-                        <div key={i} className="flex items-center gap-3 p-2 rounded-lg bg-accent/5 border border-accent/10">
-                          <Sparkles className="h-4 w-4 text-accent flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">{event.name}</p>
-                            <p className="text-xs text-muted-foreground">{event.date}</p>
-                          </div>
-                          <Badge className={cn("text-xs",
-                            event.impact === 'high' ? 'bg-warning/20 text-warning' : 'bg-muted'
-                          )}>
-                            {event.impact}
-                          </Badge>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground mb-3">No major events detected for next week</p>
-                  )}
-                  
-                  <div className="flex items-center gap-4 text-sm">
-                    {summary.nextWeekOutlook.demandSurge > 0 && (
-                      <div className="flex items-center gap-1.5">
-                        <TrendingUp className="h-4 w-4 text-success" />
-                        <span>+{summary.nextWeekOutlook.demandSurge}% demand surge</span>
-                      </div>
-                    )}
-                    {summary.nextWeekOutlook.vehiclesRecommended > 0 && (
-                      <div className="flex items-center gap-1.5">
-                        <Car className="h-4 w-4 text-primary" />
-                        <span>{summary.nextWeekOutlook.vehiclesRecommended} vehicles to reprice</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <Separator />
-
-                {/* Top Action */}
-                <div>
-                  <h4 className="font-semibold flex items-center gap-2 mb-3">
-                    <Zap className="h-4 w-4 text-success" />
-                    Top Action
-                  </h4>
-                  <div className="p-4 rounded-lg bg-success/5 border border-success/20">
-                    <p className="text-sm">{summary.topAction}</p>
-                  </div>
-                </div>
-
-                {/* Meta */}
-                <div className="flex items-center justify-between text-xs text-muted-foreground pt-2">
-                  <div className="flex items-center gap-1.5">
-                    <Clock className="h-3 w-3" />
-                    Generated {format(new Date(digest.created_at), 'MMM d, h:mm a')}
-                  </div>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="text-xs gap-1.5 h-7"
-                    onClick={handleGenerateDigest}
-                    disabled={generating}
-                  >
-                    <RefreshCw className={cn("h-3 w-3", generating && "animate-spin")} />
-                    Regenerate
-                  </Button>
-                </div>
-              </div>
-            </ScrollArea>
-          )}
-        </DialogContent>
-      </Dialog>
+      <FullDigestDialog
+        open={showFullDigest}
+        onOpenChange={setShowFullDigest}
+        digest={digest}
+        generating={generating}
+        onRegenerate={handleGenerateDigest}
+      />
     </>
+  );
+};
+
+// ─── KPI cell ───────────────────────────────────────────────────────────────
+
+const KpiCell = ({
+  label,
+  value,
+  sub,
+  deltaPct,
+  compact,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  deltaPct?: number;
+  compact?: boolean;
+}) => (
+  <div className="px-0 sm:px-4 first:sm:pl-0 last:sm:pr-0 min-w-0">
+    <div className="text-[10.5px] uppercase tracking-[0.16em] text-muted-foreground font-medium">
+      {label}
+    </div>
+    <div
+      className={cn(
+        "mt-1 font-semibold text-foreground tabular-nums tracking-tight truncate",
+        compact ? "text-[14px]" : "text-[22px] leading-none",
+      )}
+    >
+      {value}
+    </div>
+    {(sub || deltaPct !== undefined) && (
+      <div className="mt-1 flex items-center gap-1.5 text-[11px] tabular-nums">
+        {deltaPct !== undefined && deltaPct !== 0 && (
+          <span
+            className={cn(
+              "font-medium",
+              deltaPct >= 0 ? "text-success" : "text-destructive",
+            )}
+          >
+            {deltaPct >= 0 ? "+" : ""}
+            {deltaPct}%
+          </span>
+        )}
+        {sub && <span className="text-muted-foreground truncate">{sub}</span>}
+      </div>
+    )}
+  </div>
+);
+
+// ─── Full digest dialog ─────────────────────────────────────────────────────
+
+const FullDigestDialog = ({
+  open,
+  onOpenChange,
+  digest,
+  generating,
+  onRegenerate,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  digest: DigestData;
+  generating: boolean;
+  onRegenerate: () => void;
+}) => {
+  const summary = digest.summary_json;
+  if (!summary) return null;
+  const wir = summary.weekInReview;
+  const weekEnd = summary.coverage?.week_end;
+  const headerLine = `Week of ${format(new Date(digest.week_start), "MMM d")}${
+    weekEnd ? ` – ${format(new Date(weekEnd), "MMM d")}` : ""
+  }`;
+
+  const impactLetter = (impact: string) =>
+    impact === "high" ? "H" : impact === "medium" ? "M" : "L";
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[560px] max-h-[82vh]">
+        <DialogHeader>
+          <DialogTitle className="text-base font-semibold">
+            {headerLine}
+          </DialogTitle>
+          <p className="text-[11.5px] text-muted-foreground">
+            Generated{" "}
+            {format(new Date(digest.created_at), "MMM d, h:mm a")} ·{" "}
+            {(summary.data_sources && summary.data_sources.length > 0
+              ? summary.data_sources.join(" · ")
+              : "bookings · vehicles")}
+            {summary.coverage?.city_resolved
+              ? ` · ${summary.coverage.city_resolved}`
+              : ""}
+          </p>
+        </DialogHeader>
+
+        <ScrollArea className="max-h-[60vh] pr-4">
+          <div className="space-y-5 py-1">
+            {/* KPI strip — same density as the card */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-y-3 sm:divide-x divide-border/50">
+              <KpiCell
+                label="Revenue"
+                value={formatCurrencyCompact(wir.revenue)}
+                deltaPct={wir.revenueChange}
+                sub="vs last week"
+              />
+              <KpiCell
+                label="Bookings"
+                value={wir.bookingsCompleted.toLocaleString()}
+                sub={`+${wir.newBookings} new`}
+              />
+              <KpiCell
+                label="Top vehicle"
+                value={wir.topVehicle.name}
+                sub={formatCurrencyCompact(wir.topVehicle.revenue)}
+                compact
+              />
+              <KpiCell
+                label="Utilization"
+                value={`${wir.utilizationChange.to}%`}
+                sub={`from ${wir.utilizationChange.from}%`}
+              />
+            </div>
+
+            {/* Top action — pull-quote */}
+            {summary.topAction && (
+              <p className="text-[14.5px] leading-snug italic text-foreground/90 max-w-[68ch]">
+                {summary.topAction}
+              </p>
+            )}
+
+            <Separator />
+
+            {/* Outlook */}
+            <div>
+              <h4 className="text-[10.5px] uppercase tracking-[0.16em] text-muted-foreground font-medium mb-2">
+                Next week outlook
+              </h4>
+              {summary.nextWeekOutlook.events.length > 0 ? (
+                <ul className="divide-y divide-border/40">
+                  {summary.nextWeekOutlook.events.map((event, i) => (
+                    <li
+                      key={i}
+                      className="flex items-center gap-3 py-1.5 min-h-[28px] text-[13px]"
+                    >
+                      <span className="tabular-nums text-muted-foreground w-16 flex-shrink-0">
+                        {event.date}
+                      </span>
+                      <span className="flex-1 truncate text-foreground">
+                        {event.name}
+                      </span>
+                      <span
+                        className={cn(
+                          "inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-semibold",
+                          event.impact === "high"
+                            ? "bg-warning/20 text-warning"
+                            : event.impact === "medium"
+                              ? "bg-muted text-foreground"
+                              : "bg-muted/60 text-muted-foreground",
+                        )}
+                        title={`${event.impact} impact`}
+                      >
+                        {impactLetter(event.impact)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-[12.5px] text-muted-foreground">
+                  No major events detected for next week.
+                </p>
+              )}
+              {(summary.nextWeekOutlook.demandSurge > 0 ||
+                summary.nextWeekOutlook.vehiclesRecommended > 0) && (
+                <div className="mt-2 flex items-center gap-4 text-[12px] text-muted-foreground tabular-nums">
+                  {summary.nextWeekOutlook.demandSurge > 0 && (
+                    <span className="flex items-center gap-1">
+                      <TrendingUp className="h-3 w-3 text-success" />
+                      +{summary.nextWeekOutlook.demandSurge}% demand
+                    </span>
+                  )}
+                  {summary.nextWeekOutlook.vehiclesRecommended > 0 && (
+                    <span>
+                      {summary.nextWeekOutlook.vehiclesRecommended} vehicles to
+                      reprice
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Footer actions */}
+            <div className="flex items-center justify-end pt-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs gap-1.5 h-7"
+                onClick={onRegenerate}
+                disabled={generating}
+              >
+                <RefreshCw
+                  className={cn("h-3 w-3", generating && "animate-spin")}
+                />
+                Regenerate
+              </Button>
+            </div>
+          </div>
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
   );
 };
