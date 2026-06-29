@@ -333,11 +333,16 @@ export const MotorIQEnhanced = () => {
                         </p>
                       </div>
                       <div className="h-10 w-px bg-border hidden sm:block"></div>
-                      <div>
+                      <div title={`Projected from this vehicle's current utilization (${Math.round(Number(topRecommendation.utilization) || 0)}%). Max upside assumes 100% utilization for 30 days.`}>
                         <p className="text-2xl font-bold text-success">
                           +{formatCurrency(Math.round(potentialIncrease))}
                         </p>
-                        <p className="text-xs text-muted-foreground">Monthly opportunity</p>
+                        <p className="text-xs text-muted-foreground">Projected monthly upside</p>
+                        {potentialMax > potentialIncrease && (
+                          <p className="text-[10px] text-muted-foreground mt-0.5">
+                            Max at 100% utilization · +{formatCurrency(Math.round(potentialMax))}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>

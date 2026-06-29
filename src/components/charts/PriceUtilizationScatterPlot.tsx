@@ -24,7 +24,7 @@ export const PriceUtilizationScatterPlot = () => {
 
   // Transform vehicle data for scatter plot
   const allData = vehicles
-    .filter(v => v.name !== 'Lotus Evija')
+    .filter(v => v != null)
     .map(vehicle => {
       const utilization = vehicle.utilization || 0;
       const dailyRate = Number(vehicle.current_rate);
