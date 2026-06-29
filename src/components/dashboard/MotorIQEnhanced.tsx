@@ -143,26 +143,36 @@ export const MotorIQEnhanced = () => {
     await applyPriceOptimization(vehicleId, newRate);
   };
 
-  const vehiclesWithOptimization = vehicles
-    .filter(v => v.name !== 'Lotus Evija')
-    .map(v => ({
-      ...v,
-      opportunity: v.suggested_rate && v.suggested_rate > v.current_rate 
-        ? formatCurrency((v.suggested_rate - v.current_rate) * 30) 
-        : null
-    }));
+  // Projected monthly upside: assumes the next 30 days hold the vehicle's current utilization.
+  // Max upside (at 100% utilization) is shown as a secondary line for context.
+  const projectedUpside = (current: number, suggested: number, utilizationPct: number) => {
+    const util = Math.max(0, Math.min(100, Number(utilizationPct) || 0));
+    return Math.max(0, (suggested - current)) * 30 * (util / 100);
+  };
+  const maxUpside = (current: number, suggested: number) =>
+    Math.max(0, (suggested - current)) * 30;
 
-  const validOptimizations = vehiclesWithOptimization.filter(v => 
+  const vehiclesWithOptimization = vehicles.map(v => {
+    const hasOpp = v.suggested_rate && v.suggested_rate > v.current_rate;
+    const projected = hasOpp ? projectedUpside(v.current_rate, v.suggested_rate!, v.utilization || 0) : 0;
+    return {
+      ...v,
+      opportunity: hasOpp && projected > 0 ? formatCurrency(Math.round(projected)) : null,
+      projectedMonthlyUpside: projected,
+      maxMonthlyUpside: hasOpp ? maxUpside(v.current_rate, v.suggested_rate!) : 0,
+    };
+  });
+
+  const validOptimizations = vehiclesWithOptimization.filter(v =>
     v.suggested_rate && v.suggested_rate > v.current_rate
   );
-  
-  const topRecommendation = validOptimizations[0] || null;
-  const potentialIncrease = topRecommendation?.suggested_rate 
-    ? (topRecommendation.suggested_rate - topRecommendation.current_rate) * 30 
-    : 0;
 
-  const showRecommendationCard = topRecommendation && 
-    potentialIncrease > 0 && 
+  const topRecommendation = validOptimizations[0] || null;
+  const potentialIncrease = topRecommendation?.projectedMonthlyUpside ?? 0;
+  const potentialMax = topRecommendation?.maxMonthlyUpside ?? 0;
+
+  const showRecommendationCard = topRecommendation &&
+    potentialMax > 0 &&
     dismissedRecommendationId !== topRecommendation.id;
 
   const handleDismissRecommendation = () => {
