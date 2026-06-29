@@ -227,6 +227,17 @@ export const WeeklyDigestCard = ({ bookings, vehicles }: WeeklyDigestCardProps) 
             </div>
           </div>
         )}
+
+        {summary && (
+          <div className="mt-3 text-[10px] text-muted-foreground/80">
+            Sources: {(summary.data_sources && summary.data_sources.length > 0
+              ? summary.data_sources.join(' · ')
+              : 'bookings · vehicles')}
+            {summary.coverage?.city_resolved
+              ? ` · ${summary.coverage.city_resolved}`
+              : ' · no city set'}
+          </div>
+        )}
       </Card>
 
       {/* Full Digest Dialog */}
