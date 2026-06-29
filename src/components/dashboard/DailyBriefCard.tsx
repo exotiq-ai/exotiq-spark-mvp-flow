@@ -268,21 +268,12 @@ export const DailyBriefCard = ({ onModuleClick }: DailyBriefCardProps) => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Editorial lede treatment: first sentence in foreground, rest muted. */
+/** Editorial lede: first sentence only — the rail already covers the counts. */
 const NarrativeLede = ({ text }: { text: string }) => {
   const splitAt = text.search(/[.!?]\s/);
-  if (splitAt === -1) {
-    return (
-      <p className="text-[15px] leading-[1.7] text-foreground">{text}</p>
-    );
-  }
-  const lede = text.slice(0, splitAt + 1);
-  const rest = text.slice(splitAt + 1).trim();
+  const lede = splitAt === -1 ? text : text.slice(0, splitAt + 1);
   return (
-    <p className="text-[15px] leading-[1.7]">
-      <span className="text-foreground">{lede}</span>{" "}
-      <span className="text-muted-foreground">{rest}</span>
-    </p>
+    <p className="text-[14.5px] leading-[1.6] text-foreground">{lede}</p>
   );
 };
 
