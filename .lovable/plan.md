@@ -1,46 +1,80 @@
-# Save FleetCopilot Number-Truth Audit Plan as Markdown
+# FleetCopilot Number-Truth Audit & Fix Plan (v2)
 
-**Scope:** Write-only. Create one Markdown file at `docs/rari/FLEETCOPILOT_NUMBER_TRUTH_AUDIT.md` containing the full v2 audit + Phase 1/2 fix plan. No code changes, no edits to dashboard components, no edits to the digest edge function. Nothing ships until you approve a follow-up plan.
+_No code ships until this plan is approved. The audit doc lives at `docs/rari/FLEETCOPILOT_NUMBER_TRUTH_AUDIT.md` for reference._
 
-## File to create
+## TL;DR
 
-`docs/rari/FLEETCOPILOT_NUMBER_TRUTH_AUDIT.md`
+- Enhanced surfaces (`MotorIQEnhanced`, `CoreEnhanced`, `WeeklyDigestCard`, `DailyBriefCard`) compute headline numbers from real data — keep.
+- Legacy `Core.tsx` and `MotorIQ.tsx` still ship with fabricated KPIs — delete.
+- `MotorIQEnhanced` has a hard-coded Lotus filter and a "monthly opportunity" formula that ignores utilization — fix.
+- `weekly-intelligence-digest` edge fn hard-codes Miami, mis-sums revenue by `created_at`, fakes `vehiclesRecommended`, and lets the LLM invent figures — fix.
+- Phase 1 = truth fixes, no schema changes. Phase 2 = shared metrics lib, provenance UI, CI guardrails.
 
-## Contents (in order)
+## Audit findings (fabricated → fix)
 
-1. **TL;DR** — what's real, what's fabricated, what we'd change, in 6 bullets.
-2. **Audit findings**
-   - Real numbers (keep): MotorIQEnhanced revenue/utilization/rates, CoreEnhanced fleet/booking/insights, WeeklyDigestCard aggregates, DailyBriefCard deterministic compute.
-   - Fabricated (fix), with file:line citations:
-     - `Core.tsx`: `% Tasks Automated`, `Time Saved Daily = vehicles × 0.5h`.
-     - `MotorIQ.tsx`: `utilizationRate = bookings.length × 10`, fake margin, `suggestedIncrease = rate × (0.1 + i×0.05)`, `impact = ×4`, `confidence = 95 − i×8`.
-     - `CoreEnhanced.tsx`: "24/7 Monitoring" chip masquerading as a KPI.
-     - `MotorIQEnhanced.tsx`: hard-coded `Lotus Evija` filter; `monthly opportunity = (suggested − current) × 30` ignores utilization.
-     - `weekly-intelligence-digest/index.ts`: hard-coded `'miami'`; utilization snapshot mislabeled as weekly; revenue summed on `created_at` not rental window; `vehiclesRecommended = demandSurge > 15 ? min(fleet,3) : 0`; AI prompt doesn't forbid invented figures.
-3. **Phase 1 — Truth fixes (no schema changes)**
-   - Pre-flight grep to confirm `<Core />` and `<MotorIQ />` are unused.
-   - Delete `Core.tsx` and `MotorIQ.tsx`.
-   - `CoreEnhanced`: replace "24/7 Monitoring" with "Last sync · 2m ago" or plain "Live" badge.
-   - `MotorIQEnhanced`: drop Lotus filter; rename to "Projected monthly upside" = `(suggested − current) × 30 × (utilization/100)`; tooltip explains assumption; show "Max upside at 100% utilization" as secondary line.
-   - `weekly-intelligence-digest`: resolve tenant city from `locations` (skip events if missing); match MotorIQ utilization formula; overlap-weighted weekly revenue; real `vehiclesRecommended` count; tighten LLM prompt + regex-reject $/% tokens not in payload; add `data_sources` and `coverage` to `summary_json`.
-   - `WeeklyDigestCard`: render `coverage` footer.
-   - Verification: Playwright KPI snapshot + Vitest pure-function tests for the new math.
-   - Acceptance gates: no `× constant` impact, no Miami fallback, utilization parity within ±1% across DailyBrief / MotorIQEnhanced / PlatformPulseStrip / digest.
-4. **Phase 2 — Honest AI recommendations (opt-in)**
-   - New `MotorIQRecommendations.tsx` driven by real pricing pipeline (no canned rows).
-   - New `shared/fleetMetrics.ts` exporting `computeUtilization`, `computeWeeklyRevenue`, `computeProjectedUpside`; refactor 4 call sites; copy-to-edge-fn at build time.
-   - Vitest parity suite across all 4 surfaces.
-   - KPI provenance table in `audit/observability.md` + `scripts/audit/check-kpi-provenance.mjs` CI lint for magic-constant patterns.
-   - Log digest inputs/outputs to `ai_transfer_log` (`digest_inputs`).
-   - New `<KpiSource />` info-popover primitive on every KPI tile.
-   - "Methodology" expand on digest dialog.
-5. **Out of scope** — `suggested_rate` model itself, Stripe/billing/LTV, new tables, RLS, visual redesign.
-6. **Risks & reversibility** — legacy deletions reversible via git; first post-change digest gets a "Methodology updated" note; shared metrics duplicated to edge fn via build script.
-7. **Sequencing diagram** (ASCII) — Phase 1 single PR, Phase 2 single PR.
-8. **Technical notes** — exact files touched per phase (delete 2, edit 4 in Phase 1; add 4, refactor 4 in Phase 2). No DB migrations, no RLS, no new secrets.
+- **`Core.tsx`**: `% Tasks Automated = activeBookings/totalVehicles×100`, `Time Saved = vehicles×0.5h`, "24/7 Monitoring" as a KPI tile.
+- **`MotorIQ.tsx`**: `utilization = bookings.length×10`, fake margin, `suggestedIncrease = rate×(0.1+i×0.05)`, `impact = ×4`, `confidence = 95−i×8`.
+- **`CoreEnhanced.tsx`**: "24/7 Monitoring" chip styled as a KPI.
+- **`MotorIQEnhanced.tsx`**: hard-coded Lotus Evija exclusion; `monthly opportunity = (suggested−current)×30` assumes 100% utilization.
+- **`weekly-intelligence-digest/index.ts`**: hard-coded `city='miami'`; today-snapshot utilization labeled weekly; revenue summed on `created_at`; `vehiclesRecommended = demandSurge>15 ? min(fleet,3) : 0`; prompt doesn't forbid invented `$`/`%` tokens.
 
-## What this turn does NOT do
+## Phase 1 — Truth fixes (no schema changes)
 
-- No edits to `Core.tsx`, `MotorIQ.tsx`, `CoreEnhanced.tsx`, `MotorIQEnhanced.tsx`, `WeeklyDigestCard.tsx`, or `weekly-intelligence-digest/index.ts`.
-- No deletions, no archive moves, no DB migrations, no edge function deploys.
-- One new Markdown file. That's it.
+1. Pre-flight grep confirms `<Core/>` and `<MotorIQ/>` are unused; delete both files and orphan routes.
+2. `CoreEnhanced`: replace "24/7 Monitoring" chip with `Last sync · 2m ago` or a plain `Live` badge.
+3. `MotorIQEnhanced`: drop Lotus filter; rename to **Projected monthly upside** = `(suggested−current)×30×(utilization/100)`; tooltip explains assumption; secondary line shows `Max upside at 100% utilization`.
+4. `weekly-intelligence-digest`:
+   - Resolve city from tenant's primary `locations.city`; if null, omit events section (no Miami fallback).
+   - Match `MotorIQEnhanced` utilization formula (inline copy with `// keep in sync` comment in Phase 1).
+   - Weekly revenue = overlap-weighted sum across `[weekStart, weekEnd)` using `start_date`/`end_date`.
+   - `vehiclesRecommended` = real count from `pricing_recommendations` where `suggested>current` in week.
+   - Prompt: explicit "Do not invent dollar or percent figures"; post-gen regex rejects `$\d`/`\d%` tokens not in payload.
+   - Extend `summary_json` with `data_sources` and `coverage` (week range, counts, `city_resolved`).
+5. `WeeklyDigestCard`: render footer `Sources: bookings · vehicles · pricing · {city or "no city set"}`.
+6. Verification: Playwright KPI snapshot of `/dashboard` before/after; Vitest for overlap-weighted revenue and projected-upside.
+7. Acceptance: no `× constant` impact formulas; no Miami fallback; utilization parity within ±1% across `DailyBriefCard`, `MotorIQEnhanced`, `PlatformPulseStrip`, digest.
+
+## Phase 2 — Honest AI + guardrails (opt-in)
+
+1. New `shared/fleetMetrics.ts` with `computeUtilization`, `computeWeeklyRevenue` (overlap-weighted), `computeProjectedUpside`; Vite `@shared/` alias; `scripts/sync-shared-to-edge.mjs` copies into `supabase/functions/_shared/` so Deno can import.
+2. Refactor the 4 call sites to import from the shared lib.
+3. New `MotorIQRecommendations.tsx` driven by `pricing_recommendations` rows — no canned rationale; confidence rendered only if pipeline emits it.
+4. New `KpiSource.tsx` info-popover primitive on every KPI tile (source table/column/formula); "Methodology" expand inside weekly digest dialog.
+5. New `scripts/audit/check-kpi-provenance.mjs` CI lint failing on patterns like `Math.round(*0.5)`, `×10` capped at 100, `×30` next to `$`, `confidence = N -`. Wired into test script.
+6. Log digest inputs/outputs (counts, city, prompt hash, payload hash, model output) to existing `ai_transfer_log`.
+7. Vitest parity suite asserting all 4 surfaces return identical utilization, revenue, upside on a fixture dataset.
+
+## Out of scope
+
+`suggested_rate` model itself; Stripe/billing/LTV; new tables; RLS changes; new secrets; visual redesign beyond source popovers and methodology expand.
+
+## Risks & reversibility
+
+- Legacy deletions reversible via git history.
+- First post-change digest adds a one-line `Methodology updated` note.
+- Shared-metrics duplication into edge fn is the main regression risk; the parity test in §7 catches stale copies.
+
+## Sequencing
+
+```text
+Phase 1 PR
+  ├─ pre-flight grep
+  ├─ delete Core.tsx, MotorIQ.tsx
+  ├─ edit CoreEnhanced, MotorIQEnhanced
+  ├─ edit weekly-intelligence-digest + WeeklyDigestCard
+  └─ Vitest + Playwright gates
+        │  (merge, observe one weekly digest cycle)
+        ▼
+Phase 2 PR
+  ├─ add shared/fleetMetrics.ts + sync script
+  ├─ refactor 4 call sites
+  ├─ add MotorIQRecommendations, KpiSource, methodology expand
+  ├─ ai_transfer_log writes
+  └─ CI lint + parity test
+```
+
+## Technical notes
+
+- **Phase 1 touches**: delete `src/pages/Core.tsx`, `src/pages/MotorIQ.tsx`; edit `src/components/dashboard/CoreEnhanced.tsx`, `MotorIQEnhanced.tsx`, `WeeklyDigestCard.tsx`, `supabase/functions/weekly-intelligence-digest/index.ts`; route cleanup per grep.
+- **Phase 2 touches**: add `shared/fleetMetrics.ts`, `supabase/functions/_shared/fleetMetrics.ts` (synced), `MotorIQRecommendations.tsx`, `KpiSource.tsx`, `scripts/sync-shared-to-edge.mjs`, `scripts/audit/check-kpi-provenance.mjs`; refactor the 4 call sites.
+- No DB migrations, no RLS changes, no new secrets. Edge function redeploys on save. `ai_transfer_log` uses existing columns.

@@ -202,9 +202,12 @@ export const CoreEnhanced = () => {
           </div>
           
           <div className="hidden sm:flex items-center gap-3">
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary/5 border border-primary/10">
-              <span className="text-sm font-semibold">24/7</span>
-              <span className="text-[10px] text-muted-foreground">Monitoring</span>
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-success/5 border border-success/10">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-60" />
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-success" />
+              </span>
+              <span className="text-[10px] text-muted-foreground">Live</span>
             </div>
             {totalVehicles > 0 && (
               <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-success/5 border border-success/10">

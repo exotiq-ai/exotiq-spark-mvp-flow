@@ -51,6 +51,14 @@ interface DigestData {
     };
     topAction: string;
     generatedAt: string;
+    data_sources?: string[];
+    coverage?: {
+      week_start?: string;
+      week_end?: string;
+      vehicles_counted?: number;
+      bookings_counted?: number;
+      city_resolved?: string | null;
+    };
   };
   created_at: string;
 }
@@ -217,6 +225,17 @@ export const WeeklyDigestCard = ({ bookings, vehicles }: WeeklyDigestCardProps) 
               <Zap className="h-4 w-4 text-success flex-shrink-0 mt-0.5" />
               <p className="text-sm text-muted-foreground">{summary.topAction}</p>
             </div>
+          </div>
+        )}
+
+        {summary && (
+          <div className="mt-3 text-[10px] text-muted-foreground/80">
+            Sources: {(summary.data_sources && summary.data_sources.length > 0
+              ? summary.data_sources.join(' · ')
+              : 'bookings · vehicles')}
+            {summary.coverage?.city_resolved
+              ? ` · ${summary.coverage.city_resolved}`
+              : ' · no city set'}
           </div>
         )}
       </Card>
