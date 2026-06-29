@@ -218,7 +218,7 @@ export const DailyBriefCard = ({ onModuleClick }: DailyBriefCardProps) => {
 
   // ----- Today -----
   return (
-    <section className="space-y-6 sm:space-y-7" aria-label="Daily brief">
+    <section className="space-y-5" aria-label="Daily brief">
       <BriefHeader
         greeting={greeting}
         name={facts.greetingName}
@@ -238,7 +238,7 @@ export const DailyBriefCard = ({ onModuleClick }: DailyBriefCardProps) => {
         utilization={facts.utilization}
       />
 
-      {/* Rari's read — editorial lede: first sentence foreground, rest muted */}
+      {/* Rari's read — single-sentence lede */}
       {narrative && (
         <motion.div
           initial={{ opacity: 0, y: 4 }}
@@ -260,6 +260,16 @@ export const DailyBriefCard = ({ onModuleClick }: DailyBriefCardProps) => {
           showAllIssues={showAllIssues}
           onToggleShowAll={() => setShowAllIssues((s) => !s)}
           onIssueClick={handleIssueClick}
+        />
+      )}
+
+      {/* Week-in-review glance — tap to expand the full digest */}
+      {showWeekToggle && (
+        <WeeklyDigestCard
+          bookings={fleet.bookings}
+          vehicles={fleet.vehicles}
+          variant="strip"
+          onExpand={() => setMode("week")}
         />
       )}
     </section>
