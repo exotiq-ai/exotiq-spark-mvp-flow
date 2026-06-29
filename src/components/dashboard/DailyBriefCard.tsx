@@ -462,29 +462,24 @@ const BriefHeader = ({
   onModeChange: (m: Mode) => void;
   showWeekToggle: boolean;
 }) => (
-  <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
-    <div className="min-w-0">
-      <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-foreground">
-        {greeting}, {name}.
-      </h1>
-      <p className="mt-1 text-xs uppercase tracking-[0.18em] text-muted-foreground">
-        {company ? `${company} · ` : ""}
+  <header className="flex items-center justify-between gap-3 flex-wrap">
+    <h1 className="text-[18px] sm:text-[19px] font-semibold tracking-tight text-foreground leading-tight min-w-0 truncate">
+      {greeting}, {name}.
+      <span className="ml-2 font-normal text-muted-foreground tracking-normal">
         {dateLabel}
-      </p>
-    </div>
+        {company ? ` · ${company}` : ""}
+      </span>
+    </h1>
     {showWeekToggle && <ModeToggle mode={mode} onChange={onModeChange} />}
   </header>
 );
 
 
 const AllClear = () => (
-  <div className="flex items-center gap-3 py-4">
-    <CheckCircle2 className="h-5 w-5 text-success flex-shrink-0" />
-    <div>
-      <p className="text-sm font-medium text-foreground">All clear.</p>
-      <p className="text-xs text-muted-foreground">Nothing needs your attention right now.</p>
-    </div>
-  </div>
+  <p className="flex items-center gap-2 py-1 text-sm text-foreground">
+    <CheckCircle2 className="h-4 w-4 text-success flex-shrink-0" />
+    All clear — nothing needs you right now.
+  </p>
 );
 
 const ModeToggle = ({ mode, onChange }: { mode: Mode; onChange: (m: Mode) => void }) => (
