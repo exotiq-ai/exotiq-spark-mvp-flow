@@ -218,7 +218,7 @@ export const DailyBriefCard = ({ onModuleClick }: DailyBriefCardProps) => {
 
   // ----- Today -----
   return (
-    <section className="space-y-6 sm:space-y-7" aria-label="Daily brief">
+    <section className="space-y-5" aria-label="Daily brief">
       <BriefHeader
         greeting={greeting}
         name={facts.greetingName}
@@ -238,7 +238,7 @@ export const DailyBriefCard = ({ onModuleClick }: DailyBriefCardProps) => {
         utilization={facts.utilization}
       />
 
-      {/* Rari's read — editorial lede: first sentence foreground, rest muted */}
+      {/* Rari's read — single-sentence lede */}
       {narrative && (
         <motion.div
           initial={{ opacity: 0, y: 4 }}
@@ -262,27 +262,28 @@ export const DailyBriefCard = ({ onModuleClick }: DailyBriefCardProps) => {
           onIssueClick={handleIssueClick}
         />
       )}
+
+      {/* Week-in-review glance — tap to expand the full digest */}
+      {showWeekToggle && (
+        <WeeklyDigestCard
+          bookings={fleet.bookings}
+          vehicles={fleet.vehicles}
+          variant="strip"
+          onExpand={() => setMode("week")}
+        />
+      )}
     </section>
   );
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Editorial lede treatment: first sentence in foreground, rest muted. */
+/** Editorial lede: first sentence only — the rail already covers the counts. */
 const NarrativeLede = ({ text }: { text: string }) => {
   const splitAt = text.search(/[.!?]\s/);
-  if (splitAt === -1) {
-    return (
-      <p className="text-[15px] leading-[1.7] text-foreground">{text}</p>
-    );
-  }
-  const lede = text.slice(0, splitAt + 1);
-  const rest = text.slice(splitAt + 1).trim();
+  const lede = splitAt === -1 ? text : text.slice(0, splitAt + 1);
   return (
-    <p className="text-[15px] leading-[1.7]">
-      <span className="text-foreground">{lede}</span>{" "}
-      <span className="text-muted-foreground">{rest}</span>
-    </p>
+    <p className="text-[14.5px] leading-[1.6] text-foreground">{lede}</p>
   );
 };
 
@@ -303,27 +304,9 @@ const TieredPunchList = ({
   const headsUp = visibleIssues.filter((i) => i.severity !== "high");
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-baseline justify-between">
-        <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-          Needs you
-          <span className="ml-2 text-foreground/80 tracking-normal normal-case font-medium">
-            {issues.length}
-          </span>
-        </h2>
-        {issues.length > 5 && (
-          <button
-            type="button"
-            onClick={onToggleShowAll}
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-          >
-            {showAllIssues ? "Show top 5" : `View all (${issues.length})`}
-          </button>
-        )}
-      </div>
-
+    <div className="space-y-2">
       {critical.length > 0 && (
-        <ul className="space-y-1">
+        <ul className="space-y-0.5">
           {critical.map((issue, i) => (
             <IssueRow
               key={issue.id}
@@ -337,24 +320,27 @@ const TieredPunchList = ({
       )}
 
       {headsUp.length > 0 && (
-        <div className="space-y-2">
-          {critical.length > 0 && (
-            <p className="text-[10.5px] font-medium uppercase tracking-[0.16em] text-muted-foreground/70 pt-1">
-              Heads up
-            </p>
-          )}
-          <ul className="divide-y divide-border/50 border-y border-border/50">
-            {headsUp.map((issue, i) => (
-              <IssueRow
-                key={issue.id}
-                issue={issue}
-                tier="headsup"
-                index={critical.length + i}
-                onClick={() => onIssueClick(issue)}
-              />
-            ))}
-          </ul>
-        </div>
+        <ul className="divide-y divide-border/40">
+          {headsUp.map((issue, i) => (
+            <IssueRow
+              key={issue.id}
+              issue={issue}
+              tier="headsup"
+              index={critical.length + i}
+              onClick={() => onIssueClick(issue)}
+            />
+          ))}
+        </ul>
+      )}
+
+      {issues.length > 5 && (
+        <button
+          type="button"
+          onClick={onToggleShowAll}
+          className="text-[11px] text-muted-foreground hover:text-foreground transition-colors pt-1"
+        >
+          {showAllIssues ? "Show top 5" : `View all ${issues.length} →`}
+        </button>
       )}
     </div>
   );
@@ -376,65 +362,43 @@ const IssueRow = ({
 
   return (
     <motion.li
-      initial={{ opacity: 0, y: 3 }}
+      initial={{ opacity: 0, y: 2 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25, delay: 0.08 + index * 0.04 }}
+      transition={{ duration: 0.2, delay: 0.04 + index * 0.03 }}
     >
       <button
         type="button"
         onClick={onClick}
         disabled={!clickable}
         className={cn(
-          "group w-full text-left",
-          "transition-all hover:bg-muted/40 disabled:hover:bg-transparent disabled:cursor-default",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          "group w-full text-left flex items-center gap-3",
+          "transition-colors hover:bg-muted/40 disabled:hover:bg-transparent disabled:cursor-default",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm",
           isCritical
-            ? [
-                "flex items-center gap-4 rounded-lg px-3 py-3.5 min-h-[60px]",
-                "border-l-2 border-destructive/70 bg-destructive/[0.035] hover:bg-destructive/[0.06]",
-              ]
-            : [
-                "flex items-center gap-4 py-3 sm:py-2.5 min-h-[48px]",
-                "-mx-2 px-2 rounded-md",
-              ],
+            ? "min-h-[44px] py-2 pl-3 pr-2 border-l-2 border-destructive"
+            : "min-h-[36px] py-1.5 px-2",
         )}
       >
-        <span
-          aria-hidden
-          className={cn(
-            "flex-shrink-0 rounded-full",
-            isCritical
-              ? "h-2 w-2 bg-destructive animate-pulse"
-              : issue.severity === "medium"
-                ? "h-2 w-2 bg-warning"
-                : "h-2 w-2 bg-muted-foreground/40",
-          )}
-        />
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 flex items-baseline gap-2 flex-wrap">
           <p
             className={cn(
               "leading-snug truncate text-foreground",
-              isCritical ? "text-[15px] font-semibold" : "text-[14.5px] font-medium",
+              isCritical ? "text-[14px] font-semibold" : "text-[13.5px] font-medium",
             )}
           >
             {issue.title}
           </p>
           {issue.detail && (
-            <p
-              className={cn(
-                "text-xs text-muted-foreground mt-0.5 truncate",
-                isCritical && "text-foreground/60",
-              )}
-            >
-              {issue.detail}
+            <p className="text-[12px] text-muted-foreground truncate">
+              · {issue.detail}
             </p>
           )}
         </div>
         {clickable && (
           <ChevronRight
             className={cn(
-              "h-4 w-4 flex-shrink-0 transition-all duration-150",
-              "text-muted-foreground/50 group-hover:text-foreground group-hover:translate-x-0.5",
+              "h-3.5 w-3.5 flex-shrink-0 transition-all duration-150",
+              "text-muted-foreground/40 group-hover:text-foreground group-hover:translate-x-0.5",
             )}
           />
         )}
@@ -462,29 +426,24 @@ const BriefHeader = ({
   onModeChange: (m: Mode) => void;
   showWeekToggle: boolean;
 }) => (
-  <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
-    <div className="min-w-0">
-      <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-foreground">
-        {greeting}, {name}.
-      </h1>
-      <p className="mt-1 text-xs uppercase tracking-[0.18em] text-muted-foreground">
-        {company ? `${company} · ` : ""}
+  <header className="flex items-center justify-between gap-3 flex-wrap">
+    <h1 className="text-[18px] sm:text-[19px] font-semibold tracking-tight text-foreground leading-tight min-w-0 truncate">
+      {greeting}, {name}.
+      <span className="ml-2 font-normal text-muted-foreground tracking-normal">
         {dateLabel}
-      </p>
-    </div>
+        {company ? ` · ${company}` : ""}
+      </span>
+    </h1>
     {showWeekToggle && <ModeToggle mode={mode} onChange={onModeChange} />}
   </header>
 );
 
 
 const AllClear = () => (
-  <div className="flex items-center gap-3 py-4">
-    <CheckCircle2 className="h-5 w-5 text-success flex-shrink-0" />
-    <div>
-      <p className="text-sm font-medium text-foreground">All clear.</p>
-      <p className="text-xs text-muted-foreground">Nothing needs your attention right now.</p>
-    </div>
-  </div>
+  <p className="flex items-center gap-2 py-1 text-sm text-foreground">
+    <CheckCircle2 className="h-4 w-4 text-success flex-shrink-0" />
+    All clear — nothing needs you right now.
+  </p>
 );
 
 const ModeToggle = ({ mode, onChange }: { mode: Mode; onChange: (m: Mode) => void }) => (

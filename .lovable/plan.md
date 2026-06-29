@@ -1,129 +1,96 @@
-# FleetCopilot Phase 2 — Honest AI + Guardrails
+# Dashboard Pixel-Density Pass — Today & Week
 
-_Status: draft for review. No code changes until approved. On approval, this is written verbatim to `docs/rari/FLEETCOPILOT_PHASE_2_PLAN.md` and `.lovable/plan.md` is updated to point at it._
+_Audit + redesign plan. No code ships until approved._
 
-## Goal
+## Diagnosis (what's costing pixels)
 
-Phase 1 removed fabricated numbers at their call sites. Phase 2 makes the truth **structural**: one shared metrics library, visible provenance on every KPI, CI lint that fails on heuristic patterns, and observability on the digest. No schema changes, no new secrets, no visual redesign beyond source popovers and a methodology expand.
+**Today view (`DailyBriefCard`)**
+- Header eats ~80px on "Good morning, Name." + uppercase company/date line + a pill toggle. Three rows of chrome before any number.
+- `HeroKpiRail` is a fifth row of large numerals on top of the actual KPI tiles in `CoreEnhanced` — duplication across surfaces.
+- Narrative paragraph is a full 68ch block; first sentence already carries the meaning, the muted tail is mostly filler.
+- Punch list uses a section label (`Needs you · 3`), then a `Heads up` sub-label, then 60px tall critical rows with pulsing dots and pill backgrounds. A 3-item list takes ~280px.
+- "All clear" empty state is a 4-line block where one line would do.
+- `AIBadge`, gradient backgrounds, and decorative `card-premium` shadows on nearly every surface compete for attention.
 
-## Scope (in)
+**Week view (`WeeklyDigestCard`)**
+- Card header (icon-in-rounded-square + title + "New" badge + subtitle + chevron) takes ~64px before any data.
+- KPI quad uses 4 columns of label-icon + label + big number + delta — but each tile repeats `text-xs text-muted-foreground` + 12px icon, all decoration, no scale or sparkline.
+- "Top Action" gets its own bordered green panel below the grid for a single sentence.
+- Sources footer is a 10px line buried after the action panel — provenance hidden where it can't be glanced.
+- The dialog re-renders the same 4 KPIs in colored panels (success/primary/accent/warning) — pure decoration, no new info.
+- Outlook section shows events as full-width rows with `Sparkles` icon + name + date + impact badge — 56px per event.
 
-1. Shared metrics library
-2. Real recommendations panel (replaces remaining canned content in `MotorIQEnhanced`)
-3. Provenance UI primitive (`KpiSource`) + methodology expand in weekly digest
-4. CI lint for KPI heuristics
-5. Digest observability via existing `ai_transfer_log`
-6. Cross-surface parity Vitest suite
+**Cross-cutting**
+- Five different accent colors per card (primary/accent/success/warning/destructive) with gradient washes — every tile shouts.
+- Icons everywhere (24 unique lucide imports in the digest alone) — most are decorative, not informational.
+
+## Principles for the pass
+
+1. **One headline per screen.** Greeting and KPI rail share the top band; everything else is supporting.
+2. **Numbers over chrome.** Tabular numerals, hairline dividers, no card backgrounds where a row will do.
+3. **One accent color.** Reserve color for state (critical/positive change), not for category labels.
+4. **Icons earn their pixels.** Drop decorative icons; keep only state indicators (trend arrow, status dot) and affordances (chevron on clickable rows).
+5. **Provenance always visible, never loud.** Sources line stays, but as a single hairline strip under the headline, not a footnote.
+
+## Today view — proposed changes
+
+1. **Compress the header band** into a single row: `Good morning, Jordan. — Mon, Jun 29 · Exotiq Miami` rendered as one line at 18px with tracking, mode toggle inline. Saves ~50px.
+2. **Replace `HeroKpiRail`** with a 4-up inline KPI strip directly under the header — same numerals, no card, hairline divider above and below. Drop revenueToday if it duplicates `CoreEnhanced`; otherwise keep all four. Each KPI: large tabular number, micro-label, optional delta chip. No icons.
+3. **Narrative**: keep first sentence at body weight, drop the muted tail entirely (it's restating counts already in the rail). One-sentence read max.
+4. **Punch list**:
+   - Remove the `Needs you · N` section heading and the `Heads up` sub-heading. The tiered visual treatment already encodes priority.
+   - Critical rows: drop the pulsing dot animation; use a 3px left border in destructive + foreground text. Compact to 44px min-height.
+   - Heads-up rows: remove the bordered divider strip; render as plain rows with a `·` separator before the detail text. 36px min-height.
+   - "View all" link moves inline at the end of the list rather than the top-right corner.
+5. **All-clear**: collapse to a single line `All clear — nothing needs you right now.` inline with a `CheckCircle2`.
+6. **Pull `WeeklyDigestCard` into the Today view as a single hairline strip** at the bottom: `Week in review: $42.1K rev · 18 bookings · 64% util → tap for full digest`. Removes the need to switch modes for a glance.
+
+## Week view — proposed changes
+
+1. **Mode toggle becomes redundant** if Today already shows the week strip; demote `mode==='week'` to a full-page detail of the digest only (drop the BriefHeader duplication).
+2. **Digest card collapsed state**: drop the icon-in-square + subtitle + chevron header. Replace with a single row: `Week of Jun 23 — Jun 29 · Generated 2h ago · Regenerate`. The card itself is the affordance.
+3. **KPI quad** becomes a 4-column inline strip (same pattern as Today): tabular numerals, micro-label, delta chip. Drop the per-tile icons. Add a 60px sparkline above each number showing the 8-week trend — this is the one place a chart earns its pixels.
+4. **Top Action** moves to a single foreground line directly below the KPI strip — no green panel, no `Zap` icon. Treat it like a pull-quote: italic, foreground color, left-aligned, max 2 lines.
+5. **Sources strip** moves from footer to a hairline row directly under the action line: `bookings · vehicles · pricing · Miami` in 11px muted. Always visible at glance.
+6. **Dialog (full digest)**:
+   - Drop the colored quad re-render — show the same 4 KPIs but expanded with the sparkline and a methodology popover (already planned in Phase 2).
+   - Outlook events: collapse to a 2-column dense list — `Date · Event name` left, `impact` right as a single letter pill (H/M/L). 28px per row instead of 56.
+   - Remove the second "Top Action" panel; the action already lives on the card.
+   - Add a `Methodology` accordion at the bottom (Phase 2 hook).
+
+## Cross-cutting cleanup
+
+- Standardize on **one accent color** (primary) plus `success` / `destructive` for state. Retire `accent` and `warning` washes inside dashboard cards.
+- Remove `card-premium` gradient washes on `DailyBriefCard` and `WeeklyDigestCard`; use plain `border-border/60` + `bg-card`. Reserve gradient treatment for the landing/hero contexts.
+- Adopt `tabular-nums` globally on KPI numerals so columns align across rows and surfaces.
+- Audit lucide imports per file; drop any icon not serving state or affordance. Target: digest from 14 icons → 4 (`ChevronRight`, `RefreshCw`, `TrendingUp/Down`).
+
+## Verification
+
+- Before/after Playwright screenshots of `/dashboard` in Today and Week modes at 1280×1800 and 390×844.
+- Pixel-count check: header band <56px, each punch-list row ≤48px critical / ≤36px heads-up, digest collapsed card ≤220px total.
+- Vitest snapshot on `DailyBriefCard` props rendering (no logic changes — pure presentation).
+- Manual: confirm Today's week strip and full week view show identical numbers (parity guarded by shared lib once Phase 2 lands).
 
 ## Out of scope
 
-`suggested_rate` pricing model internals; Stripe/billing/LTV; new tables; RLS changes; new secrets; visual redesign beyond source popovers and methodology expand; legacy page work (already done in Phase 1).
-
-## Workstreams
-
-### 1. Shared metrics library
-
-- New `shared/fleetMetrics.ts` exporting:
-  - `computeUtilization(vehicles, bookings, asOf)` — average of per-vehicle day-share, matches Phase 1 inline version
-  - `computeWeeklyRevenue(bookings, weekStart, weekEnd)` — overlap-weighted, matches Phase 1 inline version
-  - `computeProjectedUpside(current, suggested, utilization)` — `(suggested−current)×30×(utilization/100)`, floored at 0
-  - `computeMaxUpside(current, suggested)` — 100% utilization variant
-- Vite alias `@shared/` → `./shared`
-- `scripts/sync-shared-to-edge.mjs` copies `shared/fleetMetrics.ts` → `supabase/functions/_shared/fleetMetrics.ts` (Deno can't reach outside its function dir without bundler); hashes the file and writes a `// generated from shared/fleetMetrics.ts @ <sha>` header so drift is visible in diffs.
-- Wire sync script into `predev`, `prebuild`, and the existing CI test step.
-
-### 2. Refactor call sites
-
-Replace inline math with shared lib imports in:
-- `src/components/dashboard/MotorIQEnhanced.tsx`
-- `src/components/dashboard/CoreEnhanced.tsx`
-- `src/components/dashboard/DailyBriefCard.tsx` (utilization only)
-- `supabase/functions/weekly-intelligence-digest/index.ts`
-
-Remove the Phase 1 `// keep in sync` comments. No visual changes.
-
-### 3. Real recommendations panel
-
-- New `src/components/dashboard/MotorIQRecommendations.tsx` driven by `pricing_recommendations` rows.
-- No canned rationale; `confidence` rendered only when the pipeline emits one (otherwise omitted, not faked).
-- Replaces the current ad-hoc recommendation list inside `MotorIQEnhanced`.
-- Empty state: `No recommendations yet — pricing pipeline runs daily.` (no fake rows).
-
-### 4. Provenance UI
-
-- New `src/components/ui/KpiSource.tsx` — small info-icon button + popover. Props: `{ table, column?, formula, sample? }`.
-- Applied to every KPI tile in `CoreEnhanced` and `MotorIQEnhanced` (revenue, utilization, fleet count, projected upside, suggested rate, etc.).
-- `WeeklyDigestCard` gets a "Methodology" expand inside the existing dialog explaining the four shared formulas in plain English, plus the `data_sources` / `coverage` block already emitted in Phase 1.
-- Visual: matches existing shadcn popover styling; no new design tokens.
-
-### 5. CI lint — `scripts/audit/check-kpi-provenance.mjs`
-
-Fails the build when committed code matches any of:
-- `Math.round\([^)]*\*\s*0\.5` — "time saved" multipliers
-- `\*\s*10\b[^.]*Math\.min\([^,]+,\s*100\)` — fake utilization
-- `\*\s*30\b[^;\n]*\$` — `× 30` next to a dollar sign without an accompanying utilization factor
-- `confidence\s*=\s*\d+\s*-` — decorative confidence
-- `['"]miami['"]` inside `supabase/functions/weekly-intelligence-digest/`
-- `Lotus\s*Evija` as a string literal in `src/components/`
-
-Allowlist via `// kpi-lint-ignore-next-line <reason>` comment (reason required). Wired into the existing `npm test` script and `.github/workflows/ci.yml`.
-
-### 6. Digest observability
-
-Write one row to existing `ai_transfer_log` per digest generation:
-- `direction`: `outbound`
-- `payload_hash` (sha256 of the JSON payload sent to the LLM)
-- `prompt_hash` (sha256 of the system+user prompt)
-- `model`, `tokens_in`, `tokens_out` (already returned by the gateway)
-- `metadata`: `{ bookings_counted, vehicles_counted, city_resolved, week_start, week_end, rejected_for_invented_figures: boolean }`
-
-Uses existing columns only; no migration.
-
-### 7. Cross-surface parity test
-
-- New `src/test/fleetMetricsParity.test.ts` with a fixture dataset (3 vehicles, 8 bookings spanning a week boundary, 2 pricing recommendations).
-- Asserts identical utilization / weekly revenue / projected upside across `MotorIQEnhanced`, `CoreEnhanced`, `DailyBriefCard`, and the digest helper.
-- Unit tests for each shared function (edge cases: empty input, week-boundary overlap, 0% utilization, suggested < current).
-
-## Verification gates
-
-- `npm test` (Vitest) — shared lib units + parity suite green.
-- `scripts/audit/check-kpi-provenance.mjs` — green; intentionally seed one violation in a throwaway branch to confirm it fails.
-- Playwright snapshot of `/dashboard` — visual diff limited to the new info-icons; KPI text unchanged.
-- Manually trigger `weekly-intelligence-digest`; confirm one new `ai_transfer_log` row with expected metadata.
-
-## Acceptance
-
-- Every KPI tile in `CoreEnhanced` and `MotorIQEnhanced` has a `KpiSource` popover citing table + formula.
-- All four surfaces import from `shared/fleetMetrics.ts`; no inline duplication remains.
-- `MotorIQRecommendations` renders only real rows; empty state is honest.
-- CI lint blocks reintroduction of the Phase 1 patterns.
-- Each digest run produces one `ai_transfer_log` row.
-- Parity test passes; intentionally breaking one call site's import makes it fail.
-
-## Risks & reversibility
-
-- **Stale edge-fn copy of `fleetMetrics.ts`** — main regression risk. Mitigated by `pre*` hash header + parity test (which imports both copies and compares outputs on the fixture).
-- **Lint false positives** — allowlist comment requires a reason; reviewed in PR.
-- All changes additive or behind imports; revert by restoring inline math from git.
+- Data layer changes, new metrics, sparkline data source wiring (uses existing `weekly_digests` history if present; otherwise sparklines hidden until Phase 2 backfills).
+- KPI provenance popovers — that's the Phase 2 plan already drafted; this redesign leaves the hook points in place.
+- `CoreEnhanced` / `MotorIQEnhanced` tile redesign — separate pass.
 
 ## Sequencing
 
 ```text
-Phase 2 PR
-  ├─ add shared/fleetMetrics.ts + sync script + Vite alias
-  ├─ refactor 4 call sites
-  ├─ add MotorIQRecommendations
-  ├─ add KpiSource + apply to tiles
-  ├─ add methodology expand to WeeklyDigestCard
-  ├─ add ai_transfer_log writes in digest
-  ├─ add scripts/audit/check-kpi-provenance.mjs + wire to CI
-  └─ add fleetMetricsParity.test.ts + per-fn unit tests
+1. Header band + KPI strip (Today)
+2. Punch list compaction
+3. Narrative trim + all-clear collapse
+4. Week strip insert at bottom of Today
+5. WeeklyDigestCard collapsed-state redesign
+6. Dialog content compaction + sparkline placeholder
+7. Cross-cutting: drop card-premium washes, tabular-nums, icon cull
+8. Playwright before/after + pixel-budget check
 ```
 
 ## Technical notes
 
-- **Adds**: `shared/fleetMetrics.ts`, `supabase/functions/_shared/fleetMetrics.ts` (generated), `src/components/dashboard/MotorIQRecommendations.tsx`, `src/components/ui/KpiSource.tsx`, `scripts/sync-shared-to-edge.mjs`, `scripts/audit/check-kpi-provenance.mjs`, `src/test/fleetMetricsParity.test.ts`, `shared/__tests__/fleetMetrics.test.ts`.
-- **Edits**: `MotorIQEnhanced.tsx`, `CoreEnhanced.tsx`, `DailyBriefCard.tsx`, `WeeklyDigestCard.tsx`, `weekly-intelligence-digest/index.ts`, `vite.config.ts` (alias), `package.json` (pre-hooks), `.github/workflows/ci.yml` (lint step).
-- **Backend**: no migrations, no RLS changes, no new secrets. Edge function auto-deploys on save. `ai_transfer_log` writes use existing columns.
-- **Bundle impact**: `KpiSource` reuses existing shadcn `Popover`; shared lib is pure functions, tree-shakeable.
+**Touches**: `src/components/dashboard/DailyBriefCard.tsx`, `WeeklyDigestCard.tsx`, `widgets/HeroKpiRail.tsx` (likely deleted or inlined), `src/index.css` (tabular-nums utility if not present). No hook or data changes; no edge function changes; no schema work.
