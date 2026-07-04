@@ -25,29 +25,26 @@ export default defineConfig(({ mode }) => ({
     mode === 'development' && componentTagger(),
     VitePWA({
       registerType: 'autoUpdate',
-      // favicon.ico removed from includeAssets — file does not exist in public/.
-      // exotiq-logo.png is a text stub; a real PNG needs a design/Lovable handoff (see FD-03 note).
-      includeAssets: ['robots.txt', 'brand/logos/svg/d-emblem-gulf-blue-transparent.svg'],
+      includeAssets: [
+        'robots.txt',
+        'favicon-16x16.png',
+        'favicon-32x32.png',
+        'apple-touch-icon.png',
+        'og-image.jpg',
+        'brand/logos/svg/d-emblem-gulf-blue-transparent.svg',
+        'brand/logos/svg/d-emblem-white-transparent.svg',
+      ],
       manifest: {
-        name: 'Exotiq Fleet Management',
+        name: 'Exotiq — Luxury Fleet Management',
         short_name: 'Exotiq',
-        description: 'Luxury fleet management platform with AI-powered insights',
-        theme_color: '#2596BE',
-        background_color: '#ffffff',
+        description: 'AI-powered fleet management platform for luxury and exotic car rental operators.',
+        theme_color: '#0B3D91',
+        background_color: '#0B3D91',
         display: 'standalone',
         icons: [
-          {
-            src: '/brand/logos/svg/d-emblem-gulf-blue-transparent.svg',
-            sizes: 'any',
-            type: 'image/svg+xml',
-            purpose: 'any'
-          },
-          {
-            src: '/brand/logos/svg/d-emblem-gulf-blue-transparent.svg',
-            sizes: 'any',
-            type: 'image/svg+xml',
-            purpose: 'maskable'
-          }
+          { src: '/notification-icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: '/pwa-icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: '/pwa-icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ]
       },
       workbox: {
