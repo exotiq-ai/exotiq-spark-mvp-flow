@@ -184,14 +184,15 @@ export const DailyBriefCard = ({ onModuleClick }: DailyBriefCardProps) => {
   // ----- Loading -----
   if (facts.loading) {
     return (
-      <section className="space-y-6">
-        <div className="space-y-3">
-          <Skeleton className="h-8 w-64" />
-          <Skeleton className="h-4 w-80" />
+      <section className="space-y-5">
+        <div className="space-y-1.5">
+          <Skeleton className="h-[19px] w-56" />
+          <Skeleton className="h-3 w-72" />
         </div>
-        <div className="space-y-2">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-14 rounded-lg" />
+        <Skeleton className="h-16 w-full rounded-md" />
+        <div className="space-y-1">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className={i === 0 ? "h-[44px] rounded-sm" : "h-[36px] rounded-sm"} />
           ))}
         </div>
       </section>
