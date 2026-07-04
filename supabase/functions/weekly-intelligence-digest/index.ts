@@ -231,6 +231,20 @@ serve(async (req) => {
 
     if (LOVABLE_API_KEY) {
       try {
+        // Human-readable brief for the LLM (no snake_case, pre-formatted units)
+        const fmtMoney = (n: number) => `$${Math.round(n).toLocaleString()}`;
+        const fmtPct = (n: number) => `${Math.round(n)}%`;
+        const signedPct = (n: number) => `${n >= 0 ? '+' : ''}${Math.round(n)}%`;
+        const briefLines = [
+          `Revenue this week: ${fmtMoney(currentRevenue)} (${signedPct(revenueChange)} vs last week)`,
+          `Utilization: ${fmtPct(currentUtil)} (was ${fmtPct(prevUtil)})`,
+          `Completed bookings: ${completedBookings.length} · New bookings added: ${newBookings.length}`,
+          topVehicle.name ? `Top earner: ${topVehicle.name} (${fmtMoney(topVehicle.revenue)})` : null,
+          vehiclesRecommended > 0 ? `Vehicles priced below the suggested rate: ${vehiclesRecommended}` : null,
+          nextWeekEvents.length ? `Upcoming demand: ${nextWeekEvents.map(e => e.name).join(', ')}${demandSurge ? ` (${signedPct(demandSurge)})` : ''}` : null,
+          resolvedCity ? `Market: ${resolvedCity}` : null,
+        ].filter(Boolean).join('\n');
+
         const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
           method: 'POST',
           headers: {
@@ -243,11 +257,11 @@ serve(async (req) => {
               {
                 role: 'system',
                 content:
-                  'You are FleetCopilot, an AI assistant for luxury car rental fleet management. Give one concise, actionable recommendation (1-2 sentences). Strict rule: do NOT invent dollar amounts or percentages. Only reference numbers that appear verbatim in the JSON payload provided by the user. If you need to cite a figure, copy it exactly from the payload. If a figure is not in the payload, do not include any number for it.',
+                  "You are FleetCopilot, writing for a luxury car rental fleet owner — not an engineer. Give ONE concise, actionable recommendation in 1-2 sentences. Rules: (1) Never use snake_case, underscores, or raw field names. (2) Refer to things in plain English: 'utilization', 'bookings added this week', 'vehicles priced below the suggested rate', 'the Lamborghini Revuelto'. (3) Prefix every dollar figure with '$' and suffix every percentage with '%'. (4) Do NOT invent numbers — only cite figures that appear verbatim in the brief below. If a figure isn't in the brief, don't include a number for it.",
               },
               {
                 role: 'user',
-                content: `Fleet data JSON (only cite numbers present here):\n${JSON.stringify(aiPayload)}\n\nGive one actionable recommendation in 1-2 sentences.`,
+                content: `This week's brief:\n${briefLines}\n\nWrite one actionable recommendation (1-2 sentences).`,
               },
             ],
           }),
@@ -257,24 +271,29 @@ serve(async (req) => {
           const aiData = await aiResponse.json();
           const content: string = aiData.choices?.[0]?.message?.content?.trim() || '';
           if (content) {
-            // Guardrail: reject $ or % tokens not present in the allowed payload values
+            // Reject snake_case leakage or invented $/% figures
+            const hasSnakeCase = /[a-z]+_[a-z]+/i.test(content);
+
             const allowedNumbers = new Set<string>();
             const pushNum = (n: number) => {
               if (!isFinite(n)) return;
-              allowedNumbers.add(String(Math.round(n)));
+              const rounded = Math.round(n);
+              allowedNumbers.add(String(rounded));
               allowedNumbers.add(String(n));
+              allowedNumbers.add(rounded.toLocaleString('en-US'));
+              allowedNumbers.add(String(Math.abs(rounded)));
             };
             [
-              aiPayload.revenue_usd,
-              aiPayload.revenue_change_pct,
-              aiPayload.completed_bookings,
-              aiPayload.new_bookings,
-              aiPayload.vehicles_total,
-              aiPayload.utilization_pct,
-              aiPayload.utilization_prev_pct,
-              aiPayload.top_vehicle_revenue_usd,
-              aiPayload.demand_surge_pct,
-              aiPayload.vehicles_recommended_for_reprice,
+              currentRevenue,
+              revenueChange,
+              completedBookings.length,
+              newBookings.length,
+              allVehicles.length,
+              currentUtil,
+              prevUtil,
+              topVehicle.revenue,
+              demandSurge,
+              vehiclesRecommended,
             ].forEach(pushNum);
 
             const stripCommas = (s: string) => s.replace(/,/g, '');
@@ -282,12 +301,13 @@ serve(async (req) => {
             const percentTokens = Array.from(content.matchAll(/(\d+(?:\.\d+)?)\s?%/g)).map(m => m[1]);
             const invented = [...dollarTokens, ...percentTokens].some(tok => !allowedNumbers.has(tok));
 
-            if (!invented) {
+            if (!hasSnakeCase && !invented) {
               topAction = content;
             } else {
-              console.warn('weekly-intelligence-digest: rejected LLM output containing invented figures', { content });
+              console.warn('weekly-intelligence-digest: rejected LLM output', { content, hasSnakeCase, invented });
             }
           }
+
           logTransfer({
             team_id: teamId ?? null,
             user_id: userId ?? null,
