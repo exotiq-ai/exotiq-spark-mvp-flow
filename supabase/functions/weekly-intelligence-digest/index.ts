@@ -328,6 +328,7 @@ serve(async (req) => {
         vehicles_counted: allVehicles.length,
         bookings_counted: allBookings.length,
         city_resolved: resolvedCity,
+        revenue_model: 'overlap_weighted',
       },
     };
 
