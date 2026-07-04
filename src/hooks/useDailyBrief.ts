@@ -344,8 +344,8 @@ export const useDailyBrief = (): DailyBriefFacts => {
       overdueTasks: overdueTaskList.length,
       utilization,
 
-      revenueToday,
-      revenueMonth,
+      bookedToday,
+      collectedToday,
       outstandingBalance,
 
       issues,
