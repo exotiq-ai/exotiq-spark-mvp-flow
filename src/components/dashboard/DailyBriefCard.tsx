@@ -365,7 +365,7 @@ const IssueRow = ({
     <motion.li
       initial={{ opacity: 0, y: 2 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2, delay: 0.04 + index * 0.03 }}
+      transition={{ duration: 0.18 }}
     >
       <button
         type="button"
