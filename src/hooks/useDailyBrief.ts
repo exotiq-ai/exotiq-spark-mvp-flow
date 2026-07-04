@@ -4,6 +4,14 @@ import { useFleetTasks, type VehicleTask } from '@/hooks/useFleetTasks';
 import { useFleetAIInsight } from '@/hooks/useFleetAIInsight';
 import { useUserRole, type AppRole } from '@/hooks/useUserRole';
 import { useProfile } from '@/hooks/useProfile';
+import {
+  isOnRentStatus,
+  onRentVehicleIdsAt,
+  pickupsOnDay,
+  returnsOnDay,
+  sumBookedForPickupsOn,
+  sumCollectedOnDay,
+} from '@/lib/fleetMetrics';
 
 /**
  * useDailyBrief — deterministic "what's happening in my fleet today" facts.
