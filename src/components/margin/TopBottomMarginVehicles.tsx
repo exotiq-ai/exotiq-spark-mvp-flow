@@ -34,7 +34,7 @@ export function TopBottomMarginVehicles() {
     });
   }, [currentTeam?.id]);
 
-  const rows = useMemo<Row[]>(() => {
+  const { rows, allTied } = useMemo(() => {
     const map = new Map<string, Row>();
     bookings
       .filter((b) => b.status !== "cancelled" && b.vehicle_id)
@@ -57,12 +57,16 @@ export function TopBottomMarginVehicles() {
         const r = map.get(p.vehicle_id!);
         if (r) r.net -= Number(p.net_to_partner || 0);
       });
-    return Array.from(map.values())
+    const list = Array.from(map.values())
       .map((r) => ({ ...r, marginPct: r.gross > 0 ? (r.net / r.gross) * 100 : 0 }))
       .filter((r) => r.gross > 0)
-      .sort((a, b) => b.marginPct - a.marginPct);
+      // Sort by margin, then gross $ as a tiebreak so ties don't yield arbitrary order
+      .sort((a, b) => (b.marginPct - a.marginPct) || (b.gross - a.gross));
+    const tied = list.length > 1 && list.every((r) => Math.abs(r.marginPct - list[0].marginPct) < 0.01);
+    return { rows: list, allTied: tied };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookings, expenses, payouts, vehicleNames, f.start, f.end]);
+
 
   const top = rows.slice(0, 5);
   const bottom = rows.slice(-5).reverse();
