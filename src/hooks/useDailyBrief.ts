@@ -70,9 +70,9 @@ export interface DailyBriefFacts {
   overdueTasks: number;
   utilization: number;
 
-  // Money
-  revenueToday: number;
-  revenueMonth: number;
+  // Money — separated so callers never conflate "booked" (leading) with "collected" (cash)
+  bookedToday: number;
+  collectedToday: number;
   outstandingBalance: number;
 
   // Ranked attention list + headline metrics
