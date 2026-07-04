@@ -186,7 +186,7 @@ export const DailyBriefCard = ({ onModuleClick }: DailyBriefCardProps) => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [facts.loading, facts.role]);
+  }, [facts.loading, facts.role, facts.issues.length, facts.overdueReturns, facts.overdueTasks, facts.pendingConfirmations]);
 
   // ----- Loading -----
   if (facts.loading) {
