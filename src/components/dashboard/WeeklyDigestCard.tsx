@@ -17,11 +17,10 @@ import {
   ChevronRight,
   RefreshCw,
   Sparkles,
-  TrendingUp,
-  TrendingDown,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { cn, formatCurrencyCompact } from "@/lib/utils";
+import { DeltaChip } from "./widgets/DeltaChip";
 
 interface DigestData {
   id: string;
