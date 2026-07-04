@@ -1,7 +1,7 @@
 // App Configuration
 export const APP_CONFIG = {
   name: 'Exotiq.ai',
-  description: 'AI-Powered Fleet Management Platform',
+  description: 'Exotiq is an AI-powered fleet management platform for luxury and exotic car rental operators — bookings, pricing, compliance, and analytics in one command center.',
   version: '1.0.0',
   author: 'Exotiq.ai Team',
   supportEmail: 'support@exotiq.ai',
