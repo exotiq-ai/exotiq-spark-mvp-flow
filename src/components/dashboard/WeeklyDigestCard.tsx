@@ -337,7 +337,7 @@ const KpiCell = ({
     <div
       className={cn(
         "mt-1 font-semibold text-foreground tabular-nums tracking-tight truncate",
-        compact ? "text-[14px]" : "text-[22px] leading-none",
+        compact ? "text-[15px]" : "text-[2rem] leading-none",
       )}
     >
       {value}
@@ -345,15 +345,7 @@ const KpiCell = ({
     {(sub || deltaPct !== undefined) && (
       <div className="mt-1 flex items-center gap-1.5 text-[11px] tabular-nums">
         {deltaPct !== undefined && deltaPct !== 0 && (
-          <span
-            className={cn(
-              "font-medium",
-              deltaPct >= 0 ? "text-success" : "text-destructive",
-            )}
-          >
-            {deltaPct >= 0 ? "+" : ""}
-            {deltaPct}%
-          </span>
+          <DeltaChip delta={deltaPct} unit="%" />
         )}
         {sub && <span className="text-muted-foreground truncate">{sub}</span>}
       </div>
