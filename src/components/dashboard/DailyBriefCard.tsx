@@ -339,7 +339,7 @@ const TieredPunchList = ({
           onClick={onToggleShowAll}
           className="text-[11px] text-muted-foreground hover:text-foreground transition-colors pt-1"
         >
-          {showAllIssues ? "Show top 5" : `View all ${issues.length} →`}
+          {showAllIssues ? "Show top 5" : `See ${issues.length - 5} more`}
         </button>
       )}
     </div>
