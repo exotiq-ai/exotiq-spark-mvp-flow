@@ -269,18 +269,19 @@ export function PartnerPayoutsTab() {
     <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <Card><CardContent className="p-4">
-          <div className="text-xs text-muted-foreground">Pending Obligations</div>
-          <div className="text-xl font-semibold text-amber-700 dark:text-amber-400">{formatCurrency(summary.pending)}</div>
+          <div className="text-xs text-muted-foreground">Pending Obligations <span className="opacity-60">· all-time</span></div>
+          <div className="text-xl font-semibold text-amber-700 dark:text-amber-400 tabular-nums">{formatCurrency(summary.pending)}</div>
         </CardContent></Card>
         <Card><CardContent className="p-4">
-          <div className="text-xs text-muted-foreground">Paid MTD</div>
-          <div className="text-xl font-semibold">{formatCurrency(summary.paidMTD)}</div>
+          <div className="text-xs text-muted-foreground">Paid This Month</div>
+          <div className="text-xl font-semibold tabular-nums">{formatCurrency(summary.paidMTD)}</div>
         </CardContent></Card>
         <Card><CardContent className="p-4">
-          <div className="text-xs text-muted-foreground">Paid YTD</div>
-          <div className="text-xl font-semibold">{formatCurrency(summary.paidYTD)}</div>
+          <div className="text-xs text-muted-foreground">Paid This Year</div>
+          <div className="text-xl font-semibold tabular-nums">{formatCurrency(summary.paidYTD)}</div>
         </CardContent></Card>
       </div>
+
 
       <Card>
         <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
