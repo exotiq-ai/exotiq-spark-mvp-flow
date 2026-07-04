@@ -81,7 +81,7 @@ export function TopBottomMarginVehicles() {
       <Card>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between gap-2">
-            <CardTitle className="text-base">By Margin</CardTitle>
+            <CardTitle className="text-base">{rankLabel === "by Gross" ? "By Gross Revenue" : "By Margin"}</CardTitle>
             <div className="inline-flex rounded-lg bg-muted p-0.5">
               <button
                 onClick={() => setView("top")}
