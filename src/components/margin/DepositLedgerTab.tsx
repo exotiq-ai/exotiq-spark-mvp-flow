@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/marginCsv";
+import { useMarginFilters } from "./MarginFiltersContext";
 
 interface DepositRow {
   booking_id: string;
@@ -18,21 +19,29 @@ interface DepositRow {
 
 export function DepositLedgerTab() {
   const { currentTeam } = useTeam();
+  const { start, end } = useMarginFilters();
   const [rows, setRows] = useState<DepositRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!currentTeam?.id) return;
+    let cancelled = false;
+    setLoading(true);
     (async () => {
+      // Overlap-based: any deposit whose booking window intersects the filter range
       const { data } = await supabase
         .from("deposit_ledger" as any)
         .select("*")
         .eq("team_id", currentTeam.id)
+        .lte("start_date", end.toISOString())
+        .gte("end_date", start.toISOString())
         .order("start_date", { ascending: false });
+      if (cancelled) return;
       setRows((data || []) as any);
       setLoading(false);
     })();
-  }, [currentTeam?.id]);
+    return () => { cancelled = true; };
+  }, [currentTeam?.id, start, end]);
 
   return (
     <Card>
@@ -40,6 +49,7 @@ export function DepositLedgerTab() {
         <CardTitle className="text-base">Deposit Ledger</CardTitle>
         <p className="text-xs text-muted-foreground">Deposits are held funds — never counted as revenue. Returns to the customer do not affect margin. Withholdings flow to the operator only.</p>
       </CardHeader>
+
       <CardContent className="p-0">
         <div className="overflow-x-auto">
           <Table>
