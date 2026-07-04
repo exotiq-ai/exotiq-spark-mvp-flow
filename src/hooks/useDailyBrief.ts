@@ -134,8 +134,6 @@ const num = (v: unknown): number => {
   return Number.isFinite(n) ? n : 0;
 };
 
-const ACTIVE_STATUSES = ['active', 'confirmed'];
-
 export const useDailyBrief = (): DailyBriefFacts => {
   const fleet = useLocationFilteredFleet();
   const { tasks, loading: tasksLoading } = useFleetTasks();
@@ -145,6 +143,7 @@ export const useDailyBrief = (): DailyBriefFacts => {
 
   const bookings = fleet.bookings as unknown as BriefBooking[];
   const vehicles = fleet.vehicles as unknown as BriefVehicle[];
+  const payments = (fleet as unknown as { payments?: Array<{ transaction_date?: string | null; amount?: number | null }> }).payments || [];
   const damageClaims = fleet.damageClaims as unknown as BriefDamageClaim[];
   const maintenance = fleet.maintenance as unknown as BriefMaintenance[];
   const openTasksList: VehicleTask[] = tasks;
@@ -163,31 +162,14 @@ export const useDailyBrief = (): DailyBriefFacts => {
     const now = new Date();
     const today = startOfDay(now);
 
-    const spanningNow = (b: BriefBooking) =>
-      ACTIVE_STATUSES.includes(b.status ?? '') &&
-      new Date(b.start_date) <= now &&
-      new Date(b.end_date) >= now;
+    // Vehicles on rent right now — shared helper (confirmed | active)
+    const onRentVehicleIds = onRentVehicleIdsAt(bookings, now);
 
-    // Vehicles currently out
-    const onRentVehicleIds = new Set(
-      bookings
-        .filter(spanningNow)
-        .map((b) => b.vehicle_id)
-        .filter((id): id is string => Boolean(id)),
-    );
-
-    const pickupsTodayList = bookings.filter(
-      (b) =>
-        ['confirmed', 'pending', 'active'].includes(b.status ?? '') &&
-        isSameDay(new Date(b.start_date), today),
-    );
-
-    const returnsTodayList = bookings.filter(
-      (b) => ACTIVE_STATUSES.includes(b.status ?? '') && isSameDay(new Date(b.end_date), today),
-    );
+    const pickupsTodayList = pickupsOnDay(bookings, today);
+    const returnsTodayList = returnsOnDay(bookings, today);
 
     const overdueReturnList = bookings.filter(
-      (b) => ACTIVE_STATUSES.includes(b.status ?? '') && new Date(b.end_date) < today,
+      (b) => isOnRentStatus(b.status) && new Date(b.end_date) < today,
     );
 
     const newBookings24hList = bookings.filter((b) => {
@@ -202,10 +184,8 @@ export const useDailyBrief = (): DailyBriefFacts => {
     );
     const outstandingBalance = outstandingList.reduce((sum, b) => sum + num(b.balance_due), 0);
 
-    const revenueToday = pickupsTodayList.reduce((sum, b) => sum + num(b.total_value), 0);
-    const revenueMonth = bookings
-      .filter((b) => ['confirmed', 'completed', 'active'].includes(b.status ?? ''))
-      .reduce((sum, b) => sum + num(b.total_value), 0);
+    const bookedToday = sumBookedForPickupsOn(bookings, today);
+    const collectedToday = sumCollectedOnDay(payments, today);
 
     const vehicleCount = vehicles.length;
     const utilization = vehicleCount > 0 ? Math.round((onRentVehicleIds.size / vehicleCount) * 100) : 0;
