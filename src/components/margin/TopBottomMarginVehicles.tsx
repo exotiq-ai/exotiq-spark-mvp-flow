@@ -34,7 +34,7 @@ export function TopBottomMarginVehicles() {
     });
   }, [currentTeam?.id]);
 
-  const rows = useMemo<Row[]>(() => {
+  const { rows, allTied } = useMemo(() => {
     const map = new Map<string, Row>();
     bookings
       .filter((b) => b.status !== "cancelled" && b.vehicle_id)
@@ -57,15 +57,23 @@ export function TopBottomMarginVehicles() {
         const r = map.get(p.vehicle_id!);
         if (r) r.net -= Number(p.net_to_partner || 0);
       });
-    return Array.from(map.values())
+    const list = Array.from(map.values())
       .map((r) => ({ ...r, marginPct: r.gross > 0 ? (r.net / r.gross) * 100 : 0 }))
       .filter((r) => r.gross > 0)
-      .sort((a, b) => b.marginPct - a.marginPct);
+      // Sort by margin, then gross $ as a tiebreak so ties don't yield arbitrary order
+      .sort((a, b) => (b.marginPct - a.marginPct) || (b.gross - a.gross));
+    const tied = list.length > 1 && list.every((r) => Math.abs(r.marginPct - list[0].marginPct) < 0.01);
+    return { rows: list, allTied: tied };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookings, expenses, payouts, vehicleNames, f.start, f.end]);
 
-  const top = rows.slice(0, 5);
-  const bottom = rows.slice(-5).reverse();
+
+  // When every vehicle ties (typically because no costs are recorded), rank by gross $ instead
+  const displayRows = allTied ? [...rows].sort((a, b) => b.gross - a.gross) : rows;
+  const rankLabel = allTied ? "by Gross" : "by Margin";
+  const top = displayRows.slice(0, 5);
+  const bottom = displayRows.slice(-5).reverse();
+
 
   if (isMobile) {
     const active = view === "top" ? top : bottom;
@@ -73,7 +81,7 @@ export function TopBottomMarginVehicles() {
       <Card>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between gap-2">
-            <CardTitle className="text-base">By Margin</CardTitle>
+            <CardTitle className="text-base">{rankLabel === "by Gross" ? "By Gross Revenue" : "By Margin"}</CardTitle>
             <div className="inline-flex rounded-lg bg-muted p-0.5">
               <button
                 onClick={() => setView("top")}
@@ -112,7 +120,7 @@ export function TopBottomMarginVehicles() {
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
-            <TrendingUp className="h-4 w-4 text-emerald-500" /> Top 5 by Margin
+            <TrendingUp className="h-4 w-4 text-emerald-500" /> Top 5 {rankLabel}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -126,7 +134,7 @@ export function TopBottomMarginVehicles() {
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
-            <TrendingDown className="h-4 w-4 text-destructive" /> Bottom 5 by Margin
+            <TrendingDown className="h-4 w-4 text-destructive" /> Bottom 5 {rankLabel}
           </CardTitle>
         </CardHeader>
         <CardContent>

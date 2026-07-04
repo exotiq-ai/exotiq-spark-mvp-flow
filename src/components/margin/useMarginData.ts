@@ -21,10 +21,17 @@ export interface FilteredPayment {
   booking_id: string | null;
   amount: number;
   payment_type: string | null;
-  status: string | null;
-  payment_date: string | null;
+  payment_status: string | null;
+  transaction_date: string | null;
   created_at: string;
 }
+
+// Bookings that count toward margin/P&L. Pending = still a quote → excluded.
+// Cancelled/declined → excluded. Everything else (confirmed, active, completed) counts.
+export const REVENUE_EXCLUDED_STATUSES = new Set(['pending', 'cancelled', 'declined', 'quote', 'draft']);
+export const countsForRevenue = (status: string | null | undefined) =>
+  !REVENUE_EXCLUDED_STATUSES.has(String(status ?? '').toLowerCase());
+
 
 export interface FilteredExpense {
   id: string;
@@ -87,14 +94,15 @@ export function useMarginData(): State {
       const startDay = startIso.slice(0, 10);
       const endDay = endIso.slice(0, 10);
 
-      const [vehRes, bRes, expRes, payoutRes] = await Promise.all([
+      const [vehRes, bRes, expRes, payoutRes, pendingPayoutRes] = await Promise.all([
         supabase.from("vehicles").select("id, location_id").eq("team_id", currentTeam.id),
+        // Overlap-based booking window: a booking counts if any portion falls in [start, end]
         supabase
           .from("bookings")
           .select("id, vehicle_id, total_value, platform_fee_amount, booking_source, status, start_date, end_date, customer_name, booking_ref")
           .eq("team_id", currentTeam.id)
-          .gte("start_date", startIso)
-          .lte("start_date", endIso),
+          .lte("start_date", endIso)
+          .gte("end_date", startIso),
         supabase
           .from("vehicle_expenses")
           .select("id, vehicle_id, location_id, expense_type, amount, expense_date, source_module, is_reimbursable, reimbursed_amount, status")
@@ -102,12 +110,19 @@ export function useMarginData(): State {
           .eq("status", "confirmed")
           .gte("expense_date", startDay)
           .lte("expense_date", endDay),
+        // Payouts paid within window (drives "Paid in period" reporting)
         supabase
           .from("partner_payouts")
           .select("id, vehicle_id, partner_id, status, net_to_partner, paid_at, created_at")
           .eq("team_id", currentTeam.id)
           .gte("created_at", startIso)
           .lte("created_at", endIso),
+        // Pending obligations are timeless — surface any pending/scheduled payout for the team.
+        supabase
+          .from("partner_payouts")
+          .select("id, vehicle_id, partner_id, status, net_to_partner, paid_at, created_at")
+          .eq("team_id", currentTeam.id)
+          .in("status", ["pending", "scheduled"]),
       ]);
       if (cancelled) return;
 
@@ -126,14 +141,16 @@ export function useMarginData(): State {
         return true;
       });
 
-      // Payments for filtered bookings
+      // Payments for filtered bookings, restricted to transactions within the window
       const bookingIds = bookings.map((b) => b.id);
       let payments: FilteredPayment[] = [];
       if (bookingIds.length) {
         const { data: payData } = await supabase
           .from("payments")
-          .select("id, booking_id, amount, payment_type, status, payment_date, created_at")
-          .in("booking_id", bookingIds);
+          .select("id, booking_id, amount, payment_type, payment_status, transaction_date, created_at")
+          .in("booking_id", bookingIds)
+          .gte("transaction_date", startIso)
+          .lte("transaction_date", endIso);
         payments = ((payData || []) as any[]) as FilteredPayment[];
       }
 
@@ -148,8 +165,12 @@ export function useMarginData(): State {
         return true;
       });
 
-      // Filter payouts by vehicle/location
-      let payouts = ((payoutRes.data || []) as any[]) as FilteredPayout[];
+      // Merge in-window payouts + all-team pending obligations (dedup by id)
+      const payoutMap = new Map<string, FilteredPayout>();
+      [...((payoutRes.data || []) as any[]), ...((pendingPayoutRes.data || []) as any[])].forEach((p) => {
+        payoutMap.set(p.id, p as FilteredPayout);
+      });
+      let payouts = Array.from(payoutMap.values());
       payouts = payouts.filter((p) => {
         if (f.vehicleIds.length && (!p.vehicle_id || !f.vehicleIds.includes(p.vehicle_id))) return false;
         if (f.locationIds.length) {
@@ -177,17 +198,17 @@ export function useMarginData(): State {
 // Math helpers
 export const sumCollected = (payments: FilteredPayment[]) =>
   payments
-    .filter((p) => p.payment_type !== "refund" && (p.status === "completed" || p.status === "paid" || p.status === null))
+    .filter((p) => p.payment_type !== "refund" && (p.payment_status === "completed" || p.payment_status === "paid" || p.payment_status == null))
     .reduce((s, p) => s + Number(p.amount || 0), 0);
 
 export const sumRefunds = (payments: FilteredPayment[]) =>
   payments.filter((p) => p.payment_type === "refund").reduce((s, p) => s + Math.abs(Number(p.amount || 0)), 0);
 
 export const sumGross = (bookings: FilteredBooking[]) =>
-  bookings.filter((b) => b.status !== "cancelled").reduce((s, b) => s + Number(b.total_value || 0), 0);
+  bookings.filter((b) => countsForRevenue(b.status)).reduce((s, b) => s + Number(b.total_value || 0), 0);
 
 export const sumPlatformFees = (bookings: FilteredBooking[]) =>
-  bookings.filter((b) => b.status !== "cancelled").reduce((s, b) => s + Number(b.platform_fee_amount || 0), 0);
+  bookings.filter((b) => countsForRevenue(b.status)).reduce((s, b) => s + Number(b.platform_fee_amount || 0), 0);
 
 export const sumVehicleExpenses = (expenses: FilteredExpense[]) =>
   expenses
@@ -205,3 +226,4 @@ export const sumPendingPayouts = (payouts: FilteredPayout[]) =>
 // All real partner obligations in range (pending + paid), excluding voided — used for net margin
 export const sumPartnerPayouts = (payouts: FilteredPayout[]) =>
   payouts.filter((p) => p.status !== "voided" && (p.status as string) !== "cancelled").reduce((s, p) => s + Number(p.net_to_partner || 0), 0);
+

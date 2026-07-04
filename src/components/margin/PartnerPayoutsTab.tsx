@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTeam } from "@/contexts/TeamContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -269,18 +269,19 @@ export function PartnerPayoutsTab() {
     <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <Card><CardContent className="p-4">
-          <div className="text-xs text-muted-foreground">Pending Obligations</div>
-          <div className="text-xl font-semibold text-amber-700 dark:text-amber-400">{formatCurrency(summary.pending)}</div>
+          <div className="text-xs text-muted-foreground">Pending Obligations <span className="opacity-60">· all-time</span></div>
+          <div className="text-xl font-semibold text-amber-700 dark:text-amber-400 tabular-nums">{formatCurrency(summary.pending)}</div>
         </CardContent></Card>
         <Card><CardContent className="p-4">
-          <div className="text-xs text-muted-foreground">Paid MTD</div>
-          <div className="text-xl font-semibold">{formatCurrency(summary.paidMTD)}</div>
+          <div className="text-xs text-muted-foreground">Paid This Month</div>
+          <div className="text-xl font-semibold tabular-nums">{formatCurrency(summary.paidMTD)}</div>
         </CardContent></Card>
         <Card><CardContent className="p-4">
-          <div className="text-xs text-muted-foreground">Paid YTD</div>
-          <div className="text-xl font-semibold">{formatCurrency(summary.paidYTD)}</div>
+          <div className="text-xs text-muted-foreground">Paid This Year</div>
+          <div className="text-xl font-semibold tabular-nums">{formatCurrency(summary.paidYTD)}</div>
         </CardContent></Card>
       </div>
+
 
       <Card>
         <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
@@ -342,72 +343,74 @@ export function PartnerPayoutsTab() {
                 ) : filtered.length === 0 ? (
                   <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">No partner payouts match the current filters.</TableCell></TableRow>
                 ) : (
-                  filtered.map((r) => {
+                  filtered.flatMap((r) => {
                     const isOpen = expanded.has(r.id);
                     const bk = bookings[r.booking_id];
-                    return (
-                      <Fragment key={r.id}>
-                        <TableRow>
-                          <TableCell>
-                            {r.status === "pending" && (
-                              <Checkbox checked={selected.has(r.id)} onCheckedChange={() => toggleSelect(r.id)} />
+                    const nodes = [
+                      <TableRow key={`${r.id}-row`}>
+                        <TableCell>
+                          {r.status === "pending" && (
+                            <Checkbox checked={selected.has(r.id)} onCheckedChange={() => toggleSelect(r.id)} />
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <button onClick={() => toggleExpand(r.id)} className="text-muted-foreground hover:text-foreground">
+                            {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                          </button>
+                        </TableCell>
+                        <TableCell className="text-sm">{new Date(r.created_at).toLocaleDateString()}</TableCell>
+                        <TableCell>{partners[r.partner_id] || "—"}</TableCell>
+                        <TableCell className="text-sm">{vehicles[r.vehicle_id] || "—"}</TableCell>
+                        <TableCell className="text-sm font-mono">{bk?.reference || r.booking_id.slice(0, 8)}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(r.net_after_fee)}</TableCell>
+                        <TableCell className="text-right font-semibold">{formatCurrency(r.net_to_partner)}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className={STATUS_STYLES[r.status] || ""}>{r.status}</Badge>
+                            {r.reconcile_flag && (
+                              <span title={r.reconcile_note || "Booking changed after payout — review required"}>
+                                <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
+                              </span>
                             )}
-                          </TableCell>
-                          <TableCell>
-                            <button onClick={() => toggleExpand(r.id)} className="text-muted-foreground hover:text-foreground">
-                              {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                            </button>
-                          </TableCell>
-                          <TableCell className="text-sm">{new Date(r.created_at).toLocaleDateString()}</TableCell>
-                          <TableCell>{partners[r.partner_id] || "—"}</TableCell>
-                          <TableCell className="text-sm">{vehicles[r.vehicle_id] || "—"}</TableCell>
-                          <TableCell className="text-sm font-mono">{bk?.reference || r.booking_id.slice(0, 8)}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(r.net_after_fee)}</TableCell>
-                          <TableCell className="text-right font-semibold">{formatCurrency(r.net_to_partner)}</TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Badge variant="outline" className={STATUS_STYLES[r.status] || ""}>{r.status}</Badge>
-                              {r.reconcile_flag && (
-                                <span title={r.reconcile_note || "Booking changed after payout — review required"}>
-                                  <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
-                                </span>
-                              )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <RowActions
+                            payout={r}
+                            isOwnerOrAdmin={isOwnerOrAdmin}
+                            busy={busy}
+                            onMarkPaid={() => { setSelected(new Set([r.id])); setBulkOpen(true); }}
+                            onVoid={() => openVoid(r)}
+                            onReopen={() => reopen(r)}
+                            onRecompute={() => recompute(r)}
+                          />
+                        </TableCell>
+                      </TableRow>,
+                    ];
+                    if (isOpen) {
+                      nodes.push(
+                        <TableRow key={`${r.id}-detail`} className="bg-muted/30">
+                          <TableCell colSpan={10} className="p-4">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                              <Stat label="Gross Base" value={formatCurrency(r.gross_rental_base)} />
+                              <Stat label="Platform Fee" value={formatCurrency(r.platform_fee_amount)} />
+                              <Stat label="Net After Fee" value={formatCurrency(r.net_after_fee)} />
+                              <Stat label="Adjustments" value={formatCurrency(r.operator_adjustments)} />
+                              <Stat label="Split" value={r.split_type === "percentage" ? `${r.split_value_snapshot}% to partner` : `${formatCurrency(r.split_value_snapshot)}/day`} />
+                              <Stat label="To Partner" value={formatCurrency(r.net_to_partner)} highlight />
+                              <Stat label="Method" value={r.payout_method || "—"} />
+                              <Stat label="Reference" value={r.payout_reference || "—"} />
+                              {r.status === "voided" && r.void_reason && <Stat label="Void Reason" value={r.void_reason} />}
+                              {bk?.start_date && <Stat label="Booking Window" value={`${bk.start_date.slice(0,10)} → ${bk.end_date?.slice(0,10) || "?"}`} />}
                             </div>
                           </TableCell>
-                          <TableCell>
-                            <RowActions
-                              payout={r}
-                              isOwnerOrAdmin={isOwnerOrAdmin}
-                              busy={busy}
-                              onMarkPaid={() => { setSelected(new Set([r.id])); setBulkOpen(true); }}
-                              onVoid={() => openVoid(r)}
-                              onReopen={() => reopen(r)}
-                              onRecompute={() => recompute(r)}
-                            />
-                          </TableCell>
                         </TableRow>
-                        {isOpen && (
-                          <TableRow className="bg-muted/30">
-                            <TableCell colSpan={10} className="p-4">
-                              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                                <Stat label="Gross Base" value={formatCurrency(r.gross_rental_base)} />
-                                <Stat label="Platform Fee" value={formatCurrency(r.platform_fee_amount)} />
-                                <Stat label="Net After Fee" value={formatCurrency(r.net_after_fee)} />
-                                <Stat label="Adjustments" value={formatCurrency(r.operator_adjustments)} />
-                                <Stat label="Split" value={r.split_type === "percentage" ? `${r.split_value_snapshot}% to partner` : `${formatCurrency(r.split_value_snapshot)}/day`} />
-                                <Stat label="To Partner" value={formatCurrency(r.net_to_partner)} highlight />
-                                <Stat label="Method" value={r.payout_method || "—"} />
-                                <Stat label="Reference" value={r.payout_reference || "—"} />
-                                {r.status === "voided" && r.void_reason && <Stat label="Void Reason" value={r.void_reason} />}
-                                {bk?.start_date && <Stat label="Booking Window" value={`${bk.start_date.slice(0,10)} → ${bk.end_date?.slice(0,10) || "?"}`} />}
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </Fragment>
-                    );
+                      );
+                    }
+                    return nodes;
                   })
                 )}
+
               </TableBody>
             </Table>
           </div>
