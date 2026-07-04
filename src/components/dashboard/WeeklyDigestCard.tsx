@@ -136,7 +136,7 @@ export const WeeklyDigestCard = ({
             ) : (
               <Sparkles className="h-3 w-3" />
             )}
-            {generating ? "Generating weekly digest…" : "Generate this week's digest"}
+            {generating ? "Summarizing this week…" : "Summarize this week"}
           </span>
           <ChevronRight className="h-3.5 w-3.5" />
         </button>
