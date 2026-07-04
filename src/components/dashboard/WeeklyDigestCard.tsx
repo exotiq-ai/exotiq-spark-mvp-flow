@@ -292,14 +292,15 @@ export const WeeklyDigestCard = ({
           </p>
         )}
 
-        {/* Sources hairline */}
+        {/* Sources hairline — hide null-city technical noise */}
         <p className="mt-3 pt-2 border-t border-border/40 text-[10.5px] text-muted-foreground/80 tabular-nums">
           {(summary?.data_sources && summary.data_sources.length > 0
             ? summary.data_sources.join(" · ")
             : "bookings · vehicles")}
           {summary?.coverage?.city_resolved
             ? ` · ${summary.coverage.city_resolved}`
-            : " · no city set"}
+            : ""}
+          {" · revenue overlap-weighted"}
         </p>
       </Card>
 
