@@ -47,24 +47,11 @@ export const PulseStrip = ({ onModuleClick }: PulseStripProps) => {
 
   // ── Fleet: out / available / maintenance ──
   const fleet = useMemo(() => {
-    const today = new Date();
-    const todayStart = new Date(today);
-    todayStart.setHours(0, 0, 0, 0);
-    const todayEnd = new Date(today);
-    todayEnd.setHours(23, 59, 59, 999);
-
+    const now = new Date();
     const active = vehicles.filter((v) => v.status !== "retired");
     const total = active.length;
-    const outIds = new Set(
-      bookings
-        .filter(
-          (b) =>
-            isBlockingBooking(b.status) &&
-            new Date(b.start_date) <= todayEnd &&
-            new Date(b.end_date) >= todayStart,
-        )
-        .map((b) => b.vehicle_id),
-    );
+    // Use shared helper so "out" here matches the KPI rail and useDailyBrief exactly.
+    const outIds = onRentVehicleIdsAt(bookings, now);
     const out = outIds.size;
     const maintenance = active.filter((v) => v.status === "maintenance").length;
     const available = Math.max(0, total - out - maintenance);
