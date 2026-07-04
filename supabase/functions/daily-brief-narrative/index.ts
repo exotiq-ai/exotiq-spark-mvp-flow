@@ -17,6 +17,10 @@ interface BriefCounts {
   openTasks?: number;
   overdueTasks?: number;
   utilization?: number;
+  /** Σ total_value of pickups today (leading indicator, not cash). */
+  bookedToday?: number;
+  /** Σ payments.amount whose transaction_date is today (cash). */
+  collectedToday?: number;
 }
 
 interface BriefPayload {
