@@ -21,10 +21,17 @@ export interface FilteredPayment {
   booking_id: string | null;
   amount: number;
   payment_type: string | null;
-  status: string | null;
-  payment_date: string | null;
+  payment_status: string | null;
+  transaction_date: string | null;
   created_at: string;
 }
+
+// Bookings that count toward margin/P&L. Pending = still a quote → excluded.
+// Cancelled/declined → excluded. Everything else (confirmed, active, completed) counts.
+export const REVENUE_EXCLUDED_STATUSES = new Set(['pending', 'cancelled', 'declined', 'quote', 'draft']);
+export const countsForRevenue = (status: string | null | undefined) =>
+  !REVENUE_EXCLUDED_STATUSES.has(String(status ?? '').toLowerCase());
+
 
 export interface FilteredExpense {
   id: string;
