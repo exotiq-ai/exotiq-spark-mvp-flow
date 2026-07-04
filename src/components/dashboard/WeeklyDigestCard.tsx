@@ -85,6 +85,21 @@ export const WeeklyDigestCard = ({
 
         if (!error && data) {
           setDigest(data as unknown as DigestData);
+        } else if (!error && !data) {
+          // No digest yet for this team — kick off a silent first-mount generation
+          // so the strip stops nagging the user with a manual "Summarize" prompt.
+          setGenerating(true);
+          try {
+            const { data: gen } = await supabase.functions.invoke(
+              "weekly-intelligence-digest",
+              { body: { userId: user.id } },
+            );
+            if (gen?.digest) setDigest(gen.digest as DigestData);
+          } catch {
+            /* silent — user can still trigger via strip */
+          } finally {
+            setGenerating(false);
+          }
         }
       } catch (err) {
         console.error("Failed to load digest:", err);
