@@ -134,7 +134,7 @@ export function TopBottomMarginVehicles() {
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
-            <TrendingDown className="h-4 w-4 text-destructive" /> Bottom 5 by Margin
+            <TrendingDown className="h-4 w-4 text-destructive" /> Bottom 5 {rankLabel}
           </CardTitle>
         </CardHeader>
         <CardContent>
