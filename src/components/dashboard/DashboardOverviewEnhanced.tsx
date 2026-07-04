@@ -378,8 +378,8 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
           >
             <Sparkles className="h-8 w-8 text-primary" />
           </motion.div>
-          <h2 className="text-2xl font-bold text-foreground">
-            Welcome, {firstName}! 👋
+          <h2 className="text-[19px] font-semibold tracking-tight text-foreground">
+            Welcome, {firstName}.
           </h2>
           <p className="text-muted-foreground text-center max-w-md">
             Let's get {companyName ? <span className="font-medium text-foreground">{companyName}</span> : 'your fleet'} set up and running.
