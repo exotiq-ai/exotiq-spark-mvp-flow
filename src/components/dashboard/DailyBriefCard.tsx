@@ -61,6 +61,8 @@ interface NarrativePayload {
     openTasks: number;
     overdueTasks: number;
     utilization: number;
+    bookedToday: number;
+    collectedToday: number;
   };
   issueTitles: string[]; // counts/categories only — NO customer names, NO vehicle names
 }
