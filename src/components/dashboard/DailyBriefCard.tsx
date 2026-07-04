@@ -128,7 +128,10 @@ export const DailyBriefCard = ({ onModuleClick }: DailyBriefCardProps) => {
     if (!facts.role) return;
 
     const today = new Date().toISOString().slice(0, 10);
-    const cacheKey = `daily-brief-narrative:${today}:${facts.role}`;
+    // Include material-state hash so the narrative regenerates when the fleet
+    // shifts (new overdue, cleared task, etc.) — not just once per calendar day.
+    const stateHash = `${facts.issues.length}:${facts.overdueReturns}:${facts.overdueTasks}:${facts.pendingConfirmations}`;
+    const cacheKey = `daily-brief-narrative:${today}:${facts.role}:${stateHash}`;
     try {
       const cached = localStorage.getItem(cacheKey);
       if (cached) {
@@ -155,6 +158,8 @@ export const DailyBriefCard = ({ onModuleClick }: DailyBriefCardProps) => {
         openTasks: facts.openTasks,
         overdueTasks: facts.overdueTasks,
         utilization: facts.utilization,
+        bookedToday: facts.bookedToday,
+        collectedToday: facts.collectedToday,
       },
       issueTitles: sanitizedTitles,
     };
