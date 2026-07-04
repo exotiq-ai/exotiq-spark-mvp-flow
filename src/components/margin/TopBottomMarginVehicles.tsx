@@ -68,8 +68,12 @@ export function TopBottomMarginVehicles() {
   }, [bookings, expenses, payouts, vehicleNames, f.start, f.end]);
 
 
-  const top = rows.slice(0, 5);
-  const bottom = rows.slice(-5).reverse();
+  // When every vehicle ties (typically because no costs are recorded), rank by gross $ instead
+  const displayRows = allTied ? [...rows].sort((a, b) => b.gross - a.gross) : rows;
+  const rankLabel = allTied ? "by Gross" : "by Margin";
+  const top = displayRows.slice(0, 5);
+  const bottom = displayRows.slice(-5).reverse();
+
 
   if (isMobile) {
     const active = view === "top" ? top : bottom;
