@@ -234,23 +234,11 @@ export const DailyBriefCard = ({ onModuleClick }: DailyBriefCardProps) => {
         onRent={facts.onRent}
         pickupsToday={facts.pickupsToday}
         returnsToday={facts.returnsToday}
-        revenueToday={facts.revenueToday}
+        collectedToday={facts.collectedToday}
         utilization={facts.utilization}
       />
 
-      {/* Rari's read — single-sentence lede */}
-      {narrative && (
-        <motion.div
-          initial={{ opacity: 0, y: 4 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.25 }}
-          className="max-w-[68ch]"
-        >
-          <NarrativeLede text={narrative} />
-        </motion.div>
-      )}
-
-      {/* Punch list — tiered: critical above, heads-up below */}
+      {/* Punch list first — the reason the user opened the app */}
       {facts.isClear ? (
         <AllClear />
       ) : (
@@ -261,6 +249,18 @@ export const DailyBriefCard = ({ onModuleClick }: DailyBriefCardProps) => {
           onToggleShowAll={() => setShowAllIssues((s) => !s)}
           onIssueClick={handleIssueClick}
         />
+      )}
+
+      {/* Rari's read — single-sentence lede, quiet under the punch list */}
+      {narrative && (
+        <motion.div
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.25 }}
+          className="max-w-[68ch]"
+        >
+          <NarrativeLede text={narrative} />
+        </motion.div>
       )}
 
       {/* Week-in-review glance — tap to expand the full digest */}
