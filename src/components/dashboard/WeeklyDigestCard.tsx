@@ -438,7 +438,7 @@ const FullDigestDialog = ({
             {/* Outlook */}
             <div>
               <h4 className="text-[10.5px] uppercase tracking-[0.16em] text-muted-foreground font-medium mb-2">
-                Next week outlook
+                Next week
               </h4>
               {summary.nextWeekOutlook.events.length > 0 ? (
                 <ul className="divide-y divide-border/40">
@@ -447,7 +447,7 @@ const FullDigestDialog = ({
                       key={i}
                       className="flex items-center gap-3 py-1.5 min-h-[28px] text-[13px]"
                     >
-                      <span className="tabular-nums text-muted-foreground w-16 flex-shrink-0">
+                      <span className="tabular-nums text-muted-foreground w-20 flex-shrink-0">
                         {event.date}
                       </span>
                       <span className="flex-1 truncate text-foreground">
