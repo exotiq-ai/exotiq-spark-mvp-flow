@@ -485,8 +485,7 @@ const FullDigestDialog = ({
                 summary.nextWeekOutlook.vehiclesRecommended > 0) && (
                 <div className="mt-2 flex items-center gap-4 text-[12px] text-muted-foreground tabular-nums">
                   {summary.nextWeekOutlook.demandSurge > 0 && (
-                    <span className="flex items-center gap-1">
-                      <TrendingUp className="h-3 w-3 text-success" />
+                    <span className="text-success">
                       +{summary.nextWeekOutlook.demandSurge}% demand
                     </span>
                   )}
