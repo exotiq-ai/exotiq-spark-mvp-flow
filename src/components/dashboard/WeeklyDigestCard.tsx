@@ -17,11 +17,10 @@ import {
   ChevronRight,
   RefreshCw,
   Sparkles,
-  TrendingUp,
-  TrendingDown,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { cn, formatCurrencyCompact } from "@/lib/utils";
+import { DeltaChip } from "./widgets/DeltaChip";
 
 interface DigestData {
   id: string;
@@ -86,6 +85,21 @@ export const WeeklyDigestCard = ({
 
         if (!error && data) {
           setDigest(data as unknown as DigestData);
+        } else if (!error && !data) {
+          // No digest yet for this team — kick off a silent first-mount generation
+          // so the strip stops nagging the user with a manual "Summarize" prompt.
+          setGenerating(true);
+          try {
+            const { data: gen } = await supabase.functions.invoke(
+              "weekly-intelligence-digest",
+              { body: { userId: user.id } },
+            );
+            if (gen?.digest) setDigest(gen.digest as DigestData);
+          } catch {
+            /* silent — user can still trigger via strip */
+          } finally {
+            setGenerating(false);
+          }
         }
       } catch (err) {
         console.error("Failed to load digest:", err);
@@ -137,7 +151,7 @@ export const WeeklyDigestCard = ({
             ) : (
               <Sparkles className="h-3 w-3" />
             )}
-            {generating ? "Generating weekly digest…" : "Generate this week's digest"}
+            {generating ? "Summarizing this week…" : "Summarize this week"}
           </span>
           <ChevronRight className="h-3.5 w-3.5" />
         </button>
@@ -168,20 +182,7 @@ export const WeeklyDigestCard = ({
               {wir.utilizationChange.to}% util
             </span>
             {wir.revenueChange !== 0 && (
-              <span
-                className={cn(
-                  "inline-flex items-center gap-0.5 tabular-nums text-[11px]",
-                  wir.revenueChange >= 0 ? "text-success" : "text-destructive",
-                )}
-              >
-                {wir.revenueChange >= 0 ? (
-                  <TrendingUp className="h-3 w-3" />
-                ) : (
-                  <TrendingDown className="h-3 w-3" />
-                )}
-                {wir.revenueChange >= 0 ? "+" : ""}
-                {wir.revenueChange}%
-              </span>
+              <DeltaChip delta={wir.revenueChange} unit="%" title="vs last week" />
             )}
           </span>
           <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50 group-hover:text-foreground group-hover:translate-x-0.5 transition-all" />
@@ -306,14 +307,15 @@ export const WeeklyDigestCard = ({
           </p>
         )}
 
-        {/* Sources hairline */}
+        {/* Sources hairline — hide null-city technical noise */}
         <p className="mt-3 pt-2 border-t border-border/40 text-[10.5px] text-muted-foreground/80 tabular-nums">
           {(summary?.data_sources && summary.data_sources.length > 0
             ? summary.data_sources.join(" · ")
             : "bookings · vehicles")}
           {summary?.coverage?.city_resolved
             ? ` · ${summary.coverage.city_resolved}`
-            : " · no city set"}
+            : ""}
+          {" · revenue overlap-weighted"}
         </p>
       </Card>
 
@@ -350,7 +352,7 @@ const KpiCell = ({
     <div
       className={cn(
         "mt-1 font-semibold text-foreground tabular-nums tracking-tight truncate",
-        compact ? "text-[14px]" : "text-[22px] leading-none",
+        compact ? "text-[15px]" : "text-[2rem] leading-none",
       )}
     >
       {value}
@@ -358,15 +360,7 @@ const KpiCell = ({
     {(sub || deltaPct !== undefined) && (
       <div className="mt-1 flex items-center gap-1.5 text-[11px] tabular-nums">
         {deltaPct !== undefined && deltaPct !== 0 && (
-          <span
-            className={cn(
-              "font-medium",
-              deltaPct >= 0 ? "text-success" : "text-destructive",
-            )}
-          >
-            {deltaPct >= 0 ? "+" : ""}
-            {deltaPct}%
-          </span>
+          <DeltaChip delta={deltaPct} unit="%" />
         )}
         {sub && <span className="text-muted-foreground truncate">{sub}</span>}
       </div>
@@ -459,7 +453,7 @@ const FullDigestDialog = ({
             {/* Outlook */}
             <div>
               <h4 className="text-[10.5px] uppercase tracking-[0.16em] text-muted-foreground font-medium mb-2">
-                Next week outlook
+                Next week
               </h4>
               {summary.nextWeekOutlook.events.length > 0 ? (
                 <ul className="divide-y divide-border/40">
@@ -468,7 +462,7 @@ const FullDigestDialog = ({
                       key={i}
                       className="flex items-center gap-3 py-1.5 min-h-[28px] text-[13px]"
                     >
-                      <span className="tabular-nums text-muted-foreground w-16 flex-shrink-0">
+                      <span className="tabular-nums text-muted-foreground w-20 flex-shrink-0">
                         {event.date}
                       </span>
                       <span className="flex-1 truncate text-foreground">
@@ -499,8 +493,7 @@ const FullDigestDialog = ({
                 summary.nextWeekOutlook.vehiclesRecommended > 0) && (
                 <div className="mt-2 flex items-center gap-4 text-[12px] text-muted-foreground tabular-nums">
                   {summary.nextWeekOutlook.demandSurge > 0 && (
-                    <span className="flex items-center gap-1">
-                      <TrendingUp className="h-3 w-3 text-success" />
+                    <span className="text-success">
                       +{summary.nextWeekOutlook.demandSurge}% demand
                     </span>
                   )}

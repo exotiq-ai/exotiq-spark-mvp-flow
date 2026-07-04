@@ -61,6 +61,8 @@ interface NarrativePayload {
     openTasks: number;
     overdueTasks: number;
     utilization: number;
+    bookedToday: number;
+    collectedToday: number;
   };
   issueTitles: string[]; // counts/categories only — NO customer names, NO vehicle names
 }
@@ -126,7 +128,10 @@ export const DailyBriefCard = ({ onModuleClick }: DailyBriefCardProps) => {
     if (!facts.role) return;
 
     const today = new Date().toISOString().slice(0, 10);
-    const cacheKey = `daily-brief-narrative:${today}:${facts.role}`;
+    // Include material-state hash so the narrative regenerates when the fleet
+    // shifts (new overdue, cleared task, etc.) — not just once per calendar day.
+    const stateHash = `${facts.issues.length}:${facts.overdueReturns}:${facts.overdueTasks}:${facts.pendingConfirmations}`;
+    const cacheKey = `daily-brief-narrative:${today}:${facts.role}:${stateHash}`;
     try {
       const cached = localStorage.getItem(cacheKey);
       if (cached) {
@@ -153,6 +158,8 @@ export const DailyBriefCard = ({ onModuleClick }: DailyBriefCardProps) => {
         openTasks: facts.openTasks,
         overdueTasks: facts.overdueTasks,
         utilization: facts.utilization,
+        bookedToday: facts.bookedToday,
+        collectedToday: facts.collectedToday,
       },
       issueTitles: sanitizedTitles,
     };
@@ -179,19 +186,20 @@ export const DailyBriefCard = ({ onModuleClick }: DailyBriefCardProps) => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [facts.loading, facts.role]);
+  }, [facts.loading, facts.role, facts.issues.length, facts.overdueReturns, facts.overdueTasks, facts.pendingConfirmations]);
 
   // ----- Loading -----
   if (facts.loading) {
     return (
-      <section className="space-y-6">
-        <div className="space-y-3">
-          <Skeleton className="h-8 w-64" />
-          <Skeleton className="h-4 w-80" />
+      <section className="space-y-5">
+        <div className="space-y-1.5">
+          <Skeleton className="h-[19px] w-56" />
+          <Skeleton className="h-3 w-72" />
         </div>
-        <div className="space-y-2">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-14 rounded-lg" />
+        <Skeleton className="h-16 w-full rounded-md" />
+        <div className="space-y-1">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className={i === 0 ? "h-[44px] rounded-sm" : "h-[36px] rounded-sm"} />
           ))}
         </div>
       </section>
@@ -234,23 +242,11 @@ export const DailyBriefCard = ({ onModuleClick }: DailyBriefCardProps) => {
         onRent={facts.onRent}
         pickupsToday={facts.pickupsToday}
         returnsToday={facts.returnsToday}
-        revenueToday={facts.revenueToday}
+        collectedToday={facts.collectedToday}
         utilization={facts.utilization}
       />
 
-      {/* Rari's read — single-sentence lede */}
-      {narrative && (
-        <motion.div
-          initial={{ opacity: 0, y: 4 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.25 }}
-          className="max-w-[68ch]"
-        >
-          <NarrativeLede text={narrative} />
-        </motion.div>
-      )}
-
-      {/* Punch list — tiered: critical above, heads-up below */}
+      {/* Punch list first — the reason the user opened the app */}
       {facts.isClear ? (
         <AllClear />
       ) : (
@@ -261,6 +257,18 @@ export const DailyBriefCard = ({ onModuleClick }: DailyBriefCardProps) => {
           onToggleShowAll={() => setShowAllIssues((s) => !s)}
           onIssueClick={handleIssueClick}
         />
+      )}
+
+      {/* Rari's read — single-sentence lede, quiet under the punch list */}
+      {narrative && (
+        <motion.div
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.25 }}
+          className="max-w-[68ch]"
+        >
+          <NarrativeLede text={narrative} />
+        </motion.div>
       )}
 
       {/* Week-in-review glance — tap to expand the full digest */}
@@ -339,7 +347,7 @@ const TieredPunchList = ({
           onClick={onToggleShowAll}
           className="text-[11px] text-muted-foreground hover:text-foreground transition-colors pt-1"
         >
-          {showAllIssues ? "Show top 5" : `View all ${issues.length} →`}
+          {showAllIssues ? "Show top 5" : `See ${issues.length - 5} more`}
         </button>
       )}
     </div>
@@ -364,7 +372,7 @@ const IssueRow = ({
     <motion.li
       initial={{ opacity: 0, y: 2 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2, delay: 0.04 + index * 0.03 }}
+      transition={{ duration: 0.18 }}
     >
       <button
         type="button"
@@ -426,14 +434,16 @@ const BriefHeader = ({
   onModeChange: (m: Mode) => void;
   showWeekToggle: boolean;
 }) => (
-  <header className="flex items-center justify-between gap-3 flex-wrap">
-    <h1 className="text-[18px] sm:text-[19px] font-semibold tracking-tight text-foreground leading-tight min-w-0 truncate">
-      {greeting}, {name}.
-      <span className="ml-2 font-normal text-muted-foreground tracking-normal">
+  <header className="flex items-start justify-between gap-3 flex-wrap">
+    <div className="min-w-0">
+      <h1 className="text-[18px] sm:text-[19px] font-semibold tracking-tight text-foreground leading-tight truncate">
+        {greeting}, {name}.
+      </h1>
+      <p className="mt-0.5 text-[12px] text-muted-foreground truncate">
         {dateLabel}
         {company ? ` · ${company}` : ""}
-      </span>
-    </h1>
+      </p>
+    </div>
     {showWeekToggle && <ModeToggle mode={mode} onChange={onModeChange} />}
   </header>
 );
@@ -442,7 +452,7 @@ const BriefHeader = ({
 const AllClear = () => (
   <p className="flex items-center gap-2 py-1 text-sm text-foreground">
     <CheckCircle2 className="h-4 w-4 text-success flex-shrink-0" />
-    All clear — nothing needs you right now.
+    All clear. Nothing needs you.
   </p>
 );
 

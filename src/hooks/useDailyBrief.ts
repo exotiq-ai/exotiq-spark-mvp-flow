@@ -4,6 +4,14 @@ import { useFleetTasks, type VehicleTask } from '@/hooks/useFleetTasks';
 import { useFleetAIInsight } from '@/hooks/useFleetAIInsight';
 import { useUserRole, type AppRole } from '@/hooks/useUserRole';
 import { useProfile } from '@/hooks/useProfile';
+import {
+  isOnRentStatus,
+  onRentVehicleIdsAt,
+  pickupsOnDay,
+  returnsOnDay,
+  sumBookedForPickupsOn,
+  sumCollectedOnDay,
+} from '@/lib/fleetMetrics';
 
 /**
  * useDailyBrief — deterministic "what's happening in my fleet today" facts.
@@ -62,9 +70,9 @@ export interface DailyBriefFacts {
   overdueTasks: number;
   utilization: number;
 
-  // Money
-  revenueToday: number;
-  revenueMonth: number;
+  // Money — separated so callers never conflate "booked" (leading) with "collected" (cash)
+  bookedToday: number;
+  collectedToday: number;
   outstandingBalance: number;
 
   // Ranked attention list + headline metrics
@@ -126,8 +134,6 @@ const num = (v: unknown): number => {
   return Number.isFinite(n) ? n : 0;
 };
 
-const ACTIVE_STATUSES = ['active', 'confirmed'];
-
 export const useDailyBrief = (): DailyBriefFacts => {
   const fleet = useLocationFilteredFleet();
   const { tasks, loading: tasksLoading } = useFleetTasks();
@@ -137,6 +143,7 @@ export const useDailyBrief = (): DailyBriefFacts => {
 
   const bookings = fleet.bookings as unknown as BriefBooking[];
   const vehicles = fleet.vehicles as unknown as BriefVehicle[];
+  const payments = (fleet as unknown as { payments?: Array<{ transaction_date?: string | null; amount?: number | null }> }).payments || [];
   const damageClaims = fleet.damageClaims as unknown as BriefDamageClaim[];
   const maintenance = fleet.maintenance as unknown as BriefMaintenance[];
   const openTasksList: VehicleTask[] = tasks;
@@ -155,31 +162,14 @@ export const useDailyBrief = (): DailyBriefFacts => {
     const now = new Date();
     const today = startOfDay(now);
 
-    const spanningNow = (b: BriefBooking) =>
-      ACTIVE_STATUSES.includes(b.status ?? '') &&
-      new Date(b.start_date) <= now &&
-      new Date(b.end_date) >= now;
+    // Vehicles on rent right now — shared helper (confirmed | active)
+    const onRentVehicleIds = onRentVehicleIdsAt(bookings, now);
 
-    // Vehicles currently out
-    const onRentVehicleIds = new Set(
-      bookings
-        .filter(spanningNow)
-        .map((b) => b.vehicle_id)
-        .filter((id): id is string => Boolean(id)),
-    );
-
-    const pickupsTodayList = bookings.filter(
-      (b) =>
-        ['confirmed', 'pending', 'active'].includes(b.status ?? '') &&
-        isSameDay(new Date(b.start_date), today),
-    );
-
-    const returnsTodayList = bookings.filter(
-      (b) => ACTIVE_STATUSES.includes(b.status ?? '') && isSameDay(new Date(b.end_date), today),
-    );
+    const pickupsTodayList = pickupsOnDay(bookings, today);
+    const returnsTodayList = returnsOnDay(bookings, today);
 
     const overdueReturnList = bookings.filter(
-      (b) => ACTIVE_STATUSES.includes(b.status ?? '') && new Date(b.end_date) < today,
+      (b) => isOnRentStatus(b.status) && new Date(b.end_date) < today,
     );
 
     const newBookings24hList = bookings.filter((b) => {
@@ -194,10 +184,8 @@ export const useDailyBrief = (): DailyBriefFacts => {
     );
     const outstandingBalance = outstandingList.reduce((sum, b) => sum + num(b.balance_due), 0);
 
-    const revenueToday = pickupsTodayList.reduce((sum, b) => sum + num(b.total_value), 0);
-    const revenueMonth = bookings
-      .filter((b) => ['confirmed', 'completed', 'active'].includes(b.status ?? ''))
-      .reduce((sum, b) => sum + num(b.total_value), 0);
+    const bookedToday = sumBookedForPickupsOn(bookings, today);
+    const collectedToday = sumCollectedOnDay(payments, today);
 
     const vehicleCount = vehicles.length;
     const utilization = vehicleCount > 0 ? Math.round((onRentVehicleIds.size / vehicleCount) * 100) : 0;
@@ -219,11 +207,12 @@ export const useDailyBrief = (): DailyBriefFacts => {
     const issues: DailyBriefIssue[] = [];
 
     if (overdueReturnList.length > 0) {
+      const n = overdueReturnList.length;
       issues.push({
         id: 'overdue-returns',
         severity: 'high',
         category: 'booking',
-        title: `${overdueReturnList.length} overdue ${overdueReturnList.length === 1 ? 'return' : 'returns'}`,
+        title: `${n} ${n === 1 ? 'return' : 'returns'} overdue`,
         detail: overdueReturnList
           .slice(0, 3)
           .map((b) => `${vehicleLabel(b)} (${b.customer_name})`)
@@ -234,11 +223,12 @@ export const useDailyBrief = (): DailyBriefFacts => {
     }
 
     if (overdueTaskList.length > 0) {
+      const n = overdueTaskList.length;
       issues.push({
         id: 'overdue-tasks',
         severity: 'high',
         category: 'task',
-        title: `${overdueTaskList.length} overdue ${overdueTaskList.length === 1 ? 'task' : 'tasks'}`,
+        title: `${n} ${n === 1 ? 'task' : 'tasks'} overdue`,
         detail: overdueTaskList.slice(0, 3).map((t) => t.title).join(', '),
         module: 'fleet',
         meta: { taskId: overdueTaskList[0]?.id },
@@ -246,23 +236,24 @@ export const useDailyBrief = (): DailyBriefFacts => {
     }
 
     if (outstandingList.length > 0) {
+      const n = outstandingList.length;
       issues.push({
         id: 'outstanding-balance',
         severity: 'high',
         category: 'payment',
-        title: `${outstandingList.length} ${outstandingList.length === 1 ? 'booking' : 'bookings'} with a balance due`,
-        detail: `$${Math.round(outstandingBalance).toLocaleString()} outstanding`,
+        title: `${n} ${n === 1 ? 'balance' : 'balances'} outstanding · $${Math.round(outstandingBalance).toLocaleString()}`,
         module: 'book',
         meta: { bookingId: outstandingList[0]?.id, amount: Math.round(outstandingBalance) },
       });
     }
 
     if (pendingConfirmationList.length > 0) {
+      const n = pendingConfirmationList.length;
       issues.push({
         id: 'pending-confirmations',
         severity: 'medium',
         category: 'booking',
-        title: `${pendingConfirmationList.length} ${pendingConfirmationList.length === 1 ? 'booking awaits' : 'bookings await'} confirmation`,
+        title: `${n} ${n === 1 ? 'booking needs' : 'bookings need'} confirming`,
         detail: pendingConfirmationList
           .slice(0, 3)
           .map((b) => `${vehicleLabel(b)} (${b.customer_name})`)
@@ -273,11 +264,12 @@ export const useDailyBrief = (): DailyBriefFacts => {
     }
 
     if (urgentOpenTasks.length > 0) {
+      const n = urgentOpenTasks.length;
       issues.push({
         id: 'urgent-tasks',
         severity: 'medium',
         category: 'task',
-        title: `${urgentOpenTasks.length} urgent ${urgentOpenTasks.length === 1 ? 'task' : 'tasks'}`,
+        title: `${n} urgent ${n === 1 ? 'task' : 'tasks'}`,
         detail: urgentOpenTasks.slice(0, 3).map((t) => t.title).join(', '),
         module: 'fleet',
         meta: { taskId: urgentOpenTasks[0]?.id },
@@ -285,22 +277,24 @@ export const useDailyBrief = (): DailyBriefFacts => {
     }
 
     if (openDamageList.length > 0) {
+      const n = openDamageList.length;
       issues.push({
         id: 'open-damage',
         severity: 'medium',
         category: 'damage',
-        title: `${openDamageList.length} open damage ${openDamageList.length === 1 ? 'claim' : 'claims'}`,
+        title: `${n} open damage ${n === 1 ? 'claim' : 'claims'}`,
         module: 'vault',
         meta: { damageClaimId: openDamageList[0]?.id },
       });
     }
 
     if (scheduledMaintenance.length > 0) {
+      const n = scheduledMaintenance.length;
       issues.push({
         id: 'maintenance',
         severity: 'low',
         category: 'maintenance',
-        title: `${scheduledMaintenance.length} ${scheduledMaintenance.length === 1 ? 'vehicle' : 'vehicles'} in/awaiting maintenance`,
+        title: `${n} ${n === 1 ? 'vehicle' : 'vehicles'} in service`,
         module: 'fleet',
       });
     }
@@ -310,18 +304,18 @@ export const useDailyBrief = (): DailyBriefFacts => {
         id: 'pricing-opportunity',
         severity: 'low',
         category: 'pricing',
-        title: `Pricing opportunity: ${aiInsight.vehicleName} +${aiInsight.suggestedIncreasePercent}%`,
-        detail: `~$${aiInsight.potentialMonthlyRevenue.toLocaleString()}/mo potential`,
+        title: `Raise ${aiInsight.vehicleName} rate ${aiInsight.suggestedIncreasePercent}% · ~$${aiInsight.potentialMonthlyRevenue.toLocaleString()}/mo`,
         module: 'motoriq',
         meta: { vehicleId: aiInsight.vehicleId },
       });
     }
 
+
     issues.sort((a, b) => SEVERITY_RANK[b.severity] - SEVERITY_RANK[a.severity]);
 
     const metrics: DailyBriefMetric[] = [
       { key: 'onRent', label: 'On rent now', count: onRentVehicleIds.size, module: 'fleet', tone: 'default' },
-      { key: 'pickupsToday', label: 'Going out today', count: pickupsTodayList.length, amount: revenueToday, module: 'book', tone: 'success' },
+      { key: 'pickupsToday', label: 'Going out today', count: pickupsTodayList.length, amount: bookedToday, module: 'book', tone: 'success' },
       { key: 'returnsToday', label: 'Coming in today', count: returnsTodayList.length, module: 'book', tone: 'default' },
       { key: 'newBookings', label: 'New (24h)', count: newBookings24hList.length, module: 'book', tone: 'success' },
       { key: 'openTasks', label: 'Open tasks', count: openTaskList.length, module: 'fleet', tone: overdueTaskList.length > 0 ? 'warning' : 'default' },
@@ -350,8 +344,8 @@ export const useDailyBrief = (): DailyBriefFacts => {
       overdueTasks: overdueTaskList.length,
       utilization,
 
-      revenueToday,
-      revenueMonth,
+      bookedToday,
+      collectedToday,
       outstandingBalance,
 
       issues,

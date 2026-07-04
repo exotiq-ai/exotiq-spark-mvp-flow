@@ -1,5 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
+import { onRentVehicleIdsAt, sumCollectedOnDay } from "@/lib/fleetMetrics";
 import { useNavigate } from "react-router-dom";
 import { moduleIdToPath } from "@/lib/moduleRoutes";
 import { formatCurrency } from "@/lib/utils";
@@ -15,19 +16,10 @@ export const TodaySnapshot = () => {
   const { vehicles, bookings, payments } = useLocationFilteredFleet();
   const navigate = useNavigate();
   
-  // Calculate today's metrics - get unique vehicles currently out
+  // Calculate today's metrics — use shared helpers so numbers match the dashboard KPI rail.
   const today = new Date();
-  const vehicleIdsOut = new Set(
-    bookings
-      .filter(b => 
-        b.status === 'confirmed' &&
-        new Date(b.start_date) <= today &&
-        new Date(b.end_date) >= today
-      )
-      .map(b => b.vehicle_id)
-  );
-  const vehiclesOut = vehicleIdsOut.size;
-  
+  const vehiclesOut = onRentVehicleIdsAt(bookings, today).size;
+
   const totalVehicles = vehicles.length;
   
   // Pickups today - confirmed bookings starting today
@@ -42,9 +34,7 @@ export const TodaySnapshot = () => {
   );
   const returnsCompleted = returnsToday.filter(b => b.status === 'completed').length;
   
-  const todayRevenue = payments
-    .filter(p => p.transaction_date && isToday(new Date(p.transaction_date)))
-    .reduce((sum, p) => sum + (p.amount || 0), 0);
+  const todayRevenue = sumCollectedOnDay(payments, today);
 
   const metrics = [
     { 

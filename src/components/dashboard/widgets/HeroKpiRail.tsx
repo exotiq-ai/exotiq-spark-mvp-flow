@@ -3,22 +3,29 @@ import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useCountUp } from "@/hooks/useCountUp";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
-import { ArrowUp, ArrowDown } from "lucide-react";
+import {
+  isSameDay,
+  onRentVehicleIdsAt,
+  pickupsOnDay,
+  returnsOnDay,
+  sumCollectedOnDay,
+} from "@/lib/fleetMetrics";
+import { DeltaChip } from "./DeltaChip";
 
 /**
  * HeroKpiRail — editorial 4-cell KPI rail for the Daily Brief hero.
  *
- * Replaces the inline "20 OUT · 6 PICKUPS · …" caption with large tabular
- * numerals, delta-vs-yesterday chips, and a faint sparkline behind the
- * "collected" cell. No boxes, only hairline dividers — keeps the editorial
- * register of the rest of the brief.
+ * Every filter/status decision routes through src/lib/fleetMetrics so today's
+ * and yesterday's numbers use identical definitions. "Collected" reads from
+ * payments (cash actually received), never booking total_value.
  */
 
 interface HeroKpiRailProps {
   onRent: number;
   pickupsToday: number;
   returnsToday: number;
-  revenueToday: number;
+  /** Cash collected today. Passed in from useDailyBrief so the whole dashboard agrees. */
+  collectedToday: number;
   utilization: number;
 }
 
@@ -27,85 +34,54 @@ const formatMoney = (n: number) => {
   return `$${Math.round(n).toLocaleString()}`;
 };
 
-const isSameDay = (a: Date, b: Date) =>
-  a.getFullYear() === b.getFullYear() &&
-  a.getMonth() === b.getMonth() &&
-  a.getDate() === b.getDate();
+const identity = (n: number) => n.toLocaleString();
 
 export const HeroKpiRail = ({
   onRent,
   pickupsToday,
   returnsToday,
-  revenueToday,
+  collectedToday,
   utilization,
 }: HeroKpiRailProps) => {
   const { bookings, payments } = useLocationFilteredFleet();
 
-  // Compute yesterday's same-day metrics + 7-day collections sparkline.
+  // Yesterday's same-day metrics using the exact same helpers as today.
   const { yOnRent, yPickups, yReturns, yCollected, collectedSeries } = useMemo(() => {
     const now = new Date();
     const yesterday = new Date(now);
     yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayDay = new Date(yesterday);
+    yesterdayDay.setHours(12, 0, 0, 0);
 
-    // At "this time yesterday", which vehicles were out?
-    const yOnRent = new Set(
-      bookings
-        .filter((b) => {
-          const start = new Date(b.start_date);
-          const end = new Date(b.end_date);
-          return (
-            (b.status === "confirmed" || b.status === "active" || b.status === "completed") &&
-            start <= yesterday &&
-            end >= yesterday
-          );
-        })
-        .map((b) => b.vehicle_id),
-    ).size;
+    const yOnRent = onRentVehicleIdsAt(bookings || [], yesterday).size;
+    const yPickups = pickupsOnDay(bookings || [], yesterdayDay).length;
+    const yReturns = returnsOnDay(bookings || [], yesterdayDay).length;
+    const yCollected = sumCollectedOnDay(payments || [], yesterday);
 
-    const yPickups = bookings.filter(
-      (b) =>
-        ["confirmed", "pending", "active", "completed"].includes(b.status ?? "") &&
-        isSameDay(new Date(b.start_date), yesterday),
-    ).length;
-
-    const yReturns = bookings.filter(
-      (b) =>
-        ["confirmed", "active", "completed"].includes(b.status ?? "") &&
-        isSameDay(new Date(b.end_date), yesterday),
-    ).length;
-
-    // 7-day collections sparkline + yesterday's collected total
+    // 7-day collections sparkline
     const days: number[] = [];
-    let yCollected = 0;
     for (let i = 6; i >= 0; i--) {
       const day = new Date(now);
-      day.setHours(0, 0, 0, 0);
       day.setDate(day.getDate() - i);
-      const dayEnd = new Date(day);
-      dayEnd.setHours(23, 59, 59, 999);
-      const total = (payments || [])
-        .filter((p) => {
-          if (!p.transaction_date) return false;
-          const td = new Date(p.transaction_date);
-          return td >= day && td <= dayEnd;
-        })
-        .reduce((sum, p) => sum + (p.amount || 0), 0);
-      days.push(total);
-      if (i === 1) yCollected = total;
+      days.push(sumCollectedOnDay(payments || [], day));
     }
     return { yOnRent, yPickups, yReturns, yCollected, collectedSeries: days };
   }, [bookings, payments]);
 
+  // Suppress noise from silent-void days (avoid endless red 0→0 chips)
+  const _ = isSameDay; // keep import if unused later
+  void _;
+
   const cells = [
-    { key: "out", label: "Out", value: onRent, delta: onRent - yOnRent, format: (n: number) => n.toLocaleString() },
-    { key: "pickups", label: "Pickups", value: pickupsToday, delta: pickupsToday - yPickups, format: (n: number) => n.toLocaleString() },
-    { key: "returns", label: "Returns", value: returnsToday, delta: returnsToday - yReturns, format: (n: number) => n.toLocaleString() },
-    revenueToday > 0
+    { key: "out", label: "Out", value: onRent, delta: onRent - yOnRent, format: identity },
+    { key: "pickups", label: "Pickups", value: pickupsToday, delta: pickupsToday - yPickups, format: identity },
+    { key: "returns", label: "Returns", value: returnsToday, delta: returnsToday - yReturns, format: identity },
+    collectedToday > 0 || yCollected > 0
       ? {
           key: "collected",
           label: "Collected",
-          value: revenueToday,
-          delta: revenueToday - yCollected,
+          value: collectedToday,
+          delta: collectedToday - yCollected,
           format: formatMoney,
           spark: collectedSeries,
         }
@@ -119,18 +95,19 @@ export const HeroKpiRail = ({
   ];
 
   return (
-    <div
+    <dl
       className={cn(
         "grid grid-cols-2 sm:grid-cols-4 gap-y-4",
         "divide-y sm:divide-y-0 sm:divide-x divide-border/50",
       )}
+      aria-label="Today's fleet KPIs"
     >
       {cells.map((cell, i) => (
         <motion.div
           key={cell.key}
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, delay: i * 0.06, ease: "easeOut" }}
+          transition={{ duration: 0.32, delay: i * 0.05, ease: "easeOut" }}
           className={cn(
             "relative px-0 sm:px-5 first:sm:pl-0 last:sm:pr-0 py-2 sm:py-0",
             "min-w-0",
@@ -143,12 +120,13 @@ export const HeroKpiRail = ({
             label={cell.label}
             value={cell.value}
             delta={cell.delta}
+            unit={cell.key === "collected" ? undefined : ""}
             format={cell.format}
-            delay={i * 0.06}
+            delay={i * 0.05}
           />
         </motion.div>
       ))}
-    </div>
+    </dl>
   );
 };
 
@@ -156,6 +134,7 @@ interface KpiCellProps {
   label: string;
   value: number;
   delta: number;
+  unit?: string;
   format: (n: number) => string;
   delay: number;
 }
@@ -173,36 +152,17 @@ const KpiCell = ({ label, value, delta, format, delay }: KpiCellProps) => {
   return (
     <div className="relative flex flex-col gap-1">
       <div className="flex items-baseline gap-2">
-        <span className="text-3xl sm:text-[2.25rem] leading-none font-semibold tracking-tight tabular-nums text-foreground">
+        <dd className="text-[2rem] sm:text-[2.125rem] leading-none font-semibold tracking-tight tabular-nums text-foreground m-0">
           {display}
-        </span>
+        </dd>
         {delta !== 0 && (
-          <DeltaChip delta={delta} />
+          <DeltaChip delta={delta} title="vs yesterday" />
         )}
       </div>
-      <span className="text-[10.5px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+      <dt className="text-[10.5px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
         {label}
-      </span>
+      </dt>
     </div>
-  );
-};
-
-const DeltaChip = ({ delta }: { delta: number }) => {
-  const positive = delta > 0;
-  const Icon = positive ? ArrowUp : ArrowDown;
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-0.5 text-[10.5px] font-medium tabular-nums px-1.5 py-0.5 rounded-full",
-        positive
-          ? "text-success bg-success/10"
-          : "text-muted-foreground bg-muted/60",
-      )}
-      title="vs yesterday"
-    >
-      <Icon className="h-2.5 w-2.5" strokeWidth={2.5} />
-      {Math.abs(delta) >= 1000 ? `${(Math.abs(delta) / 1000).toFixed(1)}k` : Math.abs(delta)}
-    </span>
   );
 };
 
