@@ -442,7 +442,7 @@ const BriefHeader = ({
 const AllClear = () => (
   <p className="flex items-center gap-2 py-1 text-sm text-foreground">
     <CheckCircle2 className="h-4 w-4 text-success flex-shrink-0" />
-    All clear — nothing needs you right now.
+    All clear. Nothing needs you.
   </p>
 );
 
