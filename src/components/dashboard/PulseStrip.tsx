@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
-import { isBlockingBooking } from "@/lib/conflictDetection";
+import { onRentVehicleIdsAt } from "@/lib/fleetMetrics";
 import { ArrowUpRight, ArrowDownLeft, Clock } from "lucide-react";
 import { format, isToday } from "date-fns";
 
