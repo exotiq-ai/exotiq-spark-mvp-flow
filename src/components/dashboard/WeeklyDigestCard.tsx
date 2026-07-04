@@ -167,20 +167,7 @@ export const WeeklyDigestCard = ({
               {wir.utilizationChange.to}% util
             </span>
             {wir.revenueChange !== 0 && (
-              <span
-                className={cn(
-                  "inline-flex items-center gap-0.5 tabular-nums text-[11px]",
-                  wir.revenueChange >= 0 ? "text-success" : "text-destructive",
-                )}
-              >
-                {wir.revenueChange >= 0 ? (
-                  <TrendingUp className="h-3 w-3" />
-                ) : (
-                  <TrendingDown className="h-3 w-3" />
-                )}
-                {wir.revenueChange >= 0 ? "+" : ""}
-                {wir.revenueChange}%
-              </span>
+              <DeltaChip delta={wir.revenueChange} unit="%" title="vs last week" />
             )}
           </span>
           <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50 group-hover:text-foreground group-hover:translate-x-0.5 transition-all" />
