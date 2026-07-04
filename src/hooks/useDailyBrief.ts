@@ -315,7 +315,7 @@ export const useDailyBrief = (): DailyBriefFacts => {
 
     const metrics: DailyBriefMetric[] = [
       { key: 'onRent', label: 'On rent now', count: onRentVehicleIds.size, module: 'fleet', tone: 'default' },
-      { key: 'pickupsToday', label: 'Going out today', count: pickupsTodayList.length, amount: revenueToday, module: 'book', tone: 'success' },
+      { key: 'pickupsToday', label: 'Going out today', count: pickupsTodayList.length, amount: bookedToday, module: 'book', tone: 'success' },
       { key: 'returnsToday', label: 'Coming in today', count: returnsTodayList.length, module: 'book', tone: 'default' },
       { key: 'newBookings', label: 'New (24h)', count: newBookings24hList.length, module: 'book', tone: 'success' },
       { key: 'openTasks', label: 'Open tasks', count: openTaskList.length, module: 'fleet', tone: overdueTaskList.length > 0 ? 'warning' : 'default' },
