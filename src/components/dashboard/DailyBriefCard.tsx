@@ -426,14 +426,16 @@ const BriefHeader = ({
   onModeChange: (m: Mode) => void;
   showWeekToggle: boolean;
 }) => (
-  <header className="flex items-center justify-between gap-3 flex-wrap">
-    <h1 className="text-[18px] sm:text-[19px] font-semibold tracking-tight text-foreground leading-tight min-w-0 truncate">
-      {greeting}, {name}.
-      <span className="ml-2 font-normal text-muted-foreground tracking-normal">
+  <header className="flex items-start justify-between gap-3 flex-wrap">
+    <div className="min-w-0">
+      <h1 className="text-[18px] sm:text-[19px] font-semibold tracking-tight text-foreground leading-tight truncate">
+        {greeting}, {name}.
+      </h1>
+      <p className="mt-0.5 text-[12px] text-muted-foreground truncate">
         {dateLabel}
         {company ? ` · ${company}` : ""}
-      </span>
-    </h1>
+      </p>
+    </div>
     {showWeekToggle && <ModeToggle mode={mode} onChange={onModeChange} />}
   </header>
 );
