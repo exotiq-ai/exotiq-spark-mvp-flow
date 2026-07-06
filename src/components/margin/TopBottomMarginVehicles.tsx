@@ -75,6 +75,10 @@ export function TopBottomMarginVehicles() {
   const bottom = displayRows.slice(-5).reverse();
 
 
+  const helperText = allTied
+    ? "Log vehicle expenses to see true margin ranking."
+    : null;
+
   if (isMobile) {
     const active = view === "top" ? top : bottom;
     return (
@@ -103,6 +107,7 @@ export function TopBottomMarginVehicles() {
               </button>
             </div>
           </div>
+          {helperText && <p className="text-[11px] text-muted-foreground">{helperText}</p>}
         </CardHeader>
         <CardContent>
           {active.length === 0 ? (
@@ -122,6 +127,7 @@ export function TopBottomMarginVehicles() {
           <CardTitle className="text-base flex items-center gap-2">
             <TrendingUp className="h-4 w-4 text-emerald-500" /> Top 5 {rankLabel}
           </CardTitle>
+          {helperText && <p className="text-[11px] text-muted-foreground">{helperText}</p>}
         </CardHeader>
         <CardContent>
           {top.length === 0 ? (
@@ -136,6 +142,9 @@ export function TopBottomMarginVehicles() {
           <CardTitle className="text-base flex items-center gap-2">
             <TrendingDown className="h-4 w-4 text-destructive" /> Bottom 5 {rankLabel}
           </CardTitle>
+          {helperText
+            ? <p className="text-[11px] text-muted-foreground">{helperText}</p>
+            : <p className="text-[11px] text-muted-foreground">Negative margin = expenses and payouts exceed net revenue.</p>}
         </CardHeader>
         <CardContent>
           {bottom.length === 0 ? (

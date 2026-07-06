@@ -23,6 +23,8 @@ export function ExpenseBreakdownChart() {
     };
   }, [expenses]);
 
+  const label = (t: string) => t.charAt(0).toUpperCase() + t.slice(1).replace("_", " ");
+
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -30,15 +32,35 @@ export function ExpenseBreakdownChart() {
       </CardHeader>
       <CardContent>
         {loading ? (
-          <div className="h-20 md:h-[240px] flex items-center justify-center text-sm text-muted-foreground">Loading…</div>
+          <div className="h-20 md:h-[240px] flex items-center justify-center text-sm text-muted-foreground">
+            Loading…
+          </div>
         ) : data.rows.length === 0 ? (
-          <div className="h-20 md:h-[240px] flex items-center justify-center text-sm text-muted-foreground">No vehicle expenses in range.</div>
+          <div className="h-20 md:h-[240px] flex flex-col items-center justify-center gap-1 text-center">
+            <div className="text-sm text-muted-foreground">No expenses logged yet</div>
+            <div className="text-xs text-muted-foreground/70">
+              Log fuel, maintenance, or detailing to see where the money goes.
+            </div>
+          </div>
+        ) : data.rows.length === 1 ? (
+          // Collapsed single-category state — no need for a bar chart of one row
+          <div className="py-3 space-y-1">
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="text-sm">{label(data.rows[0].type)}</span>
+              <span className="text-lg font-semibold tabular-nums">
+                {formatCurrency(data.rows[0].amount)}
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Only one expense category recorded in this range. Log more categories to see a breakdown.
+            </p>
+          </div>
         ) : (
           <div className="space-y-2">
             {data.rows.slice(0, 8).map((r) => (
               <div key={r.type}>
                 <div className="flex items-center justify-between text-xs mb-1">
-                  <span className="capitalize">{r.type.replace("_", " ")}</span>
+                  <span>{label(r.type)}</span>
                   <span className="text-muted-foreground tabular-nums">
                     {formatCurrency(r.amount)} · {r.pct.toFixed(0)}%
                   </span>
@@ -50,7 +72,7 @@ export function ExpenseBreakdownChart() {
             ))}
             <div className="pt-2 mt-2 border-t flex items-center justify-between text-xs">
               <span className="text-muted-foreground">Total</span>
-              <span className="font-semibold">{formatCurrency(data.total)}</span>
+              <span className="font-semibold tabular-nums">{formatCurrency(data.total)}</span>
             </div>
           </div>
         )}
