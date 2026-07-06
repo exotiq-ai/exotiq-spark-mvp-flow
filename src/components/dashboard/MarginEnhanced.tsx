@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Card, CardContent } from "@/components/ui/card";
@@ -7,6 +8,7 @@ import { MarginFilterBar } from "@/components/margin/MarginFilterBar";
 import { MarginMobileFilterSheet } from "@/components/margin/MarginMobileFilterSheet";
 import { MarginOverview } from "@/components/margin/MarginOverview";
 import { MarginHeroOverview } from "@/components/margin/MarginHeroOverview";
+import { MarginActionStrip } from "@/components/margin/MarginActionStrip";
 import { VehiclePnLTable } from "@/components/margin/VehiclePnLTable";
 import { ExpensesTab } from "@/components/margin/ExpensesTab";
 import { PartnerPayoutsTab } from "@/components/margin/PartnerPayoutsTab";
@@ -20,9 +22,12 @@ import { TopBottomMarginVehicles } from "@/components/margin/TopBottomMarginVehi
 import { TenantOverheadCard } from "@/components/margin/TenantOverheadCard";
 import { useIsMobile } from "@/hooks/use-mobile";
 
+type MarginTab = "vehicles" | "expenses" | "review" | "partners" | "payouts" | "deposits";
+
 export default function MarginEnhanced() {
   const { isManagerOrHigher, loading } = useUserRole();
   const isMobile = useIsMobile();
+  const [tab, setTab] = useState<MarginTab>("vehicles");
 
   if (loading) {
     return <div className="p-6 animate-pulse text-muted-foreground">Loading Margin…</div>;
@@ -44,17 +49,28 @@ export default function MarginEnhanced() {
     );
   }
 
+  const goToTab = (t: MarginTab) => {
+    setTab(t);
+    // Scroll the tab section into view so the click has a visible result
+    requestAnimationFrame(() => {
+      document.getElementById("margin-tabs")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  };
+
   return (
     <MarginFiltersProvider>
       <div className="p-4 md:p-6 space-y-4 md:space-y-6 max-w-[1400px] mx-auto">
         <header className="space-y-1">
           <h1 className="text-xl md:text-2xl font-semibold tracking-tight">Margin</h1>
           <p className="text-xs md:text-sm text-muted-foreground hidden md:block">
-            Revenue, expenses, and vehicle profitability — filter by date, location, vehicle, or source.
+            Where the money went this period — filter by date, location, vehicle, or source.
           </p>
         </header>
 
         {isMobile ? <MarginMobileFilterSheet /> : <MarginFilterBar />}
+
+        <MarginActionStrip onNavigate={goToTab} />
+
         {isMobile ? <MarginHeroOverview /> : <MarginOverview />}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -73,7 +89,7 @@ export default function MarginEnhanced() {
 
         <TenantOverheadCard />
 
-        <Tabs defaultValue="vehicles" className="w-full">
+        <Tabs id="margin-tabs" value={tab} onValueChange={(v) => setTab(v as MarginTab)} className="w-full">
           {isMobile ? (
             <div className="relative -mx-4 px-4">
               <TabsList className="flex w-max gap-1 overflow-x-auto snap-x bg-muted/40 p-1 h-auto">
