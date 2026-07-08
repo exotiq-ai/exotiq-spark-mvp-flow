@@ -408,7 +408,7 @@ export const NewBookingDialog = ({
                         )}
                       >
                         <span>{getDurationLabel(dt)}</span>
-                        <span className="ml-1 opacity-75">${rate.toLocaleString()}</span>
+                        <span className="ml-1 opacity-75">{money(rate)}</span>
                       </button>
                     );
                   })}
