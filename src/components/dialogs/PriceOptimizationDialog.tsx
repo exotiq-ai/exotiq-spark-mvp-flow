@@ -59,11 +59,11 @@ export const PriceOptimizationDialog = ({ open, onOpenChange, vehicles, onApply 
           <div className="grid grid-cols-2 gap-4">
             <div className="p-4 rounded-xl bg-muted/50">
               <div className="text-sm text-muted-foreground mb-1">Current Rate</div>
-              <div className="text-2xl font-bold">${selectedVehicle?.current_rate}</div>
+              <div className="text-2xl font-bold">{money(selectedVehicle?.current_rate ?? 0)}</div>
             </div>
             <div className="p-4 rounded-xl bg-primary/10">
               <div className="text-sm text-muted-foreground mb-1">AI Suggested</div>
-              <div className="text-2xl font-bold text-primary">${selectedVehicle?.suggested_rate || selectedVehicle?.current_rate}</div>
+              <div className="text-2xl font-bold text-primary">{money(selectedVehicle?.suggested_rate ?? selectedVehicle?.current_rate ?? 0)}</div>
               <div className="text-xs text-success">+{percentIncrease}%</div>
             </div>
           </div>
