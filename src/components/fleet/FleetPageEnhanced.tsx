@@ -578,6 +578,7 @@ export const FleetPageEnhanced = () => {
                     nextBooking={getNextBooking(vehicle.id) as any}
                     taskCount={taskCountMap[vehicle.id] || 0}
                     photoCount={photoCountByVehicle[vehicle.id]}
+                    outOfServiceUntil={outOfServiceMap[vehicle.id] ?? null}
                     onEditPrice={(v) => setPriceEditVehicle(v)}
                     onEdit={(v) => setEditVehicle(v)}
                     onCreateTask={(v) => setTaskVehicle(v)}
