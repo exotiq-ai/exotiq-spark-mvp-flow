@@ -1142,14 +1142,8 @@ export const EnhancedBookingDialog = ({
                       </div>
 
                       <div className="flex flex-wrap gap-2">
-                        <Button variant="outline" size="sm" onClick={() => { onOpenChange(false); onNavigateToModule?.("motoriq", { vehicleId: booking.vehicle_id }); }}>
-                          <Car className="h-3 w-3 mr-1" />Vehicle<ExternalLink className="h-3 w-3 ml-1" />
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => { onOpenChange(false); onNavigateToModule?.("core", { customerId: booking.customer_id }); }}>
-                          <User className="h-3 w-3 mr-1" />CRM<ExternalLink className="h-3 w-3 ml-1" />
-                        </Button>
                         <Button variant="outline" size="sm" onClick={() => { onOpenChange(false); onNavigateToModule?.("pulse", { bookingId: booking.id }); }}>
-                          <CreditCard className="h-3 w-3 mr-1" />Payments<ExternalLink className="h-3 w-3 ml-1" />
+                          <CreditCard className="h-3 w-3 mr-1" />Record / view payments<ExternalLink className="h-3 w-3 ml-1" />
                         </Button>
                       </div>
                     </TabsContent>
