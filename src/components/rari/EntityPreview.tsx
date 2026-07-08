@@ -22,6 +22,7 @@ interface EntityPreviewProps {
 }
 
 export const EntityPreview = ({ type, data, isLoading, error }: EntityPreviewProps) => {
+  const { money } = useMoney();
   if (error) {
     return (
       <div className="p-3 space-y-2 min-w-[250px]">
