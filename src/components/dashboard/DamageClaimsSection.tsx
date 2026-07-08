@@ -272,12 +272,12 @@ export const DamageClaimsSection = () => {
                       </div>
                       <div>
                         <span className="text-muted-foreground">Estimated:</span>
-                        <span className="ml-2 font-medium">${claim.estimated_cost || 0}</span>
+                        <span className="ml-2 font-medium">{money(claim.estimated_cost || 0)}</span>
                       </div>
                       {claim.actual_cost && (
                         <div>
                           <span className="text-muted-foreground">Actual:</span>
-                          <span className="ml-2 font-medium">${claim.actual_cost}</span>
+                          <span className="ml-2 font-medium">{money(claim.actual_cost)}</span>
                         </div>
                       )}
                       <div>
