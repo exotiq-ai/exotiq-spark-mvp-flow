@@ -65,6 +65,7 @@ export const NewBookingDialog = ({
   const { selectedLocationId, currentLocation, locations, currentTeam } = useTeam();
   const { currency, money } = useMoney();
   const { bookings: allBookings } = useLocationFilteredFleet();
+  const { activeOrders: activeWorkOrders } = useWorkOrders();
   const gasFeeSettings = useTeamGasFeeSettings();
   const teamGasFee = getGasFeeForTeam(gasFeeSettings.gasFeeAmount);
   
