@@ -776,7 +776,7 @@ export const NewBookingDialog = ({
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
                 <div>
                   <span className="text-sm font-medium">Gas/Re-fueling Fee</span>
-                  <p className="text-xs text-muted-foreground">${teamGasFee.toFixed(2)} standard fee</p>
+                  <p className="text-xs text-muted-foreground">{money(teamGasFee)} standard fee</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
