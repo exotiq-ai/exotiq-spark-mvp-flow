@@ -36,7 +36,7 @@ import {
   ArrowUpDown,
   Check,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, formatCurrencyCompact } from '@/lib/utils';
 import { OpsStatus, OPS_STATUS_CONFIG } from '@/hooks/useVehicleOpsStatus';
 
 export type ViewMode = 'grid' | 'list';
@@ -116,8 +116,7 @@ const SORT_OPTIONS: { value: SortOption; label: string }[] = [
   { value: 'updated', label: 'Last Updated' },
 ];
 
-const formatMoney = (n: number) =>
-  n >= 1000 ? `$${(n / 1000).toFixed(n % 1000 === 0 ? 0 : 1)}k` : `$${n}`;
+const formatMoney = (n: number) => formatCurrencyCompact(n);
 
 const formatMiles = (n: number) =>
   n >= 1000 ? `${(n / 1000).toFixed(n % 1000 === 0 ? 0 : 1)}k mi` : `${n} mi`;

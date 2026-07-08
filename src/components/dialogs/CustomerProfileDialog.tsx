@@ -53,6 +53,7 @@ import { formatCurrency } from "@/lib/utils";
 import { CustomerTimeline } from "@/components/crm/CustomerTimeline";
 import { EntityCommentThread } from "@/components/comments/EntityCommentThread";
 import { useTeam } from "@/contexts/TeamContext";
+import { useMoney } from "@/hooks/useMoney";
 
 type Customer = Database['public']['Tables']['customers']['Row'];
 type Booking = Database['public']['Tables']['bookings']['Row'];
@@ -74,6 +75,7 @@ export const CustomerProfileDialog = ({
 }: CustomerProfileDialogProps) => {
   const { user } = useAuth();
   const { currentTeam } = useTeam();
+  const { money } = useMoney();
   const { addCustomerNote, updateCustomer, blacklistCustomer, deleteCustomer, customerNotes, refreshCustomers } = useFleet();
   const [newNote, setNewNote] = useState("");
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
@@ -160,12 +162,12 @@ export const CustomerProfileDialog = ({
               </div>
               <div className="p-4 rounded-lg bg-success/5 border border-success/20 text-center">
                 <DollarSign className="w-5 h-5 text-success mx-auto mb-2" />
-                <div className="text-2xl font-bold">${(customer.lifetime_value || 0).toLocaleString()}</div>
+                <div className="text-2xl font-bold">{money(customer.lifetime_value || 0)}</div>
                 <div className="text-xs text-muted-foreground">Lifetime Value</div>
               </div>
               <div className="p-4 rounded-lg bg-accent/5 border border-accent/20 text-center">
                 <TrendingUp className="w-5 h-5 text-accent mx-auto mb-2" />
-                <div className="text-2xl font-bold">${totalRevenue > 0 ? (totalRevenue / Math.max(completedBookings.length, 1)).toFixed(0) : '0'}</div>
+                <div className="text-2xl font-bold">{money(totalRevenue > 0 ? totalRevenue / Math.max(completedBookings.length, 1) : 0)}</div>
                 <div className="text-xs text-muted-foreground">Avg Booking Value</div>
               </div>
             </div>

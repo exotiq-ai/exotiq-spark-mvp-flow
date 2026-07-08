@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Tables } from "@/integrations/supabase/types";
 import { DollarSign, Car, Users, Calendar } from "lucide-react";
+import { useMoney } from "@/hooks/useMoney";
 
 type Booking = Tables<'bookings'>;
 
@@ -23,6 +24,7 @@ export const RevenueBreakdownDialog = ({
   bookings,
   vehicles
 }: RevenueBreakdownDialogProps) => {
+  const { money } = useMoney();
   // Calculate breakdown by vehicle
   const vehicleBreakdown = bookings.reduce((acc, booking) => {
     const vehicle = vehicles.find(v => v.id === booking.vehicle_id);
@@ -73,7 +75,7 @@ export const RevenueBreakdownDialog = ({
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Total Revenue</p>
-                <h3 className="text-4xl font-bold">${revenue.toLocaleString()}</h3>
+                <h3 className="text-4xl font-bold">{money(revenue)}</h3>
               </div>
               <div className="p-4 bg-primary/20 rounded-2xl">
                 <DollarSign className="h-8 w-8 text-primary" />
@@ -102,7 +104,7 @@ export const RevenueBreakdownDialog = ({
                     <p className="text-xs text-muted-foreground">{data.count} booking{data.count !== 1 ? 's' : ''}</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold text-primary">${data.revenue.toLocaleString()}</p>
+                    <p className="font-bold text-primary">{money(data.revenue)}</p>
                     <p className="text-xs text-muted-foreground">
                       {((data.revenue / revenue) * 100).toFixed(0)}% of total
                     </p>
@@ -130,7 +132,7 @@ export const RevenueBreakdownDialog = ({
                     </Badge>
                     <p className="font-medium">{customerName}</p>
                   </div>
-                  <p className="font-bold text-primary">${amount.toLocaleString()}</p>
+                  <p className="font-bold text-primary">{money(amount)}</p>
                 </div>
               ))}
             </div>

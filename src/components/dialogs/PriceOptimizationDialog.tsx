@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TrendingUp, DollarSign } from 'lucide-react';
+import { useMoney } from '@/hooks/useMoney';
 
 interface PriceOptimizationDialogProps {
   open: boolean;
@@ -14,6 +15,7 @@ interface PriceOptimizationDialogProps {
 }
 
 export const PriceOptimizationDialog = ({ open, onOpenChange, vehicles, onApply }: PriceOptimizationDialogProps) => {
+  const { money } = useMoney();
   const [selectedVehicleId, setSelectedVehicleId] = useState(vehicles[0]?.id || '');
   const selectedVehicle = vehicles.find(v => v.id === selectedVehicleId);
   const [newRate, setNewRate] = useState(selectedVehicle?.suggested_rate || selectedVehicle?.current_rate || 0);
@@ -57,11 +59,11 @@ export const PriceOptimizationDialog = ({ open, onOpenChange, vehicles, onApply 
           <div className="grid grid-cols-2 gap-4">
             <div className="p-4 rounded-xl bg-muted/50">
               <div className="text-sm text-muted-foreground mb-1">Current Rate</div>
-              <div className="text-2xl font-bold">${selectedVehicle?.current_rate}</div>
+              <div className="text-2xl font-bold">{money(selectedVehicle?.current_rate ?? 0)}</div>
             </div>
             <div className="p-4 rounded-xl bg-primary/10">
               <div className="text-sm text-muted-foreground mb-1">AI Suggested</div>
-              <div className="text-2xl font-bold text-primary">${selectedVehicle?.suggested_rate || selectedVehicle?.current_rate}</div>
+              <div className="text-2xl font-bold text-primary">{money(selectedVehicle?.suggested_rate ?? selectedVehicle?.current_rate ?? 0)}</div>
               <div className="text-xs text-success">+{percentIncrease}%</div>
             </div>
           </div>
@@ -69,7 +71,7 @@ export const PriceOptimizationDialog = ({ open, onOpenChange, vehicles, onApply 
           <div className="space-y-3">
             <div className="flex justify-between">
               <label className="text-sm font-medium">Adjust Rate</label>
-              <Badge variant="outline" className="text-lg">${newRate}</Badge>
+              <Badge variant="outline" className="text-lg">{money(newRate)}</Badge>
             </div>
             <Slider value={[newRate]} onValueChange={(v) => setNewRate(v[0])} min={selectedVehicle?.current_rate || 0} max={(selectedVehicle?.current_rate || 0) + 200} step={10} />
           </div>
@@ -79,7 +81,7 @@ export const PriceOptimizationDialog = ({ open, onOpenChange, vehicles, onApply 
               <DollarSign className="h-4 w-4 text-success" />
               <span className="font-semibold text-success">Revenue Impact</span>
             </div>
-            <div className="text-xl font-bold text-success">+${(increase * 30).toFixed(0)}/month</div>
+            <div className="text-xl font-bold text-success">+{money(increase * 30)}/month</div>
           </div>
         </div>
 

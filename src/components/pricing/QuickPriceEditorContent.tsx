@@ -54,7 +54,7 @@ export const QuickPriceEditorContent = ({
   const [newRate, setNewRate] = useState<number>(0);
   const [isSaving, setIsSaving] = useState(false);
   const { hasRoleOrHigher } = useUserRole();
-  const { currency } = useMoney();
+  const { currency, money } = useMoney();
 
   useEffect(() => {
     const suggestedRate = pricingContext
@@ -116,7 +116,7 @@ export const QuickPriceEditorContent = ({
           </div>
           <div className="text-right flex-shrink-0">
             <div className="text-xs text-muted-foreground">Current</div>
-            <div className="text-lg font-bold">${vehicle.current_rate}/day</div>
+            <div className="text-lg font-bold">{money(vehicle.current_rate)}/day</div>
           </div>
         </div>
       )}
@@ -168,13 +168,13 @@ export const QuickPriceEditorContent = ({
           <div className="flex items-center gap-3">
             <div className="flex-1 p-3 rounded-lg bg-muted/40 border text-center">
               <div className="text-xs text-muted-foreground mb-1">Current</div>
-              <div className="text-2xl font-bold">${vehicle.current_rate}</div>
+              <div className="text-2xl font-bold">{money(vehicle.current_rate)}</div>
               <div className="text-xs text-muted-foreground">/day</div>
             </div>
             <ArrowRight className="h-5 w-5 text-muted-foreground flex-shrink-0" />
             <div className="flex-1 p-3 rounded-lg bg-success/10 border border-success/20 text-center">
               <div className="text-xs text-success mb-1">Suggested</div>
-              <div className="text-2xl font-bold text-success">${suggestedRate}</div>
+              <div className="text-2xl font-bold text-success">{money(suggestedRate)}</div>
               <div className="text-xs text-muted-foreground">/day</div>
             </div>
           </div>
@@ -192,7 +192,7 @@ export const QuickPriceEditorContent = ({
               <div>
                 <div className="text-xs text-muted-foreground">Monthly Impact</div>
                 <div className="text-sm font-bold text-success">
-                  +${((suggestedRate - vehicle.current_rate) * 30).toLocaleString()}
+                  +{money((suggestedRate - vehicle.current_rate) * 30)}
                 </div>
               </div>
             </div>
@@ -216,11 +216,11 @@ export const QuickPriceEditorContent = ({
                 <div className="font-medium text-sm flex items-center gap-2">
                   AI Recommendation
                   <Badge className="bg-success/20 text-success border-0 text-xs">
-                    +${(suggestedRate - vehicle.current_rate).toFixed(0)}
+                    +{money(suggestedRate - vehicle.current_rate)}
                   </Badge>
                 </div>
                 <div className="text-2xl font-bold text-success mt-1">
-                  ${suggestedRate}/day
+                  {money(suggestedRate)}/day
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   Based on demand, seasonality, and local events
@@ -275,8 +275,8 @@ export const QuickPriceEditorContent = ({
               className="w-full"
             />
             <div className="flex justify-between text-xs text-muted-foreground mt-1">
-              <span>${minRate}</span>
-              <span>${maxRate}</span>
+              <span>{money(minRate)}</span>
+              <span>{money(maxRate)}</span>
             </div>
           </div>
 
@@ -304,7 +304,7 @@ export const QuickPriceEditorContent = ({
                   "font-bold",
                   monthlyImpact > 0 ? "text-success" : "text-destructive"
                 )}>
-                  {monthlyImpact > 0 ? "+" : ""}${Math.abs(monthlyImpact).toLocaleString()}
+                  {monthlyImpact > 0 ? "+" : ""}{money(Math.abs(monthlyImpact))}
                 </span>
               </div>
             </motion.div>

@@ -357,7 +357,7 @@ export const NewBookingDialog = ({
                     return (
                       <SelectItem key={v.id} value={v.id} disabled={!!isUnavailable}>
                         <span className="flex items-center gap-2">
-                          {v.name} - ${v.current_rate}/day
+                          {v.name} - {money(v.current_rate)}/day
                           {isUnavailable && (
                             <span
                               className={cn(
@@ -408,7 +408,7 @@ export const NewBookingDialog = ({
                         )}
                       >
                         <span>{getDurationLabel(dt)}</span>
-                        <span className="ml-1 opacity-75">${rate.toLocaleString()}</span>
+                        <span className="ml-1 opacity-75">{money(rate)}</span>
                       </button>
                     );
                   })}
@@ -430,11 +430,11 @@ export const NewBookingDialog = ({
                     <div className="flex items-center gap-2">
                       <Sparkles className="h-4 w-4 text-primary" />
                       <span className="text-sm font-medium">
-                        AI suggests ${pricingSuggestion.suggestedRate}/day
+                        AI suggests {money(pricingSuggestion.suggestedRate)}/day
                       </span>
                       {pricingSuggestion.suggestedRate > (selectedVehicle?.current_rate || 0) && (
                         <span className="text-xs text-success font-semibold">
-                          +${pricingSuggestion.suggestedRate - (selectedVehicle?.current_rate || 0)}
+                          +{money(pricingSuggestion.suggestedRate - (selectedVehicle?.current_rate || 0))}
                         </span>
                       )}
                     </div>
@@ -470,12 +470,12 @@ export const NewBookingDialog = ({
                       onClick={() => {
                         toast({
                           title: "AI Rate Applied",
-                          description: `Daily rate set to $${pricingSuggestion.suggestedRate}`,
+                          description: `Daily rate set to ${money(pricingSuggestion.suggestedRate)}`,
                         });
                       }}
                     >
                       <Check className="h-4 w-4 mr-2" />
-                      Use AI Suggested Rate (${pricingSuggestion.suggestedRate}/day)
+                      Use AI Suggested Rate ({money(pricingSuggestion.suggestedRate)}/day)
                     </Button>
                   </div>
                 </CollapsibleContent>
@@ -741,27 +741,27 @@ export const NewBookingDialog = ({
                           <span className="text-muted-foreground">
                             {isHourly 
                               ? `${getDurationLabel(durationType)} Rate`
-                              : `${pricing.rentalDays} day${pricing.rentalDays !== 1 ? 's' : ''} × $${effectiveRate.toLocaleString()}`
-                            }
-                          </span>
-                          <span>${pricing.rentalSubtotal.toLocaleString()}</span>
+                            : `${pricing.rentalDays} day${pricing.rentalDays !== 1 ? 's' : ''} × ${money(effectiveRate)}`
+                          }
+                        </span>
+                        <span>{money(pricing.rentalSubtotal)}</span>
+                      </div>
+                      {pricing.discountAmount > 0 && (
+                        <div className="flex justify-between text-success">
+                          <span>Discount</span>
+                          <span>-{money(pricing.discountAmount)}</span>
                         </div>
-                        {pricing.discountAmount > 0 && (
-                          <div className="flex justify-between text-success">
-                            <span>Discount</span>
-                            <span>-${pricing.discountAmount.toLocaleString()}</span>
-                          </div>
-                        )}
-                        {pricing.gasFee > 0 && (
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Gas/Re-fueling Fee</span>
-                            <span>${pricing.gasFee.toFixed(2)}</span>
-                          </div>
-                        )}
-                        <div className="flex justify-between font-semibold border-t border-border pt-1 mt-1">
-                          <span>Total</span>
-                          <span>${pricing.grandTotal.toLocaleString()}</span>
+                      )}
+                      {pricing.gasFee > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Gas/Re-fueling Fee</span>
+                          <span>{money(pricing.gasFee)}</span>
                         </div>
+                      )}
+                      <div className="flex justify-between font-semibold border-t border-border pt-1 mt-1">
+                        <span>Total</span>
+                        <span>{money(pricing.grandTotal)}</span>
+                      </div>
                       </div>
                     );
                   })()}
@@ -776,7 +776,7 @@ export const NewBookingDialog = ({
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
                 <div>
                   <span className="text-sm font-medium">Gas/Re-fueling Fee</span>
-                  <p className="text-xs text-muted-foreground">${teamGasFee.toFixed(2)} standard fee</p>
+                  <p className="text-xs text-muted-foreground">{money(teamGasFee)} standard fee</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">

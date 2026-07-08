@@ -47,9 +47,11 @@ import {
 import { createExportActions } from "@/lib/exportUtils";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
+import { useMoney } from "@/hooks/useMoney";
 
 export const MotorIQEnhanced = () => {
   const { vehicles, bookings, applyPriceOptimization, loading, createVehicle } = useLocationFilteredFleet();
+  const { money } = useMoney();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("overview");
   const [showOptimizationDialog, setShowOptimizationDialog] = useState(false);
@@ -492,12 +494,12 @@ export const MotorIQEnhanced = () => {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div>
                     <div className="text-muted-foreground mb-1">Current Rate</div>
-                    <div className="font-semibold">${vehicle.current_rate}/day</div>
+                    <div className="font-semibold">{money(vehicle.current_rate)}/day</div>
                   </div>
                   {vehicle.suggested_rate && vehicle.suggested_rate > vehicle.current_rate && (
                     <div>
                       <div className="text-muted-foreground mb-1">Suggested Rate</div>
-                      <div className="font-semibold text-success">${vehicle.suggested_rate}/day</div>
+                      <div className="font-semibold text-success">{money(vehicle.suggested_rate)}/day</div>
                     </div>
                   )}
                   <div>

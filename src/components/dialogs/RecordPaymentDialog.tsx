@@ -35,6 +35,7 @@ import { DollarSign, CreditCard, Loader2, ExternalLink, ChevronDown, Plus, Trash
 import { cn } from "@/lib/utils";
 import { calculateBookingTotal, getGasFeeForTeam } from "@/lib/pricingUtils";
 import { useTeamGasFeeSettings } from '@/hooks/useTeamGasFeeSettings';
+import { useMoney } from '@/hooks/useMoney';
 
 type Booking = Database['public']['Tables']['bookings']['Row'];
 type Payment = Database['public']['Tables']['payments']['Row'];
@@ -80,6 +81,7 @@ export const RecordPaymentDialog = ({
 }: RecordPaymentDialogProps) => {
   const { toast } = useToast();
   const { currentTeam } = useTeam();
+  const { money } = useMoney();
   const gasFeeSettings = useTeamGasFeeSettings();
   const teamGasFee = getGasFeeForTeam(gasFeeSettings.gasFeeAmount);
   const [loading, setLoading] = useState(false);
@@ -223,7 +225,7 @@ export const RecordPaymentDialog = ({
       const updated = { ...a, [field]: value };
       if (field === "type" && value === "mileage_overage" && financials.mileageCharge > 0) {
         updated.amount = financials.mileageCharge;
-        updated.description = `${financials.mileageOverage} miles over limit @ $${financials.mileageRate}/mi`;
+        updated.description = `${financials.mileageOverage} miles over limit @ ${money(financials.mileageRate)}/mi`;
       }
       return updated;
     }));
@@ -368,13 +370,13 @@ export const RecordPaymentDialog = ({
               </div>
               <div className="px-4 py-3 space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Rental ({financials.rentalDays} days × ${Number(booking.daily_rate).toLocaleString()})</span>
-                  <span className="font-medium">${financials.rentalSubtotal.toLocaleString()}</span>
+                  <span className="text-muted-foreground">Rental ({financials.rentalDays} days × {money(Number(booking.daily_rate))})</span>
+                  <span className="font-medium">{money(financials.rentalSubtotal)}</span>
                 </div>
                 {financials.discountAmount > 0 && (
                   <div className="flex justify-between text-success">
                     <span>Discount {booking.discount_reason && `(${booking.discount_reason})`}</span>
-                    <span>-${financials.discountAmount.toLocaleString()}</span>
+                    <span>-{money(financials.discountAmount)}</span>
                   </div>
                 )}
                 {/* Gas Fee with toggle — only shown when enabled in team settings */}
@@ -392,7 +394,7 @@ export const RecordPaymentDialog = ({
                     />
                   </div>
                   <span className={cn("font-medium", gasFeeWaived && "line-through text-muted-foreground")}>
-                    ${rawGasFee.toFixed(2)}
+                    {money(rawGasFee)}
                     {gasFeeWaived && <span className="ml-1 text-xs no-underline">(waived)</span>}
                   </span>
                 </div>
@@ -400,13 +402,13 @@ export const RecordPaymentDialog = ({
                 {financials.deliveryFee > 0 && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Delivery Fee</span>
-                    <span className="font-medium">${financials.deliveryFee.toLocaleString()}</span>
+                    <span className="font-medium">{money(financials.deliveryFee)}</span>
                   </div>
                 )}
                 <Separator />
                 <div className="flex justify-between font-semibold">
                   <span>Booking Total</span>
-                  <span>${financials.grandTotal.toLocaleString()}</span>
+                  <span>{money(financials.grandTotal)}</span>
                 </div>
 
                 {/* Payments received */}
@@ -416,13 +418,13 @@ export const RecordPaymentDialog = ({
                     {financials.depositsPaid > 0 && (
                       <div className="flex justify-between text-success">
                         <span>Deposits Received</span>
-                        <span>-${financials.depositsPaid.toLocaleString()}</span>
+                        <span>-{money(financials.depositsPaid)}</span>
                       </div>
                     )}
                     {financials.balancePayments > 0 && (
                       <div className="flex justify-between text-success">
                         <span>Balance Payments</span>
-                        <span>-${financials.balancePayments.toLocaleString()}</span>
+                        <span>-{money(financials.balancePayments)}</span>
                       </div>
                     )}
                   </>
@@ -435,7 +437,7 @@ export const RecordPaymentDialog = ({
                       Security Deposit
                       <Badge variant="outline" className="text-[10px] capitalize">{financials.securityStatus}</Badge>
                     </span>
-                    <span className="font-medium">${financials.securityDeposit.toLocaleString()}</span>
+                    <span className="font-medium">{money(financials.securityDeposit)}</span>
                   </div>
                 )}
 
@@ -456,8 +458,8 @@ export const RecordPaymentDialog = ({
                     </div>
                     {financials.mileageOverage > 0 && (
                       <div className="flex justify-between items-center text-warning font-medium">
-                        <span>Overage ({financials.mileageOverage} mi × ${financials.mileageRate}/mi)</span>
-                        <span>${financials.mileageCharge.toFixed(2)}</span>
+                        <span>Overage ({financials.mileageOverage} mi × {money(financials.mileageRate)}/mi)</span>
+                        <span>{money(financials.mileageCharge)}</span>
                       </div>
                     )}
                   </>
@@ -469,7 +471,7 @@ export const RecordPaymentDialog = ({
                   financials.balanceRemaining > 0 ? "text-warning" : "text-success"
                 )}>
                   <span>Balance Remaining</span>
-                  <span>${Math.max(0, financials.balanceRemaining).toLocaleString()}</span>
+                  <span>{money(Math.max(0, financials.balanceRemaining))}</span>
                 </div>
               </div>
             </div>
@@ -699,7 +701,7 @@ export const RecordPaymentDialog = ({
               {loading ? (
                 <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Processing...</>
               ) : (
-                <><ExternalLink className="w-4 h-4 mr-2" />Pay ${formData.amount.toFixed(2)} with Stripe</>
+                <><ExternalLink className="w-4 h-4 mr-2" />Pay {money(formData.amount)} with Stripe</>
               )}
             </Button>
           ) : (
@@ -707,7 +709,7 @@ export const RecordPaymentDialog = ({
               {loading ? (
                 <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving...</>
               ) : (
-                `Record $${formData.amount.toFixed(2)} Payment`
+                `Record ${money(formData.amount)} Payment`
               )}
             </Button>
           )}

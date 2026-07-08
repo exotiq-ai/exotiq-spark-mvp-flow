@@ -19,6 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useFleet } from "@/contexts/FleetContext";
+import { useMoney } from "@/hooks/useMoney";
 import {
   Gauge,
   Fuel,
@@ -80,6 +81,7 @@ export const CheckInOutDialog = ({
 }: CheckInOutDialogProps) => {
   const { toast } = useToast();
   const { user } = useAuth();
+  const { money } = useMoney();
   const { vehicles, refreshData } = useFleet();
   const vehicle = vehicles.find((v) => v.id === booking.vehicle_id);
   const resolvedVehicleId = vehicleId || booking.vehicle_id || "";
@@ -616,9 +618,9 @@ export const CheckInOutDialog = ({
                       <Separator />
                       <div className="flex justify-between font-semibold text-warning">
                         <span>
-                          Overage ({mileageInfo.overage} mi × ${mileageInfo.rate}/mi)
+                          Overage ({mileageInfo.overage} mi × {money(mileageInfo.rate)}/mi)
                         </span>
-                        <span>${mileageInfo.charge.toFixed(2)}</span>
+                        <span>{money(mileageInfo.charge)}</span>
                       </div>
                     </>
                   )}
@@ -764,7 +766,7 @@ export const CheckInOutDialog = ({
                   variant="outline"
                   className="border-warning/50 text-warning"
                 >
-                  ${mileageInfo.charge.toFixed(2)} overage
+                  {money(mileageInfo.charge)} overage
                 </Badge>
               )}
             </div>

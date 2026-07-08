@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/select";
 import { format, subMonths, subYears } from "date-fns";
 import { formatCurrency, formatCurrencyCompact } from "@/lib/utils";
+import { useMoney } from "@/hooks/useMoney";
 
 interface AppliedVehicle {
   oldRate: number;
@@ -63,6 +64,7 @@ interface DynamicPricingCardProps {
 
 export const DynamicPricingCard = ({ onApplyOptimization, onOpenPriceEditor }: DynamicPricingCardProps) => {
   const { vehicles, bookings, applyPriceOptimization } = useLocationFilteredFleet();
+  const { money } = useMoney();
   const { loading, pricingResult, events, analyzePricing } = useAIPricingEnhanced();
   const [selectedVehicle, setSelectedVehicle] = useState<string | null>(null);
   const [appliedVehicles, setAppliedVehicles] = useState<Record<string, AppliedVehicle>>({});
@@ -564,18 +566,18 @@ export const DynamicPricingCard = ({ onApplyOptimization, onOpenPriceEditor }: D
                     <div className="text-xs text-muted-foreground flex items-center gap-1.5">
                       {isApplied ? (
                         <>
-                          <span className="line-through">${isApplied.oldRate.toLocaleString()}</span>
-                          <span className="text-success font-medium">→ ${isApplied.newRate.toLocaleString()}/day</span>
+                          <span className="line-through">{money(isApplied.oldRate)}</span>
+                          <span className="text-success font-medium">→ {money(isApplied.newRate)}/day</span>
                         </>
                       ) : (
                         <>
-                          ${Number(vehicle.current_rate).toLocaleString()}/day
+                          {money(Number(vehicle.current_rate))}/day
                           <span className="text-muted-foreground/60">•</span>
                           <span>{computedUtil}% utilization</span>
                           {hasResult && gain > 0 && (
                             <>
                               <span className="text-muted-foreground/60">•</span>
-                              <span className="text-success">+${gain.toLocaleString()}/mo</span>
+                              <span className="text-success">+{money(gain)}/mo</span>
                             </>
                           )}
                         </>
@@ -586,7 +588,7 @@ export const DynamicPricingCard = ({ onApplyOptimization, onOpenPriceEditor }: D
                 <div className="flex items-center gap-2 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                   {isApplied ? (
                     <Badge variant="outline" className="text-xs text-success border-success/30">
-                      ✓ ${isApplied.newRate.toLocaleString()}
+                      ✓ {money(isApplied.newRate)}
                     </Badge>
                   ) : isAnalyzing ? (
                     <RefreshCw className="h-4 w-4 animate-spin text-primary" />
@@ -600,7 +602,7 @@ export const DynamicPricingCard = ({ onApplyOptimization, onOpenPriceEditor }: D
                         handleVehicleClick(vehicle);
                       }}
                     >
-                      Review ${pricingResult.suggestedRate.toLocaleString()}
+                      Review {money(pricingResult.suggestedRate)}
                       <ChevronRight className="h-3 w-3 ml-1" />
                     </Button>
                   ) : (

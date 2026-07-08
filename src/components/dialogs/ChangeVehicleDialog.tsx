@@ -16,6 +16,7 @@ import { useFleet } from "@/contexts/FleetContext";
 import { getVehicleImage } from "@/lib/vehicleImageMapping";
 import { isWithinInterval } from "date-fns";
 import { Car, Check, Search, AlertCircle } from "lucide-react";
+import { useMoney } from "@/hooks/useMoney";
 
 interface ChangeVehicleDialogProps {
   open: boolean;
@@ -37,6 +38,7 @@ export const ChangeVehicleDialog = ({
   onVehicleChanged,
 }: ChangeVehicleDialogProps) => {
   const { vehicles, bookings, updateBookingVehicle } = useFleet();
+  const { money } = useMoney();
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [isChanging, setIsChanging] = useState(false);
@@ -163,7 +165,7 @@ export const ChangeVehicleDialog = ({
                     <div className="flex-1 min-w-0">
                       <div className="font-medium truncate">{vehicle.name}</div>
                       <div className="text-sm text-muted-foreground">
-                        ${Number(vehicle.current_rate).toLocaleString()}/day
+                        {money(Number(vehicle.current_rate))}/day
                       </div>
                     </div>
                     <div className="flex items-center gap-2">

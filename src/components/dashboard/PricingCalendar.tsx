@@ -37,6 +37,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { useMoney } from "@/hooks/useMoney";
 
 interface DayData {
   date: Date;
@@ -110,6 +111,7 @@ const PEAK_SEASONS = [
 
 export const PricingCalendar = () => {
   const { vehicles, bookings, maintenance, damageClaims } = useLocationFilteredFleet();
+  const { money } = useMoney();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [vehicleFilter, setVehicleFilter] = useState<string>("all");
@@ -450,7 +452,7 @@ export const PricingCalendar = () => {
                       
                       {dayData && dayData.revenue > 0 && (
                         <span className="text-[10px] sm:text-xs font-semibold text-success relative z-10">
-                          ${(dayData.revenue / 1000).toFixed(1)}k
+                          {money(dayData.revenue)}
                         </span>
                       )}
                       
@@ -537,7 +539,7 @@ export const PricingCalendar = () => {
                 <span className="text-xs text-muted-foreground">Revenue</span>
               </div>
               <p className="text-xl font-bold text-success">
-                ${selectedDayData.revenue.toLocaleString()}
+                {money(selectedDayData.revenue)}
               </p>
             </div>
             <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
@@ -617,7 +619,7 @@ export const PricingCalendar = () => {
                           <p className="font-medium text-sm truncate">{booking.vehicleName}</p>
                           <p className="text-xs text-muted-foreground truncate">{booking.customerName}</p>
                         </div>
-                        <Badge variant="outline" className="text-xs">${booking.dailyRate}/day</Badge>
+                        <Badge variant="outline" className="text-xs">{money(booking.dailyRate)}/day</Badge>
                       </div>
                     </div>
                   ))}

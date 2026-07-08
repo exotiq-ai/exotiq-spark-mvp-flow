@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import type { CustomerPreview, BookingPreview, VehiclePreview } from '@/hooks/useEntityEnrichment';
+import { useMoney } from '@/hooks/useMoney';
 
 interface EntityPreviewProps {
   type: 'customer' | 'booking' | 'vehicle';
@@ -21,6 +22,7 @@ interface EntityPreviewProps {
 }
 
 export const EntityPreview = ({ type, data, isLoading, error }: EntityPreviewProps) => {
+  const { money } = useMoney();
   if (error) {
     return (
       <div className="p-3 space-y-2 min-w-[250px]">
@@ -93,7 +95,7 @@ export const EntityPreview = ({ type, data, isLoading, error }: EntityPreviewPro
             <div className="flex items-center gap-1">
               <DollarSign className="h-3 w-3 text-success" />
               <span className="font-medium text-success">
-                ${customer.lifetime_value.toLocaleString()}
+                {money(customer.lifetime_value)}
               </span>
             </div>
           </div>
@@ -152,7 +154,7 @@ export const EntityPreview = ({ type, data, isLoading, error }: EntityPreviewPro
           <div className="flex items-center justify-between pt-2 border-t">
             <span className="text-muted-foreground">Total Value</span>
             <span className="font-medium text-success">
-              ${booking.total_value.toLocaleString()}
+              {money(booking.total_value)}
             </span>
           </div>
         </div>
@@ -192,7 +194,7 @@ export const EntityPreview = ({ type, data, isLoading, error }: EntityPreviewPro
               <DollarSign className="h-3 w-3" />
               Daily Rate
             </span>
-            <span className="font-medium">${vehicle.current_rate}</span>
+            <span className="font-medium">{money(vehicle.current_rate)}</span>
           </div>
 
           <div className="flex items-center justify-between pt-2 border-t">

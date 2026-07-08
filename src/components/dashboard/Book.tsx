@@ -18,8 +18,10 @@ import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { NewBookingDialog } from "@/components/dialogs/NewBookingDialog";
 import { isBlockingBooking } from "@/lib/conflictDetection";
 import { format, isToday, isFuture, startOfWeek, endOfWeek, addDays } from "date-fns";
+import { useMoney } from "@/hooks/useMoney";
 
 export const Book = () => {
+  const { money } = useMoney();
   const { vehicles, bookings, createBooking, isAllLocations, currentLocation, locations } = useLocationFilteredFleet();
   const [showNewBooking, setShowNewBooking] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -85,17 +87,17 @@ export const Book = () => {
     {
       date: "Tomorrow",
       bookings: tomorrowBookings.length,
-      revenue: `$${tomorrowBookings.reduce((sum, b) => sum + (b.total_value || 0), 0).toLocaleString()}`
+      revenue: money(tomorrowBookings.reduce((sum, b) => sum + (b.total_value || 0), 0))
     },
     {
       date: "This Weekend",
       bookings: weekendBookings.length,
-      revenue: `$${weekendBookings.reduce((sum, b) => sum + (b.total_value || 0), 0).toLocaleString()}`
+      revenue: money(weekendBookings.reduce((sum, b) => sum + (b.total_value || 0), 0))
     },
     {
       date: "Next Week",
       bookings: nextWeekBookings.length,
-      revenue: `$${nextWeekBookings.reduce((sum, b) => sum + (b.total_value || 0), 0).toLocaleString()}`
+      revenue: money(nextWeekBookings.reduce((sum, b) => sum + (b.total_value || 0), 0))
     }
   ];
 
@@ -240,7 +242,7 @@ export const Book = () => {
                   </div>
                   
                   <div className="flex items-center justify-between mt-4">
-                    <span className="font-semibold text-primary">${booking.total_value?.toLocaleString()}</span>
+                    <span className="font-semibold text-primary">{money(booking.total_value)}</span>
                     <Button size="sm" variant="outline">
                       View Details
                       <ChevronRight className="w-4 h-4 ml-1" />
@@ -290,7 +292,7 @@ export const Book = () => {
                         <MapPin className="w-3 h-3 mr-1" />
                         {getLocationName(vehicle.location_id)}
                       </div>
-                      <div className="text-sm font-medium text-primary">${vehicle.current_rate}/day</div>
+                      <div className="text-sm font-medium text-primary">{money(vehicle.current_rate)}/day</div>
                     </div>
                     
                     <Button 

@@ -24,6 +24,7 @@ import { VehicleThumbnail } from "@/components/common/VehicleThumbnail";
 import { UpcomingBookingsCard } from "@/components/dashboard/UpcomingBookingsCard";
 import { PreviousBookingsCard } from "@/components/dashboard/PreviousBookingsCard";
 import { motion, AnimatePresence } from "framer-motion";
+import { useMoney } from "@/hooks/useMoney";
 import { 
   Calendar as CalendarIcon, 
   Clock, 
@@ -120,6 +121,7 @@ const PendingApprovalsBar = ({
 };
 
 export const BookEnhanced = () => {
+  const { money } = useMoney();
   const { bookings, vehicles, customers, createBooking, updateBookingStatus, loading } = useLocationFilteredFleet();
   const { goToBookingDetails, goToVehicleDetails, goToCustomerProfile, goToPayments } = useModuleNavigation();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -509,7 +511,7 @@ export const BookEnhanced = () => {
                        <Circle className="h-5 w-5 text-muted-foreground" />}
                     </div>
                     <AskRariQuickAction variant="icon" className="hidden sm:inline-flex"
-                      prompt={`Tell me about this booking: ${getVehicleDisplay(booking)} for ${booking.customer_name}. Start: ${formatDate(booking.start_date)}, Status: ${booking.status}, Value: $${Number(booking.total_value).toLocaleString()}`}
+                      prompt={`Tell me about this booking: ${getVehicleDisplay(booking)} for ${booking.customer_name}. Start: ${formatDate(booking.start_date)}, Status: ${booking.status}, Value: ${money(booking.total_value)}`}
                     />
                   </div>
                   <div className="text-sm text-muted-foreground mt-0.5 cursor-pointer hover:text-primary transition-colors"
@@ -529,7 +531,7 @@ export const BookEnhanced = () => {
                     <Clock className="h-3 w-3" /><span>{formatTime(booking.start_date)}</span>
                   </div>
                   <div className="flex items-center gap-1.5 font-semibold">
-                    <DollarSign className="h-3 w-3 text-muted-foreground" /><span>${Number(booking.total_value).toLocaleString()}</span>
+                    <DollarSign className="h-3 w-3 text-muted-foreground" /><span>{money(booking.total_value)}</span>
                   </div>
                 </div>
                 <Badge className={`hidden sm:flex flex-shrink-0 ${
