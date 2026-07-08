@@ -29,7 +29,7 @@ export const featureFlags = {
   savedViews: false,
   advancedFilters: false,
   customReports: false,
-  dailyBrief: false, // Command Center — Daily Brief hero card (verify per-account before global flip)
+  dailyBrief: true, // Command Center — Daily Brief hero card (shipped globally; use `?ff=dailyBrief:off` to disable per-browser)
   
   
   // Settings Features
