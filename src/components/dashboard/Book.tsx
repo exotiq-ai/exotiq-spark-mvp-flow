@@ -18,8 +18,10 @@ import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { NewBookingDialog } from "@/components/dialogs/NewBookingDialog";
 import { isBlockingBooking } from "@/lib/conflictDetection";
 import { format, isToday, isFuture, startOfWeek, endOfWeek, addDays } from "date-fns";
+import { useMoney } from "@/hooks/useMoney";
 
 export const Book = () => {
+  const { money } = useMoney();
   const { vehicles, bookings, createBooking, isAllLocations, currentLocation, locations } = useLocationFilteredFleet();
   const [showNewBooking, setShowNewBooking] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
