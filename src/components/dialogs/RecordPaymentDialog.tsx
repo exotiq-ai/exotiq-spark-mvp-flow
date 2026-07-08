@@ -35,6 +35,7 @@ import { DollarSign, CreditCard, Loader2, ExternalLink, ChevronDown, Plus, Trash
 import { cn } from "@/lib/utils";
 import { calculateBookingTotal, getGasFeeForTeam } from "@/lib/pricingUtils";
 import { useTeamGasFeeSettings } from '@/hooks/useTeamGasFeeSettings';
+import { useMoney } from '@/hooks/useMoney';
 
 type Booking = Database['public']['Tables']['bookings']['Row'];
 type Payment = Database['public']['Tables']['payments']['Row'];
