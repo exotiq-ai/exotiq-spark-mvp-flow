@@ -1071,16 +1071,16 @@ export const EnhancedBookingDialog = ({
                         <div className="grid grid-cols-3 gap-3">
                           <div className="p-3 bg-muted/30 rounded-lg text-center">
                             <div className="text-sm text-muted-foreground">Total</div>
-                            <div className="text-lg font-bold">${Number(booking.total_value).toLocaleString()}</div>
+                            <div className="text-lg font-bold">{fmt(Number(booking.total_value))}</div>
                           </div>
                           <div className="p-3 bg-success/10 rounded-lg text-center">
                             <div className="text-sm text-muted-foreground">Paid</div>
-                            <div className="text-lg font-bold text-success">${totalPaid.toLocaleString()}</div>
+                            <div className="text-lg font-bold text-success">{fmt(totalPaid)}</div>
                           </div>
                           <div className={`p-3 rounded-lg text-center ${balanceDue > 0 ? "bg-warning/10" : "bg-success/10"}`}>
                             <div className="text-sm text-muted-foreground">Balance</div>
                             <div className={`text-lg font-bold ${balanceDue > 0 ? "text-warning" : "text-success"}`}>
-                              ${balanceDue.toLocaleString()}
+                              {fmt(balanceDue)}
                             </div>
                           </div>
                         </div>
