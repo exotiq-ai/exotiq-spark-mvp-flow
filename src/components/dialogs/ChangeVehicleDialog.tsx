@@ -16,6 +16,7 @@ import { useFleet } from "@/contexts/FleetContext";
 import { getVehicleImage } from "@/lib/vehicleImageMapping";
 import { isWithinInterval } from "date-fns";
 import { Car, Check, Search, AlertCircle } from "lucide-react";
+import { useMoney } from "@/hooks/useMoney";
 
 interface ChangeVehicleDialogProps {
   open: boolean;
