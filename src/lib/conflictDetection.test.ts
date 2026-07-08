@@ -7,6 +7,9 @@ import {
   checkBookingConflicts,
   isBlockingBooking,
   hasBlockingOverlap,
+  getVehicleAvailabilityState,
+  getActiveOutOfServiceWorkOrder,
+  workOrderBlocks,
 } from "./conflictDetection";
 import type { Database } from "@/integrations/supabase/types";
 
