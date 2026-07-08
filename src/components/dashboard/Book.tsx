@@ -292,7 +292,7 @@ export const Book = () => {
                         <MapPin className="w-3 h-3 mr-1" />
                         {getLocationName(vehicle.location_id)}
                       </div>
-                      <div className="text-sm font-medium text-primary">${vehicle.current_rate}/day</div>
+                      <div className="text-sm font-medium text-primary">{money(vehicle.current_rate)}/day</div>
                     </div>
                     
                     <Button 
