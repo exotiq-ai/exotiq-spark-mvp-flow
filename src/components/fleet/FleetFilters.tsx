@@ -36,7 +36,7 @@ import {
   ArrowUpDown,
   Check,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, formatCurrencyCompact } from '@/lib/utils';
 import { OpsStatus, OPS_STATUS_CONFIG } from '@/hooks/useVehicleOpsStatus';
 
 export type ViewMode = 'grid' | 'list';
