@@ -430,11 +430,11 @@ export const NewBookingDialog = ({
                     <div className="flex items-center gap-2">
                       <Sparkles className="h-4 w-4 text-primary" />
                       <span className="text-sm font-medium">
-                        AI suggests ${pricingSuggestion.suggestedRate}/day
+                        AI suggests {money(pricingSuggestion.suggestedRate)}/day
                       </span>
                       {pricingSuggestion.suggestedRate > (selectedVehicle?.current_rate || 0) && (
                         <span className="text-xs text-success font-semibold">
-                          +${pricingSuggestion.suggestedRate - (selectedVehicle?.current_rate || 0)}
+                          +{money(pricingSuggestion.suggestedRate - (selectedVehicle?.current_rate || 0))}
                         </span>
                       )}
                     </div>
