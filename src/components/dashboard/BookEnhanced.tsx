@@ -121,6 +121,7 @@ const PendingApprovalsBar = ({
 };
 
 export const BookEnhanced = () => {
+  const { money } = useMoney();
   const { bookings, vehicles, customers, createBooking, updateBookingStatus, loading } = useLocationFilteredFleet();
   const { goToBookingDetails, goToVehicleDetails, goToCustomerProfile, goToPayments } = useModuleNavigation();
   const [searchParams, setSearchParams] = useSearchParams();
