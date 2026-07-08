@@ -71,7 +71,7 @@ export const PriceOptimizationDialog = ({ open, onOpenChange, vehicles, onApply 
           <div className="space-y-3">
             <div className="flex justify-between">
               <label className="text-sm font-medium">Adjust Rate</label>
-              <Badge variant="outline" className="text-lg">${newRate}</Badge>
+              <Badge variant="outline" className="text-lg">{money(newRate)}</Badge>
             </div>
             <Slider value={[newRate]} onValueChange={(v) => setNewRate(v[0])} min={selectedVehicle?.current_rate || 0} max={(selectedVehicle?.current_rate || 0) + 200} step={10} />
           </div>
