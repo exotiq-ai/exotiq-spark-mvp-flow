@@ -45,6 +45,7 @@ export const EditBookingDialog = ({
   onBookingUpdated,
 }: EditBookingDialogProps) => {
   const { updateBookingDetails } = useFleet();
+  const { money } = useMoney();
   const gasFeeSettings = useTeamGasFeeSettings();
   const teamGasFee = getGasFeeForTeam(gasFeeSettings.gasFeeAmount);
   
