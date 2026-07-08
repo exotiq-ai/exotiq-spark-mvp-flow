@@ -78,6 +78,7 @@ interface FleetVehicleCardProps {
   nextBooking?: Booking | null;
   taskCount?: number;
   photoCount?: number;
+  outOfServiceUntil?: string | null; // ISO date; presence indicates active OOR work order
   onEditPrice: (vehicle: Vehicle) => void;
   onCreateTask: (vehicle: Vehicle) => void;
   onViewDetails: (vehicle: Vehicle) => void;
