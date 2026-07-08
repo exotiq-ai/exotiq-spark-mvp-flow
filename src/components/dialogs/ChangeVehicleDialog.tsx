@@ -38,6 +38,7 @@ export const ChangeVehicleDialog = ({
   onVehicleChanged,
 }: ChangeVehicleDialogProps) => {
   const { vehicles, bookings, updateBookingVehicle } = useFleet();
+  const { money } = useMoney();
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [isChanging, setIsChanging] = useState(false);
