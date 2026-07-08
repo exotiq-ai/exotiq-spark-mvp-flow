@@ -87,17 +87,17 @@ export const Book = () => {
     {
       date: "Tomorrow",
       bookings: tomorrowBookings.length,
-      revenue: `$${tomorrowBookings.reduce((sum, b) => sum + (b.total_value || 0), 0).toLocaleString()}`
+      revenue: money(tomorrowBookings.reduce((sum, b) => sum + (b.total_value || 0), 0))
     },
     {
       date: "This Weekend",
       bookings: weekendBookings.length,
-      revenue: `$${weekendBookings.reduce((sum, b) => sum + (b.total_value || 0), 0).toLocaleString()}`
+      revenue: money(weekendBookings.reduce((sum, b) => sum + (b.total_value || 0), 0))
     },
     {
       date: "Next Week",
       bookings: nextWeekBookings.length,
-      revenue: `$${nextWeekBookings.reduce((sum, b) => sum + (b.total_value || 0), 0).toLocaleString()}`
+      revenue: money(nextWeekBookings.reduce((sum, b) => sum + (b.total_value || 0), 0))
     }
   ];
 
