@@ -531,7 +531,7 @@ export const BookEnhanced = () => {
                     <Clock className="h-3 w-3" /><span>{formatTime(booking.start_date)}</span>
                   </div>
                   <div className="flex items-center gap-1.5 font-semibold">
-                    <DollarSign className="h-3 w-3 text-muted-foreground" /><span>${Number(booking.total_value).toLocaleString()}</span>
+                    <DollarSign className="h-3 w-3 text-muted-foreground" /><span>{money(booking.total_value)}</span>
                   </div>
                 </div>
                 <Badge className={`hidden sm:flex flex-shrink-0 ${
