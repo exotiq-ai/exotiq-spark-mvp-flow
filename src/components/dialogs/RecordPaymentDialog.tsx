@@ -81,6 +81,7 @@ export const RecordPaymentDialog = ({
 }: RecordPaymentDialogProps) => {
   const { toast } = useToast();
   const { currentTeam } = useTeam();
+  const { money } = useMoney();
   const gasFeeSettings = useTeamGasFeeSettings();
   const teamGasFee = getGasFeeForTeam(gasFeeSettings.gasFeeAmount);
   const [loading, setLoading] = useState(false);
