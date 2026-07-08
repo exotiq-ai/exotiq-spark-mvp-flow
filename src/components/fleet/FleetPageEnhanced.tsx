@@ -62,6 +62,7 @@ export const FleetPageEnhanced = () => {
   const isMobile = useIsMobile();
   const { vehicles, bookings, loading, applyPriceOptimization, updateVehicle, refreshData, createVehicle, deleteVehicles, archiveVehicle, trashVehicle } = useLocationFilteredFleet() as any;
   const { tasks, myTasks, unassignedTasks, createTask, updateTaskStatus, claimTask } = useFleetTasks();
+  const { activeOrders: activeWorkOrders } = useWorkOrders();
   const { updateOpsStatus } = useVehicleOpsStatus();
   const { photoCountByVehicle } = useVehiclePhotos({ realtime: false });
   const { currentTeam } = useTeam();
