@@ -470,12 +470,12 @@ export const NewBookingDialog = ({
                       onClick={() => {
                         toast({
                           title: "AI Rate Applied",
-                          description: `Daily rate set to $${pricingSuggestion.suggestedRate}`,
+                          description: `Daily rate set to ${money(pricingSuggestion.suggestedRate)}`,
                         });
                       }}
                     >
                       <Check className="h-4 w-4 mr-2" />
-                      Use AI Suggested Rate (${pricingSuggestion.suggestedRate}/day)
+                      Use AI Suggested Rate ({money(pricingSuggestion.suggestedRate)}/day)
                     </Button>
                   </div>
                 </CollapsibleContent>
