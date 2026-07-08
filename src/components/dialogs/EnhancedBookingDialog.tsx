@@ -627,7 +627,7 @@ export const EnhancedBookingDialog = ({
                   <div className="flex items-center gap-3 text-sm text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <DollarSign className="h-3 w-3" />
-                      {Number(vehicle?.current_rate || 0).toLocaleString()}/day
+                      {fmt(Number(vehicle?.current_rate || 0))}/day
                     </span>
                     <span className="flex items-center gap-1">
                       <Clock className="h-3 w-3" />
