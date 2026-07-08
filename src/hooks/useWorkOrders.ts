@@ -283,45 +283,6 @@ export const useWorkOrders = () => {
     }
   }, [user, toast]);
 
-  const syncVehicleStatusForOOR = useCallback(async (vehicleId: string) => {
-    if (!currentTeam) return;
-    try {
-      // Are there any OTHER active OOR work orders for this vehicle?
-      const { data: activeOOR } = await (supabase as any)
-        .from('work_orders')
-        .select('id')
-        .eq('team_id', currentTeam.id)
-        .eq('vehicle_id', vehicleId)
-        .eq('out_of_rotation', true)
-        .in('status', ACTIVE_STATUSES)
-        .limit(1);
-
-      const shouldBeOOS = (activeOOR?.length || 0) > 0;
-
-      const { data: vehicle } = await (supabase as any)
-        .from('vehicles')
-        .select('status')
-        .eq('id', vehicleId)
-        .maybeSingle();
-
-      if (!vehicle) return;
-
-      if (shouldBeOOS && vehicle.status !== 'maintenance' && vehicle.status !== 'retired') {
-        await (supabase as any)
-          .from('vehicles')
-          .update({ status: 'maintenance' })
-          .eq('id', vehicleId);
-      } else if (!shouldBeOOS && vehicle.status === 'maintenance') {
-        // No blocking work orders left → restore availability.
-        await (supabase as any)
-          .from('vehicles')
-          .update({ status: 'available' })
-          .eq('id', vehicleId);
-      }
-    } catch (err) {
-      console.error('Vehicle status sync failed:', err);
-    }
-  }, [currentTeam]);
 
   const toggleOutOfRotation = useCallback(async (workOrderId: string, outOfRotation: boolean, expectedReturnAt?: string): Promise<boolean> => {
     if (!user) return false;
