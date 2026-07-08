@@ -1189,7 +1189,7 @@ export const EnhancedBookingDialog = ({
                                 </div>
                               </div>
                               <div className="text-right">
-                                <div className="font-semibold">${Number(payment.amount).toLocaleString()}</div>
+                                <div className="font-semibold">{fmt(Number(payment.amount))}</div>
                                 <Badge variant="outline" className={`text-xs ${payment.payment_status === "completed" ? "bg-success/10 text-success" : "bg-warning/10 text-warning"}`}>
                                   {payment.payment_status}
                                 </Badge>
