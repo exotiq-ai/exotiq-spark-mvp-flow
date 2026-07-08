@@ -81,7 +81,7 @@ export const PriceOptimizationDialog = ({ open, onOpenChange, vehicles, onApply 
               <DollarSign className="h-4 w-4 text-success" />
               <span className="font-semibold text-success">Revenue Impact</span>
             </div>
-            <div className="text-xl font-bold text-success">+${(increase * 30).toFixed(0)}/month</div>
+            <div className="text-xl font-bold text-success">+{money(increase * 30)}/month</div>
           </div>
         </div>
 
