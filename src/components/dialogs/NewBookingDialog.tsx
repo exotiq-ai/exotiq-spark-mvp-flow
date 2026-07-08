@@ -340,13 +340,24 @@ export const NewBookingDialog = ({
                 <SelectContent>
                   {vehicles.map((v) => {
                     const hasDateSelected = startDate && endDate;
-                    const isAvailable = !hasDateSelected || vehicleAvailability[v.id] !== false;
+                    const availability = vehicleAvailability[v.id];
+                    const isUnavailable = hasDateSelected && availability && !availability.available;
                     return (
-                      <SelectItem key={v.id} value={v.id}>
+                      <SelectItem key={v.id} value={v.id} disabled={!!isUnavailable}>
                         <span className="flex items-center gap-2">
                           {v.name} - ${v.current_rate}/day
-                          {hasDateSelected && !isAvailable && (
-                            <span className="text-xs text-destructive font-medium">Booked</span>
+                          {isUnavailable && (
+                            <span
+                              className={cn(
+                                'text-xs font-medium',
+                                availability.reason === 'out_of_service' || availability.reason === 'maintenance_status'
+                                  ? 'text-amber-600 dark:text-amber-400'
+                                  : 'text-destructive'
+                              )}
+                            >
+                              {availability.label}
+                              {availability.detail ? ` · ${availability.detail}` : ''}
+                            </span>
                           )}
                         </span>
                       </SelectItem>
