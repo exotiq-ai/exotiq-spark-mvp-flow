@@ -64,6 +64,7 @@ interface DynamicPricingCardProps {
 
 export const DynamicPricingCard = ({ onApplyOptimization, onOpenPriceEditor }: DynamicPricingCardProps) => {
   const { vehicles, bookings, applyPriceOptimization } = useLocationFilteredFleet();
+  const { money } = useMoney();
   const { loading, pricingResult, events, analyzePricing } = useAIPricingEnhanced();
   const [selectedVehicle, setSelectedVehicle] = useState<string | null>(null);
   const [appliedVehicles, setAppliedVehicles] = useState<Record<string, AppliedVehicle>>({});
