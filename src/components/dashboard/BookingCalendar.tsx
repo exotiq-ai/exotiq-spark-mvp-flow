@@ -998,7 +998,7 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
-                <ScrollArea className="h-[calc(100vh-320px)]">
+                <ScrollArea className="h-[calc(100vh-320px)] min-h-0">
                   <DayDetailContent
                     selectedDate={selectedDate}
                     selectedDayBookings={selectedDayBookings}
@@ -1016,8 +1016,8 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
 
       {/* Mobile/Tablet Bottom Sheet */}
       <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
-        <DrawerContent className="max-h-[70vh]">
-          <DrawerHeader className="pb-2">
+        <DrawerContent className="flex flex-col max-h-[85vh]">
+          <DrawerHeader className="pb-2 flex-shrink-0">
             <DrawerTitle>
               {selectedDate ? format(selectedDate, 'EEEE, MMMM d') : 'Day Details'}
             </DrawerTitle>
@@ -1025,7 +1025,7 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
               {selectedDayBookings.length} booking{selectedDayBookings.length !== 1 ? 's' : ''} on this date
             </DrawerDescription>
           </DrawerHeader>
-          <ScrollArea className="px-4 pb-6 flex-1">
+          <ScrollArea className="flex-1 min-h-0 px-4 pb-6">
             {selectedDate && (
               <DayDetailContent
                 selectedDate={selectedDate}
