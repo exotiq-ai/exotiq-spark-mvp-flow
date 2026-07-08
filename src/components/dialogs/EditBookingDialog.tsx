@@ -199,26 +199,26 @@ export const EditBookingDialog = ({
               <div className="flex items-center justify-between">
                 <span className="flex items-center gap-2">
                   <Clock className="h-4 w-4 text-muted-foreground" />
-                  Rental ({pricing.rentalDays} day{pricing.rentalDays !== 1 ? "s" : ""} × ${dailyRate.toLocaleString()})
+                  Rental ({pricing.rentalDays} day{pricing.rentalDays !== 1 ? "s" : ""} × {money(dailyRate)})
                 </span>
-                <span className="font-medium">${pricing.rentalSubtotal.toLocaleString()}</span>
+                <span className="font-medium">{money(pricing.rentalSubtotal)}</span>
               </div>
               {pricing.discountAmount > 0 && (
                 <div className="flex items-center justify-between text-success">
                   <span>Discount {booking.discount_reason && `(${booking.discount_reason})`}</span>
-                  <span>-${pricing.discountAmount.toLocaleString()}</span>
+                  <span>-{money(pricing.discountAmount)}</span>
                 </div>
               )}
               {pricing.gasFee > 0 && (
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Gas/Re-fueling Fee</span>
-                  <span className="font-medium">${pricing.gasFee.toFixed(2)}</span>
+                  <span className="font-medium">{money(pricing.gasFee)}</span>
                 </div>
               )}
               {pricing.deliveryFee > 0 && (
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Delivery Fee</span>
-                  <span className="font-medium">${pricing.deliveryFee.toLocaleString()}</span>
+                  <span className="font-medium">{money(pricing.deliveryFee)}</span>
                 </div>
               )}
               <Separator />
@@ -227,11 +227,11 @@ export const EditBookingDialog = ({
                   <DollarSign className="h-4 w-4" />
                   Total
                 </span>
-                <span>${pricing.grandTotal.toLocaleString()}</span>
+                <span>{money(pricing.grandTotal)}</span>
               </div>
               {totalDiff !== 0 && (
                 <div className={`text-xs text-right ${totalDiff > 0 ? "text-success" : "text-warning"}`}>
-                  {totalDiff > 0 ? "+" : ""}${totalDiff.toLocaleString()} from original
+                  {totalDiff > 0 ? "+" : ""}{money(totalDiff)} from original
                 </div>
               )}
             </div>
@@ -241,7 +241,7 @@ export const EditBookingDialog = ({
             <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border">
               <div>
                 <span className="text-sm font-medium">Gas/Re-fueling Fee</span>
-                <p className="text-xs text-muted-foreground">${teamGasFee.toFixed(2)} standard fee</p>
+                <p className="text-xs text-muted-foreground">{money(teamGasFee)} standard fee</p>
               </div>
               <div className="flex items-center gap-2">
                 {gasFeeWaived && <span className="text-xs text-warning">Waived</span>}
