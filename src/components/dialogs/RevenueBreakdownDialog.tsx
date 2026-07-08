@@ -132,7 +132,7 @@ export const RevenueBreakdownDialog = ({
                     </Badge>
                     <p className="font-medium">{customerName}</p>
                   </div>
-                  <p className="font-bold text-primary">${amount.toLocaleString()}</p>
+                  <p className="font-bold text-primary">{money(amount)}</p>
                 </div>
               ))}
             </div>
