@@ -1,24 +1,38 @@
-## Goal
-Officially ship the Command Center Daily Brief hero card to every tenant by flipping its feature flag to true and removing the localStorage bootstraps that were used for the soft rollout.
+# Simplify the Booking Dialog action row
 
-## Changes
+Keep users focused on the booking they just opened. Stop bouncing them into other modules unless the action is genuinely part of the booking workflow.
 
-1. **`src/lib/featureFlags.ts`**
-   - Flip `dailyBrief: false` → `dailyBrief: true`.
-   - Update the trailing comment to reflect that it's now globally on, and note that per-browser `?ff=dailyBrief:off` still works as a kill switch if a single tenant needs to disable it.
+## What changes for the user
 
-2. **Remove the localStorage auto-enable bootstraps** (no longer needed once the default is true — and they'd override any future `off` flip):
-   - `src/pages/Dashboard.tsx` lines ~178–185 — the `ff_dailyBrief=1` writer.
-   - `src/pages/Demo.tsx` lines ~38–45 — same writer.
-   - `src/contexts/AuthContext.tsx` lines ~694–700 — same writer.
+When you click a reservation on the calendar:
 
-3. **Leave downstream code untouched.** `DashboardOverviewEnhanced`, `MotorIQEnhanced`, and `DailyBriefCard` already read through `isFeatureEnabled('dailyBrief')`, so flipping the default is the only switch needed. The deterministic `useDailyBrief` hook + `daily-brief-narrative` edge function (with its PII sanitizer and deterministic fallback) are already live in production paths and will simply be reached by every tenant.
+- **Before:** the dialog shows three jump buttons — Vehicle, CRM, Payments. Vehicle sends you to FleetCopilot (the vehicle's full page). CRM sends you to the customer's profile. Both yank you out of the booking flow.
+- **After:** only **Payments** remains, because recording/reviewing a payment is part of managing the booking. The Vehicle and Customer info stays visible in the dialog (name, image, contact), but no longer acts as a jump link. You stay in the booking module.
 
-## Safety checks before shipping
-- Confirm `DailyBriefCard` renders safely with zero data (empty fleet, brand-new tenant): the hook's `useMemo` already returns empty `issues`/`metrics` arrays; card should show the "nothing urgent" state.
-- Confirm the edge function fallback path still returns 200 with a deterministic narrative when `LOVABLE_API_KEY` is missing or the AI call fails — it already does.
-- Grep for any remaining `ff_dailyBrief` references after the edits so no stale bootstrap survives.
-- Run `tsgo` to make sure the flag flip and file edits don't break types.
+Result: opening a reservation no longer changes the page or closes the calendar day panel. Fewer accidental navigations, less "wait, where did I go?"
 
-## Rollback
-If a tenant reports a regression, they can append `?ff=dailyBrief:off` once to disable it in their browser. To roll back globally, flip the flag back to `false` in `featureFlags.ts` — no other code needs to change.
+## Files touched
+
+1. **`src/components/dashboard/EnhancedBookingDialog.tsx`**
+   - Remove the "Vehicle" quick-nav button (the one that calls `onNavigateToModule('motoriq', ...)`).
+   - Remove the "CRM" quick-nav button (calls `onNavigateToModule('crm', ...)`).
+   - Keep the "Payments" button, and rename its label to something explicit like **"Record / view payments"** so the intent is obvious.
+   - Make sure the vehicle and customer blocks in the dialog body remain as read-only info (image, name, plate, phone, email) — no click handler, no cursor-pointer, no hover state that implies navigation.
+
+2. **`src/components/dashboard/BookEnhanced.tsx`**
+   - The `onNavigateToModule` handler currently branches on `motoriq` / `crm` / `payments`. Leave the switch intact (other callers may still use it), but the branches for `motoriq` and `crm` become unreachable from the dialog. No behavior change needed here.
+
+3. **No route or module-registry changes.** FleetCopilot and CRM remain fully accessible from the sidebar and global search — we're only removing the in-dialog shortcuts.
+
+## Out of scope (flagged for a later pass)
+
+- The internal naming mismatch where the dialog passes `moduleId="motoriq"` but the route resolves to `/fleetcopilot`. Cosmetic tech debt; doesn't affect users. Worth cleaning up when we next touch `useModuleNavigation`.
+- The other three items from the earlier booking review (mobile drawer scroll, Google Calendar cancellation sync, pickup times in GCal notes) — still queued, not part of this change.
+
+## Verification
+
+- Open a booking from the month calendar → dialog opens, only "Record / view payments" appears in the action row.
+- Click anywhere on the vehicle or customer info blocks → nothing happens (no navigation).
+- Click "Record / view payments" → routes to the booking's payments view as today.
+- Close dialog → calendar day panel is still open, still scrolled to the same spot.
+- Mobile: same behavior, action row no longer overflows with three buttons.
