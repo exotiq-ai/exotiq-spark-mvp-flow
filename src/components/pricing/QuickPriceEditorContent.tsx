@@ -116,7 +116,7 @@ export const QuickPriceEditorContent = ({
           </div>
           <div className="text-right flex-shrink-0">
             <div className="text-xs text-muted-foreground">Current</div>
-            <div className="text-lg font-bold">${vehicle.current_rate}/day</div>
+            <div className="text-lg font-bold">{money(vehicle.current_rate)}/day</div>
           </div>
         </div>
       )}
