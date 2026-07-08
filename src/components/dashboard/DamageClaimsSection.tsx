@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { formatCurrency } from "@/lib/utils";
+import { useMoney } from "@/hooks/useMoney";
 import { EntityCommentThread } from "@/components/comments/EntityCommentThread";
 
 export const DamageClaimsSection = () => {
