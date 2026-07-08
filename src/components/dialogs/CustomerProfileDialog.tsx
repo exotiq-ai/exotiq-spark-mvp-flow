@@ -53,6 +53,7 @@ import { formatCurrency } from "@/lib/utils";
 import { CustomerTimeline } from "@/components/crm/CustomerTimeline";
 import { EntityCommentThread } from "@/components/comments/EntityCommentThread";
 import { useTeam } from "@/contexts/TeamContext";
+import { useMoney } from "@/hooks/useMoney";
 
 type Customer = Database['public']['Tables']['customers']['Row'];
 type Booking = Database['public']['Tables']['bookings']['Row'];
