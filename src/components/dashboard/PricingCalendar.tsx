@@ -539,7 +539,7 @@ export const PricingCalendar = () => {
                 <span className="text-xs text-muted-foreground">Revenue</span>
               </div>
               <p className="text-xl font-bold text-success">
-                ${selectedDayData.revenue.toLocaleString()}
+                {money(selectedDayData.revenue)}
               </p>
             </div>
             <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
