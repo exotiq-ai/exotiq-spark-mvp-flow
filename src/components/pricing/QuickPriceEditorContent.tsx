@@ -216,11 +216,11 @@ export const QuickPriceEditorContent = ({
                 <div className="font-medium text-sm flex items-center gap-2">
                   AI Recommendation
                   <Badge className="bg-success/20 text-success border-0 text-xs">
-                    +${(suggestedRate - vehicle.current_rate).toFixed(0)}
+                    +{money(suggestedRate - vehicle.current_rate)}
                   </Badge>
                 </div>
                 <div className="text-2xl font-bold text-success mt-1">
-                  ${suggestedRate}/day
+                  {money(suggestedRate)}/day
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   Based on demand, seasonality, and local events
