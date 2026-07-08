@@ -370,16 +370,16 @@ export const FleetVehicleCard = ({
           <div className="flex items-center gap-1 flex-shrink-0">
             <div className="text-right">
               <div className="text-sm font-bold text-foreground leading-tight whitespace-nowrap">
-                ${vehicle.current_rate.toLocaleString()}
+                {money(vehicle.current_rate)}
                 <span className="text-[10px] font-normal text-muted-foreground">/day</span>
               </div>
               {(vehicle.rate_3hr || vehicle.rate_6hr) && (
                 <div className="flex gap-1.5 justify-end mt-0.5 whitespace-nowrap">
                   {vehicle.rate_3hr && (
-                    <span className="text-[10px] text-muted-foreground">3h ${vehicle.rate_3hr}</span>
+                    <span className="text-[10px] text-muted-foreground">3h {money(vehicle.rate_3hr)}</span>
                   )}
                   {vehicle.rate_6hr && (
-                    <span className="text-[10px] text-muted-foreground">6h ${vehicle.rate_6hr}</span>
+                    <span className="text-[10px] text-muted-foreground">6h {money(vehicle.rate_6hr)}</span>
                   )}
                 </div>
               )}
