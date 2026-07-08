@@ -51,6 +51,7 @@ import { useMoney } from "@/hooks/useMoney";
 
 export const MotorIQEnhanced = () => {
   const { vehicles, bookings, applyPriceOptimization, loading, createVehicle } = useLocationFilteredFleet();
+  const { money } = useMoney();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("overview");
   const [showOptimizationDialog, setShowOptimizationDialog] = useState(false);
