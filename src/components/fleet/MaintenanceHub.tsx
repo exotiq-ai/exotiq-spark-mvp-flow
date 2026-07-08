@@ -234,7 +234,7 @@ export const MaintenanceHub = () => {
                         {order.out_of_rotation && (
                           <Badge variant="outline" className="text-xs border-amber-500/50 text-amber-600 flex-shrink-0">
                             <Ban className="h-3 w-3 mr-1" />
-                            OOR
+                            Out of Service
                           </Badge>
                         )}
                       </div>

@@ -31,6 +31,144 @@ export const hasBlockingOverlap = (
     return start < bEnd && end > bStart;
   });
 
+// ─── Vehicle availability (single source of truth) ──────────────────────────
+// Combines vehicle status, active out-of-service work orders, and blocking
+// bookings into one answer used by pickers, cards, and the calendar.
+
+const ACTIVE_WO_STATUSES = new Set([
+  'new', 'triaged', 'scheduled', 'in_progress',
+  'blocked_parts', 'blocked_vendor', 'qa_review',
+]);
+
+export interface VehicleAvailabilityInput {
+  vehicle: { id: string; status: string | null };
+  window: { start: Date; end: Date };
+  bookings: { id?: string; vehicle_id: string; status: string | null; start_date: string; end_date: string }[];
+  workOrders: {
+    id: string;
+    vehicle_id: string;
+    status: string;
+    out_of_rotation: boolean;
+    expected_return_at: string | null;
+  }[];
+  excludeBookingId?: string;
+}
+
+export type UnavailableReason =
+  | 'retired'
+  | 'maintenance_status'
+  | 'out_of_service'
+  | 'booking';
+
+export interface VehicleAvailabilityState {
+  available: boolean;
+  reason: UnavailableReason | null;
+  label: string | null;              // short user-facing label e.g. "Out of service"
+  detail: string | null;             // extra info e.g. "returns Mar 12"
+  workOrderId?: string;
+  bookingId?: string;
+  expectedReturnAt?: string | null;
+}
+
+/**
+ * Returns whether the given active work order blocks the requested window.
+ * If expected_return_at is null, the block is treated as indefinite.
+ */
+export const workOrderBlocks = (
+  wo: { status: string; out_of_rotation: boolean; expected_return_at: string | null },
+  start: Date,
+  end: Date
+): boolean => {
+  if (!wo.out_of_rotation) return false;
+  if (!ACTIVE_WO_STATUSES.has(wo.status)) return false;
+  if (!wo.expected_return_at) return true; // indefinite → always blocks
+  const until = new Date(wo.expected_return_at);
+  // Block if the requested window starts before the vehicle is expected back.
+  return start < until;
+};
+
+const shortDate = (iso: string) => {
+  try {
+    return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  } catch {
+    return '';
+  }
+};
+
+export const getVehicleAvailabilityState = ({
+  vehicle,
+  window,
+  bookings,
+  workOrders,
+  excludeBookingId,
+}: VehicleAvailabilityInput): VehicleAvailabilityState => {
+  if (vehicle.status === 'retired') {
+    return { available: false, reason: 'retired', label: 'Retired', detail: null };
+  }
+
+  // Active OOR work order overlapping window
+  const blockingWO = workOrders.find(
+    (w) => w.vehicle_id === vehicle.id && workOrderBlocks(w, window.start, window.end)
+  );
+  if (blockingWO) {
+    return {
+      available: false,
+      reason: 'out_of_service',
+      label: 'Out of service',
+      detail: blockingWO.expected_return_at
+        ? `returns ${shortDate(blockingWO.expected_return_at)}`
+        : 'no return date set',
+      workOrderId: blockingWO.id,
+      expectedReturnAt: blockingWO.expected_return_at,
+    };
+  }
+
+  // Vehicle marked in maintenance manually and no scheduled return date
+  if (vehicle.status === 'maintenance') {
+    return {
+      available: false,
+      reason: 'maintenance_status',
+      label: 'In maintenance',
+      detail: null,
+    };
+  }
+
+  // Booking overlap
+  const overlap = bookings.find((b) => {
+    if (b.vehicle_id !== vehicle.id) return false;
+    if (!isBlockingBooking(b.status)) return false;
+    if (excludeBookingId && b.id === excludeBookingId) return false;
+    const bStart = new Date(b.start_date);
+    const bEnd = new Date(b.end_date);
+    return window.start < bEnd && window.end > bStart;
+  });
+  if (overlap) {
+    return {
+      available: false,
+      reason: 'booking',
+      label: 'Booked',
+      detail: null,
+      bookingId: overlap.id,
+    };
+  }
+
+  return { available: true, reason: null, label: null, detail: null };
+};
+
+/** Convenience: does the vehicle have any active out-of-service work order right now? */
+export const getActiveOutOfServiceWorkOrder = <
+  T extends { vehicle_id: string; status: string; out_of_rotation: boolean; expected_return_at: string | null }
+>(
+  vehicleId: string,
+  workOrders: T[]
+): T | undefined =>
+  workOrders.find(
+    (w) =>
+      w.vehicle_id === vehicleId &&
+      w.out_of_rotation &&
+      ACTIVE_WO_STATUSES.has(w.status)
+  );
+
 export interface Conflict {
   type: 'overlap' | 'buffer' | 'maintenance' | 'availability';
   severity: 'critical' | 'warning' | 'info';

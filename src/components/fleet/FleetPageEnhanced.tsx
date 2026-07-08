@@ -11,6 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useLocationFilteredFleet } from '@/hooks/useLocationFilteredFleet';
 import { useFleetTasks, type VehicleTask } from '@/hooks/useFleetTasks';
+import { useWorkOrders } from '@/hooks/useWorkOrders';
+import { getActiveOutOfServiceWorkOrder } from '@/lib/conflictDetection';
 import { useVehicleOpsStatus, OpsStatus } from '@/hooks/useVehicleOpsStatus';
 import { useVehiclePhotos } from '@/hooks/useVehiclePhotos';
 import { useTeam } from '@/contexts/TeamContext';
@@ -62,6 +64,7 @@ export const FleetPageEnhanced = () => {
   const isMobile = useIsMobile();
   const { vehicles, bookings, loading, applyPriceOptimization, updateVehicle, refreshData, createVehicle, deleteVehicles, archiveVehicle, trashVehicle } = useLocationFilteredFleet() as any;
   const { tasks, myTasks, unassignedTasks, createTask, updateTaskStatus, claimTask } = useFleetTasks();
+  const { activeOrders: activeWorkOrders } = useWorkOrders();
   const { updateOpsStatus } = useVehicleOpsStatus();
   const { photoCountByVehicle } = useVehiclePhotos({ realtime: false });
   const { currentTeam } = useTeam();
@@ -329,6 +332,15 @@ export const FleetPageEnhanced = () => {
     }, {} as Record<string, number>);
   }, [tasks]);
 
+  const outOfServiceMap = useMemo(() => {
+    const map: Record<string, string | null> = {};
+    (vehicles || []).forEach((v: any) => {
+      const wo = getActiveOutOfServiceWorkOrder(v.id, activeWorkOrders as any);
+      if (wo) map[v.id] = wo.expected_return_at;
+    });
+    return map;
+  }, [vehicles, activeWorkOrders]);
+
   const handleStatusChange = async (vehicle: any, newStatus: OpsStatus) => {
     await updateOpsStatus(vehicle.id, newStatus);
   };
@@ -566,6 +578,7 @@ export const FleetPageEnhanced = () => {
                     nextBooking={getNextBooking(vehicle.id) as any}
                     taskCount={taskCountMap[vehicle.id] || 0}
                     photoCount={photoCountByVehicle[vehicle.id]}
+                    outOfServiceUntil={outOfServiceMap[vehicle.id] ?? null}
                     onEditPrice={(v) => setPriceEditVehicle(v)}
                     onEdit={(v) => setEditVehicle(v)}
                     onCreateTask={(v) => setTaskVehicle(v)}

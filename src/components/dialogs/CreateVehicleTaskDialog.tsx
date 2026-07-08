@@ -129,7 +129,11 @@ export const CreateVehicleTaskDialog = ({
       <DialogContent className="sm:max-w-[500px] max-h-[85vh] flex flex-col p-0 gap-0">
         <DialogHeader className="px-6 pt-6 pb-3 flex-shrink-0">
           <DialogTitle className="text-foreground">Create Task</DialogTitle>
+          <p className="text-xs text-muted-foreground mt-1">
+            Tasks are reminders and <span className="font-medium">do not block bookings</span>. For repairs that should take the vehicle off the road, create a Work Order and mark it Out of Service.
+          </p>
         </DialogHeader>
+
 
         <div className="space-y-4 px-6 pb-2 overflow-y-auto flex-1 min-h-0">
           {/* Vehicle Info */}

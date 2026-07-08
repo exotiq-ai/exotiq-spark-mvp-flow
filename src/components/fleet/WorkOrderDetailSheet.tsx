@@ -115,7 +115,7 @@ export const WorkOrderDetailSheet = ({ workOrder, open, onOpenChange, vehicleMap
             <Badge variant="outline" className="capitalize">{workOrder.issue_type}</Badge>
             <Badge variant="outline">{workOrder.internal_or_outsourced === 'outsourced' ? 'Outsourced' : 'Internal'}</Badge>
             {workOrder.out_of_rotation && (
-              <Badge variant="outline" className="border-amber-500/50 text-amber-600"><Ban className="h-3 w-3 mr-1" />OOR</Badge>
+              <Badge variant="outline" className="border-amber-500/50 text-amber-600"><Ban className="h-3 w-3 mr-1" />Out of Service</Badge>
             )}
           </div>
         </SheetHeader>
@@ -170,15 +170,18 @@ export const WorkOrderDetailSheet = ({ workOrder, open, onOpenChange, vehicleMap
             </div>
           )}
 
-          {/* Out of Rotation */}
+          {/* Out of Service */}
           <div className="space-y-3">
-            <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Rotation Status</h4>
+            <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Availability</h4>
             <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/10">
               <div className="flex items-center gap-2">
                 <Ban className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm">Out of Rotation</span>
+                <div>
+                  <div className="text-sm font-medium">Out of Service</div>
+                  <div className="text-xs text-muted-foreground">Blocks this vehicle from new bookings until the expected return date.</div>
+                </div>
               </div>
-              <Switch checked={workOrder.out_of_rotation} onCheckedChange={handleOORToggle} disabled={isTerminal} aria-label="Toggle out of rotation" />
+              <Switch checked={workOrder.out_of_rotation} onCheckedChange={handleOORToggle} disabled={isTerminal} aria-label="Toggle out of service" />
             </div>
             {workOrder.out_of_rotation && (
               <div className="space-y-2">

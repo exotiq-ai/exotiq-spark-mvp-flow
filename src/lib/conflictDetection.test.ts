@@ -7,6 +7,9 @@ import {
   checkBookingConflicts,
   isBlockingBooking,
   hasBlockingOverlap,
+  getVehicleAvailabilityState,
+  getActiveOutOfServiceWorkOrder,
+  workOrderBlocks,
 } from "./conflictDetection";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -692,3 +695,122 @@ describe("hasBlockingOverlap", () => {
     ).toBe(true);
   });
 });
+
+// ─── getVehicleAvailabilityState (unified) ──────────────────────────────────
+
+describe("getVehicleAvailabilityState", () => {
+  const start = new Date("2026-07-01T10:00:00Z");
+  const end = new Date("2026-07-03T10:00:00Z");
+  const vehicle = { id: VEHICLE, status: "available" as string | null };
+
+  it("returns available when nothing blocks", () => {
+    const s = getVehicleAvailabilityState({ vehicle, window: { start, end }, bookings: [], workOrders: [] });
+    expect(s.available).toBe(true);
+    expect(s.reason).toBeNull();
+  });
+
+  it("blocks retired vehicles", () => {
+    const s = getVehicleAvailabilityState({
+      vehicle: { id: VEHICLE, status: "retired" },
+      window: { start, end }, bookings: [], workOrders: [],
+    });
+    expect(s.available).toBe(false);
+    expect(s.reason).toBe("retired");
+  });
+
+  it("blocks when active OOR work order overlaps", () => {
+    const s = getVehicleAvailabilityState({
+      vehicle,
+      window: { start, end },
+      bookings: [],
+      workOrders: [{
+        id: "wo1", vehicle_id: VEHICLE, status: "in_progress",
+        out_of_rotation: true, expected_return_at: "2026-07-05T00:00:00Z",
+      }],
+    });
+    expect(s.available).toBe(false);
+    expect(s.reason).toBe("out_of_service");
+    expect(s.workOrderId).toBe("wo1");
+  });
+
+  it("indefinite OOR (no return date) blocks", () => {
+    const s = getVehicleAvailabilityState({
+      vehicle,
+      window: { start, end },
+      bookings: [],
+      workOrders: [{ id: "wo1", vehicle_id: VEHICLE, status: "new", out_of_rotation: true, expected_return_at: null }],
+    });
+    expect(s.available).toBe(false);
+    expect(s.reason).toBe("out_of_service");
+  });
+
+  it("completed work order does not block", () => {
+    const s = getVehicleAvailabilityState({
+      vehicle,
+      window: { start, end },
+      bookings: [],
+      workOrders: [{ id: "wo1", vehicle_id: VEHICLE, status: "completed", out_of_rotation: true, expected_return_at: "2026-07-05T00:00:00Z" }],
+    });
+    expect(s.available).toBe(true);
+  });
+
+  it("OOR returning before window starts does not block", () => {
+    const s = getVehicleAvailabilityState({
+      vehicle,
+      window: { start, end },
+      bookings: [],
+      workOrders: [{ id: "wo1", vehicle_id: VEHICLE, status: "in_progress", out_of_rotation: true, expected_return_at: "2026-06-25T00:00:00Z" }],
+    });
+    expect(s.available).toBe(true);
+  });
+
+  it("vehicle.status='maintenance' blocks when no work order present", () => {
+    const s = getVehicleAvailabilityState({
+      vehicle: { id: VEHICLE, status: "maintenance" },
+      window: { start, end }, bookings: [], workOrders: [],
+    });
+    expect(s.available).toBe(false);
+    expect(s.reason).toBe("maintenance_status");
+  });
+
+  it("booking overlap blocks with reason=booking", () => {
+    const s = getVehicleAvailabilityState({
+      vehicle,
+      window: { start, end },
+      bookings: [{ id: "b1", vehicle_id: VEHICLE, status: "confirmed", start_date: "2026-07-02T00:00:00Z", end_date: "2026-07-04T00:00:00Z" }],
+      workOrders: [],
+    });
+    expect(s.available).toBe(false);
+    expect(s.reason).toBe("booking");
+    expect(s.bookingId).toBe("b1");
+  });
+
+  it("out_of_service takes precedence over booking overlap", () => {
+    const s = getVehicleAvailabilityState({
+      vehicle,
+      window: { start, end },
+      bookings: [{ id: "b1", vehicle_id: VEHICLE, status: "confirmed", start_date: "2026-07-02T00:00:00Z", end_date: "2026-07-04T00:00:00Z" }],
+      workOrders: [{ id: "wo1", vehicle_id: VEHICLE, status: "in_progress", out_of_rotation: true, expected_return_at: null }],
+    });
+    expect(s.reason).toBe("out_of_service");
+  });
+});
+
+describe("workOrderBlocks / getActiveOutOfServiceWorkOrder", () => {
+  it("workOrderBlocks respects active status set", () => {
+    const start = new Date("2026-07-01");
+    const end = new Date("2026-07-05");
+    expect(workOrderBlocks({ status: "cancelled", out_of_rotation: true, expected_return_at: null }, start, end)).toBe(false);
+    expect(workOrderBlocks({ status: "in_progress", out_of_rotation: false, expected_return_at: null }, start, end)).toBe(false);
+    expect(workOrderBlocks({ status: "in_progress", out_of_rotation: true, expected_return_at: null }, start, end)).toBe(true);
+  });
+
+  it("getActiveOutOfServiceWorkOrder finds first active OOR", () => {
+    const wo = getActiveOutOfServiceWorkOrder(VEHICLE, [
+      { vehicle_id: VEHICLE, status: "completed", out_of_rotation: true, expected_return_at: null },
+      { id: "hit", vehicle_id: VEHICLE, status: "new", out_of_rotation: true, expected_return_at: null } as any,
+    ]);
+    expect((wo as any)?.id).toBe("hit");
+  });
+});
+

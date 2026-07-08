@@ -40,7 +40,8 @@ import { useMoney } from '@/hooks/useMoney';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { calculateBookingTotal, getRateForDuration, getAvailableDurations, getDurationLabel, getGasFeeForTeam, type RentalDurationType } from '@/lib/pricingUtils';
-import { isBlockingBooking, hasBlockingOverlap } from '@/lib/conflictDetection';
+import { isBlockingBooking, getVehicleAvailabilityState, type VehicleAvailabilityState } from '@/lib/conflictDetection';
+import { useWorkOrders } from '@/hooks/useWorkOrders';
 import { useLocationFilteredFleet } from '@/hooks/useLocationFilteredFleet';
 import { Switch } from '@/components/ui/switch';
 import { useTeamGasFeeSettings } from '@/hooks/useTeamGasFeeSettings';
@@ -64,6 +65,7 @@ export const NewBookingDialog = ({
   const { selectedLocationId, currentLocation, locations, currentTeam } = useTeam();
   const { currency, money } = useMoney();
   const { bookings: allBookings } = useLocationFilteredFleet();
+  const { activeOrders: activeWorkOrders } = useWorkOrders();
   const gasFeeSettings = useTeamGasFeeSettings();
   const teamGasFee = getGasFeeForTeam(gasFeeSettings.gasFeeAmount);
   
@@ -166,17 +168,22 @@ export const NewBookingDialog = ({
   const selectedVehicle = vehicles.find(v => v.id === vehicleId);
   const pricingSuggestion = useAIPricing(selectedVehicle || null, startDateTimeStr);
 
-  // Check which vehicles have conflicting bookings for the selected dates
+  // Unified availability: booking overlap + out-of-service work orders + vehicle status
   const vehicleAvailability = useMemo(() => {
-    if (!startDate || !endDate) return {};
+    const out: Record<string, VehicleAvailabilityState> = {};
+    if (!startDate || !endDate) return out;
     const start = new Date(startDateTimeStr);
     const end = new Date(endDateTimeStr);
-    const availability: Record<string, boolean> = {};
     vehicles.forEach(v => {
-      availability[v.id] = !hasBlockingOverlap(v.id, start, end, allBookings);
+      out[v.id] = getVehicleAvailabilityState({
+        vehicle: { id: v.id, status: (v as any).status ?? null },
+        window: { start, end },
+        bookings: allBookings as any,
+        workOrders: activeWorkOrders as any,
+      });
     });
-    return availability;
-  }, [startDate, endDate, vehicles, allBookings]);
+    return out;
+  }, [startDate, endDate, startDateTimeStr, endDateTimeStr, vehicles, allBookings, activeWorkOrders]);
   
   // Auto-set pickup location when dialog opens
   const effectivePickupLocationId = pickupLocationId || (selectedLocationId !== 'all' ? selectedLocationId : locations[0]?.id || '');
@@ -209,8 +216,20 @@ export const NewBookingDialog = ({
       return;
     }
 
-    if (hasBlockingOverlap(vehicleId, new Date(startDateTimeStr), new Date(endDateTimeStr), allBookings)) {
-      setError('This vehicle is already booked for the selected dates. Choose different dates or another vehicle.');
+    const availability = getVehicleAvailabilityState({
+      vehicle: { id: selectedVehicle.id, status: (selectedVehicle as any).status ?? null },
+      window: { start: new Date(startDateTimeStr), end: new Date(endDateTimeStr) },
+      bookings: allBookings as any,
+      workOrders: activeWorkOrders as any,
+    });
+    if (!availability.available) {
+      if (availability.reason === 'out_of_service' || availability.reason === 'maintenance_status') {
+        setError(`This vehicle is Out of Service${availability.detail ? ` (${availability.detail})` : ''} and cannot be booked. Clear the work order or pick another vehicle.`);
+      } else if (availability.reason === 'retired') {
+        setError('This vehicle is retired and cannot be booked.');
+      } else {
+        setError('This vehicle is already booked for the selected dates. Choose different dates or another vehicle.');
+      }
       return;
     }
 
@@ -333,13 +352,24 @@ export const NewBookingDialog = ({
                 <SelectContent>
                   {vehicles.map((v) => {
                     const hasDateSelected = startDate && endDate;
-                    const isAvailable = !hasDateSelected || vehicleAvailability[v.id] !== false;
+                    const availability = vehicleAvailability[v.id];
+                    const isUnavailable = hasDateSelected && availability && !availability.available;
                     return (
-                      <SelectItem key={v.id} value={v.id}>
+                      <SelectItem key={v.id} value={v.id} disabled={!!isUnavailable}>
                         <span className="flex items-center gap-2">
                           {v.name} - ${v.current_rate}/day
-                          {hasDateSelected && !isAvailable && (
-                            <span className="text-xs text-destructive font-medium">Booked</span>
+                          {isUnavailable && (
+                            <span
+                              className={cn(
+                                'text-xs font-medium',
+                                availability.reason === 'out_of_service' || availability.reason === 'maintenance_status'
+                                  ? 'text-amber-600 dark:text-amber-400'
+                                  : 'text-destructive'
+                              )}
+                            >
+                              {availability.label}
+                              {availability.detail ? ` · ${availability.detail}` : ''}
+                            </span>
                           )}
                         </span>
                       </SelectItem>
