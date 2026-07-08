@@ -111,6 +111,7 @@ const PEAK_SEASONS = [
 
 export const PricingCalendar = () => {
   const { vehicles, bookings, maintenance, damageClaims } = useLocationFilteredFleet();
+  const { money } = useMoney();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [vehicleFilter, setVehicleFilter] = useState<string>("all");
