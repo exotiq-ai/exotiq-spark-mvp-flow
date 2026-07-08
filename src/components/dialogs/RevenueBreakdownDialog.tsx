@@ -24,6 +24,7 @@ export const RevenueBreakdownDialog = ({
   bookings,
   vehicles
 }: RevenueBreakdownDialogProps) => {
+  const { money } = useMoney();
   // Calculate breakdown by vehicle
   const vehicleBreakdown = bookings.reduce((acc, booking) => {
     const vehicle = vehicles.find(v => v.id === booking.vehicle_id);
