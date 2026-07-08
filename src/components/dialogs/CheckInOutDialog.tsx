@@ -81,6 +81,7 @@ export const CheckInOutDialog = ({
 }: CheckInOutDialogProps) => {
   const { toast } = useToast();
   const { user } = useAuth();
+  const { money } = useMoney();
   const { vehicles, refreshData } = useFleet();
   const vehicle = vehicles.find((v) => v.id === booking.vehicle_id);
   const resolvedVehicleId = vehicleId || booking.vehicle_id || "";
