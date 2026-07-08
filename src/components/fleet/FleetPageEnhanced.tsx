@@ -11,6 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useLocationFilteredFleet } from '@/hooks/useLocationFilteredFleet';
 import { useFleetTasks, type VehicleTask } from '@/hooks/useFleetTasks';
+import { useWorkOrders } from '@/hooks/useWorkOrders';
+import { getActiveOutOfServiceWorkOrder } from '@/lib/conflictDetection';
 import { useVehicleOpsStatus, OpsStatus } from '@/hooks/useVehicleOpsStatus';
 import { useVehiclePhotos } from '@/hooks/useVehiclePhotos';
 import { useTeam } from '@/contexts/TeamContext';
