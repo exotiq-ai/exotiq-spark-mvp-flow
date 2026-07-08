@@ -43,6 +43,7 @@ import {
 import { cn } from '@/lib/utils';
 import { OpsStatus, OPS_STATUS_CONFIG } from '@/hooks/useVehicleOpsStatus';
 import { formatDistanceToNow } from 'date-fns';
+import { useMoney } from '@/hooks/useMoney';
 
 interface Vehicle {
   id: string;
