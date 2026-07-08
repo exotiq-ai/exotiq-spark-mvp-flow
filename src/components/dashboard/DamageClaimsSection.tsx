@@ -30,6 +30,7 @@ import { EntityCommentThread } from "@/components/comments/EntityCommentThread";
 
 export const DamageClaimsSection = () => {
   const { damageClaims, vehicles, maintenance } = useLocationFilteredFleet();
+  const { money } = useMoney();
   const { refreshDamageClaims } = useFleet();
   const { currentTeam } = useTeam();
 
