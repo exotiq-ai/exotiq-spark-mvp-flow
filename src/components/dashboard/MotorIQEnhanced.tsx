@@ -494,12 +494,12 @@ export const MotorIQEnhanced = () => {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div>
                     <div className="text-muted-foreground mb-1">Current Rate</div>
-                    <div className="font-semibold">${vehicle.current_rate}/day</div>
+                    <div className="font-semibold">{money(vehicle.current_rate)}/day</div>
                   </div>
                   {vehicle.suggested_rate && vehicle.suggested_rate > vehicle.current_rate && (
                     <div>
                       <div className="text-muted-foreground mb-1">Suggested Rate</div>
-                      <div className="font-semibold text-success">${vehicle.suggested_rate}/day</div>
+                      <div className="font-semibold text-success">{money(vehicle.suggested_rate)}/day</div>
                     </div>
                   )}
                   <div>
