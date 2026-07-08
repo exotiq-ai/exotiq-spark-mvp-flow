@@ -701,7 +701,7 @@ export const RecordPaymentDialog = ({
               {loading ? (
                 <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Processing...</>
               ) : (
-                <><ExternalLink className="w-4 h-4 mr-2" />Pay ${formData.amount.toFixed(2)} with Stripe</>
+                <><ExternalLink className="w-4 h-4 mr-2" />Pay {money(formData.amount)} with Stripe</>
               )}
             </Button>
           ) : (
@@ -709,7 +709,7 @@ export const RecordPaymentDialog = ({
               {loading ? (
                 <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving...</>
               ) : (
-                `Record $${formData.amount.toFixed(2)} Payment`
+                `Record ${money(formData.amount)} Payment`
               )}
             </Button>
           )}
