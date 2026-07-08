@@ -104,7 +104,7 @@ export const RevenueBreakdownDialog = ({
                     <p className="text-xs text-muted-foreground">{data.count} booking{data.count !== 1 ? 's' : ''}</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold text-primary">${data.revenue.toLocaleString()}</p>
+                    <p className="font-bold text-primary">{money(data.revenue)}</p>
                     <p className="text-xs text-muted-foreground">
                       {((data.revenue / revenue) * 100).toFixed(0)}% of total
                     </p>
