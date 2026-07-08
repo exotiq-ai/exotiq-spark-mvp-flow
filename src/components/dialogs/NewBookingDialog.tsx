@@ -216,8 +216,20 @@ export const NewBookingDialog = ({
       return;
     }
 
-    if (hasBlockingOverlap(vehicleId, new Date(startDateTimeStr), new Date(endDateTimeStr), allBookings)) {
-      setError('This vehicle is already booked for the selected dates. Choose different dates or another vehicle.');
+    const availability = getVehicleAvailabilityState({
+      vehicle: { id: selectedVehicle.id, status: (selectedVehicle as any).status ?? null },
+      window: { start: new Date(startDateTimeStr), end: new Date(endDateTimeStr) },
+      bookings: allBookings as any,
+      workOrders: activeWorkOrders as any,
+    });
+    if (!availability.available) {
+      if (availability.reason === 'out_of_service' || availability.reason === 'maintenance_status') {
+        setError(`This vehicle is Out of Service${availability.detail ? ` (${availability.detail})` : ''} and cannot be booked. Clear the work order or pick another vehicle.`);
+      } else if (availability.reason === 'retired') {
+        setError('This vehicle is retired and cannot be booked.');
+      } else {
+        setError('This vehicle is already booked for the selected dates. Choose different dates or another vehicle.');
+      }
       return;
     }
 
