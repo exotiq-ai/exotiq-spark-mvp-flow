@@ -511,7 +511,7 @@ export const BookEnhanced = () => {
                        <Circle className="h-5 w-5 text-muted-foreground" />}
                     </div>
                     <AskRariQuickAction variant="icon" className="hidden sm:inline-flex"
-                      prompt={`Tell me about this booking: ${getVehicleDisplay(booking)} for ${booking.customer_name}. Start: ${formatDate(booking.start_date)}, Status: ${booking.status}, Value: $${Number(booking.total_value).toLocaleString()}`}
+                      prompt={`Tell me about this booking: ${getVehicleDisplay(booking)} for ${booking.customer_name}. Start: ${formatDate(booking.start_date)}, Status: ${booking.status}, Value: ${money(booking.total_value)}`}
                     />
                   </div>
                   <div className="text-sm text-muted-foreground mt-0.5 cursor-pointer hover:text-primary transition-colors"
