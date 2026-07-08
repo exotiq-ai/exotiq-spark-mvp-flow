@@ -173,17 +173,6 @@ const DashboardInner = () => {
     };
   }, [user?.id]);
 
-  // Safety net: enable Daily Brief by default for the demo account, even if
-  // the user landed here via a path that didn't run `signInAsDemo` in this tab.
-  useEffect(() => {
-    if (user?.email?.toLowerCase() === 'hello@exotiq.ai') {
-      try {
-        if (window.localStorage.getItem('ff_dailyBrief') === null) {
-          window.localStorage.setItem('ff_dailyBrief', '1');
-        }
-      } catch { /* ignore */ }
-    }
-  }, [user?.email]);
 
 
 

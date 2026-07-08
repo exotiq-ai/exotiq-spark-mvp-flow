@@ -1,46 +1,24 @@
+## Goal
+Officially ship the Command Center Daily Brief hero card to every tenant by flipping its feature flag to true and removing the localStorage bootstraps that were used for the soft rollout.
 
-# Plan: Command Center Live Training Guide + Trainer Checklist
+## Changes
 
-No training manual exists in the repo today. I'll add two focused docs designed for a short live session — not reference tomes.
+1. **`src/lib/featureFlags.ts`**
+   - Flip `dailyBrief: false` → `dailyBrief: true`.
+   - Update the trailing comment to reflect that it's now globally on, and note that per-browser `?ff=dailyBrief:off` still works as a kill switch if a single tenant needs to disable it.
 
-## Files to create
+2. **Remove the localStorage auto-enable bootstraps** (no longer needed once the default is true — and they'd override any future `off` flip):
+   - `src/pages/Dashboard.tsx` lines ~178–185 — the `ff_dailyBrief=1` writer.
+   - `src/pages/Demo.tsx` lines ~38–45 — same writer.
+   - `src/contexts/AuthContext.tsx` lines ~694–700 — same writer.
 
-1. `docs/command-center/LIVE_TRAINING.md` — the training script/guide.
-2. `docs/command-center/TRAINER_CHECKLIST.md` — one-page pre-flight for the presenter.
+3. **Leave downstream code untouched.** `DashboardOverviewEnhanced`, `MotorIQEnhanced`, and `DailyBriefCard` already read through `isFeatureEnabled('dailyBrief')`, so flipping the default is the only switch needed. The deterministic `useDailyBrief` hook + `daily-brief-narrative` edge function (with its PII sanitizer and deterministic fallback) are already live in production paths and will simply be reached by every tenant.
 
-## LIVE_TRAINING.md structure (~15 min agenda)
+## Safety checks before shipping
+- Confirm `DailyBriefCard` renders safely with zero data (empty fleet, brand-new tenant): the hook's `useMemo` already returns empty `issues`/`metrics` arrays; card should show the "nothing urgent" state.
+- Confirm the edge function fallback path still returns 200 with a deterministic narrative when `LOVABLE_API_KEY` is missing or the AI call fails — it already does.
+- Grep for any remaining `ff_dailyBrief` references after the edits so no stale bootstrap survives.
+- Run `tsgo` to make sure the flag flip and file edits don't break types.
 
-1. **Welcome (30 sec)** — one-sentence pitch, who it's for.
-2. **The 5-tool starter kit (10 min):**
-   - **Cmd+K Global Search** — jump to any vehicle, booking, partner, page.
-   - **Rari (Cmd+O)** — natural-language questions, insights & actions.
-   - **Pulse / Dashboard hero rail** — daily "what changed" glance.
-   - **Book module** — inline edits, live pricing, calendar conflict rings.
-   - **Margin module** — Needs-Attention strip → Operator Net → per-vehicle P&L.
-3. **Tips & tricks (3 min):**
-   - Keyboard shortcuts (Cmd+K, Cmd+O, Cmd+/, Cmd+1–5, Esc).
-   - Click any KPI delta to drill into source.
-   - Margin action-strip chips jump straight to the tab needing work.
-   - Notifications deep-link to the exact record.
-   - Banner white-labeling for tenant branding.
-4. **Common workflows (cheat sheet)** — 4 mini-scripts:
-   - Add vehicle → first hero photo → publish.
-   - Create booking → send agreement → check in.
-   - Log expense → see it in Margin.
-   - Review weekly digest → act on top item.
-5. **Go deeper** — pointers to `docs/margin/MARGIN_USER_GUIDE.md`, `PRODUCT_OVERVIEW_DEMO.md`, `TESTING_GUIDE.md`, plus placeholder slot for your LMS video links.
-6. **Trainer script notes** — one line the presenter reads per section so a live session runs on rails.
-
-Format: markdown, 250–350 lines, ⏱ agenda table up top, short bullets, no code, no screenshots.
-
-## TRAINER_CHECKLIST.md structure (one page)
-
-- **Pre-flight (10 min before)** — incognito window, demo account signed in, browser zoom 100%, notifications silenced, Rari mic tested, screen-share resolution set.
-- **Data readiness** — at least 1 vehicle, 1 active booking, 1 logged expense, sample photo ready for upload.
-- **Talking-point reminders** — one-liners aligned to each of the 5 tools.
-- **Common pitfalls** — Cmd+K vs browser search, Rari mic permission, demo-vs-live account, dark mode toggle.
-- **Wrap-up** — where to send attendees next (LMS, docs, support).
-
-## Out of scope
-
-- Video production, LMS embedding, code or UI changes.
+## Rollback
+If a tenant reports a regression, they can append `?ff=dailyBrief:off` once to disable it in their browser. To roll back globally, flip the flag back to `false` in `featureFlags.ts` — no other code needs to change.

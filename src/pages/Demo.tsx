@@ -34,15 +34,6 @@ const DemoContent = () => {
     };
   }, []);
 
-  // Enable Daily Brief (Command Center) for the demo account by default.
-  // Safe per-browser localStorage override; honors `?ff=dailyBrief:off` to disable.
-  useEffect(() => {
-    try {
-      if (window.localStorage.getItem('ff_dailyBrief') === null) {
-        window.localStorage.setItem('ff_dailyBrief', '1');
-      }
-    } catch { /* ignore */ }
-  }, []);
 
   // Auto-login to demo account - runs once
   useEffect(() => {
