@@ -1234,7 +1234,7 @@ export const EnhancedBookingDialog = ({
                                   <div className="text-xs text-muted-foreground">Total Rentals</div>
                                 </div>
                                 <div className="p-2 bg-background/50 rounded text-center">
-                                  <div className="text-lg font-bold">${(Number(customer.lifetime_value) || 0).toLocaleString()}</div>
+                                  <div className="text-lg font-bold">{fmt(Number(customer.lifetime_value) || 0)}</div>
                                   <div className="text-xs text-muted-foreground">Lifetime Value</div>
                                 </div>
                               </div>
