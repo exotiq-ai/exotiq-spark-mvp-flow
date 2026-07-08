@@ -741,27 +741,27 @@ export const NewBookingDialog = ({
                           <span className="text-muted-foreground">
                             {isHourly 
                               ? `${getDurationLabel(durationType)} Rate`
-                              : `${pricing.rentalDays} day${pricing.rentalDays !== 1 ? 's' : ''} × $${effectiveRate.toLocaleString()}`
-                            }
-                          </span>
-                          <span>${pricing.rentalSubtotal.toLocaleString()}</span>
+                            : `${pricing.rentalDays} day${pricing.rentalDays !== 1 ? 's' : ''} × ${money(effectiveRate)}`
+                          }
+                        </span>
+                        <span>{money(pricing.rentalSubtotal)}</span>
+                      </div>
+                      {pricing.discountAmount > 0 && (
+                        <div className="flex justify-between text-success">
+                          <span>Discount</span>
+                          <span>-{money(pricing.discountAmount)}</span>
                         </div>
-                        {pricing.discountAmount > 0 && (
-                          <div className="flex justify-between text-success">
-                            <span>Discount</span>
-                            <span>-${pricing.discountAmount.toLocaleString()}</span>
-                          </div>
-                        )}
-                        {pricing.gasFee > 0 && (
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Gas/Re-fueling Fee</span>
-                            <span>${pricing.gasFee.toFixed(2)}</span>
-                          </div>
-                        )}
-                        <div className="flex justify-between font-semibold border-t border-border pt-1 mt-1">
-                          <span>Total</span>
-                          <span>${pricing.grandTotal.toLocaleString()}</span>
+                      )}
+                      {pricing.gasFee > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Gas/Re-fueling Fee</span>
+                          <span>{money(pricing.gasFee)}</span>
                         </div>
+                      )}
+                      <div className="flex justify-between font-semibold border-t border-border pt-1 mt-1">
+                        <span>Total</span>
+                        <span>{money(pricing.grandTotal)}</span>
+                      </div>
                       </div>
                     );
                   })()}
