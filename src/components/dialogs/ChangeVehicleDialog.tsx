@@ -165,7 +165,7 @@ export const ChangeVehicleDialog = ({
                     <div className="flex-1 min-w-0">
                       <div className="font-medium truncate">{vehicle.name}</div>
                       <div className="text-sm text-muted-foreground">
-                        ${Number(vehicle.current_rate).toLocaleString()}/day
+                        {money(Number(vehicle.current_rate))}/day
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
