@@ -37,6 +37,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { useMoney } from "@/hooks/useMoney";
 
 interface DayData {
   date: Date;
