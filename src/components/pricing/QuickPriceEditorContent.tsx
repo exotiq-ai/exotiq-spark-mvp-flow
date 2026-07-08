@@ -304,7 +304,7 @@ export const QuickPriceEditorContent = ({
                   "font-bold",
                   monthlyImpact > 0 ? "text-success" : "text-destructive"
                 )}>
-                  {monthlyImpact > 0 ? "+" : ""}${Math.abs(monthlyImpact).toLocaleString()}
+                  {monthlyImpact > 0 ? "+" : ""}{money(Math.abs(monthlyImpact))}
                 </span>
               </div>
             </motion.div>
