@@ -984,6 +984,12 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     }
 
     toast({ title: "Vehicle Changed", description: "Booking vehicle has been updated." });
+
+    // Fire-and-forget Google Calendar sync so the event reflects the new vehicle
+    const booking = bookings.find(b => b.id === bookingId);
+    if (booking?.team_id) {
+      syncBookingToGCal("update", bookingId, booking.team_id);
+    }
   };
 
   const updateBookingDetails = async (bookingId: string, updates: Partial<Booking>) => {
@@ -1001,10 +1007,15 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
 
     toast({ title: "Booking Updated", description: "Booking details have been updated." });
 
-    // Fire-and-forget Google Calendar sync
+    // Fire-and-forget Google Calendar sync.
+    // If the booking is being cancelled/declined/no-show, remove the Google event
+    // instead of just updating its color — otherwise Google keeps showing the timeslot as booked.
     const booking = bookings.find(b => b.id === bookingId);
     if (booking?.team_id) {
-      syncBookingToGCal("update", bookingId, booking.team_id);
+      const removeStatuses = ['cancelled', 'declined', 'no_show'];
+      const nextStatus = (updates as any).status as string | undefined;
+      const action = nextStatus && removeStatuses.includes(nextStatus) ? "delete" : "update";
+      syncBookingToGCal(action, bookingId, booking.team_id);
     }
   };
 
