@@ -216,6 +216,17 @@ export const useWorkOrders = () => {
         new_value: newStatus,
       });
 
+      // When a work order becomes terminal, clear its OOR flag and re-sync vehicle status.
+      if ((newStatus === 'completed' || newStatus === 'cancelled') && current?.out_of_rotation) {
+        await (supabase as any)
+          .from('work_orders')
+          .update({ out_of_rotation: false })
+          .eq('id', workOrderId);
+      }
+      if (current?.vehicle_id && (newStatus === 'completed' || newStatus === 'cancelled')) {
+        await syncVehicleStatusForOOR(current.vehicle_id);
+      }
+
       if (navigator.vibrate) navigator.vibrate(10);
       const label = WORK_ORDER_STATUSES.find(s => s.value === newStatus)?.label || newStatus;
       toast({ title: newStatus === 'completed' ? 'Work order completed' : 'Status updated', description: `Status changed to ${label}` });
@@ -225,7 +236,7 @@ export const useWorkOrders = () => {
       toast({ title: 'Error updating work order', description: error.message, variant: 'destructive' });
       return false;
     }
-  }, [user, workOrders, toast]);
+  }, [user, workOrders, toast, syncVehicleStatusForOOR]);
 
   const updateWorkOrder = useCallback(async (workOrderId: string, updates: Partial<WorkOrder>): Promise<boolean> => {
     if (!user) return false;
