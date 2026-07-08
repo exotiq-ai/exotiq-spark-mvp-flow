@@ -332,6 +332,15 @@ export const FleetPageEnhanced = () => {
     }, {} as Record<string, number>);
   }, [tasks]);
 
+  const outOfServiceMap = useMemo(() => {
+    const map: Record<string, string | null> = {};
+    (vehicles || []).forEach((v: any) => {
+      const wo = getActiveOutOfServiceWorkOrder(v.id, activeWorkOrders as any);
+      if (wo) map[v.id] = wo.expected_return_at;
+    });
+    return map;
+  }, [vehicles, activeWorkOrders]);
+
   const handleStatusChange = async (vehicle: any, newStatus: OpsStatus) => {
     await updateOpsStatus(vehicle.id, newStatus);
   };
