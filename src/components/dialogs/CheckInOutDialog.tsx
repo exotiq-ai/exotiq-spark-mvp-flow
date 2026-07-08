@@ -19,6 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useFleet } from "@/contexts/FleetContext";
+import { useMoney } from "@/hooks/useMoney";
 import {
   Gauge,
   Fuel,
