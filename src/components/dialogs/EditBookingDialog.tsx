@@ -25,6 +25,7 @@ import { TimeInput } from "@/components/ui/time-input";
 import type { Database } from "@/integrations/supabase/types";
 import { useTeamGasFeeSettings } from '@/hooks/useTeamGasFeeSettings';
 import { PaymentDueGuard } from '@/components/guards/PaymentDueGuard';
+import { useMoney } from '@/hooks/useMoney';
 
 type Booking = Database["public"]["Tables"]["bookings"]["Row"];
 
