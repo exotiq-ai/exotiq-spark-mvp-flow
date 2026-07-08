@@ -111,10 +111,21 @@ Deno.serve(async (req) => {
     const baseUrl = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`;
 
     if (action === "create" || action === "update") {
+      const b: any = booking;
+      const pickupLine = (b.pickup_time || b.pickup_location)
+        ? `Pickup: ${[b.pickup_time, b.pickup_location].filter(Boolean).join(" @ ")}`
+        : "";
+      const returnLine = (b.return_time || b.return_location)
+        ? `Return: ${[b.return_time, b.return_location].filter(Boolean).join(" @ ")}`
+        : "";
+
       const event = {
         summary: `${vehicleName} - ${booking.customer_name}`,
-        location: booking.pickup_location || "",
+        location: b.pickup_location || "",
         description: [
+          pickupLine,
+          returnLine,
+          (pickupLine || returnLine) ? "" : "",
           `Customer: ${booking.customer_name}`,
           booking.customer_email ? `Email: ${booking.customer_email}` : "",
           booking.customer_phone ? `Phone: ${booking.customer_phone}` : "",
