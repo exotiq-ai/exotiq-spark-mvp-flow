@@ -275,8 +275,8 @@ export const QuickPriceEditorContent = ({
               className="w-full"
             />
             <div className="flex justify-between text-xs text-muted-foreground mt-1">
-              <span>${minRate}</span>
-              <span>${maxRate}</span>
+              <span>{money(minRate)}</span>
+              <span>{money(maxRate)}</span>
             </div>
           </div>
 
