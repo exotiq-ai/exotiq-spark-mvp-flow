@@ -116,8 +116,7 @@ const SORT_OPTIONS: { value: SortOption; label: string }[] = [
   { value: 'updated', label: 'Last Updated' },
 ];
 
-const formatMoney = (n: number) =>
-  n >= 1000 ? `$${(n / 1000).toFixed(n % 1000 === 0 ? 0 : 1)}k` : `$${n}`;
+const formatMoney = (n: number) => formatCurrencyCompact(n);
 
 const formatMiles = (n: number) =>
   n >= 1000 ? `${(n / 1000).toFixed(n % 1000 === 0 ? 0 : 1)}k mi` : `${n} mi`;
