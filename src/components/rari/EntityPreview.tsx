@@ -194,7 +194,7 @@ export const EntityPreview = ({ type, data, isLoading, error }: EntityPreviewPro
               <DollarSign className="h-3 w-3" />
               Daily Rate
             </span>
-            <span className="font-medium">${vehicle.current_rate}</span>
+            <span className="font-medium">{money(vehicle.current_rate)}</span>
           </div>
 
           <div className="flex items-center justify-between pt-2 border-t">
