@@ -115,7 +115,7 @@ export const WorkOrderDetailSheet = ({ workOrder, open, onOpenChange, vehicleMap
             <Badge variant="outline" className="capitalize">{workOrder.issue_type}</Badge>
             <Badge variant="outline">{workOrder.internal_or_outsourced === 'outsourced' ? 'Outsourced' : 'Internal'}</Badge>
             {workOrder.out_of_rotation && (
-              <Badge variant="outline" className="border-amber-500/50 text-amber-600"><Ban className="h-3 w-3 mr-1" />OOR</Badge>
+              <Badge variant="outline" className="border-amber-500/50 text-amber-600"><Ban className="h-3 w-3 mr-1" />Out of Service</Badge>
             )}
           </div>
         </SheetHeader>
