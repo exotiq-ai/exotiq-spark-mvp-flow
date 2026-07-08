@@ -452,7 +452,7 @@ export const PricingCalendar = () => {
                       
                       {dayData && dayData.revenue > 0 && (
                         <span className="text-[10px] sm:text-xs font-semibold text-success relative z-10">
-                          ${(dayData.revenue / 1000).toFixed(1)}k
+                          {money(dayData.revenue)}
                         </span>
                       )}
                       
