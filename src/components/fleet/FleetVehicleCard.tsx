@@ -111,6 +111,7 @@ export const FleetVehicleCard = ({
   nextBooking,
   taskCount = 0,
   photoCount,
+  outOfServiceUntil,
   onEditPrice,
   onCreateTask,
   onViewDetails,
@@ -133,15 +134,23 @@ export const FleetVehicleCard = ({
 
   // Derive display status from real DB values
   const isInMaintenance = vehicle.status === 'maintenance';
+  const isOutOfService = !!outOfServiceUntil || (isInMaintenance && !isRetired);
   const hasActiveBooking = !!activeBooking;
   const isWithRenter = opsStatus === 'renter_has';
-  
+
+  const oosReturnLabel = outOfServiceUntil
+    ? new Date(outOfServiceUntil).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+    : null;
+
   // Determine the display status label and styling
   const getStatusDisplay = () => {
     if (isRetired) return { label: 'Retired', className: 'border-muted-foreground/50 bg-muted/50 text-muted-foreground' };
+    if (isOutOfService) return {
+      label: oosReturnLabel ? `Out of Service · back ${oosReturnLabel}` : 'Out of Service',
+      className: 'border-amber-500/50 bg-amber-500/10 text-amber-600 dark:text-amber-400',
+    };
     if (isWithRenter) return { label: 'With Renter', className: 'border-primary/50 bg-primary/10 text-primary' };
     if (hasActiveBooking) return { label: 'Booked', className: 'border-primary/50 bg-primary/10 text-primary' };
-    if (isInMaintenance) return { label: 'Maintenance', className: 'border-amber-500/50 bg-amber-500/10 text-amber-600 dark:text-amber-400' };
     return { label: 'Available', className: 'border-success/50 bg-success/10 text-success' };
   };
 
