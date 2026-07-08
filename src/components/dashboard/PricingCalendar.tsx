@@ -619,7 +619,7 @@ export const PricingCalendar = () => {
                           <p className="font-medium text-sm truncate">{booking.vehicleName}</p>
                           <p className="text-xs text-muted-foreground truncate">{booking.customerName}</p>
                         </div>
-                        <Badge variant="outline" className="text-xs">${booking.dailyRate}/day</Badge>
+                        <Badge variant="outline" className="text-xs">{money(booking.dailyRate)}/day</Badge>
                       </div>
                     </div>
                   ))}
