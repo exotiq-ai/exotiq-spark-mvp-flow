@@ -240,9 +240,50 @@ export const useWorkOrders = () => {
     }
   }, [user, toast]);
 
+  const syncVehicleStatusForOOR = useCallback(async (vehicleId: string) => {
+    if (!currentTeam) return;
+    try {
+      // Are there any OTHER active OOR work orders for this vehicle?
+      const { data: activeOOR } = await (supabase as any)
+        .from('work_orders')
+        .select('id')
+        .eq('team_id', currentTeam.id)
+        .eq('vehicle_id', vehicleId)
+        .eq('out_of_rotation', true)
+        .in('status', ACTIVE_STATUSES)
+        .limit(1);
+
+      const shouldBeOOS = (activeOOR?.length || 0) > 0;
+
+      const { data: vehicle } = await (supabase as any)
+        .from('vehicles')
+        .select('status')
+        .eq('id', vehicleId)
+        .maybeSingle();
+
+      if (!vehicle) return;
+
+      if (shouldBeOOS && vehicle.status !== 'maintenance' && vehicle.status !== 'retired') {
+        await (supabase as any)
+          .from('vehicles')
+          .update({ status: 'maintenance' })
+          .eq('id', vehicleId);
+      } else if (!shouldBeOOS && vehicle.status === 'maintenance') {
+        // No blocking work orders left → restore availability.
+        await (supabase as any)
+          .from('vehicles')
+          .update({ status: 'available' })
+          .eq('id', vehicleId);
+      }
+    } catch (err) {
+      console.error('Vehicle status sync failed:', err);
+    }
+  }, [currentTeam]);
+
   const toggleOutOfRotation = useCallback(async (workOrderId: string, outOfRotation: boolean, expectedReturnAt?: string): Promise<boolean> => {
     if (!user) return false;
     try {
+      const current = workOrders.find(wo => wo.id === workOrderId);
       const { error } = await (supabase as any)
         .from('work_orders')
         .update({
@@ -260,14 +301,22 @@ export const useWorkOrders = () => {
         new_value: outOfRotation ? 'true' : 'false',
       });
 
-      toast({ title: outOfRotation ? 'Vehicle marked out of rotation' : 'Vehicle back in rotation' });
+      if (current?.vehicle_id) await syncVehicleStatusForOOR(current.vehicle_id);
+      await fetchWorkOrders();
+
+      toast({
+        title: outOfRotation ? 'Vehicle marked Out of Service' : 'Vehicle back in service',
+        description: outOfRotation
+          ? 'This vehicle will be blocked from new bookings until the expected return date.'
+          : 'This vehicle can be booked again.',
+      });
       return true;
     } catch (error: any) {
-      console.error('Error toggling OOR:', error);
+      console.error('Error toggling out of service:', error);
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
       return false;
     }
-  }, [user, toast]);
+  }, [user, workOrders, toast, syncVehicleStatusForOOR, fetchWorkOrders]);
 
   const deleteWorkOrder = useCallback(async (workOrderId: string): Promise<boolean> => {
     try {
