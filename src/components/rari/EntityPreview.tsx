@@ -154,7 +154,7 @@ export const EntityPreview = ({ type, data, isLoading, error }: EntityPreviewPro
           <div className="flex items-center justify-between pt-2 border-t">
             <span className="text-muted-foreground">Total Value</span>
             <span className="font-medium text-success">
-              ${booking.total_value.toLocaleString()}
+              {money(booking.total_value)}
             </span>
           </div>
         </div>
