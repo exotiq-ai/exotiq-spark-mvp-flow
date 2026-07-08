@@ -618,9 +618,9 @@ export const CheckInOutDialog = ({
                       <Separator />
                       <div className="flex justify-between font-semibold text-warning">
                         <span>
-                          Overage ({mileageInfo.overage} mi × ${mileageInfo.rate}/mi)
+                          Overage ({mileageInfo.overage} mi × {money(mileageInfo.rate)}/mi)
                         </span>
-                        <span>${mileageInfo.charge.toFixed(2)}</span>
+                        <span>{money(mileageInfo.charge)}</span>
                       </div>
                     </>
                   )}
