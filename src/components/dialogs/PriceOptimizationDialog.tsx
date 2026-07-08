@@ -15,6 +15,7 @@ interface PriceOptimizationDialogProps {
 }
 
 export const PriceOptimizationDialog = ({ open, onOpenChange, vehicles, onApply }: PriceOptimizationDialogProps) => {
+  const { money } = useMoney();
   const [selectedVehicleId, setSelectedVehicleId] = useState(vehicles[0]?.id || '');
   const selectedVehicle = vehicles.find(v => v.id === selectedVehicleId);
   const [newRate, setNewRate] = useState(selectedVehicle?.suggested_rate || selectedVehicle?.current_rate || 0);
