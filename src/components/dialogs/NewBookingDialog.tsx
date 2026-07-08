@@ -168,17 +168,22 @@ export const NewBookingDialog = ({
   const selectedVehicle = vehicles.find(v => v.id === vehicleId);
   const pricingSuggestion = useAIPricing(selectedVehicle || null, startDateTimeStr);
 
-  // Check which vehicles have conflicting bookings for the selected dates
+  // Unified availability: booking overlap + out-of-service work orders + vehicle status
   const vehicleAvailability = useMemo(() => {
-    if (!startDate || !endDate) return {};
+    const out: Record<string, VehicleAvailabilityState> = {};
+    if (!startDate || !endDate) return out;
     const start = new Date(startDateTimeStr);
     const end = new Date(endDateTimeStr);
-    const availability: Record<string, boolean> = {};
     vehicles.forEach(v => {
-      availability[v.id] = !hasBlockingOverlap(v.id, start, end, allBookings);
+      out[v.id] = getVehicleAvailabilityState({
+        vehicle: { id: v.id, status: (v as any).status ?? null },
+        window: { start, end },
+        bookings: allBookings as any,
+        workOrders: activeWorkOrders as any,
+      });
     });
-    return availability;
-  }, [startDate, endDate, vehicles, allBookings]);
+    return out;
+  }, [startDate, endDate, startDateTimeStr, endDateTimeStr, vehicles, allBookings, activeWorkOrders]);
   
   // Auto-set pickup location when dialog opens
   const effectivePickupLocationId = pickupLocationId || (selectedLocationId !== 'all' ? selectedLocationId : locations[0]?.id || '');
