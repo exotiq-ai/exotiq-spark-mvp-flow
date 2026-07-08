@@ -357,7 +357,7 @@ export const NewBookingDialog = ({
                     return (
                       <SelectItem key={v.id} value={v.id} disabled={!!isUnavailable}>
                         <span className="flex items-center gap-2">
-                          {v.name} - ${v.current_rate}/day
+                          {v.name} - {money(v.current_rate)}/day
                           {isUnavailable && (
                             <span
                               className={cn(
