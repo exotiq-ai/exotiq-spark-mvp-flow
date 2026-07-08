@@ -766,7 +766,7 @@ export const CheckInOutDialog = ({
                   variant="outline"
                   className="border-warning/50 text-warning"
                 >
-                  ${mileageInfo.charge.toFixed(2)} overage
+                  {money(mileageInfo.charge)} overage
                 </Badge>
               )}
             </div>
