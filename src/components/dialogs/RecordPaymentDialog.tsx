@@ -225,7 +225,7 @@ export const RecordPaymentDialog = ({
       const updated = { ...a, [field]: value };
       if (field === "type" && value === "mileage_overage" && financials.mileageCharge > 0) {
         updated.amount = financials.mileageCharge;
-        updated.description = `${financials.mileageOverage} miles over limit @ $${financials.mileageRate}/mi`;
+        updated.description = `${financials.mileageOverage} miles over limit @ ${money(financials.mileageRate)}/mi`;
       }
       return updated;
     }));
