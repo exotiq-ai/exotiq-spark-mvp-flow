@@ -47,6 +47,7 @@ import {
 import { createExportActions } from "@/lib/exportUtils";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
+import { useMoney } from "@/hooks/useMoney";
 
 export const MotorIQEnhanced = () => {
   const { vehicles, bookings, applyPriceOptimization, loading, createVehicle } = useLocationFilteredFleet();
