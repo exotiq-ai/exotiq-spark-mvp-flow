@@ -24,6 +24,7 @@ import { VehicleThumbnail } from "@/components/common/VehicleThumbnail";
 import { UpcomingBookingsCard } from "@/components/dashboard/UpcomingBookingsCard";
 import { PreviousBookingsCard } from "@/components/dashboard/PreviousBookingsCard";
 import { motion, AnimatePresence } from "framer-motion";
+import { useMoney } from "@/hooks/useMoney";
 import { 
   Calendar as CalendarIcon, 
   Clock, 
