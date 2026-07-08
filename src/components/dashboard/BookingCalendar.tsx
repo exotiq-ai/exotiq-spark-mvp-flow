@@ -998,7 +998,7 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
-                <ScrollArea className="h-[calc(100vh-320px)]">
+                <ScrollArea className="h-[calc(100vh-320px)] min-h-0">
                   <DayDetailContent
                     selectedDate={selectedDate}
                     selectedDayBookings={selectedDayBookings}
