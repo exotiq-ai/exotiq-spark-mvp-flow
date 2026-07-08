@@ -127,6 +127,7 @@ export const FleetVehicleCard = ({
   className,
 }: FleetVehicleCardProps) => {
   const [isHovered, setIsHovered] = useState(false);
+  const { money } = useMoney();
   
   const isRetired = vehicle.status === 'retired';
   const opsStatus = (vehicle.ops_status || 'not_set') as OpsStatus;
