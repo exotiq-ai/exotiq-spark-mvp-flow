@@ -168,13 +168,13 @@ export const QuickPriceEditorContent = ({
           <div className="flex items-center gap-3">
             <div className="flex-1 p-3 rounded-lg bg-muted/40 border text-center">
               <div className="text-xs text-muted-foreground mb-1">Current</div>
-              <div className="text-2xl font-bold">${vehicle.current_rate}</div>
+              <div className="text-2xl font-bold">{money(vehicle.current_rate)}</div>
               <div className="text-xs text-muted-foreground">/day</div>
             </div>
             <ArrowRight className="h-5 w-5 text-muted-foreground flex-shrink-0" />
             <div className="flex-1 p-3 rounded-lg bg-success/10 border border-success/20 text-center">
               <div className="text-xs text-success mb-1">Suggested</div>
-              <div className="text-2xl font-bold text-success">${suggestedRate}</div>
+              <div className="text-2xl font-bold text-success">{money(suggestedRate)}</div>
               <div className="text-xs text-muted-foreground">/day</div>
             </div>
           </div>
