@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/select";
 import { format, subMonths, subYears } from "date-fns";
 import { formatCurrency, formatCurrencyCompact } from "@/lib/utils";
+import { useMoney } from "@/hooks/useMoney";
 
 interface AppliedVehicle {
   oldRate: number;
