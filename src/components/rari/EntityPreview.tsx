@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import type { CustomerPreview, BookingPreview, VehiclePreview } from '@/hooks/useEntityEnrichment';
+import { useMoney } from '@/hooks/useMoney';
 
 interface EntityPreviewProps {
   type: 'customer' | 'booking' | 'vehicle';
