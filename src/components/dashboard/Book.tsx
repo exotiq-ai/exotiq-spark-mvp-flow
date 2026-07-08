@@ -242,7 +242,7 @@ export const Book = () => {
                   </div>
                   
                   <div className="flex items-center justify-between mt-4">
-                    <span className="font-semibold text-primary">${booking.total_value?.toLocaleString()}</span>
+                    <span className="font-semibold text-primary">{money(booking.total_value)}</span>
                     <Button size="sm" variant="outline">
                       View Details
                       <ChevronRight className="w-4 h-4 ml-1" />
