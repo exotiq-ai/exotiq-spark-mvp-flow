@@ -95,7 +95,7 @@ export const EntityPreview = ({ type, data, isLoading, error }: EntityPreviewPro
             <div className="flex items-center gap-1">
               <DollarSign className="h-3 w-3 text-success" />
               <span className="font-medium text-success">
-                ${customer.lifetime_value.toLocaleString()}
+                {money(customer.lifetime_value)}
               </span>
             </div>
           </div>
