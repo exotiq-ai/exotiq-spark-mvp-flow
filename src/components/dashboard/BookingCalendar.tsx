@@ -201,11 +201,6 @@ const DayDetailContent = ({
                 className="relative p-3 rounded-xl border cursor-pointer hover:shadow-md hover:border-primary/40 transition-all group overflow-hidden"
                 style={{ borderLeftWidth: '3px', borderLeftColor: vehicleColor }}
               >
-                {vehicleImage && (
-                  <div className="absolute right-0 top-0 w-20 h-full opacity-[0.07] group-hover:opacity-[0.14] transition-opacity">
-                    <img src={vehicleImage} alt="" className="w-full h-full object-cover" />
-                  </div>
-                )}
                 <div className="relative">
                   <div className="flex items-start justify-between gap-2 mb-1.5">
                     <div className="flex items-center gap-2">
