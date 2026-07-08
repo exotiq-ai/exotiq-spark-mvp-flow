@@ -40,7 +40,7 @@ import { useMoney } from '@/hooks/useMoney';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { calculateBookingTotal, getRateForDuration, getAvailableDurations, getDurationLabel, getGasFeeForTeam, type RentalDurationType } from '@/lib/pricingUtils';
-import { isBlockingBooking, hasBlockingOverlap, getVehicleAvailabilityState, type VehicleAvailabilityState } from '@/lib/conflictDetection';
+import { isBlockingBooking, getVehicleAvailabilityState, type VehicleAvailabilityState } from '@/lib/conflictDetection';
 import { useWorkOrders } from '@/hooks/useWorkOrders';
 import { useLocationFilteredFleet } from '@/hooks/useLocationFilteredFleet';
 import { Switch } from '@/components/ui/switch';
