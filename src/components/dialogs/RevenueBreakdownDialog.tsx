@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Tables } from "@/integrations/supabase/types";
 import { DollarSign, Car, Users, Calendar } from "lucide-react";
+import { useMoney } from "@/hooks/useMoney";
 
 type Booking = Tables<'bookings'>;
 
