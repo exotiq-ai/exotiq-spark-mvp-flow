@@ -192,7 +192,7 @@ export const QuickPriceEditorContent = ({
               <div>
                 <div className="text-xs text-muted-foreground">Monthly Impact</div>
                 <div className="text-sm font-bold text-success">
-                  +${((suggestedRate - vehicle.current_rate) * 30).toLocaleString()}
+                  +{money((suggestedRate - vehicle.current_rate) * 30)}
                 </div>
               </div>
             </div>
