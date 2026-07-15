@@ -5,8 +5,8 @@
 
 ## Current state
 
-- **Current milestone:** M0 (demo ready) — not started; M1 decision register awaiting Gregory
-- **Last session:** 2026-07-15 — revival verification + plan review + goal brief (PR #20)
+- **Current milestone:** M0 running on exotiq-rent (separate agent); M2 complete pending PR merge; M1 decision register awaiting Gregory
+- **Last session:** 2026-07-15 — M2 security hardening (PR #21)
 
 ## Completed
 
@@ -15,18 +15,21 @@
 - [x] Goal brief: `docs/rent/RENTER_APP_GOAL.md`
 - [x] `/goal` skill: `.cursor/skills/goal/SKILL.md`
 - [x] Decision register scaffold: `docs/rent/DECISIONS.md`
+- [x] **M2 security hardening** (2026-07-15, PR #21): audit showed inventory findings 1–4 already fixed by `20260530203000_harden_tenant_rls_policies.sql`; findings 5 (vehicle-photos uploader-keyed storage RLS → team-scoped) and 6 (`stripe_webhook_events` no SELECT policy → super-admin-only) fixed in `20260715211500_*.sql`. Verified behaviorally: 10/10 RLS tests pass on scratch Postgres 16 (`scripts/rls-verify/`).
 
 ## In flight
 
-- PR #20 (`cursor/renter-app-goal-cde9`) on exotiq-spark-mvp-flow — docs + skills, awaiting merge
+- PR #20 (`cursor/renter-app-goal-cde9`) — goal docs + skills, awaiting merge
+- PR #21 (`cursor/m2-security-rls-cde9`) — M2 migration + RLS test harness, awaiting merge
+- M0 demo polish — running on the exotiq-rent repo via a separate cloud agent (repo access granted 2026-07-15)
 
 ## Blockers
 
-1. `cursor[bot]` has no write access to `exotiq-ai/exotiq-rent` (push 403). Gregory: GitHub org settings → Cursor app → add repo. Until then, exotiq-rent work is delivered as patches under `docs/rent/patches/`.
-2. Decision register unanswered (`docs/rent/DECISIONS.md`) — defaults apply if work must proceed, record assumptions.
-3. No deploy credentials for the M0 demo host (needs `VERCEL_TOKEN` or `NETLIFY_AUTH_TOKEN` in Cursor Dashboard → Cloud Agents → Secrets).
-4. Migration export artifacts still outstanding from Lovable support (gates M5/M6 only).
+1. Decision register unanswered (`docs/rent/DECISIONS.md`) — defaults apply if work must proceed, record assumptions.
+2. No deploy credentials for the M0 demo host (needs `VERCEL_TOKEN` or `NETLIFY_AUTH_TOKEN` in Cursor Dashboard → Cloud Agents → Secrets).
+3. Migration export artifacts still outstanding from Lovable support (gates M5/M6 only).
+4. PR #21's migration must be applied to the hosted project via the established Lovable/owner path after merge (agents never touch hosted Supabase).
 
 ## Next action
 
-Start M0: branch off `feat/drive-exotiq-booking-flow`, patch `npm audit` advisories, expand mock catalog (2–3 teams / 6–10 vehicles, unavailable ranges, one hidden vehicle), then storefront + vehicle-detail buildout. Add a GitHub Actions CI workflow (test/tsc/lint/build) to exotiq-rent in the same PR once repo access exists.
+Start M3 (public read plumbing) in this repo: vehicle slugs migration (unique per team, deterministic backfill) → `marketplace_visible` flags + demo-exclusion helper → `public_team_by_slug` / `public_team_fleet` / `public_vehicle_by_slug` RPCs → signed media strategy → availability (with `rental_buffer_minutes`) + quote RPCs. Fee rule inside the quote RPC depends on D1 — if still PENDING, implement `teams.platform_fee_percent` on operator total per the recommended default and record the assumption. Extend `scripts/rls-verify/` to cover each public RPC (anon can read only intended fields).
