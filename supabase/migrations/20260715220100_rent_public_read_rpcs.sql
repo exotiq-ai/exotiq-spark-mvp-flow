@@ -8,11 +8,13 @@
 --   * exposes zero PII, zero Stripe IDs, zero VIN/plate, zero internal notes
 --   * is executable by anon + authenticated (renter app uses the anon key)
 --
--- Fee rule (DECISION D1, register default — recorded assumption 2026-07-15):
+-- Fee rule (DECISIONS D1 + D9, Gregory 2026-07-15):
 -- platform fee = teams.platform_fee_percent (default 10) applied to the
--- operator total (rental subtotal + extras; operators bake taxes into rates
--- today, no tax engine). Excludes deposits and protection. If D1 lands
--- differently, only public_vehicle_quote below changes.
+-- RENTAL SUBTOTAL ONLY (daily rate x duration). Excludes extras, deposits,
+-- and protection. Charged to the renter as a separate Exotiq charge
+-- (statement-separate from the operator's rental charge; Stripe wiring is M6).
+-- This matches the existing fn_snapshot_platform_fee/compute_rental_base
+-- behavior on the operator side.
 
 -- ---------------------------------------------------------------------
 -- public_team_by_slug
@@ -220,9 +222,10 @@ $$;
 
 -- ---------------------------------------------------------------------
 -- public_vehicle_quote: server-side quote in integer cents.
--- Protection premium is a fixed Exotiq-side catalog until the protection
--- schema exists (M6): premium $89/day, standard $59/day, decline $0
--- (DECISION D5 register default).
+-- Protection is a fixed Exotiq-side catalog until the protection schema
+-- exists (M6): premium $289/day (default), standard $89/day, decline $0
+-- (DECISION D5, Gregory 2026-07-15; decline requires accepting decline
+-- terms in the renter UI — terms copy TODO).
 -- options: { "protection": "premium"|"standard"|"decline" }
 -- ---------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.public_vehicle_quote(
@@ -270,8 +273,8 @@ AS $$
       round(tg.current_rate * 100)::bigint AS daily_rate_cents,
       tg.fee_pct,
       CASE lower(coalesce(_options->>'protection', 'premium'))
-        WHEN 'premium' THEN 8900::bigint
-        WHEN 'standard' THEN 5900::bigint
+        WHEN 'premium' THEN 28900::bigint
+        WHEN 'standard' THEN 8900::bigint
         ELSE 0::bigint
       END AS protection_daily_cents,
       lower(coalesce(_options->>'protection', 'premium')) AS protection_tier

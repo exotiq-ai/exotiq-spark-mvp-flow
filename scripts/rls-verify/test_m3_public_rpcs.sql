@@ -78,13 +78,20 @@ SELECT test_expect('anon: busy range includes turnaround buffer (starts 08-10, b
   (SELECT count(*) FROM public.public_vehicle_availability('desert-exotic-rentals','2025-mclaren-750s-spider','2026-08-01','2026-08-31')
    WHERE busy_start <= DATE '2026-08-10' AND busy_end >= DATE '2026-08-12'), 1);
 
--- quote math: 3 days x $1,999/day = 599700c; fee 10% = 59970c; premium 3 x 8900 = 26700c; total 686370c
+-- quote math (D1/D9/D5 decided 2026-07-15): 3 days x $1,999/day = 599700c;
+-- fee 10% of rental subtotal = 59970c; premium protection 3 x $289 = 86700c; total 746370c
 SELECT test_expect('anon: quote rental subtotal cents',
   (SELECT rental_subtotal_cents FROM public.public_vehicle_quote('desert-exotic-rentals','2025-mclaren-750s-spider','2026-09-01','2026-09-04','{"protection":"premium"}')), 599700);
-SELECT test_expect('anon: quote platform fee cents (10%)',
+SELECT test_expect('anon: quote platform fee cents (10% of rental subtotal only)',
   (SELECT platform_fee_cents FROM public.public_vehicle_quote('desert-exotic-rentals','2025-mclaren-750s-spider','2026-09-01','2026-09-04','{"protection":"premium"}')), 59970);
+SELECT test_expect('anon: quote premium protection total cents ($289/day default tier)',
+  (SELECT protection_total_cents FROM public.public_vehicle_quote('desert-exotic-rentals','2025-mclaren-750s-spider','2026-09-01','2026-09-04','{"protection":"premium"}')), 86700);
+SELECT test_expect('anon: premium is the default tier when options omit protection',
+  (SELECT protection_total_cents FROM public.public_vehicle_quote('desert-exotic-rentals','2025-mclaren-750s-spider','2026-09-01','2026-09-04','{}')), 86700);
+SELECT test_expect('anon: quote standard protection total cents ($89/day)',
+  (SELECT protection_total_cents FROM public.public_vehicle_quote('desert-exotic-rentals','2025-mclaren-750s-spider','2026-09-01','2026-09-04','{"protection":"standard"}')), 26700);
 SELECT test_expect('anon: quote grand total cents',
-  (SELECT grand_total_cents FROM public.public_vehicle_quote('desert-exotic-rentals','2025-mclaren-750s-spider','2026-09-01','2026-09-04','{"protection":"premium"}')), 686370);
+  (SELECT grand_total_cents FROM public.public_vehicle_quote('desert-exotic-rentals','2025-mclaren-750s-spider','2026-09-01','2026-09-04','{"protection":"premium"}')), 746370);
 SELECT test_expect('anon: decline protection zeroes protection line',
   (SELECT protection_total_cents FROM public.public_vehicle_quote('desert-exotic-rentals','2025-mclaren-750s-spider','2026-09-01','2026-09-04','{"protection":"decline"}')), 0);
 SELECT test_expect('anon: quote for hidden team vehicle returns no row',
