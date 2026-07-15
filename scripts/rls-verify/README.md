@@ -1,6 +1,27 @@
-# RLS verification harness (M2 security hardening)
+# RLS verification harness
 
-Behavioral verification for `supabase/migrations/20260715211500_vehicle_photos_team_rls_and_webhook_events_select.sql` (inventory findings 5 and 6) on a scratch PostgreSQL — no Supabase stack or docker required.
+Behavioral verification of security/public-surface migrations on a scratch PostgreSQL — no Supabase stack or docker required.
+
+Covers:
+- **M2**: `20260715211500_vehicle_photos_team_rls_and_webhook_events_select.sql` (inventory findings 5 and 6) — `test_policies.sql`, 10 tests.
+- **M3**: `20260715220000_rent_public_catalog_schema.sql` + `20260715220100_rent_public_read_rpcs.sql` (slugs, marketplace visibility, public read RPCs, availability, quote) — `test_m3_public_rpcs.sql`, 22 tests including anon base-table leak checks and RPC signature PII scan.
+
+## Run M3
+
+```bash
+sudo -u postgres psql -c "CREATE DATABASE m3test OWNER tester;"
+PGPASSWORD=tester psql -h 127.0.0.1 -U tester -d m3test <<'SQL'
+\set ON_ERROR_STOP on
+\i scripts/rls-verify/setup_stub.sql
+\i scripts/rls-verify/setup_stub_m3.sql
+SET check_function_bodies = off;
+\i supabase/migrations/20260715220000_rent_public_catalog_schema.sql
+\i supabase/migrations/20260715220100_rent_public_read_rpcs.sql
+\i scripts/rls-verify/test_m3_public_rpcs.sql
+SQL
+```
+
+Expected: 22 `PASS:` notices and `ALL M3 TESTS PASSED`.
 
 ## Run
 
