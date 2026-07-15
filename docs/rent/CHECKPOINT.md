@@ -28,10 +28,17 @@
 
 ## Blockers
 
-1. Decision register unanswered (`docs/rent/DECISIONS.md`) — D1/D5 assumptions now baked into PR #22 per defaults; confirm or amend.
-2. No deploy credentials for the M0 demo host (needs `VERCEL_TOKEN` or `NETLIFY_AUTH_TOKEN` in Cursor Dashboard → Cloud Agents → Secrets).
+1. ~~Decision register unanswered~~ **RESOLVED 2026-07-15: all ten decisions recorded in `docs/rent/DECISIONS.md`** (D1 fee = 10% of rental subtotal only, renter-charged separately; D5 protection reprice $89/$289 premium-default; D7 Netlify at demo.exotiq.rent; see decision log for consequences). PR #22 quote RPC amended to match; 25/25 tests pass.
+2. Demo deploy (D7 = Netlify): Gregory can run the Netlify MCP from Cursor desktop, or add `NETLIFY_AUTH_TOKEN` in Cloud Agents → Secrets for agents to deploy.
 3. Migration export artifacts still outstanding from Lovable support (gates M5/M6 only).
 4. PR #21 + #22 migrations must be applied to the hosted project via the established Lovable/owner path after merge, then `rent-public-media` deployed (agents never touch hosted Supabase).
+5. M6 money-flow question (from D1): renter sees TWO separate charges (operator rental charge + Exotiq booking fee/protection). Single-checkout model from the May 27 handoff needs rework; Gregory reviews Stripe money flow before M6 starts.
+
+## Frontend changes queued for the exotiq-rent agent (from decisions, 2026-07-15)
+
+1. `domain/booking/totals.ts`: `platformFeeBaseCents` = `rentalSubtotalCents` only (remove extras + operator tax from fee base, per D1/D9); `PROTECTION_DAILY_RATES` → premium 28900, standard 8900 (D5).
+2. `ProtectStep`: pricing copy $89 standard / $289 premium (premium default); decline path must present decline terms (copy TODO: renter liable for total cash value incl. total loss; personal auto insurance verified before pickup).
+3. Review/Pay/Confirmation: keep two-party billing; label the Exotiq line as booking fee + protection.
 
 ## Next action
 
