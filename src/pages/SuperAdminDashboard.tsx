@@ -18,6 +18,7 @@ import { PlatformPulseStrip } from '@/components/super-admin/PlatformPulseStrip'
 import { TenantHealthTab } from '@/components/super-admin/TenantHealthTab';
 import { VehicleAuditTab } from '@/components/super-admin/VehicleAuditTab';
 import { SuperAdminTenantDocumentsTab } from '@/components/super-admin/SuperAdminTenantDocumentsTab';
+import { MarketplaceVisibilityTab } from '@/components/super-admin/MarketplaceVisibilityTab';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -32,6 +33,7 @@ import {
   Activity,
   Car,
   FileSignature,
+  Store,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -227,6 +229,10 @@ export const SuperAdminDashboard = () => {
               <FileSignature className="h-4 w-4 mr-2" />
               Documents
             </TabsTrigger>
+            <TabsTrigger value="marketplace">
+              <Store className="h-4 w-4 mr-2" />
+              Marketplace
+            </TabsTrigger>
             <TabsTrigger value="audit">
               <Database className="h-4 w-4 mr-2" />
               Audit Log
@@ -252,6 +258,10 @@ export const SuperAdminDashboard = () => {
 
           <TabsContent value="documents" className="space-y-4">
             <SuperAdminTenantDocumentsTab />
+          </TabsContent>
+
+          <TabsContent value="marketplace" className="space-y-4">
+            <MarketplaceVisibilityTab />
           </TabsContent>
 
 
