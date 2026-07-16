@@ -3973,6 +3973,7 @@ export type Database = {
           id: string
           ip_address: string | null
           metadata: Json | null
+          team_id: string | null
           user_agent: string | null
           user_id: string
         }
@@ -3984,6 +3985,7 @@ export type Database = {
           id?: string
           ip_address?: string | null
           metadata?: Json | null
+          team_id?: string | null
           user_agent?: string | null
           user_id: string
         }
@@ -3995,10 +3997,19 @@ export type Database = {
           id?: string
           ip_address?: string | null
           metadata?: Json | null
+          team_id?: string | null
           user_agent?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_activity_log_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_dashboard_layouts: {
         Row: {
@@ -5294,6 +5305,10 @@ export type Database = {
         Returns: undefined
       }
       auto_purge_expired_vehicles: { Args: never; Returns: number }
+      can_access_conversation: {
+        Args: { _conversation_id: string; _user_id: string }
+        Returns: boolean
+      }
       can_access_entity: {
         Args: { _entity_id: string; _entity_type: string; _user_id: string }
         Returns: boolean
@@ -5302,7 +5317,31 @@ export type Database = {
         Args: { _location_id: string; _user_id: string }
         Returns: boolean
       }
+      can_access_realtime_topic: {
+        Args: { _topic: string; _user_id: string }
+        Returns: boolean
+      }
       can_manage_team_groups: { Args: { _team_id: string }; Returns: boolean }
+      can_manage_team_or_user_storage_path: {
+        Args: { _object_name: string; _user_id: string }
+        Returns: boolean
+      }
+      can_read_message_attachment_path: {
+        Args: { _object_name: string; _user_id: string }
+        Returns: boolean
+      }
+      can_read_team_or_user_storage_path: {
+        Args: { _object_name: string; _user_id: string }
+        Returns: boolean
+      }
+      can_write_message_attachment_path: {
+        Args: { _object_name: string; _user_id: string }
+        Returns: boolean
+      }
+      can_write_team_or_user_storage_path: {
+        Args: { _object_name: string; _user_id: string }
+        Returns: boolean
+      }
       clear_billing_dunning: {
         Args: { p_note?: string; p_team_id: string }
         Returns: undefined
@@ -5627,6 +5666,14 @@ export type Database = {
         }
         Returns: boolean
       }
+      has_shared_team_role: {
+        Args: {
+          _actor_user_id: string
+          _roles: Database["public"]["Enums"]["app_role"][]
+          _target_user_id: string
+        }
+        Returns: boolean
+      }
       has_team_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -5852,6 +5899,7 @@ export type Database = {
               isSetofReturn: false
             }
           }
+      safe_uuid: { Args: { value: string }; Returns: string }
       set_billing_dunning_stage: {
         Args: {
           p_assumed_plan_fleet_size?: number
