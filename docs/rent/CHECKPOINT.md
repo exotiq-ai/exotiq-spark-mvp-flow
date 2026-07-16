@@ -5,8 +5,9 @@
 
 ## Current state
 
-- **Current milestone:** M0 running on exotiq-rent (separate agent); M2 + M3 complete pending PR merge; M1 decision register awaiting Gregory
-- **Last session:** 2026-07-15 — M3 public read plumbing (PR #22, stacked on #21)
+- **Current milestone:** M1/M2/M3 COMPLETE and merged to main (PRs #20/#21/#22, 2026-07-16, merge explicitly authorized by Gregory). Next: hosted application via Lovable (`docs/rent/LOVABLE-PROMPTS-RENT.md`), then M4.
+- **exotiq-rent status:** PRs #2 (M0 bootstrap) and #3 (D1/D5/D9 frontend changes) are OPEN on exotiq-rent — merging them + repointing the Netlify deploy is what fixes demo.exotiq.rent (currently showing old cyan marketplace from stale main).
+- **Last session:** 2026-07-16 — merged #20/#21/#22, wrote Lovable prompts
 
 ## Completed
 
