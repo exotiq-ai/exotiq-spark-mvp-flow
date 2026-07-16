@@ -68,6 +68,21 @@
 2. `ProtectStep`: pricing copy $89 standard / $289 premium (premium default); decline path must present decline terms (copy TODO: renter liable for total cash value incl. total loss; personal auto insurance verified before pickup).
 3. Review/Pay/Confirmation: keep two-party billing; label the Exotiq line as booking fee + protection.
 
+## Session 2026-07-16 (late): D1 hardcode retirement + handoffs
+
+- PR #23 (`cursor/retire-marketplace-fee-hardcode-cde9`) — OPEN, awaiting
+  Gregory merge: removes the 20% marketplace application fee from
+  `create-payment-checkout` + `stripe-create-hold` (D1); adds renter items to
+  the cutover go/no-go checklist; updates LOVABLE-PROMPTS-RENT.md (1–4 done,
+  Prompt 5 toggles now recommended, Prompt 6 fee-retirement awareness note).
+  NOTE: functions auto-deploy from repo sync on merge.
+- Pending Gregory: (a) merge PR #23, (b) positive-path test — designate an
+  opt-in team + vehicle and run the prompt from the 2026-07-16 03:05 session,
+  (c) send Lovable Prompt 5 (visibility toggles) and Prompt 6 (awareness),
+  (d) merge exotiq-rent PRs #2/#3 to fix demo.exotiq.rent.
+- exotiq-rent lane (M0/M4) is owned by the other cloud agent — this repo's
+  sessions must not touch that repo's in-flight branches.
+
 ## Next action
 
 M4 (real reads in the renter app, exotiq-rent repo — needs #21/#22 merged AND applied to hosted project first): `services/exotiq-rent/client.ts` + `adapters.ts` wrapping the five public RPCs + media endpoint, `NEXT_PUBLIC_EXOTIQ_RENT_DATA_MODE=mock|supabase` flag, contract tests against RPC shapes; mock mode must stay green with no env. Coordinate with the M0 agent's branch to avoid conflicts. Meanwhile: M5 prep is possible decision-free only up to drafting the `btree_gist` exclusion constraint migration (blocked on cutover for apply). Chase D-register answers and Lovable export artifacts.
