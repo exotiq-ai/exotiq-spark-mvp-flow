@@ -40,7 +40,10 @@ interface VehicleRow {
 
 const logAdminAction = async (action: string, details: Record<string, unknown>) => {
   try {
-    await supabase.rpc('log_admin_action', { p_action: action, p_details: details });
+    await supabase.rpc('log_admin_action', {
+      p_action: action,
+      p_details: details as unknown as never,
+    });
   } catch (e) {
     console.error('[MarketplaceAdmin] audit log failed:', e);
   }
