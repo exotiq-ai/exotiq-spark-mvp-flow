@@ -13,9 +13,22 @@
   was merged to repo main but NEVER applied to the cloud DB — the cross-team
   RLS holes were live in production until now. Lovable was instructed to apply
   it (+ `20260530224500`) before the M2 migration, then produce a drift report
-  of all post-2026-05-30 repo migrations with no applied record. Triage that
+  of all post-2026-05-30 repo migrations with no applied record.   Triage that
   report when it arrives. Root cause: no pipeline from repo main → hosted DB;
   resolved permanently by the planned Supabase migration (CI-applied migrations).
+- **Drift report triaged (2026-07-16):** clean — only 5 unapplied migrations
+  (the two 20260530 hardening files + the three M2/M3 files). Apply order
+  1→2→3→4→5 approved.
+- **DEFERRED TO CUTOVER — realtime.messages policies:** Lovable Cloud's
+  migration runner cannot ALTER/CREATE POLICY on `realtime.messages`
+  (ownership restriction; error 42501). The realtime block of
+  `20260530203000_harden_tenant_rls_policies.sql` was skipped on cloud apply
+  (safe: policies only bind to private channels, which the app does not use
+  yet). ACTION AT MIGRATION CUTOVER: apply the realtime block on the new
+  self-managed project, and pair it with a frontend switch to private
+  channels (add to M-post-cutover hardening). Also: earlier partial apply
+  detected on cloud (team_conversations delete policy pre-existed) — Lovable
+  asked to report which policies already existed.
 
 ## Completed
 
