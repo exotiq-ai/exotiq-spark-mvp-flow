@@ -8,6 +8,14 @@
 - **Current milestone:** M1/M2/M3 COMPLETE and merged to main (PRs #20/#21/#22, 2026-07-16, merge explicitly authorized by Gregory). Next: hosted application via Lovable (`docs/rent/LOVABLE-PROMPTS-RENT.md`), then M4.
 - **exotiq-rent status:** PRs #2 (M0 bootstrap) and #3 (D1/D5/D9 frontend changes) are OPEN on exotiq-rent — merging them + repointing the Netlify deploy is what fixes demo.exotiq.rent (currently showing old cyan marketplace from stale main).
 - **Last session:** 2026-07-16 — merged #20/#21/#22, wrote Lovable prompts
+- **CRITICAL FINDING (2026-07-16):** the May 31 security hardening migration
+  (`20260530203000_harden_tenant_rls_policies.sql`, inventory findings 1–4)
+  was merged to repo main but NEVER applied to the cloud DB — the cross-team
+  RLS holes were live in production until now. Lovable was instructed to apply
+  it (+ `20260530224500`) before the M2 migration, then produce a drift report
+  of all post-2026-05-30 repo migrations with no applied record. Triage that
+  report when it arrives. Root cause: no pipeline from repo main → hosted DB;
+  resolved permanently by the planned Supabase migration (CI-applied migrations).
 
 ## Completed
 
