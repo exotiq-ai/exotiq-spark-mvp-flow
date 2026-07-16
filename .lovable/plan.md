@@ -1,64 +1,84 @@
-## Goal
 
-Give super admins a no-SQL way to flip `teams.marketplace_visible` and `vehicles.marketplace_visible`, and turn marketplace on for `hello@exotiq.ai` so end-to-end M3 features can be exercised.
+# Marketplace Launch Hardening Plan
 
-## Deliverables
+Four workstreams to ship before flipping the marketplace on for teams beyond Exotiq. Everything is additive — no changes to existing booking, pricing, or payout code paths.
 
-### 1. Data: enable marketplace for Exotiq team
-The Exotiq team (`hello@exotiq.ai`) currently has `is_demo_account = true` and `marketplace_visible = false`. The `is_marketplace_team()` gate requires `is_demo_account = false`, so both flags must change for the team to appear on the public marketplace. Seed via an `insert` tool call:
-- `teams.marketplace_visible = true`
-- `teams.is_demo_account = false`
-- `teams.public_description` = short default blurb (only if null)
-- Flip every non-archived, non-trashed vehicle on that team to `marketplace_visible = true` so there is real fleet content to test.
+---
 
-### 2. New Super Admin tab: "Marketplace"
-Add a tab to `src/pages/SuperAdminDashboard.tsx` alongside the existing ones (Tenant Health, Vehicles, Billing, etc.), backed by a new component `src/components/super-admin/MarketplaceVisibilityTab.tsx`.
+## 1. Public SEO & Metadata
 
-Layout:
-```text
-Marketplace Visibility
-┌─ Teams ────────────────────────────────────────┐
-│ [search box: team name / owner email]          │
-│                                                │
-│ Team           Owner            Demo   Visible │
-│ Exotiq         hello@exotiq.ai  [off]  [ ON  ] │
-│ Acme Rentals   jane@acme.com    [off]  [ off ] │
-│ ...                                            │
-└────────────────────────────────────────────────┘
+**Goal:** Every marketplace-visible vehicle is discoverable and shares cleanly on social.
 
-Click a team row → expands to a vehicle list:
-┌─ Exotiq · Fleet (12) ──────────────────────────┐
-│ [Show all] [Only visible]                      │
-│                                                │
-│ Vehicle              Status     Visible        │
-│ 2011 BMW M3          available  [ ON  ]        │
-│ 2020 Porsche 911     booked     [ off ]        │
-│ ...                                            │
-│                                                │
-│ [Enable all] [Disable all]                     │
-└────────────────────────────────────────────────┘
-```
+- Add `react-helmet-async` provider at app root (already in dep list — verify).
+- New public route wrapper on the existing marketplace vehicle detail page injects per-vehicle:
+  - `<title>` = `{Year} {Make} {Model} — Rent from {Team Name}`
+  - `<meta name="description">` = first 155 chars of vehicle description or generated fallback (`Rent this {year} {make} {model} in {city}. From ${daily_rate}/day.`)
+  - `<link rel="canonical">` = `https://exotiq.ai/rent/{team-slug}/{vehicle-slug}`
+  - `og:title`, `og:description`, `og:url`, `og:type=product`, `og:image` = hero photo signed URL (long-TTL public variant — see §4)
+  - `twitter:card=summary_large_image`
+  - JSON-LD `Vehicle` + `Offer` schema (price, availability, brand, model, vehicleModelDate, image[])
+- Team landing page (`/rent/{team-slug}`) gets `LocalBusiness` + `ItemList` JSON-LD.
+- New `scripts/generate-sitemap.ts` (predev/prebuild) queries the anon `rent_public_*` RPC for all visible teams + vehicles and writes `public/sitemap.xml`. Static routes + one entry per marketplace vehicle.
+- `public/robots.txt` allow `/rent/*`, disallow `/dashboard/*`, `/super-admin`, `/auth/*`; add `Sitemap:` directive.
+- Update root `index.html` with a marketplace-appropriate default title/description (currently generic).
 
-Behaviour:
-- Team `Visible` switch toggles `teams.marketplace_visible`. If the team is still `is_demo_account = true`, show an inline warning ("Team is marked as demo — it will not appear on the public marketplace") with a secondary "Mark as production" button that sets `is_demo_account = false`.
-- Vehicle `Visible` switch toggles `vehicles.marketplace_visible`. Disabled with a tooltip if the parent team is not marketplace-visible or is archived/trashed.
-- Bulk "Enable all / Disable all" applies to the currently filtered vehicle list for that team.
-- All toggles are optimistic with TanStack Query invalidation, error toast on failure.
-- Every mutation calls `log_admin_action('toggle_marketplace_team' | 'toggle_marketplace_vehicle', target_user_id, { team_id, vehicle_id, value })` so it lands in `admin_audit_log`.
+## 2. Marketplace Go-Live Checklist (enforced gate)
 
-### 3. Access control
-No new RLS work required — the existing super admin bypass policies already let super admins `UPDATE` `teams` and `vehicles`. The tab is only reachable through `SuperAdminGuard`, so no additional UI-side gating is needed beyond the existing route protection.
+**Goal:** A team's `marketplace_visible` toggle cannot flip on until every check passes. Super admin sees the same checklist and can force-override with a logged reason.
+
+New DB function `public.get_marketplace_readiness(team_id uuid)` returns a jsonb of check results. Server-side trigger on `teams` blocks `UPDATE ... SET marketplace_visible = true` unless readiness returns all-green OR the caller is a super_admin with `override_reason` set in a session GUC.
+
+Checks per team:
+- Stripe Connect account = `charges_enabled` AND `payouts_enabled`
+- Team profile: logo, business name, primary location, contact email
+- Legal: current terms version accepted by owner
+- ≥1 marketplace-visible vehicle that itself passes vehicle checks
+
+Checks per vehicle (used by team gate + shown on vehicle row):
+- ≥5 photos, hero photo assigned
+- Daily rate set (>0), rate tiers not all null
+- Description ≥120 chars
+- Location assigned
+- `status = 'available'`, not archived/trashed
+- No open critical maintenance work order
+
+New UI: `MarketplaceReadinessPanel.tsx` inside the existing `MarketplaceVisibilityTab` — expands above each team row. Green/red pill per check with a "Fix" deep-link to the exact settings page. "Publish to marketplace" button replaces the raw switch and is disabled until green. Super admin sees an "Override & publish" secondary button that opens a reason modal and calls the RPC with the override GUC set; logged via `log_admin_action`.
+
+## 3. Public Listing Analytics
+
+**Goal:** Teams and super admin can see traffic on public listings.
+
+New table `public.marketplace_listing_events` (event_type, team_id, vehicle_id, session_hash, referrer, user_agent_family, country, created_at). RLS: insert via a new anon-callable edge function `rent-track-event` (validates event shape, salts+hashes IP → session_hash, drops raw IP); select restricted to team members for their team + super admins for all. GRANTs per public-schema rules.
+
+Client: tiny `useMarketplaceTracking` hook fires `view` on vehicle detail mount, `click_contact` / `click_book` on CTA click. Debounced, no PII.
+
+New RPC `get_marketplace_listing_stats(team_id, range)` returns per-vehicle views/clicks/CTR + sparkline. Surfaced in:
+- Super Admin → Marketplace tab: aggregate strip (views 7d, top 5 vehicles, worst-performing).
+- Team owner Marketplace settings page: per-vehicle table.
+
+## 4. Abuse & Rate-Limit Hardening
+
+**Goal:** Anon endpoints can't be scraped or DoS'd cheaply.
+
+- `rent-public-media`, `rent-public-catalog`, `rent-track-event` edge functions: add lightweight in-function rate limiter keyed on `IP + route` using a new `public.edge_rate_buckets` table (upsert token count with window reset). Return 429 with `Retry-After`. Limits: media 60/min/IP, catalog 120/min/IP, track 30/min/IP.
+- Global kill-switch: `public.platform_flags` row `marketplace_public_enabled` (bool). All three functions short-circuit to 503 when false. Toggle lives in Super Admin → Marketplace tab header.
+- Signed URL TTL split: hero image variant gets 24h TTL for OG scraping; gallery keeps 1h.
+- Audit log: every anon hit writes a minimal row (route, status, session_hash, ms) to a `marketplace_access_log` partitioned by day, 30-day retention via existing retention sweep pattern.
+- Robots for known bad bots (AhrefsBot, SemrushBot, MJ12bot) → disallow, keep GoogleBot/Bingbot/social scrapers allowed.
+
+---
 
 ## Technical notes
 
-- Queries: single `select id, name, marketplace_visible, is_demo_account, public_description, owner_id` on `teams` (filter out `deleted_at is not null`), and a lazy `select id, year, make, model, marketplace_visible, status, archived_at, trashed_at` on `vehicles` scoped by `team_id` when a team row is expanded.
-- Owner email resolved via existing `profiles` join pattern used elsewhere in Super Admin (avoid touching `auth.users` directly from the client).
-- Use shadcn `Switch`, `Input`, `Collapsible`, `Badge`, and `Tooltip` — no new dependencies.
-- Audit log RPC: reuse existing `log_admin_action` function; wrap in a helper `logAdminAction()` local to the tab.
-- Add a lightweight `useMarketplaceAdmin` hook (in the same file) that owns the two mutations to keep the component tidy.
+- Migration order: (1) tables + GRANTs + RLS, (2) readiness function + trigger, (3) analytics RPC, (4) rate-limit table + kill-switch flag. Trigger uses `SECURITY DEFINER` with `SET search_path = public`.
+- Existing `rent-public-media` already returns signed URLs; extend to accept `?variant=hero|gallery` for TTL split.
+- No new npm deps beyond `react-helmet-async` (already used elsewhere per grep — verify in build step).
+- Feature-flag the enforced gate behind `featureFlags.marketplaceGateEnforced` so we can ship UI first, enforce in a follow-up if any current visible team fails checks.
+- All new admin actions call `log_admin_action`.
 
-## Out of scope
+## Out of scope (flag for later)
 
-- No RLS or migration changes.
-- No public marketplace UI changes — this is admin plumbing only.
-- No new permission types on `super_admins.permissions`; existing super admin access is sufficient.
+- Email/SMS notifications to teams when a check regresses.
+- A/B testing framework for listing copy.
+- Marketplace-side reviews / ratings.
+- Per-vehicle SEO A/B (title variants).
