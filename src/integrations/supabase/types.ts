@@ -5542,6 +5542,7 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      get_marketplace_readiness: { Args: { p_team_id: string }; Returns: Json }
       get_my_role: {
         Args: never
         Returns: {
