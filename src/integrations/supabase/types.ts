@@ -5796,6 +5796,93 @@ export type Database = {
         }[]
       }
       next_invoice_number: { Args: { p_team_id: string }; Returns: string }
+      public_team_by_slug: {
+        Args: { _team_slug: string }
+        Returns: {
+          city: string
+          currency: string
+          logo_url: string
+          name: string
+          public_description: string
+          slug: string
+          state: string
+          timezone: string
+        }[]
+      }
+      public_team_fleet: {
+        Args: { _team_slug: string }
+        Returns: {
+          color: string
+          daily_rate: number
+          hero_image_url: string
+          make: string
+          min_rental_days: number
+          model: string
+          name: string
+          vehicle_slug: string
+          year: number
+        }[]
+      }
+      public_vehicle_availability: {
+        Args: {
+          _range_end: string
+          _range_start: string
+          _team_slug: string
+          _vehicle_slug: string
+        }
+        Returns: {
+          busy_end: string
+          busy_start: string
+        }[]
+      }
+      public_vehicle_by_slug: {
+        Args: { _team_slug: string; _vehicle_slug: string }
+        Returns: {
+          color: string
+          currency: string
+          daily_rate: number
+          default_mileage_limit: number
+          hero_image_url: string
+          make: string
+          mileage_overage_rate: number
+          model: string
+          name: string
+          photos: Json
+          pickup_city: string
+          pickup_state: string
+          rate_3hr: number
+          rate_6hr: number
+          rate_multiday: number
+          team_name: string
+          team_slug: string
+          timezone: string
+          vehicle_slug: string
+          year: number
+        }[]
+      }
+      public_vehicle_quote: {
+        Args: {
+          _end_date: string
+          _options?: Json
+          _start_date: string
+          _team_slug: string
+          _vehicle_slug: string
+        }
+        Returns: {
+          currency: string
+          daily_rate_cents: number
+          exotiq_total_cents: number
+          grand_total_cents: number
+          operator_total_cents: number
+          platform_fee_cents: number
+          platform_fee_percent: number
+          protection_daily_cents: number
+          protection_tier: string
+          protection_total_cents: number
+          rental_days: number
+          rental_subtotal_cents: number
+        }[]
+      }
       purge_old_notifications: { Args: never; Returns: undefined }
       purge_vehicle_now: { Args: { p_vehicle_id: string }; Returns: undefined }
       reactivate_team_member:
