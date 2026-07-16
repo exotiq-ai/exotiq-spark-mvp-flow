@@ -177,3 +177,5 @@ verify_jwt = false
 [functions.generate-vat-invoice]
 verify_jwt = false
 
+[functions.rent-public-media]
+verify_jwt = false
