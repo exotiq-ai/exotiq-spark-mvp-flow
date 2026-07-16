@@ -5,6 +5,15 @@ one at a time, top to bottom. Wait for each to complete and report before
 sending the next. Per decision D3, this file is the tracking record of
 backend changes Lovable is asked to apply for the renter marketplace.
 
+> **STATUS 2026-07-16:** Prompts 1–4 are DONE (applied via the amended
+> five-migration sequence: 20260530203000 minus the realtime block +
+> 20260530224500 + the three M2/M3 files; `rent-public-media` verified
+> 400/404 + visibility gate active). Remaining: the positive-path test
+> (needs Gregory to designate an opt-in team + vehicle) and Prompt 5 below,
+> which is now RECOMMENDED so visibility can be managed from Settings
+> instead of SQL. Prompt 6 added for awareness of the D1 fee-hardcode
+> retirement.
+
 ---
 
 ## Prompt 1 — Apply the security hardening migration (M2)
@@ -85,9 +94,7 @@ GET /functions/v1/rent-public-media?team=x&vehicle=y should return 404
 params should return 400. Report the results.
 ```
 
-## Prompt 5 — OPTIONAL, later: Command Center visibility toggles
-
-Hold this one until we're ready to show real inventory on exotiq.rent.
+## Prompt 5 — NOW RECOMMENDED: Command Center visibility toggles
 
 ```text
 Add marketplace visibility controls to the Command Center. In Settings ->
@@ -98,4 +105,17 @@ bound to teams.public_description. On the vehicle edit dialog, add a toggle
 when the team toggle is on. Both default off. Do not change any other
 settings sections, do not touch booking or pricing logic, and leave all
 unrelated files untouched.
+```
+
+## Prompt 6 — Awareness only (no action): D1 fee hardcode retired
+
+```text
+Heads-up, no code changes requested: per the decision register
+(docs/rent/DECISIONS.md, D1), the hardcoded 20% marketplace application fee
+in create-payment-checkout and stripe-create-hold has been removed in the
+repo — these operator-side functions now never attach an application fee.
+The Exotiq renter booking fee (10% of rental subtotal, charged to the renter
+separately) will be implemented in the renter payment flow later (M6).
+These functions redeploy automatically from the repo sync. Please do not
+reintroduce application_fee_amount to either function in future edits.
 ```

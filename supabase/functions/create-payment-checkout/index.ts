@@ -101,20 +101,13 @@ serve(async (req) => {
     // existing US tenants see identical behaviour.
     const currency: string = (team.currency || "USD").toLowerCase();
 
-    // Check booking source for marketplace fee
-    let platformFee = 0;
-    if (booking_id) {
-      const { data: booking } = await supabaseClient
-        .from("bookings")
-        .select("booking_source")
-        .eq("id", booking_id)
-        .single();
-      
-      if (booking?.booking_source === 'marketplace') {
-        platformFee = Math.round(amount * 100 * 0.20); // 20% for marketplace bookings
-        logStep("Marketplace booking — applying 20% platform fee", { platformFee: platformFee / 100 });
-      }
-    }
+    // DECISION D1 (2026-07-15, docs/rent/DECISIONS.md): the legacy hardcoded
+    // 20% marketplace application fee is retired. The Exotiq booking fee is a
+    // renter-side charge (10% of rental subtotal, charged separately from the
+    // operator's charge) and will be implemented in the M6 renter payment
+    // flow — it is never taken as an application fee on operator-initiated
+    // checkouts or deposit holds.
+    const platformFee = 0;
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
     const stripeOpts = { stripeAccount: stripeAccountId };

@@ -63,15 +63,13 @@ serve(async (req) => {
     // US tenants see identical behaviour.
     const currency = (team.currency || "USD").toLowerCase();
 
-    // Check booking source for fee calculation
-    const { data: booking } = await supabaseClient
-      .from("bookings")
-      .select("booking_source")
-      .eq("id", booking_id)
-      .single();
-
-    const isMarketplace = booking?.booking_source === 'marketplace';
-    const platformFee = isMarketplace ? Math.round(amount * 100 * 0.20) : 0;
+    // DECISION D1 (2026-07-15, docs/rent/DECISIONS.md): the legacy hardcoded
+    // 20% marketplace application fee is retired. Security deposits are
+    // operator-owned and explicitly excluded from the Exotiq fee base, so a
+    // deposit hold never carries an application fee regardless of
+    // booking_source. The renter-side booking fee lands in M6 as a separate
+    // Exotiq charge.
+    const platformFee = 0;
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 

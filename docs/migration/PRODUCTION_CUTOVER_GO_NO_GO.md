@@ -53,6 +53,26 @@ Rollback is env-var reversal plus Netlify production redeploy.
 - [ ] Stripe sanity checks pass without unsafe live charges.
 - [ ] Browser console has no new critical errors.
 
+## Renter Marketplace Items (added 2026-07-16, see docs/rent/CHECKPOINT.md)
+
+- [ ] Apply the deferred `realtime.messages` block from
+      `20260530203000_harden_tenant_rls_policies.sql` (Lovable Cloud could not
+      apply it — ownership restriction; the new self-managed project can).
+      Pair with the frontend switch to private realtime channels.
+- [ ] Verify the five renter migrations survived the restore
+      (`20260530203000`, `20260530224500`, `20260715211500`,
+      `20260715220000`, `20260715220100`) — policies, helper functions,
+      slugs, visibility flags.
+- [ ] Verify public RPCs post-restore with the new anon key:
+      `public_team_by_slug` returns only marketplace-visible teams; anon
+      cannot read `teams`/`vehicles`/`bookings` directly.
+- [ ] Re-deploy `rent-public-media` on the new project and re-test 400/404/200.
+- [ ] Update the exotiq-rent app env (`NEXT_PUBLIC_SUPABASE_URL`/anon key)
+      if M4 supabase mode is live by then.
+- [ ] M5 (booking writes) remains blocked until AFTER this cutover completes;
+      the `btree_gist` double-booking exclusion constraint is added then
+      (pre-check for existing overlapping bookings first).
+
 ## Rollback Triggers
 
 Rollback immediately if:
