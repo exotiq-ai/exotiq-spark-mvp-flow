@@ -3407,11 +3407,13 @@ export type Database = {
           is_demo_account: boolean | null
           locale: string
           logo_url: string | null
+          marketplace_visible: boolean
           min_rate: number | null
           name: string
           owner_id: string
           platform_fee_percent: number
           primary_jurisdiction: string | null
+          public_description: string | null
           rental_buffer_minutes: number | null
           seat_audit_reviewed_at: string | null
           seat_audit_reviewed_by: string | null
@@ -3462,11 +3464,13 @@ export type Database = {
           is_demo_account?: boolean | null
           locale?: string
           logo_url?: string | null
+          marketplace_visible?: boolean
           min_rate?: number | null
           name: string
           owner_id: string
           platform_fee_percent?: number
           primary_jurisdiction?: string | null
+          public_description?: string | null
           rental_buffer_minutes?: number | null
           seat_audit_reviewed_at?: string | null
           seat_audit_reviewed_by?: string | null
@@ -3517,11 +3521,13 @@ export type Database = {
           is_demo_account?: boolean | null
           locale?: string
           logo_url?: string | null
+          marketplace_visible?: boolean
           min_rate?: number | null
           name?: string
           owner_id?: string
           platform_fee_percent?: number
           primary_jurisdiction?: string | null
+          public_description?: string | null
           rental_buffer_minutes?: number | null
           seat_audit_reviewed_at?: string | null
           seat_audit_reviewed_by?: string | null
@@ -4843,6 +4849,7 @@ export type Database = {
           location: string | null
           location_id: string | null
           make: string
+          marketplace_visible: boolean
           mileage: number | null
           mileage_overage_rate: number | null
           model: string
@@ -4855,6 +4862,7 @@ export type Database = {
           rate_6hr: number | null
           rate_multiday: number | null
           revenue: number | null
+          slug: string | null
           split_type: string | null
           split_value: number | null
           status: string | null
@@ -4881,6 +4889,7 @@ export type Database = {
           location?: string | null
           location_id?: string | null
           make: string
+          marketplace_visible?: boolean
           mileage?: number | null
           mileage_overage_rate?: number | null
           model: string
@@ -4893,6 +4902,7 @@ export type Database = {
           rate_6hr?: number | null
           rate_multiday?: number | null
           revenue?: number | null
+          slug?: string | null
           split_type?: string | null
           split_value?: number | null
           status?: string | null
@@ -4919,6 +4929,7 @@ export type Database = {
           location?: string | null
           location_id?: string | null
           make?: string
+          marketplace_visible?: boolean
           mileage?: number | null
           mileage_overage_rate?: number | null
           model?: string
@@ -4931,6 +4942,7 @@ export type Database = {
           rate_6hr?: number | null
           rate_multiday?: number | null
           revenue?: number | null
+          slug?: string | null
           split_type?: string | null
           split_value?: number | null
           status?: string | null
@@ -5702,6 +5714,11 @@ export type Database = {
         Args: { _actor: string; _target: string }
         Returns: boolean
       }
+      is_marketplace_team: { Args: { _team_id: string }; Returns: boolean }
+      is_marketplace_vehicle: {
+        Args: { _vehicle_id: string }
+        Returns: boolean
+      }
       is_my_team_admin: { Args: { p_team_id: string }; Returns: boolean }
       is_my_team_member: { Args: { p_team_id: string }; Returns: boolean }
       is_same_team: {
@@ -5912,6 +5929,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      slugify: { Args: { _input: string }; Returns: string }
       snapshot_vehicle_billing: { Args: never; Returns: undefined }
       super_admin_has_permission: {
         Args: { check_user_id?: string; permission_name: string }
