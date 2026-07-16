@@ -78,6 +78,13 @@ export const featureFlags = {
   // tenant-facing banner / Vault section is gated by this flag.
   tenantEsignature: true,
 
+  // Marketplace go-live gate (workstream 2)
+  // UI-only by default: the readiness panel is shown, but the DB trigger
+  // does not enforce until an admin sets `app.marketplace_gate_enforced=on`
+  // for their session. Flip this flag to true once every currently-visible
+  // team passes the checklist.
+  marketplaceGateEnforced: false,
+
   // Multi-currency & VAT (Phase 1)
   // Master kill-switch for non-USD tenants. Default ON. If a regression hits
   // US tenants, flip OFF — every code path falls back to USD/`Tax`/0% and
