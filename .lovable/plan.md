@@ -1,61 +1,58 @@
-# Fix Orion showing USD instead of GBP
+# Sequential Migration Apply + Verification Plan
 
-## Diagnosis
+No frontend code changes. Apply each migration exactly as written in the repo, verify, then move to the next. Stop and report if any verification fails.
 
-Orion's team is correctly configured in the backend: `country_code=GB`, `currency=GBP`, `locale=en-GB`, `tax_label=VAT`. So this is **not** a data problem — it's an incomplete Phase 1 migration.
+## Step 1 — Apply `20260530203000_harden_tenant_rls_policies.sql`
+Apply via migration tool (verbatim from repo file).
 
-The codebase has a tenant-aware money hook (`useMoney` → `formatMoney(value, { currency, locale })`) that pulls currency/locale from `TeamContext`. However, many components still hardcode a `$` glyph and `.toLocaleString()` instead of calling `money(value)`. The Fleet card in the screenshot is one of them:
+**Verify:**
+- `pg_proc` contains: `can_read_team_or_user_storage_path`, `can_write_team_or_user_storage_path`, `can_manage_team_or_user_storage_path`, `can_access_realtime_topic`, `has_shared_team_role`, and updated `is_same_team`.
+- App check: a normal team member can still open customer documents and chat attachments (verified via storage.objects policy inspection + one signed-URL read as authenticated role).
 
-```tsx
-// src/components/fleet/FleetVehicleCard.tsx
-${vehicle.current_rate.toLocaleString()}   // always renders "$1,850"
-3h ${vehicle.rate_3hr}
-6h ${vehicle.rate_6hr}
-```
+## Step 2 — Apply `20260530224500_harden_signup_team_slug_generation.sql`
+**Verify:** `SELECT count(*) FROM teams WHERE slug IS NULL OR btrim(slug) = ''` returns 0.
 
-Because the glyph is a literal `$` in JSX, no team setting can change it. Same pattern exists in ~30 other files (Book, BookEnhanced, PricingCalendar, EnhancedBookingDialog, RecordPayment, RevenueBreakdown, DynamicPricingCard, MotorIQ, EntityPreview, etc.).
+## Step 3 — Apply `20260715211500_vehicle_photos_team_rls_and_webhook_events_select.sql`
+**Verify:**
+- 4 new `vehicle-photos` policies exist on `storage.objects` (SELECT/INSERT/UPDATE/DELETE, team-scoped).
+- Old "Users can view own vehicle photos" (uploader-keyed) policies are gone.
+- Fleet page vehicle photos still load for a normal team member (spot-check via signed-URL for a known team's photo).
+- SELECT policy exists on `stripe_webhook_events` restricted to super admins.
 
-## Fix strategy
+## Step 4 — Apply `20260715220000_rent_public_catalog_schema.sql`
+**Verify:**
+- `SELECT count(*) FROM vehicles WHERE slug IS NULL` = 0.
+- `SELECT team_id, slug, count(*) FROM vehicles GROUP BY 1,2 HAVING count(*)>1` returns 0 rows.
+- `SELECT count(*) FROM vehicles WHERE marketplace_visible` = 0 and same for `teams.marketplace_visible`.
+- Helper fns `is_marketplace_team`, `is_marketplace_vehicle` exist.
 
-Replace hardcoded `$…toLocaleString()` with the tenant formatter. Scope the change to the **user-facing app modules** (Fleet, Bookings, Dashboard, Dialogs, Rari preview, Pricing tools). Do NOT touch:
+## Step 5 — Apply `20260715220100_rent_public_read_rpcs.sql`
+**Verify with anon key (via curl against PostgREST):**
+- `public_team_by_slug('anything')` → 0 rows.
+- Direct `select` on `teams`, `vehicles`, `bookings` → permission denied / 0 rows for anon.
+- All 5 RPCs exist with EXECUTE granted to anon.
 
-- `src/components/landing/pricing/*` — public marketing pages, always USD by design.
-- `src/components/super-admin/*` — platform billing (Stripe), always USD.
-- Subscription / SaaS billing UI (`SubscriptionSection`, `PlanSelectionModal`) — priced in USD by Stripe.
+## Step 6 — Edge function `rent-public-media`
+- Confirm deployed (list functions).
+- `GET /functions/v1/rent-public-media?team=x&vehicle=y` → 404.
+- `GET /functions/v1/rent-public-media` (no params) → 400.
 
-## Steps
+## Step 7 — Security linter
+Run `supabase--linter`, report all findings (flag new ones vs pre-existing).
 
-1. **FleetVehicleCard.tsx** (the screenshot): import `useMoney`, replace the four `$…` price renders (lines 371, 377, 380, 638, 644, 647) with `money(vehicle.current_rate)` / `money(vehicle.rate_3hr)` / `money(vehicle.rate_6hr)`. Keep `/day`, `3h`, `6h` labels.
+## Step 8 — Full app smoke test (Playwright, headless, using injected auth session)
+- Login/session restore → dashboard renders.
+- Create booking flow opens and can submit.
+- Customer documents load.
+- Fleet page vehicle photos render.
+- Team chat opens and shows messages.
+- Realtime notifications channel connects (no console errors).
+Screenshot each step to `/tmp/browser/screenshots/`.
 
-2. **Booking surfaces** — same swap in:
-   - `Book.tsx`, `BookEnhanced.tsx`
-   - `NewBookingDialog.tsx`, `EnhancedBookingDialog.tsx`, `EditBookingDialog.tsx`, `ChangeVehicleDialog.tsx`, `CheckInOutDialog.tsx`
-   - `RecordPaymentDialog.tsx`, `RevenueBreakdownDialog.tsx`, `PaymentExportDialog.tsx`, `PriceOptimizationDialog.tsx`
-   - `PricingCalendar.tsx`, `DynamicPricingCard.tsx`, `QuickPriceEditorContent.tsx`
+## Reporting
+After each step: PASS/FAIL summary. At the end: consolidated report of all verifications, linter findings, and smoke-test screenshots. Halt immediately on any failure and surface the exact error before proceeding.
 
-3. **Dashboard / insights** — `MotorIQEnhanced.tsx`, `AIAlertsFeed.tsx`, `RealAIInsights.tsx`, `DamageClaimsSection.tsx`, `CRMSection.tsx`, `CustomerProfileDialog.tsx`, `EntityPreview.tsx`, `FleetFilters.tsx` (price sliders), `ImportSummary.tsx`.
-
-4. **Sweep guard**: after edits, `rg "\\\$\{" src/components/fleet src/components/bookings src/components/dashboard src/components/dialogs` should return only intentional non-currency uses (e.g. template literals for URLs, IDs). Anything remaining that's a price gets migrated.
-
-5. **Verify with Playwright**: sign in as Orion, load `/fleet`, screenshot a card, confirm `£1,850` renders. Same check on `/dashboard` and the New Booking dialog.
-
-## Out of scope
-
-- Backend price storage (already currency-agnostic decimals).
-- Stripe checkout amounts (Stripe converts on its side; tenant Connect account is region-specific).
-- Tax display (VAT label already wired via `useMoney().taxLabel`).
-- The USD→GBP FX conversion of stored numeric values — rates are entered by the tenant in their own currency, so `1850` for Orion is £1,850, not a converted value.
-
-## Technical notes
-
-Pattern per file:
-
-```tsx
-import { useMoney } from '@/hooks/useMoney';
-
-const { money } = useMoney();
-// before: ${value.toLocaleString()}
-// after:  {money(value)}
-```
-
-For places that need only the symbol (e.g. an input adornment), read `currency` from `useMoney()` and derive the symbol via `(0).toLocaleString(locale, { style: 'currency', currency, minimumFractionDigits: 0 }).replace(/\d/g, '').trim()` or just render the formatted zero.
+## Guardrails
+- No frontend code changes.
+- No migrations beyond these five.
+- If a migration's verification fails, stop and report — do not attempt to patch the SQL.
