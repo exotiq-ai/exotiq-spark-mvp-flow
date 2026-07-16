@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ChevronDown, ChevronRight, Search, AlertTriangle, Loader2 } from 'lucide-react';
+import { MarketplaceReadinessPanel } from './MarketplaceReadinessPanel';
 
 interface TeamRow {
   id: string;
