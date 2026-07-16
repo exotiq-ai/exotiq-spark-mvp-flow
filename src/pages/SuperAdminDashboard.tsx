@@ -229,6 +229,10 @@ export const SuperAdminDashboard = () => {
               <FileSignature className="h-4 w-4 mr-2" />
               Documents
             </TabsTrigger>
+            <TabsTrigger value="marketplace">
+              <Store className="h-4 w-4 mr-2" />
+              Marketplace
+            </TabsTrigger>
             <TabsTrigger value="audit">
               <Database className="h-4 w-4 mr-2" />
               Audit Log
