@@ -1,0 +1,101 @@
+# Lovable Prompts — Renter App Backend (M2 + M3)
+
+Written 2026-07-16 after PRs #20/#21/#22 merged to main. Paste into Lovable
+one at a time, top to bottom. Wait for each to complete and report before
+sending the next. Per decision D3, this file is the tracking record of
+backend changes Lovable is asked to apply for the renter marketplace.
+
+---
+
+## Prompt 1 — Apply the security hardening migration (M2)
+
+```text
+Do not modify any frontend code or regenerate any files in this task.
+
+Our repo main now contains a new migration file:
+supabase/migrations/20260715211500_vehicle_photos_team_rls_and_webhook_events_select.sql
+
+Please apply this migration to the cloud database exactly as written, without
+editing it. It replaces the uploader-keyed storage policies on the
+vehicle-photos bucket with team-scoped policies (using the helper functions
+from the 20260530203000 hardening migration), and adds a super-admin-only
+SELECT policy on stripe_webhook_events.
+
+After applying, confirm: (1) the four new vehicle-photos policies exist on
+storage.objects, (2) the old "Users can view own vehicle photos" policy is
+gone, (3) team members can still see their team's vehicle photos in the app,
+and (4) run the security linter and report any new findings.
+```
+
+## Prompt 2 — Apply the marketplace catalog migration (M3 part 1)
+
+```text
+Do not modify any frontend code or regenerate any files in this task.
+
+Our repo main now contains a new migration file:
+supabase/migrations/20260715220000_rent_public_catalog_schema.sql
+
+Please apply it to the cloud database exactly as written, without editing it.
+It adds: vehicles.slug (with deterministic backfill and a collision-suffixing
+trigger, unique per team), teams.marketplace_visible + teams.public_description,
+vehicles.marketplace_visible (all defaulting to false), and the
+is_marketplace_team / is_marketplace_vehicle helper functions.
+
+After applying, confirm: (1) every vehicle row has a non-null slug, (2) no
+duplicate (team_id, slug) pairs exist, (3) all marketplace_visible values are
+false, and (4) creating a vehicle in the app still works and gets a slug
+automatically.
+```
+
+## Prompt 3 — Apply the public read RPCs migration (M3 part 2)
+
+```text
+Do not modify any frontend code or regenerate any files in this task.
+
+Our repo main now contains a new migration file:
+supabase/migrations/20260715220100_rent_public_read_rpcs.sql
+
+Please apply it to the cloud database exactly as written, without editing it.
+It creates five SECURITY DEFINER read functions for the future public renter
+marketplace (public_team_by_slug, public_team_fleet, public_vehicle_by_slug,
+public_vehicle_availability, public_vehicle_quote) and grants EXECUTE to anon.
+They return only safe public fields and every one of them routes through the
+is_marketplace_team/is_marketplace_vehicle checks, so with all visibility
+flags false they return zero rows today.
+
+After applying, verify with the anon key: (1) select * from
+public_team_by_slug('any-team-slug') returns no rows (nothing is visible yet),
+(2) anon still cannot select from teams, vehicles, or bookings directly, and
+(3) run the security linter and report any new findings.
+```
+
+## Prompt 4 — Confirm the rent-public-media edge function deployed
+
+```text
+Do not modify any frontend code in this task.
+
+Our repo main now contains a new edge function at
+supabase/functions/rent-public-media/index.ts, registered in config.toml with
+verify_jwt = false. It returns 1-hour signed URLs for vehicle photos of a
+single marketplace-visible vehicle, re-validating visibility on every call.
+
+Please confirm it deployed from the repo sync (or deploy it), then test:
+GET /functions/v1/rent-public-media?team=x&vehicle=y should return 404
+"Not found" (no team is marketplace-visible yet), and a request with missing
+params should return 400. Report the results.
+```
+
+## Prompt 5 — OPTIONAL, later: Command Center visibility toggles
+
+Hold this one until we're ready to show real inventory on exotiq.rent.
+
+```text
+Add marketplace visibility controls to the Command Center. In Settings ->
+Business (team level), add a toggle "List my fleet on Exotiq Rent" bound to
+teams.marketplace_visible, plus a textarea "Public storefront description"
+bound to teams.public_description. On the vehicle edit dialog, add a toggle
+"Show on Exotiq Rent" bound to vehicles.marketplace_visible, visible only
+when the team toggle is on. Both default off. Do not change any other
+settings sections, do not touch booking or pricing logic, and leave all
+unrelated files untouched.
+```
