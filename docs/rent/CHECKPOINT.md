@@ -5,7 +5,13 @@
 
 ## Current state
 
-- **Current milestone:** M1/M2/M3 COMPLETE and merged to main (PRs #20/#21/#22, 2026-07-16, merge explicitly authorized by Gregory). Next: hosted application via Lovable (`docs/rent/LOVABLE-PROMPTS-RENT.md`), then M4.
+- **Current milestone:** M1/M2/M3 COMPLETE, merged to main AND applied to the
+  hosted cloud DB (Lovable, 2026-07-16): all five migrations applied
+  (realtime.messages block deferred to cutover), `rent-public-media` deployed
+  and verified (400 on missing params, 404 on unknown AND on
+  non-marketplace-visible real slugs — visibility gate confirmed active in
+  production). Positive-path (200 + signed URLs) pending Gregory designating
+  an opt-in team + vehicle. **M4 is unblocked.**
 - **exotiq-rent status:** PRs #2 (M0 bootstrap) and #3 (D1/D5/D9 frontend changes) are OPEN on exotiq-rent — merging them + repointing the Netlify deploy is what fixes demo.exotiq.rent (currently showing old cyan marketplace from stale main).
 - **Last session:** 2026-07-16 — merged #20/#21/#22, wrote Lovable prompts
 - **CRITICAL FINDING (2026-07-16):** the May 31 security hardening migration
