@@ -295,6 +295,8 @@ export const MarketplaceVisibilityTab = () => {
 
                   {isOpen && (
                     <div className="bg-muted/30 border-t px-3 py-3 space-y-3">
+                      <MarketplaceReadinessPanel teamId={team.id} />
+
                       {team.is_demo_account && (
                         <div className="flex items-start gap-2 p-3 rounded-md border border-amber-500/40 bg-amber-500/5 text-sm">
                           <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5" />
