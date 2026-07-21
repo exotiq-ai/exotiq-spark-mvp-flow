@@ -406,42 +406,77 @@ export const VerificationSection = () => {
                       {/* ID Status */}
                       <div className="flex items-center gap-2">
                         <IdCard className="h-4 w-4 text-muted-foreground" />
-                        {customer.id_verified ? (
-                          <Badge variant="default" className="gap-1">
-                            <CheckCircle2 className="h-3 w-3" />
-                            ID Verified
-                          </Badge>
-                        ) : isFeatureEnabled('idVerification') ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              setSelectedCustomer(customer);
-                              setIdUploadOpen(true);
-                            }}
-                          >
-                            <Upload className="h-3 w-3 mr-1" />
-                            Upload ID
-                          </Button>
-                        ) : (
-                          // DPA §3.8: ID image uploads disabled on Lovable path.
-                          // Re-enable via Stripe Identity / Persona integration.
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled
-                            title="ID verification coming soon — pending compliant provider integration"
-                          >
-                            <Upload className="h-3 w-3 mr-1" />
-                            Upload ID
-                          </Button>
-                        )}
+                        {(() => {
+                          const badge = getIdentityBadge(
+                            customer.identity_status,
+                            customer.id_verified_at,
+                          );
+                          const isVerified =
+                            customer.identity_status === "verified" || customer.id_verified;
+
+                          if (isVerified) {
+                            const Icon = badge?.Icon ?? CheckCircle2;
+                            return (
+                              <Badge
+                                variant="outline"
+                                className={
+                                  badge?.className ??
+                                  "bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+                                }
+                              >
+                                <Icon className="h-3 w-3 mr-1" />
+                                {badge?.label ?? "ID Verified"}
+                              </Badge>
+                            );
+                          }
+
+                          return (
+                            <>
+                              {badge && (
+                                <Badge variant="outline" className={badge.className}>
+                                  <badge.Icon className="h-3 w-3 mr-1" />
+                                  {badge.label}
+                                </Badge>
+                              )}
+                              {/* Show verify button unless we're mid-flow */}
+                              {(!badge ||
+                                customer.identity_status === "requires_input" ||
+                                customer.identity_status === "canceled") && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={verifyingId === customer.id}
+                                  onClick={() => handleVerifyId(customer)}
+                                >
+                                  <ShieldQuestion className="h-3 w-3 mr-1" />
+                                  {verifyingId === customer.id
+                                    ? "Starting…"
+                                    : customer.identity_status
+                                      ? "Resend link"
+                                      : "Verify ID"}
+                                </Button>
+                              )}
+                              {customer.identity_session_id && (
+                                <a
+                                  href={`https://dashboard.stripe.com/test/identity/verification-sessions/${customer.identity_session_id}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center text-xs text-muted-foreground hover:text-foreground"
+                                  title="View in Stripe"
+                                >
+                                  <ExternalLink className="h-3.5 w-3.5" />
+                                </a>
+                              )}
+                            </>
+                          );
+                        })()}
                         {licenseStatus && (
                           <Badge variant={licenseStatus.variant} className="text-xs">
                             {licenseStatus.label}
                           </Badge>
                         )}
                       </div>
+
 
                       {/* Insurance Status */}
                       <div className="flex items-center gap-2">
