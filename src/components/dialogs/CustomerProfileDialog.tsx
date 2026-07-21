@@ -227,38 +227,78 @@ export const CustomerProfileDialog = ({
               </div>
             )}
 
-            {/* License & Insurance */}
+            {/* Verification */}
             <div className="space-y-3">
               <h4 className="font-semibold text-sm text-muted-foreground">Verification Details</h4>
               <div className="space-y-2">
-                {customer.drivers_license && (
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
-                    <div className="flex items-center space-x-3">
-                      <CreditCard className="w-4 h-4 text-muted-foreground" />
-                      <div>
-                        <div className="text-sm font-medium">Driver's License: {customer.drivers_license}</div>
-                        <div className="text-xs text-muted-foreground">
-                          Expires: {customer.license_expiry ? new Date(customer.license_expiry).toLocaleDateString() : 'N/A'}
-                        </div>
+                {/* ID Verification (Stripe Identity) */}
+                <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-muted/30">
+                  <div className="flex items-center space-x-3 min-w-0">
+                    <Shield className="w-4 h-4 text-muted-foreground shrink-0" />
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium flex items-center gap-2 flex-wrap">
+                        ID Verification
+                        {renderIdentityBadge((customer as any).identity_status)}
                       </div>
+                      <div className="text-xs text-muted-foreground truncate">
+                        {(customer as any).verified_name && `Verified: ${(customer as any).verified_name}`}
+                        {(customer as any).document_expiry && ` · Expires ${new Date((customer as any).document_expiry).toLocaleDateString()}`}
+                        {!(customer as any).verified_name && !(customer as any).document_expiry && "Powered by Stripe Identity"}
+                      </div>
+                      {customer.drivers_license && (
+                        <div className="text-xs text-muted-foreground truncate">
+                          License #{customer.drivers_license}
+                          {customer.license_expiry && ` · exp ${new Date(customer.license_expiry).toLocaleDateString()}`}
+                        </div>
+                      )}
                     </div>
                   </div>
-                )}
-                {customer.insurance_provider && (
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
-                    <div className="flex items-center space-x-3">
-                      <Shield className="w-4 h-4 text-muted-foreground" />
-                      <div>
-                        <div className="text-sm font-medium">{customer.insurance_provider} - {customer.insurance_policy}</div>
-                        <div className="text-xs text-muted-foreground">
-                          Expires: {customer.insurance_expiry ? new Date(customer.insurance_expiry).toLocaleDateString() : 'N/A'}
-                        </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {(customer as any).identity_status !== "verified" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleStartVerification}
+                        disabled={verifyingId}
+                      >
+                        {verifyingId ? "Starting…" : "Verify ID"}
+                      </Button>
+                    )}
+                    {(customer as any).identity_session_id && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => window.open(stripeIdentityDashboardUrl((customer as any).identity_session_id), "_blank")}
+                        title="View in Stripe"
+                      >
+                        View in Stripe
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Insurance on file (neutral — no verification claim) */}
+                <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-muted/30">
+                  <div className="flex items-center space-x-3 min-w-0">
+                    <CreditCard className="w-4 h-4 text-muted-foreground shrink-0" />
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium">
+                        {customer.insurance_provider
+                          ? `Insurance on file · ${customer.insurance_provider}`
+                          : "Insurance not on file"}
                       </div>
+                      {(customer.insurance_policy || customer.insurance_expiry) && (
+                        <div className="text-xs text-muted-foreground truncate">
+                          {customer.insurance_policy && `Policy ${customer.insurance_policy}`}
+                          {customer.insurance_expiry && ` · Expires ${new Date(customer.insurance_expiry).toLocaleDateString()}`}
+                        </div>
+                      )}
                     </div>
                   </div>
-                )}
+                </div>
               </div>
             </div>
+
 
             {/* Actions */}
             <div className="flex gap-2">
