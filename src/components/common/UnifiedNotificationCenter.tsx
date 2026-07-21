@@ -80,9 +80,16 @@ export const UnifiedNotificationCenter = ({ onNavigate }: { onNavigate?: (module
   const [, setNotifSearchParams] = useSearchParams();
   
   const systemNotifications = useMemo<SystemNotification[]>(() => {
+    const tone = (t: string): SystemNotification['type'] => {
+      if (t === 'booking_update' || t === 'booking') return 'info';
+      if (t === 'payment' || t === 'identity_verified') return 'success';
+      if (t === 'damage_claim' || t === 'damage' || t === 'identity_manual_review') return 'error';
+      if (t === 'identity_requires_input') return 'warning';
+      return 'info';
+    };
     return dbNotifications.map(n => ({
       id: n.id,
-      type: (n.type === 'booking_update' || n.type === 'booking' ? 'info' : n.type === 'payment' ? 'success' : n.type === 'damage_claim' || n.type === 'damage' ? 'error' : 'info') as SystemNotification['type'],
+      type: tone(n.type),
       title: n.title,
       message: n.message,
       timestamp: n.timestamp,
@@ -92,6 +99,7 @@ export const UnifiedNotificationCenter = ({ onNavigate }: { onNavigate?: (module
       notificationType: n.type,
     }));
   }, [dbNotifications]);
+
 
   const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<string>("all");
