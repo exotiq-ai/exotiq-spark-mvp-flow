@@ -5,10 +5,18 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
-import { 
-  ShieldCheck, 
-  IdCard, 
-  FileCheck, 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  ShieldCheck,
+  IdCard,
+  FileCheck,
   AlertTriangle,
   CheckCircle2,
   XCircle,
@@ -17,15 +25,17 @@ import {
   Upload,
   Eye,
   RefreshCw,
-  Users
+  Users,
+  ShieldQuestion,
+  Copy,
+  Mail,
+  ExternalLink,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { toast } from "sonner";
 import { format, differenceInDays } from "date-fns";
-import { IDUploadDialog } from "@/components/dialogs/IDUploadDialog";
 import { InsuranceUploadDialog } from "@/components/dialogs/InsuranceUploadDialog";
-import { isFeatureEnabled } from "@/lib/featureFlags";
 
 interface CustomerVerification {
   id: string;
@@ -44,15 +54,31 @@ interface CustomerVerification {
   insurance_document_url: string | null;
   insurance_verified_at: string | null;
   total_bookings: number | null;
+  identity_status: string | null;
+  identity_session_id: string | null;
 }
+
+type IdentityStatus =
+  | "created"
+  | "processing"
+  | "verified"
+  | "requires_input"
+  | "manual_review"
+  | "canceled"
+  | "redacted";
 
 export const VerificationSection = () => {
   const { customers, loading: fleetLoading, refreshCustomers } = useLocationFilteredFleet();
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerVerification | null>(null);
-  const [idUploadOpen, setIdUploadOpen] = useState(false);
   const [insuranceUploadOpen, setInsuranceUploadOpen] = useState(false);
+  const [verifyingId, setVerifyingId] = useState<string | null>(null);
+  const [linkDialog, setLinkDialog] = useState<{
+    customer: CustomerVerification;
+    url: string;
+  } | null>(null);
+
 
   useEffect(() => {
     if (!fleetLoading) {
