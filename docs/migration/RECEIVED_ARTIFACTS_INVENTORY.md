@@ -2,6 +2,14 @@
 
 Status: blocked until Lovable/Supabase export artifacts are received.
 
+> **Update 2026-07-21:** Lovable now provides a self-serve export
+> ("Export project data", Cloud → Overview → Advanced settings, shipped
+> ~July 3, 2026) and an MCP server with direct SQL access. The support
+> escalation is no longer the critical path. See
+> [MIGRATION_DECISION_2026-07-21.md](./MIGRATION_DECISION_2026-07-21.md)
+> for the revised acquisition plan; the artifact checklist below still
+> governs what must be validated before restore.
+
 This document tracks the migration package received from Lovable/Supabase. It is
 safe to commit artifact names, checksums, counts, and support notes here. Do not
 commit secret values, raw password hashes, database dumps, storage object
