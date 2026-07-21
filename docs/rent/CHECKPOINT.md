@@ -158,6 +158,33 @@
   second-customer reuse) → live-mode checklist parked until Gregory approves
   live in writing.
 
+## Session 2026-07-21 (night): V4 sandbox test — RESULTS
+
+Prompt B shipped by Lovable and verified. V4 test record (plan §7):
+
+- **Step 2 (Command Center visibility):** ✅ badges live (note: "Link sent"
+  label shows on `created` — queue a Lovable polish prompt to rename "Link
+  created" and only show "sent" after the email action; also verify the
+  email-send button actually sends, currently unconfirmed).
+- **Step 3 (failure path, V6):** ✅ PASSED after fixing a real bug it caught:
+  attempts counted 3→2→1→0 on one reused session (fresh hosted URL per
+  retry — Stripe links are single-use by design), webhook flipped
+  `manual_review` on 3rd failure, operator notification inserted. **BUG
+  FOUND:** 4th attempt minted a new session (lockout only checked open
+  statuses). Fixed in PR #26 (MERGED 22:06 UTC, redeployed): manual_review
+  locks the CUSTOMER. Re-verified live: 4th attempt → HTTP 409. Stray
+  session vs_1TvllCQn5o30XCWdFEMKI24B — cancel or let expire.
+- **Step 4 (cross-surface operator link):** ✅ operator-initiated from
+  Command Center for gregory.ringler.test@placeholder.com, simulated
+  success on phone, API confirms `{"status":"verified","reused":true}`.
+- **Steps 1 + 5 (renter-app booking flow + cross-operator reuse in supabase
+  mode):** DEFERRED — blocked on M4 wiring. V7 reuse semantics proven at
+  the API layer for two customers.
+- exotiq-rent PRs: #6/#9 content already inside main via #5 (close them);
+  #7/#8 docs are MERGEABLE/CLEAN (Gregory merges).
+- Migration artifacts: still on hold at Lovable support (5-item list in
+  RECEIVED_ARTIFACTS_INVENTORY.md) — re-send the export request.
+
 ## Next action
 
 M4 (real reads in the renter app, exotiq-rent repo — needs #21/#22 merged AND applied to hosted project first): `services/exotiq-rent/client.ts` + `adapters.ts` wrapping the five public RPCs + media endpoint, `NEXT_PUBLIC_EXOTIQ_RENT_DATA_MODE=mock|supabase` flag, contract tests against RPC shapes; mock mode must stay green with no env. Coordinate with the M0 agent's branch to avoid conflicts. Meanwhile: M5 prep is possible decision-free only up to drafting the `btree_gist` exclusion constraint migration (blocked on cutover for apply). Chase D-register answers and Lovable export artifacts.
