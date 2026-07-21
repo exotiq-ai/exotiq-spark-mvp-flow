@@ -240,59 +240,7 @@ export const CustomerProfileDialog = ({
 
             <Separator />
 
-            {/* Contact Information */}
-            <div className="space-y-3">
-              <h4 className="font-semibold text-sm text-muted-foreground">Contact Information</h4>
-              <div className="grid grid-cols-2 gap-3">
-                {customer.phone && (
-                  <div className="flex items-center space-x-3 p-3 rounded-lg bg-muted/30">
-                    <Phone className="w-4 h-4 text-muted-foreground" />
-                    <div>
-                      <div className="text-sm font-medium">{customer.phone}</div>
-                      <div className="text-xs text-muted-foreground">Phone</div>
-                    </div>
-                  </div>
-                )}
-                {(customer as any).secondary_phone && (
-                  <div className="flex items-center space-x-3 p-3 rounded-lg bg-muted/30">
-                    <Phone className="w-4 h-4 text-muted-foreground" />
-                    <div>
-                      <div className="text-sm font-medium">{(customer as any).secondary_phone}</div>
-                      <div className="text-xs text-muted-foreground">Secondary Phone</div>
-                    </div>
-                  </div>
-                )}
-                {customer.address && (
-                  <div className="flex items-center space-x-3 p-3 rounded-lg bg-muted/30">
-                    <MapPin className="w-4 h-4 text-muted-foreground" />
-                    <div>
-                      <div className="text-sm font-medium">{customer.address}</div>
-                      <div className="text-xs text-muted-foreground">Address</div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Emergency Contact */}
-            {((customer as any).emergency_contact_name || (customer as any).emergency_contact_phone) && (
-              <div className="space-y-3">
-                <h4 className="font-semibold text-sm text-muted-foreground">Emergency Contact</h4>
-                <div className="flex items-center space-x-3 p-3 rounded-lg bg-muted/30">
-                  <UserCheck className="w-4 h-4 text-muted-foreground" />
-                  <div>
-                    {(customer as any).emergency_contact_name && (
-                      <div className="text-sm font-medium">{(customer as any).emergency_contact_name}</div>
-                    )}
-                    {(customer as any).emergency_contact_phone && (
-                      <div className="text-xs text-muted-foreground">{(customer as any).emergency_contact_phone}</div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Verification */}
+            {/* Verification (lifted above Contact for high signal) */}
             <div className="space-y-3">
               <h4 className="font-semibold text-sm text-muted-foreground">Verification Details</h4>
               <div className="space-y-2">
@@ -310,6 +258,11 @@ export const CustomerProfileDialog = ({
                         {(customer as any).document_expiry && ` · Expires ${new Date((customer as any).document_expiry).toLocaleDateString()}`}
                         {!(customer as any).verified_name && !(customer as any).document_expiry && "Powered by Stripe Identity"}
                       </div>
+                      {lastIdentityActivity && (
+                        <div className="text-xs text-muted-foreground truncate">
+                          Last activity {formatDistanceToNow(new Date(lastIdentityActivity), { addSuffix: true })}
+                        </div>
+                      )}
                       {customer.drivers_license && (
                         <div className="text-xs text-muted-foreground truncate">
                           License #{customer.drivers_license}
@@ -363,6 +316,60 @@ export const CustomerProfileDialog = ({
                 </div>
               </div>
             </div>
+
+            <Separator />
+
+            {/* Contact Information */}
+            <div className="space-y-3">
+              <h4 className="font-semibold text-sm text-muted-foreground">Contact Information</h4>
+              <div className="grid grid-cols-2 gap-3">
+                {customer.phone && (
+                  <div className="flex items-center space-x-3 p-3 rounded-lg bg-muted/30">
+                    <Phone className="w-4 h-4 text-muted-foreground" />
+                    <div>
+                      <div className="text-sm font-medium">{customer.phone}</div>
+                      <div className="text-xs text-muted-foreground">Phone</div>
+                    </div>
+                  </div>
+                )}
+                {(customer as any).secondary_phone && (
+                  <div className="flex items-center space-x-3 p-3 rounded-lg bg-muted/30">
+                    <Phone className="w-4 h-4 text-muted-foreground" />
+                    <div>
+                      <div className="text-sm font-medium">{(customer as any).secondary_phone}</div>
+                      <div className="text-xs text-muted-foreground">Secondary Phone</div>
+                    </div>
+                  </div>
+                )}
+                {customer.address && (
+                  <div className="flex items-center space-x-3 p-3 rounded-lg bg-muted/30">
+                    <MapPin className="w-4 h-4 text-muted-foreground" />
+                    <div>
+                      <div className="text-sm font-medium">{customer.address}</div>
+                      <div className="text-xs text-muted-foreground">Address</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Emergency Contact */}
+            {((customer as any).emergency_contact_name || (customer as any).emergency_contact_phone) && (
+              <div className="space-y-3">
+                <h4 className="font-semibold text-sm text-muted-foreground">Emergency Contact</h4>
+                <div className="flex items-center space-x-3 p-3 rounded-lg bg-muted/30">
+                  <UserCheck className="w-4 h-4 text-muted-foreground" />
+                  <div>
+                    {(customer as any).emergency_contact_name && (
+                      <div className="text-sm font-medium">{(customer as any).emergency_contact_name}</div>
+                    )}
+                    {(customer as any).emergency_contact_phone && (
+                      <div className="text-xs text-muted-foreground">{(customer as any).emergency_contact_phone}</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
 
 
             {/* Actions */}
