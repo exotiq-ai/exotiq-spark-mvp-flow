@@ -77,6 +77,10 @@ serve(async (req) => {
   const patch: Record<string, unknown> = {};
   let customerPatch: Record<string, unknown> | null = null;
   let notifyManualReview = false;
+  let notifyVerified = false;
+  let notifyRequiresInput = false;
+  let attemptsRemaining = 0;
+
 
   switch (event.type) {
     case "identity.verification_session.processing":
