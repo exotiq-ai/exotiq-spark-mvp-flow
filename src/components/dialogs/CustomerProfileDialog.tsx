@@ -54,6 +54,9 @@ import { CustomerTimeline } from "@/components/crm/CustomerTimeline";
 import { EntityCommentThread } from "@/components/comments/EntityCommentThread";
 import { useTeam } from "@/contexts/TeamContext";
 import { useMoney } from "@/hooks/useMoney";
+import { startIdentityVerification, stripeIdentityDashboardUrl } from "@/lib/identityVerification";
+import { toast } from "sonner";
+
 
 type Customer = Database['public']['Tables']['customers']['Row'];
 type Booking = Database['public']['Tables']['bookings']['Row'];
@@ -81,6 +84,9 @@ export const CustomerProfileDialog = ({
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [isAddingNote, setIsAddingNote] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [verifyingId, setVerifyingId] = useState(false);
+  const [verifyLinkDialog, setVerifyLinkDialog] = useState<string | null>(null);
+
 
   const customerNotesList = customerNotes.filter(note => note.customer_id === customer.id);
   
