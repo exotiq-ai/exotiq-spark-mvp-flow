@@ -217,7 +217,10 @@ export const UnifiedNotificationCenter = ({ onNavigate }: { onNavigate?: (module
     }
   }, [unreadCount]);
 
-  const getSystemIcon = (type: string) => {
+  const getSystemIcon = (type: string, nType?: string) => {
+    if (nType === 'identity_verified') return <Shield className="w-4 h-4 text-success" />;
+    if (nType === 'identity_manual_review') return <Shield className="w-4 h-4 text-destructive" />;
+    if (nType === 'identity_requires_input') return <Shield className="w-4 h-4 text-warning" />;
     switch (type) {
       case "warning":
         return <AlertTriangle className="w-4 h-4 text-warning" />;
@@ -229,6 +232,7 @@ export const UnifiedNotificationCenter = ({ onNavigate }: { onNavigate?: (module
         return <Info className="w-4 h-4 text-primary" />;
     }
   };
+
 
   const getAIIcon = (category: string) => {
     switch (category) {
@@ -313,11 +317,12 @@ export const UnifiedNotificationCenter = ({ onNavigate }: { onNavigate?: (module
     } else if (nType === 'tenant_document_sent' || nType === 'tenant_document_signed') {
       params.module = 'vault';
       if (data.tenant_document_id) params.sign = String(data.tenant_document_id);
-    } else if (nType === 'identity_manual_review') {
+    } else if (nType === 'identity_manual_review' || nType === 'identity_verified' || nType === 'identity_requires_input') {
       params.module = 'vault';
       params.view = 'verification';
       if (data.customer_id) params.customerId = String(data.customer_id);
     } else {
+
       return;
     }
 
