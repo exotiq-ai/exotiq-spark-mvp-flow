@@ -460,7 +460,7 @@ export const VerificationSection = () => {
                               )}
                               {customer.identity_session_id && (
                                 <a
-                                  href={`https://dashboard.stripe.com/test/identity/verification-sessions/${customer.identity_session_id}`}
+                                  href={`https://dashboard.stripe.com/${import.meta.env.PROD ? '' : 'test/'}identity/verification-sessions/${customer.identity_session_id}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="inline-flex items-center text-xs text-muted-foreground hover:text-foreground"
