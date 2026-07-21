@@ -396,7 +396,7 @@ export const UnifiedNotificationCenter = ({ onNavigate }: { onNavigate?: (module
               <div className="flex items-start justify-between">
                 <div className="flex items-start space-x-3 flex-1">
                   <div className="mt-0.5">
-                    {isAI ? getAIIcon(notification.category) : getSystemIcon(notification.type)}
+                    {isAI ? getAIIcon(notification.category) : getSystemIcon(notification.type, notification.notificationType)}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center space-x-2">
