@@ -137,6 +137,27 @@
   (Gregory), then smoke test (trigger + real session loop), then Lovable
   Prompt B (Command Center UI), then V3 renter UI (exotiq-rent lane).
 
+## Session 2026-07-21 (evening): IDV V1 EXIT GATE PASSED ✅
+
+- Root cause of create-session 500s: `STRIPE_SECRET_KEY` is a live restricted
+  key without Identity scopes, webhook was sandbox. Fix: PR #25 (MERGED
+  19:18 UTC) — identity functions prefer new `STRIPE_IDENTITY_SECRET_KEY`
+  (test-mode restricted key, Identity write scopes only); live payments key
+  untouched. Lovable stored the secret + redeployed.
+- **End-to-end sandbox loop VERIFIED (2026-07-21 ~19:30 UTC):** session
+  created → hosted flow completed with simulated document → webhook flipped
+  ledger + customer status to verified. Independently confirmed via V7 reuse
+  path: create-session for gregory.ringler@gmail.com returns
+  `{"status":"verified","reused":true}` HTTP 200.
+- Secrets in place: `STRIPE_IDENTITY_WEBHOOK_SECRET` (sandbox signing
+  secret — NOTE: value was pasted in chat; rotate when going live),
+  `STRIPE_IDENTITY_SECRET_KEY` (test-mode restricted key).
+- ID lane remaining: Prompt B (Command Center UI — text delivered to Gregory
+  18:49 UTC, send when ready) → V3 renter confirmation card (exotiq-rent
+  lane) → full V4 test script §7 (failure path, cross-surface,
+  second-customer reuse) → live-mode checklist parked until Gregory approves
+  live in writing.
+
 ## Next action
 
 M4 (real reads in the renter app, exotiq-rent repo — needs #21/#22 merged AND applied to hosted project first): `services/exotiq-rent/client.ts` + `adapters.ts` wrapping the five public RPCs + media endpoint, `NEXT_PUBLIC_EXOTIQ_RENT_DATA_MODE=mock|supabase` flag, contract tests against RPC shapes; mock mode must stay green with no env. Coordinate with the M0 agent's branch to avoid conflicts. Meanwhile: M5 prep is possible decision-free only up to drafting the `btree_gist` exclusion constraint migration (blocked on cutover for apply). Chase D-register answers and Lovable export artifacts.
