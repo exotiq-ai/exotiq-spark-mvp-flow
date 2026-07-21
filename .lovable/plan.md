@@ -1,31 +1,45 @@
-## Goal
-Deploy the three merged-but-undeployed Stripe Identity edge functions and confirm they respond.
+## Amended plan — Option A, isolated Identity key
 
-## Functions to deploy
-- `identity-create-session` (JWT required — operator-authenticated)
-- `identity-webhook` (`verify_jwt = false`, Stripe signature validated in code)
-- `identity-session-status` (`verify_jwt = false`, session token in query)
+Do **not** touch `STRIPE_SECRET_KEY` (live payments). Introduce a separate test-mode key for Stripe Identity only, matching PR #25's dual-secret fallback (`STRIPE_IDENTITY_SECRET_KEY` preferred, `STRIPE_SECRET_KEY` fallback).
 
-No code or config edits. `supabase/config.toml` already carries the correct `verify_jwt` overrides for the two public ones.
+### Step 1 — Store the new Identity key (waits on you)
 
-## Steps
+You provide a test-mode restricted key (`rk_test_…`) with:
+- Identity Verification Sessions → Write
+- Identity Verification Results → Write (`identity_product_write`)
 
-1. **Deploy** all three in a single `supabase--deploy_edge_functions` call:
-   `["identity-create-session", "identity-webhook", "identity-session-status"]`
+I'll open the secure form via `update_secret` for `STRIPE_IDENTITY_SECRET_KEY` (falls back to `add_secret` if it doesn't exist yet). Format hint: `rk_test_…` / `sk_test_…`.
 
-2. **Confirm each responds** (not `function-not-found`) via `supabase--curl_edge_functions`:
-   - `GET /identity-session-status?session=vs_x` → expect **404** `Unknown session` (proves routing + public access + DB lookup path).
-   - `POST /identity-webhook` with an empty body / bad signature → expect **400** signature-verification error (proves routing + `verify_jwt=false` + Stripe check runs).
-   - `POST /identity-create-session` with no auth header → expect **401** unauthorized (proves routing + JWT gate). Then re-invoke with the preview session (auto-injected auth) and a bogus `customer_id` → expect a **4xx** validation/not-found, not 5xx.
+No mirroring of payment scopes. `STRIPE_SECRET_KEY` and `STRIPE_IDENTITY_WEBHOOK_SECRET` stay exactly as they are.
 
-3. **Check logs** for each function via `supabase--edge_function_logs` after the probes to confirm boot success and no import/runtime errors.
+### Step 2 — Wait for PR #25 to land on main
 
-4. **Secrets sanity check** (read-only): confirm `STRIPE_SECRET_KEY` and `STRIPE_IDENTITY_WEBHOOK_SECRET` are present. If either is missing, stop and request it via `add_secret` before declaring go-live — the functions deploy fine without them but will 500 at runtime.
+The dual-secret preference logic (`STRIPE_IDENTITY_SECRET_KEY` → fallback `STRIPE_SECRET_KEY`) must be present in `supabase/functions/identity-create-session/index.ts` and `supabase/functions/identity-webhook/index.ts` before redeploy. I'll confirm by reading both files. If the fallback code isn't there yet, I stop and wait rather than deploying stale code.
 
-5. **Frontend smoke** (no code change): from the `/customers` VerificationSection, click **Verify ID** on a test customer and confirm the hosted link dialog appears end-to-end. This exercises `identity-create-session` against real Stripe.
+### Step 3 — Redeploy the two Identity functions
 
-## Report format
-Per function: deploy status, probe status code + body snippet, log excerpt (boot + first request), and any secret gaps. Flag anything that isn't the expected 4xx as a blocker.
+`supabase--deploy_edge_functions` with `["identity-create-session", "identity-webhook"]`. Do **not** redeploy `identity-session-status` (unchanged) and do not touch payments functions.
 
-## Out of scope
-No edits to function code, `config.toml`, migrations, or frontend. No new secrets created without explicit approval.
+### Step 4 — Verify end-to-end
+
+1. `curl_edge_functions` POST to `identity-create-session` for `gregory.ringler@gmail.com`; expect **200** with `{ url, status: "created" }` and a `vs_test_…` id. Read logs to confirm no `StripePermissionError`.
+2. You open the returned hosted URL and complete the sandbox verification flow.
+3. Read `identity-webhook` logs to confirm signature verification passes and the `identity.verification_session.verified` event is processed against the same test-mode key.
+4. Query `identity_verifications` + `customers.identity_status` for that customer; confirm row lands and `identity_status = 'verified'`.
+5. Open `VerificationSection` in the UI, confirm badge flips to **"ID Verified"** and the "View in Stripe" deep-link resolves.
+
+### Step 5 — Report
+
+- Which secret the functions actually resolved (`STRIPE_IDENTITY_SECRET_KEY` present → used) — prefix only, never the value.
+- Deploy status for both functions.
+- Session id + webhook event id for the successful run.
+- Confirmation that `STRIPE_SECRET_KEY` and `STRIPE_IDENTITY_WEBHOOK_SECRET` were not modified.
+
+### Guardrails
+
+- No code changes in this project; PR #25 is the code path.
+- No migrations.
+- No changes to `identity-session-status`, payments functions, or the sandbox webhook endpoint.
+- If PR #25 hasn't merged yet at Step 2, I pause and report — I won't deploy without the fallback in place.
+
+Ready to open the `update_secret` form for `STRIPE_IDENTITY_SECRET_KEY` on your go.
