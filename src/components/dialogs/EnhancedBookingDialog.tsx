@@ -1243,16 +1243,39 @@ export const EnhancedBookingDialog = ({
                             )}
 
                             {/* Verification Status */}
-                            <div className="flex gap-2 mb-3">
+                            <div className="flex flex-wrap gap-2 mb-3 items-center">
                               <Badge variant="outline" className={customer?.identity_status === "verified" ? "bg-success/10 text-success border-success/30" : "bg-muted"}>
                                 <Shield className="h-3 w-3 mr-1" />
                                 {customer?.identity_status === "verified" ? "ID Verified" : "ID Not verified"}
                               </Badge>
+                              {customer && customer.identity_status !== "verified" && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-6 px-2 text-xs"
+                                  onClick={async () => {
+                                    const result = await startIdentityVerification(customer.id);
+                                    if (result.kind === "url") {
+                                      window.open(result.url, "_blank", "noopener");
+                                      toast({ title: "Verification link opened", description: "Send this to the renter if needed." });
+                                    } else if (result.kind === "already_verified") {
+                                      toast({ title: "Already verified" });
+                                    } else if (result.kind === "manual_review") {
+                                      toast({ title: "Manual review required", description: "Renter reached self-serve attempt limit.", variant: "destructive" });
+                                    } else {
+                                      toast({ title: "Could not start verification", description: result.message, variant: "destructive" });
+                                    }
+                                  }}
+                                >
+                                  Verify ID
+                                </Button>
+                              )}
                               <Badge variant="outline" className="bg-muted">
                                 <Shield className="h-3 w-3 mr-1" />
                                 {customer?.insurance_verified ? "Insurance on file" : "Insurance missing"}
                               </Badge>
                             </div>
+
 
                             <div className="space-y-2">
                               {booking.customer_phone && (
