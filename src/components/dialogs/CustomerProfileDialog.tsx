@@ -305,7 +305,7 @@ export const CustomerProfileDialog = ({
             </AlertDialog>
           </TabsContent>
 
-          <TabsContent value="activity" className="space-y-4">
+          <TabsContent value="activity" className="space-y-4 flex-1 min-h-0 overflow-y-auto pr-1">
             <CustomerTimeline bookings={bookings} notes={customerNotesList} />
             {currentTeam?.id && (
               <div className="space-y-2 pt-2">
@@ -320,7 +320,7 @@ export const CustomerProfileDialog = ({
             )}
           </TabsContent>
 
-          <TabsContent value="bookings" className="space-y-4">
+          <TabsContent value="bookings" className="space-y-4 flex-1 min-h-0 overflow-y-auto pr-1">
             {onAddBooking && (
               <Button onClick={() => onAddBooking(customer)} className="w-full">
                 <Plus className="w-4 h-4 mr-2" />
@@ -428,7 +428,7 @@ export const CustomerProfileDialog = ({
             )}
           </TabsContent>
 
-          <TabsContent value="notes" className="space-y-4">
+          <TabsContent value="notes" className="space-y-4 flex-1 min-h-0 overflow-y-auto pr-1">
             {/* Add Note */}
             <div className="space-y-2">
               <Textarea
