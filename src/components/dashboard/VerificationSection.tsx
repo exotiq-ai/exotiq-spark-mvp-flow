@@ -89,9 +89,10 @@ export const VerificationSection = () => {
   const customerList = customers as unknown as CustomerVerification[];
 
   // Calculate verification stats
-  const verifiedCount = customerList.filter(c => c.id_verified && c.insurance_verified).length;
-  const partialCount = customerList.filter(c => c.id_verified !== c.insurance_verified).length;
-  const unverifiedCount = customerList.filter(c => !c.id_verified && !c.insurance_verified).length;
+  const isIdVerified = (c: CustomerVerification) => c.id_verified || c.identity_status === "verified";
+  const verifiedCount = customerList.filter(c => isIdVerified(c) && c.insurance_verified).length;
+  const partialCount = customerList.filter(c => isIdVerified(c) !== c.insurance_verified).length;
+  const unverifiedCount = customerList.filter(c => !isIdVerified(c) && !c.insurance_verified).length;
   const expiringCount = customerList.filter(c => {
     if (!c.license_expiry && !c.insurance_expiry) return false;
     const licenseExpiring = c.license_expiry && differenceInDays(new Date(c.license_expiry), new Date()) <= 30;
