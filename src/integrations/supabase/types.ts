@@ -547,6 +547,8 @@ export type Database = {
           id_document_url: string | null
           id_verified: boolean | null
           id_verified_at: string | null
+          identity_session_id: string | null
+          identity_status: string | null
           insurance_document_url: string | null
           insurance_expiry: string | null
           insurance_policy: string | null
@@ -581,6 +583,8 @@ export type Database = {
           id_document_url?: string | null
           id_verified?: boolean | null
           id_verified_at?: string | null
+          identity_session_id?: string | null
+          identity_status?: string | null
           insurance_document_url?: string | null
           insurance_expiry?: string | null
           insurance_policy?: string | null
@@ -615,6 +619,8 @@ export type Database = {
           id_document_url?: string | null
           id_verified?: boolean | null
           id_verified_at?: string | null
+          identity_session_id?: string | null
+          identity_status?: string | null
           insurance_document_url?: string | null
           insurance_expiry?: string | null
           insurance_policy?: string | null
@@ -1302,6 +1308,65 @@ export type Database = {
             columns: ["parent_id"]
             isOneToOne: false
             referencedRelation: "entity_comments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      identity_verifications: {
+        Row: {
+          attempt_count: number
+          booking_ref: string | null
+          created_at: string
+          customer_id: string
+          document_expiry: string | null
+          id: string
+          last_error_code: string | null
+          last_error_reason: string | null
+          redacted_at: string | null
+          status: string
+          stripe_verification_session_id: string
+          updated_at: string
+          verified_at: string | null
+          verified_name: string | null
+        }
+        Insert: {
+          attempt_count?: number
+          booking_ref?: string | null
+          created_at?: string
+          customer_id: string
+          document_expiry?: string | null
+          id?: string
+          last_error_code?: string | null
+          last_error_reason?: string | null
+          redacted_at?: string | null
+          status?: string
+          stripe_verification_session_id: string
+          updated_at?: string
+          verified_at?: string | null
+          verified_name?: string | null
+        }
+        Update: {
+          attempt_count?: number
+          booking_ref?: string | null
+          created_at?: string
+          customer_id?: string
+          document_expiry?: string | null
+          id?: string
+          last_error_code?: string | null
+          last_error_reason?: string | null
+          redacted_at?: string | null
+          status?: string
+          stripe_verification_session_id?: string
+          updated_at?: string
+          verified_at?: string | null
+          verified_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "identity_verifications_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
             referencedColumns: ["id"]
           },
         ]
@@ -5457,6 +5522,8 @@ export type Database = {
           id_document_url: string | null
           id_verified: boolean | null
           id_verified_at: string | null
+          identity_session_id: string | null
+          identity_status: string | null
           insurance_document_url: string | null
           insurance_expiry: string | null
           insurance_policy: string | null
