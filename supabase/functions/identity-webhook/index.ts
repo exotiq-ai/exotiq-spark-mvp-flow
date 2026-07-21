@@ -26,10 +26,13 @@ serve(async (req) => {
     return new Response("Method not allowed", { status: 405 });
   }
 
-  const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+  // Same dedicated Identity key as identity-create-session: the webhook must
+  // operate in the same Stripe mode (sandbox) as the sessions it verifies.
+  const stripeKey = Deno.env.get("STRIPE_IDENTITY_SECRET_KEY") ??
+    Deno.env.get("STRIPE_SECRET_KEY");
   const webhookSecret = Deno.env.get("STRIPE_IDENTITY_WEBHOOK_SECRET");
   if (!stripeKey || !webhookSecret) {
-    console.error("[IDENTITY-WEBHOOK] missing STRIPE_SECRET_KEY or STRIPE_IDENTITY_WEBHOOK_SECRET");
+    console.error("[IDENTITY-WEBHOOK] missing STRIPE_IDENTITY_SECRET_KEY/STRIPE_SECRET_KEY or STRIPE_IDENTITY_WEBHOOK_SECRET");
     return new Response("Configuration error", { status: 500 });
   }
 
