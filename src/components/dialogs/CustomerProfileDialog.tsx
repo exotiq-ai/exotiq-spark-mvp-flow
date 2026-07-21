@@ -144,7 +144,7 @@ export const CustomerProfileDialog = ({
           </div>
         </DialogHeader>
 
-        <Tabs defaultValue="overview" className="w-full">
+        <Tabs defaultValue="overview" className="w-full flex flex-col flex-1 min-h-0">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="activity">Activity</TabsTrigger>
@@ -152,7 +152,8 @@ export const CustomerProfileDialog = ({
             <TabsTrigger value="notes">Notes</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview" className="space-y-6">
+          <TabsContent value="overview" className="space-y-6 flex-1 min-h-0 overflow-y-auto pr-1">
+
             {/* Key Stats */}
             <div className="grid grid-cols-3 gap-4">
               <div className="p-4 rounded-lg bg-primary/5 border border-primary/20 text-center">
