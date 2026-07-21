@@ -83,6 +83,36 @@
 - exotiq-rent lane (M0/M4) is owned by the other cloud agent — this repo's
   sessions must not touch that repo's in-flight branches.
 
+## Session 2026-07-21: ID-verification lane — V1 backend applied to spark repo
+
+- Applied the IDV V1 patch from exotiq-rent PR #8 (`docs/rent/patches/idv/`,
+  plan: exotiq-rent `docs/rent/ID_VERIFICATION_PLAN.md`, decisions V1–V10):
+  migration `20260721180000_identity_verifications.sql` + edge functions
+  `identity-create-session` / `identity-webhook` / `identity-session-status`
+  + config.toml entries (webhook + status are `verify_jwt = false`).
+- Schema cross-check vs this repo: `customers.team_id/user_id/email/full_name/
+  id_verified/id_verified_at` ✓, `is_team_member_of_record` ✓ (requires
+  `is_active = true`), `notifications(user_id,type,title,message,data)` ✓,
+  `team_members` ✓. Drift fixes applied: both function queries against
+  `team_members` now filter `is_active = true` (matches the helper's
+  semantics; avoids notifying/authorizing deactivated members). No other
+  drift found.
+- Verified: `deno check` clean on all three functions; 6/6 behavioral tests
+  pass on scratch Postgres (`scripts/rls-verify/test_idv.sql`) — check
+  constraint, updated_at trigger, team-scoped SELECT, client INSERT/UPDATE
+  blocked (service-role-only), cross-team isolation.
+- **ID lane V1: applied.** Next for the ID lane:
+  1. Merge the IDV PR in this repo (functions auto-deploy on repo sync).
+  2. Stripe sandbox → Webhooks: add endpoint for
+     `/functions/v1/identity-webhook`, subscribe to the five
+     `identity.verification_session.*` events (incl. `redacted` explicitly),
+     copy signing secret → `STRIPE_IDENTITY_WEBHOOK_SECRET` edge-function
+     secret (patch README steps 5–6).
+  3. Lovable Prompts A (apply migration) + B (Command Center UI) from
+     exotiq-rent `docs/rent/ID_VERIFICATION_PLAN.md` §5.
+  4. Smoke: `stripe trigger identity.verification_session.verified` →
+     ledger row + `customers.identity_status` flip.
+
 ## Next action
 
 M4 (real reads in the renter app, exotiq-rent repo — needs #21/#22 merged AND applied to hosted project first): `services/exotiq-rent/client.ts` + `adapters.ts` wrapping the five public RPCs + media endpoint, `NEXT_PUBLIC_EXOTIQ_RENT_DATA_MODE=mock|supabase` flag, contract tests against RPC shapes; mock mode must stay green with no env. Coordinate with the M0 agent's branch to avoid conflicts. Meanwhile: M5 prep is possible decision-free only up to drafting the `btree_gist` exclusion constraint migration (blocked on cutover for apply). Chase D-register answers and Lovable export artifacts.
