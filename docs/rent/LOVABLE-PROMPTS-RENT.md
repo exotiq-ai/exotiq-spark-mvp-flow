@@ -107,6 +107,24 @@ settings sections, do not touch booking or pricing logic, and leave all
 unrelated files untouched.
 ```
 
+## Prompt 7 — Verification badge polish + email-send audit (queued 2026-07-21, V4 finding)
+
+```text
+Two small fixes in the identity verification UI (VerificationSection):
+
+1. The badge for identity_status = 'created' currently reads "Link sent",
+   which is misleading — a session can be created without any email going
+   out. Rename that badge to "Link created". Show "Link sent" only as a
+   confirmation after the "Email to customer" action actually succeeds.
+
+2. Audit the "Email to customer" action on the Verify ID flow: confirm it
+   actually sends an email (e.g. via the existing Resend pipeline) rather
+   than being a placeholder. If it is a placeholder, wire it to send the
+   hosted verification link with a short branded message, and report what
+   you wired. Do not touch the identity edge functions or any migration.
+   Leave unrelated files untouched.
+```
+
 ## Prompt 6 — Awareness only (no action): D1 fee hardcode retired
 
 ```text
