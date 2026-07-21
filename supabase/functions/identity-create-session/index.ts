@@ -127,6 +127,22 @@ serve(async (req) => {
       return json({ status: "verified", reused: true });
     }
 
+    // --- Manual-review lockout (decision V6) --------------------------------
+    // Manual review locks the CUSTOMER, not just a session: once any of their
+    // sessions hit the attempt cap, no new self-serve session may be created.
+    // Resolution is operator-side (Stripe dashboard / Command Center), which
+    // then updates the ledger via service role.
+    const { data: reviewRow } = await admin
+      .from("identity_verifications")
+      .select("id")
+      .eq("customer_id", customerId)
+      .eq("status", "manual_review")
+      .limit(1)
+      .maybeSingle();
+    if (reviewRow) {
+      return json({ status: "manual_review" }, 409);
+    }
+
     // --- Reuse an open session when possible -------------------------------
     const { data: openRow } = await admin
       .from("identity_verifications")
