@@ -72,11 +72,15 @@ Confirmed from Lovable's official repo (`github.com/lovablelabs/mcp`):
   read / write / schema"). Good for: fresh inventory counts, freeze-time row
   counts, exporting the 2 drift migrations, pre-cutover fixes (duplicate cron
   job, etc.).
-- `get_connection_info` / `get_database_connection_info` — "connection
-  string, host, and password". If the DB accepts external connections
-  (unconfirmed), we can run `pg_dump`/`psql` ourselves at any time — an
-  on-demand dump that sidesteps the 24 h export cadence for the final
-  freeze-time snapshot.
+  **Verified live 2026-07-21:** runs as the `postgres` role (non-superuser);
+  `auth`, `storage`, `cron`, and `supabase_migrations` schemas all readable,
+  including `auth.users.encrypted_password` (19/19 users have hashes). See
+  [BASELINE_2026-07-21.md](./BASELINE_2026-07-21.md).
+- ~~`get_connection_info` / `get_database_connection_info`~~ — **absent from
+  the live server** (verified 2026-07-21: the connector exposes 39 tools, no
+  connection-string tool despite the README). On-demand external `pg_dump`
+  via MCP is not available; the official export is the dump source, and the
+  temp edge function (`SUPABASE_DB_URL`) is the fallback.
 - `get_file_tree` / `get_file_contents` / `get_diff` — verify what Lovable
   actually has deployed vs. repo `main`.
 - `list_projects` / `get_project` / `check_database_status` — inventory and
