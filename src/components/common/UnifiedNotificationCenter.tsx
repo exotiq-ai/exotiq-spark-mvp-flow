@@ -80,9 +80,16 @@ export const UnifiedNotificationCenter = ({ onNavigate }: { onNavigate?: (module
   const [, setNotifSearchParams] = useSearchParams();
   
   const systemNotifications = useMemo<SystemNotification[]>(() => {
+    const tone = (t: string): SystemNotification['type'] => {
+      if (t === 'booking_update' || t === 'booking') return 'info';
+      if (t === 'payment' || t === 'identity_verified') return 'success';
+      if (t === 'damage_claim' || t === 'damage' || t === 'identity_manual_review') return 'error';
+      if (t === 'identity_requires_input') return 'warning';
+      return 'info';
+    };
     return dbNotifications.map(n => ({
       id: n.id,
-      type: (n.type === 'booking_update' || n.type === 'booking' ? 'info' : n.type === 'payment' ? 'success' : n.type === 'damage_claim' || n.type === 'damage' ? 'error' : 'info') as SystemNotification['type'],
+      type: tone(n.type),
       title: n.title,
       message: n.message,
       timestamp: n.timestamp,
@@ -92,6 +99,7 @@ export const UnifiedNotificationCenter = ({ onNavigate }: { onNavigate?: (module
       notificationType: n.type,
     }));
   }, [dbNotifications]);
+
 
   const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<string>("all");
@@ -209,7 +217,10 @@ export const UnifiedNotificationCenter = ({ onNavigate }: { onNavigate?: (module
     }
   }, [unreadCount]);
 
-  const getSystemIcon = (type: string) => {
+  const getSystemIcon = (type: string, nType?: string) => {
+    if (nType === 'identity_verified') return <Shield className="w-4 h-4 text-success" />;
+    if (nType === 'identity_manual_review') return <Shield className="w-4 h-4 text-destructive" />;
+    if (nType === 'identity_requires_input') return <Shield className="w-4 h-4 text-warning" />;
     switch (type) {
       case "warning":
         return <AlertTriangle className="w-4 h-4 text-warning" />;
@@ -221,6 +232,7 @@ export const UnifiedNotificationCenter = ({ onNavigate }: { onNavigate?: (module
         return <Info className="w-4 h-4 text-primary" />;
     }
   };
+
 
   const getAIIcon = (category: string) => {
     switch (category) {
@@ -305,7 +317,12 @@ export const UnifiedNotificationCenter = ({ onNavigate }: { onNavigate?: (module
     } else if (nType === 'tenant_document_sent' || nType === 'tenant_document_signed') {
       params.module = 'vault';
       if (data.tenant_document_id) params.sign = String(data.tenant_document_id);
+    } else if (nType === 'identity_manual_review' || nType === 'identity_verified' || nType === 'identity_requires_input') {
+      params.module = 'vault';
+      params.view = 'verification';
+      if (data.customer_id) params.customerId = String(data.customer_id);
     } else {
+
       return;
     }
 
@@ -379,7 +396,7 @@ export const UnifiedNotificationCenter = ({ onNavigate }: { onNavigate?: (module
               <div className="flex items-start justify-between">
                 <div className="flex items-start space-x-3 flex-1">
                   <div className="mt-0.5">
-                    {isAI ? getAIIcon(notification.category) : getSystemIcon(notification.type)}
+                    {isAI ? getAIIcon(notification.category) : getSystemIcon(notification.type, notification.notificationType)}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center space-x-2">

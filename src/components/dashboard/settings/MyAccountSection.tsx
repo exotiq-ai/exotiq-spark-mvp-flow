@@ -218,12 +218,6 @@ export const MyAccountSection = () => {
               displayName={formData.fullName || 'User'}
               onAvatarChange={(url) => setProfile(prev => prev ? { ...prev, avatar_url: url } : null)}
             />
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary" className="text-xs">
-                <Shield className="w-3 h-3 mr-1" />
-                Verified
-              </Badge>
-            </div>
           </div>
 
           {/* Form Section */}

@@ -1,8 +1,63 @@
+# Block private/authenticated routes for all crawlers
+User-agent: *
+Allow: /
+Disallow: /dashboard/
+Disallow: /super-admin
+Disallow: /admin/
+Disallow: /onboarding
+Disallow: /team-onboarding
+Disallow: /auth
+Disallow: /reset
+Disallow: /signout
+Disallow: /demo
+Disallow: /demo-landing
+Disallow: /welcome
+
+# Noisy commercial SEO crawlers — no value to us, high request volume
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
+
+User-agent: MJ12bot
+Disallow: /
+
+User-agent: DotBot
+Disallow: /
+
+User-agent: PetalBot
+Disallow: /
+
+# AI training scrapers — allow social/preview bots below, block bulk trainers
+User-agent: GPTBot
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: ClaudeBot
+Disallow: /
+
+User-agent: Google-Extended
+Disallow: /
+
+# Explicit allow for search + social preview
 User-agent: Googlebot
 Allow: /
+Disallow: /dashboard/
+Disallow: /super-admin
+Disallow: /admin/
+Disallow: /auth
+Disallow: /onboarding
+Disallow: /team-onboarding
 
 User-agent: Bingbot
 Allow: /
+Disallow: /dashboard/
+Disallow: /super-admin
+Disallow: /admin/
+Disallow: /auth
 
 User-agent: Twitterbot
 Allow: /
@@ -10,7 +65,10 @@ Allow: /
 User-agent: facebookexternalhit
 Allow: /
 
-User-agent: *
+User-agent: LinkedInBot
 Allow: /
 
-Sitemap: https://exotiq-spark-mvp-flow.lovable.app/sitemap.xml
+User-agent: Slackbot
+Allow: /
+
+Sitemap: https://exotiq.ai/sitemap.xml

@@ -1,33 +1,58 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://exotiq-spark-mvp-flow.lovable.app/</loc>
+    <loc>https://exotiq.ai/</loc>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://exotiq-spark-mvp-flow.lovable.app/terms</loc>
+    <loc>https://exotiq.ai/terms</loc>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
-    <loc>https://exotiq-spark-mvp-flow.lovable.app/privacy</loc>
+    <loc>https://exotiq.ai/privacy</loc>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
-    <loc>https://exotiq-spark-mvp-flow.lovable.app/acceptable-use</loc>
+    <loc>https://exotiq.ai/privacy-eu</loc>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
-    <loc>https://exotiq-spark-mvp-flow.lovable.app/data-processing</loc>
+    <loc>https://exotiq.ai/privacy-uae</loc>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
-    <loc>https://exotiq-spark-mvp-flow.lovable.app/welcome</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.5</priority>
+    <loc>https://exotiq.ai/acceptable-use</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://exotiq.ai/data-processing</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://exotiq.ai/cookies</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://exotiq.ai/sms</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://exotiq.ai/dmca</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://exotiq.ai/transfer-addendum</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
   </url>
 </urlset>

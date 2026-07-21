@@ -68,6 +68,123 @@
 2. `ProtectStep`: pricing copy $89 standard / $289 premium (premium default); decline path must present decline terms (copy TODO: renter liable for total cash value incl. total loss; personal auto insurance verified before pickup).
 3. Review/Pay/Confirmation: keep two-party billing; label the Exotiq line as booking fee + protection.
 
+## Session 2026-07-16 (late): D1 hardcode retirement + handoffs
+
+- PR #23 (`cursor/retire-marketplace-fee-hardcode-cde9`) — OPEN, awaiting
+  Gregory merge: removes the 20% marketplace application fee from
+  `create-payment-checkout` + `stripe-create-hold` (D1); adds renter items to
+  the cutover go/no-go checklist; updates LOVABLE-PROMPTS-RENT.md (1–4 done,
+  Prompt 5 toggles now recommended, Prompt 6 fee-retirement awareness note).
+  NOTE: functions auto-deploy from repo sync on merge.
+- Pending Gregory: (a) merge PR #23, (b) positive-path test — designate an
+  opt-in team + vehicle and run the prompt from the 2026-07-16 03:05 session,
+  (c) send Lovable Prompt 5 (visibility toggles) and Prompt 6 (awareness),
+  (d) merge exotiq-rent PRs #2/#3 to fix demo.exotiq.rent.
+- exotiq-rent lane (M0/M4) is owned by the other cloud agent — this repo's
+  sessions must not touch that repo's in-flight branches.
+
+## Session 2026-07-21: ID-verification lane — V1 backend applied to spark repo
+
+- Applied the IDV V1 patch from exotiq-rent PR #8 (`docs/rent/patches/idv/`,
+  plan: exotiq-rent `docs/rent/ID_VERIFICATION_PLAN.md`, decisions V1–V10):
+  migration `20260721180000_identity_verifications.sql` + edge functions
+  `identity-create-session` / `identity-webhook` / `identity-session-status`
+  + config.toml entries (webhook + status are `verify_jwt = false`).
+- Schema cross-check vs this repo: `customers.team_id/user_id/email/full_name/
+  id_verified/id_verified_at` ✓, `is_team_member_of_record` ✓ (requires
+  `is_active = true`), `notifications(user_id,type,title,message,data)` ✓,
+  `team_members` ✓. Drift fixes applied: both function queries against
+  `team_members` now filter `is_active = true` (matches the helper's
+  semantics; avoids notifying/authorizing deactivated members). No other
+  drift found.
+- Verified: `deno check` clean on all three functions; 6/6 behavioral tests
+  pass on scratch Postgres (`scripts/rls-verify/test_idv.sql`) — check
+  constraint, updated_at trigger, team-scoped SELECT, client INSERT/UPDATE
+  blocked (service-role-only), cross-team isolation.
+- **ID lane V1: applied.** Next for the ID lane:
+  1. Merge the IDV PR in this repo (functions auto-deploy on repo sync).
+  2. Stripe sandbox → Webhooks: add endpoint for
+     `/functions/v1/identity-webhook`, subscribe to the five
+     `identity.verification_session.*` events (incl. `redacted` explicitly),
+     copy signing secret → `STRIPE_IDENTITY_WEBHOOK_SECRET` edge-function
+     secret (patch README steps 5–6).
+  3. Lovable Prompts A (apply migration) + B (Command Center UI) from
+     exotiq-rent `docs/rent/ID_VERIFICATION_PLAN.md` §5.
+  4. Smoke: `stripe trigger identity.verification_session.verified` →
+     ledger row + `customers.identity_status` flip.
+
+## Session 2026-07-21 (later): IDV merged + hosted apply follow-ups
+
+- PR #24 MERGED (18:20 UTC); identity functions deployed via repo sync.
+- Lovable applied the IDV migration; two follow-up migrations approved:
+  (1) grants — `GRANT SELECT ... TO authenticated; GRANT ALL ... TO
+  service_role` (the hosted project has NO default privileges for
+  externally-authored tables — table-level grants must ship explicitly in
+  every future migration that creates a table); (2) privilege tightening —
+  `REVOKE ALL FROM anon` + revoke writes from `authenticated` on
+  `identity_verifications` (broad arwdDxtm privileges were inherited
+  project-wide; RLS was the only enforcement layer).
+- TODO next spark session: confirm both Lovable-authored migrations synced
+  to repo main; fold the real grants into `scripts/rls-verify/test_idv.sql`
+  (the stub currently simulates them).
+- **SECURITY BACKLOG (pre-cutover): project-wide anon/authenticated
+  privilege review** — every public table carries inherited full table
+  privileges with RLS as the only barrier. Plan a deliberate, tested,
+  schema-wide REVOKE pass (anon: strip all where no anon policy exists;
+  authenticated: strip writes where policies are read-only). Do this as its
+  own audited migration with the rls-verify harness, not ad hoc per table.
+- Pending: Stripe webhook endpoint + STRIPE_IDENTITY_WEBHOOK_SECRET
+  (Gregory), then smoke test (trigger + real session loop), then Lovable
+  Prompt B (Command Center UI), then V3 renter UI (exotiq-rent lane).
+
+## Session 2026-07-21 (evening): IDV V1 EXIT GATE PASSED ✅
+
+- Root cause of create-session 500s: `STRIPE_SECRET_KEY` is a live restricted
+  key without Identity scopes, webhook was sandbox. Fix: PR #25 (MERGED
+  19:18 UTC) — identity functions prefer new `STRIPE_IDENTITY_SECRET_KEY`
+  (test-mode restricted key, Identity write scopes only); live payments key
+  untouched. Lovable stored the secret + redeployed.
+- **End-to-end sandbox loop VERIFIED (2026-07-21 ~19:30 UTC):** session
+  created → hosted flow completed with simulated document → webhook flipped
+  ledger + customer status to verified. Independently confirmed via V7 reuse
+  path: create-session for gregory.ringler@gmail.com returns
+  `{"status":"verified","reused":true}` HTTP 200.
+- Secrets in place: `STRIPE_IDENTITY_WEBHOOK_SECRET` (sandbox signing
+  secret — NOTE: value was pasted in chat; rotate when going live),
+  `STRIPE_IDENTITY_SECRET_KEY` (test-mode restricted key).
+- ID lane remaining: Prompt B (Command Center UI — text delivered to Gregory
+  18:49 UTC, send when ready) → V3 renter confirmation card (exotiq-rent
+  lane) → full V4 test script §7 (failure path, cross-surface,
+  second-customer reuse) → live-mode checklist parked until Gregory approves
+  live in writing.
+
+## Session 2026-07-21 (night): V4 sandbox test — RESULTS
+
+Prompt B shipped by Lovable and verified. V4 test record (plan §7):
+
+- **Step 2 (Command Center visibility):** ✅ badges live (note: "Link sent"
+  label shows on `created` — queue a Lovable polish prompt to rename "Link
+  created" and only show "sent" after the email action; also verify the
+  email-send button actually sends, currently unconfirmed).
+- **Step 3 (failure path, V6):** ✅ PASSED after fixing a real bug it caught:
+  attempts counted 3→2→1→0 on one reused session (fresh hosted URL per
+  retry — Stripe links are single-use by design), webhook flipped
+  `manual_review` on 3rd failure, operator notification inserted. **BUG
+  FOUND:** 4th attempt minted a new session (lockout only checked open
+  statuses). Fixed in PR #26 (MERGED 22:06 UTC, redeployed): manual_review
+  locks the CUSTOMER. Re-verified live: 4th attempt → HTTP 409. Stray
+  session vs_1TvllCQn5o30XCWdFEMKI24B — cancel or let expire.
+- **Step 4 (cross-surface operator link):** ✅ operator-initiated from
+  Command Center for gregory.ringler.test@placeholder.com, simulated
+  success on phone, API confirms `{"status":"verified","reused":true}`.
+- **Steps 1 + 5 (renter-app booking flow + cross-operator reuse in supabase
+  mode):** DEFERRED — blocked on M4 wiring. V7 reuse semantics proven at
+  the API layer for two customers.
+- exotiq-rent PRs: #6/#9 content already inside main via #5 (close them);
+  #7/#8 docs are MERGEABLE/CLEAN (Gregory merges).
+- Migration artifacts: still on hold at Lovable support (5-item list in
+  RECEIVED_ARTIFACTS_INVENTORY.md) — re-send the export request.
+
 ## Next action
 
 M4 (real reads in the renter app, exotiq-rent repo — needs #21/#22 merged AND applied to hosted project first): `services/exotiq-rent/client.ts` + `adapters.ts` wrapping the five public RPCs + media endpoint, `NEXT_PUBLIC_EXOTIQ_RENT_DATA_MODE=mock|supabase` flag, contract tests against RPC shapes; mock mode must stay green with no env. Coordinate with the M0 agent's branch to avoid conflicts. Meanwhile: M5 prep is possible decision-free only up to drafting the `btree_gist` exclusion constraint migration (blocked on cutover for apply). Chase D-register answers and Lovable export artifacts.

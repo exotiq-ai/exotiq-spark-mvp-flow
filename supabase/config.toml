@@ -179,3 +179,9 @@ verify_jwt = false
 
 [functions.rent-public-media]
 verify_jwt = false
+
+[functions.identity-webhook]
+verify_jwt = false
+
+[functions.identity-session-status]
+verify_jwt = false

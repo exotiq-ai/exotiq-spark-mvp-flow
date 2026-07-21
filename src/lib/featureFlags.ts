@@ -63,7 +63,7 @@ export const featureFlags = {
   margin: true, // Per-vehicle P&L, expenses, partner payouts — visible to Manager+
 
   // DPA §3.8 — prohibited data categories (keep OFF on Lovable path)
-  idVerification: false, // Driver's license image upload / OCR
+  idVerification: true, // Routed through Stripe Identity (hosted). No PII stored in Lovable Cloud per DPA §3.8.
   receiptScanning: false, // Receipt/invoice OCR via AI Gateway → Gemini
   driversLicenseNumberField: false, // Typed government identifier input
 
@@ -77,6 +77,13 @@ export const featureFlags = {
   // Super-admin surface is always available for internal testing; the
   // tenant-facing banner / Vault section is gated by this flag.
   tenantEsignature: true,
+
+  // Marketplace go-live gate (workstream 2)
+  // UI-only by default: the readiness panel is shown, but the DB trigger
+  // does not enforce until an admin sets `app.marketplace_gate_enforced=on`
+  // for their session. Flip this flag to true once every currently-visible
+  // team passes the checklist.
+  marketplaceGateEnforced: false,
 
   // Multi-currency & VAT (Phase 1)
   // Master kill-switch for non-USD tenants. Default ON. If a regression hits

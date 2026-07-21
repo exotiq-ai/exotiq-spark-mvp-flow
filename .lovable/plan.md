@@ -1,64 +1,47 @@
 ## Goal
+Make the CRM customer card show real ID verification detail + verification history in the Activity timeline, and confirm the Overview scroll actually works so nothing is hidden.
 
-Give super admins a no-SQL way to flip `teams.marketplace_visible` and `vehicles.marketplace_visible`, and turn marketplace on for `hello@exotiq.ai` so end-to-end M3 features can be exercised.
+The user's screenshot shows a "Verification Details" header with no rows under it — jumping straight to Make VIP / Blacklist. The current code already renders an ID Verification row + Insurance row unconditionally, so what they see is a stale build (this iteration hasn't been rebuilt yet on their side). Once the app rebuilds, that block appears — but there are two real gaps worth closing now.
 
-## Deliverables
+## Changes
 
-### 1. Data: enable marketplace for Exotiq team
-The Exotiq team (`hello@exotiq.ai`) currently has `is_demo_account = true` and `marketplace_visible = false`. The `is_marketplace_team()` gate requires `is_demo_account = false`, so both flags must change for the team to appear on the public marketplace. Seed via an `insert` tool call:
-- `teams.marketplace_visible = true`
-- `teams.is_demo_account = false`
-- `teams.public_description` = short default blurb (only if null)
-- Flip every non-archived, non-trashed vehicle on that team to `marketplace_visible = true` so there is real fleet content to test.
+### 1. Activity tab — surface verification history
+Extend `src/components/crm/CustomerTimeline.tsx` to accept a new `identityEvents` prop and render Shield-icon rows for:
+- Verification link sent (`identity_verifications.created_at`, status `created`)
+- Retry needed (`requires_input`, uses `last_error_reason`)
+- Manual review flagged (`manual_review`)
+- Verified (`verified_at`, shows verified name + document expiry when present)
+- Canceled / redacted (muted rows)
 
-### 2. New Super Admin tab: "Marketplace"
-Add a tab to `src/pages/SuperAdminDashboard.tsx` alongside the existing ones (Tenant Health, Vehicles, Billing, etc.), backed by a new component `src/components/super-admin/MarketplaceVisibilityTab.tsx`.
-
-Layout:
-```text
-Marketplace Visibility
-┌─ Teams ────────────────────────────────────────┐
-│ [search box: team name / owner email]          │
-│                                                │
-│ Team           Owner            Demo   Visible │
-│ Exotiq         hello@exotiq.ai  [off]  [ ON  ] │
-│ Acme Rentals   jane@acme.com    [off]  [ off ] │
-│ ...                                            │
-└────────────────────────────────────────────────┘
-
-Click a team row → expands to a vehicle list:
-┌─ Exotiq · Fleet (12) ──────────────────────────┐
-│ [Show all] [Only visible]                      │
-│                                                │
-│ Vehicle              Status     Visible        │
-│ 2011 BMW M3          available  [ ON  ]        │
-│ 2020 Porsche 911     booked     [ off ]        │
-│ ...                                            │
-│                                                │
-│ [Enable all] [Disable all]                     │
-└────────────────────────────────────────────────┘
+Fetch the rows in `CustomerProfileDialog.tsx` via a small `useEffect` on `customer.id`:
+```ts
+supabase.from("identity_verifications")
+  .select("id,status,verified_at,document_expiry,verified_name,last_error_reason,attempt_count,created_at")
+  .eq("customer_id", customer.id)
+  .order("created_at", { ascending: false })
 ```
+Pass the results into `CustomerTimeline` alongside bookings + notes. Sort merged events by date. Empty state stays as-is.
 
-Behaviour:
-- Team `Visible` switch toggles `teams.marketplace_visible`. If the team is still `is_demo_account = true`, show an inline warning ("Team is marked as demo — it will not appear on the public marketplace") with a secondary "Mark as production" button that sets `is_demo_account = false`.
-- Vehicle `Visible` switch toggles `vehicles.marketplace_visible`. Disabled with a tooltip if the parent team is not marketplace-visible or is archived/trashed.
-- Bulk "Enable all / Disable all" applies to the currently filtered vehicle list for that team.
-- All toggles are optimistic with TanStack Query invalidation, error toast on failure.
-- Every mutation calls `log_admin_action('toggle_marketplace_team' | 'toggle_marketplace_vehicle', target_user_id, { team_id, vehicle_id, value })` so it lands in `admin_audit_log`.
+### 2. Overview tab — make the ID block harder to miss + confirm scroll
+- Move the "Verification Details" section directly under the stat cards (above Contact Information) so it's visible without scrolling. This is the highest-signal block on the card.
+- Add a small helper row under the ID line that summarises: "Last activity: {relative time}" pulled from the same identity_verifications fetch, so operators know when the last attempt happened without switching tabs.
+- Keep the existing `flex flex-col` / `min-h-0 overflow-y-auto` scroll wiring on Overview — already correct in code; the user's screenshot predates the last deploy.
 
-### 3. Access control
-No new RLS work required — the existing super admin bypass policies already let super admins `UPDATE` `teams` and `vehicles`. The tab is only reachable through `SuperAdminGuard`, so no additional UI-side gating is needed beyond the existing route protection.
+### 3. No backend changes
+- No migrations, no edge function edits, no schema changes.
+- `identity_verifications` already has team-scoped RLS via the customer's team; authenticated members can select their own team's rows.
 
-## Technical notes
-
-- Queries: single `select id, name, marketplace_visible, is_demo_account, public_description, owner_id` on `teams` (filter out `deleted_at is not null`), and a lazy `select id, year, make, model, marketplace_visible, status, archived_at, trashed_at` on `vehicles` scoped by `team_id` when a team row is expanded.
-- Owner email resolved via existing `profiles` join pattern used elsewhere in Super Admin (avoid touching `auth.users` directly from the client).
-- Use shadcn `Switch`, `Input`, `Collapsible`, `Badge`, and `Tooltip` — no new dependencies.
-- Audit log RPC: reuse existing `log_admin_action` function; wrap in a helper `logAdminAction()` local to the tab.
-- Add a lightweight `useMarketplaceAdmin` hook (in the same file) that owns the two mutations to keep the component tidy.
+## Files touched
+- `src/components/dialogs/CustomerProfileDialog.tsx` — reorder Overview blocks, add identity_verifications fetch, pass to timeline.
+- `src/components/crm/CustomerTimeline.tsx` — new `identityEvents` prop + rendering.
 
 ## Out of scope
+- No insurance verification logic (that's the next workstream).
+- No changes to bell notifications, webhook, or edge functions — those already ship verified / retry / manual_review events.
+- No layout changes to Bookings / Notes tabs.
 
-- No RLS or migration changes.
-- No public marketplace UI changes — this is admin plumbing only.
-- No new permission types on `super_admins.permissions`; existing super admin access is sufficient.
+## Verification
+- Open Gregory IDV Ringler in CRM → Overview shows Verification Details near the top with the green "Verified" badge, verified name, and document expiry.
+- Switch to Activity → verification link sent + verified events appear in the timeline, interleaved with bookings/notes.
+- Resize dialog / mobile viewport → Overview scrolls end-to-end (VIP / Blacklist / Delete reachable).
+- Typecheck clean.
