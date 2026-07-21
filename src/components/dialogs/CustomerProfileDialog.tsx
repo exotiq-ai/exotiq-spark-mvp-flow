@@ -118,6 +118,45 @@ export const CustomerProfileDialog = ({
     }
   };
 
+  const handleStartVerification = async () => {
+    setVerifyingId(true);
+    try {
+      const result = await startIdentityVerification(customer.id);
+      if (result.kind === "url") {
+        setVerifyLinkDialog(result.url);
+        window.open(result.url, "_blank", "noopener");
+        await refreshCustomers();
+      } else if (result.kind === "already_verified") {
+        toast.success("Already verified");
+        await refreshCustomers();
+      } else if (result.kind === "manual_review") {
+        toast.error("This customer has reached the self-serve attempt limit. Needs manual review.");
+        await refreshCustomers();
+      } else {
+        toast.error(result.message);
+      }
+    } finally {
+      setVerifyingId(false);
+    }
+  };
+
+  const renderIdentityBadge = (status: string | null | undefined) => {
+    const s = (status ?? "none") as string;
+    const map: Record<string, { label: string; className: string }> = {
+      verified: { label: "Verified", className: "bg-success/10 text-success border-success/30" },
+      processing: { label: "Processing", className: "bg-primary/10 text-primary border-primary/30" },
+      created: { label: "Link sent", className: "bg-primary/10 text-primary border-primary/30" },
+      requires_input: { label: "Retry needed", className: "bg-warning/10 text-warning border-warning/30" },
+      manual_review: { label: "Manual review", className: "bg-destructive/10 text-destructive border-destructive/30" },
+      canceled: { label: "Canceled", className: "bg-muted text-muted-foreground border-border" },
+      redacted: { label: "Redacted", className: "bg-muted text-muted-foreground border-border" },
+      none: { label: "Not verified", className: "bg-muted text-muted-foreground border-border" },
+    };
+    const cfg = map[s] ?? map.none;
+    return <Badge variant="outline" className={cfg.className}>{cfg.label}</Badge>;
+  };
+
+
   const getStatusBadge = () => {
     switch (customer.customer_status) {
       case 'vip':
