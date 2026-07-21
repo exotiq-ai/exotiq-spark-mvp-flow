@@ -1,62 +1,31 @@
 ## Goal
+Deploy the three merged-but-undeployed Stripe Identity edge functions and confirm they respond.
 
-Replace the disabled "Upload ID" button in `src/components/dashboard/VerificationSection.tsx` with a Stripe Identity flow that calls the existing `identity-create-session` edge function. No image storage, no edge-function or migration changes, insurance flow untouched.
+## Functions to deploy
+- `identity-create-session` (JWT required — operator-authenticated)
+- `identity-webhook` (`verify_jwt = false`, Stripe signature validated in code)
+- `identity-session-status` (`verify_jwt = false`, session token in query)
 
-## Changes
+No code or config edits. `supabase/config.toml` already carries the correct `verify_jwt` overrides for the two public ones.
 
-### 1. `src/lib/featureFlags.ts`
-Flip `idVerification: false` → `true`. Leave the DPA §3.8 comment intact but note that ID verification is now routed through Stripe Identity (no PII stored in Lovable Cloud).
+## Steps
 
-### 2. `src/components/dashboard/VerificationSection.tsx`
+1. **Deploy** all three in a single `supabase--deploy_edge_functions` call:
+   `["identity-create-session", "identity-webhook", "identity-session-status"]`
 
-Extend the `CustomerVerification` interface with the two new columns already present on `customers`:
-- `identity_status: string | null`
-- `identity_session_id: string | null`
+2. **Confirm each responds** (not `function-not-found`) via `supabase--curl_edge_functions`:
+   - `GET /identity-session-status?session=vs_x` → expect **404** `Unknown session` (proves routing + public access + DB lookup path).
+   - `POST /identity-webhook` with an empty body / bad signature → expect **400** signature-verification error (proves routing + `verify_jwt=false` + Stripe check runs).
+   - `POST /identity-create-session` with no auth header → expect **401** unauthorized (proves routing + JWT gate). Then re-invoke with the preview session (auto-injected auth) and a bogus `customer_id` → expect a **4xx** validation/not-found, not 5xx.
 
-Replace the disabled Upload ID branch (lines 280–292) with a **"Verify ID"** button that:
-- Calls `supabase.functions.invoke('identity-create-session', { body: { customer_id } })` with the operator's JWT (auto-attached by the client).
-- On `{ status: 'verified', reused: true }` → refresh customers, toast "Already verified".
-- On HTTP 409 `{ status: 'manual_review' }` → toast + set local state so the row shows the manual-review badge.
-- On success (`url` returned) → open a small popover/dialog with:
-  - **Copy verification link** (writes `url` to clipboard, toast confirmation).
-  - **Email to customer** button → opens `mailto:` prefilled with subject "Verify your ID for your upcoming rental" and body containing the URL. Kept simple, no server-side send.
+3. **Check logs** for each function via `supabase--edge_function_logs` after the probes to confirm boot success and no import/runtime errors.
 
-Add a `getIdentityBadge(identity_status)` helper that returns badge props for each status per spec:
+4. **Secrets sanity check** (read-only): confirm `STRIPE_SECRET_KEY` and `STRIPE_IDENTITY_WEBHOOK_SECRET` are present. If either is missing, stop and request it via `add_secret` before declaring go-live — the functions deploy fine without them but will 500 at runtime.
 
-```text
-created         → "Link sent"          (secondary, Clock)
-processing      → "Processing"         (secondary, Clock)
-verified        → "ID Verified"        (default/green, CheckCircle2) + id_verified_at date
-requires_input  → "Action needed"      (amber/secondary, AlertTriangle)
-manual_review   → "Needs review"       (destructive, AlertTriangle)
-canceled        → "Canceled"           (outline, XCircle)
-redacted        → "Expired / redacted" (outline, XCircle)
-null/none       → show "Verify ID" button (existing fallback)
-```
+5. **Frontend smoke** (no code change): from the `/customers` VerificationSection, click **Verify ID** on a test customer and confirm the hosted link dialog appears end-to-end. This exercises `identity-create-session` against real Stripe.
 
-The badge sits in the same slot the current "Upload ID" button / "ID Verified" badge occupies, matching the existing `Badge variant=…` visual language already used for insurance/verified/partial.
+## Report format
+Per function: deploy status, probe status code + body snippet, log excerpt (boot + first request), and any secret gaps. Flag anything that isn't the expected 4xx as a blocker.
 
-Add a small **"View in Stripe"** ghost link (external icon) rendered only when `customer.identity_session_id` is set, pointing to:
-`https://dashboard.stripe.com/test/identity/verification-sessions/${identity_session_id}`
-Opens in a new tab with `rel="noopener noreferrer"`.
-
-Adjust the top-of-card counters so `id_verified` OR `identity_status === 'verified'` counts as ID-verified (keeps the summary cards honest without touching insurance logic).
-
-Remove the now-unused `IDUploadDialog` import + `idUploadOpen` state and the `<IDUploadDialog />` render at the bottom. The dialog file itself is left in place (unrelated file — leaving it untouched per the ask).
-
-### 3. Notifications (verification only, no code change)
-
-`identity-webhook` already inserts `type: 'identity_manual_review'` notifications. Confirm they render through the existing `NotificationCenter` / `useNotifications` pipeline (generic type-agnostic renderer) and that clicking them deep-links to the customer. If deep-linking already routes via `data.customer_id` on the notification row, no change needed; if it doesn't, that's out of scope for this task and I'll flag it rather than modify unrelated files.
-
-## Out of scope (explicitly not touching)
-
-- `supabase/functions/identity-*` edge functions
-- Any migration or grants
-- `InsuranceUploadDialog` / insurance flow
-- `IDUploadDialog.tsx` itself (just no longer wired up here)
-- Any ID image upload/storage path
-
-## Verification
-
-- Typecheck touched file with tsgo.
-- Manual: with `hello@exotiq.ai`, click Verify ID on an unverified customer → confirm popover shows link, status updates to `created`, badge renders. Simulate `verified` / `manual_review` rows via existing test data to confirm badge variants.
+## Out of scope
+No edits to function code, `config.toml`, migrations, or frontend. No new secrets created without explicit approval.
