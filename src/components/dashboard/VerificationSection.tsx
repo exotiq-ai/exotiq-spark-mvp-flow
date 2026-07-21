@@ -530,19 +530,44 @@ export const VerificationSection = () => {
       </Card>
 
       {/* Dialogs */}
-      <IDUploadDialog
-        open={idUploadOpen}
-        onOpenChange={setIdUploadOpen}
-        customer={selectedCustomer}
-        onComplete={handleUploadComplete}
-      />
-
       <InsuranceUploadDialog
         open={insuranceUploadOpen}
         onOpenChange={setInsuranceUploadOpen}
         customer={selectedCustomer}
         onComplete={handleUploadComplete}
       />
+
+      {/* Verification link dialog (Stripe Identity hosted URL) */}
+      <Dialog open={!!linkDialog} onOpenChange={(open) => !open && setLinkDialog(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Verification link ready</DialogTitle>
+            <DialogDescription>
+              Share this secure Stripe Identity link with {linkDialog?.customer.full_name}. The link
+              guides them through document + selfie capture — no ID images are stored in Exotiq.
+            </DialogDescription>
+          </DialogHeader>
+          {linkDialog && (
+            <div className="rounded-md border bg-muted/40 p-2 text-xs break-all font-mono">
+              {linkDialog.url}
+            </div>
+          )}
+          <DialogFooter className="gap-2 sm:gap-2">
+            {linkDialog && (
+              <>
+                <Button variant="outline" onClick={() => copyLink(linkDialog.url)}>
+                  <Copy className="h-4 w-4 mr-2" />
+                  Copy link
+                </Button>
+                <Button onClick={() => emailLink(linkDialog.customer, linkDialog.url)}>
+                  <Mail className="h-4 w-4 mr-2" />
+                  Email to customer
+                </Button>
+              </>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
