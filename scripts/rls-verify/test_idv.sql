@@ -59,11 +59,22 @@ USING (
 GRANT USAGE ON SCHEMA public, auth TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO authenticated;
 
--- --- Apply the migration under test ------------------------------------------
+-- --- Apply the migrations under test -----------------------------------------
+-- The hosted project has no default privileges for externally-authored
+-- tables, so grants ship as explicit follow-up migrations (Lovable-authored,
+-- applied 2026-07-21). Loading them here means the test exercises the REAL
+-- privilege posture: anon nothing, authenticated read-only, service_role all.
 \i supabase/migrations/20260721180000_identity_verifications.sql
 
--- Post-migration grant (mirrors Supabase default grants to authenticated).
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.identity_verifications TO authenticated;
+DO $$ BEGIN
+  CREATE ROLE service_role NOLOGIN;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  CREATE ROLE anon NOLOGIN;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+\i supabase/migrations/20260721183355_3bd95972-4cd9-4ac6-8c7b-cd71fd691e0f.sql
+\i supabase/migrations/20260721183950_a5d5783d-559f-4496-9673-33e11a5b82ef.sql
 
 CREATE OR REPLACE FUNCTION test_expect(label text, actual bigint, expected bigint)
 RETURNS void LANGUAGE plpgsql AS $$
