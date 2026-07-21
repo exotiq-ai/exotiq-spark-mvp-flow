@@ -54,6 +54,9 @@ import { CustomerTimeline } from "@/components/crm/CustomerTimeline";
 import { EntityCommentThread } from "@/components/comments/EntityCommentThread";
 import { useTeam } from "@/contexts/TeamContext";
 import { useMoney } from "@/hooks/useMoney";
+import { startIdentityVerification, stripeIdentityDashboardUrl } from "@/lib/identityVerification";
+import { toast } from "sonner";
+
 
 type Customer = Database['public']['Tables']['customers']['Row'];
 type Booking = Database['public']['Tables']['bookings']['Row'];
@@ -81,6 +84,9 @@ export const CustomerProfileDialog = ({
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [isAddingNote, setIsAddingNote] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [verifyingId, setVerifyingId] = useState(false);
+  const [verifyLinkDialog, setVerifyLinkDialog] = useState<string | null>(null);
+
 
   const customerNotesList = customerNotes.filter(note => note.customer_id === customer.id);
   
@@ -112,6 +118,45 @@ export const CustomerProfileDialog = ({
     }
   };
 
+  const handleStartVerification = async () => {
+    setVerifyingId(true);
+    try {
+      const result = await startIdentityVerification(customer.id);
+      if (result.kind === "url") {
+        setVerifyLinkDialog(result.url);
+        window.open(result.url, "_blank", "noopener");
+        await refreshCustomers();
+      } else if (result.kind === "already_verified") {
+        toast.success("Already verified");
+        await refreshCustomers();
+      } else if (result.kind === "manual_review") {
+        toast.error("This customer has reached the self-serve attempt limit. Needs manual review.");
+        await refreshCustomers();
+      } else {
+        toast.error(result.message);
+      }
+    } finally {
+      setVerifyingId(false);
+    }
+  };
+
+  const renderIdentityBadge = (status: string | null | undefined) => {
+    const s = (status ?? "none") as string;
+    const map: Record<string, { label: string; className: string }> = {
+      verified: { label: "Verified", className: "bg-success/10 text-success border-success/30" },
+      processing: { label: "Processing", className: "bg-primary/10 text-primary border-primary/30" },
+      created: { label: "Link sent", className: "bg-primary/10 text-primary border-primary/30" },
+      requires_input: { label: "Retry needed", className: "bg-warning/10 text-warning border-warning/30" },
+      manual_review: { label: "Manual review", className: "bg-destructive/10 text-destructive border-destructive/30" },
+      canceled: { label: "Canceled", className: "bg-muted text-muted-foreground border-border" },
+      redacted: { label: "Redacted", className: "bg-muted text-muted-foreground border-border" },
+      none: { label: "Not verified", className: "bg-muted text-muted-foreground border-border" },
+    };
+    const cfg = map[s] ?? map.none;
+    return <Badge variant="outline" className={cfg.className}>{cfg.label}</Badge>;
+  };
+
+
   const getStatusBadge = () => {
     switch (customer.customer_status) {
       case 'vip':
@@ -125,7 +170,7 @@ export const CustomerProfileDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <div className="flex items-start justify-between">
             <div>
@@ -144,7 +189,7 @@ export const CustomerProfileDialog = ({
           </div>
         </DialogHeader>
 
-        <Tabs defaultValue="overview" className="w-full">
+        <Tabs defaultValue="overview" className="w-full flex flex-col flex-1 min-h-0">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="activity">Activity</TabsTrigger>
@@ -152,7 +197,8 @@ export const CustomerProfileDialog = ({
             <TabsTrigger value="notes">Notes</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview" className="space-y-6">
+          <TabsContent value="overview" className="space-y-6 flex-1 min-h-0 overflow-y-auto pr-1">
+
             {/* Key Stats */}
             <div className="grid grid-cols-3 gap-4">
               <div className="p-4 rounded-lg bg-primary/5 border border-primary/20 text-center">
@@ -226,38 +272,78 @@ export const CustomerProfileDialog = ({
               </div>
             )}
 
-            {/* License & Insurance */}
+            {/* Verification */}
             <div className="space-y-3">
               <h4 className="font-semibold text-sm text-muted-foreground">Verification Details</h4>
               <div className="space-y-2">
-                {customer.drivers_license && (
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
-                    <div className="flex items-center space-x-3">
-                      <CreditCard className="w-4 h-4 text-muted-foreground" />
-                      <div>
-                        <div className="text-sm font-medium">Driver's License: {customer.drivers_license}</div>
-                        <div className="text-xs text-muted-foreground">
-                          Expires: {customer.license_expiry ? new Date(customer.license_expiry).toLocaleDateString() : 'N/A'}
-                        </div>
+                {/* ID Verification (Stripe Identity) */}
+                <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-muted/30">
+                  <div className="flex items-center space-x-3 min-w-0">
+                    <Shield className="w-4 h-4 text-muted-foreground shrink-0" />
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium flex items-center gap-2 flex-wrap">
+                        ID Verification
+                        {renderIdentityBadge((customer as any).identity_status)}
                       </div>
+                      <div className="text-xs text-muted-foreground truncate">
+                        {(customer as any).verified_name && `Verified: ${(customer as any).verified_name}`}
+                        {(customer as any).document_expiry && ` · Expires ${new Date((customer as any).document_expiry).toLocaleDateString()}`}
+                        {!(customer as any).verified_name && !(customer as any).document_expiry && "Powered by Stripe Identity"}
+                      </div>
+                      {customer.drivers_license && (
+                        <div className="text-xs text-muted-foreground truncate">
+                          License #{customer.drivers_license}
+                          {customer.license_expiry && ` · exp ${new Date(customer.license_expiry).toLocaleDateString()}`}
+                        </div>
+                      )}
                     </div>
                   </div>
-                )}
-                {customer.insurance_provider && (
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
-                    <div className="flex items-center space-x-3">
-                      <Shield className="w-4 h-4 text-muted-foreground" />
-                      <div>
-                        <div className="text-sm font-medium">{customer.insurance_provider} - {customer.insurance_policy}</div>
-                        <div className="text-xs text-muted-foreground">
-                          Expires: {customer.insurance_expiry ? new Date(customer.insurance_expiry).toLocaleDateString() : 'N/A'}
-                        </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {(customer as any).identity_status !== "verified" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleStartVerification}
+                        disabled={verifyingId}
+                      >
+                        {verifyingId ? "Starting…" : "Verify ID"}
+                      </Button>
+                    )}
+                    {(customer as any).identity_session_id && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => window.open(stripeIdentityDashboardUrl((customer as any).identity_session_id), "_blank")}
+                        title="View in Stripe"
+                      >
+                        View in Stripe
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Insurance on file (neutral — no verification claim) */}
+                <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-muted/30">
+                  <div className="flex items-center space-x-3 min-w-0">
+                    <CreditCard className="w-4 h-4 text-muted-foreground shrink-0" />
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium">
+                        {customer.insurance_provider
+                          ? `Insurance on file · ${customer.insurance_provider}`
+                          : "Insurance not on file"}
                       </div>
+                      {(customer.insurance_policy || customer.insurance_expiry) && (
+                        <div className="text-xs text-muted-foreground truncate">
+                          {customer.insurance_policy && `Policy ${customer.insurance_policy}`}
+                          {customer.insurance_expiry && ` · Expires ${new Date(customer.insurance_expiry).toLocaleDateString()}`}
+                        </div>
+                      )}
                     </div>
                   </div>
-                )}
+                </div>
               </div>
             </div>
+
 
             {/* Actions */}
             <div className="flex gap-2">
@@ -304,7 +390,7 @@ export const CustomerProfileDialog = ({
             </AlertDialog>
           </TabsContent>
 
-          <TabsContent value="activity" className="space-y-4">
+          <TabsContent value="activity" className="space-y-4 flex-1 min-h-0 overflow-y-auto pr-1">
             <CustomerTimeline bookings={bookings} notes={customerNotesList} />
             {currentTeam?.id && (
               <div className="space-y-2 pt-2">
@@ -319,7 +405,7 @@ export const CustomerProfileDialog = ({
             )}
           </TabsContent>
 
-          <TabsContent value="bookings" className="space-y-4">
+          <TabsContent value="bookings" className="space-y-4 flex-1 min-h-0 overflow-y-auto pr-1">
             {onAddBooking && (
               <Button onClick={() => onAddBooking(customer)} className="w-full">
                 <Plus className="w-4 h-4 mr-2" />
@@ -427,7 +513,7 @@ export const CustomerProfileDialog = ({
             )}
           </TabsContent>
 
-          <TabsContent value="notes" className="space-y-4">
+          <TabsContent value="notes" className="space-y-4 flex-1 min-h-0 overflow-y-auto pr-1">
             {/* Add Note */}
             <div className="space-y-2">
               <Textarea

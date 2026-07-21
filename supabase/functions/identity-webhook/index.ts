@@ -77,6 +77,10 @@ serve(async (req) => {
   const patch: Record<string, unknown> = {};
   let customerPatch: Record<string, unknown> | null = null;
   let notifyManualReview = false;
+  let notifyVerified = false;
+  let notifyRequiresInput = false;
+  let attemptsRemaining = 0;
+
 
   switch (event.type) {
     case "identity.verification_session.processing":
@@ -119,8 +123,10 @@ serve(async (req) => {
         id_verified: true,
         id_verified_at: new Date().toISOString(),
       };
+      notifyVerified = true;
       break;
     }
+
 
     case "identity.verification_session.requires_input": {
       const attempts = (row.attempt_count ?? 0) + 1;
@@ -134,9 +140,12 @@ serve(async (req) => {
       } else {
         patch.status = "requires_input";
         customerPatch = { identity_status: "requires_input" };
+        notifyRequiresInput = true;
+        attemptsRemaining = Math.max(0, MAX_SELF_SERVE_ATTEMPTS - attempts);
       }
       break;
     }
+
 
     case "identity.verification_session.canceled":
       patch.status = "canceled";
@@ -167,8 +176,16 @@ serve(async (req) => {
     await admin.from("customers").update(customerPatch).eq("id", row.customer_id);
   }
 
-  // Decision V6: notify the tenant's team members on manual review.
-  if (notifyManualReview) {
+  // Bell notifications for the tenant's team (decision V6 + verified/retry alerts).
+  const notifyType = notifyManualReview
+    ? "identity_manual_review"
+    : notifyVerified
+    ? "identity_verified"
+    : notifyRequiresInput
+    ? "identity_requires_input"
+    : null;
+
+  if (notifyType) {
     const { data: customer } = await admin
       .from("customers")
       .select("id, full_name, team_id")
@@ -180,12 +197,26 @@ serve(async (req) => {
         .select("user_id")
         .eq("team_id", customer.team_id)
         .eq("is_active", true);
+
+      const name = customer.full_name ?? "A customer";
+      let title = "";
+      let message = "";
+      if (notifyType === "identity_verified") {
+        title = "ID verified";
+        message = `${name} completed Stripe Identity verification.`;
+      } else if (notifyType === "identity_requires_input") {
+        title = "ID verification retry";
+        message = `${name} needs to retry ID verification. ${attemptsRemaining} attempt${attemptsRemaining === 1 ? "" : "s"} remaining.`;
+      } else {
+        title = "ID verification needs review";
+        message = `${name} failed ID verification ${MAX_SELF_SERVE_ATTEMPTS} times. Review in Verification.`;
+      }
+
       const rows = (members ?? []).map((m) => ({
         user_id: m.user_id,
-        type: "identity_manual_review",
-        title: "ID verification needs review",
-        message:
-          `${customer.full_name ?? "A customer"} failed ID verification ${MAX_SELF_SERVE_ATTEMPTS} times. Review in Verification.`,
+        type: notifyType,
+        title,
+        message,
         data: { customer_id: customer.id },
       }));
       if (rows.length > 0) {
@@ -193,6 +224,8 @@ serve(async (req) => {
       }
     }
   }
+
+
 
   logStep("Applied", { event: event.type, status: patch.status });
   return new Response(JSON.stringify({ received: true }), { status: 200 });
