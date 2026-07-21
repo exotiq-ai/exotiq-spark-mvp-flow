@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Database } from "@/integrations/supabase/types";
-import { Car, DollarSign, FileText, Star, AlertTriangle, Calendar, Clock } from "lucide-react";
+import { Car, FileText, Clock, Shield, AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
@@ -8,10 +8,21 @@ import { formatDistanceToNow } from "date-fns";
 type Booking = Database['public']['Tables']['bookings']['Row'];
 type CustomerNote = Database['public']['Tables']['customer_notes']['Row'];
 
+export interface IdentityEvent {
+  id: string;
+  status: string;
+  created_at: string;
+  verified_at?: string | null;
+  verified_name?: string | null;
+  document_expiry?: string | null;
+  last_error_reason?: string | null;
+  attempt_count?: number | null;
+}
+
 interface TimelineEvent {
   id: string;
   date: string;
-  type: 'booking' | 'note' | 'payment' | 'status';
+  type: 'booking' | 'note' | 'payment' | 'status' | 'identity';
   title: string;
   description?: string;
   icon: React.ReactNode;
@@ -21,9 +32,10 @@ interface TimelineEvent {
 interface CustomerTimelineProps {
   bookings: Booking[];
   notes: CustomerNote[];
+  identityEvents?: IdentityEvent[];
 }
 
-export const CustomerTimeline = ({ bookings, notes }: CustomerTimelineProps) => {
+export const CustomerTimeline = ({ bookings, notes, identityEvents = [] }: CustomerTimelineProps) => {
   const events = useMemo(() => {
     const items: TimelineEvent[] = [];
 
@@ -58,8 +70,76 @@ export const CustomerTimeline = ({ bookings, notes }: CustomerTimelineProps) => 
       });
     });
 
+    identityEvents.forEach(ev => {
+      const attempts = ev.attempt_count ?? 0;
+      switch (ev.status) {
+        case 'verified': {
+          const parts: string[] = [];
+          if (ev.verified_name) parts.push(`Verified: ${ev.verified_name}`);
+          if (ev.document_expiry) parts.push(`Doc expires ${new Date(ev.document_expiry).toLocaleDateString()}`);
+          items.push({
+            id: `idv-${ev.id}-verified`,
+            date: ev.verified_at || ev.created_at,
+            type: 'identity',
+            title: 'ID verified',
+            description: parts.join(' · ') || 'Stripe Identity check passed',
+            icon: <CheckCircle2 className="w-3.5 h-3.5 text-success" />,
+            badge: <Badge className="bg-success/10 text-success border-success/30">Verified</Badge>,
+          });
+          break;
+        }
+        case 'requires_input':
+          items.push({
+            id: `idv-${ev.id}-retry`,
+            date: ev.created_at,
+            type: 'identity',
+            title: 'ID verification retry needed',
+            description: ev.last_error_reason || `Attempt ${attempts} failed — awaiting retry`,
+            icon: <AlertTriangle className="w-3.5 h-3.5 text-warning" />,
+            badge: <Badge className="bg-warning/10 text-warning border-warning/30">Retry</Badge>,
+          });
+          break;
+        case 'manual_review':
+          items.push({
+            id: `idv-${ev.id}-review`,
+            date: ev.created_at,
+            type: 'identity',
+            title: 'ID flagged for manual review',
+            description: ev.last_error_reason || `Reached self-serve attempt limit (${attempts})`,
+            icon: <AlertTriangle className="w-3.5 h-3.5 text-destructive" />,
+            badge: <Badge className="bg-destructive/10 text-destructive border-destructive/30">Manual review</Badge>,
+          });
+          break;
+        case 'created':
+        case 'processing':
+          items.push({
+            id: `idv-${ev.id}-sent`,
+            date: ev.created_at,
+            type: 'identity',
+            title: ev.status === 'processing' ? 'ID check processing' : 'ID verification link sent',
+            description: 'Powered by Stripe Identity',
+            icon: <Shield className="w-3.5 h-3.5 text-primary" />,
+            badge: <Badge className="bg-primary/10 text-primary border-primary/30">{ev.status === 'processing' ? 'Processing' : 'Link sent'}</Badge>,
+          });
+          break;
+        case 'canceled':
+        case 'redacted':
+          items.push({
+            id: `idv-${ev.id}-${ev.status}`,
+            date: ev.created_at,
+            type: 'identity',
+            title: ev.status === 'redacted' ? 'ID data redacted' : 'ID verification canceled',
+            icon: <XCircle className="w-3.5 h-3.5 text-muted-foreground" />,
+            badge: <Badge variant="outline" className="bg-muted text-muted-foreground border-border">{ev.status}</Badge>,
+          });
+          break;
+        default:
+          break;
+      }
+    });
+
     return items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [bookings, notes]);
+  }, [bookings, notes, identityEvents]);
 
   if (events.length === 0) {
     return (

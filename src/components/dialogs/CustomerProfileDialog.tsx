@@ -1,4 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { formatDistanceToNow } from "date-fns";
+import type { IdentityEvent } from "@/components/crm/CustomerTimeline";
 import {
   Dialog,
   DialogContent,
@@ -86,6 +89,23 @@ export const CustomerProfileDialog = ({
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [verifyingId, setVerifyingId] = useState(false);
   const [verifyLinkDialog, setVerifyLinkDialog] = useState<string | null>(null);
+  const [identityEvents, setIdentityEvents] = useState<IdentityEvent[]>([]);
+
+  useEffect(() => {
+    if (!customer.id || !open) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("identity_verifications")
+        .select("id,status,verified_at,document_expiry,verified_name,last_error_reason,attempt_count,created_at")
+        .eq("customer_id", customer.id)
+        .order("created_at", { ascending: false });
+      if (!cancelled && !error && data) setIdentityEvents(data as IdentityEvent[]);
+    })();
+    return () => { cancelled = true; };
+  }, [customer.id, open, (customer as any).identity_status]);
+
+  const lastIdentityActivity = identityEvents[0]?.verified_at || identityEvents[0]?.created_at;
 
 
   const customerNotesList = customerNotes.filter(note => note.customer_id === customer.id);
@@ -220,59 +240,7 @@ export const CustomerProfileDialog = ({
 
             <Separator />
 
-            {/* Contact Information */}
-            <div className="space-y-3">
-              <h4 className="font-semibold text-sm text-muted-foreground">Contact Information</h4>
-              <div className="grid grid-cols-2 gap-3">
-                {customer.phone && (
-                  <div className="flex items-center space-x-3 p-3 rounded-lg bg-muted/30">
-                    <Phone className="w-4 h-4 text-muted-foreground" />
-                    <div>
-                      <div className="text-sm font-medium">{customer.phone}</div>
-                      <div className="text-xs text-muted-foreground">Phone</div>
-                    </div>
-                  </div>
-                )}
-                {(customer as any).secondary_phone && (
-                  <div className="flex items-center space-x-3 p-3 rounded-lg bg-muted/30">
-                    <Phone className="w-4 h-4 text-muted-foreground" />
-                    <div>
-                      <div className="text-sm font-medium">{(customer as any).secondary_phone}</div>
-                      <div className="text-xs text-muted-foreground">Secondary Phone</div>
-                    </div>
-                  </div>
-                )}
-                {customer.address && (
-                  <div className="flex items-center space-x-3 p-3 rounded-lg bg-muted/30">
-                    <MapPin className="w-4 h-4 text-muted-foreground" />
-                    <div>
-                      <div className="text-sm font-medium">{customer.address}</div>
-                      <div className="text-xs text-muted-foreground">Address</div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Emergency Contact */}
-            {((customer as any).emergency_contact_name || (customer as any).emergency_contact_phone) && (
-              <div className="space-y-3">
-                <h4 className="font-semibold text-sm text-muted-foreground">Emergency Contact</h4>
-                <div className="flex items-center space-x-3 p-3 rounded-lg bg-muted/30">
-                  <UserCheck className="w-4 h-4 text-muted-foreground" />
-                  <div>
-                    {(customer as any).emergency_contact_name && (
-                      <div className="text-sm font-medium">{(customer as any).emergency_contact_name}</div>
-                    )}
-                    {(customer as any).emergency_contact_phone && (
-                      <div className="text-xs text-muted-foreground">{(customer as any).emergency_contact_phone}</div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Verification */}
+            {/* Verification (lifted above Contact for high signal) */}
             <div className="space-y-3">
               <h4 className="font-semibold text-sm text-muted-foreground">Verification Details</h4>
               <div className="space-y-2">
@@ -290,6 +258,11 @@ export const CustomerProfileDialog = ({
                         {(customer as any).document_expiry && ` · Expires ${new Date((customer as any).document_expiry).toLocaleDateString()}`}
                         {!(customer as any).verified_name && !(customer as any).document_expiry && "Powered by Stripe Identity"}
                       </div>
+                      {lastIdentityActivity && (
+                        <div className="text-xs text-muted-foreground truncate">
+                          Last activity {formatDistanceToNow(new Date(lastIdentityActivity), { addSuffix: true })}
+                        </div>
+                      )}
                       {customer.drivers_license && (
                         <div className="text-xs text-muted-foreground truncate">
                           License #{customer.drivers_license}
@@ -344,6 +317,60 @@ export const CustomerProfileDialog = ({
               </div>
             </div>
 
+            <Separator />
+
+            {/* Contact Information */}
+            <div className="space-y-3">
+              <h4 className="font-semibold text-sm text-muted-foreground">Contact Information</h4>
+              <div className="grid grid-cols-2 gap-3">
+                {customer.phone && (
+                  <div className="flex items-center space-x-3 p-3 rounded-lg bg-muted/30">
+                    <Phone className="w-4 h-4 text-muted-foreground" />
+                    <div>
+                      <div className="text-sm font-medium">{customer.phone}</div>
+                      <div className="text-xs text-muted-foreground">Phone</div>
+                    </div>
+                  </div>
+                )}
+                {(customer as any).secondary_phone && (
+                  <div className="flex items-center space-x-3 p-3 rounded-lg bg-muted/30">
+                    <Phone className="w-4 h-4 text-muted-foreground" />
+                    <div>
+                      <div className="text-sm font-medium">{(customer as any).secondary_phone}</div>
+                      <div className="text-xs text-muted-foreground">Secondary Phone</div>
+                    </div>
+                  </div>
+                )}
+                {customer.address && (
+                  <div className="flex items-center space-x-3 p-3 rounded-lg bg-muted/30">
+                    <MapPin className="w-4 h-4 text-muted-foreground" />
+                    <div>
+                      <div className="text-sm font-medium">{customer.address}</div>
+                      <div className="text-xs text-muted-foreground">Address</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Emergency Contact */}
+            {((customer as any).emergency_contact_name || (customer as any).emergency_contact_phone) && (
+              <div className="space-y-3">
+                <h4 className="font-semibold text-sm text-muted-foreground">Emergency Contact</h4>
+                <div className="flex items-center space-x-3 p-3 rounded-lg bg-muted/30">
+                  <UserCheck className="w-4 h-4 text-muted-foreground" />
+                  <div>
+                    {(customer as any).emergency_contact_name && (
+                      <div className="text-sm font-medium">{(customer as any).emergency_contact_name}</div>
+                    )}
+                    {(customer as any).emergency_contact_phone && (
+                      <div className="text-xs text-muted-foreground">{(customer as any).emergency_contact_phone}</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
 
             {/* Actions */}
             <div className="flex gap-2">
@@ -391,7 +418,7 @@ export const CustomerProfileDialog = ({
           </TabsContent>
 
           <TabsContent value="activity" className="space-y-4 flex-1 min-h-0 overflow-y-auto pr-1">
-            <CustomerTimeline bookings={bookings} notes={customerNotesList} />
+            <CustomerTimeline bookings={bookings} notes={customerNotesList} identityEvents={identityEvents} />
             {currentTeam?.id && (
               <div className="space-y-2 pt-2">
                 <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Team Discussion</h4>
