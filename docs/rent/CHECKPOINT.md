@@ -113,6 +113,30 @@
   4. Smoke: `stripe trigger identity.verification_session.verified` →
      ledger row + `customers.identity_status` flip.
 
+## Session 2026-07-21 (later): IDV merged + hosted apply follow-ups
+
+- PR #24 MERGED (18:20 UTC); identity functions deployed via repo sync.
+- Lovable applied the IDV migration; two follow-up migrations approved:
+  (1) grants — `GRANT SELECT ... TO authenticated; GRANT ALL ... TO
+  service_role` (the hosted project has NO default privileges for
+  externally-authored tables — table-level grants must ship explicitly in
+  every future migration that creates a table); (2) privilege tightening —
+  `REVOKE ALL FROM anon` + revoke writes from `authenticated` on
+  `identity_verifications` (broad arwdDxtm privileges were inherited
+  project-wide; RLS was the only enforcement layer).
+- TODO next spark session: confirm both Lovable-authored migrations synced
+  to repo main; fold the real grants into `scripts/rls-verify/test_idv.sql`
+  (the stub currently simulates them).
+- **SECURITY BACKLOG (pre-cutover): project-wide anon/authenticated
+  privilege review** — every public table carries inherited full table
+  privileges with RLS as the only barrier. Plan a deliberate, tested,
+  schema-wide REVOKE pass (anon: strip all where no anon policy exists;
+  authenticated: strip writes where policies are read-only). Do this as its
+  own audited migration with the rls-verify harness, not ad hoc per table.
+- Pending: Stripe webhook endpoint + STRIPE_IDENTITY_WEBHOOK_SECRET
+  (Gregory), then smoke test (trigger + real session loop), then Lovable
+  Prompt B (Command Center UI), then V3 renter UI (exotiq-rent lane).
+
 ## Next action
 
 M4 (real reads in the renter app, exotiq-rent repo — needs #21/#22 merged AND applied to hosted project first): `services/exotiq-rent/client.ts` + `adapters.ts` wrapping the five public RPCs + media endpoint, `NEXT_PUBLIC_EXOTIQ_RENT_DATA_MODE=mock|supabase` flag, contract tests against RPC shapes; mock mode must stay green with no env. Coordinate with the M0 agent's branch to avoid conflicts. Meanwhile: M5 prep is possible decision-free only up to drafting the `btree_gist` exclusion constraint migration (blocked on cutover for apply). Chase D-register answers and Lovable export artifacts.
