@@ -1,45 +1,51 @@
-## Amended plan — Option A, isolated Identity key
+## Status
 
-Do **not** touch `STRIPE_SECRET_KEY` (live payments). Introduce a separate test-mode key for Stripe Identity only, matching PR #25's dual-secret fallback (`STRIPE_IDENTITY_SECRET_KEY` preferred, `STRIPE_SECRET_KEY` fallback).
+Requirements 1–5 in your prompt are already live in `src/components/dashboard/VerificationSection.tsx` and `src/lib/featureFlags.ts` from the earlier turn (we successfully ran an end-to-end sandbox verification). The wiring — create-session call, hosted URL dialog with Copy / Email actions, `identity_status` badges (`created` / `processing` / `verified` / `requires_input` / `manual_review` / `canceled` / `redacted`), `reused: true` short-circuit, 409 `manual_review` toast, "View in Stripe" icon link, insurance path untouched, `idVerification` flag flipped on — is all in place.
 
-### Step 1 — Store the new Identity key (waits on you)
+Reviewing it fresh against the live notification center + upcoming live-mode cutover, two small gaps remain. Neither touches edge functions or migrations.
 
-You provide a test-mode restricted key (`rk_test_…`) with:
-- Identity Verification Sessions → Write
-- Identity Verification Results → Write (`identity_product_write`)
+## Gaps to fix
 
-I'll open the secure form via `update_secret` for `STRIPE_IDENTITY_SECRET_KEY` (falls back to `add_secret` if it doesn't exist yet). Format hint: `rk_test_…` / `sk_test_…`.
+### 1. Notification deep-link for `identity_manual_review`
 
-No mirroring of payment scopes. `STRIPE_SECRET_KEY` and `STRIPE_IDENTITY_WEBHOOK_SECRET` stay exactly as they are.
+`identity-webhook` inserts `notifications` rows with `type = "identity_manual_review"` and `data.customer_id` on the 3rd failed attempt. `UnifiedNotificationCenter.handleSystemAction` has cases for booking / payment / damage / maintenance / tenant docs, but no case for identity — so the "View Details" button on the notification currently no-ops.
 
-### Step 2 — Wait for PR #25 to land on main
+Fix: add one branch in `handleSystemAction` that routes to the Verification tab and pre-filters to the customer.
 
-The dual-secret preference logic (`STRIPE_IDENTITY_SECRET_KEY` → fallback `STRIPE_SECRET_KEY`) must be present in `supabase/functions/identity-create-session/index.ts` and `supabase/functions/identity-webhook/index.ts` before redeploy. I'll confirm by reading both files. If the fallback code isn't there yet, I stop and wait rather than deploying stale code.
+```ts
+} else if (nType === 'identity_manual_review') {
+  params.module = 'vault';
+  params.view = 'verification';
+  if (data.customer_id) params.customerId = String(data.customer_id);
+}
+```
 
-### Step 3 — Redeploy the two Identity functions
+Then in `VerificationSection`, read `customerId` from the URL once on mount and either scroll/highlight that row or seed `searchQuery` with the matching customer's name so it filters to a single row. Seeding search is the smallest change and matches how other modules "deep-link" today.
 
-`supabase--deploy_edge_functions` with `["identity-create-session", "identity-webhook"]`. Do **not** redeploy `identity-session-status` (unchanged) and do not touch payments functions.
+### 2. Stripe dashboard link is hardcoded to test mode
 
-### Step 4 — Verify end-to-end
+The "View in Stripe" anchor points at `https://dashboard.stripe.com/test/identity/verification-sessions/...`. That's correct for the sandbox we just verified, but the moment live-mode Identity flips on it will 404 for live sessions.
 
-1. `curl_edge_functions` POST to `identity-create-session` for `gregory.ringler@gmail.com`; expect **200** with `{ url, status: "created" }` and a `vs_test_…` id. Read logs to confirm no `StripePermissionError`.
-2. You open the returned hosted URL and complete the sandbox verification flow.
-3. Read `identity-webhook` logs to confirm signature verification passes and the `identity.verification_session.verified` event is processed against the same test-mode key.
-4. Query `identity_verifications` + `customers.identity_status` for that customer; confirm row lands and `identity_status = 'verified'`.
-5. Open `VerificationSection` in the UI, confirm badge flips to **"ID Verified"** and the "View in Stripe" deep-link resolves.
+Fix: switch the path segment based on the session id prefix rather than build mode (matches what Stripe itself does — test sessions start with `vs_` in test acct, live sessions in live acct; simpler to key off `import.meta.env.PROD`, but session-prefix has zero risk of mismatch when both modes coexist during rollout). Use:
 
-### Step 5 — Report
+```
+const isTest = !import.meta.env.PROD; // preview + dev = test
+const stripePath = isTest ? 'test/identity' : 'identity';
+href={`https://dashboard.stripe.com/${stripePath}/verification-sessions/${customer.identity_session_id}`}
+```
 
-- Which secret the functions actually resolved (`STRIPE_IDENTITY_SECRET_KEY` present → used) — prefix only, never the value.
-- Deploy status for both functions.
-- Session id + webhook event id for the successful run.
-- Confirmation that `STRIPE_SECRET_KEY` and `STRIPE_IDENTITY_WEBHOOK_SECRET` were not modified.
+This keeps sandbox behaviour identical today and auto-switches when the app is served from production.
 
-### Guardrails
+## Files touched
 
-- No code changes in this project; PR #25 is the code path.
-- No migrations.
-- No changes to `identity-session-status`, payments functions, or the sandbox webhook endpoint.
-- If PR #25 hasn't merged yet at Step 2, I pause and report — I won't deploy without the fallback in place.
+- `src/components/common/UnifiedNotificationCenter.tsx` — one extra `else if` branch in `handleSystemAction`.
+- `src/components/dashboard/VerificationSection.tsx` — read `customerId` search-param on mount, seed `searchQuery`; make Stripe link mode-aware.
 
-Ready to open the `update_secret` form for `STRIPE_IDENTITY_SECRET_KEY` on your go.
+No edge function, migration, or unrelated file changes. Insurance flow untouched. Feature flag stays on.
+
+## Verification after build
+
+1. Insert a fake `identity_manual_review` notification for a known customer via the Verification tab's own notification list (or trigger the webhook path), click "View Details" → Vault opens on Verification tab with that customer filtered.
+2. Confirm the "View in Stripe" link on a sandbox customer still resolves (test path) and, once we ship, that a live-mode session id opens the non-`/test/` URL.
+
+I'll stop after these two edits.

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -87,6 +88,24 @@ export const VerificationSection = () => {
   }, [fleetLoading]);
 
   const customerList = customers as unknown as CustomerVerification[];
+
+  // Deep-link support: notifications route here with ?customerId=... to
+  // pre-filter to a specific customer (e.g. from an identity_manual_review
+  // notification). Seed the search box with that customer's name.
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    const cid = searchParams.get("customerId");
+    if (!cid || fleetLoading) return;
+    const match = customerList.find((c) => c.id === cid);
+    if (match?.full_name) {
+      setSearchQuery(match.full_name);
+    }
+    // Clear the param so refreshes don't re-filter.
+    const next = new URLSearchParams(searchParams);
+    next.delete("customerId");
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fleetLoading, customerList.length]);
 
   // Calculate verification stats
   const isIdVerified = (c: CustomerVerification) => c.id_verified || c.identity_status === "verified";
@@ -459,7 +478,7 @@ export const VerificationSection = () => {
                               )}
                               {customer.identity_session_id && (
                                 <a
-                                  href={`https://dashboard.stripe.com/test/identity/verification-sessions/${customer.identity_session_id}`}
+                                  href={`https://dashboard.stripe.com/${import.meta.env.PROD ? '' : 'test/'}identity/verification-sessions/${customer.identity_session_id}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="inline-flex items-center text-xs text-muted-foreground hover:text-foreground"
