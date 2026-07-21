@@ -3472,6 +3472,11 @@ export type Database = {
           is_demo_account: boolean | null
           locale: string
           logo_url: string | null
+          marketplace_rejection_reason: string | null
+          marketplace_request_status: string
+          marketplace_requested_at: string | null
+          marketplace_reviewed_at: string | null
+          marketplace_reviewed_by: string | null
           marketplace_visible: boolean
           min_rate: number | null
           name: string
@@ -3529,6 +3534,11 @@ export type Database = {
           is_demo_account?: boolean | null
           locale?: string
           logo_url?: string | null
+          marketplace_rejection_reason?: string | null
+          marketplace_request_status?: string
+          marketplace_requested_at?: string | null
+          marketplace_reviewed_at?: string | null
+          marketplace_reviewed_by?: string | null
           marketplace_visible?: boolean
           min_rate?: number | null
           name: string
@@ -3586,6 +3596,11 @@ export type Database = {
           is_demo_account?: boolean | null
           locale?: string
           logo_url?: string | null
+          marketplace_rejection_reason?: string | null
+          marketplace_request_status?: string
+          marketplace_requested_at?: string | null
+          marketplace_reviewed_at?: string | null
+          marketplace_reviewed_by?: string | null
           marketplace_visible?: boolean
           min_rate?: number | null
           name?: string
@@ -5376,6 +5391,10 @@ export type Database = {
       }
     }
     Functions: {
+      approve_marketplace_request: {
+        Args: { _team_id: string; _visible?: boolean }
+        Returns: boolean
+      }
       archive_vehicle: { Args: { p_vehicle_id: string }; Returns: undefined }
       auto_clear_billing_dunning_for_email: {
         Args: { p_email: string }
@@ -5964,6 +5983,14 @@ export type Database = {
             Returns: boolean
           }
         | { Args: { target_user_id: string }; Returns: undefined }
+      reject_marketplace_request: {
+        Args: { _reason?: string; _team_id: string }
+        Returns: boolean
+      }
+      request_marketplace_inclusion: {
+        Args: { _team_id: string }
+        Returns: boolean
+      }
       restore_vehicle_from_archive: {
         Args: { p_vehicle_id: string }
         Returns: undefined
