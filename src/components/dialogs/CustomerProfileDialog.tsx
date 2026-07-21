@@ -1,4 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { formatDistanceToNow } from "date-fns";
+import type { IdentityEvent } from "@/components/crm/CustomerTimeline";
 import {
   Dialog,
   DialogContent,
