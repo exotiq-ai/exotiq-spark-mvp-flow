@@ -129,11 +129,131 @@ export const VerificationSection = () => {
 
   const handleUploadComplete = async () => {
     await refreshCustomers();
-    setIdUploadOpen(false);
     setInsuranceUploadOpen(false);
     setSelectedCustomer(null);
     toast.success("Document uploaded successfully");
   };
+
+  const getIdentityBadge = (
+    status: string | null,
+    idVerifiedAt: string | null,
+  ): { label: string; className: string; Icon: typeof CheckCircle2 } | null => {
+    switch (status as IdentityStatus | null) {
+      case "verified":
+        return {
+          label: idVerifiedAt
+            ? `ID Verified · ${format(new Date(idVerifiedAt), "MMM d, yyyy")}`
+            : "ID Verified",
+          className: "bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-100",
+          Icon: CheckCircle2,
+        };
+      case "created":
+        return {
+          label: "Link sent",
+          className: "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-100",
+          Icon: Clock,
+        };
+      case "processing":
+        return {
+          label: "Processing",
+          className: "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-100",
+          Icon: Clock,
+        };
+      case "requires_input":
+        return {
+          label: "Action needed",
+          className: "bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100",
+          Icon: AlertTriangle,
+        };
+      case "manual_review":
+        return {
+          label: "Needs review",
+          className: "bg-red-100 text-red-700 border-red-200 hover:bg-red-100",
+          Icon: AlertTriangle,
+        };
+      case "canceled":
+        return {
+          label: "Canceled",
+          className: "bg-muted text-muted-foreground border-border hover:bg-muted",
+          Icon: XCircle,
+        };
+      case "redacted":
+        return {
+          label: "Expired / redacted",
+          className: "bg-muted text-muted-foreground border-border hover:bg-muted",
+          Icon: XCircle,
+        };
+      default:
+        return null;
+    }
+  };
+
+  const handleVerifyId = async (customer: CustomerVerification) => {
+    setVerifyingId(customer.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("identity-create-session", {
+        body: { customer_id: customer.id },
+      });
+
+      // Manual review: edge function returns HTTP 409. supabase.functions.invoke
+      // surfaces non-2xx as an error with a context.response we can inspect.
+      if (error) {
+        const resp = (error as any)?.context;
+        if (resp && typeof resp.json === "function") {
+          try {
+            const payload = await resp.json();
+            if (payload?.status === "manual_review") {
+              toast.error("This customer has reached the self-serve attempt limit. Needs manual review.");
+              await refreshCustomers();
+              return;
+            }
+          } catch {
+            /* fall through */
+          }
+        }
+        throw error;
+      }
+
+      if (data?.status === "verified" && data?.reused) {
+        toast.success("Already verified");
+        await refreshCustomers();
+        return;
+      }
+
+      if (data?.url) {
+        setLinkDialog({ customer, url: data.url });
+        await refreshCustomers();
+        return;
+      }
+
+      toast.error("Could not start verification");
+    } catch (err: any) {
+      console.error("[VerificationSection] identity-create-session failed", err);
+      toast.error(err?.message || "Could not start verification");
+    } finally {
+      setVerifyingId(null);
+    }
+  };
+
+  const copyLink = async (url: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("Verification link copied");
+    } catch {
+      toast.error("Copy failed — select the link manually");
+    }
+  };
+
+  const emailLink = (customer: CustomerVerification, url: string) => {
+    const subject = encodeURIComponent("Verify your ID for your upcoming rental");
+    const body = encodeURIComponent(
+      `Hi ${customer.full_name?.split(" ")[0] || "there"},\n\n` +
+        `Please complete your ID verification using the secure link below. It only takes a minute:\n\n${url}\n\n` +
+        `Thank you.`,
+    );
+    window.open(`mailto:${customer.email}?subject=${subject}&body=${body}`, "_blank");
+  };
+
 
   if (loading) {
     return (
