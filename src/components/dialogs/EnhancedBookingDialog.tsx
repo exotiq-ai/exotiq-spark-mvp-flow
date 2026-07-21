@@ -1242,13 +1242,13 @@ export const EnhancedBookingDialog = ({
 
                             {/* Verification Status */}
                             <div className="flex gap-2 mb-3">
-                              <Badge variant="outline" className={customer?.id_verified ? "bg-success/10 text-success border-success/30" : "bg-muted"}>
+                              <Badge variant="outline" className={customer?.identity_status === "verified" ? "bg-success/10 text-success border-success/30" : "bg-muted"}>
                                 <Shield className="h-3 w-3 mr-1" />
-                                ID {customer?.id_verified ? "Verified" : "Pending"}
+                                {customer?.identity_status === "verified" ? "ID Verified" : "ID Not verified"}
                               </Badge>
-                              <Badge variant="outline" className={customer?.insurance_verified ? "bg-success/10 text-success border-success/30" : "bg-muted"}>
+                              <Badge variant="outline" className="bg-muted">
                                 <Shield className="h-3 w-3 mr-1" />
-                                Insurance {customer?.insurance_verified ? "Verified" : "Pending"}
+                                {customer?.insurance_verified ? "Insurance on file" : "Insurance missing"}
                               </Badge>
                             </div>
 
