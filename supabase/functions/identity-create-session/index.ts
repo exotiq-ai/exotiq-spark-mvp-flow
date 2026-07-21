@@ -48,8 +48,12 @@ serve(async (req) => {
   }
 
   try {
-    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-    if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
+    // Identity runs on its own key (sandbox restricted key with Identity
+    // write scopes) so live payments on STRIPE_SECRET_KEY are never touched.
+    // Falls back to STRIPE_SECRET_KEY only if the dedicated key is absent.
+    const stripeKey = Deno.env.get("STRIPE_IDENTITY_SECRET_KEY") ??
+      Deno.env.get("STRIPE_SECRET_KEY");
+    if (!stripeKey) throw new Error("STRIPE_IDENTITY_SECRET_KEY / STRIPE_SECRET_KEY is not set");
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
     const admin = createClient(
