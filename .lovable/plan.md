@@ -1,51 +1,74 @@
-## Status
+## Goal
 
-Requirements 1–5 in your prompt are already live in `src/components/dashboard/VerificationSection.tsx` and `src/lib/featureFlags.ts` from the earlier turn (we successfully ran an end-to-end sandbox verification). The wiring — create-session call, hosted URL dialog with Copy / Email actions, `identity_status` badges (`created` / `processing` / `verified` / `requires_input` / `manual_review` / `canceled` / `redacted`), `reused: true` short-circuit, 409 `manual_review` toast, "View in Stripe" icon link, insurance path untouched, `idVerification` flag flipped on — is all in place.
+Every "Verified" badge must reflect a real, live signal. Today two signals exist:
 
-Reviewing it fresh against the live notification center + upcoming live-mode cutover, two small gaps remain. Neither touches edge functions or migrations.
+- **ID:** `customers.identity_status === 'verified'` (Stripe Identity — real, wired end-to-end)
+- **Insurance:** `customers.insurance_verified` (manual upload → boolean flip)
 
-## Gaps to fix
+The insurance flow is about to be reworked (next task), so this pass:
+1. Removes every hardcoded "Verified" badge (chips tied to nothing).
+2. Drops the legacy `id_verified` boolean from all UI reads — ID state comes only from `identity_status`.
+3. Neutralizes the insurance "Verified" badge until the new verification flow lands. It becomes "On file / Not on file" instead of "Verified / Pending" so we're not asserting a verification we don't actually perform.
 
-### 1. Notification deep-link for `identity_manual_review`
+## Current state (verified via rg)
 
-`identity-webhook` inserts `notifications` rows with `type = "identity_manual_review"` and `data.customer_id` on the 3rd failed attempt. `UnifiedNotificationCenter.handleSystemAction` has cases for booking / payment / damage / maintenance / tenant docs, but no case for identity — so the "View Details" button on the notification currently no-ops.
+### Hardcoded (not tied to any data)
+- `src/components/dashboard/settings/MyAccountSection.tsx:221-226` — static `<Badge>Verified</Badge>` under avatar.
 
-Fix: add one branch in `handleSystemAction` that routes to the Verification tab and pre-filters to the customer.
+### ID badges reading legacy `id_verified`
+- `src/components/dashboard/VerificationSection.tsx`
+  - `isIdVerified` = `id_verified || identity_status === 'verified'`
+  - `getVerificationStatus` reads `customer.id_verified`
+  - Row-badge fallback (~line 434) reads `customer.id_verified`
+  - Stat counts / progress text derive from `isIdVerified`
+- `src/components/dialogs/EnhancedBookingDialog.tsx:1245-1247` — "ID Verified/Pending" from `customer?.id_verified`
 
-```ts
-} else if (nType === 'identity_manual_review') {
-  params.module = 'vault';
-  params.view = 'verification';
-  if (data.customer_id) params.customerId = String(data.customer_id);
-}
-```
+### Insurance badges asserting "Verified"
+- `VerificationSection.tsx:504-507` — green "Insurance" pill when `insurance_verified === true`; "Upload Insurance" otherwise
+- `VerificationSection.tsx:112-114, 133-136` — `insurance_verified` folded into fully/partial/unverified stats
+- `EnhancedBookingDialog.tsx:1249-1251` — "Insurance Verified/Pending" from `customer?.insurance_verified`
 
-Then in `VerificationSection`, read `customerId` from the URL once on mount and either scroll/highlight that row or seed `searchQuery` with the matching customer's name so it filters to a single row. Seeding search is the smallest change and matches how other modules "deep-link" today.
+### Out of scope this pass
+- `IDUploadDialog.tsx` — legacy path, unreachable in prod (DPA-gated flag off).
+- `InsuranceUploadDialog.tsx` — will be reworked next task; leaving as-is so uploads still store the document + provider metadata. We just stop labeling the resulting state as "Verified" in the UI.
 
-### 2. Stripe dashboard link is hardcoded to test mode
+## Changes
 
-The "View in Stripe" anchor points at `https://dashboard.stripe.com/test/identity/verification-sessions/...`. That's correct for the sandbox we just verified, but the moment live-mode Identity flips on it will 404 for live sessions.
+1. **`MyAccountSection.tsx`** — delete the static "Verified" chip block (lines 221-226).
 
-Fix: switch the path segment based on the session id prefix rather than build mode (matches what Stripe itself does — test sessions start with `vs_` in test acct, live sessions in live acct; simpler to key off `import.meta.env.PROD`, but session-prefix has zero risk of mismatch when both modes coexist during rollout). Use:
+2. **`EnhancedBookingDialog.tsx` (~1245-1251)**
+   - ID badge: read `customer?.identity_status === 'verified'`; label "ID Verified" / "ID Not verified".
+   - Insurance badge: label becomes "Insurance on file" (when `insurance_verified` truthy — treated as "document present" not "verified") / "Insurance missing" (falsy). Use a neutral tone rather than the green success variant so we don't imply verification.
 
-```
-const isTest = !import.meta.env.PROD; // preview + dev = test
-const stripePath = isTest ? 'test/identity' : 'identity';
-href={`https://dashboard.stripe.com/${stripePath}/verification-sessions/${customer.identity_session_id}`}
-```
+3. **`VerificationSection.tsx`**
+   - `isIdVerified(c)` → `c.identity_status === 'verified'` (drop legacy fallback).
+   - `getVerificationStatus` → check `identity_status === 'verified'` for the ID half.
+   - Row-badge fallback (~434) → same.
+   - Insurance row pill (~504-519): rename "Insurance" (green) to "Insurance on file" (neutral) when doc present; "Upload Insurance" CTA stays for the empty case.
+   - Stat cards + headline copy: rename the "Fully Verified" tile to "ID Verified & Insurance on file" (or shorter: "ID verified · Doc on file"). Counts continue to combine `identity_status === 'verified'` AND `insurance_verified`. This is honest until the insurance verification flow lands, at which point we'll flip the copy back to "Fully Verified".
+   - Update the small helper text under the tile from "ID & Insurance verified" → "ID verified + insurance document on file".
 
-This keeps sandbox behaviour identical today and auto-switches when the app is served from production.
+## Out of scope (call out, don't change)
+
+- Legacy DB columns `customers.id_verified` / `insurance_verified` — not dropped; UI just stops asserting truth from them (ID) or softens the copy (insurance).
+- Insurance verification workflow itself — separate upcoming task.
+- Edge functions, migrations, RLS — untouched.
+
+## QA (after build)
+
+- **My Account:** no free-floating "Verified" chip under the avatar.
+- **Vault → Verification:**
+  - Customer with `identity_status = 'verified'` → green "ID Verified · <date>" badge.
+  - Customer with only legacy `id_verified = true` and no Stripe session → "Not started" (intended correction).
+  - Insurance chip on a customer with `insurance_verified = true` reads "Insurance on file" in neutral styling — not green "Verified".
+  - Stat tile no longer says "Fully Verified"; copy reflects the honest state.
+- **EnhancedBookingDialog** for a Stripe-verified customer with insurance doc → "ID Verified" (green) + "Insurance on file" (neutral).
+- Run `tsgo` typecheck.
 
 ## Files touched
 
-- `src/components/common/UnifiedNotificationCenter.tsx` — one extra `else if` branch in `handleSystemAction`.
-- `src/components/dashboard/VerificationSection.tsx` — read `customerId` search-param on mount, seed `searchQuery`; make Stripe link mode-aware.
+- `src/components/dashboard/settings/MyAccountSection.tsx`
+- `src/components/dialogs/EnhancedBookingDialog.tsx`
+- `src/components/dashboard/VerificationSection.tsx`
 
-No edge function, migration, or unrelated file changes. Insurance flow untouched. Feature flag stays on.
-
-## Verification after build
-
-1. Insert a fake `identity_manual_review` notification for a known customer via the Verification tab's own notification list (or trigger the webhook path), click "View Details" → Vault opens on Verification tab with that customer filtered.
-2. Confirm the "View in Stripe" link on a sandbox customer still resolves (test path) and, once we ship, that a live-mode session id opens the non-`/test/` URL.
-
-I'll stop after these two edits.
+No edge functions, no migrations, no schema changes.
