@@ -123,8 +123,10 @@ serve(async (req) => {
         id_verified: true,
         id_verified_at: new Date().toISOString(),
       };
+      notifyVerified = true;
       break;
     }
+
 
     case "identity.verification_session.requires_input": {
       const attempts = (row.attempt_count ?? 0) + 1;
@@ -138,9 +140,12 @@ serve(async (req) => {
       } else {
         patch.status = "requires_input";
         customerPatch = { identity_status: "requires_input" };
+        notifyRequiresInput = true;
+        attemptsRemaining = Math.max(0, MAX_SELF_SERVE_ATTEMPTS - attempts);
       }
       break;
     }
+
 
     case "identity.verification_session.canceled":
       patch.status = "canceled";
