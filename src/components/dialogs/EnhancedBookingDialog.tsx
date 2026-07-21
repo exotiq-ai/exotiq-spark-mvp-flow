@@ -32,6 +32,8 @@ import { BookingCostsSection } from "@/components/margin/BookingCostsSection";
 import { useFleet } from "@/contexts/FleetContext";
 import { useTeam } from "@/contexts/TeamContext";
 import { useToast } from "@/hooks/use-toast";
+import { startIdentityVerification } from "@/lib/identityVerification";
+
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { getVehicleImage } from "@/lib/vehicleImageMapping";
