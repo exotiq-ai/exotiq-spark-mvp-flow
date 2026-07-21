@@ -89,6 +89,23 @@ export const CustomerProfileDialog = ({
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [verifyingId, setVerifyingId] = useState(false);
   const [verifyLinkDialog, setVerifyLinkDialog] = useState<string | null>(null);
+  const [identityEvents, setIdentityEvents] = useState<IdentityEvent[]>([]);
+
+  useEffect(() => {
+    if (!customer.id || !open) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("identity_verifications")
+        .select("id,status,verified_at,document_expiry,verified_name,last_error_reason,attempt_count,created_at")
+        .eq("customer_id", customer.id)
+        .order("created_at", { ascending: false });
+      if (!cancelled && !error && data) setIdentityEvents(data as IdentityEvent[]);
+    })();
+    return () => { cancelled = true; };
+  }, [customer.id, open, (customer as any).identity_status]);
+
+  const lastIdentityActivity = identityEvents[0]?.verified_at || identityEvents[0]?.created_at;
 
 
   const customerNotesList = customerNotes.filter(note => note.customer_id === customer.id);
