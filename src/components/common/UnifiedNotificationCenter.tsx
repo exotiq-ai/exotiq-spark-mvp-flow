@@ -305,6 +305,10 @@ export const UnifiedNotificationCenter = ({ onNavigate }: { onNavigate?: (module
     } else if (nType === 'tenant_document_sent' || nType === 'tenant_document_signed') {
       params.module = 'vault';
       if (data.tenant_document_id) params.sign = String(data.tenant_document_id);
+    } else if (nType === 'identity_manual_review') {
+      params.module = 'vault';
+      params.view = 'verification';
+      if (data.customer_id) params.customerId = String(data.customer_id);
     } else {
       return;
     }
