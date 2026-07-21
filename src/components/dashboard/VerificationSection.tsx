@@ -89,6 +89,24 @@ export const VerificationSection = () => {
 
   const customerList = customers as unknown as CustomerVerification[];
 
+  // Deep-link support: notifications route here with ?customerId=... to
+  // pre-filter to a specific customer (e.g. from an identity_manual_review
+  // notification). Seed the search box with that customer's name.
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    const cid = searchParams.get("customerId");
+    if (!cid || fleetLoading) return;
+    const match = customerList.find((c) => c.id === cid);
+    if (match?.full_name) {
+      setSearchQuery(match.full_name);
+    }
+    // Clear the param so refreshes don't re-filter.
+    const next = new URLSearchParams(searchParams);
+    next.delete("customerId");
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fleetLoading, customerList.length]);
+
   // Calculate verification stats
   const isIdVerified = (c: CustomerVerification) => c.id_verified || c.identity_status === "verified";
   const verifiedCount = customerList.filter(c => isIdVerified(c) && c.insurance_verified).length;
