@@ -63,7 +63,7 @@ export const featureFlags = {
   margin: true, // Per-vehicle P&L, expenses, partner payouts — visible to Manager+
 
   // DPA §3.8 — prohibited data categories (keep OFF on Lovable path)
-  idVerification: false, // Driver's license image upload / OCR
+  idVerification: true, // Routed through Stripe Identity (hosted). No PII stored in Lovable Cloud per DPA §3.8.
   receiptScanning: false, // Receipt/invoice OCR via AI Gateway → Gemini
   driversLicenseNumberField: false, // Typed government identifier input
 

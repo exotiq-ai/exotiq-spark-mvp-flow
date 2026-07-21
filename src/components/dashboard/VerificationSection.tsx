@@ -5,10 +5,18 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
-import { 
-  ShieldCheck, 
-  IdCard, 
-  FileCheck, 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  ShieldCheck,
+  IdCard,
+  FileCheck,
   AlertTriangle,
   CheckCircle2,
   XCircle,
@@ -17,15 +25,17 @@ import {
   Upload,
   Eye,
   RefreshCw,
-  Users
+  Users,
+  ShieldQuestion,
+  Copy,
+  Mail,
+  ExternalLink,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { toast } from "sonner";
 import { format, differenceInDays } from "date-fns";
-import { IDUploadDialog } from "@/components/dialogs/IDUploadDialog";
 import { InsuranceUploadDialog } from "@/components/dialogs/InsuranceUploadDialog";
-import { isFeatureEnabled } from "@/lib/featureFlags";
 
 interface CustomerVerification {
   id: string;
@@ -44,15 +54,31 @@ interface CustomerVerification {
   insurance_document_url: string | null;
   insurance_verified_at: string | null;
   total_bookings: number | null;
+  identity_status: string | null;
+  identity_session_id: string | null;
 }
+
+type IdentityStatus =
+  | "created"
+  | "processing"
+  | "verified"
+  | "requires_input"
+  | "manual_review"
+  | "canceled"
+  | "redacted";
 
 export const VerificationSection = () => {
   const { customers, loading: fleetLoading, refreshCustomers } = useLocationFilteredFleet();
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerVerification | null>(null);
-  const [idUploadOpen, setIdUploadOpen] = useState(false);
   const [insuranceUploadOpen, setInsuranceUploadOpen] = useState(false);
+  const [verifyingId, setVerifyingId] = useState<string | null>(null);
+  const [linkDialog, setLinkDialog] = useState<{
+    customer: CustomerVerification;
+    url: string;
+  } | null>(null);
+
 
   useEffect(() => {
     if (!fleetLoading) {
@@ -63,9 +89,10 @@ export const VerificationSection = () => {
   const customerList = customers as unknown as CustomerVerification[];
 
   // Calculate verification stats
-  const verifiedCount = customerList.filter(c => c.id_verified && c.insurance_verified).length;
-  const partialCount = customerList.filter(c => c.id_verified !== c.insurance_verified).length;
-  const unverifiedCount = customerList.filter(c => !c.id_verified && !c.insurance_verified).length;
+  const isIdVerified = (c: CustomerVerification) => c.id_verified || c.identity_status === "verified";
+  const verifiedCount = customerList.filter(c => isIdVerified(c) && c.insurance_verified).length;
+  const partialCount = customerList.filter(c => isIdVerified(c) !== c.insurance_verified).length;
+  const unverifiedCount = customerList.filter(c => !isIdVerified(c) && !c.insurance_verified).length;
   const expiringCount = customerList.filter(c => {
     if (!c.license_expiry && !c.insurance_expiry) return false;
     const licenseExpiring = c.license_expiry && differenceInDays(new Date(c.license_expiry), new Date()) <= 30;
@@ -103,11 +130,131 @@ export const VerificationSection = () => {
 
   const handleUploadComplete = async () => {
     await refreshCustomers();
-    setIdUploadOpen(false);
     setInsuranceUploadOpen(false);
     setSelectedCustomer(null);
     toast.success("Document uploaded successfully");
   };
+
+  const getIdentityBadge = (
+    status: string | null,
+    idVerifiedAt: string | null,
+  ): { label: string; className: string; Icon: typeof CheckCircle2 } | null => {
+    switch (status as IdentityStatus | null) {
+      case "verified":
+        return {
+          label: idVerifiedAt
+            ? `ID Verified · ${format(new Date(idVerifiedAt), "MMM d, yyyy")}`
+            : "ID Verified",
+          className: "bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-100",
+          Icon: CheckCircle2,
+        };
+      case "created":
+        return {
+          label: "Link sent",
+          className: "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-100",
+          Icon: Clock,
+        };
+      case "processing":
+        return {
+          label: "Processing",
+          className: "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-100",
+          Icon: Clock,
+        };
+      case "requires_input":
+        return {
+          label: "Action needed",
+          className: "bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100",
+          Icon: AlertTriangle,
+        };
+      case "manual_review":
+        return {
+          label: "Needs review",
+          className: "bg-red-100 text-red-700 border-red-200 hover:bg-red-100",
+          Icon: AlertTriangle,
+        };
+      case "canceled":
+        return {
+          label: "Canceled",
+          className: "bg-muted text-muted-foreground border-border hover:bg-muted",
+          Icon: XCircle,
+        };
+      case "redacted":
+        return {
+          label: "Expired / redacted",
+          className: "bg-muted text-muted-foreground border-border hover:bg-muted",
+          Icon: XCircle,
+        };
+      default:
+        return null;
+    }
+  };
+
+  const handleVerifyId = async (customer: CustomerVerification) => {
+    setVerifyingId(customer.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("identity-create-session", {
+        body: { customer_id: customer.id },
+      });
+
+      // Manual review: edge function returns HTTP 409. supabase.functions.invoke
+      // surfaces non-2xx as an error with a context.response we can inspect.
+      if (error) {
+        const resp = (error as any)?.context;
+        if (resp && typeof resp.json === "function") {
+          try {
+            const payload = await resp.json();
+            if (payload?.status === "manual_review") {
+              toast.error("This customer has reached the self-serve attempt limit. Needs manual review.");
+              await refreshCustomers();
+              return;
+            }
+          } catch {
+            /* fall through */
+          }
+        }
+        throw error;
+      }
+
+      if (data?.status === "verified" && data?.reused) {
+        toast.success("Already verified");
+        await refreshCustomers();
+        return;
+      }
+
+      if (data?.url) {
+        setLinkDialog({ customer, url: data.url });
+        await refreshCustomers();
+        return;
+      }
+
+      toast.error("Could not start verification");
+    } catch (err: any) {
+      console.error("[VerificationSection] identity-create-session failed", err);
+      toast.error(err?.message || "Could not start verification");
+    } finally {
+      setVerifyingId(null);
+    }
+  };
+
+  const copyLink = async (url: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("Verification link copied");
+    } catch {
+      toast.error("Copy failed — select the link manually");
+    }
+  };
+
+  const emailLink = (customer: CustomerVerification, url: string) => {
+    const subject = encodeURIComponent("Verify your ID for your upcoming rental");
+    const body = encodeURIComponent(
+      `Hi ${customer.full_name?.split(" ")[0] || "there"},\n\n` +
+        `Please complete your ID verification using the secure link below. It only takes a minute:\n\n${url}\n\n` +
+        `Thank you.`,
+    );
+    window.open(`mailto:${customer.email}?subject=${subject}&body=${body}`, "_blank");
+  };
+
 
   if (loading) {
     return (
@@ -260,42 +407,77 @@ export const VerificationSection = () => {
                       {/* ID Status */}
                       <div className="flex items-center gap-2">
                         <IdCard className="h-4 w-4 text-muted-foreground" />
-                        {customer.id_verified ? (
-                          <Badge variant="default" className="gap-1">
-                            <CheckCircle2 className="h-3 w-3" />
-                            ID Verified
-                          </Badge>
-                        ) : isFeatureEnabled('idVerification') ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              setSelectedCustomer(customer);
-                              setIdUploadOpen(true);
-                            }}
-                          >
-                            <Upload className="h-3 w-3 mr-1" />
-                            Upload ID
-                          </Button>
-                        ) : (
-                          // DPA §3.8: ID image uploads disabled on Lovable path.
-                          // Re-enable via Stripe Identity / Persona integration.
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled
-                            title="ID verification coming soon — pending compliant provider integration"
-                          >
-                            <Upload className="h-3 w-3 mr-1" />
-                            Upload ID
-                          </Button>
-                        )}
+                        {(() => {
+                          const badge = getIdentityBadge(
+                            customer.identity_status,
+                            customer.id_verified_at,
+                          );
+                          const isVerified =
+                            customer.identity_status === "verified" || customer.id_verified;
+
+                          if (isVerified) {
+                            const Icon = badge?.Icon ?? CheckCircle2;
+                            return (
+                              <Badge
+                                variant="outline"
+                                className={
+                                  badge?.className ??
+                                  "bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+                                }
+                              >
+                                <Icon className="h-3 w-3 mr-1" />
+                                {badge?.label ?? "ID Verified"}
+                              </Badge>
+                            );
+                          }
+
+                          return (
+                            <>
+                              {badge && (
+                                <Badge variant="outline" className={badge.className}>
+                                  <badge.Icon className="h-3 w-3 mr-1" />
+                                  {badge.label}
+                                </Badge>
+                              )}
+                              {/* Show verify button unless we're mid-flow */}
+                              {(!badge ||
+                                customer.identity_status === "requires_input" ||
+                                customer.identity_status === "canceled") && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={verifyingId === customer.id}
+                                  onClick={() => handleVerifyId(customer)}
+                                >
+                                  <ShieldQuestion className="h-3 w-3 mr-1" />
+                                  {verifyingId === customer.id
+                                    ? "Starting…"
+                                    : customer.identity_status
+                                      ? "Resend link"
+                                      : "Verify ID"}
+                                </Button>
+                              )}
+                              {customer.identity_session_id && (
+                                <a
+                                  href={`https://dashboard.stripe.com/test/identity/verification-sessions/${customer.identity_session_id}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center text-xs text-muted-foreground hover:text-foreground"
+                                  title="View in Stripe"
+                                >
+                                  <ExternalLink className="h-3.5 w-3.5" />
+                                </a>
+                              )}
+                            </>
+                          );
+                        })()}
                         {licenseStatus && (
                           <Badge variant={licenseStatus.variant} className="text-xs">
                             {licenseStatus.label}
                           </Badge>
                         )}
                       </div>
+
 
                       {/* Insurance Status */}
                       <div className="flex items-center gap-2">
@@ -349,19 +531,44 @@ export const VerificationSection = () => {
       </Card>
 
       {/* Dialogs */}
-      <IDUploadDialog
-        open={idUploadOpen}
-        onOpenChange={setIdUploadOpen}
-        customer={selectedCustomer}
-        onComplete={handleUploadComplete}
-      />
-
       <InsuranceUploadDialog
         open={insuranceUploadOpen}
         onOpenChange={setInsuranceUploadOpen}
         customer={selectedCustomer}
         onComplete={handleUploadComplete}
       />
+
+      {/* Verification link dialog (Stripe Identity hosted URL) */}
+      <Dialog open={!!linkDialog} onOpenChange={(open) => !open && setLinkDialog(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Verification link ready</DialogTitle>
+            <DialogDescription>
+              Share this secure Stripe Identity link with {linkDialog?.customer.full_name}. The link
+              guides them through document + selfie capture — no ID images are stored in Exotiq.
+            </DialogDescription>
+          </DialogHeader>
+          {linkDialog && (
+            <div className="rounded-md border bg-muted/40 p-2 text-xs break-all font-mono">
+              {linkDialog.url}
+            </div>
+          )}
+          <DialogFooter className="gap-2 sm:gap-2">
+            {linkDialog && (
+              <>
+                <Button variant="outline" onClick={() => copyLink(linkDialog.url)}>
+                  <Copy className="h-4 w-4 mr-2" />
+                  Copy link
+                </Button>
+                <Button onClick={() => emailLink(linkDialog.customer, linkDialog.url)}>
+                  <Mail className="h-4 w-4 mr-2" />
+                  Email to customer
+                </Button>
+              </>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
