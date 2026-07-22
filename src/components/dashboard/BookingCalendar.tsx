@@ -214,12 +214,7 @@ const DayDetailContent = ({
                         >{booking.customer_name}</p>
                       </div>
                     </div>
-                    <Badge variant="outline" className={`text-[10px] flex-shrink-0 ${
-                      booking.status === 'confirmed' ? 'bg-success/10 text-success border-success/30' :
-                      booking.status === 'completed' ? 'bg-primary/10 text-primary border-primary/30' :
-                      booking.status === 'cancelled' ? 'bg-destructive/10 text-destructive border-destructive/30' :
-                      'bg-warning/10 text-warning border-warning/30'
-                    }`}>{booking.status}</Badge>
+                    <Badge variant="outline" className={`text-[10px] flex-shrink-0 ${getBookingStatusBadgeClass(booking.status)}`}>{getBookingStatusLabel(booking.status)}</Badge>
                   </div>
                   <div className="grid grid-cols-2 gap-1 text-xs mb-1.5">
                     <div className="flex items-center gap-1 text-muted-foreground">
