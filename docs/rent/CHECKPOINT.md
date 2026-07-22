@@ -187,6 +187,36 @@ Prompt B shipped by Lovable and verified. V4 test record (plan §7):
 - Migration artifacts: still on hold at Lovable support (5-item list in
   RECEIVED_ARTIFACTS_INVENTORY.md) — re-send the export request.
 
+## Session 2026-07-22: M5 booking writes applied to spark repo
+
+- **Gate note:** Gregory consciously lifted the pre-cutover gate for booking
+  writes (2026-07-22, in-chat, per exotiq-rent PR #12). M6 money remains
+  gated on the D1 money-flow review.
+- Applied the M5 patch from exotiq-rent PR #12
+  (`docs/rent/patches/booking-writes/`): migration
+  `20260722050000_renter_booking_writes.sql` (D3 lifecycle statuses, D4
+  confirmation tokens + token-gated `public_booking_by_ref`, btree_gist
+  double-booking exclusion constraint scoped to marketplace rows,
+  transactional `create_marketplace_booking` service-role-only) +
+  `rent-create-booking` edge function (anon POST, rate-limited, server-side
+  re-quote, V7 identity check) + config.toml entry.
+- **Two drift/bug fixes vs the patch:** (1) `user_activity_log` insert used
+  nonexistent `action`/`details` columns → fixed to
+  `activity_type`/`entity_type`/`entity_id`/`metadata` (would have silently
+  no-oped inside the exception guard); (2) `public_booking_by_ref.authorized`
+  returned SQL NULL instead of false for tokenless reads → coalesced.
+- Verified: 14/14 behavioral tests (`scripts/rls-verify/test_m5_booking_writes.sql`)
+  incl. the exclusion constraint firing under a simulated race and the
+  operator-source scoping; `deno check` clean.
+- **Flagged follow-up (from patch design):** fleet-wide exclusion constraint
+  after Lovable dedupes historical operator overlaps — cutover checklist
+  already carries the M5 constraint item.
+- Next after merge: Lovable applies the migration + deploys
+  `rent-create-booking`; then README curl smokes incl. the parallel-create
+  concurrency test; then Gregory's phone click-through (browse → reserve →
+  verify identity → booking appears in Command Center as hello@exotiq.ai
+  with status pending_documents/requested).
+
 ## Next action
 
 M4 (real reads in the renter app, exotiq-rent repo — needs #21/#22 merged AND applied to hosted project first): `services/exotiq-rent/client.ts` + `adapters.ts` wrapping the five public RPCs + media endpoint, `NEXT_PUBLIC_EXOTIQ_RENT_DATA_MODE=mock|supabase` flag, contract tests against RPC shapes; mock mode must stay green with no env. Coordinate with the M0 agent's branch to avoid conflicts. Meanwhile: M5 prep is possible decision-free only up to drafting the `btree_gist` exclusion constraint migration (blocked on cutover for apply). Chase D-register answers and Lovable export artifacts.

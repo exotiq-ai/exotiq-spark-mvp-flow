@@ -6,6 +6,7 @@ Covers:
 - **M2**: `20260715211500_vehicle_photos_team_rls_and_webhook_events_select.sql` (inventory findings 5 and 6) — `test_policies.sql`, 10 tests.
 - **M3**: `20260715220000_rent_public_catalog_schema.sql` + `20260715220100_rent_public_read_rpcs.sql` (slugs, marketplace visibility, public read RPCs, availability, quote) — `test_m3_public_rpcs.sql`, 25 tests including anon base-table leak checks and RPC signature PII scan.
 - **ID verification V1**: `20260721180000_identity_verifications.sql` — `test_idv.sql`, self-contained (includes its own stub): status check constraint, updated_at trigger, team-scoped SELECT, service-role-only writes, cross-team isolation. Run: `psql -f scripts/rls-verify/test_idv.sql` against an empty scratch DB from the repo root.
+- **M5 booking writes**: `20260722050000_renter_booking_writes.sql` — `test_m5_booking_writes.sql`, self-contained, 14 tests: transactional create (ref/token/status), guest-customer upsert, audit row, overlap pre-check, **btree_gist exclusion constraint under race** (direct overlapping marketplace insert → exclusion_violation), operator-source scoping, widened status CHECK, D4 token-gated confirmation read (tokenless = status only), function privilege posture.
 
 ## Run M3
 
