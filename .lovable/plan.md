@@ -1,50 +1,29 @@
-## Plan: marketplace test bypass + Exotiq go-live checklist
+## Goal
+Force-disconnect Saucy Rentals from the wrong Stripe account (`acct_1TvnfgQfNJmCrgjR`) so it can be reconnected to your new one. Exotiq (`acct_1TcPJyQchd6jAAl0`) is not touched.
 
-Doing both in parallel. Option 1 gets us clicking through the marketplace today; Option 2 makes Exotiq a real, passing-the-checklist tenant so the bypass isn't load-bearing.
+## Current state (verified)
+- `Saucy Rentals` (bc644f8f…) → `stripe_account_id = acct_1TvnfgQfNJmCrgjR`, charges/payouts/onboarding all false.
+- `Exotiq` (c1de6533…) → separate account, untouched.
 
-### Part A — Super-admin test-mode bypass (Option 1)
+Because charges/payouts are already false, no live payments or payouts break from clearing this.
 
-**1. Migration**
-- `ALTER TABLE public.teams ADD COLUMN marketplace_test_mode boolean NOT NULL DEFAULT false;`
-- Update `public.get_marketplace_readiness(p_team_id)`:
-  - Report every check honestly (no lying about photos/Stripe).
-  - Add `test_mode: <bool>` to the returned payload.
-  - If `test_mode` is true, set top-level `ready: true` at the end.
-- Update the `enforce_marketplace_readiness` trigger to `RETURN NEW` early when `teams.marketplace_test_mode = true`, so writes that would otherwise be blocked when the gate is enforced still succeed for the test team.
-- New RPC `public.set_marketplace_test_mode(p_team_id uuid, p_enabled boolean)` — `SECURITY DEFINER`, checks `is_super_admin(auth.uid())`, writes the flag, and logs to `admin_action_log` via `log_admin_action` so we have an audit trail.
+## Plan
 
-**2. Super Admin UI**
-- `src/components/super-admin/MarketplaceVisibilityTab.tsx`: add a "Test mode" toggle in the expanded team row, super-admin only.
-- `src/components/super-admin/MarketplaceReadinessPanel.tsx`: when `test_mode` is true, render an amber "Bypass active — checklist ignored" banner above the checklist. Checks still render red/green so we can see the real state.
+1. **Clear Stripe linkage on Saucy Rentals only.** Update the `teams` row where `id = bc644f8f-1cdb-445b-931b-750730504406`:
+   - `stripe_account_id = NULL`
+   - `stripe_charges_enabled = false`
+   - `stripe_payouts_enabled = false`
+   - `stripe_onboarding_complete = false`
+   - Also null any related onboarding/session/timestamp columns on `teams` if present (e.g. `stripe_onboarded_at`, `stripe_details_submitted`) — I'll inspect columns first and only touch Stripe-prefixed ones.
 
-**3. Enable on Exotiq**
-- Flip `marketplace_test_mode = true` for team `Exotiq` (id `c1de6533-…`). Leave every other team off.
+2. **Leave the Stripe account itself alone.** We do NOT delete `acct_1TvnfgQfNJmCrgjR` from Stripe — that's Exotiq's real account. Clearing our DB pointer is enough; Exotiq's connection stays intact via its own team row.
 
-### Part B — Finish Exotiq's real checklist (Option 2)
+3. **Verify.** Re-query both teams to confirm Saucy is cleared and Exotiq is unchanged.
 
-Track this so we can retire the bypass ASAP.
+4. **Next step for you (not in this plan):** In the Saucy Rentals tenant → Settings → Payments, click Connect Stripe and go through onboarding with the correct new account.
 
-**1. Logo + business address** (no code)
-- Sign into `hello@exotiq.ai`, go to Settings → Business Profile, upload the D Exotiq logo and fill in the business address. `logo_set` and `business_address_set` flip green immediately.
-
-**2. Stripe Connect onboarding** (no code)
-- The Connect account `acct_1TcPJy…` already exists on Exotiq. Resume onboarding from Settings → Payments; complete identity, bank details, and ToS. Once Stripe fires the account.updated webhook, `stripe_charges_enabled` / `stripe_payouts_enabled` flip to true automatically (existing webhook handler already writes these).
-
-**3. Photos — 5 hero test vehicles** (no code, done through the app)
-- Pick 5 marquee cars (e.g., Aston Martin Valkyrie, Bugatti Chiron Sport, Ferrari 296 GTB, Bentley Mulliner Batur, Rolls-Royce Cullinan) and upload the missing photos through the Photo Hub so each has ≥5 visible rows. Real content, no data hacks.
-- With those five ready and `test_mode` still on, we can turn `test_mode` off and confirm the real gate lets Exotiq through.
-
-### Guardrails
-
-- `marketplace_test_mode` defaults to false everywhere, requires super-admin to flip, and is audited on every change.
-- The readiness panel keeps showing red where things are actually broken, so it's obvious the bypass is doing the lifting.
-- No changes to public marketplace RPCs, no lowered thresholds, no impact on any other tenant (Saucy included).
-
-### Order of operations
-
-1. Ship the migration + UI toggle.
-2. Flip `marketplace_test_mode` on for Exotiq → click through the marketplace end-to-end.
-3. In parallel, knock out logo, address, Stripe, and the 5 hero-vehicle photo sets.
-4. When the real checklist passes, flip `marketplace_test_mode` back off and confirm nothing regresses.
-
-Ready to implement Part A on approval. Part B is your click-through work in the tenant UI, and I'll help with any snags as they come up.
+## Not doing
+- No code changes.
+- No migration (data-only fix).
+- No changes to Exotiq's row or any Stripe-side objects.
+- No touching bookings/payments/payouts history.
