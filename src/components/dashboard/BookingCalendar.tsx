@@ -407,8 +407,8 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
     // Apply status filters (union)
     if (statusFilters.size > 0) {
       result = result.filter(booking => {
-        if (statusFilters.has('pending') && booking.status === 'pending') return true;
-        if (statusFilters.has('confirmed') && (booking.status === 'confirmed' || booking.status === 'active')) return true;
+        if (statusFilters.has('pending') && isPendingStatus(booking.status)) return true;
+        if (statusFilters.has('confirmed') && isConfirmedStatus(booking.status)) return true;
         if (statusFilters.has('conflicts') && conflictBookingIds.has(booking.id)) return true;
         if (statusFilters.has('returns') && returnsSoonIds.has(booking.id)) return true;
         return false;
