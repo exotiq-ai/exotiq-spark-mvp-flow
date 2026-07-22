@@ -195,8 +195,27 @@ export const MarketplaceVisibilityTab = () => {
       toast({ title: 'Rename failed', description: e.message, variant: 'destructive' }),
   });
 
+  const toggleTestMode = useMutation({
+    mutationFn: async ({ team, value }: { team: TeamRow; value: boolean }) => {
+      const { error } = await supabase.rpc('set_marketplace_test_mode', {
+        p_team_id: team.id,
+        p_enabled: value,
+      });
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ['sa-marketplace-teams'] });
+      qc.invalidateQueries({ queryKey: ['marketplace-readiness', vars.team.id] });
+      toast({
+        title: vars.value ? 'Test mode enabled' : 'Test mode disabled',
+        description: vars.team.name,
+      });
+    },
+    onError: (e: any) =>
+      toast({ title: 'Update failed', description: e.message, variant: 'destructive' }),
+  });
 
-  const toggleVehicle = useMutation({
+
     mutationFn: async ({
       vehicle,
       teamId,
