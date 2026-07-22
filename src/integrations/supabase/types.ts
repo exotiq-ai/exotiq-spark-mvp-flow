@@ -226,11 +226,14 @@ export type Database = {
           delivery_address: string | null
           delivery_fee: number | null
           deposit_amount: number | null
+          deposit_cents_snapshot: number
           discount_amount: number | null
           discount_reason: string | null
           dropoff_location: string | null
           dropoff_location_id: string | null
           end_date: string
+          exotiq_charge_cents: number
+          exotiq_payment_intent_id: string | null
           gas_fee: number | null
           gas_fee_waived: boolean | null
           google_calendar_event_id: string | null
@@ -240,6 +243,7 @@ export type Database = {
           mileage_limit: number | null
           mileage_overage_fee: number | null
           notes: string | null
+          operator_payment_intent_id: string | null
           payment_status: string | null
           pickup_fuel_level: number | null
           pickup_location: string
@@ -248,6 +252,8 @@ export type Database = {
           platform_fee_amount: number
           platform_fee_base: number
           platform_fee_percent_snapshot: number
+          protection_cents_snapshot: number
+          protection_tier: string | null
           rental_duration_type: string | null
           requires_delivery: boolean | null
           return_fuel_level: number | null
@@ -285,11 +291,14 @@ export type Database = {
           delivery_address?: string | null
           delivery_fee?: number | null
           deposit_amount?: number | null
+          deposit_cents_snapshot?: number
           discount_amount?: number | null
           discount_reason?: string | null
           dropoff_location?: string | null
           dropoff_location_id?: string | null
           end_date: string
+          exotiq_charge_cents?: number
+          exotiq_payment_intent_id?: string | null
           gas_fee?: number | null
           gas_fee_waived?: boolean | null
           google_calendar_event_id?: string | null
@@ -299,6 +308,7 @@ export type Database = {
           mileage_limit?: number | null
           mileage_overage_fee?: number | null
           notes?: string | null
+          operator_payment_intent_id?: string | null
           payment_status?: string | null
           pickup_fuel_level?: number | null
           pickup_location: string
@@ -307,6 +317,8 @@ export type Database = {
           platform_fee_amount?: number
           platform_fee_base?: number
           platform_fee_percent_snapshot?: number
+          protection_cents_snapshot?: number
+          protection_tier?: string | null
           rental_duration_type?: string | null
           requires_delivery?: boolean | null
           return_fuel_level?: number | null
@@ -344,11 +356,14 @@ export type Database = {
           delivery_address?: string | null
           delivery_fee?: number | null
           deposit_amount?: number | null
+          deposit_cents_snapshot?: number
           discount_amount?: number | null
           discount_reason?: string | null
           dropoff_location?: string | null
           dropoff_location_id?: string | null
           end_date?: string
+          exotiq_charge_cents?: number
+          exotiq_payment_intent_id?: string | null
           gas_fee?: number | null
           gas_fee_waived?: boolean | null
           google_calendar_event_id?: string | null
@@ -358,6 +373,7 @@ export type Database = {
           mileage_limit?: number | null
           mileage_overage_fee?: number | null
           notes?: string | null
+          operator_payment_intent_id?: string | null
           payment_status?: string | null
           pickup_fuel_level?: number | null
           pickup_location?: string
@@ -366,6 +382,8 @@ export type Database = {
           platform_fee_amount?: number
           platform_fee_base?: number
           platform_fee_percent_snapshot?: number
+          protection_cents_snapshot?: number
+          protection_tier?: string | null
           rental_duration_type?: string | null
           requires_delivery?: boolean | null
           return_fuel_level?: number | null
@@ -4927,6 +4945,7 @@ export type Database = {
           created_at: string | null
           current_rate: number
           default_mileage_limit: number | null
+          default_security_deposit: number
           id: string
           image_url: string | null
           last_known_name: string | null
@@ -4967,6 +4986,7 @@ export type Database = {
           created_at?: string | null
           current_rate?: number
           default_mileage_limit?: number | null
+          default_security_deposit?: number
           id?: string
           image_url?: string | null
           last_known_name?: string | null
@@ -5007,6 +5027,7 @@ export type Database = {
           created_at?: string | null
           current_rate?: number
           default_mileage_limit?: number | null
+          default_security_deposit?: number
           id?: string
           image_url?: string | null
           last_known_name?: string | null
@@ -5465,9 +5486,13 @@ export type Database = {
           _customer_name: string
           _customer_phone: string
           _daily_rate: number
+          _deposit_cents?: number
           _end_date: string
           _initial_status: string
           _pickup_time: string
+          _platform_fee_cents?: number
+          _protection_cents?: number
+          _protection_tier?: string
           _start_date: string
           _team_slug: string
           _total_value: number
@@ -6002,6 +6027,7 @@ export type Database = {
         Returns: {
           currency: string
           daily_rate_cents: number
+          deposit_cents: number
           exotiq_total_cents: number
           grand_total_cents: number
           operator_total_cents: number
