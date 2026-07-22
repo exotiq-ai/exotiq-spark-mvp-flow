@@ -1,34 +1,36 @@
-# Marketplace Testing — Regroup
+## Redeploy create-payment-checkout + stripe-create-hold and verify D1 (no 20% fee)
 
-## Where Exotiq stands (verified now)
+Repo `main` versions of both functions already have the 20% hardcode retired (`platformFee = 0`, `application_fee_amount` only attached when `> 0`). This plan redeploys them to Lovable Cloud and confirms behavior.
 
-- Tenant `Exotiq` (`c1de6533-…`):
-  - `marketplace_visible: true`, `marketplace_request_status: approved`, `marketplace_test_mode: true`
-  - Stripe Connect `acct_1TvnfgQfNJmCrgjR` — charges ✅ / payouts ✅ / onboarding complete ✅
-- Fleet: 55 vehicles, 54 marketplace_visible, 49 visible + available.
-- `rent-public-media` edge function previously verified returning HTTP 200 + signed URLs w/ anon key.
-- ID verification (Stripe Identity) live end-to-end; verified badges piped from `customers.identity_status`.
+### Steps
 
-**Bottom line:** Yes — marketplace is ready for the Claude/renter-side agent to start integrating against. Public catalog + media + Stripe payouts + identity are all green on Exotiq.
+1. **Redeploy both functions**
+   - `supabase--deploy_edge_functions` with `["create-payment-checkout", "stripe-create-hold"]`.
 
-## Recommended pre-handoff checks (no code changes, just verifying)
+2. **Smoke-check `create-payment-checkout` responds**
+   - `supabase--curl_edge_functions` POST with an empty/invalid body.
+   - Expect a controlled 4xx/5xx JSON error (e.g. "Invalid payment amount" or auth error), NOT `function-not-found`. This confirms boot.
 
-Before Claude wires the booking flow, I want to confirm these four things are actually working end-to-end so the renter agent doesn't hit a wall mid-integration. Each is a read/probe, not a change:
+3. **Smoke-check `stripe-create-hold` responds**
+   - Same technique: POST with minimal body; expect a controlled JSON error, not a boot failure.
 
-1. **Public catalog RPC** — call the M3 public RPCs (`list_marketplace_vehicles`, `get_marketplace_vehicle`) with the anon key and confirm they return Exotiq's 49 available vehicles with slugs, hero image URLs, and pricing.
-2. **Signed media URLs at scale** — confirm `rent-public-media` returns valid signed URLs for a sample of 5 vehicles (not just the one previously tested), and that URLs are usable from an unauthenticated fetch.
-3. **Booking creation path for a renter** — trace which edge function / RPC a marketplace renter will call to create a booking, and confirm: (a) it accepts an unauthenticated or renter-JWT caller, (b) it enforces the 20% marketplace application fee on the connected account, (c) it writes with `booking_source = 'marketplace'` so the fee trigger fires.
-4. **Double-booking guard on the renter path** — the client-side overlap check exists in the operator app; confirm the marketplace booking entry point also runs it (or documents that the operator confirms before capture).
+4. **Confirm no application_fee_amount on a real deposit hold**
+   - Use `supabase--curl_edge_functions` to call `stripe-create-hold` while signed in as the Exotiq preview user (auto-injected auth), with a small test amount (e.g. `$1.00`) and a throwaway `booking_id` string. Exotiq is now on a fully live Connect account, so the resulting PaymentIntent is real but manual-capture and immediately releasable.
+   - Capture `payment_intent_id` from the response.
+   - `stripe--stripe_api_read` on the returned PaymentIntent (on the connected account `acct_1TvnfgQfNJmCrgjR`) and confirm `application_fee_amount` is **null / absent**.
+   - Immediately call `stripe-release-hold` (or `stripe--stripe_api_write` cancel) to release the $1 hold so nothing lingers.
+   - Also verify the corresponding row in `payments` has `platform_fee = 0`.
 
-## Known items to flag to Claude (not blockers, just "know before you build")
+5. **Read recent logs** for both functions via `supabase--edge_function_logs` to confirm the new build is live (look for absence of any "platformFee: 20%" style log lines and presence of the new `[STRIPE-CREATE-HOLD]` / `[CREATE-PAYMENT-CHECKOUT]` traces).
 
-- Marketplace application fee is **20%** (hardcoded in `create-payment-checkout` and `stripe-create-hold`). FLAGGED.md F-BUG-2 notes this diverges from the margin trigger — fine for testing, needs a policy decision before real GA.
-- `marketplace_test_mode: true` on Exotiq bypasses the 5-photo readiness gate. Only Exotiq's fleet should be treated as "showable to real renters"; other tenants will fail readiness until they hit 5 photos/vehicle + Stripe onboarding.
-- ID verification is required to book — renter flow must send users through the `identity-create-session` → Stripe hosted URL → webhook path before payment capture.
-- No DB-level exclusion constraint on booking overlaps yet (FLAGGED F-BUG-1-DB). Fine for controlled testing; call out to Claude so the renter UI doesn't rely on Postgres to reject overlaps.
+6. **Report results** with: deploy status, HTTP status of each smoke call, the PaymentIntent's `application_fee_amount` value, and the `payments.platform_fee` value.
 
-## Suggested next step
+### Not in scope
 
-I run the 4 verification probes above (read-only, ~5 min), report back green/red per item, and then you hand off to Claude with a short "what's live, what to call, what to avoid" note. I can draft that handoff note as the final step.
+- No code edits — repo `main` is already correct.
+- No changes to `stripe-webhook`, `stripe-capture-hold`, or `stripe-release-hold`.
+- Renter-side 10% separate charge (M6) is a future task, not this deploy.
 
-Approve this and I'll switch to build mode just to execute the read-only probes and produce the handoff note — no schema, edge function, or UI changes.
+### Risk
+
+Low. Test hold is $1, manual-capture, released within the same turn. Uses the live Exotiq Connect account only because that's where the fee-attach behavior actually needs to be verified in production configuration.
