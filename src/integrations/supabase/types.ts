@@ -5941,7 +5941,7 @@ export type Database = {
         }[]
       }
       public_team_fleet: {
-        Args: { _team_slug: string }
+        Args: { _require_hero?: boolean; _team_slug: string }
         Returns: {
           color: string
           daily_rate: number
