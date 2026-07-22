@@ -373,8 +373,8 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
 
   // Status filter counts
   const filterCounts = useMemo(() => ({
-    pending: allFilteredBookings.filter(b => b.status === 'pending').length,
-    confirmed: allFilteredBookings.filter(b => b.status === 'confirmed' || b.status === 'active').length,
+    pending: allFilteredBookings.filter(b => isPendingStatus(b.status)).length,
+    confirmed: allFilteredBookings.filter(b => isConfirmedStatus(b.status)).length,
     conflicts: conflictBookingIds.size,
     returns: returnsSoonIds.size,
   }), [allFilteredBookings, conflictBookingIds, returnsSoonIds]);
