@@ -188,3 +188,6 @@ verify_jwt = false
 
 [functions.rent-create-booking]
 verify_jwt = false
+
+[functions.rent-checkout]
+verify_jwt = false
