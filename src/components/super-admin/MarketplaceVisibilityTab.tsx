@@ -24,6 +24,7 @@ interface TeamRow {
   name: string;
   slug: string | null;
   marketplace_visible: boolean;
+  marketplace_test_mode: boolean;
   is_demo_account: boolean;
   owner_id: string | null;
   owner_email: string | null;
@@ -59,7 +60,7 @@ const useTeams = () =>
     queryFn: async (): Promise<TeamRow[]> => {
       const { data: teams, error } = await supabase
         .from('teams')
-        .select('id, name, slug, marketplace_visible, is_demo_account, owner_id')
+        .select('id, name, slug, marketplace_visible, marketplace_test_mode, is_demo_account, owner_id')
         .is('deleted_at', null)
         .order('name', { ascending: true });
       if (error) throw error;
@@ -81,6 +82,7 @@ const useTeams = () =>
         name: t.name,
         slug: (t as any).slug ?? null,
         marketplace_visible: !!t.marketplace_visible,
+        marketplace_test_mode: !!(t as any).marketplace_test_mode,
         is_demo_account: !!t.is_demo_account,
         owner_id: t.owner_id,
         owner_email: t.owner_id ? profileMap[t.owner_id]?.email ?? null : null,
