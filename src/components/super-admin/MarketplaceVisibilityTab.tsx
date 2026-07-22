@@ -215,7 +215,7 @@ export const MarketplaceVisibilityTab = () => {
       toast({ title: 'Update failed', description: e.message, variant: 'destructive' }),
   });
 
-
+  const toggleVehicle = useMutation({
     mutationFn: async ({
       vehicle,
       teamId,
