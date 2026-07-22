@@ -1,29 +1,37 @@
 ## Goal
-Force-disconnect Saucy Rentals from the wrong Stripe account (`acct_1TvnfgQfNJmCrgjR`) so it can be reconnected to your new one. Exotiq (`acct_1TcPJyQchd6jAAl0`) is not touched.
+Wipe the half-onboarded Stripe Connect account so Exotiq Inc can start fresh onboarding for the **Exotiq** tenant, cleanly, ahead of the marketplace test.
 
 ## Current state (verified)
-- `Saucy Rentals` (bc644f8f…) → `stripe_account_id = acct_1TvnfgQfNJmCrgjR`, charges/payouts/onboarding all false.
-- `Exotiq` (c1de6533…) → separate account, untouched.
 
-Because charges/payouts are already false, no live payments or payouts break from clearing this.
+- Stripe Connect account `acct_1TcPJyQchd6jAAl0`
+  - `details_submitted: false`
+  - `charges_enabled: false`, `payouts_enabled: false`
+  - No external accounts, no capabilities active, no charges — safe to delete.
+- Database pointers:
+  - **Exotiq** team → still points to `acct_1TcPJyQchd6jAAl0`
+  - **Saucy Rentals** → already `NULL` (cleared last turn)
+
+So one Connect account is orphaned in Stripe and still referenced by Exotiq's row.
 
 ## Plan
 
-1. **Clear Stripe linkage on Saucy Rentals only.** Update the `teams` row where `id = bc644f8f-1cdb-445b-931b-750730504406`:
-   - `stripe_account_id = NULL`
-   - `stripe_charges_enabled = false`
-   - `stripe_payouts_enabled = false`
-   - `stripe_onboarding_complete = false`
-   - Also null any related onboarding/session/timestamp columns on `teams` if present (e.g. `stripe_onboarded_at`, `stripe_details_submitted`) — I'll inspect columns first and only touch Stripe-prefixed ones.
+1. **Delete the Connect account in Stripe**
+   Call Stripe API `DELETE /v1/accounts/acct_1TcPJyQchd6jAAl0`. Because the account has no submitted details, no capabilities, no external account, and no volume, Stripe allows the delete outright — it disappears from the Connect dashboard.
 
-2. **Leave the Stripe account itself alone.** We do NOT delete `acct_1TvnfgQfNJmCrgjR` from Stripe — that's Exotiq's real account. Clearing our DB pointer is enough; Exotiq's connection stays intact via its own team row.
+2. **Clear Exotiq's pointer in our DB**
+   Update `teams` where `id = c1de6533-…`: set `stripe_account_id = NULL`, `stripe_charges_enabled = false`, `stripe_payouts_enabled = false`. This unblocks the "Connect Stripe" button in Settings → Payments (it currently sees a stale account id and shows "Resume onboarding").
 
-3. **Verify.** Re-query both teams to confirm Saucy is cleared and Exotiq is unchanged.
+3. **Verify**
+   - Re-fetch Exotiq's team row → all three Stripe fields null/false.
+   - Attempt to `GET /v1/accounts/acct_1TcPJyQchd6jAAl0` → should 404.
 
-4. **Next step for you (not in this plan):** In the Saucy Rentals tenant → Settings → Payments, click Connect Stripe and go through onboarding with the correct new account.
+4. **You take over in-app** (no code changes needed for this part)
+   Log into the **Exotiq** tenant → Settings → Payments → **Connect Stripe**. Onboard with the real Exotiq Inc info. When Stripe finishes, our existing `stripe-webhook` will flip `charges_enabled` / `payouts_enabled` and the marketplace readiness check goes green on that line automatically.
 
-## Not doing
-- No code changes.
-- No migration (data-only fix).
-- No changes to Exotiq's row or any Stripe-side objects.
-- No touching bookings/payments/payouts history.
+## Not touching
+- Exotiq's live payments key (`STRIPE_SECRET_KEY`), Identity key, webhooks, or any migrations.
+- Saucy's row (already clean).
+- `marketplace_test_mode` on Exotiq (leave on until real checklist is green, then flip off for the dress rehearsal).
+
+## Risk
+Effectively zero. The Connect account being deleted has never processed anything and isn't the platform account — it's a sub-account under your Exotiq Inc platform. Your platform account is untouched.
