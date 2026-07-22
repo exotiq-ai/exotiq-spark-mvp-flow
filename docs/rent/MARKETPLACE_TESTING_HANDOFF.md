@@ -172,3 +172,115 @@ curl -s -X POST "$URL/rest/v1/rpc/public_vehicle_quote" \
   -H "Content-Type: application/json" \
   -d '{"_team_slug":"exotiq-","_vehicle_slug":"2017-audi-s8","_start_date":"2026-08-01","_end_date":"2026-08-04","_options":{"protection":"premium"}}'
 ```
+
+---
+
+## Booking writes (M5) — the new endpoints Claude calls
+
+### `POST /functions/v1/rent-create-booking`
+
+Anonymous, anon-key only. Rate-limited to 20 req/hr/IP. Server re-derives
+totals from `public_vehicle_quote` — client totals are never trusted.
+
+**Request body**
+
+```json
+{
+  "team_slug": "exotiq-",
+  "vehicle_slug": "2017-audi-s8",
+  "start_date": "2026-08-01",
+  "end_date":   "2026-08-04",
+  "pickup_time": "10:00 AM",
+  "protection": "premium",
+  "driver": {
+    "name":  "Full Name",
+    "email": "renter@example.com",
+    "phone": "+15551234567"
+  }
+}
+```
+
+- `start_date` / `end_date`: `YYYY-MM-DD`, must be strictly increasing, not in the past.
+- `pickup_time`: free-form short string (stored as-is).
+- `protection`: one of `premium` | `standard` | `decline` (default `premium`).
+- `driver.name` ≥ 2 chars, `email` must contain `@`, `phone` ≥ 10 digits.
+
+**Success (200)**
+
+```json
+{
+  "booking_ref": "BK-01123",
+  "confirmation_token": "b3c1...-uuid",
+  "status": "requested" | "pending_documents",
+  "identity_verified": true,
+  "quote": { "daily_rate_cents": ..., "operator_total_cents": ..., "platform_fee_cents": ..., ... }
+}
+```
+
+- `status = requested` — the renter's email already has a verified, unexpired
+  `identity_verifications` row; booking is queued for operator review.
+- `status = pending_documents` — no verified identity yet; renter must
+  complete Stripe Identity before the operator sees it as bookable.
+- `confirmation_token` is required to read the booking back — store it in
+  the URL of the renter's confirmation page (`?token=...`).
+
+**Errors**
+
+| HTTP | body.error                                        | Meaning                                        |
+| ---- | ------------------------------------------------- | ---------------------------------------------- |
+| 400  | `team_slug and vehicle_slug are required`         | Missing / empty slugs                          |
+| 400  | `valid start_date and end_date are required`     | Bad date format or `end <= start`             |
+| 400  | `start_date cannot be in the past`                | Self-explanatory                               |
+| 400  | `driver name, email, and phone are required`      | Field-level validation failed                 |
+| 404  | `Vehicle is not available for booking`            | Team/vehicle not marketplace-visible          |
+| 409  | `Those dates were just taken. Pick different dates.` | Overlap detected (GiST exclusion or explicit check) |
+| 429  | `Too many requests`                               | Rate limit                                     |
+| 500  | `Unable to create booking`                        | Server / DB error                              |
+
+### `POST /rest/v1/rpc/public_booking_by_ref`
+
+Anonymous, anon-key. Returns a redacted booking for the renter confirmation
+page. `_token` is required — a random `booking_ref` alone will not resolve.
+
+```bash
+curl -X POST "$URL/rest/v1/rpc/public_booking_by_ref" \
+  -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" \
+  -d '{"_booking_ref":"BK-01123","_token":"<confirmation_token>"}'
+```
+
+### Marketplace status lifecycle
+
+```text
+                        rent-create-booking
+                                 │
+             identity verified?  │  no
+                        yes ─────┼──────►  pending_documents  ── renter completes Stripe Identity ─┐
+                                 │                                                                 │
+                                 ▼                                                                 ▼
+                            requested   ◄── operator approves ──                          (identity webhook flips
+                                 │                                                          status to requested)
+             operator declines ──┼── operator approves
+                                 │
+              declined           ▼
+                           pending_payment  ── renter pays (M6) ──►  confirmed ── active ── completed
+                                 │
+                        refund path ──►  refunded
+```
+
+Operator UI now colors and labels all five new statuses correctly
+(`src/lib/bookingStatus.ts`). The DB-level exclusion constraint
+`bookings_no_marketplace_overlap` prevents two marketplace bookings from
+holding the same vehicle+dates.
+
+### Hero-image filter (temporary)
+
+```bash
+curl -X POST "$URL/rest/v1/rpc/public_team_fleet" \
+  -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" \
+  -d '{"_team_slug":"exotiq-","_require_hero":true}'
+```
+
+Drops the 30 vehicles without a hero from the returned list. Remove the
+argument (or pass `false`) once photos are seeded.
