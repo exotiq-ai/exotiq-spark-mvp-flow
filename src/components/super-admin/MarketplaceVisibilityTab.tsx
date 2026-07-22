@@ -22,11 +22,14 @@ import { MarketplaceReadinessPanel } from './MarketplaceReadinessPanel';
 interface TeamRow {
   id: string;
   name: string;
+  slug: string | null;
   marketplace_visible: boolean;
   is_demo_account: boolean;
   owner_id: string | null;
   owner_email: string | null;
+  owner_company_name: string | null;
 }
+
 
 interface VehicleRow {
   id: string;
@@ -56,31 +59,36 @@ const useTeams = () =>
     queryFn: async (): Promise<TeamRow[]> => {
       const { data: teams, error } = await supabase
         .from('teams')
-        .select('id, name, marketplace_visible, is_demo_account, owner_id')
+        .select('id, name, slug, marketplace_visible, is_demo_account, owner_id')
         .is('deleted_at', null)
         .order('name', { ascending: true });
       if (error) throw error;
 
       const ownerIds = (teams ?? []).map((t) => t.owner_id).filter((v): v is string => !!v);
-      let emailMap: Record<string, string> = {};
+      let profileMap: Record<string, { email: string | null; company_name: string | null }> = {};
       if (ownerIds.length) {
         const { data: profiles } = await supabase
           .from('profiles')
-          .select('id, email')
+          .select('id, email, company_name')
           .in('id', ownerIds);
-        emailMap = Object.fromEntries((profiles ?? []).map((p) => [p.id, p.email ?? '']));
+        profileMap = Object.fromEntries(
+          (profiles ?? []).map((p) => [p.id, { email: p.email ?? null, company_name: p.company_name ?? null }])
+        );
       }
 
       return (teams ?? []).map((t) => ({
         id: t.id,
         name: t.name,
+        slug: (t as any).slug ?? null,
         marketplace_visible: !!t.marketplace_visible,
         is_demo_account: !!t.is_demo_account,
         owner_id: t.owner_id,
-        owner_email: t.owner_id ? emailMap[t.owner_id] ?? null : null,
+        owner_email: t.owner_id ? profileMap[t.owner_id]?.email ?? null : null,
+        owner_company_name: t.owner_id ? profileMap[t.owner_id]?.company_name ?? null : null,
       }));
     },
   });
+
 
 const useVehicles = (teamId: string | null) =>
   useQuery({
