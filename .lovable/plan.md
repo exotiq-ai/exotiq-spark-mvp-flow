@@ -1,47 +1,50 @@
-## Problem
+## Plan: marketplace test bypass + Exotiq go-live checklist
 
-The Super Admin Marketplace tab shows names like *"Fredo D'Lima's Fleet"* instead of *"Saucy Rentals"*. Root cause confirmed in DB:
+Doing both in parallel. Option 1 gets us clicking through the marketplace today; Option 2 makes Exotiq a real, passing-the-checklist tenant so the bypass isn't load-bearing.
 
-- `profiles.company_name` holds the real business name (e.g. `Saucy Rentals`, `Revel + Roam`, `Exotics By The Bay`).
-- `teams.name` was set once at signup from `company_name` (or a `full_name`'s Fleet fallback) and is **never re-synced** when the owner later edits their business name in Onboarding / Settings.
-- `teams.slug` was derived from that stale `teams.name`, so marketplace URLs would inherit the wrong brand (`fredo-d-lima` instead of `saucy-rentals`).
+### Part A — Super-admin test-mode bypass (Option 1)
 
-Only `hello@exotiq.ai` currently has an accurate `teams.name` (because it matched from the start). Everyone else is stale.
+**1. Migration**
+- `ALTER TABLE public.teams ADD COLUMN marketplace_test_mode boolean NOT NULL DEFAULT false;`
+- Update `public.get_marketplace_readiness(p_team_id)`:
+  - Report every check honestly (no lying about photos/Stripe).
+  - Add `test_mode: <bool>` to the returned payload.
+  - If `test_mode` is true, set top-level `ready: true` at the end.
+- Update the `enforce_marketplace_readiness` trigger to `RETURN NEW` early when `teams.marketplace_test_mode = true`, so writes that would otherwise be blocked when the gate is enforced still succeed for the test team.
+- New RPC `public.set_marketplace_test_mode(p_team_id uuid, p_enabled boolean)` — `SECURITY DEFINER`, checks `is_super_admin(auth.uid())`, writes the flag, and logs to `admin_action_log` via `log_admin_action` so we have an audit trail.
 
-## Goal
+**2. Super Admin UI**
+- `src/components/super-admin/MarketplaceVisibilityTab.tsx`: add a "Test mode" toggle in the expanded team row, super-admin only.
+- `src/components/super-admin/MarketplaceReadinessPanel.tsx`: when `test_mode` is true, render an amber "Bypass active — checklist ignored" banner above the checklist. Checks still render red/green so we can see the real state.
 
-`teams.name` is the single source of truth for the business/brand shown in Super Admin, marketplace listings, and slugs. Updating the business name in the app updates the team record and (when safe) the slug.
+**3. Enable on Exotiq**
+- Flip `marketplace_test_mode = true` for team `Exotiq` (id `c1de6533-…`). Leave every other team off.
 
-## Plan
+### Part B — Finish Exotiq's real checklist (Option 2)
 
-### 1. Fix the write path (Onboarding + Settings)
-- In `src/pages/Onboarding.tsx` (Step 1 save) and the business-profile save in `SystemSettingsSection`, when the owner sets/updates the business name, also update `teams.name` for `currentTeam.id` alongside `profiles.company_name`. Trim + reject empty.
-- Trigger a `refreshTeam()` afterward so the header and Super Admin lists reflect it immediately.
+Track this so we can retire the bypass ASAP.
 
-### 2. Slug handling
-- Add a lightweight server-side helper (RPC `rename_team(team_id, new_name)`) that:
-  - Updates `teams.name`.
-  - If the team is **not yet marketplace-approved** (`marketplace_request_status <> 'approved'` AND `marketplace_visible = false`), regenerate `teams.slug` from the new name with uniqueness suffixing.
-  - If the team **is already live on the marketplace**, keep the existing slug (to avoid breaking public URLs) and log the divergence. Super Admin gets a manual "Regenerate slug" action for those cases.
-- Call this RPC from Onboarding + Settings instead of a direct table update.
+**1. Logo + business address** (no code)
+- Sign into `hello@exotiq.ai`, go to Settings → Business Profile, upload the D Exotiq logo and fill in the business address. `logo_set` and `business_address_set` flip green immediately.
 
-### 3. Backfill existing tenants (one-shot data migration)
-For every team where `profiles.company_name` is non-empty AND `teams.name` still matches the `"<full_name>'s Fleet"` fallback pattern OR differs from `company_name`:
-- Set `teams.name = profiles.company_name` (trimmed).
-- Regenerate `teams.slug` **only** for teams that are not marketplace-approved (same guard as above).
-- Leave teams with no `company_name` untouched (e.g. `Orion's Fleet`, `Gianni's Fleet` — those owners never entered a business name).
-- Fix the one obvious data issue for the Exotiq team: `name = 'Exotiq '` (trailing space) → `'Exotiq'`, slug `exotiq-` → `exotiq`. This is marketplace-visible, so slug change requires explicit confirmation; I'll flag it and only run it if you approve.
+**2. Stripe Connect onboarding** (no code)
+- The Connect account `acct_1TcPJy…` already exists on Exotiq. Resume onboarding from Settings → Payments; complete identity, bank details, and ToS. Once Stripe fires the account.updated webhook, `stripe_charges_enabled` / `stripe_payouts_enabled` flip to true automatically (existing webhook handler already writes these).
 
-### 4. Super Admin Marketplace tab
-- `MarketplaceVisibilityTab` already reads `teams.name` — after the backfill it will show correct brand names. No UI change required beyond adding a small secondary line showing the owner email + slug so it's obvious which team is which when brands collide.
-- Add a "Sync from business profile" action per row that calls `rename_team` using the owner's current `profiles.company_name` — for future drift.
+**3. Photos — 5 hero test vehicles** (no code, done through the app)
+- Pick 5 marquee cars (e.g., Aston Martin Valkyrie, Bugatti Chiron Sport, Ferrari 296 GTB, Bentley Mulliner Batur, Rolls-Royce Cullinan) and upload the missing photos through the Photo Hub so each has ≥5 visible rows. Real content, no data hacks.
+- With those five ready and `test_mode` still on, we can turn `test_mode` off and confirm the real gate lets Exotiq through.
 
-### 5. Verification
-- Re-run the `SELECT` from step 1's evidence and confirm every team with a `company_name` matches.
-- Load Super Admin → Marketplace and confirm `Saucy Rentals`, `Revel + Roam`, `Exotics By The Bay`, `Denver Exotic Rental Cars`, `Open Plan Consultants, LLC`, `GM LUXE` all render correctly.
-- Edit business name in Settings on a test tenant and confirm it propagates without a page reload.
+### Guardrails
 
-## Not in scope
-- No changes to public marketplace routing or the `rent-public-media` function.
-- No slug rewrite for teams that are already marketplace-approved unless you explicitly opt in per team (protects live SEO/links).
-- No change to `profiles.company_name` semantics — it stays the owner's editable field; `teams.name` mirrors it.
+- `marketplace_test_mode` defaults to false everywhere, requires super-admin to flip, and is audited on every change.
+- The readiness panel keeps showing red where things are actually broken, so it's obvious the bypass is doing the lifting.
+- No changes to public marketplace RPCs, no lowered thresholds, no impact on any other tenant (Saucy included).
+
+### Order of operations
+
+1. Ship the migration + UI toggle.
+2. Flip `marketplace_test_mode` on for Exotiq → click through the marketplace end-to-end.
+3. In parallel, knock out logo, address, Stripe, and the 5 hero-vehicle photo sets.
+4. When the real checklist passes, flip `marketplace_test_mode` back off and confirm nothing regresses.
+
+Ready to implement Part A on approval. Part B is your click-through work in the tenant UI, and I'll help with any snags as they come up.
