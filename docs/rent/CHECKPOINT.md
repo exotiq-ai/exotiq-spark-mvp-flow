@@ -70,12 +70,14 @@
 
 ## Session 2026-07-16 (late): D1 hardcode retirement + handoffs
 
-- PR #23 (`cursor/retire-marketplace-fee-hardcode-cde9`) — OPEN, awaiting
-  Gregory merge: removes the 20% marketplace application fee from
-  `create-payment-checkout` + `stripe-create-hold` (D1); adds renter items to
-  the cutover go/no-go checklist; updates LOVABLE-PROMPTS-RENT.md (1–4 done,
-  Prompt 5 toggles now recommended, Prompt 6 fee-retirement awareness note).
-  NOTE: functions auto-deploy from repo sync on merge.
+- PR #23 (`cursor/retire-marketplace-fee-hardcode-cde9`) — **MERGED
+  2026-07-22 05:01 UTC** (sat open since 07-16; caught during cleanup):
+  removes the 20% marketplace application fee from `create-payment-checkout`
+  + `stripe-create-hold` (D1); adds renter items to the cutover go/no-go
+  checklist; updates LOVABLE-PROMPTS-RENT.md (1–4 done, Prompt 5
+  recommended, Prompt 6 awareness, Prompt 7 badge polish + email audit).
+  **PENDING: Lovable must redeploy create-payment-checkout and
+  stripe-create-hold** for the fee removal to reach production.
 - Pending Gregory: (a) merge PR #23, (b) positive-path test — designate an
   opt-in team + vehicle and run the prompt from the 2026-07-16 03:05 session,
   (c) send Lovable Prompt 5 (visibility toggles) and Prompt 6 (awareness),
