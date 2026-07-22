@@ -5391,6 +5391,7 @@ export type Database = {
       }
     }
     Functions: {
+      _team_slugify: { Args: { input: string }; Returns: string }
       approve_marketplace_request: {
         Args: { _team_id: string; _visible?: boolean }
         Returns: boolean
@@ -5986,6 +5987,19 @@ export type Database = {
       reject_marketplace_request: {
         Args: { _reason?: string; _team_id: string }
         Returns: boolean
+      }
+      rename_team: {
+        Args: {
+          _new_name: string
+          _regenerate_slug?: boolean
+          _team_id: string
+        }
+        Returns: {
+          id: string
+          name: string
+          slug: string
+          slug_changed: boolean
+        }[]
       }
       request_marketplace_inclusion: {
         Args: { _team_id: string }

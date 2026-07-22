@@ -1,46 +1,47 @@
-## What's happening
+## Problem
 
-When you toggled Fredo D'Lima's fleet, the readiness panel (right side of the Marketplace tab) failed to load with:
+The Super Admin Marketplace tab shows names like *"Fredo D'Lima's Fleet"* instead of *"Saucy Rentals"*. Root cause confirmed in DB:
 
-> `invalid input value for enum terms_acceptance_event: "accept"`
+- `profiles.company_name` holds the real business name (e.g. `Saucy Rentals`, `Revel + Roam`, `Exotics By The Bay`).
+- `teams.name` was set once at signup from `company_name` (or a `full_name`'s Fleet fallback) and is **never re-synced** when the owner later edits their business name in Onboarding / Settings.
+- `teams.slug` was derived from that stale `teams.name`, so marketplace URLs would inherit the wrong brand (`fredo-d-lima` instead of `saucy-rentals`).
 
-The toggle itself still worked ("On marketplace" pill lit up), but the readiness checks blew up.
+Only `hello@exotiq.ai` currently has an accurate `teams.name` (because it matched from the start). Everyone else is stale.
 
-## Root cause
+## Goal
 
-`public.get_marketplace_readiness(team_id)` (migration `20260716040619_...`) checks whether the team owner has accepted terms with:
+`teams.name` is the single source of truth for the business/brand shown in Super Admin, marketplace listings, and slugs. Updating the business name in the app updates the team record and (when safe) the slug.
 
-```sql
-event_type IN ('accept','accepted','acceptance')
-```
+## Plan
 
-None of those values exist in the `terms_acceptance_event` enum. The real values are:
+### 1. Fix the write path (Onboarding + Settings)
+- In `src/pages/Onboarding.tsx` (Step 1 save) and the business-profile save in `SystemSettingsSection`, when the owner sets/updates the business name, also update `teams.name` for `currentTeam.id` alongside `profiles.company_name`. Trim + reject empty.
+- Trigger a `refreshTeam()` afterward so the header and Super Admin lists reflect it immediately.
 
-```
-signup, reacceptance, terms_update, order_form, sms_opt_out
-```
+### 2. Slug handling
+- Add a lightweight server-side helper (RPC `rename_team(team_id, new_name)`) that:
+  - Updates `teams.name`.
+  - If the team is **not yet marketplace-approved** (`marketplace_request_status <> 'approved'` AND `marketplace_visible = false`), regenerate `teams.slug` from the new name with uniqueness suffixing.
+  - If the team **is already live on the marketplace**, keep the existing slug (to avoid breaking public URLs) and log the divergence. Super Admin gets a manual "Regenerate slug" action for those cases.
+- Call this RPC from Onboarding + Settings instead of a direct table update.
 
-Postgres rejects the cast of `'accept'` to the enum and the whole RPC errors out — which is why the panel says "Failed to load readiness" for every team, not just Fredo's.
+### 3. Backfill existing tenants (one-shot data migration)
+For every team where `profiles.company_name` is non-empty AND `teams.name` still matches the `"<full_name>'s Fleet"` fallback pattern OR differs from `company_name`:
+- Set `teams.name = profiles.company_name` (trimmed).
+- Regenerate `teams.slug` **only** for teams that are not marketplace-approved (same guard as above).
+- Leave teams with no `company_name` untouched (e.g. `Orion's Fleet`, `Gianni's Fleet` — those owners never entered a business name).
+- Fix the one obvious data issue for the Exotiq team: `name = 'Exotiq '` (trailing space) → `'Exotiq'`, slug `exotiq-` → `exotiq`. This is marketplace-visible, so slug change requires explicit confirmation; I'll flag it and only run it if you approve.
 
-## Fix
+### 4. Super Admin Marketplace tab
+- `MarketplaceVisibilityTab` already reads `teams.name` — after the backfill it will show correct brand names. No UI change required beyond adding a small secondary line showing the owner email + slug so it's obvious which team is which when brands collide.
+- Add a "Sync from business profile" action per row that calls `rename_team` using the owner's current `profiles.company_name` — for future drift.
 
-Ship a small migration that replaces the RPC's terms check with the actual enum values that count as an acceptance:
+### 5. Verification
+- Re-run the `SELECT` from step 1's evidence and confirm every team with a `company_name` matches.
+- Load Super Admin → Marketplace and confirm `Saucy Rentals`, `Revel + Roam`, `Exotics By The Bay`, `Denver Exotic Rental Cars`, `Open Plan Consultants, LLC`, `GM LUXE` all render correctly.
+- Edit business name in Settings on a test tenant and confirm it propagates without a page reload.
 
-```sql
-event_type IN ('signup','reacceptance','terms_update','order_form')
-```
-
-(`sms_opt_out` is intentionally excluded — it's not a marketplace-terms acceptance.)
-
-Everything else in `get_marketplace_readiness` stays as-is. No schema changes, no other RPC touched, no UI change.
-
-## Verification
-
-- Reload `/super-admin` → Marketplace tab. The red "Failed to load readiness…" banner is gone.
-- Fredo D'Lima's Fleet readiness panel renders team checks + per-vehicle checks.
-- Spot-check one other tenant (e.g. Exotiq) to confirm readiness loads for them too.
-
-## Out of scope
-
-- The hybrid marketplace request/approval flow (still queued from the previous plan) — this is a standalone bug fix.
-- No change to how terms acceptance is recorded elsewhere.
+## Not in scope
+- No changes to public marketplace routing or the `rent-public-media` function.
+- No slug rewrite for teams that are already marketplace-approved unless you explicitly opt in per team (protects live SEO/links).
+- No change to `profiles.company_name` semantics — it stays the owner's editable field; `teams.name` mirrors it.

@@ -38,6 +38,7 @@ export const BusinessProfileSection = () => {
   const canEdit = isOwner || isAdmin;
 
   // Form state — initialised from team
+  const [businessName, setBusinessName] = useState("");
   const [country, setCountry] = useState("US");
   const [currency, setCurrency] = useState("USD");
   const [locale, setLocale] = useState("en-US");
@@ -50,6 +51,7 @@ export const BusinessProfileSection = () => {
 
   useEffect(() => {
     if (!currentTeam) return;
+    setBusinessName(currentTeam.name || "");
     setCountry(currentTeam.country_code || "US");
     setCurrency(currentTeam.currency || "USD");
     setLocale(currentTeam.locale || "en-US");
@@ -59,6 +61,7 @@ export const BusinessProfileSection = () => {
     setVatNumber(currentTeam.vat_number || "");
     setAddress((currentTeam.business_address as BusinessAddress) || {});
   }, [currentTeam]);
+
 
   const countryDef = useMemo(() => getCountryDefaults(country), [country]);
 
@@ -76,6 +79,16 @@ export const BusinessProfileSection = () => {
   const handleSave = async () => {
     if (!currentTeam || !canEdit) return;
 
+    const trimmedName = businessName.trim();
+    if (trimmedName.length < 2) {
+      toast({
+        title: "Business name required",
+        description: "Please enter your business name (at least 2 characters).",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const rate = parseFloat(taxRate);
     if (!Number.isFinite(rate) || rate < 0 || rate > 100) {
       toast({
@@ -88,6 +101,25 @@ export const BusinessProfileSection = () => {
 
     setSaving(true);
     try {
+      // Rename via RPC (handles slug regen when safe)
+      if (trimmedName !== (currentTeam.name ?? "").trim()) {
+        const { error: renameErr } = await supabase.rpc("rename_team", {
+          _team_id: currentTeam.id,
+          _new_name: trimmedName,
+        });
+        if (renameErr) throw renameErr;
+
+        // Keep profiles.company_name aligned so it doesn't drift
+        try {
+          await supabase
+            .from("profiles")
+            .update({ company_name: trimmedName })
+            .eq("id", currentTeam.owner_id as any);
+        } catch (e) {
+          console.warn("[BusinessProfile] company_name sync failed", e);
+        }
+      }
+
       const { error } = await supabase
         .from("teams")
         .update({
@@ -107,7 +139,7 @@ export const BusinessProfileSection = () => {
       await refreshTeam();
       toast({
         title: "Business profile saved",
-        description: `Currency, ${taxLabel.toLowerCase()} settings, and address updated.`,
+        description: `Business name, currency, ${taxLabel.toLowerCase()} settings, and address updated.`,
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -120,6 +152,7 @@ export const BusinessProfileSection = () => {
       setSaving(false);
     }
   };
+
 
   const previewAmount = useMemo(
     () => formatMoney(1234.56, { currency, locale, decimals: 2 }),
@@ -138,7 +171,30 @@ export const BusinessProfileSection = () => {
 
   return (
     <div className="space-y-6">
+      {/* Business name */}
+      <Card className="p-6 space-y-5">
+        <div className="flex items-center gap-2">
+          <Building2 className="h-5 w-5 text-muted-foreground" />
+          <h3 className="text-lg font-semibold">Business name</h3>
+        </div>
+        <p className="text-sm text-muted-foreground -mt-2">
+          Shown to customers on receipts, invoices, and your public marketplace
+          listing. Changing this updates your storefront URL as well, unless
+          you're already live on the marketplace.
+        </p>
+        <div className="space-y-2">
+          <Label>Business name</Label>
+          <Input
+            value={businessName}
+            onChange={(e) => setBusinessName(e.target.value)}
+            placeholder="Your rental company name"
+            maxLength={120}
+          />
+        </div>
+      </Card>
+
       {/* Region & currency */}
+
       <Card className="p-6 space-y-5">
         <div className="flex items-center gap-2">
           <Globe className="h-5 w-5 text-muted-foreground" />

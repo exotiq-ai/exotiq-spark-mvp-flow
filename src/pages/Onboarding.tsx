@@ -240,8 +240,20 @@ export default function Onboarding() {
           } as any)
           .eq('id', currentTeam.id);
         if (teamError) console.warn('[Onboarding] team region update failed:', teamError.message);
-        else await refreshTeam();
+
+        // Keep teams.name in sync with the business name the owner just entered
+        const trimmedCompany = (formData.companyName || '').trim();
+        if (trimmedCompany.length >= 2 && trimmedCompany !== (currentTeam.name ?? '').trim()) {
+          const { error: renameError } = await supabase.rpc('rename_team', {
+            _team_id: currentTeam.id,
+            _new_name: trimmedCompany,
+          });
+          if (renameError) console.warn('[Onboarding] rename_team failed:', renameError.message);
+        }
+
+        await refreshTeam();
       }
+
 
       await handleStepChange(2);
     } catch (error: any) {

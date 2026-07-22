@@ -22,11 +22,14 @@ import { MarketplaceReadinessPanel } from './MarketplaceReadinessPanel';
 interface TeamRow {
   id: string;
   name: string;
+  slug: string | null;
   marketplace_visible: boolean;
   is_demo_account: boolean;
   owner_id: string | null;
   owner_email: string | null;
+  owner_company_name: string | null;
 }
+
 
 interface VehicleRow {
   id: string;
@@ -56,31 +59,36 @@ const useTeams = () =>
     queryFn: async (): Promise<TeamRow[]> => {
       const { data: teams, error } = await supabase
         .from('teams')
-        .select('id, name, marketplace_visible, is_demo_account, owner_id')
+        .select('id, name, slug, marketplace_visible, is_demo_account, owner_id')
         .is('deleted_at', null)
         .order('name', { ascending: true });
       if (error) throw error;
 
       const ownerIds = (teams ?? []).map((t) => t.owner_id).filter((v): v is string => !!v);
-      let emailMap: Record<string, string> = {};
+      let profileMap: Record<string, { email: string | null; company_name: string | null }> = {};
       if (ownerIds.length) {
         const { data: profiles } = await supabase
           .from('profiles')
-          .select('id, email')
+          .select('id, email, company_name')
           .in('id', ownerIds);
-        emailMap = Object.fromEntries((profiles ?? []).map((p) => [p.id, p.email ?? '']));
+        profileMap = Object.fromEntries(
+          (profiles ?? []).map((p) => [p.id, { email: p.email ?? null, company_name: p.company_name ?? null }])
+        );
       }
 
       return (teams ?? []).map((t) => ({
         id: t.id,
         name: t.name,
+        slug: (t as any).slug ?? null,
         marketplace_visible: !!t.marketplace_visible,
         is_demo_account: !!t.is_demo_account,
         owner_id: t.owner_id,
-        owner_email: t.owner_id ? emailMap[t.owner_id] ?? null : null,
+        owner_email: t.owner_id ? profileMap[t.owner_id]?.email ?? null : null,
+        owner_company_name: t.owner_id ? profileMap[t.owner_id]?.company_name ?? null : null,
       }));
     },
   });
+
 
 const useVehicles = (teamId: string | null) =>
   useQuery({
@@ -156,6 +164,35 @@ export const MarketplaceVisibilityTab = () => {
     onError: (e: any) =>
       toast({ title: 'Update failed', description: e.message, variant: 'destructive' }),
   });
+
+  const syncNameFromProfile = useMutation({
+    mutationFn: async (team: TeamRow) => {
+      const target = (team.owner_company_name ?? '').trim();
+      if (!target) throw new Error('Owner has no business name in profile');
+      const { data, error } = await supabase.rpc('rename_team', {
+        _team_id: team.id,
+        _new_name: target,
+      });
+      if (error) throw error;
+      await logAdminAction('sync_team_name_from_profile', {
+        team_id: team.id,
+        from: team.name,
+        to: target,
+        slug_changed: Array.isArray(data) ? (data[0] as any)?.slug_changed ?? false : false,
+      });
+      return data;
+    },
+    onSuccess: (_d, team) => {
+      qc.invalidateQueries({ queryKey: ['sa-marketplace-teams'] });
+      toast({
+        title: 'Team renamed',
+        description: `${team.name} → ${(team.owner_company_name ?? '').trim()}`,
+      });
+    },
+    onError: (e: any) =>
+      toast({ title: 'Rename failed', description: e.message, variant: 'destructive' }),
+  });
+
 
   const toggleVehicle = useMutation({
     mutationFn: async ({
@@ -280,11 +317,51 @@ export const MarketplaceVisibilityTab = () => {
                         {team.marketplace_visible && (
                           <Badge className="text-xs">On marketplace</Badge>
                         )}
+                        {(() => {
+                          const target = (team.owner_company_name ?? '').trim();
+                          if (!target || target === team.name.trim()) return null;
+                          return (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Badge variant="outline" className="text-xs border-amber-500/60 text-amber-700 dark:text-amber-300">
+                                  Drift
+                                </Badge>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                Owner's business name is "{target}" but team is named "{team.name}".
+                              </TooltipContent>
+                            </Tooltip>
+                          );
+                        })()}
                       </div>
                       <p className="text-xs text-muted-foreground truncate">
                         {team.owner_email ?? '—'}
+                        {team.slug ? <> · <span className="font-mono">/{team.slug}</span></> : null}
                       </p>
                     </div>
+                    {(() => {
+                      const target = (team.owner_company_name ?? '').trim();
+                      if (!target || target === team.name.trim()) return null;
+                      return (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8"
+                              onClick={() => syncNameFromProfile.mutate(team)}
+                              disabled={syncNameFromProfile.isPending}
+                            >
+                              Sync name
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            Rename team to "{target}" (owner's saved business name)
+                          </TooltipContent>
+                        </Tooltip>
+                      );
+                    })()}
+
                     <Switch
                       checked={team.marketplace_visible}
                       onCheckedChange={(value) => toggleTeam.mutate({ team, value })}
