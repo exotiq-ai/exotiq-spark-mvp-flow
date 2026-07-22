@@ -7,6 +7,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { useModuleNavigation } from "@/hooks/useModuleNavigation";
 import { generateVehicleColors } from "@/lib/conflictDetection";
+import { getBookingStatusBadgeClass, getBookingStatusLabel, isPendingStatus, isConfirmedStatus } from "@/lib/bookingStatus";
 import { VehicleImageDialog } from "@/components/dialogs/VehicleImageDialog";
 import { EnhancedBookingDialog } from "@/components/dialogs/EnhancedBookingDialog";
 import { RealtimeIndicator } from "@/components/common/RealtimeIndicator";
@@ -97,12 +98,7 @@ const BookingPreviewCard = ({
           <span className={`font-medium text-sm ${booking.customer_id && onCustomerClick ? 'cursor-pointer hover:text-primary transition-colors' : ''}`}
             onClick={(e) => { if (booking.customer_id && onCustomerClick) { e.stopPropagation(); onCustomerClick(booking.customer_id); } }}
           >{booking.customer_name}</span>
-          <Badge variant="outline" className={`ml-auto text-[10px] ${
-            booking.status === 'confirmed' ? 'bg-success/10 text-success border-success/30' :
-            booking.status === 'completed' ? 'bg-primary/10 text-primary border-primary/30' :
-            booking.status === 'cancelled' ? 'bg-destructive/10 text-destructive border-destructive/30' :
-            'bg-warning/10 text-warning border-warning/30'
-          }`}>{booking.status}</Badge>
+          <Badge variant="outline" className={`ml-auto text-[10px] ${getBookingStatusBadgeClass(booking.status)}`}>{getBookingStatusLabel(booking.status)}</Badge>
         </div>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Clock className="h-3 w-3" />
@@ -218,12 +214,7 @@ const DayDetailContent = ({
                         >{booking.customer_name}</p>
                       </div>
                     </div>
-                    <Badge variant="outline" className={`text-[10px] flex-shrink-0 ${
-                      booking.status === 'confirmed' ? 'bg-success/10 text-success border-success/30' :
-                      booking.status === 'completed' ? 'bg-primary/10 text-primary border-primary/30' :
-                      booking.status === 'cancelled' ? 'bg-destructive/10 text-destructive border-destructive/30' :
-                      'bg-warning/10 text-warning border-warning/30'
-                    }`}>{booking.status}</Badge>
+                    <Badge variant="outline" className={`text-[10px] flex-shrink-0 ${getBookingStatusBadgeClass(booking.status)}`}>{getBookingStatusLabel(booking.status)}</Badge>
                   </div>
                   <div className="grid grid-cols-2 gap-1 text-xs mb-1.5">
                     <div className="flex items-center gap-1 text-muted-foreground">
@@ -382,8 +373,8 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
 
   // Status filter counts
   const filterCounts = useMemo(() => ({
-    pending: allFilteredBookings.filter(b => b.status === 'pending').length,
-    confirmed: allFilteredBookings.filter(b => b.status === 'confirmed' || b.status === 'active').length,
+    pending: allFilteredBookings.filter(b => isPendingStatus(b.status)).length,
+    confirmed: allFilteredBookings.filter(b => isConfirmedStatus(b.status)).length,
     conflicts: conflictBookingIds.size,
     returns: returnsSoonIds.size,
   }), [allFilteredBookings, conflictBookingIds, returnsSoonIds]);
@@ -416,8 +407,8 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
     // Apply status filters (union)
     if (statusFilters.size > 0) {
       result = result.filter(booking => {
-        if (statusFilters.has('pending') && booking.status === 'pending') return true;
-        if (statusFilters.has('confirmed') && (booking.status === 'confirmed' || booking.status === 'active')) return true;
+        if (statusFilters.has('pending') && isPendingStatus(booking.status)) return true;
+        if (statusFilters.has('confirmed') && isConfirmedStatus(booking.status)) return true;
         if (statusFilters.has('conflicts') && conflictBookingIds.has(booking.id)) return true;
         if (statusFilters.has('returns') && returnsSoonIds.has(booking.id)) return true;
         return false;
@@ -940,12 +931,7 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
                                     </div>
                                     <div className="flex items-center gap-2 flex-shrink-0">
                                       <span className="font-bold text-success text-sm">{formatCurrency(Number(booking.total_value))}</span>
-                                      <Badge variant="outline" className={`text-[10px] ${
-                                        booking.status === 'confirmed' ? 'bg-success/10 text-success border-success/30' :
-                                        booking.status === 'completed' ? 'bg-primary/10 text-primary border-primary/30' :
-                                        booking.status === 'cancelled' ? 'bg-destructive/10 text-destructive border-destructive/30' :
-                                        'bg-warning/10 text-warning border-warning/30'
-                                      }`}>{booking.status}</Badge>
+                                      <Badge variant="outline" className={`text-[10px] ${getBookingStatusBadgeClass(booking.status)}`}>{getBookingStatusLabel(booking.status)}</Badge>
                                     </div>
                                   </div>
                                   <div className="relative flex items-center gap-4 mt-2 text-xs text-muted-foreground">
