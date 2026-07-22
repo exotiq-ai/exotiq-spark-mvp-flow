@@ -24,6 +24,7 @@ interface TeamRow {
   name: string;
   slug: string | null;
   marketplace_visible: boolean;
+  marketplace_test_mode: boolean;
   is_demo_account: boolean;
   owner_id: string | null;
   owner_email: string | null;
@@ -59,7 +60,7 @@ const useTeams = () =>
     queryFn: async (): Promise<TeamRow[]> => {
       const { data: teams, error } = await supabase
         .from('teams')
-        .select('id, name, slug, marketplace_visible, is_demo_account, owner_id')
+        .select('id, name, slug, marketplace_visible, marketplace_test_mode, is_demo_account, owner_id')
         .is('deleted_at', null)
         .order('name', { ascending: true });
       if (error) throw error;
@@ -81,6 +82,7 @@ const useTeams = () =>
         name: t.name,
         slug: (t as any).slug ?? null,
         marketplace_visible: !!t.marketplace_visible,
+        marketplace_test_mode: !!(t as any).marketplace_test_mode,
         is_demo_account: !!t.is_demo_account,
         owner_id: t.owner_id,
         owner_email: t.owner_id ? profileMap[t.owner_id]?.email ?? null : null,
@@ -193,6 +195,25 @@ export const MarketplaceVisibilityTab = () => {
       toast({ title: 'Rename failed', description: e.message, variant: 'destructive' }),
   });
 
+  const toggleTestMode = useMutation({
+    mutationFn: async ({ team, value }: { team: TeamRow; value: boolean }) => {
+      const { error } = await supabase.rpc('set_marketplace_test_mode', {
+        p_team_id: team.id,
+        p_enabled: value,
+      });
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ['sa-marketplace-teams'] });
+      qc.invalidateQueries({ queryKey: ['marketplace-readiness', vars.team.id] });
+      toast({
+        title: vars.value ? 'Test mode enabled' : 'Test mode disabled',
+        description: vars.team.name,
+      });
+    },
+    onError: (e: any) =>
+      toast({ title: 'Update failed', description: e.message, variant: 'destructive' }),
+  });
 
   const toggleVehicle = useMutation({
     mutationFn: async ({
@@ -372,7 +393,25 @@ export const MarketplaceVisibilityTab = () => {
 
                   {isOpen && (
                     <div className="bg-muted/30 border-t px-3 py-3 space-y-3">
+                      <div className="flex items-start justify-between gap-3 p-3 rounded-md border bg-background">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium">Test mode (super admin)</p>
+                          <p className="text-xs text-muted-foreground">
+                            Bypass the go-live checklist for this team so you can preview the
+                            marketplace end-to-end. Real checks still render below. All toggles
+                            are audited.
+                          </p>
+                        </div>
+                        <Switch
+                          checked={team.marketplace_test_mode}
+                          onCheckedChange={(value) => toggleTestMode.mutate({ team, value })}
+                          disabled={toggleTestMode.isPending}
+                          aria-label="Marketplace test mode"
+                        />
+                      </div>
+
                       <MarketplaceReadinessPanel teamId={team.id} />
+
 
                       {team.is_demo_account && (
                         <div className="flex items-start gap-2 p-3 rounded-md border border-amber-500/40 bg-amber-500/5 text-sm">

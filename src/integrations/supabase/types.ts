@@ -3477,6 +3477,7 @@ export type Database = {
           marketplace_requested_at: string | null
           marketplace_reviewed_at: string | null
           marketplace_reviewed_by: string | null
+          marketplace_test_mode: boolean
           marketplace_visible: boolean
           min_rate: number | null
           name: string
@@ -3539,6 +3540,7 @@ export type Database = {
           marketplace_requested_at?: string | null
           marketplace_reviewed_at?: string | null
           marketplace_reviewed_by?: string | null
+          marketplace_test_mode?: boolean
           marketplace_visible?: boolean
           min_rate?: number | null
           name: string
@@ -3601,6 +3603,7 @@ export type Database = {
           marketplace_requested_at?: string | null
           marketplace_reviewed_at?: string | null
           marketplace_reviewed_by?: string | null
+          marketplace_test_mode?: boolean
           marketplace_visible?: boolean
           min_rate?: number | null
           name?: string
@@ -6124,6 +6127,10 @@ export type Database = {
           p_team_id: string
         }
         Returns: undefined
+      }
+      set_marketplace_test_mode: {
+        Args: { p_enabled: boolean; p_team_id: string }
+        Returns: boolean
       }
       slugify: { Args: { _input: string }; Returns: string }
       snapshot_vehicle_billing: { Args: never; Returns: undefined }
