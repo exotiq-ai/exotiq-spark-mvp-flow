@@ -931,12 +931,7 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
                                     </div>
                                     <div className="flex items-center gap-2 flex-shrink-0">
                                       <span className="font-bold text-success text-sm">{formatCurrency(Number(booking.total_value))}</span>
-                                      <Badge variant="outline" className={`text-[10px] ${
-                                        booking.status === 'confirmed' ? 'bg-success/10 text-success border-success/30' :
-                                        booking.status === 'completed' ? 'bg-primary/10 text-primary border-primary/30' :
-                                        booking.status === 'cancelled' ? 'bg-destructive/10 text-destructive border-destructive/30' :
-                                        'bg-warning/10 text-warning border-warning/30'
-                                      }`}>{booking.status}</Badge>
+                                      <Badge variant="outline" className={`text-[10px] ${getBookingStatusBadgeClass(booking.status)}`}>{getBookingStatusLabel(booking.status)}</Badge>
                                     </div>
                                   </div>
                                   <div className="relative flex items-center gap-4 mt-2 text-xs text-muted-foreground">
