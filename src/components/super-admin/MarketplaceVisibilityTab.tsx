@@ -165,6 +165,35 @@ export const MarketplaceVisibilityTab = () => {
       toast({ title: 'Update failed', description: e.message, variant: 'destructive' }),
   });
 
+  const syncNameFromProfile = useMutation({
+    mutationFn: async (team: TeamRow) => {
+      const target = (team.owner_company_name ?? '').trim();
+      if (!target) throw new Error('Owner has no business name in profile');
+      const { data, error } = await supabase.rpc('rename_team', {
+        _team_id: team.id,
+        _new_name: target,
+      });
+      if (error) throw error;
+      await logAdminAction('sync_team_name_from_profile', {
+        team_id: team.id,
+        from: team.name,
+        to: target,
+        slug_changed: Array.isArray(data) ? (data[0] as any)?.slug_changed ?? false : false,
+      });
+      return data;
+    },
+    onSuccess: (_d, team) => {
+      qc.invalidateQueries({ queryKey: ['sa-marketplace-teams'] });
+      toast({
+        title: 'Team renamed',
+        description: `${team.name} → ${(team.owner_company_name ?? '').trim()}`,
+      });
+    },
+    onError: (e: any) =>
+      toast({ title: 'Rename failed', description: e.message, variant: 'destructive' }),
+  });
+
+
   const toggleVehicle = useMutation({
     mutationFn: async ({
       vehicle,
