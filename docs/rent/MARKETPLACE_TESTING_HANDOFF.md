@@ -1,33 +1,32 @@
 # Marketplace Testing — Renter App Handoff
 
-_Last verified: 2026-07-22 · Test tenant: **Exotiq** (`slug: exotiq-`)_
+_Last verified: 2026-07-22 (updated post-M5) · Test tenant: **Exotiq** (`slug: exotiq-`)_
 
 ## TL;DR
 
-Public catalog, media, quoting, availability, Stripe payouts, and ID
-verification are **live and working with the anon key** against the Exotiq
-tenant. The renter-side agent can start integrating.
+Public catalog, media, quoting, availability, Stripe payouts, ID verification,
+**and the renter booking-write path** are all live and callable with the anon
+key against the Exotiq tenant. The renter agent can now drive an end-to-end
+booking flow up to (but not including) the actual Stripe checkout redirect.
 
-Three known gaps to work around before end-to-end capture is possible — none
-block UI/browse work, but all block a real booking:
+Status of the three original gaps:
 
-1. **No renter-side booking-creation endpoint yet** (M6). Nothing in
-   `supabase/functions/` or as an RPC accepts an anonymous
-   `create booking + capture payment` call. The operator app writes bookings
-   through the authenticated `FleetContext` path. This must be built before
-   the renter can complete checkout.
-2. **`teams.platform_fee_percent = 0.00` on Exotiq**, so
-   `public_vehicle_quote` returns `platform_fee_cents: 0`. Independently,
-   `create-payment-checkout` / `stripe-create-hold` **hardcode 20%** for
-   `booking_source='marketplace'`. Quote UI and Stripe capture will disagree
-   until this is reconciled (FLAGGED.md F-BUG-2).
-3. **Photo coverage: 22 of 52 marketplace-visible Exotiq vehicles have a
-   hero image; 30 have none** (no `vehicles.image_url` and zero rows in
-   `vehicle_photos`). Renter cards will render blank for those. Either
-   filter them out client-side by falling back on `hero_image_url IS NOT NULL`,
-   or seed hero images before user testing.
+1. ✅ **Renter booking-creation endpoint shipped (M5).** `POST
+   /functions/v1/rent-create-booking` creates the booking and returns a
+   `booking_ref` + `confirmation_token`. Contract in the "Booking writes"
+   section below.
+2. ✅ **Fee mismatch resolved (D1, 2026-07-22).** Hardcoded 20% removed from
+   `create-payment-checkout` and `stripe-create-hold`; both now read
+   `teams.platform_fee_percent`. Exotiq at `0.00` is self-consistent
+   end-to-end. Money-flow model for M6 (single vs separate charge) still
+   open — does not block browse/create testing.
+3. ⚠️ **Photo coverage: 22 of 52 Exotiq vehicles have a hero image.**
+   Unblocker shipped: `public_team_fleet` now accepts an optional
+   `_require_hero boolean` (default `false`) — pass `true` to hide the 30
+   vehicles without a hero. Seeding hero images is still the real fix.
 
 Everything else is green.
+
 
 ---
 
