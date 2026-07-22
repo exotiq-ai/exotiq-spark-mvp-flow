@@ -79,6 +79,16 @@ export const BusinessProfileSection = () => {
   const handleSave = async () => {
     if (!currentTeam || !canEdit) return;
 
+    const trimmedName = businessName.trim();
+    if (trimmedName.length < 2) {
+      toast({
+        title: "Business name required",
+        description: "Please enter your business name (at least 2 characters).",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const rate = parseFloat(taxRate);
     if (!Number.isFinite(rate) || rate < 0 || rate > 100) {
       toast({
@@ -91,6 +101,25 @@ export const BusinessProfileSection = () => {
 
     setSaving(true);
     try {
+      // Rename via RPC (handles slug regen when safe)
+      if (trimmedName !== (currentTeam.name ?? "").trim()) {
+        const { error: renameErr } = await supabase.rpc("rename_team", {
+          _team_id: currentTeam.id,
+          _new_name: trimmedName,
+        });
+        if (renameErr) throw renameErr;
+
+        // Keep profiles.company_name aligned so it doesn't drift
+        try {
+          await supabase
+            .from("profiles")
+            .update({ company_name: trimmedName })
+            .eq("id", currentTeam.owner_id as any);
+        } catch (e) {
+          console.warn("[BusinessProfile] company_name sync failed", e);
+        }
+      }
+
       const { error } = await supabase
         .from("teams")
         .update({
@@ -110,7 +139,7 @@ export const BusinessProfileSection = () => {
       await refreshTeam();
       toast({
         title: "Business profile saved",
-        description: `Currency, ${taxLabel.toLowerCase()} settings, and address updated.`,
+        description: `Business name, currency, ${taxLabel.toLowerCase()} settings, and address updated.`,
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -123,6 +152,7 @@ export const BusinessProfileSection = () => {
       setSaving(false);
     }
   };
+
 
   const previewAmount = useMemo(
     () => formatMoney(1234.56, { currency, locale, decimals: 2 }),
