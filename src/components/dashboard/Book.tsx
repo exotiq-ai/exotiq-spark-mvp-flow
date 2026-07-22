@@ -19,6 +19,7 @@ import { NewBookingDialog } from "@/components/dialogs/NewBookingDialog";
 import { isBlockingBooking } from "@/lib/conflictDetection";
 import { format, isToday, isFuture, startOfWeek, endOfWeek, addDays } from "date-fns";
 import { useMoney } from "@/hooks/useMoney";
+import { getBookingStatusBadgeClass, getBookingStatusLabel } from "@/lib/bookingStatus";
 
 export const Book = () => {
   const { money } = useMoney();
