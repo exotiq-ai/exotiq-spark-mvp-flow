@@ -171,7 +171,30 @@ export const BusinessProfileSection = () => {
 
   return (
     <div className="space-y-6">
+      {/* Business name */}
+      <Card className="p-6 space-y-5">
+        <div className="flex items-center gap-2">
+          <Building2 className="h-5 w-5 text-muted-foreground" />
+          <h3 className="text-lg font-semibold">Business name</h3>
+        </div>
+        <p className="text-sm text-muted-foreground -mt-2">
+          Shown to customers on receipts, invoices, and your public marketplace
+          listing. Changing this updates your storefront URL as well, unless
+          you're already live on the marketplace.
+        </p>
+        <div className="space-y-2">
+          <Label>Business name</Label>
+          <Input
+            value={businessName}
+            onChange={(e) => setBusinessName(e.target.value)}
+            placeholder="Your rental company name"
+            maxLength={120}
+          />
+        </div>
+      </Card>
+
       {/* Region & currency */}
+
       <Card className="p-6 space-y-5">
         <div className="flex items-center gap-2">
           <Globe className="h-5 w-5 text-muted-foreground" />
