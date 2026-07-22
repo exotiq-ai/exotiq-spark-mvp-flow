@@ -317,11 +317,51 @@ export const MarketplaceVisibilityTab = () => {
                         {team.marketplace_visible && (
                           <Badge className="text-xs">On marketplace</Badge>
                         )}
+                        {(() => {
+                          const target = (team.owner_company_name ?? '').trim();
+                          if (!target || target === team.name.trim()) return null;
+                          return (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Badge variant="outline" className="text-xs border-amber-500/60 text-amber-700 dark:text-amber-300">
+                                  Drift
+                                </Badge>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                Owner's business name is "{target}" but team is named "{team.name}".
+                              </TooltipContent>
+                            </Tooltip>
+                          );
+                        })()}
                       </div>
                       <p className="text-xs text-muted-foreground truncate">
                         {team.owner_email ?? '—'}
+                        {team.slug ? <> · <span className="font-mono">/{team.slug}</span></> : null}
                       </p>
                     </div>
+                    {(() => {
+                      const target = (team.owner_company_name ?? '').trim();
+                      if (!target || target === team.name.trim()) return null;
+                      return (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8"
+                              onClick={() => syncNameFromProfile.mutate(team)}
+                              disabled={syncNameFromProfile.isPending}
+                            >
+                              Sync name
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            Rename team to "{target}" (owner's saved business name)
+                          </TooltipContent>
+                        </Tooltip>
+                      );
+                    })()}
+
                     <Switch
                       checked={team.marketplace_visible}
                       onCheckedChange={(value) => toggleTeam.mutate({ team, value })}
