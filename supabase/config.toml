@@ -185,3 +185,6 @@ verify_jwt = false
 
 [functions.identity-session-status]
 verify_jwt = false
+
+[functions.rent-create-booking]
+verify_jwt = false
