@@ -38,6 +38,7 @@ export const BusinessProfileSection = () => {
   const canEdit = isOwner || isAdmin;
 
   // Form state — initialised from team
+  const [businessName, setBusinessName] = useState("");
   const [country, setCountry] = useState("US");
   const [currency, setCurrency] = useState("USD");
   const [locale, setLocale] = useState("en-US");
@@ -50,6 +51,7 @@ export const BusinessProfileSection = () => {
 
   useEffect(() => {
     if (!currentTeam) return;
+    setBusinessName(currentTeam.name || "");
     setCountry(currentTeam.country_code || "US");
     setCurrency(currentTeam.currency || "USD");
     setLocale(currentTeam.locale || "en-US");
@@ -59,6 +61,7 @@ export const BusinessProfileSection = () => {
     setVatNumber(currentTeam.vat_number || "");
     setAddress((currentTeam.business_address as BusinessAddress) || {});
   }, [currentTeam]);
+
 
   const countryDef = useMemo(() => getCountryDefaults(country), [country]);
 
