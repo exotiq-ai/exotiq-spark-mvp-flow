@@ -1,33 +1,34 @@
-## Goal
-Repoint the Exotiq tenant to the fully-onboarded Stripe Connect account (`acct_1TvnfgQfNJmCrgjR` — Exotiq Inc, charges + payouts enabled) so the marketplace readiness check clears its Stripe blocker.
+# Marketplace Testing — Regroup
 
-## Current state (verified last turn)
-- Exotiq team row `c1de6533-ab44-4973-a123-007a8007b5ba` currently points to `acct_1TcPJyQchd6jAAl0` (unfinished Express sub-account).
-- `acct_1TvnfgQfNJmCrgjR` is fully live: `details_submitted=true`, `charges_enabled=true`, `payouts_enabled=true`, bank verified, branding set.
-- The orphan `acct_1TcPJyQchd6jAAl0` is harmless and can be left alone (or rejected later).
+## Where Exotiq stands (verified now)
 
-## Plan
+- Tenant `Exotiq` (`c1de6533-…`):
+  - `marketplace_visible: true`, `marketplace_request_status: approved`, `marketplace_test_mode: true`
+  - Stripe Connect `acct_1TvnfgQfNJmCrgjR` — charges ✅ / payouts ✅ / onboarding complete ✅
+- Fleet: 55 vehicles, 54 marketplace_visible, 49 visible + available.
+- `rent-public-media` edge function previously verified returning HTTP 200 + signed URLs w/ anon key.
+- ID verification (Stripe Identity) live end-to-end; verified badges piped from `customers.identity_status`.
 
-1. **Repoint Exotiq's Stripe pointer in the DB** (insert tool, single UPDATE):
-   - `stripe_account_id = 'acct_1TvnfgQfNJmCrgjR'`
-   - `stripe_charges_enabled = true`
-   - `stripe_payouts_enabled = true`
-   - `stripe_onboarding_complete = true`
-   - Scoped to `teams.id = 'c1de6533-ab44-4973-a123-007a8007b5ba'`.
+**Bottom line:** Yes — marketplace is ready for the Claude/renter-side agent to start integrating against. Public catalog + media + Stripe payouts + identity are all green on Exotiq.
 
-2. **Re-verify against Stripe** — call the Stripe API for `acct_1TvnfgQfNJmCrgjR` to reconfirm the three flags right before the DB write, so we're not caching stale state.
+## Recommended pre-handoff checks (no code changes, just verifying)
 
-3. **Refresh marketplace readiness for Exotiq**:
-   - Read back the team row to confirm the three Stripe fields are correct.
-   - Call `get_marketplace_readiness(p_team_id => c1de6533-…)` and report which checks now pass/fail. Stripe row should flip to green; `marketplace_test_mode` remains on so any remaining non-Stripe items (logo, business address, ready-vehicle count) don't block testing.
+Before Claude wires the booking flow, I want to confirm these four things are actually working end-to-end so the renter agent doesn't hit a wall mid-integration. Each is a read/probe, not a change:
 
-4. **Report back** with the new readiness snapshot so you know exactly what's green and what's still open before flipping `marketplace_test_mode` off.
+1. **Public catalog RPC** — call the M3 public RPCs (`list_marketplace_vehicles`, `get_marketplace_vehicle`) with the anon key and confirm they return Exotiq's 49 available vehicles with slugs, hero image URLs, and pricing.
+2. **Signed media URLs at scale** — confirm `rent-public-media` returns valid signed URLs for a sample of 5 vehicles (not just the one previously tested), and that URLs are usable from an unauthenticated fetch.
+3. **Booking creation path for a renter** — trace which edge function / RPC a marketplace renter will call to create a booking, and confirm: (a) it accepts an unauthenticated or renter-JWT caller, (b) it enforces the 20% marketplace application fee on the connected account, (c) it writes with `booking_source = 'marketplace'` so the fee trigger fires.
+4. **Double-booking guard on the renter path** — the client-side overlap check exists in the operator app; confirm the marketplace booking entry point also runs it (or documents that the operator confirms before capture).
 
-## Not touching
-- `acct_1TcPJyQchd6jAAl0` in Stripe (leave orphan alone; reject later at your convenience).
-- Any migrations, edge functions, webhooks, or code.
-- Saucy Rentals (already cleared).
-- `marketplace_test_mode` on Exotiq (stays on).
+## Known items to flag to Claude (not blockers, just "know before you build")
 
-## Risk
-Very low. It's a single-row UPDATE on `teams`, gated to Exotiq's id, mirroring what the `stripe-webhook` would write automatically once Stripe fires a fresh `account.updated` for that account. If anything looks off in Step 2's Stripe re-check, we abort before writing.
+- Marketplace application fee is **20%** (hardcoded in `create-payment-checkout` and `stripe-create-hold`). FLAGGED.md F-BUG-2 notes this diverges from the margin trigger — fine for testing, needs a policy decision before real GA.
+- `marketplace_test_mode: true` on Exotiq bypasses the 5-photo readiness gate. Only Exotiq's fleet should be treated as "showable to real renters"; other tenants will fail readiness until they hit 5 photos/vehicle + Stripe onboarding.
+- ID verification is required to book — renter flow must send users through the `identity-create-session` → Stripe hosted URL → webhook path before payment capture.
+- No DB-level exclusion constraint on booking overlaps yet (FLAGGED F-BUG-1-DB). Fine for controlled testing; call out to Claude so the renter UI doesn't rely on Postgres to reject overlaps.
+
+## Suggested next step
+
+I run the 4 verification probes above (read-only, ~5 min), report back green/red per item, and then you hand off to Claude with a short "what's live, what to call, what to avoid" note. I can draft that handoff note as the final step.
+
+Approve this and I'll switch to build mode just to execute the read-only probes and produce the handoff note — no schema, edge function, or UI changes.
