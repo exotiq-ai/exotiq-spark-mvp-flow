@@ -214,6 +214,7 @@ export type Database = {
           booking_source: string
           cancellation_reason: string | null
           cancelled_at: string | null
+          confirmation_token: string
           confirmed_at: string | null
           created_at: string | null
           currency: string
@@ -272,6 +273,7 @@ export type Database = {
           booking_source?: string
           cancellation_reason?: string | null
           cancelled_at?: string | null
+          confirmation_token?: string
           confirmed_at?: string | null
           created_at?: string | null
           currency?: string
@@ -330,6 +332,7 @@ export type Database = {
           booking_source?: string
           cancellation_reason?: string | null
           cancelled_at?: string | null
+          confirmation_token?: string
           confirmed_at?: string | null
           created_at?: string | null
           currency?: string
@@ -5456,6 +5459,27 @@ export type Database = {
         Returns: number
       }
       count_admins: { Args: never; Returns: number }
+      create_marketplace_booking: {
+        Args: {
+          _customer_email: string
+          _customer_name: string
+          _customer_phone: string
+          _daily_rate: number
+          _end_date: string
+          _initial_status: string
+          _pickup_time: string
+          _start_date: string
+          _team_slug: string
+          _total_value: number
+          _vehicle_slug: string
+        }
+        Returns: {
+          booking_id: string
+          booking_ref: string
+          confirmation_token: string
+          status: string
+        }[]
+      }
       deactivate_team_member:
         | {
             Args: {
@@ -5887,6 +5911,22 @@ export type Database = {
         }[]
       }
       next_invoice_number: { Args: { p_team_id: string }; Returns: string }
+      public_booking_by_ref: {
+        Args: { _booking_ref: string; _token?: string }
+        Returns: {
+          authorized: boolean
+          booking_ref: string
+          currency: string
+          end_at: string
+          start_at: string
+          status: string
+          team_name: string
+          team_slug: string
+          total_cents: number
+          vehicle_name: string
+          vehicle_slug: string
+        }[]
+      }
       public_team_by_slug: {
         Args: { _team_slug: string }
         Returns: {
