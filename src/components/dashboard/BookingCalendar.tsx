@@ -98,12 +98,7 @@ const BookingPreviewCard = ({
           <span className={`font-medium text-sm ${booking.customer_id && onCustomerClick ? 'cursor-pointer hover:text-primary transition-colors' : ''}`}
             onClick={(e) => { if (booking.customer_id && onCustomerClick) { e.stopPropagation(); onCustomerClick(booking.customer_id); } }}
           >{booking.customer_name}</span>
-          <Badge variant="outline" className={`ml-auto text-[10px] ${
-            booking.status === 'confirmed' ? 'bg-success/10 text-success border-success/30' :
-            booking.status === 'completed' ? 'bg-primary/10 text-primary border-primary/30' :
-            booking.status === 'cancelled' ? 'bg-destructive/10 text-destructive border-destructive/30' :
-            'bg-warning/10 text-warning border-warning/30'
-          }`}>{booking.status}</Badge>
+          <Badge variant="outline" className={`ml-auto text-[10px] ${getBookingStatusBadgeClass(booking.status)}`}>{getBookingStatusLabel(booking.status)}</Badge>
         </div>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Clock className="h-3 w-3" />
