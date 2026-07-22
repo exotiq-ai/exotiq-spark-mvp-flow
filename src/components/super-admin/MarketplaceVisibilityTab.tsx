@@ -393,7 +393,25 @@ export const MarketplaceVisibilityTab = () => {
 
                   {isOpen && (
                     <div className="bg-muted/30 border-t px-3 py-3 space-y-3">
+                      <div className="flex items-start justify-between gap-3 p-3 rounded-md border bg-background">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium">Test mode (super admin)</p>
+                          <p className="text-xs text-muted-foreground">
+                            Bypass the go-live checklist for this team so you can preview the
+                            marketplace end-to-end. Real checks still render below. All toggles
+                            are audited.
+                          </p>
+                        </div>
+                        <Switch
+                          checked={team.marketplace_test_mode}
+                          onCheckedChange={(value) => toggleTestMode.mutate({ team, value })}
+                          disabled={toggleTestMode.isPending}
+                          aria-label="Marketplace test mode"
+                        />
+                      </div>
+
                       <MarketplaceReadinessPanel teamId={team.id} />
+
 
                       {team.is_demo_account && (
                         <div className="flex items-start gap-2 p-3 rounded-md border border-amber-500/40 bg-amber-500/5 text-sm">
