@@ -222,8 +222,8 @@ export const Book = () => {
                       <h4 className="font-semibold">{getVehicleName(booking.vehicle_id)}</h4>
                       <p className="text-sm text-muted-foreground">{booking.id.slice(0, 8)}</p>
                     </div>
-                    <Badge className={getStatusColor(booking.status || 'pending')}>
-                      {booking.status || 'pending'}
+                    <Badge className={getBookingStatusBadgeClass(booking.status || 'pending')}>
+                      {getBookingStatusLabel(booking.status || 'pending')}
                     </Badge>
                   </div>
                   
