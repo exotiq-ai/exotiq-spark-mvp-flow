@@ -5,15 +5,23 @@
 
 ## Current state
 
-- **Current milestone:** M1/M2/M3 COMPLETE, merged to main AND applied to the
-  hosted cloud DB (Lovable, 2026-07-16): all five migrations applied
-  (realtime.messages block deferred to cutover), `rent-public-media` deployed
-  and verified (400 on missing params, 404 on unknown AND on
-  non-marketplace-visible real slugs — visibility gate confirmed active in
-  production). Positive-path (200 + signed URLs) pending Gregory designating
-  an opt-in team + vehicle. **M4 is unblocked.**
-- **exotiq-rent status:** PRs #2 (M0 bootstrap) and #3 (D1/D5/D9 frontend changes) are OPEN on exotiq-rent — merging them + repointing the Netlify deploy is what fixes demo.exotiq.rent (currently showing old cyan marketplace from stale main).
-- **Last session:** 2026-07-16 — merged #20/#21/#22, wrote Lovable prompts
+- **Current milestone:** M1–M5 COMPLETE end to end. M1/M2/M3 applied to the
+  hosted cloud DB (2026-07-16). M4 (live Supabase reads) and M5 (live booking
+  writes) merged on exotiq-rent (PRs #11/#12); M5 backend
+  (`20260722050000_renter_booking_writes.sql` + `rent-create-booking`) applied
+  to the hosted DB 2026-07-22 with two drift fixes (see the 2026-07-22 M5
+  session section). IDV V1–V4 applied and sandbox-verified. M6 (money) still
+  gated on Gregory's D1 money-flow review.
+- **exotiq-rent status:** merged through PR #13 (site split:
+  `NEXT_PUBLIC_SITE_MODE` marketplace vs booking). 29/29 tests green.
+- **Netlify split (2026-07-22):** `exotiq.rent` (site
+  `1ec963dc-2d50-400d-bc1c-6049ce9d62e5`, marketplace mode) is live and
+  correctly gates booking routes. `book.exotiq.rent` + `demo.exotiq.rent`
+  alias (site `2fcbaa5b-d700-461d-bbd5-7af4917ef997`) 404s — created via API
+  without `@netlify/plugin-nextjs`. The exotiq-rent agent is fixing this
+  (plugin + clear-cache rebuild + env), NOT the Command Center session.
+- **Last session:** 2026-07-22 — Cursor → Claude Code handoff (see session
+  section below)
 - **CRITICAL FINDING (2026-07-16):** the May 31 security hardening migration
   (`20260530203000_harden_tenant_rls_policies.sql`, inventory findings 1–4)
   was merged to repo main but NEVER applied to the cloud DB — the cross-team
@@ -217,6 +225,50 @@ Prompt B shipped by Lovable and verified. V4 test record (plan §7):
   verify identity → booking appears in Command Center as hello@exotiq.ai
   with status pending_documents/requested).
 
+## Session 2026-07-22 (evening): Cursor → Claude Code handoff, two-session split
+
+- Tooling move: Gregory now runs **Claude Code desktop**, two sessions —
+  (1) this spark repo = **Command Center** (schema, RPCs, edge functions,
+  Lovable handoffs, Netlify/Supabase MCP ops, this checkpoint), (2) a
+  separate agent on **exotiq-rent** (all renter-app code). Neither session
+  edits the other's repo.
+- Verified live: `exotiq.rent` 200 (marketplace), booking routes 404 ✅;
+  `book.exotiq.rent` and `demo.exotiq.rent` 404 ❌ (missing
+  `@netlify/plugin-nextjs`, see Current state). The exotiq-rent agent is
+  working the fix as of this session.
+- **DECISION (Gregory, 2026-07-22): `book.exotiq.rent` runs the LIVE PILOT**
+  once deployed — set on the book site:
+  `NEXT_PUBLIC_EXOTIQ_RENT_DATA_MODE=supabase`,
+  `NEXT_PUBLIC_SUPABASE_URL=https://jlgwbbqydjeokypoenoc.supabase.co`,
+  `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
+  (test key). Note `getDataMode()` falls back to mock if any var is missing,
+  so a partial config degrades safely to the demo.
+- Pilot tenant for live tests: `saucy@exotiq.ai` (slug `fredo-d-lima`).
+  `hello@exotiq.ai` is the demo tenant — excluded from marketplace, never
+  use it for live storefront tests.
+
 ## Next action
 
-M4 (real reads in the renter app, exotiq-rent repo — needs #21/#22 merged AND applied to hosted project first): `services/exotiq-rent/client.ts` + `adapters.ts` wrapping the five public RPCs + media endpoint, `NEXT_PUBLIC_EXOTIQ_RENT_DATA_MODE=mock|supabase` flag, contract tests against RPC shapes; mock mode must stay green with no env. Coordinate with the M0 agent's branch to avoid conflicts. Meanwhile: M5 prep is possible decision-free only up to drafting the `btree_gist` exclusion constraint migration (blocked on cutover for apply). Chase D-register answers and Lovable export artifacts.
+**exotiq-rent agent (in flight):** fix `book-exotiq-rent` Netlify site —
+add `@netlify/plugin-nextjs` (match exotiqrent config, pinned v5),
+clear-cache rebuild, set the live-pilot env vars above, then smoke:
+`/` → 307 → `/desert-exotic-rentals` → book flow → confirmation, plus
+`demo.exotiq.rent` alias.
+
+**Command Center session (this repo), in order:**
+1. Verify Lovable redeployed the checkout edge functions after PR #23
+   retired the 20% marketplace-fee hardcode (read deployed code via
+   Supabase MCP; if stale, write the Lovable redeploy prompt).
+2. Lovable prompt for D3: Command Center UI still lacks the
+   `requested` / `pending_documents` booking statuses.
+3. After the book site is live: README curl smokes against hosted
+   `rent-create-booking` incl. the parallel-create concurrency test, then
+   Gregory's phone click-through (browse → reserve → IDV → booking appears
+   in Command Center).
+4. Fleet-wide `btree_gist` exclusion constraint after Lovable dedupes
+   historical operator overlaps (carried on the cutover checklist).
+5. Merge docs-only PRs #7 (launch checklist) and #8 (IDV plan) on
+   exotiq-rent — safe.
+6. Housekeeping: decide fate of the untracked nested
+   `exotiq-spark-mvp-flow/` backup folder inside this repo + untracked QA
+   docs/tests (commit, gitignore, or move out).
