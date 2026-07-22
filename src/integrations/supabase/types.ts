@@ -5940,20 +5940,35 @@ export type Database = {
           timezone: string
         }[]
       }
-      public_team_fleet: {
-        Args: { _team_slug: string }
-        Returns: {
-          color: string
-          daily_rate: number
-          hero_image_url: string
-          make: string
-          min_rental_days: number
-          model: string
-          name: string
-          vehicle_slug: string
-          year: number
-        }[]
-      }
+      public_team_fleet:
+        | {
+            Args: { _team_slug: string }
+            Returns: {
+              color: string
+              daily_rate: number
+              hero_image_url: string
+              make: string
+              min_rental_days: number
+              model: string
+              name: string
+              vehicle_slug: string
+              year: number
+            }[]
+          }
+        | {
+            Args: { _require_hero?: boolean; _team_slug: string }
+            Returns: {
+              color: string
+              daily_rate: number
+              hero_image_url: string
+              make: string
+              min_rental_days: number
+              model: string
+              name: string
+              vehicle_slug: string
+              year: number
+            }[]
+          }
       public_vehicle_availability: {
         Args: {
           _range_end: string
