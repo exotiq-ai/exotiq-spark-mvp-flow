@@ -21,6 +21,8 @@ interface Props {
 
 type Readiness = {
   ready: boolean;
+  real_ready?: boolean;
+  test_mode?: boolean;
   team_checks: Record<string, boolean>;
   vehicles: Array<{ id: string; label: string; ready: boolean; marketplace_visible: boolean }>;
   ready_vehicle_count: number;
@@ -71,12 +73,24 @@ export const MarketplaceReadinessPanel = ({ teamId }: Props) => {
 
   return (
     <div className="rounded-md border bg-background p-3 space-y-3">
+      {data.test_mode && (
+        <div className="rounded-md border border-amber-500/50 bg-amber-500/10 p-2.5 text-xs text-amber-900 dark:text-amber-200">
+          <span className="font-medium">Test mode active</span> — go-live checklist is bypassed for
+          this team. Real checks still shown below.
+          {data.real_ready === false && (
+            <span className="block mt-0.5 text-amber-800/80 dark:text-amber-300/80">
+              Real readiness: <span className="font-medium">not passing</span>
+            </span>
+          )}
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div className="text-sm font-medium">Go-live checklist</div>
-        <Badge variant={data.ready ? 'default' : 'secondary'} className="text-xs">
+        <Badge variant={data.real_ready ?? data.ready ? 'default' : 'secondary'} className="text-xs">
           {passing}/{entries.length} checks passing
         </Badge>
       </div>
+
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5">
         {entries.map(([key, ok]) => (
