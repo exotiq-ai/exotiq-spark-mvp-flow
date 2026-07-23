@@ -14,6 +14,8 @@ interface RevenueWidgetProps {
 
 export const RevenueWidget = ({ isLoading }: RevenueWidgetProps) => {
   const { vehicles, bookings } = useLocationFilteredFleet();
+  const { money } = useMoney();
+
 
   // Calculate actual revenue per vehicle from bookings (sorted by revenue) - must be before early return
   const vehicleRevenue = useMemo(() => {
