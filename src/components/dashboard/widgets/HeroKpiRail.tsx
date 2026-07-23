@@ -144,6 +144,10 @@ export const HeroKpiRail = ({
         </motion.div>
       ))}
     </dl>
+      <p className="text-[10.5px] font-medium uppercase tracking-[0.16em] text-muted-foreground px-0 sm:px-5">
+        Utilization today {utilization}% · 7-day avg {utilization7dAvg}%
+      </p>
+    </div>
   );
 };
 
