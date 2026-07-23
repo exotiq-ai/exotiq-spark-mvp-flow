@@ -263,7 +263,9 @@ const DayDetailContent = ({
 
 export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) => {
   const { bookings, vehicles, refreshBookings } = useLocationFilteredFleet();
-  const { goToCustomerProfile } = useModuleNavigation();
+  const { customers } = useFleet();
+  const [profileCustomerId, setProfileCustomerId] = useState<string | null>(null);
+  const openCustomerProfile = (customerId: string) => setProfileCustomerId(customerId);
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const [currentDate, setCurrentDate] = useState(new Date());
