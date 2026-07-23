@@ -2,17 +2,16 @@ import { useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { onRentVehicleIdsAt } from "@/lib/fleetMetrics";
-import { ArrowUpRight, ArrowDownLeft, Clock } from "lucide-react";
+import { useChartData } from "@/hooks/useChartData";
+import { useMoney } from "@/hooks/useMoney";
+import { RevenueLineChart } from "@/components/charts/RevenueLineChart";
+import { ArrowUpRight, ArrowDownLeft, Clock, TrendingUp, TrendingDown } from "lucide-react";
 import { format, isToday } from "date-fns";
 
 interface PulseStripProps {
   onModuleClick: (moduleId: string) => void;
 }
 
-const money = (n: number) => {
-  if (n >= 1000) return `$${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k`;
-  return `$${Math.round(n).toLocaleString()}`;
-};
 
 /**
  * PulseStrip — three flat tiles below the Daily Brief.
