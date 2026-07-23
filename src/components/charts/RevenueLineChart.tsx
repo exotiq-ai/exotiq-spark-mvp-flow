@@ -11,7 +11,7 @@ import { exportToCSV } from "@/utils/chartExport";
 import { Download, TrendingUp, TrendingDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
-import { useChartHeight, getResponsiveAxisConfig, formatCompactNumber } from "@/components/ui/adaptive-chart";
+import { useChartHeight, getResponsiveAxisConfig } from "@/components/ui/adaptive-chart";
 import { TouchTooltip, getTouchActiveDot } from "@/components/ui/touch-tooltip";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useMoney } from "@/hooks/useMoney";
@@ -375,5 +375,3 @@ export const RevenueLineChart = () => {
   );
 };
 
-// Silence unused import lint if formatCompactNumber later unused
-export const __unused = formatCompactNumber;
