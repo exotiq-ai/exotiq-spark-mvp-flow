@@ -4,7 +4,7 @@ import { SkeletonLineChart } from "@/components/ui/skeleton-card";
 import { ProgressiveDisclosure } from "@/components/common/ProgressiveDisclosure";
 import { Tachometer } from "@/components/automotive/RacingStripe";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
-import { formatCurrency } from "@/lib/utils";
+import { useMoney } from "@/hooks/useMoney";
 import { useMemo } from "react";
 import { startOfMonth, subMonths, isWithinInterval, endOfMonth } from "date-fns";
 
