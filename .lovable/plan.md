@@ -1,61 +1,53 @@
+# Exotiq demo polish — utilization + outstanding cleanup
 
-## Goal
-Make the Exotiq demo tenant (`c1de6533-ab44-4973-a123-007a8007b5ba`) look like a healthy, real-world operation for customer demos. All changes are **data-only** on our database — no writes to Stripe.
+Three targeted changes: seed a few extra active bookings, upgrade the utilization tile to show a 7-day average alongside today, and clean up the Exotiq outstanding-balance total so the Daily Brief reflects a healthy operation.
 
-## Current state (verified via SQL)
-Today is 2026-07-23. On Exotiq:
-- **1,128 bookings in `confirmed`**, of which **447 have `end_date < now`** — these show up as overdue returns and pollute every dashboard.
-- **147 in `completed`**, and **7 of those have no `payments` row**, so historical revenue looks sparse.
-- 664 upcoming confirmed, 3 `requested`, 3 `pending_documents`, 7 `cancelled`, 1 `completed` in the future (bad data).
-- Overdue confirmed distribution: heavy in Jun 2026 (156) and Jul 2026 (103); a long tail in 2025 (Jan–Dec) with 1–8 per month.
+## 1. Seed ~10 bookings straddling today (Exotiq only)
 
-## Plan
+Goal: lift today's utilization from **31% → ~50%** (27 of 54 vehicles on rent).
 
-### 1. Flip past-dated confirmed bookings to `completed`
-Update `bookings` where `team_id = Exotiq` AND `status = 'confirmed'` AND `end_date < now() - interval '1 day'` → set `status = 'completed'`.
+- Pick 10 currently-available Exotiq vehicles (not retired, not in maintenance, no active/confirmed booking overlapping today).
+- Insert 10 `confirmed` bookings with:
+  - `start_date` = today − random(1–3 days), `end_date` = today + random(2–5 days)
+  - Realistic renter picked from existing `customers` (weighted toward repeat renters)
+  - `total_value` computed from vehicle's `current_rate` × days
+  - `balance_due = 0` (paid on pickup, keeps outstanding total clean)
+  - `pickup_location`, `pickup_time` populated so calendar cards look real
+- No Stripe writes; `stripe_*` fields left null (same pattern as prior demo seeding).
 
-**Keep a small "overdue returns" set for realism**, since operators normally have a couple lingering late returns:
-- Leave the **3 most recent** overdue confirmed bookings (end_date within the last 5 days) as-is so the "overdue returns" widget still shows something plausible.
-- Everything older flips to `completed`.
+## 2. Surface 7-day average utilization on the KPI tile
 
-Expected: ~444 bookings flipped, 3 kept overdue.
+Product change only — no data mutation.
 
-### 2. Fix the future-dated `completed` record
-One booking has `status='completed'` with `start_date > now()`. Flip it back to `confirmed` (or delete if it looks like test junk — will inspect first and pick).
+- Extend `useDailyBrief` (or a small companion hook) to compute a rolling **7-day average utilization** for the current team: for each of the last 7 days, count distinct vehicles with a `confirmed`/`active` booking overlapping that day ÷ active vehicle count, then average.
+- Pass `utilization7dAvg` into `HeroKpiRail`. On the Utilization card, render today's % as the primary number and add a small sub-line: `7-day avg: 48%`.
+- Same treatment on `CompactMetricsBar` when space allows (fallback to today only on narrow widths).
+- No changes to Rari narration or AI hooks.
 
-### 3. Seed payment records for completed bookings without one
-For every `completed` booking on Exotiq that has no row in `payments`, insert one row:
-- `payment_type = 'rental'`
-- `amount = bookings.total_value`
-- `payment_status = 'completed'`
-- `payment_method = 'card'`
-- `transaction_date = bookings.end_date`
-- `notes = 'Demo record — no Stripe charge'`
-- `team_id`, `customer_id`, `booking_id`, `user_id` copied from the booking
-- All `stripe_*` columns left NULL (so nothing looks tied to Stripe)
+## 3. Clean up outstanding balances for Exotiq demo
 
-After step 1 this will cover the newly-completed ~444 plus the existing 7 gap = ~451 payment rows inserted.
+Current state (Exotiq only): **$3.32M outstanding across 954 bookings**
+- 265 `completed` bookings totaling $1.00M (should be zero — they're paid)
+- 689 future `confirmed` bookings totaling $2.32M (unrealistically all unpaid)
+- 1 `cancelled` with $1.7k (residual)
 
-### 4. Vehicle revenue rollup
-Refresh `vehicles.revenue` for Exotiq from the sum of `completed` bookings' `total_value` (same pattern already documented in `DEMO_DATA_TODO.md`), so per-vehicle revenue on fleet cards reflects the new completed set.
+Target state: **~$80k–$150k outstanding across ~40–60 bookings** — a believable AR pile.
 
-### 5. Quick tenant hygiene sweep
-While in there, verify and fix if needed (each is a small, safe check):
-- Drafts / abandoned bookings older than 30 days → delete.
-- Cancelled bookings with `end_date < now() - 90 days` → leave (history is fine, they don't clutter dashboards).
-- Any `customers` row for Exotiq with no bookings AND no notes AND created > 90 days ago → leave (CRM depth is good for demo).
-- Confirm no `work_orders` are stuck `in_progress` past their scheduled end; if any, close them.
+Changes (Exotiq team only, via migration since it's an UPDATE):
+- Zero `balance_due` and set `amount_paid = total_value` on all `completed` bookings.
+- Zero `balance_due` on the `cancelled` booking.
+- For future `confirmed` bookings: mark ~90% as paid-in-full (`balance_due = 0`, `amount_paid = total_value`); leave a realistic long tail (~60 bookings) with partial balances (deposit paid, remainder due closer to pickup).
+- No Stripe writes.
 
-I will report exact counts before/after each step in the build turn.
-
-## What I will NOT touch
-- No Stripe API calls of any kind.
-- No schema changes.
-- No changes to any other tenant.
-- No changes to marketplace visibility, hero images, deposits, fees, slug, timezone — those are already set.
-- Upcoming `requested` / `pending_documents` bookings stay as-is (they drive the Daily Brief demo).
+Daily Brief's "balances outstanding" card will then read something like *"58 balances outstanding · $112,340"* instead of $3.3M.
 
 ## Technical notes
-- All writes go through the `insert` tool (data-only, no migration needed).
-- `vehicles.status` stays static per existing convention; UI computes live status from bookings.
-- Payment inserts use `gen_random_uuid()` for `id` and rely on `payments` defaults for `created_at`.
+
+- Files touched:
+  - `src/hooks/useDailyBrief.ts` — add `utilization7dAvg` calculation
+  - `src/components/dashboard/widgets/HeroKpiRail.tsx` — render sub-line
+  - `src/components/dashboard/widgets/CompactMetricsBar.tsx` — optional sub-line
+  - `src/components/dashboard/DashboardOverviewEnhanced.tsx` — thread new prop
+- Data changes via `supabase--migration` (updates), scoped by `team_id = 'c1de6533-ab44-4973-a123-007a8007b5ba'`.
+- No changes to booking status logic, RLS, or edge functions.
+- No impact on other tenants.

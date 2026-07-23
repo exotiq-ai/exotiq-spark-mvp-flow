@@ -43,10 +43,10 @@ export const HeroKpiRail = ({
   collectedToday,
   utilization,
 }: HeroKpiRailProps) => {
-  const { bookings, payments } = useLocationFilteredFleet();
+  const { bookings, payments, vehicles } = useLocationFilteredFleet();
 
-  // Yesterday's same-day metrics using the exact same helpers as today.
-  const { yOnRent, yPickups, yReturns, yCollected, collectedSeries } = useMemo(() => {
+  // Yesterday's same-day metrics + 7-day utilization avg using the exact same helpers.
+  const { yOnRent, yPickups, yReturns, yCollected, collectedSeries, utilization7dAvg } = useMemo(() => {
     const now = new Date();
     const yesterday = new Date(now);
     yesterday.setDate(yesterday.getDate() - 1);
@@ -65,8 +65,23 @@ export const HeroKpiRail = ({
       day.setDate(day.getDate() - i);
       days.push(sumCollectedOnDay(payments || [], day));
     }
-    return { yOnRent, yPickups, yReturns, yCollected, collectedSeries: days };
-  }, [bookings, payments]);
+
+    // 7-day rolling utilization avg (distinct on-rent vehicles / fleet size, per day)
+    const fleetSize = (vehicles || []).filter((v: { status?: string }) => v.status !== 'retired').length;
+    let utilization7dAvg = 0;
+    if (fleetSize > 0) {
+      let sum = 0;
+      for (let i = 0; i < 7; i++) {
+        const day = new Date(now);
+        day.setDate(day.getDate() - i);
+        day.setHours(12, 0, 0, 0);
+        sum += onRentVehicleIdsAt(bookings || [], day).size / fleetSize;
+      }
+      utilization7dAvg = Math.round((sum / 7) * 100);
+    }
+
+    return { yOnRent, yPickups, yReturns, yCollected, collectedSeries: days, utilization7dAvg };
+  }, [bookings, payments, vehicles]);
 
   // Suppress noise from silent-void days (avoid endless red 0→0 chips)
   const _ = isSameDay; // keep import if unused later
@@ -91,10 +106,12 @@ export const HeroKpiRail = ({
           value: utilization,
           delta: 0,
           format: (n: number) => `${n}%`,
+          subline: `7-day avg: ${utilization7dAvg}%`,
         },
   ];
 
   return (
+    <div className="space-y-2">
     <dl
       className={cn(
         "grid grid-cols-2 sm:grid-cols-4 gap-y-4",
@@ -127,6 +144,10 @@ export const HeroKpiRail = ({
         </motion.div>
       ))}
     </dl>
+      <p className="text-[10.5px] font-medium uppercase tracking-[0.16em] text-muted-foreground px-0 sm:px-5">
+        Utilization today {utilization}% · 7-day avg {utilization7dAvg}%
+      </p>
+    </div>
   );
 };
 
