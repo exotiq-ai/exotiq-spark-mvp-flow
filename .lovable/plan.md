@@ -1,53 +1,37 @@
-# Exotiq demo polish — utilization + outstanding cleanup
+## Revenue chart overhaul — Tiers 1 + 2 + 3
 
-Three targeted changes: seed a few extra active bookings, upgrade the utilization tile to show a 7-day average alongside today, and clean up the Exotiq outstanding-balance total so the Daily Brief reflects a healthy operation.
+Frontend-only. No schema changes, no backend writes.
 
-## 1. Seed ~10 bookings straddling today (Exotiq only)
+### Tier 1 — correctness & trust
+1. **Kill the fake compare** in `RevenueLineChart.tsx`. Replace `previousRevenue = activeData[i-1] * 0.92` with a real prior-period series: same range length shifted back, aligned index-by-index on the current x-axis.
+2. **Reconcile the two "Total Revenue" numbers.**
+   - Header tile in `RevenueLineChart`: rename to **"Range Total"** (reflects active range).
+   - Outer widget tile in `RevenueWidget`: rename to **"All-time Revenue"**.
+3. **Currency fix.** Replace hardcoded `$` in `RevenueLineChart` header tiles, y-axis, and tooltip with `useMoney()` (matches Orion UK fix already applied elsewhere).
+4. **Tooltip / helper copy.** One-line definitions for Booked vs Collected shown on hover of the toggle badges.
 
-Goal: lift today's utilization from **31% → ~50%** (27 of 54 vehicles on rent).
+### Tier 2 — usefulness
+5. **Range switcher**: `7D · 30D · MTD · QTD · YTD`. Client-side slice off the existing data window in `useChartData`; extend the query window to cover YTD.
+6. **7-day moving average overlay** (dotted line) computed in `useChartData`. Toggleable via a small "Avg" badge alongside Booked/Collected/Compare.
+7. **Weekend shading** on the x-axis via `ReferenceArea` bands so weekend peaks read at a glance.
+8. **Empty state** when active range has zero revenue: coaching card ("Revenue appears here once your first booking completes / is paid") instead of a flat zero line.
 
-- Pick 10 currently-available Exotiq vehicles (not retired, not in maintenance, no active/confirmed booking overlapping today).
-- Insert 10 `confirmed` bookings with:
-  - `start_date` = today − random(1–3 days), `end_date` = today + random(2–5 days)
-  - Realistic renter picked from existing `customers` (weighted toward repeat renters)
-  - `total_value` computed from vehicle's `current_rate` × days
-  - `balance_due = 0` (paid on pickup, keeps outstanding total clean)
-  - `pickup_location`, `pickup_time` populated so calendar cards look real
-- No Stripe writes; `stripe_*` fields left null (same pattern as prior demo seeding).
+### Tier 3 — polish
+9. **Delta chip in header** driven by the real Tier 1 compare: `▲ 12% vs prior {range}` with success/destructive coloring.
+10. **Deep-link**: clicking the range label or a bar/point jumps to Payments filtered to that window (reuses existing Payments route + query params).
+11. **Demote duplicate revenue tile** in `HeroKpiRail` — keep the tile but change its subline to "See Revenue Analytics for detail" and remove its own mini-sparkline math, so this widget is the single source of truth.
 
-## 2. Surface 7-day average utilization on the KPI tile
+### Files touched
+- `src/components/charts/RevenueLineChart.tsx` — range switcher, MA overlay, weekend bands, real compare, empty state, currency, delta chip, deep-link.
+- `src/components/dashboard/widgets/RevenueWidget.tsx` — tile relabel, currency, wire range selection down.
+- `src/hooks/useChartData.ts` — add `range` param, prior-period series, 7-day moving average, extend window to YTD.
+- `src/components/dashboard/widgets/HeroKpiRail.tsx` — demote revenue tile subline (no math change).
 
-Product change only — no data mutation.
+### Out of scope
+- No changes to bookings/payments schema or how revenue is recorded.
+- No changes to the click-through `RevenueBreakdownDialog` beyond passing the selected day (already works).
+- No new backend queries; all recomputation is client-side over already-loaded bookings/payments.
 
-- Extend `useDailyBrief` (or a small companion hook) to compute a rolling **7-day average utilization** for the current team: for each of the last 7 days, count distinct vehicles with a `confirmed`/`active` booking overlapping that day ÷ active vehicle count, then average.
-- Pass `utilization7dAvg` into `HeroKpiRail`. On the Utilization card, render today's % as the primary number and add a small sub-line: `7-day avg: 48%`.
-- Same treatment on `CompactMetricsBar` when space allows (fallback to today only on narrow widths).
-- No changes to Rari narration or AI hooks.
-
-## 3. Clean up outstanding balances for Exotiq demo
-
-Current state (Exotiq only): **$3.32M outstanding across 954 bookings**
-- 265 `completed` bookings totaling $1.00M (should be zero — they're paid)
-- 689 future `confirmed` bookings totaling $2.32M (unrealistically all unpaid)
-- 1 `cancelled` with $1.7k (residual)
-
-Target state: **~$80k–$150k outstanding across ~40–60 bookings** — a believable AR pile.
-
-Changes (Exotiq team only, via migration since it's an UPDATE):
-- Zero `balance_due` and set `amount_paid = total_value` on all `completed` bookings.
-- Zero `balance_due` on the `cancelled` booking.
-- For future `confirmed` bookings: mark ~90% as paid-in-full (`balance_due = 0`, `amount_paid = total_value`); leave a realistic long tail (~60 bookings) with partial balances (deposit paid, remainder due closer to pickup).
-- No Stripe writes.
-
-Daily Brief's "balances outstanding" card will then read something like *"58 balances outstanding · $112,340"* instead of $3.3M.
-
-## Technical notes
-
-- Files touched:
-  - `src/hooks/useDailyBrief.ts` — add `utilization7dAvg` calculation
-  - `src/components/dashboard/widgets/HeroKpiRail.tsx` — render sub-line
-  - `src/components/dashboard/widgets/CompactMetricsBar.tsx` — optional sub-line
-  - `src/components/dashboard/DashboardOverviewEnhanced.tsx` — thread new prop
-- Data changes via `supabase--migration` (updates), scoped by `team_id = 'c1de6533-ab44-4973-a123-007a8007b5ba'`.
-- No changes to booking status logic, RLS, or edge functions.
-- No impact on other tenants.
+### Verification
+- Build passes.
+- Playwright screenshot at `/dashboard` at desktop + mobile widths confirming: range switcher renders, MA line visible, weekend bands visible, tiles read "Range Total" and "All-time Revenue", currency respects tenant (spot-check Exotiq = `$`, Orion = `£`).
