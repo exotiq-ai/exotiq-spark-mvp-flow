@@ -30,9 +30,21 @@ const RANGE_OPTIONS: { key: ChartRange; label: string }[] = [
   { key: "YTD", label: "YTD" },
 ];
 
-export const RevenueLineChart = () => {
+interface RevenueLineChartProps {
+  /**
+   * Compact mode: renders just the area+MA+weekend-bands chart with no card,
+   * no toolbar, no tiles. Intended for embedding inside another tile (e.g. PulseStrip).
+   */
+  compact?: boolean;
+  /** Force a range in compact mode. Defaults to '30D'. */
+  compactRange?: ChartRange;
+  /** Optional height override for compact mode (default 56px). */
+  compactHeight?: number;
+}
+
+export const RevenueLineChart = ({ compact = false, compactRange = "30D", compactHeight = 56 }: RevenueLineChartProps = {}) => {
   const { bookings, vehicles, payments } = useLocationFilteredFleet();
-  const [range, setRange] = useState<ChartRange>("30D");
+  const [range, setRange] = useState<ChartRange>(compact ? compactRange : "30D");
   const { revenueData, collectedData } = useChartData(bookings, payments, range);
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -52,6 +64,7 @@ export const RevenueLineChart = () => {
     const timer = setTimeout(() => setIsAnimated(true), 100);
     return () => clearTimeout(timer);
   }, []);
+
 
   const handleExportCSV = () => {
     const exportData = (viewMode === 'booked' ? revenueData : collectedData).map(d => ({
@@ -121,6 +134,69 @@ export const RevenueLineChart = () => {
     const fmt = (d: Date) => d.toISOString().slice(0, 10);
     navigate(`/dashboard/payments?from=${fmt(start)}&to=${fmt(end)}`);
   };
+
+  // Compact mode: bare chart for embedding in another tile. No card, no toolbar, no tiles.
+  if (compact) {
+    return (
+      <div className="w-full" style={{ height: compactHeight }} aria-label={`${chartLabel} sparkline`}>
+        {hasData ? (
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={animatedData} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
+              <defs>
+                <linearGradient id="revenueGradientCompact" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={chartColor} stopOpacity={0.28} />
+                  <stop offset="100%" stopColor={chartColor} stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              {weekendBands.map((b, i) => (
+                <ReferenceArea
+                  key={`we-c-${i}`}
+                  x1={b.start}
+                  x2={b.end}
+                  fill="hsl(var(--muted))"
+                  fillOpacity={0.35}
+                  strokeOpacity={0}
+                  ifOverflow="visible"
+                />
+              ))}
+              <XAxis dataKey="date" hide />
+              <YAxis hide domain={["auto", "auto"]} />
+              <Tooltip
+                content={<TouchTooltip formatter={(value: number) => [money(value), chartLabel]} />}
+                cursor={{ stroke: 'hsl(var(--primary))', strokeWidth: 1, strokeDasharray: '3 3' }}
+              />
+              <Area
+                type="monotone"
+                dataKey="revenue"
+                stroke={chartColor}
+                strokeWidth={1.75}
+                fill="url(#revenueGradientCompact)"
+                dot={false}
+                isAnimationActive={false}
+              />
+              {showMovingAvg && (
+                <Line
+                  type="monotone"
+                  dataKey="movingAvg"
+                  stroke={chartColor}
+                  strokeOpacity={0.75}
+                  strokeWidth={1.25}
+                  strokeDasharray="2 3"
+                  dot={false}
+                  isAnimationActive={false}
+                />
+              )}
+            </AreaChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="h-full flex items-center text-xs text-muted-foreground">
+            No revenue in the last {range === '30D' ? '30 days' : range}.
+          </div>
+        )}
+      </div>
+    );
+  }
+
 
   return (
     <TooltipProvider delayDuration={200}>

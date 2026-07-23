@@ -2,17 +2,16 @@ import { useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { onRentVehicleIdsAt } from "@/lib/fleetMetrics";
-import { ArrowUpRight, ArrowDownLeft, Clock } from "lucide-react";
+import { useChartData } from "@/hooks/useChartData";
+import { useMoney } from "@/hooks/useMoney";
+import { RevenueLineChart } from "@/components/charts/RevenueLineChart";
+import { ArrowUpRight, ArrowDownLeft, Clock, TrendingUp, TrendingDown } from "lucide-react";
 import { format, isToday } from "date-fns";
 
 interface PulseStripProps {
   onModuleClick: (moduleId: string) => void;
 }
 
-const money = (n: number) => {
-  if (n >= 1000) return `$${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k`;
-  return `$${Math.round(n).toLocaleString()}`;
-};
 
 /**
  * PulseStrip — three flat tiles below the Daily Brief.
@@ -22,28 +21,20 @@ const money = (n: number) => {
  */
 export const PulseStrip = ({ onModuleClick }: PulseStripProps) => {
   const { vehicles, bookings, payments } = useLocationFilteredFleet();
+  const { money } = useMoney();
 
-  // ── Revenue: last 14 days sparkline + today's collected ──
+  // ── Revenue: 30-day booked series + today's collected + prior-period delta ──
+  // Uses the same chart data source as the Margin module so numbers line up.
+  const { collectedData, revenueData } = useChartData(bookings, payments, "30D");
   const revenue = useMemo(() => {
-    const days: { date: Date; total: number }[] = [];
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    for (let i = 13; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(d.getDate() - i);
-      days.push({ date: d, total: 0 });
-    }
-    (payments || []).forEach((p) => {
-      if (!p.transaction_date) return;
-      const td = new Date(p.transaction_date);
-      td.setHours(0, 0, 0, 0);
-      const idx = days.findIndex((d) => d.date.getTime() === td.getTime());
-      if (idx >= 0) days[idx].total += p.amount || 0;
-    });
-    const todayTotal = days[days.length - 1]?.total || 0;
-    const series = days.map((d) => d.total);
-    return { series, todayTotal };
-  }, [payments]);
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayTotal = collectedData.find((d) => d.fullDate === todayStr)?.revenue || 0;
+    const rangeTotal = revenueData.reduce((s, d) => s + d.revenue, 0);
+    const priorTotal = revenueData.reduce((s, d) => s + d.previousRevenue, 0);
+    const deltaPct = priorTotal > 0 ? Math.round(((rangeTotal - priorTotal) / priorTotal) * 100) : null;
+    return { todayTotal, rangeTotal, deltaPct };
+  }, [collectedData, revenueData]);
+
 
   // ── Fleet: out / available / maintenance ──
   const fleet = useMemo(() => {
@@ -101,11 +92,35 @@ export const PulseStrip = ({ onModuleClick }: PulseStripProps) => {
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
       <Tile
         label="Revenue"
-        sub={`${money(revenue.todayTotal)} today`}
-        onClick={() => onModuleClick("vault")}
+        sub={
+          <span className="inline-flex items-center gap-2">
+            <span>{money(revenue.todayTotal)} today</span>
+            {revenue.deltaPct !== null && (
+              <span
+                className={cn(
+                  "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium",
+                  revenue.deltaPct >= 0
+                    ? "bg-success/10 text-success"
+                    : "bg-destructive/10 text-destructive",
+                )}
+                title={`Booked revenue vs prior 30 days`}
+              >
+                {revenue.deltaPct >= 0 ? (
+                  <TrendingUp className="h-2.5 w-2.5" />
+                ) : (
+                  <TrendingDown className="h-2.5 w-2.5" />
+                )}
+                {revenue.deltaPct >= 0 ? "+" : ""}
+                {revenue.deltaPct}%
+              </span>
+            )}
+          </span>
+        }
+        onClick={() => onModuleClick("margin")}
       >
-        <Sparkline values={revenue.series} />
+        <RevenueLineChart compact compactRange="30D" compactHeight={56} />
       </Tile>
+
 
       <Tile
         label="Fleet"
@@ -158,7 +173,7 @@ const Tile = ({
   children,
 }: {
   label: string;
-  sub: string;
+  sub: React.ReactNode;
   onClick: () => void;
   children: React.ReactNode;
 }) => (
@@ -180,6 +195,7 @@ const Tile = ({
     <div className="flex-1 flex flex-col justify-end">{children}</div>
   </button>
 );
+
 
 const HorizonTimeline = () => {
   const ticks = useMemo(() => {
@@ -213,50 +229,6 @@ const HorizonTimeline = () => {
   );
 };
 
-const Sparkline = ({ values }: { values: number[] }) => {
-  if (values.length === 0) {
-    return <div className="h-10 text-xs text-muted-foreground">No revenue yet.</div>;
-  }
-  const max = Math.max(...values, 1);
-  const min = Math.min(...values, 0);
-  const range = max - min || 1;
-  const w = 200;
-  const h = 40;
-  const step = w / Math.max(values.length - 1, 1);
-  const points = values
-    .map((v, i) => `${(i * step).toFixed(1)},${(h - ((v - min) / range) * h).toFixed(1)}`)
-    .join(" ");
-  const areaPoints = `0,${h} ${points} ${w},${h}`;
-  const last = values[values.length - 1];
-  const lastY = h - ((last - min) / range) * h;
-  const lastX = (values.length - 1) * step;
-  const gradId = `pulse-spark-grad-${values.length}`;
-  return (
-    <svg
-      viewBox={`0 0 ${w} ${h}`}
-      preserveAspectRatio="none"
-      className="h-10 w-full overflow-visible"
-      aria-hidden
-    >
-      <defs>
-        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.28" />
-          <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <polygon points={areaPoints} fill={`url(#${gradId})`} />
-      <polyline
-        points={points}
-        fill="none"
-        stroke="hsl(var(--primary))"
-        strokeWidth={1.5}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <circle cx={lastX} cy={lastY} r={2.5} fill="hsl(var(--primary))" />
-    </svg>
-  );
-};
 
 const FleetBar = ({
   out,
