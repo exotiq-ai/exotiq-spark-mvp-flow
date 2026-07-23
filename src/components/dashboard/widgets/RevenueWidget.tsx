@@ -104,13 +104,13 @@ export const RevenueWidget = ({ isLoading }: RevenueWidgetProps) => {
         <div>
           <p className="text-sm text-muted-foreground mb-1">This Month</p>
           <p className="text-2xl font-dfaalt font-bold text-foreground">
-            {formatCurrency(monthlyRevenue)}
+            {money(monthlyRevenue)}
           </p>
         </div>
         <div>
-          <p className="text-sm text-muted-foreground mb-1">Total Revenue</p>
+          <p className="text-sm text-muted-foreground mb-1">All-time Revenue</p>
           <p className="text-2xl font-dfaalt font-bold text-foreground">
-            {formatCurrency(totalRevenue)}
+            {money(totalRevenue)}
           </p>
         </div>
       </div>
@@ -134,7 +134,7 @@ export const RevenueWidget = ({ isLoading }: RevenueWidgetProps) => {
         <div className="space-y-2">
           <p className="text-sm text-muted-foreground">Avg Revenue/Vehicle</p>
           <p className="text-3xl font-dfaalt font-bold text-gulf-blue">
-            {formatCurrency(Math.round(avgRevenuePerVehicle))}
+            {money(Math.round(avgRevenuePerVehicle))}
           </p>
           <div className={`flex items-center gap-2 text-sm ${monthlyChange >= 0 ? 'text-success' : 'text-destructive'}`}>
             {monthlyChange >= 0 ? (
@@ -177,7 +177,7 @@ export const RevenueWidget = ({ isLoading }: RevenueWidgetProps) => {
                 </div>
                 <div className="text-right">
                   <p className="font-dfaalt font-bold text-gulf-blue">
-                    {formatCurrency(vehicle.actualRevenue)}
+                    {money(vehicle.actualRevenue)}
                   </p>
                   <p className="text-xs text-muted-foreground">total revenue</p>
                 </div>
