@@ -21,28 +21,20 @@ interface PulseStripProps {
  */
 export const PulseStrip = ({ onModuleClick }: PulseStripProps) => {
   const { vehicles, bookings, payments } = useLocationFilteredFleet();
+  const { money } = useMoney();
 
-  // ── Revenue: last 14 days sparkline + today's collected ──
+  // ── Revenue: 30-day booked series + today's collected + prior-period delta ──
+  // Uses the same chart data source as the Margin module so numbers line up.
+  const { collectedData, revenueData } = useChartData(bookings, payments, "30D");
   const revenue = useMemo(() => {
-    const days: { date: Date; total: number }[] = [];
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    for (let i = 13; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(d.getDate() - i);
-      days.push({ date: d, total: 0 });
-    }
-    (payments || []).forEach((p) => {
-      if (!p.transaction_date) return;
-      const td = new Date(p.transaction_date);
-      td.setHours(0, 0, 0, 0);
-      const idx = days.findIndex((d) => d.date.getTime() === td.getTime());
-      if (idx >= 0) days[idx].total += p.amount || 0;
-    });
-    const todayTotal = days[days.length - 1]?.total || 0;
-    const series = days.map((d) => d.total);
-    return { series, todayTotal };
-  }, [payments]);
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayTotal = collectedData.find((d) => d.fullDate === todayStr)?.revenue || 0;
+    const rangeTotal = revenueData.reduce((s, d) => s + d.revenue, 0);
+    const priorTotal = revenueData.reduce((s, d) => s + d.previousRevenue, 0);
+    const deltaPct = priorTotal > 0 ? Math.round(((rangeTotal - priorTotal) / priorTotal) * 100) : null;
+    return { todayTotal, rangeTotal, deltaPct };
+  }, [collectedData, revenueData]);
+
 
   // ── Fleet: out / available / maintenance ──
   const fleet = useMemo(() => {
