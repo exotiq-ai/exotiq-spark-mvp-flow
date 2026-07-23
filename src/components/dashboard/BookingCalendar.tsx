@@ -10,6 +10,8 @@ import { generateVehicleColors } from "@/lib/conflictDetection";
 import { getBookingStatusBadgeClass, getBookingStatusLabel, isPendingStatus, isConfirmedStatus } from "@/lib/bookingStatus";
 import { VehicleImageDialog } from "@/components/dialogs/VehicleImageDialog";
 import { EnhancedBookingDialog } from "@/components/dialogs/EnhancedBookingDialog";
+import { CustomerProfileDialog } from "@/components/dialogs/CustomerProfileDialog";
+import { useFleet } from "@/contexts/FleetContext";
 import { RealtimeIndicator } from "@/components/common/RealtimeIndicator";
 import { downloadICS, bookingsToCalendarEvents } from "@/lib/calendarExport";
 import { getVehicleImage } from "@/lib/vehicleImageMapping";
