@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
-import { useModuleNavigation } from "@/hooks/useModuleNavigation";
+
 import { generateVehicleColors } from "@/lib/conflictDetection";
 import { getBookingStatusBadgeClass, getBookingStatusLabel, isPendingStatus, isConfirmedStatus } from "@/lib/bookingStatus";
 import { VehicleImageDialog } from "@/components/dialogs/VehicleImageDialog";
