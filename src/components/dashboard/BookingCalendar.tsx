@@ -521,6 +521,20 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
         onNavigateToModule={onNavigateToModule}
       />
 
+      {profileCustomerId && (() => {
+        const customer = customers.find((c) => c.id === profileCustomerId);
+        if (!customer) return null;
+        const customerBookings = bookings.filter((b) => b.customer_id === profileCustomerId);
+        return (
+          <CustomerProfileDialog
+            open={!!profileCustomerId}
+            onOpenChange={(open) => !open && setProfileCustomerId(null)}
+            customer={customer}
+            bookings={customerBookings}
+          />
+        );
+      })()}
+
       {/* Split View Container */}
       <div className="flex flex-col lg:flex-row gap-4">
         {/* Calendar Section */}
