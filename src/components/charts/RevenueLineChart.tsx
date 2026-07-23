@@ -113,7 +113,7 @@ export const RevenueLineChart = () => {
         return money(v);
       }
     }
-    return money(v, { maximumFractionDigits: 0 });
+    return money(v);
   };
 
   const jumpToPayments = () => {
@@ -255,7 +255,7 @@ export const RevenueLineChart = () => {
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.5 }}
               >
-                {isMobile ? compactMoney(totalRevenue) : money(totalRevenue, { maximumFractionDigits: 0 })}
+                {isMobile ? compactMoney(totalRevenue) : money(totalRevenue)}
               </motion.p>
             </div>
             <div className="p-2 sm:p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
@@ -266,7 +266,7 @@ export const RevenueLineChart = () => {
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.6 }}
               >
-                {isMobile ? compactMoney(avgRevenue) : money(Math.round(avgRevenue), { maximumFractionDigits: 0 })}
+                {isMobile ? compactMoney(avgRevenue) : money(Math.round(avgRevenue))}
               </motion.p>
             </div>
           </motion.div>
@@ -314,7 +314,7 @@ export const RevenueLineChart = () => {
                     tickFormatter={(value) => compactMoney(value)}
                   />
                   <Tooltip
-                    content={<TouchTooltip formatter={(value: number) => [money(value, { maximumFractionDigits: 0 }), chartLabel]} />}
+                    content={<TouchTooltip formatter={(value: number) => [money(value), chartLabel]} />}
                     cursor={{ stroke: 'hsl(var(--primary))', strokeWidth: 1, strokeDasharray: '4 4' }}
                   />
                   <Area
