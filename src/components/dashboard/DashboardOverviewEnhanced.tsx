@@ -490,135 +490,32 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
         onSubmit={createVehicle}
       />
 
-      {/* Content wrapper */}
+      {/* Content wrapper — Quiet Command dashboard (dailyBrief is always on) */}
       <div className="relative">
-        {dailyBriefEnabled ? (
-          /* Quiet Command — three editorial bands */
-          <div className="space-y-10 sm:space-y-12 pb-6 md:pb-24 max-w-5xl">
-            {/* Band 1 — Hero brief */}
-            <DailyBriefCard onModuleClick={onModuleClick} />
+        <div className="space-y-10 sm:space-y-12 pb-6 md:pb-24 max-w-5xl">
+          {/* Band 1 — Hero brief */}
+          <DailyBriefCard onModuleClick={onModuleClick} />
 
-            {/* Band 2 — Today at a glance */}
-            <PulseStrip onModuleClick={onModuleClick} />
+          {/* Band 2 — Today at a glance */}
+          <PulseStrip onModuleClick={onModuleClick} />
 
-            {/* Band 3 — Live activity + module jumps */}
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.15 }}
-              className="grid grid-cols-1 lg:grid-cols-3 gap-6"
-            >
-              <div className="lg:col-span-2">
-                <LiveActivityStrip />
-              </div>
-              <div className="lg:col-span-1">
-                <QuickJumpTiles onModuleClick={onModuleClick} />
-              </div>
-            </motion.div>
-          </div>
-        ) : (
-          /* Legacy dashboard — byte-identical to before the flag */
-          <div className="space-y-5 sm:space-y-6 pb-6 md:pb-24">
-            <BannerWidget />
-
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-primary" />
-                <h2 className="text-sm font-medium text-foreground">Quick Stats</h2>
-                {vehicles.length > 0 && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Live</Badge>}
-              </div>
-              <CompactMetricsBar
-                activeBookings={activeBookingsCount}
-                utilization={currentUtilization}
-                averageRate={averageRate}
-                onNavigate={onModuleClick}
-              />
+          {/* Band 3 — Live activity + module jumps */}
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.15 }}
+            className="grid grid-cols-1 lg:grid-cols-3 gap-6"
+          >
+            <div className="lg:col-span-2">
+              <LiveActivityStrip />
             </div>
-
-            <div className="space-y-3" data-tour="revenue-widget">
-              <div className="flex items-center gap-2">
-                <DollarSign className="h-4 w-4 text-success" />
-                <h2 className="font-semibold text-foreground text-sm sm:text-lg">
-                  Revenue Analytics
-                </h2>
-              </div>
-              <RevenueWidget />
+            <div className="lg:col-span-1">
+              <QuickJumpTiles onModuleClick={onModuleClick} />
             </div>
-
-            {aiInsight && (
-              <CompactAIInsightBanner
-                vehicleName={aiInsight.vehicleName}
-                suggestedIncrease={aiInsight.suggestedIncreasePercent}
-                potentialRevenue={aiInsight.potentialMonthlyRevenue}
-                onApply={isManagerOrHigher('manager') ? () => setShowOptimizationDialog(true) : undefined}
-                onViewAnalysis={() => onModuleClick('motoriq')}
-                hasFleetData={vehicles.length > 0}
-              />
-            )}
-
-            <div className="space-y-3">
-              <Button
-                variant="ghost"
-                onClick={() => setShowFleetSchedule(!showFleetSchedule)}
-                className="flex items-center gap-2 px-0 hover:bg-transparent"
-              >
-                <Car className="h-4 w-4 text-foreground/70" />
-                <span className="text-sm font-medium text-foreground">Fleet Status & Schedule</span>
-                <Badge variant="outline" className="text-[10px] ml-1">Today</Badge>
-                <motion.div
-                  animate={{ rotate: showFleetSchedule ? 180 : 0 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <ChevronDown className="h-4 w-4 text-foreground/70" />
-                </motion.div>
-              </Button>
-
-              <AnimatePresence>
-                {showFleetSchedule && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="overflow-hidden"
-                  >
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                      <FleetStatusWidget onViewAll={() => onModuleClick('motoriq')} />
-                      <ScheduleWidget onViewCalendar={() => onModuleClick('book')} />
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
-              {[
-                { id: 'book', name: 'Bookings', icon: Calendar, color: 'text-primary', badge: pendingCount },
-                { id: 'motoriq', name: 'MotorIQ', icon: TrendingUp, color: 'text-success', badge: 0 },
-                { id: 'vault', name: 'Vault', icon: FileText, color: 'text-warning', badge: 0 },
-                { id: 'pulse', name: 'Pulse', icon: DollarSign, color: 'text-accent', badge: 0 },
-              ].map((module) => (
-                <button
-                  key={module.id}
-                  onClick={() => onModuleClick(module.id)}
-                  className="flex items-center justify-between p-4 sm:p-6 rounded-lg sm:rounded-xl border border-border bg-card hover:bg-muted/50 hover:border-primary/30 transition-all group touch-target"
-                >
-                  <div className="flex items-center gap-2 sm:gap-3">
-                    <module.icon className={`h-4 w-4 sm:h-5 sm:w-5 ${module.color}`} />
-                    <span className="font-medium text-xs sm:text-sm text-foreground">{module.name}</span>
-                    {module.badge > 0 && (
-                      <Badge className="bg-warning/20 text-warning border-warning/30 text-[10px] px-1.5 py-0">
-                        {module.badge}
-                      </Badge>
-                    )}
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+          </motion.div>
+        </div>
       </div>
+
     </>
   );
 };
