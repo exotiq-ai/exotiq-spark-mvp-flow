@@ -209,6 +209,22 @@ export const useDailyBrief = (): DailyBriefFacts => {
     // ---- Ranked attention list ----
     const issues: DailyBriefIssue[] = [];
 
+    if (marketplaceRequestList.length > 0) {
+      const n = marketplaceRequestList.length;
+      issues.push({
+        id: 'marketplace-requests',
+        severity: 'high',
+        category: 'booking',
+        title: `${n} marketplace ${n === 1 ? 'request' : 'requests'} awaiting review`,
+        detail: marketplaceRequestList
+          .slice(0, 3)
+          .map((b) => `${vehicleLabel(b)} (${b.customer_name})`)
+          .join(', '),
+        module: 'book',
+        meta: { bookingId: marketplaceRequestList[0]?.id },
+      });
+    }
+
     if (overdueReturnList.length > 0) {
       const n = overdueReturnList.length;
       issues.push({
