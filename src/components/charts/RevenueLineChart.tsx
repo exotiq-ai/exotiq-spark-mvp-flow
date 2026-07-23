@@ -30,9 +30,21 @@ const RANGE_OPTIONS: { key: ChartRange; label: string }[] = [
   { key: "YTD", label: "YTD" },
 ];
 
-export const RevenueLineChart = () => {
+interface RevenueLineChartProps {
+  /**
+   * Compact mode: renders just the area+MA+weekend-bands chart with no card,
+   * no toolbar, no tiles. Intended for embedding inside another tile (e.g. PulseStrip).
+   */
+  compact?: boolean;
+  /** Force a range in compact mode. Defaults to '30D'. */
+  compactRange?: ChartRange;
+  /** Optional height override for compact mode (default 56px). */
+  compactHeight?: number;
+}
+
+export const RevenueLineChart = ({ compact = false, compactRange = "30D", compactHeight = 56 }: RevenueLineChartProps = {}) => {
   const { bookings, vehicles, payments } = useLocationFilteredFleet();
-  const [range, setRange] = useState<ChartRange>("30D");
+  const [range, setRange] = useState<ChartRange>(compact ? compactRange : "30D");
   const { revenueData, collectedData } = useChartData(bookings, payments, range);
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -52,6 +64,7 @@ export const RevenueLineChart = () => {
     const timer = setTimeout(() => setIsAnimated(true), 100);
     return () => clearTimeout(timer);
   }, []);
+
 
   const handleExportCSV = () => {
     const exportData = (viewMode === 'booked' ? revenueData : collectedData).map(d => ({
