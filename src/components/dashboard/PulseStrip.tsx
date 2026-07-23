@@ -173,7 +173,7 @@ const Tile = ({
   children,
 }: {
   label: string;
-  sub: string;
+  sub: React.ReactNode;
   onClick: () => void;
   children: React.ReactNode;
 }) => (
@@ -195,6 +195,7 @@ const Tile = ({
     <div className="flex-1 flex flex-col justify-end">{children}</div>
   </button>
 );
+
 
 const HorizonTimeline = () => {
   const ticks = useMemo(() => {
