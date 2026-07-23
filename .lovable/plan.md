@@ -1,60 +1,61 @@
-## Goals
 
-1. Prioritize new marketplace booking requests in the Daily Brief for human review.
-2. Stop the calendar reservation card from jumping to FleetCopilot when the customer name is clicked, and confirm every other tap target on the card goes to the right place.
+## Goal
+Make the Exotiq demo tenant (`c1de6533-ab44-4973-a123-007a8007b5ba`) look like a healthy, real-world operation for customer demos. All changes are **data-only** on our database — no writes to Stripe.
 
----
+## Current state (verified via SQL)
+Today is 2026-07-23. On Exotiq:
+- **1,128 bookings in `confirmed`**, of which **447 have `end_date < now`** — these show up as overdue returns and pollute every dashboard.
+- **147 in `completed`**, and **7 of those have no `payments` row**, so historical revenue looks sparse.
+- 664 upcoming confirmed, 3 `requested`, 3 `pending_documents`, 7 `cancelled`, 1 `completed` in the future (bad data).
+- Overdue confirmed distribution: heavy in Jun 2026 (156) and Jul 2026 (103); a long tail in 2025 (Jan–Dec) with 1–8 per month.
 
-## 1. Daily Brief — surface new bookings
+## Plan
 
-**File:** `src/hooks/useDailyBrief.ts`
+### 1. Flip past-dated confirmed bookings to `completed`
+Update `bookings` where `team_id = Exotiq` AND `status = 'confirmed'` AND `end_date < now() - interval '1 day'` → set `status = 'completed'`.
 
-Today the brief only flags `status === 'pending'` as "bookings need confirming". Marketplace bookings arrive as `requested` (and can sit at `pending_documents` / `pending_payment`), so they never surface as an issue even though the bell icon fires.
+**Keep a small "overdue returns" set for realism**, since operators normally have a couple lingering late returns:
+- Leave the **3 most recent** overdue confirmed bookings (end_date within the last 5 days) as-is so the "overdue returns" widget still shows something plausible.
+- Everything older flips to `completed`.
 
-Changes:
-- Add a new **high-severity** issue at the top of the ranked list:
-  - `id: 'marketplace-requests'`
-  - Filter: `status === 'requested'` (source = marketplace).
-  - Title: `"N marketplace request(s) awaiting review"`.
-  - Detail: first 3 vehicle + customer names.
-  - `module: 'book'`, `meta.bookingId` = first request id (deep-links straight into the booking).
-- Keep the existing `pending-confirmations` issue but broaden it to also count `pending_documents` and `pending_payment` (still medium severity) so the operator sees the full "needs a human" queue.
-- No metric-row changes needed — the existing "New (24h)" tile already reflects fresh volume.
+Expected: ~444 bookings flipped, 3 kept overdue.
 
-No edge-function changes; the narrative function already consumes `pendingConfirmations` and will naturally reflect the new count.
+### 2. Fix the future-dated `completed` record
+One booking has `status='completed'` with `start_date > now()`. Flip it back to `confirmed` (or delete if it looks like test junk — will inspect first and pick).
 
----
+### 3. Seed payment records for completed bookings without one
+For every `completed` booking on Exotiq that has no row in `payments`, insert one row:
+- `payment_type = 'rental'`
+- `amount = bookings.total_value`
+- `payment_status = 'completed'`
+- `payment_method = 'card'`
+- `transaction_date = bookings.end_date`
+- `notes = 'Demo record — no Stripe charge'`
+- `team_id`, `customer_id`, `booking_id`, `user_id` copied from the booking
+- All `stripe_*` columns left NULL (so nothing looks tied to Stripe)
 
-## 2. Calendar card navigation
+After step 1 this will cover the newly-completed ~444 plus the existing 7 gap = ~451 payment rows inserted.
 
-**File:** `src/components/dashboard/BookingCalendar.tsx`
+### 4. Vehicle revenue rollup
+Refresh `vehicles.revenue` for Exotiq from the sum of `completed` bookings' `total_value` (same pattern already documented in `DEMO_DATA_TODO.md`), so per-vehicle revenue on fleet cards reflects the new completed set.
 
-Root cause: the customer-name click on both card variants calls `goToCustomerProfile(customer_id)` from `useModuleNavigation`, which routes to `/dashboard/fleetcopilot?view=crm&customerId=...`. That is the "jump to FleetCopilot" the user is seeing — CRM is hosted inside the FleetCopilot module.
+### 5. Quick tenant hygiene sweep
+While in there, verify and fix if needed (each is a small, safe check):
+- Drafts / abandoned bookings older than 30 days → delete.
+- Cancelled bookings with `end_date < now() - 90 days` → leave (history is fine, they don't clutter dashboards).
+- Any `customers` row for Exotiq with no bookings AND no notes AND created > 90 days ago → leave (CRM depth is good for demo).
+- Confirm no `work_orders` are stuck `in_progress` past their scheduled end; if any, close them.
 
-Fix (keeps user in Bookings context):
-- Replace the customer-name click on the calendar cards with an in-place `CustomerProfileDialog` (already used by `CRMSection`). Open it as a modal overlay above the calendar; do not navigate.
-- Wire it in both card variants:
-  - Mobile/desktop popover card (lines ~95–115).
-  - Day-detail list card (lines ~200–255).
-- Leave all other touch targets unchanged — they are already correct:
-  - Card body / vehicle name / Details button → `handleBookingClick` opens the booking dialog in place.
-  - Phone / Email buttons → `tel:` / `mailto:`.
-  - External-link icon → booking details.
+I will report exact counts before/after each step in the build turn.
 
-Audit pass to confirm no regressions:
-- `BookEnhanced.tsx`, `PaymentTracker.tsx`, `UpcomingBookingsCard` — customer clicks there still route via `goToCustomerProfile` (which is fine on non-calendar surfaces). Out of scope for this change unless we later decide to standardize on the dialog everywhere.
-
----
+## What I will NOT touch
+- No Stripe API calls of any kind.
+- No schema changes.
+- No changes to any other tenant.
+- No changes to marketplace visibility, hero images, deposits, fees, slug, timezone — those are already set.
+- Upcoming `requested` / `pending_documents` bookings stay as-is (they drive the Daily Brief demo).
 
 ## Technical notes
-
-- `CustomerProfileDialog` needs the customer record; the calendar already loads customers via `useCustomers` (used elsewhere in the same file) — reuse that hook and look up by `booking.customer_id`. If not present, gracefully skip.
-- Add local state `[profileCustomerId, setProfileCustomerId]` in the `BookingCalendar` component and pass a `openCustomerProfile` callback down to `DayDetailContent` and the popover card in place of `goToCustomerProfile`.
-- No routing, RLS, or edge-function changes.
-
-## Verification
-
-- Create/receive a booking with `status='requested'` → confirm it appears as the top high-severity issue in the Daily Brief and deep-links to the booking.
-- On the calendar, click a reservation card's customer name → CustomerProfileDialog opens over the calendar (no route change, no FleetCopilot jump).
-- Click vehicle image, vehicle name, card body, Details button → booking dialog opens.
-- Click Phone / Email → native handlers fire.
+- All writes go through the `insert` tool (data-only, no migration needed).
+- `vehicles.status` stays static per existing convention; UI computes live status from bookings.
+- Payment inserts use `gen_random_uuid()` for `id` and rely on `payments` defaults for `created_at`.
