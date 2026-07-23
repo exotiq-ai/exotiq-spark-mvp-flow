@@ -106,10 +106,12 @@ export const HeroKpiRail = ({
           value: utilization,
           delta: 0,
           format: (n: number) => `${n}%`,
+          subline: `7-day avg: ${utilization7dAvg}%`,
         },
   ];
 
   return (
+    <div className="space-y-2">
     <dl
       className={cn(
         "grid grid-cols-2 sm:grid-cols-4 gap-y-4",
