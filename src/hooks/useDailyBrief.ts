@@ -177,7 +177,10 @@ export const useDailyBrief = (): DailyBriefFacts => {
       return now.getTime() - new Date(b.created_at).getTime() <= 24 * 60 * 60 * 1000;
     });
 
-    const pendingConfirmationList = bookings.filter((b) => b.status === 'pending');
+    const marketplaceRequestList = bookings.filter((b) => b.status === 'requested');
+    const pendingConfirmationList = bookings.filter(
+      (b) => b.status === 'pending' || b.status === 'pending_documents' || b.status === 'pending_payment',
+    );
 
     const outstandingList = bookings.filter(
       (b) => b.status !== 'cancelled' && num(b.balance_due) > 0,
