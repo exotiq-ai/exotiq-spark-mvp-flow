@@ -830,7 +830,7 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
                                     <BookingPreviewCard 
                                       booking={booking} vehicle={vehicle}
                                       onViewDetails={() => handleBookingClick(booking.id)}
-                                      onCustomerClick={goToCustomerProfile}
+                                      onCustomerClick={openCustomerProfile}
                                     />
                                   </HoverCardContent>
                                 </HoverCard>
@@ -990,7 +990,7 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
                     vehicles={vehicles}
                     vehicleColors={vehicleColors}
                     onBookingClick={handleBookingClick}
-                    goToCustomerProfile={goToCustomerProfile}
+                    goToCustomerProfile={openCustomerProfile}
                   />
                 </ScrollArea>
               </Card>
@@ -1018,7 +1018,7 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
                 vehicles={vehicles}
                 vehicleColors={vehicleColors}
                 onBookingClick={handleBookingClick}
-                goToCustomerProfile={goToCustomerProfile}
+                goToCustomerProfile={openCustomerProfile}
               />
             )}
           </ScrollArea>
