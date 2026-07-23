@@ -177,7 +177,10 @@ export const useDailyBrief = (): DailyBriefFacts => {
       return now.getTime() - new Date(b.created_at).getTime() <= 24 * 60 * 60 * 1000;
     });
 
-    const pendingConfirmationList = bookings.filter((b) => b.status === 'pending');
+    const marketplaceRequestList = bookings.filter((b) => b.status === 'requested');
+    const pendingConfirmationList = bookings.filter(
+      (b) => b.status === 'pending' || b.status === 'pending_documents' || b.status === 'pending_payment',
+    );
 
     const outstandingList = bookings.filter(
       (b) => b.status !== 'cancelled' && num(b.balance_due) > 0,
@@ -205,6 +208,22 @@ export const useDailyBrief = (): DailyBriefFacts => {
 
     // ---- Ranked attention list ----
     const issues: DailyBriefIssue[] = [];
+
+    if (marketplaceRequestList.length > 0) {
+      const n = marketplaceRequestList.length;
+      issues.push({
+        id: 'marketplace-requests',
+        severity: 'high',
+        category: 'booking',
+        title: `${n} marketplace ${n === 1 ? 'request' : 'requests'} awaiting review`,
+        detail: marketplaceRequestList
+          .slice(0, 3)
+          .map((b) => `${vehicleLabel(b)} (${b.customer_name})`)
+          .join(', '),
+        module: 'book',
+        meta: { bookingId: marketplaceRequestList[0]?.id },
+      });
+    }
 
     if (overdueReturnList.length > 0) {
       const n = overdueReturnList.length;

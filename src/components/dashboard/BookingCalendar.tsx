@@ -5,11 +5,13 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
-import { useModuleNavigation } from "@/hooks/useModuleNavigation";
+
 import { generateVehicleColors } from "@/lib/conflictDetection";
 import { getBookingStatusBadgeClass, getBookingStatusLabel, isPendingStatus, isConfirmedStatus } from "@/lib/bookingStatus";
 import { VehicleImageDialog } from "@/components/dialogs/VehicleImageDialog";
 import { EnhancedBookingDialog } from "@/components/dialogs/EnhancedBookingDialog";
+import { CustomerProfileDialog } from "@/components/dialogs/CustomerProfileDialog";
+import { useFleet } from "@/contexts/FleetContext";
 import { RealtimeIndicator } from "@/components/common/RealtimeIndicator";
 import { downloadICS, bookingsToCalendarEvents } from "@/lib/calendarExport";
 import { getVehicleImage } from "@/lib/vehicleImageMapping";
@@ -261,7 +263,9 @@ const DayDetailContent = ({
 
 export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) => {
   const { bookings, vehicles, refreshBookings } = useLocationFilteredFleet();
-  const { goToCustomerProfile } = useModuleNavigation();
+  const { customers } = useFleet();
+  const [profileCustomerId, setProfileCustomerId] = useState<string | null>(null);
+  const openCustomerProfile = (customerId: string) => setProfileCustomerId(customerId);
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -516,6 +520,20 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
         bookingId={selectedBookingId}
         onNavigateToModule={onNavigateToModule}
       />
+
+      {profileCustomerId && (() => {
+        const customer = customers.find((c) => c.id === profileCustomerId);
+        if (!customer) return null;
+        const customerBookings = bookings.filter((b) => b.customer_id === profileCustomerId);
+        return (
+          <CustomerProfileDialog
+            open={!!profileCustomerId}
+            onOpenChange={(open) => !open && setProfileCustomerId(null)}
+            customer={customer}
+            bookings={customerBookings}
+          />
+        );
+      })()}
 
       {/* Split View Container */}
       <div className="flex flex-col lg:flex-row gap-4">
@@ -826,7 +844,7 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
                                     <BookingPreviewCard 
                                       booking={booking} vehicle={vehicle}
                                       onViewDetails={() => handleBookingClick(booking.id)}
-                                      onCustomerClick={goToCustomerProfile}
+                                      onCustomerClick={openCustomerProfile}
                                     />
                                   </HoverCardContent>
                                 </HoverCard>
@@ -986,7 +1004,7 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
                     vehicles={vehicles}
                     vehicleColors={vehicleColors}
                     onBookingClick={handleBookingClick}
-                    goToCustomerProfile={goToCustomerProfile}
+                    goToCustomerProfile={openCustomerProfile}
                   />
                 </ScrollArea>
               </Card>
@@ -1014,7 +1032,7 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
                 vehicles={vehicles}
                 vehicleColors={vehicleColors}
                 onBookingClick={handleBookingClick}
-                goToCustomerProfile={goToCustomerProfile}
+                goToCustomerProfile={openCustomerProfile}
               />
             )}
           </ScrollArea>
