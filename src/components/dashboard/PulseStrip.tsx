@@ -92,11 +92,35 @@ export const PulseStrip = ({ onModuleClick }: PulseStripProps) => {
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
       <Tile
         label="Revenue"
-        sub={`${money(revenue.todayTotal)} today`}
-        onClick={() => onModuleClick("vault")}
+        sub={
+          <span className="inline-flex items-center gap-2">
+            <span>{money(revenue.todayTotal)} today</span>
+            {revenue.deltaPct !== null && (
+              <span
+                className={cn(
+                  "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium",
+                  revenue.deltaPct >= 0
+                    ? "bg-success/10 text-success"
+                    : "bg-destructive/10 text-destructive",
+                )}
+                title={`Booked revenue vs prior 30 days`}
+              >
+                {revenue.deltaPct >= 0 ? (
+                  <TrendingUp className="h-2.5 w-2.5" />
+                ) : (
+                  <TrendingDown className="h-2.5 w-2.5" />
+                )}
+                {revenue.deltaPct >= 0 ? "+" : ""}
+                {revenue.deltaPct}%
+              </span>
+            )}
+          </span>
+        }
+        onClick={() => onModuleClick("margin")}
       >
-        <Sparkline values={revenue.series} />
+        <RevenueLineChart compact compactRange="30D" compactHeight={56} />
       </Tile>
+
 
       <Tile
         label="Fleet"
