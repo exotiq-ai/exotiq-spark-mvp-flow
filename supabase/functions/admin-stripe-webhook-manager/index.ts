@@ -48,6 +48,7 @@ Deno.serve(async (req) => {
     const webhookUrl = typeof body.url === "string" && body.url.trim()
       ? body.url.trim()
       : DEFAULT_WEBHOOK_URL;
+    const recreate = Boolean(body.recreate);
 
     // List existing endpoints and find one matching this URL.
     const listRes = await fetch("https://api.stripe.com/v1/webhook_endpoints?limit=100", {
@@ -61,24 +62,25 @@ Deno.serve(async (req) => {
     const list = (await listRes.json()) as { data: Array<{ id: string; url: string }> };
     const existing = list.data.find((e) => e.url === webhookUrl);
 
-    if (existing) {
-      // Retrieve the endpoint details so we can return its secret.
-      const detailRes = await fetch(`https://api.stripe.com/v1/webhook_endpoints/${existing.id}`, {
-        method: "GET",
-        headers: { Authorization: `Bearer ${stripeKey}` },
-      });
-      if (!detailRes.ok) {
-        const err = await detailRes.json();
-        return json({ error: "stripe_detail_failed", details: err }, detailRes.status);
-      }
-      const detail = await detailRes.json() as { id: string; url: string; secret: string };
+    if (existing && !recreate) {
       return json({
         ok: true,
         created: false,
-        endpoint_id: detail.id,
+        endpoint_id: existing.id,
         url: webhookUrl,
-        secret: detail.secret,
+        note: "Stripe only returns the secret at creation time; pass recreate:true to rotate it.",
       });
+    }
+
+    if (existing && recreate) {
+      const delRes = await fetch(`https://api.stripe.com/v1/webhook_endpoints/${existing.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${stripeKey}` },
+      });
+      if (!delRes.ok) {
+        const err = await delRes.json();
+        return json({ error: "stripe_delete_failed", details: err }, delRes.status);
+      }
     }
 
     // Create the endpoint.
