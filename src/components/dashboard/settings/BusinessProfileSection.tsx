@@ -20,7 +20,7 @@ import {
   getCountryDefaults,
 } from "@/lib/countryDefaults";
 import { formatMoney } from "@/lib/format";
-import { Globe, Building2, Receipt, Save } from "lucide-react";
+import { Globe, Building2, Receipt, Save, Mail } from "lucide-react";
 
 interface BusinessAddress {
   line1?: string;
