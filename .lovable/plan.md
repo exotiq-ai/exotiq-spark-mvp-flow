@@ -1,30 +1,40 @@
-## M6 Money Milestone — Current state
+## M6c — Refunds & Cancellation
 
-- **Test Connect account**: `teams.stripe_test_account_id` for Exotiq is set to `acct_1TwYk2HpKoA2ZJg1`.
-- **Webhook endpoint**: Created/rotated in Stripe test mode and pointing to `https://jlgwbbqydjeokypoenoc.supabase.co/functions/v1/rent-payment-webhook`.
-- **Webhook secret**: `RENT_PAYMENT_WEBHOOK_SECRET` is saved and bound to the edge functions.
-- **Data backfill**: Inflated `total_value` on marketplace bookings BK-03435, BK-03436, BK-03437 (created 2026-07-22) has been corrected to rental-subtotal only.
-- **Stripe account status**: `details_submitted: false`, `charges_enabled: false`, `payouts_enabled: false` — still waiting for test onboarding completion.
+Two new edge functions plus Command Center wiring. No migration needed (statuses `cancelled`/`refunded` and PI columns already exist from M6a/b). Test mode only.
 
-## Immediate action (you do this)
+### 1. Deploy edge functions (from uploaded files)
 
-1. On the Stripe “Select an account for payouts” screen, choose **Test (Non-OAuth)** (or any other green-check test bank).
-2. Click **Continue** and finish the remaining test onboarding. Stripe pre-fills most fields in test mode; any fake data works.
-3. When you reach the Stripe return page, close it and come back.
+- `supabase/functions/rent-cancel-booking/index.ts` — from `user-uploads://index-5.ts` (identical to index-6). Anonymous, token-gated renter self-serve cancel. ≥72h → full refund both legs (rental with `reverse_transfer`, Exotiq plain) → `refunded`; unpaid → `cancelled`. <72h → requires `acknowledge_forfeit: true` else 409 `forfeit_ack_required`; with ack → `cancelled`, no refunds. Idempotent per leg. Rate-limited (10/hr/IP). Partial-refund failure → keeps status, logs `renter_cancel_refund_failed`.
+- `supabase/functions/rent-refund-booking/index.ts` — from `user-uploads://index-4.ts`. Authenticated operator/CC full refund. Verifies caller is active member of booking's team. Refunds both legs → `refunded`.
 
-## After onboarding returns
+Both use existing `_shared/stripeMode.ts` (already present).
 
-4. I will verify Stripe reports `charges_enabled: true` and `payouts_enabled: true` for `acct_1TwYk2HpKoA2ZJg1`.
-5. I will run a happy-path M6 smoke test:
-   - Create a marketplace booking via the renter flow or RPC.
-   - Call `rent-checkout` and pay with Stripe test card `4242 4242 4242 4242`.
-   - Verify the booking transitions from `pending_payment` to `confirmed`.
-   - Verify two Payment Intents are created: operator rental destination charge + Exotiq 10% fee/protection charge.
-   - Confirm the operator ledger reflects the correct split.
+### 2. `supabase/config.toml` additions
 
-## Out of scope for now
+```toml
+[functions.rent-cancel-booking]
+verify_jwt = false
 
-- Deposit-hold nicety (#11) connected-account webhook — handled separately after M6 core flows are green.
-- Renter UI polish — owned by Claude in the exotiq-rent repo.
+[functions.rent-refund-booking]
+verify_jwt = true
+```
 
-**Once you finish Stripe test onboarding, just say “done” and I’ll verify the account and run the first test booking.**
+### 3. Command Center wiring — `src/components/dashboard/BookEnhanced.tsx` decline dialog
+
+Currently `onConfirm` calls `updateBookingStatus(id, 'cancelled')` unconditionally. Change to:
+
+- Look up the booking; if `paid_at` is set (paid marketplace booking), invoke `rent-refund-booking` with `{ booking_ref }` — the function refunds both legs and flips status to `refunded`. On success, show toast "Booking declined and refunded"; refresh bookings.
+- If unpaid, keep existing `updateBookingStatus(id, 'cancelled')` path (rename button context to "Decline" as today).
+- On refund failure, surface the returned error (e.g. `renter_cancel_refund_failed`) via toast and leave status untouched.
+
+No new "Refund booking" button in this pass — the decline-after-payment auto-refund is the M6-D5 requirement. A standalone manual refund action can follow if you want it.
+
+### 4. Verify
+
+Deploy → confirm both functions respond (call `rent-refund-booking` without auth → 401; call `rent-cancel-booking` with bad token → 4xx, not "function not found"). Then run the 6-step gate from the README against a paid test booking (BK-03447 flow) in Stripe test mode.
+
+### Notes / flags
+
+- `bookingStatus.ts` already renders `cancelled` and `refunded` (verified: `CANCELLED_STATUSES` includes both). No copy changes needed.
+- `FleetContext` already removes GCal events for `cancelled`/`declined`/`no_show`; add `refunded` to that list so refunded bookings also clear from Google Calendar (small addition, same file).
+- Uploaded `index-5.ts` and `index-6.ts` are byte-identical — using index-5 as canonical source.
