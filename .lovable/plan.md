@@ -1,42 +1,64 @@
 
-## Root cause
+## Goal
 
-The Ferrari SF90 Stradale (partnered to Velocity Capital Partners on the Exotiq team) has `vehicles.split_value = 1500` with `split_type = 'percentage'` — a 1500% split. Every completed booking generated a pending payout inflated by ~37×, producing 15 pending payouts totaling **$1,622,430** on top of a legitimate $159K gross base. That single row is what's wrecking Margin.
+Populate the Exotiq team's Expenses tab with a believable, varied backlog so the Margin module looks lived-in — without tipping Operator Net negative. Everything lands in `vehicle_expenses` and is filterable/exportable through the existing Expenses tab and Per-Vehicle P&L.
 
-The Aventador SVJ on the same partner is correctly configured (40%, ~$64K pending across 15 bookings) and needs no math fix.
+## Sizing (keeps the fleet healthy)
 
-## Current Velocity payout state
+- Team: Exotiq (`c1de6533-…`), 54 active vehicles, ~$6.62M gross bookings in the trailing 6 months.
+- Target total new expenses: **~$900K–$1.05M** over the last 6 months (~14–16% of gross). Combined with existing partner payouts (~$135K net across SF90 + SVJ) this leaves Operator Net solidly positive across the fleet.
+- Existing $84K of manual expenses stays; new rows layer on top.
 
-| Vehicle | Paid | Pending |
-|---|---|---|
-| SF90 Stradale | 0 rows | 15 rows / $1,622,430 (bugged) |
-| Aventador SVJ | 2 rows / $15,000 | 15 rows / $64,076 |
+## What gets seeded
 
-## Cleanup plan (all data-only, no schema)
+All rows use `source_module = 'margin_manual'`, `status = 'confirmed'`, `currency = 'USD'`, `created_by = null`, spread across `expense_date` between `CURRENT_DATE - 180` and `CURRENT_DATE - 3`.
 
-1. **Fix the split.** Update `vehicles.split_value` for the SF90 from `1500` → `40` (matches the SVJ, sensible operator/partner split). Done via the insert tool.
-2. **Recompute SF90 pending payouts.** Call `fn_transition_payout(id, 'recompute')` on each of the 15 pending SF90 rows so `net_to_partner`, `net_after_fee`, and `gross_rental_base` refresh from the booking using the corrected split. This uses the existing state machine — no bypass.
-3. **Trim the pending backlog for a "healthy" demo look.** After recompute:
-   - Mark the **oldest ~10 SF90 pending payouts** (Jan–Jun 2026 completed bookings) as `paid` via `fn_transition_payout(..., 'mark_paid', paid_at=end_date+3d, method='ach', reference='DEMO-…')`.
-   - Do the same for the **oldest ~10 SVJ pending payouts**.
-   - This leaves ~5 pending per vehicle (recent completed bookings, i.e. July–Nov 2026) — realistic AR without a wall of open items.
-4. **Leave a couple of demo-friendly flags.**
-   - Keep 1 SF90 pending row with `reconcile_flag = true` and a note like "Booking total edited after payout generated — review" so the amber `AlertTriangle` renders in `PartnerPayoutsTab` and gives you something to talk about.
-   - Leave the existing 2 SVJ `paid` rows and Void 1 SVJ pending row (with `void_reason = 'Booking cancelled by renter — demo'`) so the Voided bucket isn't empty in the statement drawer.
-5. **Verify.** Re-query `partner_payouts` grouped by vehicle/status and confirm:
-   - No net_to_partner row exceeds `gross_rental_base` after fee.
-   - Outstanding for Velocity lands in a believable range (~$40–70K across both vehicles).
-   - `MarginOverview` Operator Net returns to a positive/near-flat number on the Exotiq team.
+Per-vehicle recurring (54 vehicles × ~6 months):
+
+| Type | Cadence | Per-row range | Vendor examples |
+|---|---|---|---|
+| `insurance` | monthly | $650–$1,400 (tiered by vehicle tier: Bugatti/Pagani/Koenigsegg/Valkyrie/One high) | Chubb Masterpiece, Hagerty, PURE |
+| `storage` | monthly | $325–$650 | Miami Auto Vault, LA Private Garage |
+| `detailing` | every ~6 wks | $180–$450 | Auto Concierge, Detail Society |
+| `fuel` | 2–4×/month per vehicle w/ bookings | $80–$260 | Shell V-Power, Chevron 94 |
+| `cleaning` | 1–2×/month | $95–$180 | Onsite Detail Co. |
+| `maintenance` | ~1 per vehicle over 6mo | $850–$3,800 (higher for Ferrari/Lambo/Bugatti) | Marque Motors, Prestige Import Service |
+| `registration` | 1 per vehicle (annualized slice) | $180–$620 | FL DHSMV, CA DMV |
+| `tax` | quarterly personal property | $420–$1,100 | Miami-Dade Tax Collector |
+
+Occasional / event-driven (sprinkled, not per-vehicle):
+
+- `transport` × ~14 rows, $650–$2,400 (Reliable Carriers, Intercity Lines)
+- `parking` × ~30 rows, $45–$220 (event valet, show parking)
+- `toll` × ~40 rows, $12–$65 (SunPass, FasTrak)
+- `damage` × 4 rows, $1,200–$4,800 (curb rash, stone chip PPF) — a couple flagged `is_reimbursable = true` with partial `reimbursed_amount`
+- `processing_fee` × ~6 rows, $85–$340 (Stripe fees for off-platform card use)
+
+Tenant overhead (`vehicle_id = null`), shows up in the Tenant Overhead card:
+
+- `overhead` — monthly office/software: $1,850 (rent split), $420 (software stack), $780 (marketing) → ~18 rows total
+- `insurance` overhead-level umbrella policy: $2,400/mo × 6 → 6 rows
+- `tax` — one $9,500 quarterly filing
+
+## Distribution rules
+
+- Weight fuel/cleaning toward vehicles that actually had confirmed/completed bookings in that month (join `bookings` per vehicle_id/month) so per-vehicle P&L looks correlated with usage.
+- Cap per-vehicle 6-month expense total at ~55% of that vehicle's gross so no single P&L row goes negative.
+- Skew vendors + dates with `random()` seeded via `setseed(0.42)` for a stable but natural-looking spread.
+- Notes column filled with one-line context ("Post-rental detail — BK-01234 return", "Q2 personal property filing", "Track day fuel top-off") on ~60% of rows.
+
+## Execution
+
+Single insert-tool call: one `INSERT INTO vehicle_expenses (…) SELECT …` composed of a handful of `UNION ALL` CTEs (one per pattern above). Idempotency: prefix every `notes` value with `[seed:2026-07-24]` and pre-check + delete any prior rows with that marker before insert so re-runs are safe.
+
+## Verification (after insert)
+
+- `SELECT expense_type, count(*), sum(amount) FROM vehicle_expenses WHERE team_id=… AND expense_date >= CURRENT_DATE - 180 GROUP BY 1` — confirm mix + totals in target band.
+- Open `/dashboard/margin` → Expenses tab: rows visible, filter by type works, Tenant Overhead card shows non-empty breakdown.
+- Per-Vehicle P&L: no vehicle flips to negative Operator Net; Margin Overview stays positive.
 
 ## Out of scope
 
-- No code changes. All work is DB updates + SECURITY DEFINER function calls already in prod.
-- Other tenants and other Exotiq vehicles are untouched.
-- No booking edits — only payouts and the one vehicle split field.
-
-## Technical notes
-
-- Step 1 uses the insert tool (`UPDATE vehicles SET split_value=40 …`).
-- Steps 2–4 use `SELECT fn_transition_payout(id, action, …)` batches via the insert tool since they mutate rows.
-- Reconcile flag in step 4 is a direct `UPDATE partner_payouts SET reconcile_flag=true, reconcile_note='…'` — matches how the trigger sets it.
-- Nothing here touches `bookings`, so booking history / calendar / CRM stay identical.
+- No schema changes, no new tables, no code changes.
+- No touching partner_payouts, bookings, or the SF90/SVJ cleanup already done.
+- Other tenants untouched (all writes scoped to Exotiq team_id).
