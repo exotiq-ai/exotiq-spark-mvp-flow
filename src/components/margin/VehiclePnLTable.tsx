@@ -147,7 +147,7 @@ export function VehiclePnLTable() {
         <div>
           <CardTitle className="text-base">Per-Vehicle P&L</CardTitle>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Ranked by Operator Net. Click a row to open the vehicle.
+            Ranked by Operator Net. Click a row to see the bookings, expenses, and payouts behind the number.
           </p>
         </div>
         <Button size="sm" variant="outline" onClick={handleExport} disabled={!rows.length}>
