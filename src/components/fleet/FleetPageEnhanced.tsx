@@ -141,6 +141,19 @@ export const FleetPageEnhanced = () => {
     }
   }, [searchParams]);
 
+  // Deep-link: auto-open vehicle details from ?vehicle=<id>
+  useEffect(() => {
+    const vehicleId = searchParams.get('vehicle');
+    if (!vehicleId || !vehicles?.length) return;
+    const v = vehicles.find((x: any) => x.id === vehicleId);
+    if (v) {
+      setDetailsVehicle(v);
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('vehicle');
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [searchParams, vehicles]);
+
   // Listen for work order creation from other modules (e.g., CheckInOutDialog)
   useEffect(() => {
     const handler = (e: Event) => {
