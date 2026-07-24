@@ -206,3 +206,7 @@ verify_jwt = false
 
 [functions.rent-refund-booking]
 verify_jwt = true
+
+[functions.rent-approve-booking]
+verify_jwt = true
+

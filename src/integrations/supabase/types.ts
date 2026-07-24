@@ -246,6 +246,7 @@ export type Database = {
           operator_payment_intent_id: string | null
           paid_at: string | null
           payment_due_at: string | null
+          payment_reminder_sent_at: string | null
           payment_status: string | null
           payment_stripe_mode: string | null
           pickup_fuel_level: number | null
@@ -316,6 +317,7 @@ export type Database = {
           operator_payment_intent_id?: string | null
           paid_at?: string | null
           payment_due_at?: string | null
+          payment_reminder_sent_at?: string | null
           payment_status?: string | null
           payment_stripe_mode?: string | null
           pickup_fuel_level?: number | null
@@ -386,6 +388,7 @@ export type Database = {
           operator_payment_intent_id?: string | null
           paid_at?: string | null
           payment_due_at?: string | null
+          payment_reminder_sent_at?: string | null
           payment_status?: string | null
           payment_stripe_mode?: string | null
           pickup_fuel_level?: number | null
@@ -5562,7 +5565,25 @@ export type Database = {
             Args: { reason?: string; target_user_id: string }
             Returns: undefined
           }
-      expire_overdue_payment_bookings: { Args: never; Returns: number }
+      expire_overdue_payment_bookings: {
+        Args: never
+        Returns: {
+          booking_id: string
+          booking_ref: string
+          confirmation_token: string
+          customer_email: string
+          customer_name: string
+          end_date: string
+          pickup_location: string
+          platform_fee_cents: number
+          protection_total_cents: number
+          start_date: string
+          team_id: string
+          total_value: number
+          vehicle_id: string
+          vehicle_name: string
+        }[]
+      }
       fn_transition_payout: {
         Args: {
           p_action: string

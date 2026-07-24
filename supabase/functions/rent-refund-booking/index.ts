@@ -15,8 +15,18 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.77.0";
+import { sendRenterEmail } from "../_shared/rentEmail.ts";
+import {
+  buildStorefrontUrl,
+  buildVehicleUrl,
+  formatCurrency,
+  formatDateRange,
+  formatPickupTime,
+  shortVehicleName,
+} from "../_shared/rentFormat.ts";
 
 const corsHeaders = {
+
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
@@ -84,11 +94,14 @@ serve(async (req) => {
       .from("bookings")
       .select(
         "id, booking_ref, status, booking_source, paid_at, team_id, user_id, " +
-        "operator_payment_intent_id, exotiq_payment_intent_id, payment_stripe_mode",
+        "operator_payment_intent_id, exotiq_payment_intent_id, payment_stripe_mode, " +
+        "customer_email, customer_name, start_date, end_date, pickup_location, " +
+        "total_value, platform_fee_cents, protection_total_cents, vehicle_id, vehicle_name",
       )
       .eq("booking_ref", bookingRef)
       .eq("booking_source", "marketplace")
       .maybeSingle();
+
     if (bookingError) throw bookingError;
     if (!booking) return json({ error: "Booking not found" }, 404);
 
@@ -125,6 +138,60 @@ serve(async (req) => {
       .eq("id", booking.id);
     if (updateError) throw updateError;
 
+    if (booking.customer_email) {
+      try {
+        const { data: team } = await admin
+          .from("teams")
+          .select("slug, name, currency, timezone")
+          .eq("id", booking.team_id)
+          .single();
+        const { data: vehicle } = await admin
+          .from("vehicles")
+          .select("slug")
+          .eq("id", booking.vehicle_id)
+          .maybeSingle();
+        const currency = team?.currency ?? "USD";
+        const timezone = team?.timezone ?? "UTC";
+        const rentalAmount = Number(booking.total_value ?? 0);
+        const exotiqAmount =
+          (Number(booking.platform_fee_cents ?? 0) + Number(booking.protection_total_cents ?? 0)) / 100;
+        const totalPaid = rentalAmount + exotiqAmount;
+
+        const vehicleName = booking.vehicle_name || "Vehicle";
+        const vehicleShort = shortVehicleName(vehicleName);
+        const origin = "https://book.exotiq.rent";
+        const storefrontUrl = buildStorefrontUrl(team?.slug ?? "", origin);
+        const vehicleUrl = vehicle?.slug ? buildVehicleUrl(team?.slug ?? "", vehicle.slug, origin) : storefrontUrl;
+
+        await sendRenterEmail({
+          templateName: "refundConfirmation",
+          to: booking.customer_email,
+          subject: `Refunded — booking ${bookingRef}`,
+          variables: {
+            BOOKING_REF: bookingRef,
+            OPERATOR_NAME: team?.name ?? "Operator",
+            VEHICLE_NAME: vehicleName,
+            VEHICLE_SHORT: vehicleShort,
+            DATE_RANGE: formatDateRange(booking.start_date, booking.end_date),
+            PICKUP_TIME: formatPickupTime(booking.start_date, timezone),
+            LOCATION: booking.pickup_location,
+            RENTAL_AMOUNT: formatCurrency(rentalAmount, currency),
+            EXOTIQ_AMOUNT: formatCurrency(exotiqAmount, currency),
+            TOTAL_PAID: formatCurrency(totalPaid, currency),
+            TOTAL_REFUNDED: formatCurrency(totalPaid, currency),
+            STOREFRONT_URL: storefrontUrl,
+            VEHICLE_URL: vehicleUrl,
+          },
+          idempotencyKey: `refund-op-${bookingRef}`,
+          replyTo: `${team?.name ?? "Operator"} <no-reply@exotiq.ai>`,
+          tags: [{ name: "booking_ref", value: bookingRef }, { name: "email_type", value: "refund_confirmation" }],
+        });
+        logStep("Refund confirmation email sent", { bookingRef });
+      } catch (emailError) {
+        logStep("Refund confirmation email failed", { bookingRef, error: String(emailError) });
+      }
+    }
+
     try {
       await admin.from("user_activity_log").insert({
         user_id: userId,
@@ -141,3 +208,4 @@ serve(async (req) => {
     return json({ error: "Unable to refund booking" }, 500);
   }
 });
+
