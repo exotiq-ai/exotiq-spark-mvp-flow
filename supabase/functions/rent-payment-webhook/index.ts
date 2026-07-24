@@ -276,6 +276,14 @@ serve(async (req) => {
           .update({ exotiq_payment_intent_id: pi.id })
           .eq("booking_ref", bookingRef)
           .eq("status", "pending_payment");
+        await mirrorPayment(
+          db,
+          bookingRef,
+          "fee",
+          pi.id,
+          Number(pi.amount ?? 0) / 100,
+          new Date().toISOString(),
+        );
         await confirmIfFullyPaid(db, bookingRef, mode);
         break;
       }
