@@ -61,6 +61,7 @@ export const BusinessProfileSection = () => {
     setTaxInclusive(!!currentTeam.tax_inclusive);
     setVatNumber(currentTeam.vat_number || "");
     setAddress((currentTeam.business_address as BusinessAddress) || {});
+    setSupportEmail(((currentTeam as any).support_email as string) || "");
   }, [currentTeam]);
 
 
