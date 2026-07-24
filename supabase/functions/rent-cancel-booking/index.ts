@@ -173,6 +173,56 @@ serve(async (req) => {
       .in("status", CANCELLABLE); // guard against races
     if (updateError) throw updateError;
 
+    if (refunded && booking.customer_email) {
+      try {
+        const { data: team } = await admin
+          .from("teams")
+          .select("slug, name, currency, timezone")
+          .eq("id", booking.team_id)
+          .single();
+        const { data: vehicle } = await admin
+          .from("vehicles")
+          .select("slug")
+          .eq("id", booking.vehicle_id)
+          .maybeSingle();
+        const currency = team?.currency ?? "USD";
+        const timezone = team?.timezone ?? "UTC";
+        const totalPaid =
+          Number(booking.total_value ?? 0) +
+          (Number(booking.platform_fee_cents ?? 0) + Number(booking.protection_total_cents ?? 0)) / 100;
+        const vehicleName = booking.vehicle_name || "Vehicle";
+        const vehicleShort = shortVehicleName(vehicleName);
+        const origin = "https://book.exotiq.rent";
+        const storefrontUrl = buildStorefrontUrl(team?.slug ?? "", origin);
+        const vehicleUrl = vehicle?.slug ? buildVehicleUrl(team?.slug ?? "", vehicle.slug, origin) : storefrontUrl;
+
+        await sendRenterEmail({
+          templateName: "refundConfirmation",
+          to: booking.customer_email,
+          subject: `Refunded — booking ${bookingRef}`,
+          variables: {
+            BOOKING_REF: bookingRef,
+            OPERATOR_NAME: team?.name ?? "Operator",
+            VEHICLE_NAME: vehicleName,
+            VEHICLE_SHORT: vehicleShort,
+            DATE_RANGE: formatDateRange(booking.start_date, booking.end_date),
+            PICKUP_TIME: formatPickupTime(booking.start_date, timezone),
+            LOCATION: booking.pickup_location,
+            TOTAL_PAID: formatCurrency(totalPaid, currency),
+            TOTAL_REFUNDED: formatCurrency(totalPaid, currency),
+            STOREFRONT_URL: storefrontUrl,
+            VEHICLE_URL: vehicleUrl,
+          },
+          idempotencyKey: `refund-renter-${bookingRef}`,
+          replyTo: `${team?.name ?? "Operator"} <no-reply@exotiq.ai>`,
+          tags: [{ name: "booking_ref", value: bookingRef }, { name: "email_type", value: "refund_confirmation" }],
+        });
+        logStep("Refund confirmation email sent", { bookingRef });
+      } catch (emailError) {
+        logStep("Refund confirmation email failed", { bookingRef, error: String(emailError) });
+      }
+    }
+
     try {
       await admin.from("user_activity_log").insert({
         user_id: booking.user_id,
@@ -189,3 +239,4 @@ serve(async (req) => {
     return json({ error: "Unable to cancel booking" }, 500);
   }
 });
+
