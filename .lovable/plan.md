@@ -1,50 +1,34 @@
-Build the M6d renter money expiry and notification flow, consuming HTML email templates from Claude Code's PR.
+Now that `exotiq.rent` is verified in Resend, the M6d email system can send live. The 6 PR #32 templates are already inlined in `supabase/functions/send-renter-email/templates.ts` and all edge functions are deployed. No template or code changes are needed — this is a config + verification pass, plus a cron registration if the scheduler isn't wired.
 
-## Design handoff
-- Claude will deliver one HTML file per template via `github.com/exotiq-ai/exotiq-rent/pull/32`.
-- Files: `payment-link.html`, `payment-reminder.html`, `payment-receipt.html`, `payment-refund.html`, `payment-expired-renter.html`, `booking-expired-operator.html`.
-- Tone must match the booking site exactly; Claude owns brand assets and CSS.
-- I will inline the HTML into the `send-renter-email` Edge Function with no external CSS or images (no storage dependency).
+## Steps
 
-## Build steps
-1. **Function: `send-renter-email`**
-   - Create Edge Function with CORS and JWT verification.
-   - Accept `{ template, booking_id, recipient_email, send_at?, override_data? }`.
-   - Load booking + vehicle + team + renter + payment rows with tenant RLS guard.
-   - Map each template to a pre-rendered HTML body with Liquid-style variable replacement.
-   - Enqueue into the existing transactional email queue via `enqueue_email` RPC.
+1. **Confirm sender secret**
+   - Check `RENTER_EMAIL_FROM`. Code default is `Drive Exotiq <bookings@exotiq.rent>`; if unset or pointed elsewhere, set it to an address on the now-verified `exotiq.rent`.
+   - Confirm `RESEND_API_KEY` and `INTERNAL_FUNCTION_TOKEN` are present.
 
-2. **Payment window expiry scheduler**
-   - Add `payment_due_at` clamp logic: `min(pickup_time - 2h, booking_approved_at + 48h)`.
-   - Create a row-level `cron` schedule per pending booking when approved:
-     - Expiry job at `payment_due_at` to release dates if still `pending_payment`.
-     - Reminder job at `payment_due_at - 24h`.
-   - Cleanup jobs on payment status change.
+2. **Live send smoke test**
+   - Invoke `send-renter-email` with `paymentApproved` to a real inbox using representative variables.
+   - Confirm HTTP 200 + Resend `message_id`, and that the email renders on Gmail web + iOS Mail.
 
-3. **Status-change triggers**
-   - `approved` → send `payment-link` email to renter; schedule expiry + reminder.
-   - `payment_reminder` event → send `payment-reminder`.
-   - `paid` → send `payment-receipt` with both charge breakdowns; cancel expiry/reminder.
-   - `refunded` → send `payment-refund` confirmation.
-   - `expired` → send `payment-expired-renter` to renter and `booking-expired-operator` to operator.
+3. **End-to-end approval test**
+   - Call `rent-approve-booking` on a marketplace `pending` booking → confirm `payment-approved` email arrives and `payment_due_at` is set.
 
-4. **Date release logic**
-   - On expiry, set booking status to `expired` (or `cancelled` with reason) and remove the booking from vehicle availability.
-   - Log to `booking_change_log` with reason `payment_window_expired`.
+4. **Scheduler cron: verify or register**
+   - Check `cron.job` for a `rent-payment-scheduler` entry and check recent edge-function logs.
+   - **If no recent runs / no schedule exists** (expected — no `cron.schedule` for it appears in the migrations):
+     - Register a pg_cron job that fires every 15 minutes and calls the function via `net.http_post` with the `x-cron-token` header (using `INTERNAL_FUNCTION_TOKEN` or the dedicated cron token secret if one exists — confirm which the function expects).
+     - Because the SQL contains project-ref, anon key, and secret token, register it via the Supabase insert path (not a repo migration).
+     - Also commit a reproducible migration file under `supabase/migrations/` that documents the schedule with placeholders (no secrets), so cutover to prod can re-register it.
+     - Wait one cycle and confirm one live execution appears in the logs with a 200 response.
+   - **If it already exists and is firing**, just note the last run time.
 
-5. **Tokened payment link**
-   - Use existing `booking.id` + hash as short-lived token for the `/rent/pay?b=...&t=...` URL.
-   - Ensure URL points to the correct marketplace origin and is rendered in every email.
+5. **Reminder + expiry spot check**
+   - Optionally shorten `payment_due_at` on a test booking to force reminder + expiry paths and confirm `paymentReminder`, `paymentExpired`, and `operatorExpired` all send.
 
-6. **Testing & deployment**
-   - Deploy `send-renter-email` and `payment-window-scheduler` (or reuse the same function with `action` param).
-   - Run smoke test:
-     - Approve a booking <48h before pickup → confirm `payment_due_at` clamps to `pickup - 2h`.
-     - Let one expire → confirm dates release and both emails enqueue.
-     - Pay one → confirm receipt email and cron jobs cancel.
-   - Verify templates render correctly across mobile and desktop clients.
+6. **Report back**
+   - Message IDs, cron job id + last run, and any rendering issues.
 
 ## Out of scope
-- Marketing/promotional emails.
-- Auth email templates (already handled by Lovable auth).
-- Payment UI changes outside the email flow.
+- Template copy changes.
+- Migrating to Lovable Emails.
+- Any function code changes unless smoke test surfaces a bug.
