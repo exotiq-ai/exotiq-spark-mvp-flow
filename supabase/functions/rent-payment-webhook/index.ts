@@ -79,7 +79,7 @@ async function confirmIfFullyPaid(db: ReturnType<typeof admin>, bookingRef: stri
     try {
       const { data: team } = await db
         .from("teams")
-        .select("slug, name, currency, timezone")
+        .select("slug, name, currency, timezone, support_email")
         .eq("id", booking.team_id)
         .single();
       const { data: vehicle } = await db
