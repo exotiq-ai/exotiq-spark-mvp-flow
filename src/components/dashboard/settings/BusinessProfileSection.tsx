@@ -47,6 +47,7 @@ export const BusinessProfileSection = () => {
   const [taxInclusive, setTaxInclusive] = useState(false);
   const [vatNumber, setVatNumber] = useState("");
   const [address, setAddress] = useState<BusinessAddress>({});
+  const [supportEmail, setSupportEmail] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
