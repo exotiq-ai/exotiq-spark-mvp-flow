@@ -101,6 +101,19 @@ export const BusinessProfileSection = () => {
       return;
     }
 
+    const trimmedSupport = supportEmail.trim();
+    if (trimmedSupport) {
+      const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedSupport) && trimmedSupport.length <= 255;
+      if (!emailOk) {
+        toast({
+          title: "Invalid support email",
+          description: "Enter a valid email address, or leave blank to use Exotiq support.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       // Rename via RPC (handles slug regen when safe)
