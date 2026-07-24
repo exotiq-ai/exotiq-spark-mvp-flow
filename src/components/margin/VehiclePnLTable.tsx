@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTeam } from "@/contexts/TeamContext";
-import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Download, ArrowUpDown } from "lucide-react";
+import { Download, ArrowUpDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toCsv, downloadCsv, formatCurrency, formatPercent } from "@/lib/marginCsv";
 import { useMarginData, countsForRevenue } from "./useMarginData";
+import { VehiclePnLRowDetail } from "./VehiclePnLRowDetail";
 
 interface Row {
   vehicle_id: string;
