@@ -270,6 +270,10 @@ export const SuperAdminDashboard = () => {
             <MarketplaceVisibilityTab />
           </TabsContent>
 
+          <TabsContent value="payments-test" className="space-y-4">
+            <SuperAdminPaymentsTestTab />
+          </TabsContent>
+
 
 
 
