@@ -313,8 +313,10 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       // Calculate revenue
       const today = new Date();
       today.setHours(0, 0, 0, 0);
+      // M6b: exclude Stripe sandbox/test-mode marketplace bookings from real revenue.
       const confirmedBookings = bookingsResult.data?.filter(b => 
-        b.status === 'confirmed' || b.status === 'completed'
+        (b.status === 'confirmed' || b.status === 'completed') &&
+        (b as any).payment_stripe_mode !== 'test'
       ) || [];
       
       const todayRevenue = confirmedBookings

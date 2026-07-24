@@ -58,6 +58,47 @@ async function confirmIfFullyPaid(db: ReturnType<typeof admin>, bookingRef: stri
   if (!error) logStep("Booking confirmed", { bookingRef });
 }
 
+/**
+ * Mirror a Stripe PaymentIntent into the payments ledger, idempotent on
+ * stripe_payment_intent_id. Every payment surface (booking card, dues,
+ * PaymentTracker, margin) reads from this table; the booking row remains
+ * source of truth for lifecycle. Safe under webhook redelivery.
+ */
+async function mirrorPayment(
+  db: ReturnType<typeof admin>,
+  bookingRef: string,
+  leg: "rental" | "fee",
+  paymentIntentId: string,
+  amount: number,
+  transactionDate: string,
+) {
+  if (!paymentIntentId || paymentIntentId === "none_required" || amount <= 0) return;
+  const { data: booking } = await db
+    .from("bookings")
+    .select("id, user_id, team_id")
+    .eq("booking_ref", bookingRef)
+    .maybeSingle();
+  if (!booking) return;
+  const { error } = await db.from("payments").insert({
+    user_id: booking.user_id,
+    booking_id: booking.id,
+    team_id: booking.team_id,
+    payment_type: leg === "rental" ? "rental" : "fee",
+    amount,
+    payment_status: "completed",
+    payment_method: "stripe",
+    stripe_payment_intent_id: paymentIntentId,
+    transaction_date: transactionDate,
+    notes: leg === "rental"
+      ? "Marketplace rental — Stripe destination charge"
+      : "Exotiq booking fee + protection",
+  });
+  // 23505 = unique_violation → already mirrored on an earlier delivery.
+  if (error && (error as { code?: string }).code !== "23505") {
+    logStep("mirrorPayment failed", { bookingRef, leg, code: (error as { code?: string }).code });
+  }
+}
+
 async function opsAlert(db: ReturnType<typeof admin>, bookingRef: string, action: string, details: Record<string, unknown>) {
   // Best-effort — mirrors the M5 audit-trail pattern.
   try {
@@ -129,11 +170,29 @@ serve(async (req) => {
         if (!operatorPi) break;
 
         logStep("Rental paid", { bookingRef, operatorPi });
+        const nowIso = new Date().toISOString();
         await db
           .from("bookings")
           .update({ operator_payment_intent_id: operatorPi, payment_stripe_mode: mode })
           .eq("booking_ref", bookingRef)
           .eq("status", "pending_payment");
+
+        // Mirror the rental leg into the payments ledger (idempotent on PI id).
+        const { data: rentalBooking } = await db
+          .from("bookings")
+          .select("total_value, paid_at")
+          .eq("booking_ref", bookingRef)
+          .maybeSingle();
+        if (rentalBooking) {
+          await mirrorPayment(
+            db,
+            bookingRef,
+            "rental",
+            operatorPi,
+            Number(rentalBooking.total_value ?? 0),
+            rentalBooking.paid_at ?? nowIso,
+          );
+        }
 
         // Second leg: the Exotiq portion, off-session on the platform, using
         // the payment method the Checkout just saved.
@@ -191,6 +250,7 @@ serve(async (req) => {
             .update({ exotiq_payment_intent_id: exotiqPi.id })
             .eq("booking_ref", bookingRef);
           if (exotiqPi.status === "succeeded") {
+            await mirrorPayment(db, bookingRef, "fee", exotiqPi.id, exotiqCents / 100, new Date().toISOString());
             await confirmIfFullyPaid(db, bookingRef, mode);
           }
           // Non-terminal PI statuses resolve via payment_intent.succeeded.
@@ -217,6 +277,14 @@ serve(async (req) => {
           .update({ exotiq_payment_intent_id: pi.id })
           .eq("booking_ref", bookingRef)
           .eq("status", "pending_payment");
+        await mirrorPayment(
+          db,
+          bookingRef,
+          "fee",
+          pi.id,
+          Number(pi.amount ?? 0) / 100,
+          new Date().toISOString(),
+        );
         await confirmIfFullyPaid(db, bookingRef, mode);
         break;
       }
