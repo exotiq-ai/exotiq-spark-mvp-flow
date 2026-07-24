@@ -112,7 +112,7 @@ serve(async (req) => {
     if (isMarketplace && booking.customer_email) {
       const { data: team } = await admin
         .from("teams")
-        .select("id, slug, name, currency, timezone")
+        .select("id, slug, name, currency, timezone, support_email")
         .eq("id", booking.team_id)
         .single();
       const { data: vehicle } = await admin
