@@ -373,7 +373,7 @@ export const PaymentTracker = () => {
                   <div className="grid grid-cols-2 gap-4 mb-3 text-sm">
                     <div>
                       <div className="text-muted-foreground">Total Amount</div>
-                      <div className="font-medium">{formatCurrency(Number(booking.total_value))}</div>
+                      <div className="font-medium">{formatCurrency(booking.totalDue)}</div>
                     </div>
                     <div>
                       <div className="text-muted-foreground">Paid</div>
@@ -382,12 +382,20 @@ export const PaymentTracker = () => {
                     <div>
                       <div className="text-muted-foreground">Balance Due</div>
                       <div className="font-medium text-destructive">
-                        {formatCurrency(Number(booking.total_value) - booking.totalPaid)}
+                        {formatCurrency(booking.amountDue)}
                       </div>
                     </div>
                     <div>
-                      <div className="text-muted-foreground">Pickup Date</div>
-                      <div className="font-medium">{new Date(booking.start_date).toLocaleDateString()}</div>
+                      <div className="text-muted-foreground">
+                        {booking.isMarketplace && (booking as any).payment_due_at && booking.status === 'pending_payment'
+                          ? 'Payment Due By'
+                          : 'Pickup Date'}
+                      </div>
+                      <div className="font-medium">
+                        {booking.isMarketplace && (booking as any).payment_due_at && booking.status === 'pending_payment'
+                          ? new Date((booking as any).payment_due_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+                          : new Date(booking.start_date).toLocaleDateString()}
+                      </div>
                     </div>
                   </div>
 
