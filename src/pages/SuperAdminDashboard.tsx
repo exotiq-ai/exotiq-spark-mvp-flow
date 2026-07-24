@@ -235,6 +235,10 @@ export const SuperAdminDashboard = () => {
               <Store className="h-4 w-4 mr-2" />
               Marketplace
             </TabsTrigger>
+            <TabsTrigger value="payments-test">
+              <Wallet className="h-4 w-4 mr-2" />
+              M6 Payments
+            </TabsTrigger>
             <TabsTrigger value="audit">
               <Database className="h-4 w-4 mr-2" />
               Audit Log
