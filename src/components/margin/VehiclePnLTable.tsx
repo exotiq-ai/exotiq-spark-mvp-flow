@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Download, ArrowUpDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { toCsv, downloadCsv, formatCurrency, formatPercent } from "@/lib/marginCsv";
+import { toCsv, downloadCsv, formatCurrency, formatCurrencyCompact, formatPercent } from "@/lib/marginCsv";
 import { useMarginData, countsForRevenue } from "./useMarginData";
 import { VehiclePnLRowDetail } from "./VehiclePnLRowDetail";
 
