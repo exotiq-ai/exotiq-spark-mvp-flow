@@ -3534,6 +3534,7 @@ export type Database = {
           stripe_onboarding_complete: boolean
           stripe_payouts_enabled: boolean
           stripe_test_account_id: string | null
+          support_email: string | null
           tax_inclusive: boolean
           tax_label: string
           tax_rate_percent: number
@@ -3598,6 +3599,7 @@ export type Database = {
           stripe_onboarding_complete?: boolean
           stripe_payouts_enabled?: boolean
           stripe_test_account_id?: string | null
+          support_email?: string | null
           tax_inclusive?: boolean
           tax_label?: string
           tax_rate_percent?: number
@@ -3662,6 +3664,7 @@ export type Database = {
           stripe_onboarding_complete?: boolean
           stripe_payouts_enabled?: boolean
           stripe_test_account_id?: string | null
+          support_email?: string | null
           tax_inclusive?: boolean
           tax_label?: string
           tax_rate_percent?: number

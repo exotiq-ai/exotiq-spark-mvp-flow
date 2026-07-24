@@ -1,0 +1,2 @@
+ALTER TABLE public.teams ADD COLUMN IF NOT EXISTS support_email text;
+COMMENT ON COLUMN public.teams.support_email IS 'Reply-To address for renter booking emails. Falls back to platform support when null.';
