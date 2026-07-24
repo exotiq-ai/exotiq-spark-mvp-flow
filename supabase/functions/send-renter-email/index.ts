@@ -94,7 +94,7 @@ serve(async (req) => {
     }
 
     const from = Deno.env.get("RENTER_EMAIL_FROM") ?? "Drive Exotiq <bookings@exotiq.rent>";
-    const replyTo = body.replyTo ?? "support@exotiq.ai";
+    const replyTo = body.replyTo ?? Deno.env.get("RENTER_EMAIL_REPLY_TO") ?? "support@exotiq.ai";
 
     const payload: Record<string, unknown> = {
       from,
