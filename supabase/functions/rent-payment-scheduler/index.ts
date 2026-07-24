@@ -161,7 +161,7 @@ serve(async (req) => {
             subject: `The payment window closed — booking ${booking.booking_ref}`,
             variables: vars,
             idempotencyKey: `expired-renter-${booking.booking_ref}`,
-            replyTo: `${team.name} <no-reply@exotiq.ai>`,
+            replyTo: resolveRenterReplyTo(team.support_email),
             tags: [{ name: "booking_ref", value: booking.booking_ref }, { name: "email_type", value: "payment_expired_renter" }],
           });
         } catch (emailError) {
