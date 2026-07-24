@@ -99,10 +99,12 @@ export function useMarginData(): State {
         // Overlap-based booking window: a booking counts if any portion falls in [start, end]
         supabase
           .from("bookings")
-          .select("id, vehicle_id, total_value, platform_fee_amount, booking_source, status, start_date, end_date, customer_name, booking_ref")
+          .select("id, vehicle_id, total_value, platform_fee_amount, booking_source, status, start_date, end_date, customer_name, booking_ref, payment_stripe_mode")
           .eq("team_id", currentTeam.id)
           .lte("start_date", endIso)
-          .gte("end_date", startIso),
+          .gte("end_date", startIso)
+          // M6a: exclude sandbox test-mode payment rows from ledger/margin views
+          .or("payment_stripe_mode.is.null,payment_stripe_mode.neq.test"),
         supabase
           .from("vehicle_expenses")
           .select("id, vehicle_id, location_id, expense_type, amount, expense_date, source_module, is_reimbursable, reimbursed_amount, status")

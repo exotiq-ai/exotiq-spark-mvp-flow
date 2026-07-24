@@ -11,7 +11,7 @@ export const PENDING_STATUSES = [
 
 export const CONFIRMED_STATUSES = ['confirmed', 'active'] as const;
 
-export const CANCELLED_STATUSES = ['cancelled', 'declined', 'refunded'] as const;
+export const CANCELLED_STATUSES = ['cancelled', 'declined', 'refunded', 'payment_expired'] as const;
 
 /** Statuses that block a vehicle's calendar/availability. Mirrors the DB
  *  exclusion predicate on bookings_no_marketplace_overlap. */
@@ -36,6 +36,7 @@ export function getBookingStatusBadgeClass(status: string | null | undefined): s
     case 'declined':
       return 'bg-destructive/10 text-destructive border-destructive/30';
     case 'refunded':
+    case 'payment_expired':
       return 'bg-muted/40 text-muted-foreground border-muted-foreground/30';
     case 'pending':
     case 'requested':
@@ -60,6 +61,8 @@ export function getBookingStatusLabel(status: string | null | undefined): string
       return 'Declined';
     case 'refunded':
       return 'Refunded';
+    case 'payment_expired':
+      return 'Payment window expired';
     case 'pending':
       return 'Pending';
     case 'confirmed':

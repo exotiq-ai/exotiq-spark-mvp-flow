@@ -244,16 +244,21 @@ export type Database = {
           mileage_overage_fee: number | null
           notes: string | null
           operator_payment_intent_id: string | null
+          paid_at: string | null
+          payment_due_at: string | null
           payment_status: string | null
+          payment_stripe_mode: string | null
           pickup_fuel_level: number | null
           pickup_location: string
           pickup_location_id: string | null
           pickup_odometer: number | null
           platform_fee_amount: number
           platform_fee_base: number
+          platform_fee_cents: number | null
           platform_fee_percent_snapshot: number
           protection_cents_snapshot: number
           protection_tier: string | null
+          protection_total_cents: number | null
           rental_duration_type: string | null
           requires_delivery: boolean | null
           return_fuel_level: number | null
@@ -309,16 +314,21 @@ export type Database = {
           mileage_overage_fee?: number | null
           notes?: string | null
           operator_payment_intent_id?: string | null
+          paid_at?: string | null
+          payment_due_at?: string | null
           payment_status?: string | null
+          payment_stripe_mode?: string | null
           pickup_fuel_level?: number | null
           pickup_location: string
           pickup_location_id?: string | null
           pickup_odometer?: number | null
           platform_fee_amount?: number
           platform_fee_base?: number
+          platform_fee_cents?: number | null
           platform_fee_percent_snapshot?: number
           protection_cents_snapshot?: number
           protection_tier?: string | null
+          protection_total_cents?: number | null
           rental_duration_type?: string | null
           requires_delivery?: boolean | null
           return_fuel_level?: number | null
@@ -374,16 +384,21 @@ export type Database = {
           mileage_overage_fee?: number | null
           notes?: string | null
           operator_payment_intent_id?: string | null
+          paid_at?: string | null
+          payment_due_at?: string | null
           payment_status?: string | null
+          payment_stripe_mode?: string | null
           pickup_fuel_level?: number | null
           pickup_location?: string
           pickup_location_id?: string | null
           pickup_odometer?: number | null
           platform_fee_amount?: number
           platform_fee_base?: number
+          platform_fee_cents?: number | null
           platform_fee_percent_snapshot?: number
           protection_cents_snapshot?: number
           protection_tier?: string | null
+          protection_total_cents?: number | null
           rental_duration_type?: string | null
           requires_delivery?: boolean | null
           return_fuel_level?: number | null
@@ -3515,6 +3530,7 @@ export type Database = {
           stripe_charges_enabled: boolean
           stripe_onboarding_complete: boolean
           stripe_payouts_enabled: boolean
+          stripe_test_account_id: string | null
           tax_inclusive: boolean
           tax_label: string
           tax_rate_percent: number
@@ -3578,6 +3594,7 @@ export type Database = {
           stripe_charges_enabled?: boolean
           stripe_onboarding_complete?: boolean
           stripe_payouts_enabled?: boolean
+          stripe_test_account_id?: string | null
           tax_inclusive?: boolean
           tax_label?: string
           tax_rate_percent?: number
@@ -3641,6 +3658,7 @@ export type Database = {
           stripe_charges_enabled?: boolean
           stripe_onboarding_complete?: boolean
           stripe_payouts_enabled?: boolean
+          stripe_test_account_id?: string | null
           tax_inclusive?: boolean
           tax_label?: string
           tax_rate_percent?: number
@@ -5480,31 +5498,56 @@ export type Database = {
         Returns: number
       }
       count_admins: { Args: never; Returns: number }
-      create_marketplace_booking: {
-        Args: {
-          _customer_email: string
-          _customer_name: string
-          _customer_phone: string
-          _daily_rate: number
-          _deposit_cents?: number
-          _end_date: string
-          _initial_status: string
-          _pickup_time: string
-          _platform_fee_cents?: number
-          _protection_cents?: number
-          _protection_tier?: string
-          _start_date: string
-          _team_slug: string
-          _total_value: number
-          _vehicle_slug: string
-        }
-        Returns: {
-          booking_id: string
-          booking_ref: string
-          confirmation_token: string
-          status: string
-        }[]
-      }
+      create_marketplace_booking:
+        | {
+            Args: {
+              _customer_email: string
+              _customer_name: string
+              _customer_phone: string
+              _daily_rate: number
+              _deposit_cents?: number
+              _end_date: string
+              _initial_status: string
+              _pickup_time: string
+              _platform_fee_cents?: number
+              _protection_cents?: number
+              _protection_tier?: string
+              _start_date: string
+              _team_slug: string
+              _total_value: number
+              _vehicle_slug: string
+            }
+            Returns: {
+              booking_id: string
+              booking_ref: string
+              confirmation_token: string
+              status: string
+            }[]
+          }
+        | {
+            Args: {
+              _customer_email: string
+              _customer_name: string
+              _customer_phone: string
+              _daily_rate: number
+              _end_date: string
+              _initial_status: string
+              _pickup_time: string
+              _platform_fee_cents?: number
+              _protection_tier?: string
+              _protection_total_cents?: number
+              _start_date: string
+              _team_slug: string
+              _total_value: number
+              _vehicle_slug: string
+            }
+            Returns: {
+              booking_id: string
+              booking_ref: string
+              confirmation_token: string
+              status: string
+            }[]
+          }
       deactivate_team_member:
         | {
             Args: {
@@ -5519,6 +5562,7 @@ export type Database = {
             Args: { reason?: string; target_user_id: string }
             Returns: undefined
           }
+      expire_overdue_payment_bookings: { Args: never; Returns: number }
       fn_transition_payout: {
         Args: {
           p_action: string
@@ -5943,6 +5987,11 @@ export type Database = {
           booking_ref: string
           currency: string
           end_at: string
+          paid_at: string
+          payment_due_at: string
+          platform_fee_cents: number
+          protection_tier: string
+          protection_total_cents: number
           start_at: string
           status: string
           team_name: string
