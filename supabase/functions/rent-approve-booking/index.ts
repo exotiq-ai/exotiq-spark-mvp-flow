@@ -156,7 +156,7 @@ serve(async (req) => {
           subject: `You're approved — complete your ${vehicleShort} booking`,
           variables,
           idempotencyKey: `approve-${booking.booking_ref}`,
-          replyTo: `${operatorName} <no-reply@exotiq.ai>`,
+          replyTo: resolveRenterReplyTo(team?.support_email),
           tags: [{ name: "booking_ref", value: booking.booking_ref }, { name: "email_type", value: "payment_approved" }],
         });
         logStep("Payment-approved email sent", { bookingRef: booking.booking_ref });
