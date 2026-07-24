@@ -2,10 +2,10 @@
 // Runs every 15 minutes via pg_cron. Handles two jobs:
 //   1. Expire overdue marketplace bookings and notify renter + operator.
 //   2. Send 24-hour payment reminder to pending_payment bookings.
-// Gated by CRON_TRIGGER_TOKEN header.
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.77.0";
+
 import { sendRenterEmail } from "../_shared/rentEmail.ts";
 import {
   buildPayUrl,
