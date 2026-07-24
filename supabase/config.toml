@@ -197,3 +197,6 @@ verify_jwt = false
 
 [functions.admin-create-test-connect]
 verify_jwt = false
+
+[functions.admin-stripe-webhook-manager]
+verify_jwt = false
