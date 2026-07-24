@@ -81,29 +81,42 @@ export const PaymentTracker = () => {
     const activeHold = bookingPayments.find(p => 
       (p as any).hold_status === 'authorized' && p.stripe_payment_intent_id
     );
+
+    // Marketplace bookings owe: rental total + Exotiq fee + protection.
+    // Security deposit (M6-D3) is a hold placed at pickup, never billed as due.
+    const isMarketplace = (booking as any).booking_source === 'marketplace';
+    const marketplaceTotalDue = isMarketplace
+      ? Number(booking.total_value || 0)
+        + (Number((booking as any).platform_fee_cents || 0) + Number((booking as any).protection_total_cents || 0)) / 100
+      : Number(booking.total_value || 0);
     
     return {
       ...booking,
       vehicle,
       totalPaid,
-      amountDue: Number(booking.balance_due || 0),
+      totalDue: marketplaceTotalDue,
+      amountDue: Math.max(0, marketplaceTotalDue - totalPaid),
       depositPaid: bookingPayments.some(p => p.payment_type === 'deposit' && p.payment_status === 'completed'),
-      balancePaid: totalPaid >= Number(booking.total_value || 0),
+      balancePaid: totalPaid >= marketplaceTotalDue - 0.01,
       activeHold,
+      isMarketplace,
     };
   });
 
   const pendingPayments = bookingsWithPaymentStatus.filter(
-    b => (b.status === 'pending' || b.status === 'confirmed') && !b.balancePaid
+    b => (b.status === 'pending' || b.status === 'pending_payment' || b.status === 'confirmed') && !b.balancePaid
   );
 
   const overduePayments = pendingPayments.filter(b => {
+    // Marketplace: overdue if the payment_due_at deadline has passed.
+    const dueAt = (b as any).payment_due_at;
+    if (b.isMarketplace && dueAt) return new Date(dueAt) < new Date();
     const startDate = new Date(b.start_date);
     return startDate < new Date() && !b.depositPaid;
   });
 
-  const totalPending = pendingPayments.reduce((sum, b) => sum + (Number(b.total_value) - b.totalPaid), 0);
-  const totalOverdue = overduePayments.reduce((sum, b) => sum + (Number(b.total_value) - b.totalPaid), 0);
+  const totalPending = pendingPayments.reduce((sum, b) => sum + b.amountDue, 0);
+  const totalOverdue = overduePayments.reduce((sum, b) => sum + b.amountDue, 0);
   
   const completedPaymentsWithDates = payments
     .filter(p => p.payment_status === 'completed')
