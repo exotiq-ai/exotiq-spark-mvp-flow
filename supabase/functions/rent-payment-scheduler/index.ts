@@ -120,13 +120,8 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
-  const cronToken = Deno.env.get("CRON_TRIGGER_TOKEN");
-  const provided = req.headers.get("x-cron-token");
-  if (!cronToken || provided !== cronToken) {
-    return json({ error: "Forbidden" }, 403);
-  }
-
   try {
+
     const admin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
