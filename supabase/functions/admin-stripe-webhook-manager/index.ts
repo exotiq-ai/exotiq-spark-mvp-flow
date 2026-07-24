@@ -58,16 +58,26 @@ Deno.serve(async (req) => {
       const err = await listRes.json();
       return json({ error: "stripe_list_failed", details: err }, listRes.status);
     }
-    const list = (await listRes.json()) as { data: Array<{ id: string; url: string; secret?: string }> };
+    const list = (await listRes.json()) as { data: Array<{ id: string; url: string }> };
     const existing = list.data.find((e) => e.url === webhookUrl);
 
     if (existing) {
+      // Retrieve the endpoint details so we can return its secret.
+      const detailRes = await fetch(`https://api.stripe.com/v1/webhook_endpoints/${existing.id}`, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${stripeKey}` },
+      });
+      if (!detailRes.ok) {
+        const err = await detailRes.json();
+        return json({ error: "stripe_detail_failed", details: err }, detailRes.status);
+      }
+      const detail = await detailRes.json() as { id: string; url: string; secret: string };
       return json({
         ok: true,
         created: false,
-        endpoint_id: existing.id,
+        endpoint_id: detail.id,
         url: webhookUrl,
-        secret: existing.secret,
+        secret: detail.secret,
       });
     }
 
