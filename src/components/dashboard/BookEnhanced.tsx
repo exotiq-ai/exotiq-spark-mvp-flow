@@ -591,10 +591,29 @@ export const BookEnhanced = () => {
         confirmText="Yes, Decline"
         cancelText="Keep Booking"
         variant="destructive"
-        onConfirm={() => {
-          if (cancellingBookingId) {
-            updateBookingStatus(cancellingBookingId, 'cancelled');
-            setCancellingBookingId(null);
+        onConfirm={async () => {
+          const id = cancellingBookingId;
+          if (!id) return;
+          setCancellingBookingId(null);
+          const booking = bookings.find((b) => b.id === id);
+          const isPaid = !!(booking as any)?.paid_at;
+          const bookingRef = (booking as any)?.booking_reference || (booking as any)?.booking_ref;
+          if (isPaid && bookingRef) {
+            try {
+              const { data, error } = await supabase.functions.invoke('rent-refund-booking', {
+                body: { booking_ref: bookingRef },
+              });
+              if (error || (data && (data as any).error)) {
+                const msg = (data as any)?.error || error?.message || 'Refund failed';
+                toast.error(`Refund failed: ${msg}`);
+                return;
+              }
+              toast.success('Booking declined and refunded');
+            } catch (e: any) {
+              toast.error(`Refund failed: ${e?.message ?? 'unknown error'}`);
+            }
+          } else {
+            updateBookingStatus(id, 'cancelled');
           }
         }}
       />
