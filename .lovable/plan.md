@@ -1,64 +1,51 @@
+## Recommendation
 
-## Goal
+Best-in-class here is **inline row expansion** — not a modal, not a redirect. Financial power users (think Stripe's dashboard, QuickBooks' P&L drilldowns, Ramp's expense reports) all expand the row in place. Reasons:
 
-Populate the Exotiq team's Expenses tab with a believable, varied backlog so the Margin module looks lived-in — without tipping Operator Net negative. Everything lands in `vehicle_expenses` and is filterable/exportable through the existing Expenses tab and Per-Vehicle P&L.
+- Keeps context: user can compare the vehicle they just clicked against neighbors above/below without losing scroll position or filters.
+- No modal fatigue: the vehicle card dialog is heavy (photos, specs, timeline tabs) and answers "what is this car" — the wrong question when you're in Margin.
+- Drill-down matches the mental model: click a row → see what drove the number (bookings + expenses + payouts that summed to Operator Net).
+- The full vehicle card stays one click away as a secondary action for anyone who wants it.
 
-## Sizing (keeps the fleet healthy)
+The current behavior (jumping to Fleet, and then not even opening the card — bug in the query param: table pushes `/dashboard?module=fleet&vehicle=…` but Fleet reads route params) is the worst of both worlds.
 
-- Team: Exotiq (`c1de6533-…`), 54 active vehicles, ~$6.62M gross bookings in the trailing 6 months.
-- Target total new expenses: **~$900K–$1.05M** over the last 6 months (~14–16% of gross). Combined with existing partner payouts (~$135K net across SF90 + SVJ) this leaves Operator Net solidly positive across the fleet.
-- Existing $84K of manual expenses stays; new rows layer on top.
+## Plan
 
-## What gets seeded
+**1. Fix the broken jump first**
+`VehiclePnLTable` uses `/dashboard?module=fleet&vehicle=…`. The Fleet route is `/dashboard/fleet` and reads `?vehicle=` (see current URL). Replace the ad-hoc navigate with a correct path — but this becomes the secondary "Open in Fleet" action, not the row default.
 
-All rows use `source_module = 'margin_manual'`, `status = 'confirmed'`, `currency = 'USD'`, `created_by = null`, spread across `expense_date` between `CURRENT_DATE - 180` and `CURRENT_DATE - 3`.
+**2. Make row click expand inline**
+Row click toggles an expanded panel underneath (single-open accordion behavior; clicking another row collapses the current). Chevron affordance in the Vehicle cell so it's discoverable.
 
-Per-vehicle recurring (54 vehicles × ~6 months):
+**3. Expanded panel contents** — Margin-native, respects current filters (date range, source, location):
+- **Header strip:** vehicle name, thumbnail, quick stats (Gross / Net / Operator Net / Margin %), and two buttons: `Open in Fleet` and `Export vehicle CSV`.
+- **Bookings breakdown** (compact table): ref, dates, customer, source badge, gross, platform fee, partner payout, net contribution. Click a row → deep-link to booking (uses existing `useModuleNavigation.goToBookingDetails`).
+- **Expenses breakdown** (compact table): date, type, amount, reimbursed, source module. Click → open expense in Expenses tab.
+- **Partner payouts** (only if vehicle has a partner split): date, status chip, gross split, net to partner. Click → Payouts tab.
+- **Mini trend:** monthly Operator Net sparkline for the filtered window (reuses same data already in `useMarginData`).
 
-| Type | Cadence | Per-row range | Vendor examples |
-|---|---|---|---|
-| `insurance` | monthly | $650–$1,400 (tiered by vehicle tier: Bugatti/Pagani/Koenigsegg/Valkyrie/One high) | Chubb Masterpiece, Hagerty, PURE |
-| `storage` | monthly | $325–$650 | Miami Auto Vault, LA Private Garage |
-| `detailing` | every ~6 wks | $180–$450 | Auto Concierge, Detail Society |
-| `fuel` | 2–4×/month per vehicle w/ bookings | $80–$260 | Shell V-Power, Chevron 94 |
-| `cleaning` | 1–2×/month | $95–$180 | Onsite Detail Co. |
-| `maintenance` | ~1 per vehicle over 6mo | $850–$3,800 (higher for Ferrari/Lambo/Bugatti) | Marque Motors, Prestige Import Service |
-| `registration` | 1 per vehicle (annualized slice) | $180–$620 | FL DHSMV, CA DMV |
-| `tax` | quarterly personal property | $420–$1,100 | Miami-Dade Tax Collector |
+**4. Data source**
+No new fetches. Everything needed is already loaded by `useMarginData` (bookings, expenses, payouts for the filtered window). Filtering to a single `vehicle_id` is a client-side slice.
 
-Occasional / event-driven (sprinkled, not per-vehicle):
+**5. Mobile**
+On mobile, expanded panel stacks vertically; sub-tables become card lists (same pattern used elsewhere in Margin). Row height stays tap-friendly; chevron rotates on open.
 
-- `transport` × ~14 rows, $650–$2,400 (Reliable Carriers, Intercity Lines)
-- `parking` × ~30 rows, $45–$220 (event valet, show parking)
-- `toll` × ~40 rows, $12–$65 (SunPass, FasTrak)
-- `damage` × 4 rows, $1,200–$4,800 (curb rash, stone chip PPF) — a couple flagged `is_reimbursable = true` with partial `reimbursed_amount`
-- `processing_fee` × ~6 rows, $85–$340 (Stripe fees for off-platform card use)
+**6. Empty states**
+If a section has no rows (e.g., vehicle has bookings but no expenses this period), render a subtle "No expenses in this period" line rather than hiding — so users trust the drilldown is complete.
 
-Tenant overhead (`vehicle_id = null`), shows up in the Tenant Overhead card:
+## Technical Details
 
-- `overhead` — monthly office/software: $1,850 (rent split), $420 (software stack), $780 (marketing) → ~18 rows total
-- `insurance` overhead-level umbrella policy: $2,400/mo × 6 → 6 rows
-- `tax` — one $9,500 quarterly filing
-
-## Distribution rules
-
-- Weight fuel/cleaning toward vehicles that actually had confirmed/completed bookings in that month (join `bookings` per vehicle_id/month) so per-vehicle P&L looks correlated with usage.
-- Cap per-vehicle 6-month expense total at ~55% of that vehicle's gross so no single P&L row goes negative.
-- Skew vendors + dates with `random()` seeded via `setseed(0.42)` for a stable but natural-looking spread.
-- Notes column filled with one-line context ("Post-rental detail — BK-01234 return", "Q2 personal property filing", "Track day fuel top-off") on ~60% of rows.
-
-## Execution
-
-Single insert-tool call: one `INSERT INTO vehicle_expenses (…) SELECT …` composed of a handful of `UNION ALL` CTEs (one per pattern above). Idempotency: prefix every `notes` value with `[seed:2026-07-24]` and pre-check + delete any prior rows with that marker before insert so re-runs are safe.
-
-## Verification (after insert)
-
-- `SELECT expense_type, count(*), sum(amount) FROM vehicle_expenses WHERE team_id=… AND expense_date >= CURRENT_DATE - 180 GROUP BY 1` — confirm mix + totals in target band.
-- Open `/dashboard/margin` → Expenses tab: rows visible, filter by type works, Tenant Overhead card shows non-empty breakdown.
-- Per-Vehicle P&L: no vehicle flips to negative Operator Net; Margin Overview stays positive.
+- **File touched:** `src/components/margin/VehiclePnLTable.tsx` (row → button + expanded `<TableRow>` beneath).
+- **New component:** `src/components/margin/VehiclePnLRowDetail.tsx` — takes `vehicleId` + slices of `bookings/expenses/payouts` already in context, plus vehicle name/thumbnail.
+- **Navigation:**
+  - Booking rows → `useModuleNavigation().goToBookingDetails(id)`.
+  - "Open in Fleet" → `moduleIdToPath('fleet', { vehicle: id })` (fixes the current broken URL).
+  - Expense row → `moduleIdToPath('margin', { tab: 'expenses', expenseId })` (Margin tab switcher already keyed by `tab` state; wire a small effect to read it).
+- **State:** single `expandedVehicleId` in `VehiclePnLTable`; row click toggles.
+- **Accessibility:** row becomes `<button>`-role with `aria-expanded` / `aria-controls`; keyboard Enter/Space toggles.
+- **No backend changes. No new queries. No RLS impact.**
 
 ## Out of scope
 
-- No schema changes, no new tables, no code changes.
-- No touching partner_payouts, bookings, or the SF90/SVJ cleanup already done.
-- Other tenants untouched (all writes scoped to Exotiq team_id).
+- Vehicle profitability trend beyond the current filter window (would need a separate query).
+- Editing expenses/payouts inline (kept as navigation to their canonical tabs).
