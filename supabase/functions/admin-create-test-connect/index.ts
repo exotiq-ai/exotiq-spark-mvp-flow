@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
     if (userErr || !userData?.user) return json({ error: "unauthorized" }, 401);
 
     const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-    const { data: isSuper } = await db.rpc("is_super_admin", { _user_id: userData.user.id });
+    const { data: isSuper } = await db.rpc("is_super_admin", { check_user_id: userData.user.id });
     if (!isSuper) return json({ error: "forbidden — super admin only" }, 403);
 
     const body = await req.json().catch(() => ({}));
