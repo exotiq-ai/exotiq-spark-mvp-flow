@@ -1012,7 +1012,7 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     // instead of just updating its color — otherwise Google keeps showing the timeslot as booked.
     const booking = bookings.find(b => b.id === bookingId);
     if (booking?.team_id) {
-      const removeStatuses = ['cancelled', 'declined', 'no_show'];
+      const removeStatuses = ['cancelled', 'declined', 'no_show', 'refunded'];
       const nextStatus = (updates as any).status as string | undefined;
       const action = nextStatus && removeStatuses.includes(nextStatus) ? "delete" : "update";
       syncBookingToGCal(action, bookingId, booking.team_id);
