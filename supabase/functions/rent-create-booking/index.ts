@@ -1,3 +1,9 @@
+// M5 + M6b: renter booking creation with fee/protection snapshot.
+// M6b changes (docs/rent/M6_MONEY_PLAN.md): persists protection_tier,
+// platform_fee_cents, protection_total_cents so rent-checkout charges from
+// the booking, and strips deposit_cents out of total_value (the 2026-07-22
+// quote update rolled the deposit into operator_total_cents).
+// Original M5 header follows.
 // M5: renter booking creation (goal brief M5; marketplace handoff gap #1).
 // Ref: exotiq-rent docs/rent/RENTER_APP_GOAL.md; DECISIONS D2/D3/D4/D6.
 //
@@ -131,8 +137,16 @@ serve(async (req) => {
       _customer_email: email,
       _customer_phone: phone,
       _daily_rate: Number(quote.daily_rate_cents) / 100,
-      _total_value: Number(quote.operator_total_cents) / 100,
+      // M6b: operator_total_cents has included deposit_cents since the
+      // 2026-07-22 quote update — total_value must be CHARGES only (the
+      // deposit is an authorization at pickup, never part of the rental
+      // charge). Subtract it defensively (older quote shape lacks the field).
+      _total_value: (Number(quote.operator_total_cents) - Number(quote.deposit_cents ?? 0)) / 100,
       _initial_status: initialStatus,
+      // M6b fee snapshot: what rent-checkout charges as the Exotiq leg.
+      _protection_tier: protection,
+      _platform_fee_cents: Math.round(Number(quote.platform_fee_cents)),
+      _protection_total_cents: Math.round(Number(quote.protection_total_cents)),
     });
 
     if (createError) {
