@@ -1,0 +1,1 @@
+UPDATE public.bookings SET status='pending_payment', payment_due_at=now() + interval '24 hours' WHERE booking_ref='BK-03447';

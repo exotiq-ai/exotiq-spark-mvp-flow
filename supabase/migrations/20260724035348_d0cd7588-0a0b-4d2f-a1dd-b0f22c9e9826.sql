@@ -1,0 +1,1 @@
+UPDATE public.teams SET stripe_test_account_id = 'acct_1TwYk2HpKoA2ZJg1' WHERE id = 'c1de6533-ab44-4973-a123-007a8007b5ba';
