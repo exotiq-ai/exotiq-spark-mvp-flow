@@ -6,7 +6,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.77.0";
 
-import { sendRenterEmail } from "../_shared/rentEmail.ts";
+import { sendRenterEmail, resolveRenterReplyTo } from "../_shared/rentEmail.ts";
 import {
   buildPayUrl,
   buildStorefrontUrl,
@@ -58,12 +58,13 @@ interface TeamContext {
   name: string;
   currency: string;
   timezone: string;
+  support_email: string | null;
 }
 
 async function getTeamContext(db: SupabaseClient, teamId: string): Promise<TeamContext | null> {
   const { data } = await db
     .from("teams")
-    .select("id, slug, name, currency, timezone")
+    .select("id, slug, name, currency, timezone, support_email")
     .eq("id", teamId)
     .single();
   return data ?? null;
@@ -160,7 +161,7 @@ serve(async (req) => {
             subject: `The payment window closed — booking ${booking.booking_ref}`,
             variables: vars,
             idempotencyKey: `expired-renter-${booking.booking_ref}`,
-            replyTo: `${team.name} <no-reply@exotiq.ai>`,
+            replyTo: resolveRenterReplyTo(team.support_email),
             tags: [{ name: "booking_ref", value: booking.booking_ref }, { name: "email_type", value: "payment_expired_renter" }],
           });
         } catch (emailError) {
@@ -249,7 +250,7 @@ serve(async (req) => {
           subject: `24 hours left to lock in your ${vehicleShort}`,
           variables,
           idempotencyKey: `reminder-${booking.booking_ref}`,
-          replyTo: `${team.name} <no-reply@exotiq.ai>`,
+          replyTo: resolveRenterReplyTo(team.support_email),
           tags: [{ name: "booking_ref", value: booking.booking_ref }, { name: "email_type", value: "payment_reminder" }],
         });
         await admin

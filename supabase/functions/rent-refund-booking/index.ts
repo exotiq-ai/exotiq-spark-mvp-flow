@@ -183,7 +183,7 @@ serve(async (req) => {
             VEHICLE_URL: vehicleUrl,
           },
           idempotencyKey: `refund-op-${bookingRef}`,
-          replyTo: `${team?.name ?? "Operator"} <no-reply@exotiq.ai>`,
+          replyTo: Deno.env.get("RENTER_EMAIL_REPLY_TO") ?? "support@exotiq.ai",
           tags: [{ name: "booking_ref", value: bookingRef }, { name: "email_type", value: "refund_confirmation" }],
         });
         logStep("Refund confirmation email sent", { bookingRef });

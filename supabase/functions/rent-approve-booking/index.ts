@@ -7,7 +7,7 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.77.0";
-import { sendRenterEmail } from "../_shared/rentEmail.ts";
+import { sendRenterEmail, resolveRenterReplyTo } from "../_shared/rentEmail.ts";
 import {
   buildPayUrl,
   computePaymentDueAt,
@@ -112,7 +112,7 @@ serve(async (req) => {
     if (isMarketplace && booking.customer_email) {
       const { data: team } = await admin
         .from("teams")
-        .select("id, slug, name, currency, timezone")
+        .select("id, slug, name, currency, timezone, support_email")
         .eq("id", booking.team_id)
         .single();
       const { data: vehicle } = await admin
@@ -156,7 +156,7 @@ serve(async (req) => {
           subject: `You're approved — complete your ${vehicleShort} booking`,
           variables,
           idempotencyKey: `approve-${booking.booking_ref}`,
-          replyTo: `${operatorName} <no-reply@exotiq.ai>`,
+          replyTo: resolveRenterReplyTo(team?.support_email),
           tags: [{ name: "booking_ref", value: booking.booking_ref }, { name: "email_type", value: "payment_approved" }],
         });
         logStep("Payment-approved email sent", { bookingRef: booking.booking_ref });

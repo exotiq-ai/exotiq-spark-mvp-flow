@@ -20,7 +20,7 @@ import {
   getCountryDefaults,
 } from "@/lib/countryDefaults";
 import { formatMoney } from "@/lib/format";
-import { Globe, Building2, Receipt, Save } from "lucide-react";
+import { Globe, Building2, Receipt, Save, Mail } from "lucide-react";
 
 interface BusinessAddress {
   line1?: string;
@@ -47,6 +47,7 @@ export const BusinessProfileSection = () => {
   const [taxInclusive, setTaxInclusive] = useState(false);
   const [vatNumber, setVatNumber] = useState("");
   const [address, setAddress] = useState<BusinessAddress>({});
+  const [supportEmail, setSupportEmail] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -60,6 +61,7 @@ export const BusinessProfileSection = () => {
     setTaxInclusive(!!currentTeam.tax_inclusive);
     setVatNumber(currentTeam.vat_number || "");
     setAddress((currentTeam.business_address as BusinessAddress) || {});
+    setSupportEmail(((currentTeam as any).support_email as string) || "");
   }, [currentTeam]);
 
 
@@ -99,6 +101,19 @@ export const BusinessProfileSection = () => {
       return;
     }
 
+    const trimmedSupport = supportEmail.trim();
+    if (trimmedSupport) {
+      const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedSupport) && trimmedSupport.length <= 255;
+      if (!emailOk) {
+        toast({
+          title: "Invalid support email",
+          description: "Enter a valid email address, or leave blank to use Exotiq support.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       // Rename via RPC (handles slug regen when safe)
@@ -131,6 +146,7 @@ export const BusinessProfileSection = () => {
           tax_inclusive: taxInclusive,
           vat_number: vatNumber.trim() || null,
           business_address: address as any,
+          support_email: trimmedSupport || null,
         } as any)
         .eq("id", currentTeam.id);
 
@@ -362,6 +378,30 @@ export const BusinessProfileSection = () => {
               }
             />
           </div>
+        </div>
+      </Card>
+
+      {/* Support email — Reply-To for renter booking emails */}
+      <Card className="p-6 space-y-5">
+        <div className="flex items-center gap-2">
+          <Mail className="h-5 w-5 text-muted-foreground" />
+          <h3 className="text-lg font-semibold">Support email</h3>
+        </div>
+        <p className="text-sm text-muted-foreground -mt-2">
+          Where renter replies to booking emails go. Leave blank to use Exotiq
+          support. Booking emails are always sent from{" "}
+          <span className="font-mono">bookings@exotiq.rent</span>; only the
+          reply address changes.
+        </p>
+        <div className="space-y-2">
+          <Label>Support email</Label>
+          <Input
+            type="email"
+            value={supportEmail}
+            onChange={(e) => setSupportEmail(e.target.value)}
+            placeholder="support@yourcompany.com"
+            maxLength={255}
+          />
         </div>
       </Card>
 

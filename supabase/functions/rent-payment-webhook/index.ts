@@ -22,7 +22,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.77.0";
 import { resolveStripeMode } from "../_shared/stripeMode.ts";
-import { sendRenterEmail } from "../_shared/rentEmail.ts";
+import { sendRenterEmail, resolveRenterReplyTo } from "../_shared/rentEmail.ts";
 import {
   buildPayUrl,
   formatCurrency,
@@ -79,7 +79,7 @@ async function confirmIfFullyPaid(db: ReturnType<typeof admin>, bookingRef: stri
     try {
       const { data: team } = await db
         .from("teams")
-        .select("slug, name, currency, timezone")
+        .select("slug, name, currency, timezone, support_email")
         .eq("id", booking.team_id)
         .single();
       const { data: vehicle } = await db
@@ -121,7 +121,7 @@ async function confirmIfFullyPaid(db: ReturnType<typeof admin>, bookingRef: stri
             VEHICLE_URL: vehicleUrl,
           },
           idempotencyKey: `receipt-${bookingRef}`,
-          replyTo: `${team?.name ?? "Operator"} <no-reply@exotiq.ai>`,
+          replyTo: resolveRenterReplyTo(team?.support_email),
           tags: [{ name: "booking_ref", value: bookingRef }, { name: "email_type", value: "receipt_confirmed" }],
         });
       logStep("Receipt email sent", { bookingRef });
