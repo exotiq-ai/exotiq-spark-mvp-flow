@@ -38,11 +38,11 @@ const marginTone = (pct: number, hasCosts: boolean) => {
 
 export function VehiclePnLTable() {
   const { currentTeam } = useTeam();
-  const navigate = useNavigate();
   const { bookings, expenses, payouts, loading } = useMarginData();
   const [vehicleNames, setVehicleNames] = useState<Record<string, string>>({});
   const [sortKey, setSortKey] = useState<SortKey>("operator_net");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!currentTeam?.id) return;
