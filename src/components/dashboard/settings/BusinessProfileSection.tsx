@@ -381,7 +381,30 @@ export const BusinessProfileSection = () => {
         </div>
       </Card>
 
-      <div className="flex justify-end">
+      {/* Support email — Reply-To for renter booking emails */}
+      <Card className="p-6 space-y-5">
+        <div className="flex items-center gap-2">
+          <Mail className="h-5 w-5 text-muted-foreground" />
+          <h3 className="text-lg font-semibold">Support email</h3>
+        </div>
+        <p className="text-sm text-muted-foreground -mt-2">
+          Where renter replies to booking emails go. Leave blank to use Exotiq
+          support. Booking emails are always sent from{" "}
+          <span className="font-mono">bookings@exotiq.rent</span>; only the
+          reply address changes.
+        </p>
+        <div className="space-y-2">
+          <Label>Support email</Label>
+          <Input
+            type="email"
+            value={supportEmail}
+            onChange={(e) => setSupportEmail(e.target.value)}
+            placeholder="support@yourcompany.com"
+            maxLength={255}
+          />
+        </div>
+      </Card>
+
         <Button onClick={handleSave} disabled={saving} className="gap-2">
           <Save className="h-4 w-4" />
           {saving ? "Saving…" : "Save business profile"}
