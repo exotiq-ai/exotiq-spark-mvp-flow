@@ -405,6 +405,7 @@ export const BusinessProfileSection = () => {
         </div>
       </Card>
 
+      <div className="flex justify-end">
         <Button onClick={handleSave} disabled={saving} className="gap-2">
           <Save className="h-4 w-4" />
           {saving ? "Saving…" : "Save business profile"}
