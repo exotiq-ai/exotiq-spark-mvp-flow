@@ -1,14 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTeam } from "@/contexts/TeamContext";
-import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Download, ArrowUpDown } from "lucide-react";
+import { Download, ArrowUpDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toCsv, downloadCsv, formatCurrency, formatPercent } from "@/lib/marginCsv";
 import { useMarginData, countsForRevenue } from "./useMarginData";
+import { VehiclePnLRowDetail } from "./VehiclePnLRowDetail";
 
 interface Row {
   vehicle_id: string;
@@ -38,11 +38,11 @@ const marginTone = (pct: number, hasCosts: boolean) => {
 
 export function VehiclePnLTable() {
   const { currentTeam } = useTeam();
-  const navigate = useNavigate();
   const { bookings, expenses, payouts, loading } = useMarginData();
   const [vehicleNames, setVehicleNames] = useState<Record<string, string>>({});
   const [sortKey, setSortKey] = useState<SortKey>("operator_net");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!currentTeam?.id) return;
@@ -147,7 +147,7 @@ export function VehiclePnLTable() {
         <div>
           <CardTitle className="text-base">Per-Vehicle P&L</CardTitle>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Ranked by Operator Net. Click a row to open the vehicle.
+            Ranked by Operator Net. Click a row to see the bookings, expenses, and payouts behind the number.
           </p>
         </div>
         <Button size="sm" variant="outline" onClick={handleExport} disabled={!rows.length}>
@@ -178,22 +178,44 @@ export function VehiclePnLTable() {
               ) : (
                 rows.map((r) => {
                   const hasCosts = r.expenses + r.payouts + r.fees > 0;
+                  const isOpen = expandedId === r.vehicle_id;
                   return (
-                    <TableRow
-                      key={r.vehicle_id}
-                      className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => navigate(`/dashboard?module=fleet&vehicle=${r.vehicle_id}`)}
-                    >
-                      <TableCell className="font-medium">{r.vehicle_name}</TableCell>
-                      <TableCell className="text-right tabular-nums">{r.bookings}</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatCurrency(r.gross)}</TableCell>
-                      <TableCell className="text-right tabular-nums text-muted-foreground">{zeroOr(r.fees, formatCurrency(r.fees))}</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatCurrency(r.net)}</TableCell>
-                      <TableCell className="text-right tabular-nums text-muted-foreground">{zeroOr(r.expenses, formatCurrency(r.expenses))}</TableCell>
-                      <TableCell className="text-right tabular-nums text-muted-foreground">{zeroOr(r.payouts, formatCurrency(r.payouts))}</TableCell>
-                      <TableCell className={cn("text-right tabular-nums font-semibold border-l border-border/60", r.operator_net < 0 && "text-destructive")}>{formatCurrency(r.operator_net)}</TableCell>
-                      <TableCell className={cn("text-right tabular-nums font-medium", marginTone(r.margin_pct, hasCosts))}>{formatPercent(r.margin_pct)}</TableCell>
-                    </TableRow>
+                    <Fragment key={r.vehicle_id}>
+                      <TableRow
+                        className={cn("cursor-pointer hover:bg-muted/50", isOpen && "bg-muted/40")}
+                        onClick={() => setExpandedId(isOpen ? null : r.vehicle_id)}
+                        aria-expanded={isOpen}
+                      >
+                        <TableCell className="font-medium">
+                          <span className="inline-flex items-center gap-1.5">
+                            <ChevronRight className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform", isOpen && "rotate-90")} />
+                            {r.vehicle_name}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">{r.bookings}</TableCell>
+                        <TableCell className="text-right tabular-nums">{formatCurrency(r.gross)}</TableCell>
+                        <TableCell className="text-right tabular-nums text-muted-foreground">{zeroOr(r.fees, formatCurrency(r.fees))}</TableCell>
+                        <TableCell className="text-right tabular-nums">{formatCurrency(r.net)}</TableCell>
+                        <TableCell className="text-right tabular-nums text-muted-foreground">{zeroOr(r.expenses, formatCurrency(r.expenses))}</TableCell>
+                        <TableCell className="text-right tabular-nums text-muted-foreground">{zeroOr(r.payouts, formatCurrency(r.payouts))}</TableCell>
+                        <TableCell className={cn("text-right tabular-nums font-semibold border-l border-border/60", r.operator_net < 0 && "text-destructive")}>{formatCurrency(r.operator_net)}</TableCell>
+                        <TableCell className={cn("text-right tabular-nums font-medium", marginTone(r.margin_pct, hasCosts))}>{formatPercent(r.margin_pct)}</TableCell>
+                      </TableRow>
+                      {isOpen && (
+                        <TableRow key={`${r.vehicle_id}-detail`} className="hover:bg-transparent">
+                          <TableCell colSpan={9} className="p-0">
+                            <VehiclePnLRowDetail
+                              vehicleId={r.vehicle_id}
+                              vehicleName={r.vehicle_name}
+                              bookings={bookings}
+                              expenses={expenses}
+                              payouts={payouts}
+                              totals={{ gross: r.gross, net: r.net, operator_net: r.operator_net, margin_pct: r.margin_pct }}
+                            />
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </Fragment>
                   );
                 })
               )}
