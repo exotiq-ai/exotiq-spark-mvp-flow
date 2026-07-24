@@ -250,6 +250,7 @@ serve(async (req) => {
             .update({ exotiq_payment_intent_id: exotiqPi.id })
             .eq("booking_ref", bookingRef);
           if (exotiqPi.status === "succeeded") {
+            await mirrorPayment(db, bookingRef, "fee", exotiqPi.id, exotiqCents / 100, new Date().toISOString());
             await confirmIfFullyPaid(db, bookingRef, mode);
           }
           // Non-terminal PI statuses resolve via payment_intent.succeeded.
