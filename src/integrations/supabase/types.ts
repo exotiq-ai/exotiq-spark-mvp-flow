@@ -244,7 +244,10 @@ export type Database = {
           mileage_overage_fee: number | null
           notes: string | null
           operator_payment_intent_id: string | null
+          paid_at: string | null
+          payment_due_at: string | null
           payment_status: string | null
+          payment_stripe_mode: string | null
           pickup_fuel_level: number | null
           pickup_location: string
           pickup_location_id: string | null
@@ -309,7 +312,10 @@ export type Database = {
           mileage_overage_fee?: number | null
           notes?: string | null
           operator_payment_intent_id?: string | null
+          paid_at?: string | null
+          payment_due_at?: string | null
           payment_status?: string | null
+          payment_stripe_mode?: string | null
           pickup_fuel_level?: number | null
           pickup_location: string
           pickup_location_id?: string | null
@@ -374,7 +380,10 @@ export type Database = {
           mileage_overage_fee?: number | null
           notes?: string | null
           operator_payment_intent_id?: string | null
+          paid_at?: string | null
+          payment_due_at?: string | null
           payment_status?: string | null
+          payment_stripe_mode?: string | null
           pickup_fuel_level?: number | null
           pickup_location?: string
           pickup_location_id?: string | null
@@ -3515,6 +3524,7 @@ export type Database = {
           stripe_charges_enabled: boolean
           stripe_onboarding_complete: boolean
           stripe_payouts_enabled: boolean
+          stripe_test_account_id: string | null
           tax_inclusive: boolean
           tax_label: string
           tax_rate_percent: number
@@ -3578,6 +3588,7 @@ export type Database = {
           stripe_charges_enabled?: boolean
           stripe_onboarding_complete?: boolean
           stripe_payouts_enabled?: boolean
+          stripe_test_account_id?: string | null
           tax_inclusive?: boolean
           tax_label?: string
           tax_rate_percent?: number
@@ -3641,6 +3652,7 @@ export type Database = {
           stripe_charges_enabled?: boolean
           stripe_onboarding_complete?: boolean
           stripe_payouts_enabled?: boolean
+          stripe_test_account_id?: string | null
           tax_inclusive?: boolean
           tax_label?: string
           tax_rate_percent?: number
@@ -5519,6 +5531,7 @@ export type Database = {
             Args: { reason?: string; target_user_id: string }
             Returns: undefined
           }
+      expire_overdue_payment_bookings: { Args: never; Returns: number }
       fn_transition_payout: {
         Args: {
           p_action: string
