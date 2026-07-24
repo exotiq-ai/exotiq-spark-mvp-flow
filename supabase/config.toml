@@ -200,3 +200,9 @@ verify_jwt = false
 
 [functions.admin-stripe-webhook-manager]
 verify_jwt = false
+
+[functions.rent-cancel-booking]
+verify_jwt = false
+
+[functions.rent-refund-booking]
+verify_jwt = true
