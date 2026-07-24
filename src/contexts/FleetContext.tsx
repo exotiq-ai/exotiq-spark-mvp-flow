@@ -946,6 +946,27 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
   const updateBookingStatus = async (bookingId: string, status: Booking['status']) => {
     if (!user) return;
 
+    const booking = bookings.find(b => b.id === bookingId);
+    const isMarketplaceApproval = booking?.booking_source === 'marketplace' &&
+      booking.status === 'pending' &&
+      status === 'confirmed';
+
+    if (isMarketplaceApproval) {
+      // M6d: marketplace requests require the renter to pay before they are confirmed.
+      // The Edge Function handles status -> pending_payment, payment_due_at, and email.
+      const { data, error } = await supabase.functions.invoke('rent-approve-booking', {
+        body: { booking_id: bookingId },
+      });
+      if (error) {
+        const message = error instanceof Error ? error.message : "Approval failed";
+        toast({ title: "Approval Failed", description: message, variant: "destructive" });
+        return;
+      }
+      toast({ title: "Booking Approved", description: "Renter has been sent a payment link." });
+      refreshBookings();
+      return;
+    }
+
     const updates: Partial<Booking> = { status };
     if (status === 'confirmed') {
       updates.confirmed_at = new Date().toISOString();
@@ -966,11 +987,11 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     toast({ title: "Booking Updated", description: `Booking status changed to ${status}.` });
 
     // Fire-and-forget Google Calendar sync
-    const booking = bookings.find(b => b.id === bookingId);
     if (booking?.team_id) {
       syncBookingToGCal(status === "cancelled" ? "delete" : "update", bookingId, booking.team_id);
     }
   };
+
 
   const updateBookingVehicle = async (bookingId: string, newVehicleId: string) => {
     if (!user) return;
