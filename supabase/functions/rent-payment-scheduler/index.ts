@@ -58,12 +58,13 @@ interface TeamContext {
   name: string;
   currency: string;
   timezone: string;
+  support_email: string | null;
 }
 
 async function getTeamContext(db: SupabaseClient, teamId: string): Promise<TeamContext | null> {
   const { data } = await db
     .from("teams")
-    .select("id, slug, name, currency, timezone")
+    .select("id, slug, name, currency, timezone, support_email")
     .eq("id", teamId)
     .single();
   return data ?? null;
