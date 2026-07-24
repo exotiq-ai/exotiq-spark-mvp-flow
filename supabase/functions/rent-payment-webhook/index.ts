@@ -121,7 +121,7 @@ async function confirmIfFullyPaid(db: ReturnType<typeof admin>, bookingRef: stri
             VEHICLE_URL: vehicleUrl,
           },
           idempotencyKey: `receipt-${bookingRef}`,
-          replyTo: `${team?.name ?? "Operator"} <no-reply@exotiq.ai>`,
+          replyTo: resolveRenterReplyTo(team?.support_email),
           tags: [{ name: "booking_ref", value: bookingRef }, { name: "email_type", value: "receipt_confirmed" }],
         });
       logStep("Receipt email sent", { bookingRef });
