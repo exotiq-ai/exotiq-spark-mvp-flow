@@ -180,7 +180,7 @@ export function VehiclePnLTable() {
                   const hasCosts = r.expenses + r.payouts + r.fees > 0;
                   const isOpen = expandedId === r.vehicle_id;
                   return (
-                    <FragmentWithKey key={r.vehicle_id}>
+                    <Fragment key={r.vehicle_id}>
                       <TableRow
                         className={cn("cursor-pointer hover:bg-muted/50", isOpen && "bg-muted/40")}
                         onClick={() => setExpandedId(isOpen ? null : r.vehicle_id)}
