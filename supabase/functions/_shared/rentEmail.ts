@@ -46,3 +46,14 @@ export async function sendRenterEmail(
   }
   return json as { message_id?: string | null };
 }
+
+/**
+ * Resolve the tenant-specific renter Reply-To.
+ * Order: team.support_email → RENTER_EMAIL_REPLY_TO env → support@exotiq.ai.
+ * Never returns a no-reply address (breaks the whole point of Reply-To).
+ */
+export function resolveRenterReplyTo(teamSupportEmail?: string | null): string {
+  const trimmed = teamSupportEmail?.trim();
+  if (trimmed) return trimmed;
+  return Deno.env.get("RENTER_EMAIL_REPLY_TO") ?? "support@exotiq.ai";
+}
