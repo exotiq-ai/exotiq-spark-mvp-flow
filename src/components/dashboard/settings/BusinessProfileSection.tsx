@@ -146,6 +146,7 @@ export const BusinessProfileSection = () => {
           tax_inclusive: taxInclusive,
           vat_number: vatNumber.trim() || null,
           business_address: address as any,
+          support_email: trimmedSupport || null,
         } as any)
         .eq("id", currentTeam.id);
 
