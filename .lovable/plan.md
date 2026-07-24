@@ -1,40 +1,42 @@
-## M6c — Refunds & Cancellation
 
-Two new edge functions plus Command Center wiring. No migration needed (statuses `cancelled`/`refunded` and PI columns already exist from M6a/b). Test mode only.
+## Root cause
 
-### 1. Deploy edge functions (from uploaded files)
+The Ferrari SF90 Stradale (partnered to Velocity Capital Partners on the Exotiq team) has `vehicles.split_value = 1500` with `split_type = 'percentage'` — a 1500% split. Every completed booking generated a pending payout inflated by ~37×, producing 15 pending payouts totaling **$1,622,430** on top of a legitimate $159K gross base. That single row is what's wrecking Margin.
 
-- `supabase/functions/rent-cancel-booking/index.ts` — from `user-uploads://index-5.ts` (identical to index-6). Anonymous, token-gated renter self-serve cancel. ≥72h → full refund both legs (rental with `reverse_transfer`, Exotiq plain) → `refunded`; unpaid → `cancelled`. <72h → requires `acknowledge_forfeit: true` else 409 `forfeit_ack_required`; with ack → `cancelled`, no refunds. Idempotent per leg. Rate-limited (10/hr/IP). Partial-refund failure → keeps status, logs `renter_cancel_refund_failed`.
-- `supabase/functions/rent-refund-booking/index.ts` — from `user-uploads://index-4.ts`. Authenticated operator/CC full refund. Verifies caller is active member of booking's team. Refunds both legs → `refunded`.
+The Aventador SVJ on the same partner is correctly configured (40%, ~$64K pending across 15 bookings) and needs no math fix.
 
-Both use existing `_shared/stripeMode.ts` (already present).
+## Current Velocity payout state
 
-### 2. `supabase/config.toml` additions
+| Vehicle | Paid | Pending |
+|---|---|---|
+| SF90 Stradale | 0 rows | 15 rows / $1,622,430 (bugged) |
+| Aventador SVJ | 2 rows / $15,000 | 15 rows / $64,076 |
 
-```toml
-[functions.rent-cancel-booking]
-verify_jwt = false
+## Cleanup plan (all data-only, no schema)
 
-[functions.rent-refund-booking]
-verify_jwt = true
-```
+1. **Fix the split.** Update `vehicles.split_value` for the SF90 from `1500` → `40` (matches the SVJ, sensible operator/partner split). Done via the insert tool.
+2. **Recompute SF90 pending payouts.** Call `fn_transition_payout(id, 'recompute')` on each of the 15 pending SF90 rows so `net_to_partner`, `net_after_fee`, and `gross_rental_base` refresh from the booking using the corrected split. This uses the existing state machine — no bypass.
+3. **Trim the pending backlog for a "healthy" demo look.** After recompute:
+   - Mark the **oldest ~10 SF90 pending payouts** (Jan–Jun 2026 completed bookings) as `paid` via `fn_transition_payout(..., 'mark_paid', paid_at=end_date+3d, method='ach', reference='DEMO-…')`.
+   - Do the same for the **oldest ~10 SVJ pending payouts**.
+   - This leaves ~5 pending per vehicle (recent completed bookings, i.e. July–Nov 2026) — realistic AR without a wall of open items.
+4. **Leave a couple of demo-friendly flags.**
+   - Keep 1 SF90 pending row with `reconcile_flag = true` and a note like "Booking total edited after payout generated — review" so the amber `AlertTriangle` renders in `PartnerPayoutsTab` and gives you something to talk about.
+   - Leave the existing 2 SVJ `paid` rows and Void 1 SVJ pending row (with `void_reason = 'Booking cancelled by renter — demo'`) so the Voided bucket isn't empty in the statement drawer.
+5. **Verify.** Re-query `partner_payouts` grouped by vehicle/status and confirm:
+   - No net_to_partner row exceeds `gross_rental_base` after fee.
+   - Outstanding for Velocity lands in a believable range (~$40–70K across both vehicles).
+   - `MarginOverview` Operator Net returns to a positive/near-flat number on the Exotiq team.
 
-### 3. Command Center wiring — `src/components/dashboard/BookEnhanced.tsx` decline dialog
+## Out of scope
 
-Currently `onConfirm` calls `updateBookingStatus(id, 'cancelled')` unconditionally. Change to:
+- No code changes. All work is DB updates + SECURITY DEFINER function calls already in prod.
+- Other tenants and other Exotiq vehicles are untouched.
+- No booking edits — only payouts and the one vehicle split field.
 
-- Look up the booking; if `paid_at` is set (paid marketplace booking), invoke `rent-refund-booking` with `{ booking_ref }` — the function refunds both legs and flips status to `refunded`. On success, show toast "Booking declined and refunded"; refresh bookings.
-- If unpaid, keep existing `updateBookingStatus(id, 'cancelled')` path (rename button context to "Decline" as today).
-- On refund failure, surface the returned error (e.g. `renter_cancel_refund_failed`) via toast and leave status untouched.
+## Technical notes
 
-No new "Refund booking" button in this pass — the decline-after-payment auto-refund is the M6-D5 requirement. A standalone manual refund action can follow if you want it.
-
-### 4. Verify
-
-Deploy → confirm both functions respond (call `rent-refund-booking` without auth → 401; call `rent-cancel-booking` with bad token → 4xx, not "function not found"). Then run the 6-step gate from the README against a paid test booking (BK-03447 flow) in Stripe test mode.
-
-### Notes / flags
-
-- `bookingStatus.ts` already renders `cancelled` and `refunded` (verified: `CANCELLED_STATUSES` includes both). No copy changes needed.
-- `FleetContext` already removes GCal events for `cancelled`/`declined`/`no_show`; add `refunded` to that list so refunded bookings also clear from Google Calendar (small addition, same file).
-- Uploaded `index-5.ts` and `index-6.ts` are byte-identical — using index-5 as canonical source.
+- Step 1 uses the insert tool (`UPDATE vehicles SET split_value=40 …`).
+- Steps 2–4 use `SELECT fn_transition_payout(id, action, …)` batches via the insert tool since they mutate rows.
+- Reconcile flag in step 4 is a direct `UPDATE partner_payouts SET reconcile_flag=true, reconcile_note='…'` — matches how the trigger sets it.
+- Nothing here touches `bookings`, so booking history / calendar / CRM stay identical.
