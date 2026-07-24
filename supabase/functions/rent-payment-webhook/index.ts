@@ -170,11 +170,29 @@ serve(async (req) => {
         if (!operatorPi) break;
 
         logStep("Rental paid", { bookingRef, operatorPi });
+        const nowIso = new Date().toISOString();
         await db
           .from("bookings")
           .update({ operator_payment_intent_id: operatorPi, payment_stripe_mode: mode })
           .eq("booking_ref", bookingRef)
           .eq("status", "pending_payment");
+
+        // Mirror the rental leg into the payments ledger (idempotent on PI id).
+        const { data: rentalBooking } = await db
+          .from("bookings")
+          .select("total_value, paid_at")
+          .eq("booking_ref", bookingRef)
+          .maybeSingle();
+        if (rentalBooking) {
+          await mirrorPayment(
+            db,
+            bookingRef,
+            "rental",
+            operatorPi,
+            Number(rentalBooking.total_value ?? 0),
+            rentalBooking.paid_at ?? nowIso,
+          );
+        }
 
         // Second leg: the Exotiq portion, off-session on the platform, using
         // the payment method the Checkout just saved.
