@@ -215,7 +215,7 @@ export function VehiclePnLTable() {
                           </TableCell>
                         </TableRow>
                       )}
-                    </>
+                    </Fragment>
                   );
                 })
               )}
