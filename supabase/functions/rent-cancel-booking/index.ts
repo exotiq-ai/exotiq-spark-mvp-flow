@@ -20,6 +20,16 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.77.0";
 import { resolveStripeMode } from "../_shared/stripeMode.ts";
+import { sendRenterEmail } from "../_shared/rentEmail.ts";
+import {
+  buildStorefrontUrl,
+  buildVehicleUrl,
+  formatCurrency,
+  formatDateRange,
+  formatPickupTime,
+  shortVehicleName,
+} from "../_shared/rentFormat.ts";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -102,12 +112,14 @@ serve(async (req) => {
     const { data: booking, error: bookingError } = await admin
       .from("bookings")
       .select(
-        "id, booking_ref, status, booking_source, confirmation_token, start_date, paid_at, " +
-        "operator_payment_intent_id, exotiq_payment_intent_id, user_id, team_id",
+        "id, booking_ref, status, booking_source, confirmation_token, start_date, end_date, paid_at, " +
+        "customer_email, customer_name, pickup_location, total_value, platform_fee_cents, protection_total_cents, " +
+        "operator_payment_intent_id, exotiq_payment_intent_id, user_id, team_id, vehicle_id, vehicle_name",
       )
       .eq("booking_ref", bookingRef)
       .eq("booking_source", "marketplace")
       .maybeSingle();
+
     if (bookingError) throw bookingError;
     if (!booking || booking.confirmation_token !== token) return json({ error: "Booking not found" }, 404);
     if (!CANCELLABLE.includes(booking.status)) {
