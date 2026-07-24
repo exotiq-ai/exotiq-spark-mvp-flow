@@ -187,9 +187,11 @@ serve(async (req) => {
           .maybeSingle();
         const currency = team?.currency ?? "USD";
         const timezone = team?.timezone ?? "UTC";
-        const totalPaid =
-          Number(booking.total_value ?? 0) +
+        const rentalAmount = Number(booking.total_value ?? 0);
+        const exotiqAmount =
           (Number(booking.platform_fee_cents ?? 0) + Number(booking.protection_total_cents ?? 0)) / 100;
+        const totalPaid = rentalAmount + exotiqAmount;
+
         const vehicleName = booking.vehicle_name || "Vehicle";
         const vehicleShort = shortVehicleName(vehicleName);
         const origin = "https://book.exotiq.rent";
@@ -208,6 +210,8 @@ serve(async (req) => {
             DATE_RANGE: formatDateRange(booking.start_date, booking.end_date),
             PICKUP_TIME: formatPickupTime(booking.start_date, timezone),
             LOCATION: booking.pickup_location,
+            RENTAL_AMOUNT: formatCurrency(rentalAmount, currency),
+            EXOTIQ_AMOUNT: formatCurrency(exotiqAmount, currency),
             TOTAL_PAID: formatCurrency(totalPaid, currency),
             TOTAL_REFUNDED: formatCurrency(totalPaid, currency),
             STOREFRONT_URL: storefrontUrl,

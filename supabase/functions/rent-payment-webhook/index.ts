@@ -89,9 +89,11 @@ async function confirmIfFullyPaid(db: ReturnType<typeof admin>, bookingRef: stri
         .maybeSingle();
       const currency = team?.currency ?? "USD";
       const timezone = team?.timezone ?? "UTC";
-      const totalPaid =
-        Number(booking.total_value ?? 0) +
+      const rentalAmount = Number(booking.total_value ?? 0);
+      const exotiqAmount =
         (Number(booking.platform_fee_cents ?? 0) + Number(booking.protection_total_cents ?? 0)) / 100;
+      const totalPaid = rentalAmount + exotiqAmount;
+
       const vehicleName = booking.vehicle_name || "Vehicle";
       const vehicleShort = shortVehicleName(vehicleName);
       const origin = "https://book.exotiq.rent";
@@ -99,27 +101,29 @@ async function confirmIfFullyPaid(db: ReturnType<typeof admin>, bookingRef: stri
       const storefrontUrl = `https://${team?.slug ?? "book"}.exotiq.rent`;
       const vehicleUrl = vehicle?.slug ? `${storefrontUrl}/vehicles/${vehicle.slug}` : storefrontUrl;
 
-      await sendRenterEmail({
-        templateName: "receiptConfirmed",
-        to: booking.customer_email,
-        subject: `Receipt confirmed — booking ${bookingRef}`,
-        variables: {
-          BOOKING_REF: bookingRef,
-          OPERATOR_NAME: team?.name ?? "Operator",
-          VEHICLE_NAME: vehicleName,
-          VEHICLE_SHORT: vehicleShort,
-          DATE_RANGE: formatDateRange(booking.start_date, booking.end_date),
-          PICKUP_TIME: formatPickupTime(booking.start_date, timezone),
-          LOCATION: booking.pickup_location,
-          TOTAL_PAID: formatCurrency(totalPaid, currency),
-          CONFIRMATION_URL: payUrl,
-          STOREFRONT_URL: storefrontUrl,
-          VEHICLE_URL: vehicleUrl,
-        },
-        idempotencyKey: `receipt-${bookingRef}`,
-        replyTo: `${team?.name ?? "Operator"} <no-reply@exotiq.ai>`,
-        tags: [{ name: "booking_ref", value: bookingRef }, { name: "email_type", value: "receipt_confirmed" }],
-      });
+        await sendRenterEmail({
+          templateName: "receiptConfirmed",
+          to: booking.customer_email,
+          subject: `Receipt confirmed — booking ${bookingRef}`,
+          variables: {
+            BOOKING_REF: bookingRef,
+            OPERATOR_NAME: team?.name ?? "Operator",
+            VEHICLE_NAME: vehicleName,
+            VEHICLE_SHORT: vehicleShort,
+            DATE_RANGE: formatDateRange(booking.start_date, booking.end_date),
+            PICKUP_TIME: formatPickupTime(booking.start_date, timezone),
+            LOCATION: booking.pickup_location,
+            RENTAL_AMOUNT: formatCurrency(rentalAmount, currency),
+            EXOTIQ_AMOUNT: formatCurrency(exotiqAmount, currency),
+            TOTAL_PAID: formatCurrency(totalPaid, currency),
+            CONFIRMATION_URL: payUrl,
+            STOREFRONT_URL: storefrontUrl,
+            VEHICLE_URL: vehicleUrl,
+          },
+          idempotencyKey: `receipt-${bookingRef}`,
+          replyTo: `${team?.name ?? "Operator"} <no-reply@exotiq.ai>`,
+          tags: [{ name: "booking_ref", value: bookingRef }, { name: "email_type", value: "receipt_confirmed" }],
+        });
       logStep("Receipt email sent", { bookingRef });
     } catch (emailError) {
       logStep("Receipt email failed", { bookingRef, error: String(emailError) });
