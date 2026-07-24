@@ -1,51 +1,39 @@
-## Recommendation
+## Problem
 
-Best-in-class here is **inline row expansion** — not a modal, not a redirect. Financial power users (think Stripe's dashboard, QuickBooks' P&L drilldowns, Ramp's expense reports) all expand the row in place. Reasons:
+The Per-Vehicle P&L table has 9 columns of currency data. On typical laptop widths it overflows horizontally, and because the horizontal scrollbar sits at the bottom of the scroll container, the user has to scroll all the way down before they can scroll right. Vehicle names also wrap onto 2–3 lines, eating vertical space.
 
-- Keeps context: user can compare the vehicle they just clicked against neighbors above/below without losing scroll position or filters.
-- No modal fatigue: the vehicle card dialog is heavy (photos, specs, timeline tabs) and answers "what is this car" — the wrong question when you're in Margin.
-- Drill-down matches the mental model: click a row → see what drove the number (bookings + expenses + payouts that summed to Operator Net).
-- The full vehicle card stays one click away as a secondary action for anyone who wants it.
+## Fix: reclaim horizontal space + make the scrollbar reachable
 
-The current behavior (jumping to Fleet, and then not even opening the card — bug in the query param: table pushes `/dashboard?module=fleet&vehicle=…` but Fleet reads route params) is the worst of both worlds.
+**1. Tighten the left column (biggest win)**
+- Widen the Vehicle column and stop wrapping (`whitespace-nowrap` + `min-w-[180px]`) so "Lamborghini Aventador SVJ" sits on one line.
+- Trim outer card/table padding on the P&L card so the table can use the full module width (drop the extra horizontal padding on `CardContent` — it already has `p-0`, but the parent grid adds gutters we can tighten at the Margin page level for the P&L row only).
 
-## Plan
+**2. Compact the columns**
+- Shorten headers: "Platform Fees" → "Fees", "Partner Payouts" → "Payouts", "Operator Net" stays but gets a smaller label style. (Fees/Payouts headers are already short — keep.)
+- Right-align numeric headers tightly and remove the `ArrowUpDown` icon gap on numeric columns (icon only shows on hover or when active) to save ~16px per column.
+- Use `tabular-nums text-sm` and reduce cell horizontal padding from default to `px-2` on numeric cells.
+- Abbreviate currency in the table body when values are ≥ $10k (e.g. `$1.04M`, `$149.7k`) via a compact formatter; keep full precision in the CSV export and in the row-detail drill-down.
 
-**1. Fix the broken jump first**
-`VehiclePnLTable` uses `/dashboard?module=fleet&vehicle=…`. The Fleet route is `/dashboard/fleet` and reads `?vehicle=` (see current URL). Replace the ad-hoc navigate with a correct path — but this becomes the secondary "Open in Fleet" action, not the row default.
+**3. Make the horizontal scrollbar reachable without scrolling down**
+- Move horizontal scrolling to a sticky inner wrapper so the scrollbar is visible at the top of the table viewport, not only at the bottom of a 560px scroll area. Concretely: keep `max-h-[560px] overflow-y-auto` on the outer div, and add `overflow-x-auto` on an inner wrapper that also carries `sticky top-0`-friendly sizing so the user sees the scrollbar without scrolling to the last row.
+- Alternative if sticky is fragile: add a thin always-visible horizontal scroll shadow/indicator on the right edge of the table (fade + chevron) so users know content extends right, and enable shift+wheel horizontal scroll.
 
-**2. Make row click expand inline**
-Row click toggles an expanded panel underneath (single-open accordion behavior; clicking another row collapses the current). Chevron affordance in the Vehicle cell so it's discoverable.
-
-**3. Expanded panel contents** — Margin-native, respects current filters (date range, source, location):
-- **Header strip:** vehicle name, thumbnail, quick stats (Gross / Net / Operator Net / Margin %), and two buttons: `Open in Fleet` and `Export vehicle CSV`.
-- **Bookings breakdown** (compact table): ref, dates, customer, source badge, gross, platform fee, partner payout, net contribution. Click a row → deep-link to booking (uses existing `useModuleNavigation.goToBookingDetails`).
-- **Expenses breakdown** (compact table): date, type, amount, reimbursed, source module. Click → open expense in Expenses tab.
-- **Partner payouts** (only if vehicle has a partner split): date, status chip, gross split, net to partner. Click → Payouts tab.
-- **Mini trend:** monthly Operator Net sparkline for the filtered window (reuses same data already in `useMarginData`).
-
-**4. Data source**
-No new fetches. Everything needed is already loaded by `useMarginData` (bookings, expenses, payouts for the filtered window). Filtering to a single `vehicle_id` is a client-side slice.
-
-**5. Mobile**
-On mobile, expanded panel stacks vertically; sub-tables become card lists (same pattern used elsewhere in Margin). Row height stays tap-friendly; chevron rotates on open.
-
-**6. Empty states**
-If a section has no rows (e.g., vehicle has bookings but no expenses this period), render a subtle "No expenses in this period" line rather than hiding — so users trust the drilldown is complete.
-
-## Technical Details
-
-- **File touched:** `src/components/margin/VehiclePnLTable.tsx` (row → button + expanded `<TableRow>` beneath).
-- **New component:** `src/components/margin/VehiclePnLRowDetail.tsx` — takes `vehicleId` + slices of `bookings/expenses/payouts` already in context, plus vehicle name/thumbnail.
-- **Navigation:**
-  - Booking rows → `useModuleNavigation().goToBookingDetails(id)`.
-  - "Open in Fleet" → `moduleIdToPath('fleet', { vehicle: id })` (fixes the current broken URL).
-  - Expense row → `moduleIdToPath('margin', { tab: 'expenses', expenseId })` (Margin tab switcher already keyed by `tab` state; wire a small effect to read it).
-- **State:** single `expandedVehicleId` in `VehiclePnLTable`; row click toggles.
-- **Accessibility:** row becomes `<button>`-role with `aria-expanded` / `aria-controls`; keyboard Enter/Space toggles.
-- **No backend changes. No new queries. No RLS impact.**
+**4. Freeze the Vehicle column**
+- Make the first column `sticky left-0 bg-background` (both header and body cells) so scrolling right never hides which vehicle a row belongs to. This is what makes the horizontal scroll actually usable at narrower widths.
 
 ## Out of scope
 
-- Vehicle profitability trend beyond the current filter window (would need a separate query).
-- Editing expenses/payouts inline (kept as navigation to their canonical tabs).
+- No changes to totals math, sorting behavior, CSV contents, or the row-detail drill-down.
+- No changes to other Margin cards.
+
+## Files
+
+- `src/components/margin/VehiclePnLTable.tsx` — column widths, sticky first column, compact number formatter for display, header tweaks, padding.
+- `src/lib/marginCsv.ts` — add a `formatCurrencyCompact` helper (CSV export keeps `formatCurrency`).
+
+## Acceptance
+
+- At 1280px width, all 9 columns fit without horizontal scroll.
+- At <1100px, horizontal scroll works and the Vehicle column stays visible while scrolling right.
+- Vehicle names render on one line.
+- CSV export values unchanged (full precision).

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Download, ArrowUpDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { toCsv, downloadCsv, formatCurrency, formatPercent } from "@/lib/marginCsv";
+import { toCsv, downloadCsv, formatCurrency, formatCurrencyCompact, formatPercent } from "@/lib/marginCsv";
 import { useMarginData, countsForRevenue } from "./useMarginData";
 import { VehiclePnLRowDetail } from "./VehiclePnLRowDetail";
 
@@ -133,13 +133,18 @@ export function VehiclePnLTable() {
     downloadCsv(`vehicle-pnl-${Date.now()}.csv`, csv);
   };
 
-  const SortHead = ({ k, children, align = "right", className }: { k: SortKey; children: React.ReactNode; align?: "left" | "right"; className?: string }) => (
-    <TableHead className={cn(align === "right" ? "text-right" : "", className)}>
-      <button onClick={() => toggleSort(k)} className={cn("inline-flex items-center gap-1 hover:text-foreground text-muted-foreground", sortKey === k && "text-foreground")}>
-        {children} <ArrowUpDown className="h-3 w-3" />
-      </button>
-    </TableHead>
-  );
+  const SortHead = ({ k, children, align = "right", className }: { k: SortKey; children: React.ReactNode; align?: "left" | "right"; className?: string }) => {
+    const active = sortKey === k;
+    return (
+      <TableHead className={cn("px-2 py-2", align === "right" ? "text-right" : "", className)}>
+        <button onClick={() => toggleSort(k)} className={cn("inline-flex items-center gap-1 hover:text-foreground text-muted-foreground text-xs", active && "text-foreground")}>
+          {children} <ArrowUpDown className={cn("h-3 w-3 transition-opacity", active ? "opacity-100" : "opacity-0 group-hover/thead:opacity-60")} />
+        </button>
+      </TableHead>
+    );
+  };
+
+  const fmt = formatCurrencyCompact;
 
   return (
     <Card>
@@ -157,10 +162,10 @@ export function VehiclePnLTable() {
       <CardContent className="p-0">
         <div className="max-h-[560px] overflow-auto">
           <Table>
-            <TableHeader className="sticky top-0 bg-background/95 backdrop-blur z-10 shadow-[0_1px_0_0_hsl(var(--border))]">
+            <TableHeader className="sticky top-0 bg-background/95 backdrop-blur z-20 shadow-[0_1px_0_0_hsl(var(--border))] group/thead">
               <TableRow>
-                <SortHead k="vehicle_name" align="left">Vehicle</SortHead>
-                <SortHead k="bookings">Bookings</SortHead>
+                <SortHead k="vehicle_name" align="left" className="sticky left-0 bg-background/95 backdrop-blur z-30 min-w-[200px]">Vehicle</SortHead>
+                <SortHead k="bookings">Bk</SortHead>
                 <SortHead k="gross">Gross</SortHead>
                 <SortHead k="fees">Fees</SortHead>
                 <SortHead k="net">Net</SortHead>
@@ -179,27 +184,28 @@ export function VehiclePnLTable() {
                 rows.map((r) => {
                   const hasCosts = r.expenses + r.payouts + r.fees > 0;
                   const isOpen = expandedId === r.vehicle_id;
+                  const rowBg = isOpen ? "bg-muted/40" : "bg-background";
                   return (
                     <Fragment key={r.vehicle_id}>
                       <TableRow
-                        className={cn("cursor-pointer hover:bg-muted/50", isOpen && "bg-muted/40")}
+                        className={cn("cursor-pointer hover:bg-muted/50 group", isOpen && "bg-muted/40")}
                         onClick={() => setExpandedId(isOpen ? null : r.vehicle_id)}
                         aria-expanded={isOpen}
                       >
-                        <TableCell className="font-medium">
+                        <TableCell className={cn("font-medium sticky left-0 z-10 min-w-[200px] whitespace-nowrap group-hover:bg-muted/50", rowBg)} title={r.vehicle_name}>
                           <span className="inline-flex items-center gap-1.5">
-                            <ChevronRight className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform", isOpen && "rotate-90")} />
-                            {r.vehicle_name}
+                            <ChevronRight className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform shrink-0", isOpen && "rotate-90")} />
+                            <span className="truncate max-w-[220px]">{r.vehicle_name}</span>
                           </span>
                         </TableCell>
-                        <TableCell className="text-right tabular-nums">{r.bookings}</TableCell>
-                        <TableCell className="text-right tabular-nums">{formatCurrency(r.gross)}</TableCell>
-                        <TableCell className="text-right tabular-nums text-muted-foreground">{zeroOr(r.fees, formatCurrency(r.fees))}</TableCell>
-                        <TableCell className="text-right tabular-nums">{formatCurrency(r.net)}</TableCell>
-                        <TableCell className="text-right tabular-nums text-muted-foreground">{zeroOr(r.expenses, formatCurrency(r.expenses))}</TableCell>
-                        <TableCell className="text-right tabular-nums text-muted-foreground">{zeroOr(r.payouts, formatCurrency(r.payouts))}</TableCell>
-                        <TableCell className={cn("text-right tabular-nums font-semibold border-l border-border/60", r.operator_net < 0 && "text-destructive")}>{formatCurrency(r.operator_net)}</TableCell>
-                        <TableCell className={cn("text-right tabular-nums font-medium", marginTone(r.margin_pct, hasCosts))}>{formatPercent(r.margin_pct)}</TableCell>
+                        <TableCell className="text-right tabular-nums px-2">{r.bookings}</TableCell>
+                        <TableCell className="text-right tabular-nums px-2" title={formatCurrency(r.gross)}>{fmt(r.gross)}</TableCell>
+                        <TableCell className="text-right tabular-nums text-muted-foreground px-2" title={formatCurrency(r.fees)}>{zeroOr(r.fees, fmt(r.fees))}</TableCell>
+                        <TableCell className="text-right tabular-nums px-2" title={formatCurrency(r.net)}>{fmt(r.net)}</TableCell>
+                        <TableCell className="text-right tabular-nums text-muted-foreground px-2" title={formatCurrency(r.expenses)}>{zeroOr(r.expenses, fmt(r.expenses))}</TableCell>
+                        <TableCell className="text-right tabular-nums text-muted-foreground px-2" title={formatCurrency(r.payouts)}>{zeroOr(r.payouts, fmt(r.payouts))}</TableCell>
+                        <TableCell className={cn("text-right tabular-nums font-semibold border-l border-border/60 px-2", r.operator_net < 0 && "text-destructive")} title={formatCurrency(r.operator_net)}>{fmt(r.operator_net)}</TableCell>
+                        <TableCell className={cn("text-right tabular-nums font-medium px-2", marginTone(r.margin_pct, hasCosts))}>{formatPercent(r.margin_pct)}</TableCell>
                       </TableRow>
                       {isOpen && (
                         <TableRow key={`${r.vehicle_id}-detail`} className="hover:bg-transparent">
@@ -221,17 +227,17 @@ export function VehiclePnLTable() {
               )}
             </TableBody>
             {rows.length > 0 && (
-              <tfoot className="sticky bottom-0 bg-muted/70 backdrop-blur z-10 border-t">
+              <tfoot className="sticky bottom-0 bg-muted/70 backdrop-blur z-20 border-t">
                 <tr className="text-sm">
-                  <td className="p-3 font-semibold">Total ({rows.length})</td>
-                  <td className="p-3 text-right tabular-nums font-medium">{totals.bookings}</td>
-                  <td className="p-3 text-right tabular-nums font-medium">{formatCurrency(totals.gross)}</td>
-                  <td className="p-3 text-right tabular-nums text-muted-foreground">{zeroOr(totals.fees, formatCurrency(totals.fees))}</td>
-                  <td className="p-3 text-right tabular-nums font-medium">{formatCurrency(totals.net)}</td>
-                  <td className="p-3 text-right tabular-nums text-muted-foreground">{zeroOr(totals.expenses, formatCurrency(totals.expenses))}</td>
-                  <td className="p-3 text-right tabular-nums text-muted-foreground">{zeroOr(totals.payouts, formatCurrency(totals.payouts))}</td>
-                  <td className={cn("p-3 text-right tabular-nums font-bold border-l border-border/60", totals.operator_net < 0 && "text-destructive")}>{formatCurrency(totals.operator_net)}</td>
-                  <td className={cn("p-3 text-right tabular-nums font-semibold", marginTone(totalMarginPct, totalHasCosts))}>{formatPercent(totalMarginPct)}</td>
+                  <td className="p-2 font-semibold sticky left-0 bg-muted/90 z-10 whitespace-nowrap">Total ({rows.length})</td>
+                  <td className="p-2 text-right tabular-nums font-medium">{totals.bookings}</td>
+                  <td className="p-2 text-right tabular-nums font-medium" title={formatCurrency(totals.gross)}>{fmt(totals.gross)}</td>
+                  <td className="p-2 text-right tabular-nums text-muted-foreground" title={formatCurrency(totals.fees)}>{zeroOr(totals.fees, fmt(totals.fees))}</td>
+                  <td className="p-2 text-right tabular-nums font-medium" title={formatCurrency(totals.net)}>{fmt(totals.net)}</td>
+                  <td className="p-2 text-right tabular-nums text-muted-foreground" title={formatCurrency(totals.expenses)}>{zeroOr(totals.expenses, fmt(totals.expenses))}</td>
+                  <td className="p-2 text-right tabular-nums text-muted-foreground" title={formatCurrency(totals.payouts)}>{zeroOr(totals.payouts, fmt(totals.payouts))}</td>
+                  <td className={cn("p-2 text-right tabular-nums font-bold border-l border-border/60", totals.operator_net < 0 && "text-destructive")} title={formatCurrency(totals.operator_net)}>{fmt(totals.operator_net)}</td>
+                  <td className={cn("p-2 text-right tabular-nums font-semibold", marginTone(totalMarginPct, totalHasCosts))}>{formatPercent(totalMarginPct)}</td>
                 </tr>
               </tfoot>
             )}
