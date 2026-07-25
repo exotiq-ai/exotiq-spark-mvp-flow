@@ -245,45 +245,69 @@ serve(async (req) => {
 
         logStep("Rental paid", { bookingRef, operatorPi });
         const nowIso = new Date().toISOString();
+
+        // Cluster A: ALWAYS persist the captured PI, regardless of status.
+        // A pay/cancel race or a late payment against an already-expired
+        // booking must not leave money on Stripe with the PI id nowhere in
+        // our system — otherwise ops can never refund it.
         await db
           .from("bookings")
           .update({ operator_payment_intent_id: operatorPi, payment_stripe_mode: mode })
           .eq("booking_ref", bookingRef)
-          .eq("status", "pending_payment");
+          .is("operator_payment_intent_id", null);
 
-        // Mirror the rental leg into the payments ledger (idempotent on PI id).
-        const { data: rentalBooking } = await db
+        const { data: bookingRow } = await db
           .from("bookings")
-          .select("total_value, paid_at")
+          .select(
+            "id, status, total_value, paid_at, platform_fee_cents, protection_total_cents, exotiq_payment_intent_id, exotiq_leg_attempt",
+          )
           .eq("booking_ref", bookingRef)
           .maybeSingle();
-        if (rentalBooking) {
-          await mirrorPayment(
-            db,
-            bookingRef,
-            "rental",
-            operatorPi,
-            Number(rentalBooking.total_value ?? 0),
-            rentalBooking.paid_at ?? nowIso,
-          );
+        if (!bookingRow) {
+          await opsAlert(db, bookingRef, "renter_payment_orphaned_booking", { operatorPi });
+          break;
         }
 
-        // Second leg: the Exotiq portion, off-session on the platform, using
-        // the payment method the Checkout just saved.
-        const { data: booking } = await db
-          .from("bookings")
-          .select("booking_ref, status, platform_fee_cents, protection_total_cents, exotiq_payment_intent_id")
-          .eq("booking_ref", bookingRef)
-          .maybeSingle();
-        if (!booking || booking.status !== "pending_payment") break;
-        if (booking.exotiq_payment_intent_id) {
+        // Mirror rental leg to payments ledger (idempotent on PI id).
+        await mirrorPayment(
+          db,
+          bookingRef,
+          "rental",
+          operatorPi,
+          Number(bookingRow.total_value ?? 0),
+          bookingRow.paid_at ?? nowIso,
+        );
+
+        // Terminal-state guard: auto-refund with reverse_transfer so the
+        // operator's connected account is also debited, then alert ops.
+        if (bookingRow.status !== "pending_payment" && bookingRow.status !== "confirmed") {
+          await opsAlert(db, bookingRef, "renter_payment_after_terminal_state", {
+            status: bookingRow.status,
+            operatorPi,
+          });
+          try {
+            await stripe.refunds.create(
+              { payment_intent: operatorPi, reverse_transfer: true },
+              { idempotencyKey: `auto-refund-rental-${bookingRef}` },
+            );
+            logStep("Auto-refunded terminal-state rental", { bookingRef, operatorPi });
+          } catch (refundErr) {
+            await opsAlert(db, bookingRef, "renter_payment_auto_refund_failed", {
+              operatorPi,
+              detail: refundErr instanceof Error ? refundErr.message : String(refundErr),
+            });
+          }
+          break;
+        }
+
+        if (bookingRow.exotiq_payment_intent_id) {
           await confirmIfFullyPaid(db, bookingRef, mode);
           break;
         }
 
-        const exotiqCents = Number(booking.platform_fee_cents ?? 0) + Number(booking.protection_total_cents ?? 0);
+        const exotiqCents =
+          Number(bookingRow.platform_fee_cents ?? 0) + Number(bookingRow.protection_total_cents ?? 0);
         if (exotiqCents <= 0) {
-          // Fee-free booking (e.g. 0% + declined protection): rental alone completes it.
           await db
             .from("bookings")
             .update({ exotiq_payment_intent_id: "none_required" })
@@ -304,6 +328,11 @@ serve(async (req) => {
           break;
         }
 
+        // Attempt-scoped idempotency key so a fresh card can retry after a
+        // decline (M6 flag #9).
+        const attempt = ((bookingRow.exotiq_leg_attempt as number | null) ?? 0) + 1;
+        await db.from("bookings").update({ exotiq_leg_attempt: attempt }).eq("id", bookingRow.id);
+
         try {
           const exotiqPi = await stripe.paymentIntents.create(
             {
@@ -315,9 +344,9 @@ serve(async (req) => {
               confirm: true,
               statement_descriptor_suffix: "EXOTIQ RENT",
               description: `Exotiq booking fee + protection — ${bookingRef}`,
-              metadata: { booking_ref: bookingRef, leg: "exotiq_fee_protection", stripe_mode: mode },
+              metadata: { booking_ref: bookingRef, leg: "exotiq_fee_protection", stripe_mode: mode, attempt: String(attempt) },
             },
-            { idempotencyKey: `exotiq-leg-${bookingRef}` },
+            { idempotencyKey: `exotiq-leg-${bookingRef}-${attempt}` },
           );
           await db
             .from("bookings")
@@ -327,17 +356,13 @@ serve(async (req) => {
             await mirrorPayment(db, bookingRef, "fee", exotiqPi.id, exotiqCents / 100, new Date().toISOString());
             await confirmIfFullyPaid(db, bookingRef, mode);
           }
-          // Non-terminal PI statuses resolve via payment_intent.succeeded.
         } catch (chargeError) {
           logStep("Exotiq leg declined", { bookingRef });
           await opsAlert(db, bookingRef, "renter_payment_partial_failure", {
             reason: "exotiq fee+protection charge declined off-session",
+            attempt,
             detail: chargeError instanceof Error ? chargeError.message : String(chargeError),
           });
-          // Booking stays pending_payment; renter retries from the
-          // confirmation page (rent-checkout refuses non-pending states, so
-          // the retry surface is the Exotiq leg alone via this webhook path
-          // when Stripe retries, or ops follow-up).
         }
         break;
       }
