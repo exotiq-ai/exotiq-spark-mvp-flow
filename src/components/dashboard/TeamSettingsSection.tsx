@@ -44,7 +44,17 @@ const defaultSettings: TeamSettings = {
 export const TeamSettingsSection = () => {
   const { toast } = useToast();
   const { currency } = useMoney();
-  
+  const { currentTeam, refreshTeam } = useTeam();
+
+  // Team-scoped deposit policy — persisted directly on teams.default_deposit_cents
+  const [depositDollars, setDepositDollars] = useState<string>("");
+  const [savingDeposit, setSavingDeposit] = useState(false);
+
+  useEffect(() => {
+    const cents = currentTeam?.default_deposit_cents;
+    setDepositDollars(cents == null ? "" : String(Math.round(cents / 100)));
+  }, [currentTeam?.id, currentTeam?.default_deposit_cents]);
+
   const {
     settings,
     updateSetting,
