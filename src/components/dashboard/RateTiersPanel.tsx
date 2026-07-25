@@ -53,10 +53,13 @@ export const RateTiersPanel = () => {
     rate_6hr: "",
     current_rate: "",
     rate_multiday: "",
+    deposit_override: "",
   });
   const [saving, setSaving] = useState(false);
 
   const minRate = (currentTeam as any)?.min_rate ?? 100;
+  const defaultDepositCents = currentTeam?.default_deposit_cents ?? null;
+  const defaultDepositDollars = defaultDepositCents != null ? defaultDepositCents / 100 : null;
 
   const vehicleRates: VehicleRates[] = useMemo(
     () =>
@@ -71,6 +74,7 @@ export const RateTiersPanel = () => {
         rate_3hr: v.rate_3hr ?? null,
         rate_6hr: v.rate_6hr ?? null,
         rate_multiday: v.rate_multiday ?? null,
+        deposit_override_cents: v.deposit_override_cents ?? null,
       })),
     [vehicles]
   );
@@ -82,6 +86,10 @@ export const RateTiersPanel = () => {
       rate_6hr: vehicle.rate_6hr?.toString() || "",
       current_rate: vehicle.current_rate.toString(),
       rate_multiday: vehicle.rate_multiday?.toString() || "",
+      deposit_override:
+        vehicle.deposit_override_cents != null
+          ? String(Math.round(vehicle.deposit_override_cents / 100))
+          : "",
     });
   };
 
