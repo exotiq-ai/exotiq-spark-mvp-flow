@@ -114,7 +114,16 @@ serve(async (req) => {
       .maybeSingle();
     if (!membership) return json({ error: "Not a member of this booking's team" }, 403);
 
-    if (!booking.paid_at) return json({ error: "Booking has no captured payment to refund" }, 409);
+    // Cluster A: refund by PI presence, not paid_at. paid_at only gets set
+    // when BOTH legs succeed; a partial-capture booking (rental charged,
+    // Exotiq leg pending/failed) still has real money on Stripe that must
+    // be refundable from ops. Mirrors public.booking_has_captured_leg.
+    const hasCapturedLeg = Boolean(
+      booking.operator_payment_intent_id ||
+        booking.exotiq_payment_intent_id ||
+        booking.paid_at,
+    );
+    if (!hasCapturedLeg) return json({ error: "Booking has no captured payment to refund" }, 409);
     if (!REFUNDABLE.includes(booking.status)) {
       return json({ error: `Booking cannot be refunded from status: ${booking.status}` }, 409);
     }

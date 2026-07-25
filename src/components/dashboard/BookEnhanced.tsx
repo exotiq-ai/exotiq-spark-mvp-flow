@@ -25,6 +25,7 @@ import { UpcomingBookingsCard } from "@/components/dashboard/UpcomingBookingsCar
 import { PreviousBookingsCard } from "@/components/dashboard/PreviousBookingsCard";
 import { motion, AnimatePresence } from "framer-motion";
 import { useMoney } from "@/hooks/useMoney";
+import { isPaidOrCaptured } from "@/lib/bookingPaymentState";
 import { 
   Calendar as CalendarIcon, 
   Clock, 
@@ -615,7 +616,7 @@ export const BookEnhanced = () => {
           if (!id) return;
           setCancellingBookingId(null);
           const booking = bookings.find((b) => b.id === id);
-          const isPaid = !!(booking as any)?.paid_at;
+          const isPaid = isPaidOrCaptured(booking as any);
           const bookingRef = (booking as any)?.booking_reference || (booking as any)?.booking_ref;
           if (isPaid && bookingRef) {
             try {

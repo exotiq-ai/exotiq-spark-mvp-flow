@@ -1,79 +1,107 @@
-## Review of Claude's 2026-07-25 handoff
+# Pre-Launch Plan (Refreshed 2026-07-25)
 
-I read the whole document (29 findings). Overall it is high quality — every item cites a real file:line, the clustering into A/B/C is accurate, and it correctly separates Lovable-owned code from Gregory decisions. Below is what I want to flag before we start executing, followed by the sequence I'd run.
+Handoff is current. Your rulings collapse a lot of the open questions. Below is what's **must-have for launch**, what's **nice-to-have**, and what belongs to Claude in the `exotiq-rent` repo.
 
-### Things to flag / push back on before we build
+---
 
-1. **#1, #4, #11, #15 are the same bug in four costumes.** All four boil down to "paid state is judged from `paid_at`, ignoring `operator_payment_intent_id`." I'd rather ship one small change — a SQL helper `booking_has_captured_leg(b)` and a shared TS `isPaidOrCaptured(booking)` — and reuse it in `rent-cancel-booking`, `rent-refund-booking`, the expiry sweep, `PaymentTracker`, and `CancelBookingCard`. Treating them as four tickets invites drift.
+## MUST HAVE (launch blockers)
 
-2. **#2, #3, #4, #8 share one webhook/sweep hole.** Same story — one fix (webhook always persists PI + fires `opsAlert` + auto-refunds on terminal state; sweep excludes `operator_payment_intent_id IS NOT NULL`) closes all four. Handoff sequences them as separate blockers; I'd collapse them into a single Cluster A patch.
+### Phase 1 — Cluster A: money integrity (single PR)
+The same bug in four costumes: renter payment can capture on the operator's Connect account while the booking row still says `pending_payment` / `payment_expired` / `cancelled`. Fix once, reuse everywhere.
 
-3. **#17 vs #24 contradict each other on the frontend fix.** #17 says "expose `platform_fee_percent` from `public_team_by_slug` and drop the `?? 10` fallback." #24 says "stop inventing the rate — call `public_vehicle_quote` and render the server quote." They're both partially right but the frontend can't do both. Recommend: **server quote is authoritative** (#24's fix), and #17 becomes purely a data fix (backfill + default 10.00 + reject 0 for marketplace-visible teams). Worth confirming with Gregory before we touch renter UI.
+1. SQL helper `booking_has_captured_leg(b)` + TS `isPaidOrCaptured(booking)`.
+2. `rent-payment-webhook`: always persist `operator_payment_intent_id`, fire `opsAlert` on any partial-failure, auto-refund on terminal-fail.
+3. `expire_overdue_payment_bookings()`: exclude rows where `operator_payment_intent_id IS NOT NULL` → route to ops queue instead of expiring.
+4. `rent-cancel-booking` + `rent-refund-booking`: refund by PI presence, not `paid_at`.
+5. `PaymentTracker` + `CancelBookingCard`: read captured state via the shared helper.
+6. **Reconciliation sweep** (one-time): scan existing `pending_payment` / `payment_expired` / `cancelled` marketplace bookings for orphaned captured PIs; auto-refund or flag for ops.
+7. **Payments-table backfill from webhook**: booking fields stay authoritative for UI, but webhook also writes a `payments` row for audit / margin / partner-payout continuity.
 
-4. **#20 — "DEFAULT 0 on money params" — is a *symptom* of a deploy-drift problem, not the real fix.** Removing the default helps, but the actual risk is that the five deployed money functions don't live in the SPARK repo (also called out in #27). Until they land in repo, any redeploy from `main` silently reverts M6b. I'd fold #20 into #27 and prioritize getting those functions committed as the real fix; the DEFAULT change is a belt-and-suspenders addition.
+### Phase 2 — Cluster C: identity & security
+8. `identity-create-session`: gate with `booking_ref + confirmation_token`, `.eq` email lookup, persistent rate limit.
+9. `rent-create-booking`: strict email regex + `.eq` email lookup (no `ilike`).
 
-5. **#5 (fleet delete cascade) is scope-adjacent to money but the real fix is the DB guard, not the UI.** Handoff proposes both (soft-delete UI + `ON DELETE RESTRICT`). Agree with both, but the RESTRICT/trigger must land first — otherwise any other code path (import cleanup, admin script, future feature) can still cascade a captured booking away. Frame it that way to avoid a UI-only patch.
+### Phase 3 — Command Center money integrity
+10. Decline/cancel of a paid marketplace booking → routes through `rent-refund-booking` (never manual).
+11. Single `booking_source='marketplace'` edit lock in `EnhancedBookingDialog` + the underlying update mutation (no divergent guards).
+12. Fleet batch-delete: **DB-level `ON DELETE RESTRICT`** on `bookings.vehicle_id` first (structural guard), then soft-delete UI on top.
+13. `useMarginData`: exclude `payment_stripe_mode='test'` + `requested` / `pending_*` / `expired` / `refunded` states (already partly fixed in `PaymentTracker` / `FleetContext` — this is the missed query).
 
-6. **#7 (`pending_documents` terminal) is genuinely a Gregory decision** — I can't build it until the ordering contradiction between ID_VERIFICATION_PLAN V1 and M6 is resolved. Flag: if Gregory rules "verify-after-payment," #7 becomes trivial; if "verify-before-approval," we need `identity-webhook` to promote `pending_documents → requested` and add a Command Center queue for it. I don't want to guess.
+### Phase 4 — Schema & deploy hygiene
+14. Explicit migration for `operator_payment_intent_id` / `exotiq_payment_intent_id` columns; regen types.
+15. Land the 5 deployed money functions (`rent-checkout`, `rent-payment-webhook`, `rent-cancel-booking`, `rent-refund-booking`, `rent-approve-booking`) into the SPARK repo — right now a redeploy from `main` would silently revert M6b. **This is the real fix**; the DEFAULT-0 removal on money params is belt-and-suspenders.
+16. Fix `payment_due_at` double-tz-shift bug.
+17. Backfill `teams.platform_fee_percent`; default 10.00; reject 0 for marketplace-visible teams.
 
-7. **#6 (deposit hold) is a real launch-blocker but the handoff's proposed design (platform-side manual-capture PI using saved PM) is the right call and matches what we already do for `setup_future_usage`.** No pushback — just confirming this is the direction so I can plan the endpoint + Command Center Capture/Release controls in one pass.
+### Phase 5 — Deposit hold config (your new requirement)
+18. Migration:
+    - `teams.default_deposit_cents` (tenant-wide default)
+    - `vehicles.deposit_override_cents` (nullable per-vehicle override)
+    - Resolution: vehicle override → tenant default → platform fallback.
+19. Command Center UI:
+    - Tenant Settings → new "Security deposit" field (with reply-to / support email).
+    - Vehicle rate card → optional "Override deposit for this vehicle."
+20. `stripe-capture-hold` / hold-creation path reads the resolved amount instead of a hardcoded value.
 
-8. **#22, #23 (test-mode + expired/refunded revenue) — I already partially fixed test-mode exclusion in `PaymentTracker` / `FleetContext` earlier this week.** Need to verify whether `useMarginData` was missed (it likely was — different query) rather than treat this as fresh work. Small item, but worth calling out so we don't re-do work.
+### Phase 6 — ID verify AFTER payment (your ruling on #7)
+21. Once webhook marks `paid`, promote `pending_payment → pending_documents`.
+22. Fire renter drip email: "Payment received — next, verify your ID + insurance."
+23. Existing `identity-*` functions already work; just wire the promotion + email trigger. **Insurance verification tool ships tomorrow** (Claude) — leave a stub email that says "Your ID link is ready; insurance upload coming."
 
-9. **#28 (uptime-check) is real but low-leverage for launch.** Fixing the assertion + scheduling it is 20 minutes; but the more valuable half — "make the ops alert path write to a table whose columns exist" — is the actual gap, because that's what surfaces the Cluster A failure when it happens in production. Would sequence the alert-schema fix higher than the synthetic check.
+### Phase 7 — Observability
+24. Fix ops-alert schema so partial-failure alerts actually persist (this is what surfaces Cluster A failures live).
+25. Uptime check: real assertion + schedule (20 min job).
 
-10. **#16 (pre-selected $150 delivery) and #26 (misleading "Final payment" copy) live in `exotiq-rent`, not this repo.** I'll note them but they belong in a Claude handoff back, not Lovable's queue.
+---
 
-### Missing from the handoff (things I'd add)
+## NICE TO HAVE (post-launch)
+- Deposit-hold Command Center Capture/Release controls beyond the amount config.
+- Test-mode banner across Payments / Margin surfaces.
+- Weekly finance digest email.
 
-- **A reconciliation script.** After we fix Cluster A, we need a one-time sweep over existing `pending_payment` / `payment_expired` / `cancelled` marketplace bookings to detect any that already have `operator_payment_intent_id` set and either auto-refund or route to ops. Otherwise the fix only helps *future* renters.
-- **A payments-table backfill from webhook.** #13's fix suggests either "treat booking fields as authoritative" or "have webhook insert payments rows." Handoff picks the first. I'd do **both** — booking fields authoritative for UI, but also write payments rows for audit/margin/partner-payout continuity. Otherwise operator statements stay hollow for marketplace bookings.
-- **A `booking_source='marketplace'` edit lock in one place.** #10 and #14 both want edits blocked/re-quoted. Right fix is a single guard in `EnhancedBookingDialog` (and the underlying update mutation), not two divergent patches.
+---
 
-### Proposed execution order
+## HAND BACK TO CLAUDE (`exotiq-rent` repo)
+- **#16** — "$150 delivery pre-selected" in checkout extras. Your ruling: don't auto-select any extras. Claude to fix.
+- **#26** — misleading "Final payment" copy in `PayStep`.
+- **#17 / #24 resolution** — server quote is authoritative: `public_vehicle_quote` returns `platform_fee_cents`, `protection_cents`, `deposit_cents`, `total_cents`; frontend renders as-is, no local math, no `?? 10` fallback. I'll do the SPARK-side data fix (#17 backfill); Claude does the frontend fix (#24).
+- Confirm insurance-verification flow so Phase 6's stub email can become the real drip.
 
-```text
-Phase 1 — Cluster A (money integrity) — one PR
-  1. SQL helper booking_has_captured_leg + TS isPaidOrCaptured
-  2. rent-payment-webhook: always persist PI, opsAlert, auto-refund on terminal
-  3. Expiry sweep: exclude captured legs → ops queue
-  4. rent-cancel-booking + rent-refund-booking: refund by PI presence
-  5. PaymentTracker + CancelBookingCard: read captured state
-  6. Reconciliation sweep for existing partial-failure rows
+---
 
-Phase 2 — Cluster C (identity/security) — one PR
-  7. identity-create-session: booking_ref+token gate, .eq email, rate limit
-  8. rent-create-booking: strict email regex + .eq lookup
+## Technical details
 
-Phase 3 — Command Center money integrity — one PR
-  9. Decline/cancel of paid marketplace → rent-refund-booking
- 10. Marketplace edit lock (or re-quote + re-consent) in one place
- 11. Fleet batch delete → soft-delete + DB-level ON DELETE RESTRICT
- 12. useMarginData: exclude test-mode + expired/refunded/requested/pending_*
-
-Phase 4 — Schema + deploy hygiene
- 13. Add PI columns explicitly in a migration + regen types (#27)
- 14. Land the 5 deployed money functions in the SPARK repo (#27/#20)
- 15. Drop DEFAULT 0 on create_marketplace_booking money params (#20)
- 16. Fix payment_due_at double-tz-shift (#21)
- 17. Backfill teams.platform_fee_percent + default 10.00 + reject 0 (#17)
-
-Phase 5 — Observability
- 18. Fix ops alert schema so partial-failure alerts actually persist (#28 half)
- 19. Uptime check: real assertion + schedule
-
-Deferred (need Gregory)
-  - #6 deposit hold mechanism (confirm platform-side design)
-  - #7 pending_documents promotion (needs ordering decision)
-  - #17/#24 platform_fee_percent frontend approach (server-quote vs prop-through)
-  - #16 delivery default, #26 PayStep copy — send back to Claude (exotiq-rent)
+**Cluster A helper (SQL):**
+```sql
+create or replace function public.booking_has_captured_leg(b public.bookings)
+returns boolean language sql immutable as $$
+  select b.operator_payment_intent_id is not null
+      or b.exotiq_payment_intent_id is not null
+      or b.paid_at is not null;
+$$;
 ```
 
-### What I need from you before I plan implementation in detail
+**Deposit resolution (SQL helper):**
+```sql
+create or replace function public.resolve_deposit_cents(_vehicle_id uuid)
+returns bigint language sql stable as $$
+  select coalesce(
+    v.deposit_override_cents,
+    t.default_deposit_cents,
+    100000  -- $1,000 platform fallback
+  )
+  from vehicles v join teams t on t.id = v.team_id
+  where v.id = _vehicle_id;
+$$;
+```
 
-1. Approve the cluster collapses above (esp. Cluster A into one PR).
-2. Confirm the phase order or reorder it.
-3. Rulings on the three Gregory decisions above so I can plan #6/#7 concretely.
-4. Whether the SPARK-repo function commits (#27) happen here or in a separate Claude pass.
+**Reconciliation sweep:** one-time script — query marketplace bookings with `status in ('pending_payment','payment_expired','cancelled')` and non-null PI, then either auto-refund via `rent-refund-booking` or insert an ops-queue row. Report count before executing.
 
-Once those are settled I'll come back with a per-phase implementation plan.
+**Rollout order:** Phase 1 → 2 → 5 (deposit) → 6 (ID drip) → 3 → 4 → 7. Phases 1 and 2 are independent PRs; 5 and 6 can go in parallel after Phase 1 lands.
+
+---
+
+## What I need from you to start
+1. Approve this plan (or reorder).
+2. Confirm SPARK-side commits of the 5 money functions happen here (I'll do it in Phase 4) vs. via a Claude pass.
+3. Any objection to `ON DELETE RESTRICT` on `bookings.vehicle_id` — it means fleet delete will hard-error on vehicles with historical bookings until you soft-delete instead. That's the intended safety, just want it confirmed.
