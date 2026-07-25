@@ -356,6 +356,17 @@ export const RateTiersPanel = () => {
                         <TableCell className="text-right font-mono text-sm">
                           {formatRate(vehicle.rate_multiday)}
                         </TableCell>
+                        <TableCell className="text-right font-mono text-sm">
+                          {vehicle.deposit_override_cents != null ? (
+                            formatCurrency(vehicle.deposit_override_cents / 100)
+                          ) : (
+                            <span className="text-muted-foreground">
+                              {defaultDepositDollars != null
+                                ? `Default (${formatCurrency(defaultDepositDollars)})`
+                                : "Default"}
+                            </span>
+                          )}
+                        </TableCell>
                         <TableCell>
                           <PermissionGuard minRole="manager" fallback={null}>
                             <Button
