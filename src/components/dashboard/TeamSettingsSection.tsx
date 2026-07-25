@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
@@ -9,7 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { useMoney } from "@/hooks/useMoney";
-import { Save, Building2, Clock, Bell, Loader2, DollarSign, Fuel } from "lucide-react";
+import { useTeam } from "@/contexts/TeamContext";
+import { PermissionGuard } from "@/components/common/PermissionGuard";
+import { supabase } from "@/integrations/supabase/client";
+import { Save, Building2, Clock, Bell, Loader2, DollarSign, Fuel, ShieldCheck } from "lucide-react";
 
 interface TeamSettings {
   companyName: string;
