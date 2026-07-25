@@ -16,6 +16,11 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.77.0";
+import { checkRateLimit, clientIp } from "../_shared/rateLimit.ts";
+
+// Cluster C #29: strict email at the edge. Blocks ilike-wildcard payloads
+// (%, _) from ever touching the customers lookup.
+const EMAIL_RE = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
