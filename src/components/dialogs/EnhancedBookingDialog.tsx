@@ -1201,10 +1201,17 @@ export const EnhancedBookingDialog = ({
                         </div>
                       )}
 
-                      <Button onClick={() => setShowPaymentDialog(true)} className="w-full">
-                        <CreditCard className="h-4 w-4 mr-2" />
-                        Record Payment
-                      </Button>
+                      {booking.booking_source === 'marketplace' ? (
+                        <div className="p-3 rounded-lg bg-muted/20 text-xs text-muted-foreground text-center">
+                          Marketplace payments are collected automatically via Stripe. Manual entry is disabled to prevent duplicate records.
+                        </div>
+                      ) : (
+                        <Button onClick={() => setShowPaymentDialog(true)} className="w-full">
+                          <CreditCard className="h-4 w-4 mr-2" />
+                          Record Payment
+                        </Button>
+                      )}
+
 
                       <Separator />
 
@@ -1362,23 +1369,30 @@ export const EnhancedBookingDialog = ({
                     </Button>
                   </div>
 
-                  {booking.status === "pending" && (
+                  {(booking.status === "pending" || booking.status === "requested") && (
                     <div className="flex gap-2">
                       <Button
                         variant="outline"
                         onClick={() => setShowCancelConfirm(true)}
                         className="flex-1 text-destructive border-destructive/30 hover:bg-destructive/10"
                       >
-                        <XCircle className="h-4 w-4 mr-2" />Cancel
+                        <XCircle className="h-4 w-4 mr-2" />Decline
                       </Button>
                       <Button
                         onClick={() => { if (blockIfRestricted()) return; updateBookingStatus(booking.id, "confirmed"); onOpenChange(false); }}
                         className="flex-1"
                       >
-                        <CheckCircle className="h-4 w-4 mr-2" />Confirm
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        {booking.booking_source === 'marketplace' ? 'Approve' : 'Confirm'}
                       </Button>
                     </div>
                   )}
+                  {booking.status === "pending_documents" && (
+                    <div className="p-3 rounded-lg bg-warning/10 border border-warning/30 text-xs text-warning-foreground">
+                      Awaiting renter ID verification. This booking will become approvable once the renter completes identity verification.
+                    </div>
+                  )}
+
                   {booking.status === "confirmed" && (
                     <div className="flex gap-2">
                       <Button
