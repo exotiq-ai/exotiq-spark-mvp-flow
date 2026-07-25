@@ -32,6 +32,10 @@ export interface Team {
   vat_number?: string | null;
   business_address?: any;
   invoice_sequence?: number;
+  // Deposit hold policy (M6 — deposits)
+  default_deposit_cents?: number | null;
+  min_rate?: number | null;
+  support_email?: string | null;
 }
 
 export interface Location {

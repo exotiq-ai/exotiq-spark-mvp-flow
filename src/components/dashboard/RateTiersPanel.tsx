@@ -32,6 +32,7 @@ interface VehicleRates {
   rate_3hr: number | null;
   rate_6hr: number | null;
   rate_multiday: number | null;
+  deposit_override_cents: number | null;
 }
 
 interface EditingRates {
@@ -39,6 +40,7 @@ interface EditingRates {
   rate_6hr: string;
   current_rate: string;
   rate_multiday: string;
+  deposit_override: string;
 }
 
 export const RateTiersPanel = () => {
@@ -51,10 +53,13 @@ export const RateTiersPanel = () => {
     rate_6hr: "",
     current_rate: "",
     rate_multiday: "",
+    deposit_override: "",
   });
   const [saving, setSaving] = useState(false);
 
   const minRate = (currentTeam as any)?.min_rate ?? 100;
+  const defaultDepositCents = currentTeam?.default_deposit_cents ?? null;
+  const defaultDepositDollars = defaultDepositCents != null ? defaultDepositCents / 100 : null;
 
   const vehicleRates: VehicleRates[] = useMemo(
     () =>
@@ -69,6 +74,7 @@ export const RateTiersPanel = () => {
         rate_3hr: v.rate_3hr ?? null,
         rate_6hr: v.rate_6hr ?? null,
         rate_multiday: v.rate_multiday ?? null,
+        deposit_override_cents: v.deposit_override_cents ?? null,
       })),
     [vehicles]
   );
@@ -80,6 +86,10 @@ export const RateTiersPanel = () => {
       rate_6hr: vehicle.rate_6hr?.toString() || "",
       current_rate: vehicle.current_rate.toString(),
       rate_multiday: vehicle.rate_multiday?.toString() || "",
+      deposit_override:
+        vehicle.deposit_override_cents != null
+          ? String(Math.round(vehicle.deposit_override_cents / 100))
+          : "",
     });
   };
 
@@ -113,6 +123,17 @@ export const RateTiersPanel = () => {
       errors.push("Daily (24hr) rate is required");
     }
 
+    // Deposit override — non-negative if provided
+    let depositOverrideCents: number | null = null;
+    if (editingRates.deposit_override.trim() !== "") {
+      const dep = parseFloat(editingRates.deposit_override);
+      if (!isFinite(dep) || dep < 0) {
+        errors.push("Deposit hold must be zero or greater");
+      } else {
+        depositOverrideCents = Math.round(dep * 100);
+      }
+    }
+
     if (errors.length > 0) {
       toast({
         title: "Validation Error",
@@ -129,6 +150,7 @@ export const RateTiersPanel = () => {
         rate_3hr: editingRates.rate_3hr ? parseFloat(editingRates.rate_3hr) : null,
         rate_6hr: editingRates.rate_6hr ? parseFloat(editingRates.rate_6hr) : null,
         rate_multiday: editingRates.rate_multiday ? parseFloat(editingRates.rate_multiday) : null,
+        deposit_override_cents: depositOverrideCents,
       };
 
       const success = await updateVehicle(vehicleId, updates);
@@ -179,8 +201,11 @@ export const RateTiersPanel = () => {
         <Alert className="mb-4">
           <Info className="h-4 w-4" />
           <AlertDescription>
-            <strong>Daily (24hr)</strong> is the primary rate used across the system. 
+            <strong>Daily (24hr)</strong> is the primary rate used across the system.
             3-Hour and 6-Hour are flat rates. Multi-day is a per-day rate for 2+ day rentals.
+            <strong> Deposit hold</strong> overrides the tenant default
+            {defaultDepositDollars != null ? ` (${formatCurrency(defaultDepositDollars)})` : " ($1,000 fallback)"}
+            for this vehicle. Leave blank to use the default.
           </AlertDescription>
         </Alert>
 
@@ -193,6 +218,7 @@ export const RateTiersPanel = () => {
                 <TableHead className="text-right min-w-[100px]">6-Hour</TableHead>
                 <TableHead className="text-right min-w-[100px]">Daily (24hr)</TableHead>
                 <TableHead className="text-right min-w-[100px]">Multi-Day</TableHead>
+                <TableHead className="text-right min-w-[120px]">Deposit Hold</TableHead>
                 <TableHead className="w-[100px]"></TableHead>
               </TableRow>
             </TableHeader>
@@ -275,6 +301,24 @@ export const RateTiersPanel = () => {
                             className="w-24 ml-auto text-right"
                           />
                         </TableCell>
+                        <TableCell className="text-right">
+                          <Input
+                            type="number"
+                            value={editingRates.deposit_override}
+                            onChange={(e) =>
+                              setEditingRates((prev) => ({
+                                ...prev,
+                                deposit_override: e.target.value,
+                              }))
+                            }
+                            placeholder={
+                              defaultDepositDollars != null
+                                ? `Default ${Math.round(defaultDepositDollars)}`
+                                : "Default"
+                            }
+                            className="w-28 ml-auto text-right"
+                          />
+                        </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
                             <Button
@@ -311,6 +355,17 @@ export const RateTiersPanel = () => {
                         </TableCell>
                         <TableCell className="text-right font-mono text-sm">
                           {formatRate(vehicle.rate_multiday)}
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-sm">
+                          {vehicle.deposit_override_cents != null ? (
+                            formatCurrency(vehicle.deposit_override_cents / 100)
+                          ) : (
+                            <span className="text-muted-foreground">
+                              {defaultDepositDollars != null
+                                ? `Default (${formatCurrency(defaultDepositDollars)})`
+                                : "Default"}
+                            </span>
+                          )}
                         </TableCell>
                         <TableCell>
                           <PermissionGuard minRole="manager" fallback={null}>

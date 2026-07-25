@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
@@ -9,7 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { useMoney } from "@/hooks/useMoney";
-import { Save, Building2, Clock, Bell, Loader2, DollarSign, Fuel } from "lucide-react";
+import { useTeam } from "@/contexts/TeamContext";
+import { PermissionGuard } from "@/components/common/PermissionGuard";
+import { supabase } from "@/integrations/supabase/client";
+import { Save, Building2, Clock, Bell, Loader2, DollarSign, Fuel, ShieldCheck } from "lucide-react";
 
 interface TeamSettings {
   companyName: string;
@@ -40,7 +44,17 @@ const defaultSettings: TeamSettings = {
 export const TeamSettingsSection = () => {
   const { toast } = useToast();
   const { currency } = useMoney();
-  
+  const { currentTeam, refreshTeam } = useTeam();
+
+  // Team-scoped deposit policy — persisted directly on teams.default_deposit_cents
+  const [depositDollars, setDepositDollars] = useState<string>("");
+  const [savingDeposit, setSavingDeposit] = useState(false);
+
+  useEffect(() => {
+    const cents = currentTeam?.default_deposit_cents;
+    setDepositDollars(cents == null ? "" : String(Math.round(cents / 100)));
+  }, [currentTeam?.id, currentTeam?.default_deposit_cents]);
+
   const {
     settings,
     updateSetting,
@@ -59,6 +73,34 @@ export const TeamSettingsSection = () => {
         title: "Settings saved",
         description: "Team settings have been updated successfully",
       });
+    }
+  };
+
+  const handleSaveDeposit = async () => {
+    if (!currentTeam?.id) return;
+    const trimmed = depositDollars.trim();
+    let cents: number | null = null;
+    if (trimmed !== "") {
+      const dollars = Number(trimmed);
+      if (!Number.isFinite(dollars) || dollars < 0) {
+        toast({ title: "Invalid amount", description: "Deposit must be zero or greater", variant: "destructive" });
+        return;
+      }
+      cents = Math.round(dollars * 100);
+    }
+    setSavingDeposit(true);
+    try {
+      const { error } = await supabase
+        .from('teams')
+        .update({ default_deposit_cents: cents })
+        .eq('id', currentTeam.id);
+      if (error) throw error;
+      await refreshTeam();
+      toast({ title: "Deposit updated", description: "Default deposit hold saved" });
+    } catch (err: any) {
+      toast({ title: "Save failed", description: err?.message || "Could not update deposit", variant: "destructive" });
+    } finally {
+      setSavingDeposit(false);
     }
   };
 
@@ -266,6 +308,51 @@ export const TeamSettingsSection = () => {
               </div>
             </>
           )}
+        </div>
+
+        <Separator className="my-4" />
+
+        {/* Security Deposit Hold */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="w-4 h-4 text-muted-foreground" />
+            <h4 className="text-sm font-semibold">Security Deposit</h4>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="defaultDeposit">Default deposit hold amount ({currency})</Label>
+            <p className="text-sm text-muted-foreground">
+              Manual-capture hold placed at pickup. Overridable per vehicle on the rate card.
+              Leave blank for no default (falls back to $1,000).
+            </p>
+            <div className="flex items-center gap-2">
+              <Input
+                id="defaultDeposit"
+                type="number"
+                min="0"
+                step="1"
+                placeholder="1000"
+                value={depositDollars}
+                onChange={(e) => setDepositDollars(e.target.value)}
+                onWheel={(e) => e.currentTarget.blur()}
+                className="w-[200px]"
+              />
+              <PermissionGuard minRole="admin" fallback={null}>
+                <Button
+                  variant="outline"
+                  onClick={handleSaveDeposit}
+                  disabled={savingDeposit}
+                >
+                  {savingDeposit ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Save className="w-4 h-4 mr-2" />
+                  )}
+                  Save deposit
+                </Button>
+              </PermissionGuard>
+            </div>
+          </div>
         </div>
       </Card>
 
