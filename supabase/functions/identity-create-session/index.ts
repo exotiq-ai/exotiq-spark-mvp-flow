@@ -104,16 +104,20 @@ serve(async (req) => {
       if (!membership) return json({ error: "Not authorized for this customer" }, 403);
       customerId = customer.id;
     } else {
-      // Renter/guest path: booking_ref + confirmation_token gate the email
-      // lookup. Prior build accepted { email } alone and returned generic
-      // 404s — enough signal for an attacker to enumerate customers by
-      // spraying emails. Now the caller must already hold the opaque
-      // per-booking token issued at booking creation.
+      // Renter/guest path: booking_ref + confirmation_token gate the
+      // customer lookup. The opaque per-booking token is the secret; email
+      // is an optional second factor for callers that have it (legacy).
+      // L4 (2026-07-25 handoff): when the token validates, email is
+      // OPTIONAL — the /verify route arrives from a link with only
+      // ?ref=&token= and shouldn't force a retype.
       const email = String(body.email ?? "").trim().toLowerCase();
       const bookingRef = String(body.booking_ref ?? "").trim();
       const token = String(body.confirmation_token ?? "").trim();
-      if (!EMAIL_RE.test(email) || !bookingRef || !token) {
-        return json({ error: "email, booking_ref and confirmation_token are required" }, 400);
+      if (!bookingRef || !token) {
+        return json({ error: "booking_ref and confirmation_token are required" }, 400);
+      }
+      if (email && !EMAIL_RE.test(email)) {
+        return json({ error: "email is malformed" }, 400);
       }
       const { data: booking, error: bookingErr } = await admin
         .from("bookings")
@@ -121,12 +125,12 @@ serve(async (req) => {
         .eq("booking_ref", bookingRef)
         .maybeSingle();
       if (bookingErr || !booking || booking.confirmation_token !== token) {
-        return json({ error: "No booking found for this email" }, 404);
+        return json({ error: "No booking found for this reference" }, 404);
       }
-      // Email must match the booking's stored customer email (case-insensitive
-      // compare on already-lowercased input; no ilike/wildcards on the wire).
-      if (String(booking.customer_email ?? "").toLowerCase() !== email) {
-        return json({ error: "No booking found for this email" }, 404);
+      // If caller supplied an email, it must match the booking's stored
+      // customer email (case-insensitive; no ilike/wildcards on the wire).
+      if (email && String(booking.customer_email ?? "").toLowerCase() !== email) {
+        return json({ error: "No booking found for this reference" }, 404);
       }
       const { data: customer, error } = await admin
         .from("customers")
@@ -134,7 +138,7 @@ serve(async (req) => {
         .eq("id", booking.customer_id)
         .maybeSingle();
       if (error || !customer) {
-        return json({ error: "No booking found for this email" }, 404);
+        return json({ error: "No booking found for this reference" }, 404);
       }
       customerId = customer.id;
     }
