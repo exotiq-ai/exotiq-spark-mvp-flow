@@ -83,7 +83,10 @@ async function refundLeg(
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
-  if (!allowRequest(req)) return json({ error: "Too many requests" }, 429);
+  const ip = clientIp(req);
+  if (!(await checkRateLimit(`rent-cancel-booking:${ip}`, MAX_PER_HOUR, WINDOW_SECONDS))) {
+    return json({ error: "Too many requests" }, 429);
+  }
 
   try {
     const admin = createClient(
