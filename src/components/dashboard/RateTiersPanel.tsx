@@ -123,6 +123,17 @@ export const RateTiersPanel = () => {
       errors.push("Daily (24hr) rate is required");
     }
 
+    // Deposit override — non-negative if provided
+    let depositOverrideCents: number | null = null;
+    if (editingRates.deposit_override.trim() !== "") {
+      const dep = parseFloat(editingRates.deposit_override);
+      if (!isFinite(dep) || dep < 0) {
+        errors.push("Deposit hold must be zero or greater");
+      } else {
+        depositOverrideCents = Math.round(dep * 100);
+      }
+    }
+
     if (errors.length > 0) {
       toast({
         title: "Validation Error",
@@ -139,6 +150,7 @@ export const RateTiersPanel = () => {
         rate_3hr: editingRates.rate_3hr ? parseFloat(editingRates.rate_3hr) : null,
         rate_6hr: editingRates.rate_6hr ? parseFloat(editingRates.rate_6hr) : null,
         rate_multiday: editingRates.rate_multiday ? parseFloat(editingRates.rate_multiday) : null,
+        deposit_override_cents: depositOverrideCents,
       };
 
       const success = await updateVehicle(vehicleId, updates);
