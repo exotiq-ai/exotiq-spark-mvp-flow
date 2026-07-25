@@ -233,6 +233,7 @@ export type Database = {
           dropoff_location_id: string | null
           end_date: string
           exotiq_charge_cents: number
+          exotiq_leg_attempt: number
           exotiq_payment_intent_id: string | null
           gas_fee: number | null
           gas_fee_waived: boolean | null
@@ -304,6 +305,7 @@ export type Database = {
           dropoff_location_id?: string | null
           end_date: string
           exotiq_charge_cents?: number
+          exotiq_leg_attempt?: number
           exotiq_payment_intent_id?: string | null
           gas_fee?: number | null
           gas_fee_waived?: boolean | null
@@ -375,6 +377,7 @@ export type Database = {
           dropoff_location_id?: string | null
           end_date?: string
           exotiq_charge_cents?: number
+          exotiq_leg_attempt?: number
           exotiq_payment_intent_id?: string | null
           gas_fee?: number | null
           gas_fee_waived?: boolean | null
@@ -5570,9 +5573,9 @@ export type Database = {
               _end_date: string
               _initial_status: string
               _pickup_time: string
-              _platform_fee_cents?: number
-              _protection_tier?: string
-              _protection_total_cents?: number
+              _platform_fee_cents: number
+              _protection_tier: string
+              _protection_total_cents: number
               _start_date: string
               _team_slug: string
               _total_value: number
