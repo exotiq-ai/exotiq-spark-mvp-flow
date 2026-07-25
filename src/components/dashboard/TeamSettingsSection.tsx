@@ -309,6 +309,51 @@ export const TeamSettingsSection = () => {
             </>
           )}
         </div>
+
+        <Separator className="my-4" />
+
+        {/* Security Deposit Hold */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="w-4 h-4 text-muted-foreground" />
+            <h4 className="text-sm font-semibold">Security Deposit</h4>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="defaultDeposit">Default deposit hold amount ({currency})</Label>
+            <p className="text-sm text-muted-foreground">
+              Manual-capture hold placed at pickup. Overridable per vehicle on the rate card.
+              Leave blank for no default (falls back to $1,000).
+            </p>
+            <div className="flex items-center gap-2">
+              <Input
+                id="defaultDeposit"
+                type="number"
+                min="0"
+                step="1"
+                placeholder="1000"
+                value={depositDollars}
+                onChange={(e) => setDepositDollars(e.target.value)}
+                onWheel={(e) => e.currentTarget.blur()}
+                className="w-[200px]"
+              />
+              <PermissionGuard minRole="admin" fallback={null}>
+                <Button
+                  variant="outline"
+                  onClick={handleSaveDeposit}
+                  disabled={savingDeposit}
+                >
+                  {savingDeposit ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Save className="w-4 h-4 mr-2" />
+                  )}
+                  Save deposit
+                </Button>
+              </PermissionGuard>
+            </div>
+          </div>
+        </div>
       </Card>
 
       <div className="flex justify-end">
