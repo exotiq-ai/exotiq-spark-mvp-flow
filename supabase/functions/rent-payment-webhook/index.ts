@@ -25,6 +25,8 @@ import { resolveStripeMode } from "../_shared/stripeMode.ts";
 import { sendRenterEmail, resolveRenterReplyTo } from "../_shared/rentEmail.ts";
 import {
   buildPayUrl,
+  buildStorefrontUrl,
+  buildVehicleUrl,
   formatCurrency,
   formatDateRange,
   formatPickupTime,
