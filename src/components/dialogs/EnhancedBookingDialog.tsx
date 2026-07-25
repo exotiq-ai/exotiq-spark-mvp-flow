@@ -598,7 +598,7 @@ export const EnhancedBookingDialog = ({
                 )}
               </DialogTitle>
               <div className="flex items-center gap-2">
-                {!isEditMode && (
+                {!isEditMode && !isMarketplaceLocked(booking as any) && (
                   <Button 
                     variant="outline" 
                     size="sm" 
@@ -609,6 +609,11 @@ export const EnhancedBookingDialog = ({
                     Edit
                   </Button>
                 )}
+                {!isEditMode && isMarketplaceLocked(booking as any) && (
+                  <span className="text-[10px] uppercase tracking-wide text-muted-foreground px-2 py-1 rounded border border-border">
+                    Locked · marketplace paid
+                  </span>
+                )}
                 {isEditMode && hasUnsavedChanges && (
                   <span className="h-2 w-2 rounded-full bg-warning animate-pulse" title="Unsaved changes" />
                 )}
@@ -618,6 +623,7 @@ export const EnhancedBookingDialog = ({
               </div>
             </div>
           </DialogHeader>
+
 
           {/* Vehicle Hero Section */}
           <div className="px-6 pt-4">
