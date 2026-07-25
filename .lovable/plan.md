@@ -1,107 +1,112 @@
-# Pre-Launch Plan (Refreshed 2026-07-25)
 
-Handoff is current. Your rulings collapse a lot of the open questions. Below is what's **must-have for launch**, what's **nice-to-have**, and what belongs to Claude in the `exotiq-rent` repo.
+# Pre-Launch QA Plan (2026-07-25 handoff)
 
----
+Grounded in the 29-item consolidated handoff. Items already fixed in prior turns are marked ✅ and skipped. Everything below is Lovable (SPARK / Command Center / backend) unless flagged as Claude (renter app) or Gregory decision.
 
-## MUST HAVE (launch blockers)
-
-### Phase 1 — Cluster A: money integrity (single PR)
-The same bug in four costumes: renter payment can capture on the operator's Connect account while the booking row still says `pending_payment` / `payment_expired` / `cancelled`. Fix once, reuse everywhere.
-
-1. SQL helper `booking_has_captured_leg(b)` + TS `isPaidOrCaptured(booking)`.
-2. `rent-payment-webhook`: always persist `operator_payment_intent_id`, fire `opsAlert` on any partial-failure, auto-refund on terminal-fail.
-3. `expire_overdue_payment_bookings()`: exclude rows where `operator_payment_intent_id IS NOT NULL` → route to ops queue instead of expiring.
-4. `rent-cancel-booking` + `rent-refund-booking`: refund by PI presence, not `paid_at`.
-5. `PaymentTracker` + `CancelBookingCard`: read captured state via the shared helper.
-6. **Reconciliation sweep** (one-time): scan existing `pending_payment` / `payment_expired` / `cancelled` marketplace bookings for orphaned captured PIs; auto-refund or flag for ops.
-7. **Payments-table backfill from webhook**: booking fields stay authoritative for UI, but webhook also writes a `payments` row for audit / margin / partner-payout continuity.
-
-### Phase 2 — Cluster C: identity & security
-8. `identity-create-session`: gate with `booking_ref + confirmation_token`, `.eq` email lookup, persistent rate limit.
-9. `rent-create-booking`: strict email regex + `.eq` email lookup (no `ilike`).
-
-### Phase 3 — Command Center money integrity
-10. Decline/cancel of a paid marketplace booking → routes through `rent-refund-booking` (never manual).
-11. Single `booking_source='marketplace'` edit lock in `EnhancedBookingDialog` + the underlying update mutation (no divergent guards).
-12. Fleet batch-delete: **DB-level `ON DELETE RESTRICT`** on `bookings.vehicle_id` first (structural guard), then soft-delete UI on top.
-13. `useMarginData`: exclude `payment_stripe_mode='test'` + `requested` / `pending_*` / `expired` / `refunded` states (already partly fixed in `PaymentTracker` / `FleetContext` — this is the missed query).
-
-### Phase 4 — Schema & deploy hygiene
-14. Explicit migration for `operator_payment_intent_id` / `exotiq_payment_intent_id` columns; regen types.
-15. Land the 5 deployed money functions (`rent-checkout`, `rent-payment-webhook`, `rent-cancel-booking`, `rent-refund-booking`, `rent-approve-booking`) into the SPARK repo — right now a redeploy from `main` would silently revert M6b. **This is the real fix**; the DEFAULT-0 removal on money params is belt-and-suspenders.
-16. Fix `payment_due_at` double-tz-shift bug.
-17. Backfill `teams.platform_fee_percent`; default 10.00; reject 0 for marketplace-visible teams.
-
-### Phase 5 — Deposit hold config (your new requirement)
-18. Migration:
-    - `teams.default_deposit_cents` (tenant-wide default)
-    - `vehicles.deposit_override_cents` (nullable per-vehicle override)
-    - Resolution: vehicle override → tenant default → platform fallback.
-19. Command Center UI:
-    - Tenant Settings → new "Security deposit" field (with reply-to / support email).
-    - Vehicle rate card → optional "Override deposit for this vehicle."
-20. `stripe-capture-hold` / hold-creation path reads the resolved amount instead of a hardcoded value.
-
-### Phase 6 — ID verify AFTER payment (your ruling on #7)
-21. Once webhook marks `paid`, promote `pending_payment → pending_documents`.
-22. Fire renter drip email: "Payment received — next, verify your ID + insurance."
-23. Existing `identity-*` functions already work; just wire the promotion + email trigger. **Insurance verification tool ships tomorrow** (Claude) — leave a stub email that says "Your ID link is ready; insurance upload coming."
-
-### Phase 7 — Observability
-24. Fix ops-alert schema so partial-failure alerts actually persist (this is what surfaces Cluster A failures live).
-25. Uptime check: real assertion + schedule (20 min job).
+## Already landed (context — skip)
+- ✅ #11 cancel/refund gated on PI presence (`isPaidOrCaptured` + edge fns)
+- ✅ #18/#19 identity-create-session token gate + strict email eq; rent-create-booking email regex + `.eq`
+- ✅ Red-team F1–F7 (persistent rate limit, availability parity, invalid tiers 400, hold-expiry cron, public buckets)
+- ✅ `booking_has_captured_leg` SQL helper + `expire_overdue_payment_bookings` excludes captured legs
 
 ---
 
-## NICE TO HAVE (post-launch)
-- Deposit-hold Command Center Capture/Release controls beyond the amount config.
-- Test-mode banner across Payments / Margin surfaces.
-- Weekly finance digest email.
+## Phase 1 — Finish Cluster A (webhook + retry) — LAUNCH BLOCKERS
+Covers handoff #1, #2, #3, #4, #8, #9, #15.
 
----
+1. **`rent-payment-webhook` — never drop a captured session.** In `checkout.session.completed`, when the status-guarded UPDATE matches 0 rows:
+   - Persist `operator_payment_intent_id` unconditionally (raw UPDATE by `booking_ref`, no status filter).
+   - `opsAlert(db, ref, 'renter_payment_after_terminal_state', {status, operatorPi})`.
+   - Auto-refund the rental leg with `reverse_transfer: true`, idempotency `auto-refund-rental-${ref}`.
+   - Call `stripe.checkout.sessions.expire()` on any still-open session for the same booking on cancel / expiry paths.
+2. **Exotiq-leg retry surface.** Add an ops-callable `rent-retry-exotiq-leg` (service-role, JWT-gated) that:
+   - Requires `operator_payment_intent_id` set and `exotiq_payment_intent_id` NULL.
+   - Creates a fresh Exotiq PI with attempt-scoped idempotency key `exotiq-leg-${ref}-${attempt}` (new `exotiq_leg_attempt` int column, default 0).
+3. **CancelBookingCard copy (renter app)** — hand to Claude (needs `rental_captured` in `public_booking_by_ref`; we add it here, see Phase 4).
 
-## HAND BACK TO CLAUDE (`exotiq-rent` repo)
-- **#16** — "$150 delivery pre-selected" in checkout extras. Your ruling: don't auto-select any extras. Claude to fix.
-- **#26** — misleading "Final payment" copy in `PayStep`.
-- **#17 / #24 resolution** — server quote is authoritative: `public_vehicle_quote` returns `platform_fee_cents`, `protection_cents`, `deposit_cents`, `total_cents`; frontend renders as-is, no local math, no `?? 10` fallback. I'll do the SPARK-side data fix (#17 backfill); Claude does the frontend fix (#24).
-- Confirm insurance-verification flow so Phase 6's stub email can become the real drip.
+## Phase 2 — Command Center money integrity — LAUNCH BLOCKERS
+Covers #10, #12, #13, #14.
+
+4. **`EnhancedBookingDialog` / `EditBookingDialog`:** for `booking_source='marketplace'` in `pending_payment` | `confirmed`, block edits to `total_value`, `daily_rate`, `start_date`, `end_date`, `pickup_time`; allow only notes / operator-internal fields. Single guard helper reused by both dialogs.
+5. **Decline / cancel wiring:** any operator decline/cancel on a marketplace booking with a captured leg (via `isPaidOrCaptured`) routes to `rent-refund-booking` and results in `refunded` / `declined`, never a bare `cancelled`. (Partial wiring landed last turn — audit + finish for both dialogs and bulk actions.)
+6. **`PaymentTracker`:** treat marketplace `paid_at`/PI presence as authoritative — exclude those rows from Pending Payments; replace "Collect Deposit / Balance" CTAs with a two-leg receipt view.
+
+## Phase 3 — Fleet delete safety
+Covers #5.
+
+7. **DB-level guard first:** `bookings.vehicle_id` → `ON DELETE RESTRICT` (subject to your earlier approval; migration will surface conflict rows first, then convert).
+8. **UI:** batch "Delete Selected" in `FleetContext.deleteVehicles` routes through `trashVehicle` (soft) with the same typed confirmation as single-vehicle delete.
+9. **Ledger continuity:** webhook mirrors marketplace legs into `payments` (idempotent on `stripe_payment_intent_id`) so PI ids survive booking loss.
+
+## Phase 4 — Deposit hold + ID-drip (Gregory rulings)
+Covers #6, #7.
+
+10. **Deposit config migration:** `teams.default_deposit_cents` + `vehicles.deposit_override_cents` + SQL `resolve_deposit_cents(vehicle_id)`; Command Center UI in Tenant Settings (default) and Vehicle rate card (override).
+11. **Deposit mechanism:** platform-side manual-capture PI using the card saved from Checkout (`setup_future_usage`). New operator action `stripe-place-hold` (`customer` + `payment_method` + `off_session: true, confirm: true`), records `hold_status`, exposes Capture / Release in `PaymentTracker`. No Stripe.js on renter side.
+12. **Post-payment ID drip:** on `checkout.session.completed` (fully paid), if `customer.identity_status !== 'verified'`, promote booking → `pending_documents` and enqueue renter drip "Payment received — verify your ID + insurance" (insurance stub until Claude ships).
+13. **`identity-webhook` → session verified:** promote that customer's `pending_documents` marketplace bookings back to `pending_payment` (if unpaid) or `confirmed` (if paid), insert team notification. Command Center approval queue accepts `requested` (already done) + surfaces `pending_documents` for awareness.
+
+## Phase 5 — Schema + reporting hygiene
+Covers #17, #20, #21, #22, #23, #27.
+
+14. Explicit migration adding `bookings.operator_payment_intent_id` / `exotiq_payment_intent_id` (idempotent `ADD COLUMN IF NOT EXISTS`) so migrations rebuild cleanly; regen types.
+15. Drop `DEFAULT 0` on `create_marketplace_booking(_platform_fee_cents, _protection_total_cents)` → required.
+16. Backfill `teams.platform_fee_percent` for every marketplace-visible team to 10.00 (unless contracted otherwise); change column default to 10.00; `approve_marketplace_request` rejects fee=0 on visible teams.
+17. Fix `payment_due_at` double-tz shift in the trigger — drop the naive `::timestamp` cast; format email `{{PAYMENT_DEADLINE}}` with explicit IANA zone.
+18. `useMarginData`: exclude `payment_stripe_mode='test'`; expand `REVENUE_EXCLUDED_STATUSES` to include `requested`, `pending_documents`, `pending_payment`, `payment_expired`, `refunded`; `RevenueBySourceCard` uses `countsForRevenue`.
+
+## Phase 6 — Observability
+Covers #28.
+
+19. Rewrite `uptime-check` to probe (a) `https://book.exotiq.rent` for a real marker string, (b) shallow `rent-checkout` health, (c) shallow `rent-payment-webhook` health. Schedule every 5 min via `pg_cron`. Ensure ops-alert table columns exist so partial-failure alerts persist and page a human on `renter_payment_partial_failure`.
+
+## Hand-back to Claude (`exotiq-rent` repo)
+- #15 CancelBookingCard copy (after Phase 4 exposes `rental_captured`).
+- #16 delivery extra pre-selection.
+- #24 `adaptTeam` map `platform_fee_percent` (also expose on `public_team_by_slug` from our side).
+- #25 pickup_time in `public_booking_by_ref` — SPARK adds field to RPC; Claude wires it in ConfirmationScreen + calendar invite.
+- #26 PayStep copy ("Request your reservation" + "Estimated total — nothing charged yet").
+- #29 `expected_total_cents` agreement check (renter sends; SPARK's `rent-create-booking` compares vs re-run `public_vehicle_quote` and returns 409 with both figures on drift).
 
 ---
 
 ## Technical details
 
-**Cluster A helper (SQL):**
-```sql
-create or replace function public.booking_has_captured_leg(b public.bookings)
-returns boolean language sql immutable as $$
-  select b.operator_payment_intent_id is not null
-      or b.exotiq_payment_intent_id is not null
-      or b.paid_at is not null;
-$$;
+**Cluster A webhook flow (Phase 1 §1):**
+```text
+checkout.session.completed
+ ├─ locate booking by booking_ref (no status filter)
+ ├─ UPDATE ... SET operator_payment_intent_id = pi.id WHERE booking_ref = $1 AND operator_payment_intent_id IS NULL
+ ├─ if booking.status NOT IN (pending_payment, confirmed):
+ │    ├─ opsAlert('renter_payment_after_terminal_state', {status, pi})
+ │    └─ refunds.create({payment_intent: pi.id, reverse_transfer: true},
+ │                       {idempotencyKey: `auto-refund-rental-${ref}`})
+ └─ else: existing confirm-if-fully-paid path
 ```
 
-**Deposit resolution (SQL helper):**
+**Marketplace edit lock (Phase 2 §4):**
+Single helper in `src/lib/bookingEditGuards.ts`:
+```ts
+export function isMarketplaceLocked(b: Booking) {
+  return b.booking_source === 'marketplace'
+      && (b.status === 'pending_payment' || b.status === 'confirmed');
+}
+```
+Used by `EnhancedBookingDialog`, `EditBookingDialog`, and the underlying update mutation (defense-in-depth).
+
+**Deposit resolution (Phase 4 §10):**
 ```sql
 create or replace function public.resolve_deposit_cents(_vehicle_id uuid)
 returns bigint language sql stable as $$
-  select coalesce(
-    v.deposit_override_cents,
-    t.default_deposit_cents,
-    100000  -- $1,000 platform fallback
-  )
+  select coalesce(v.deposit_override_cents, t.default_deposit_cents, 100000)
   from vehicles v join teams t on t.id = v.team_id
   where v.id = _vehicle_id;
 $$;
 ```
 
-**Reconciliation sweep:** one-time script — query marketplace bookings with `status in ('pending_payment','payment_expired','cancelled')` and non-null PI, then either auto-refund via `rent-refund-booking` or insert an ops-queue row. Report count before executing.
+**Rollout order:** 1 → 2 → 5 → 3 → 4 → 6. Phases 1, 2, 5 are independent and can land as parallel PRs; Phase 3's `ON DELETE RESTRICT` needs a pre-scan for existing violations.
 
-**Rollout order:** Phase 1 → 2 → 5 (deposit) → 6 (ID drip) → 3 → 4 → 7. Phases 1 and 2 are independent PRs; 5 and 6 can go in parallel after Phase 1 lands.
-
----
-
-## What I need from you to start
-1. Approve this plan (or reorder).
-2. Confirm SPARK-side commits of the 5 money functions happen here (I'll do it in Phase 4) vs. via a Claude pass.
-3. Any objection to `ON DELETE RESTRICT` on `bookings.vehicle_id` — it means fleet delete will hard-error on vehicles with historical bookings until you soft-delete instead. That's the intended safety, just want it confirmed.
+## What I need from you
+1. Approve this ordering (or reorder).
+2. Confirm Phase 3 §7 — you previously OK'd `ON DELETE RESTRICT`; still good?
+3. Confirm Phase 4 §11 deposit mechanism (platform-side manual-capture PI with the saved card) vs. any alternative you want.
