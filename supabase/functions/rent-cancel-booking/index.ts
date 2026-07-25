@@ -119,7 +119,14 @@ serve(async (req) => {
 
     const pickupMs = Date.parse(booking.start_date);
     const inFreeWindow = Number.isFinite(pickupMs) && pickupMs - Date.now() >= FREE_WINDOW_MS;
-    const paid = Boolean(booking.paid_at);
+    // Cluster A: judge "paid" from PI presence, not paid_at. A partial
+    // capture (rental charged, Exotiq leg pending/failed) still has real
+    // money on Stripe that needs refunding when the renter cancels.
+    const paid = Boolean(
+      booking.paid_at ||
+        booking.operator_payment_intent_id ||
+        booking.exotiq_payment_intent_id,
+    );
 
     let refunded = false;
     if (paid && inFreeWindow) {
