@@ -132,8 +132,12 @@ serve(async (req) => {
       const exotiqAmount =
         (Number(booking.platform_fee_cents ?? 0) + Number(booking.protection_total_cents ?? 0)) / 100;
       const totalDue = rentalAmount + exotiqAmount;
-      const origin = req.headers.get("origin") || "https://book.exotiq.rent";
-      const payUrl = buildPayUrl(booking.booking_ref, String(booking.confirmation_token), origin);
+      // L1 (2026-07-25 handoff): NEVER derive the renter's pay link from
+      // req.headers.get("origin"). The CC calls this from the browser, so
+      // the browser sends the operator app's origin and the emailed link
+      // 404s. Renter app is a fixed destination.
+      const renterOrigin = Deno.env.get("RENTER_APP_ORIGIN") ?? "https://book.exotiq.rent";
+      const payUrl = buildPayUrl(booking.booking_ref, String(booking.confirmation_token), renterOrigin);
 
       const vehicleName = booking.vehicle_name || "Vehicle";
       const vehicleShort = shortVehicleName(vehicleName);

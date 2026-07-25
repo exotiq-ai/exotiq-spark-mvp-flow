@@ -25,6 +25,8 @@ import { resolveStripeMode } from "../_shared/stripeMode.ts";
 import { sendRenterEmail, resolveRenterReplyTo } from "../_shared/rentEmail.ts";
 import {
   buildPayUrl,
+  buildStorefrontUrl,
+  buildVehicleUrl,
   formatCurrency,
   formatDateRange,
   formatPickupTime,
@@ -112,10 +114,15 @@ async function confirmIfFullyPaid(db: ReturnType<typeof admin>, bookingRef: stri
 
       const vehicleName = booking.vehicle_name || "Vehicle";
       const vehicleShort = shortVehicleName(vehicleName);
-      const origin = "https://book.exotiq.rent";
-      const payUrl = buildPayUrl(bookingRef, booking.confirmation_token, origin);
-      const storefrontUrl = `https://${team?.slug ?? "book"}.exotiq.rent`;
-      const vehicleUrl = vehicle?.slug ? `${storefrontUrl}/vehicles/${vehicle.slug}` : storefrontUrl;
+      // L1/L2 (2026-07-25 handoff): renter URLs are a fixed destination —
+      // never derived from request headers or `{slug}.exotiq.rent` (no
+      // wildcard DNS). Use the canonical helpers.
+      const renterOrigin = Deno.env.get("RENTER_APP_ORIGIN") ?? "https://book.exotiq.rent";
+      const payUrl = buildPayUrl(bookingRef, booking.confirmation_token, renterOrigin);
+      const storefrontUrl = buildStorefrontUrl(team?.slug ?? "", renterOrigin);
+      const vehicleUrl = vehicle?.slug
+        ? buildVehicleUrl(team?.slug ?? "", vehicle.slug, renterOrigin)
+        : storefrontUrl;
 
         await sendRenterEmail({
           templateName: "receiptConfirmed",
@@ -144,7 +151,7 @@ async function confirmIfFullyPaid(db: ReturnType<typeof admin>, bookingRef: stri
 
       // ID-verify drip — only when we parked at pending_documents.
       if (!identityVerified) {
-        const verifyUrl = `${origin}/verify?ref=${bookingRef}&token=${booking.confirmation_token}`;
+        const verifyUrl = `${renterOrigin}/verify?ref=${bookingRef}&token=${booking.confirmation_token}`;
         await sendRenterEmail({
           templateName: "verifyIdRequested",
           to: booking.customer_email,

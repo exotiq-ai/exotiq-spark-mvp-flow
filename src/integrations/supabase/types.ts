@@ -5544,56 +5544,30 @@ export type Database = {
         Returns: number
       }
       count_admins: { Args: never; Returns: number }
-      create_marketplace_booking:
-        | {
-            Args: {
-              _customer_email: string
-              _customer_name: string
-              _customer_phone: string
-              _daily_rate: number
-              _deposit_cents?: number
-              _end_date: string
-              _initial_status: string
-              _pickup_time: string
-              _platform_fee_cents?: number
-              _protection_cents?: number
-              _protection_tier?: string
-              _start_date: string
-              _team_slug: string
-              _total_value: number
-              _vehicle_slug: string
-            }
-            Returns: {
-              booking_id: string
-              booking_ref: string
-              confirmation_token: string
-              status: string
-            }[]
-          }
-        | {
-            Args: {
-              _customer_email: string
-              _customer_name: string
-              _customer_phone: string
-              _daily_rate: number
-              _end_date: string
-              _initial_status: string
-              _pickup_time: string
-              _platform_fee_cents: number
-              _protection_tier: string
-              _protection_total_cents: number
-              _start_date: string
-              _team_slug: string
-              _total_value: number
-              _vehicle_slug: string
-            }
-            Returns: {
-              booking_id: string
-              booking_ref: string
-              confirmation_token: string
-              status: string
-            }[]
-          }
+      create_marketplace_booking: {
+        Args: {
+          _customer_email: string
+          _customer_name: string
+          _customer_phone: string
+          _daily_rate: number
+          _end_date: string
+          _initial_status: string
+          _pickup_time: string
+          _platform_fee_cents: number
+          _protection_tier: string
+          _protection_total_cents: number
+          _start_date: string
+          _team_slug: string
+          _total_value: number
+          _vehicle_slug: string
+        }
+        Returns: {
+          booking_id: string
+          booking_ref: string
+          confirmation_token: string
+          status: string
+        }[]
+      }
       deactivate_team_member:
         | {
             Args: {
