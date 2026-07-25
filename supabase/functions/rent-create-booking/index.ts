@@ -110,7 +110,7 @@ serve(async (req) => {
     if (startDate < new Date().toISOString().slice(0, 10)) {
       return json({ error: "start_date cannot be in the past" }, 400);
     }
-    if (name.length < 2 || !email.includes("@") || phone.replace(/\D/g, "").length < 10) {
+    if (name.length < 2 || !EMAIL_RE.test(email) || phone.replace(/\D/g, "").length < 10) {
       return json({ error: "driver name, email, and phone are required" }, 400);
     }
 
