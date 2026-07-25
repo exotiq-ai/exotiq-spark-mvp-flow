@@ -201,8 +201,11 @@ export const RateTiersPanel = () => {
         <Alert className="mb-4">
           <Info className="h-4 w-4" />
           <AlertDescription>
-            <strong>Daily (24hr)</strong> is the primary rate used across the system. 
+            <strong>Daily (24hr)</strong> is the primary rate used across the system.
             3-Hour and 6-Hour are flat rates. Multi-day is a per-day rate for 2+ day rentals.
+            <strong> Deposit hold</strong> overrides the tenant default
+            {defaultDepositDollars != null ? ` (${formatCurrency(defaultDepositDollars)})` : " ($1,000 fallback)"}
+            for this vehicle. Leave blank to use the default.
           </AlertDescription>
         </Alert>
 
@@ -215,6 +218,7 @@ export const RateTiersPanel = () => {
                 <TableHead className="text-right min-w-[100px]">6-Hour</TableHead>
                 <TableHead className="text-right min-w-[100px]">Daily (24hr)</TableHead>
                 <TableHead className="text-right min-w-[100px]">Multi-Day</TableHead>
+                <TableHead className="text-right min-w-[120px]">Deposit Hold</TableHead>
                 <TableHead className="w-[100px]"></TableHead>
               </TableRow>
             </TableHeader>
