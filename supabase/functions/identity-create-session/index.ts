@@ -52,6 +52,12 @@ serve(async (req) => {
     return json({ error: "Method not allowed" }, 405);
   }
 
+  // Cluster C: persistent per-IP rate limit. Prior build had no limit,
+  // so an attacker could brute email + booking_ref combos cheaply.
+  const ip = clientIp(req);
+  const allowed = await checkRateLimit(`identity-create-session:${ip}`, 20, 3600);
+  if (!allowed) return json({ error: "Too many requests" }, 429);
+
   try {
     // Identity runs on its own key (sandbox restricted key with Identity
     // write scopes) so live payments on STRIPE_SECRET_KEY are never touched.
