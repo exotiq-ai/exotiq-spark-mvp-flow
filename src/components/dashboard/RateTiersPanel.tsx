@@ -32,6 +32,7 @@ interface VehicleRates {
   rate_3hr: number | null;
   rate_6hr: number | null;
   rate_multiday: number | null;
+  deposit_override_cents: number | null;
 }
 
 interface EditingRates {
@@ -39,6 +40,7 @@ interface EditingRates {
   rate_6hr: string;
   current_rate: string;
   rate_multiday: string;
+  deposit_override: string;
 }
 
 export const RateTiersPanel = () => {
