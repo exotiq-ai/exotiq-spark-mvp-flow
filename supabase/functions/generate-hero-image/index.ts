@@ -210,22 +210,25 @@ serve(async (req) => {
       );
     }
 
-    // H1 fix (2026-07-25): the vehicle-photos bucket is now PUBLIC for
-    // marketing hero images (they are not sensitive). We store the stable
-    // public URL directly instead of persisting a long-lived signed URL —
-    // signed URLs used to be baked into `vehicles.image_url` for up to a
-    // year, which is effectively a permanent credential.
-    const { data: publicData } = supabase.storage
+    // H1 (2026-07-25): TTL reduced from 365d → 7d. Workspace policy blocks
+    // public buckets, so we still sign, but a 7-day credential is a much
+    // smaller blast radius than a year. Proper fix is to route hero reads
+    // through rent-public-media (1h, re-signed on demand) — tracked as a
+    // renter-app follow-up.
+    const { data: signedData, error: signedError } = await supabase.storage
       .from("vehicle-photos")
-      .getPublicUrl(storagePath);
-    const imageUrl = publicData.publicUrl;
-    if (!imageUrl) {
-      console.error("Failed to build public URL for", storagePath);
+      .createSignedUrl(storagePath, 60 * 60 * 24 * 7); // 7 days
+
+    if (signedError || !signedData?.signedUrl) {
+      console.error("Failed to create signed URL:", signedError);
       return new Response(
         JSON.stringify({ success: false, error: "Failed to create image URL" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    const imageUrl = signedData.signedUrl;
+
 
     const generatedAt = new Date().toISOString();
 
