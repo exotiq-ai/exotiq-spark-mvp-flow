@@ -78,7 +78,11 @@ serve(async (req) => {
       .maybeSingle();
     if (!membership) return json({ error: "Not a member of this booking's team" }, 403);
 
-    if (booking.status !== "pending") {
+    // Approvable statuses: legacy direct 'pending' AND marketplace 'requested'
+    // (identity verified). 'pending_documents' is intentionally NOT approvable —
+    // ID verification stays a precondition for marketplace approval.
+    const APPROVABLE = ["pending", "requested"];
+    if (!APPROVABLE.includes(booking.status)) {
       return json({ error: `Booking cannot be approved from status: ${booking.status}` }, 409);
     }
 
@@ -97,8 +101,9 @@ serve(async (req) => {
       .from("bookings")
       .update(updates)
       .eq("id", bookingId)
-      .eq("status", "pending");
+      .in("status", APPROVABLE);
     if (updateError) throw updateError;
+
 
     // Google Calendar sync
     try {
