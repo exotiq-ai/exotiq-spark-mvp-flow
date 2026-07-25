@@ -6040,6 +6040,7 @@ export type Database = {
           booking_ref: string
           currency: string
           end_at: string
+          identity_verified: boolean
           paid_at: string
           payment_due_at: string
           platform_fee_cents: number
