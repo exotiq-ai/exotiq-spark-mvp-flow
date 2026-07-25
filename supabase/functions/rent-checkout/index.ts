@@ -26,6 +26,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.77.0";
 import { resolveStripeMode, teamConnectedAccountId } from "../_shared/stripeMode.ts";
+import { checkRateLimit, clientIp } from "../_shared/rateLimit.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -33,23 +34,9 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-// Simple per-IP limiter (matches rent-create-booking / demo-login).
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+// Persistent limiter (see _shared/rateLimit.ts). 30/hr per IP.
 const MAX_PER_HOUR = 30;
-
-function allowRequest(req: Request): boolean {
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "";
-  if (!ip) return true;
-  const now = Date.now();
-  const entry = rateLimitMap.get(ip);
-  if (entry && entry.resetAt > now) {
-    if (entry.count >= MAX_PER_HOUR) return false;
-    entry.count += 1;
-    return true;
-  }
-  rateLimitMap.set(ip, { count: 1, resetAt: now + 3_600_000 });
-  return true;
-}
+const WINDOW_SECONDS = 3600;
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -71,7 +58,10 @@ function stripeFeeEstimateCents(amountCents: number): number {
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
-  if (!allowRequest(req)) return json({ error: "Too many requests" }, 429);
+  const ip = clientIp(req);
+  if (!(await checkRateLimit(`rent-checkout:${ip}`, MAX_PER_HOUR, WINDOW_SECONDS))) {
+    return json({ error: "Too many requests" }, 429);
+  }
 
   try {
     const admin = createClient(

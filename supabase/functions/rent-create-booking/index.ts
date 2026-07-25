@@ -26,6 +26,7 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.77.0";
+import { checkRateLimit, clientIp, verifyTurnstile } from "../_shared/rateLimit.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -33,23 +34,10 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-// Simple per-IP limiter (matches demo-login's approach).
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+// Persistent limiter (see _shared/rateLimit.ts). 20/hr per IP matches prior
+// intent; enforced now because state lives in Postgres, not per-isolate memory.
 const MAX_PER_HOUR = 20;
-
-function allowRequest(req: Request): boolean {
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "";
-  if (!ip) return true;
-  const now = Date.now();
-  const entry = rateLimitMap.get(ip);
-  if (entry && entry.resetAt > now) {
-    if (entry.count >= MAX_PER_HOUR) return false;
-    entry.count += 1;
-    return true;
-  }
-  rateLimitMap.set(ip, { count: 1, resetAt: now + 3_600_000 });
-  return true;
-}
+const WINDOW_SECONDS = 3600;
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -67,7 +55,10 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
-  if (!allowRequest(req)) return json({ error: "Too many requests" }, 429);
+
+  const ip = clientIp(req);
+  const allowed = await checkRateLimit(`rent-create-booking:${ip}`, MAX_PER_HOUR, WINDOW_SECONDS);
+  if (!allowed) return json({ error: "Too many requests" }, 429);
 
   try {
     const admin = createClient(
@@ -77,14 +68,32 @@ serve(async (req) => {
     );
 
     const body = await req.json().catch(() => ({}));
+
+    // Turnstile (only enforced when CLOUDFLARE_TURNSTILE_SECRET is set).
+    const turnstile = await verifyTurnstile(body?.turnstile_token, ip);
+    if (!turnstile.ok) {
+      return json({ error: "Bot check failed. Please retry." }, 400);
+    }
+
     const teamSlug = String(body.team_slug ?? "").trim();
     const vehicleSlug = String(body.vehicle_slug ?? "").trim();
     const startDate = String(body.start_date ?? "").trim();
     const endDate = String(body.end_date ?? "").trim();
     const pickupTime = String(body.pickup_time ?? "10:00 AM").trim().slice(0, 16);
-    const protection = ["premium", "standard", "decline"].includes(body.protection)
-      ? body.protection
-      : "premium";
+
+    // Strict protection validation (item #4): unknown values are rejected
+    // rather than silently coerced to premium (the most expensive tier).
+    const ALLOWED_PROTECTION = ["premium", "standard", "decline"] as const;
+    const rawProtection = body.protection;
+    let protection: (typeof ALLOWED_PROTECTION)[number] = "premium";
+    if (rawProtection === undefined || rawProtection === null || rawProtection === "") {
+      protection = "premium";
+    } else if (typeof rawProtection === "string" && (ALLOWED_PROTECTION as readonly string[]).includes(rawProtection)) {
+      protection = rawProtection as (typeof ALLOWED_PROTECTION)[number];
+    } else {
+      return json({ error: "protection must be one of: premium, standard, decline" }, 400);
+    }
+
     const driver = body.driver ?? {};
     const name = String(driver.name ?? "").trim().slice(0, 120);
     const email = String(driver.email ?? "").trim().toLowerCase().slice(0, 200);
@@ -100,6 +109,7 @@ serve(async (req) => {
     if (name.length < 2 || !email.includes("@") || phone.replace(/\D/g, "").length < 10) {
       return json({ error: "driver name, email, and phone are required" }, 400);
     }
+
 
     // Server-side quote — the only totals that count (D1/D9/D5).
     const { data: quoteRows, error: quoteError } = await admin.rpc("public_vehicle_quote", {

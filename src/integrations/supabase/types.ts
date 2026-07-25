@@ -2919,6 +2919,24 @@ export type Database = {
           },
         ]
       }
+      rate_limit_counters: {
+        Row: {
+          bucket: string
+          count: number
+          window_start: string
+        }
+        Insert: {
+          bucket: string
+          count?: number
+          window_start: string
+        }
+        Update: {
+          bucket?: string
+          count?: number
+          window_start?: string
+        }
+        Relationships: []
+      }
       recurring_expense_templates: {
         Row: {
           amount: number
@@ -5490,6 +5508,10 @@ export type Database = {
         Args: { _object_name: string; _user_id: string }
         Returns: boolean
       }
+      check_rate_limit: {
+        Args: { _bucket: string; _limit: number; _window_seconds: number }
+        Returns: boolean
+      }
       clear_billing_dunning: {
         Args: { p_note?: string; p_team_id: string }
         Returns: undefined
@@ -5585,6 +5607,13 @@ export type Database = {
           total_value: number
           vehicle_id: string
           vehicle_name: string
+        }[]
+      }
+      expire_unverified_holds: {
+        Args: never
+        Returns: {
+          booking_id: string
+          booking_ref: string
         }[]
       }
       fn_transition_payout: {
