@@ -91,14 +91,20 @@ export const PaymentTracker = () => {
         + (Number((booking as any).platform_fee_cents || 0) + Number((booking as any).protection_total_cents || 0)) / 100
       : Number(booking.total_value || 0);
     
+    // Cluster A: for marketplace bookings, PI presence is authoritative
+    // over the ledger. A late webhook mirror shouldn't make a paid booking
+    // look unpaid — and manual "record payment" is forbidden on marketplace
+    // anyway.
+    const marketplaceCaptured = isMarketplace && isPaidOrCaptured(booking as any);
+
     return {
       ...booking,
       vehicle,
       totalPaid,
       totalDue: marketplaceTotalDue,
-      amountDue: Math.max(0, marketplaceTotalDue - totalPaid),
+      amountDue: marketplaceCaptured ? 0 : Math.max(0, marketplaceTotalDue - totalPaid),
       depositPaid: bookingPayments.some(p => p.payment_type === 'deposit' && p.payment_status === 'completed'),
-      balancePaid: totalPaid >= marketplaceTotalDue - 0.01,
+      balancePaid: marketplaceCaptured || totalPaid >= marketplaceTotalDue - 0.01,
       activeHold,
       isMarketplace,
     };
