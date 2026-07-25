@@ -26,6 +26,7 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.77.0";
+import { checkRateLimit, clientIp, verifyTurnstile } from "../_shared/rateLimit.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -33,23 +34,10 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-// Simple per-IP limiter (matches demo-login's approach).
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+// Persistent limiter (see _shared/rateLimit.ts). 20/hr per IP matches prior
+// intent; enforced now because state lives in Postgres, not per-isolate memory.
 const MAX_PER_HOUR = 20;
-
-function allowRequest(req: Request): boolean {
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "";
-  if (!ip) return true;
-  const now = Date.now();
-  const entry = rateLimitMap.get(ip);
-  if (entry && entry.resetAt > now) {
-    if (entry.count >= MAX_PER_HOUR) return false;
-    entry.count += 1;
-    return true;
-  }
-  rateLimitMap.set(ip, { count: 1, resetAt: now + 3_600_000 });
-  return true;
-}
+const WINDOW_SECONDS = 3600;
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
