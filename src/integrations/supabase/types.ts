@@ -5471,6 +5471,15 @@ export type Database = {
         Returns: undefined
       }
       auto_purge_expired_vehicles: { Args: never; Returns: number }
+      booking_has_captured_leg:
+        | {
+            Args: { _exotiq_pi: string; _operator_pi: string; _paid_at: string }
+            Returns: boolean
+          }
+        | {
+            Args: { b: Database["public"]["Tables"]["bookings"]["Row"] }
+            Returns: boolean
+          }
       can_access_conversation: {
         Args: { _conversation_id: string; _user_id: string }
         Returns: boolean
