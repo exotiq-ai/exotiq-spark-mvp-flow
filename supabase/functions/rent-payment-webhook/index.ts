@@ -151,7 +151,7 @@ async function confirmIfFullyPaid(db: ReturnType<typeof admin>, bookingRef: stri
 
       // ID-verify drip — only when we parked at pending_documents.
       if (!identityVerified) {
-        const verifyUrl = `${origin}/verify?ref=${bookingRef}&token=${booking.confirmation_token}`;
+        const verifyUrl = `${renterOrigin}/verify?ref=${bookingRef}&token=${booking.confirmation_token}`;
         await sendRenterEmail({
           templateName: "verifyIdRequested",
           to: booking.customer_email,
