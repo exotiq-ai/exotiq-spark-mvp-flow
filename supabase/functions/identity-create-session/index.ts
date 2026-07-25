@@ -16,6 +16,11 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.77.0";
+import { checkRateLimit, clientIp } from "../_shared/rateLimit.ts";
+
+// Cluster C #29: strict email at the edge. Blocks ilike-wildcard payloads
+// (%, _) from ever touching the customers lookup.
+const EMAIL_RE = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -46,6 +51,12 @@ serve(async (req) => {
   if (req.method !== "POST") {
     return json({ error: "Method not allowed" }, 405);
   }
+
+  // Cluster C: persistent per-IP rate limit. Prior build had no limit,
+  // so an attacker could brute email + booking_ref combos cheaply.
+  const ip = clientIp(req);
+  const allowed = await checkRateLimit(`identity-create-session:${ip}`, 20, 3600);
+  if (!allowed) return json({ error: "Too many requests" }, 429);
 
   try {
     // Identity runs on its own key (sandbox restricted key with Identity
@@ -93,20 +104,36 @@ serve(async (req) => {
       if (!membership) return json({ error: "Not authorized for this customer" }, 403);
       customerId = customer.id;
     } else {
-      // Renter/guest path: re-derive by email (+ booking_ref context).
+      // Renter/guest path: booking_ref + confirmation_token gate the email
+      // lookup. Prior build accepted { email } alone and returned generic
+      // 404s — enough signal for an attacker to enumerate customers by
+      // spraying emails. Now the caller must already hold the opaque
+      // per-booking token issued at booking creation.
       const email = String(body.email ?? "").trim().toLowerCase();
-      if (!email || !email.includes("@")) {
-        return json({ error: "email is required" }, 400);
+      const bookingRef = String(body.booking_ref ?? "").trim();
+      const token = String(body.confirmation_token ?? "").trim();
+      if (!EMAIL_RE.test(email) || !bookingRef || !token) {
+        return json({ error: "email, booking_ref and confirmation_token are required" }, 400);
+      }
+      const { data: booking, error: bookingErr } = await admin
+        .from("bookings")
+        .select("id, customer_id, confirmation_token, customer_email")
+        .eq("booking_ref", bookingRef)
+        .maybeSingle();
+      if (bookingErr || !booking || booking.confirmation_token !== token) {
+        return json({ error: "No booking found for this email" }, 404);
+      }
+      // Email must match the booking's stored customer email (case-insensitive
+      // compare on already-lowercased input; no ilike/wildcards on the wire).
+      if (String(booking.customer_email ?? "").toLowerCase() !== email) {
+        return json({ error: "No booking found for this email" }, 404);
       }
       const { data: customer, error } = await admin
         .from("customers")
         .select("id")
-        .ilike("email", email)
-        .order("created_at", { ascending: false })
-        .limit(1)
+        .eq("id", booking.customer_id)
         .maybeSingle();
       if (error || !customer) {
-        // Do not leak whether an email exists beyond this generic shape.
         return json({ error: "No booking found for this email" }, 404);
       }
       customerId = customer.id;

@@ -51,6 +51,10 @@ const logStep = (step: string, details?: Record<string, unknown>) => {
 };
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+// Cluster C item #29: strict RFC-5322-lite email. `.includes("@")` accepted
+// bare "@", trailing dots, and whitespace-in-local-part, which then flowed
+// into ilike identity lookups. Reject at the door.
+const EMAIL_RE = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -106,7 +110,7 @@ serve(async (req) => {
     if (startDate < new Date().toISOString().slice(0, 10)) {
       return json({ error: "start_date cannot be in the past" }, 400);
     }
-    if (name.length < 2 || !email.includes("@") || phone.replace(/\D/g, "").length < 10) {
+    if (name.length < 2 || !EMAIL_RE.test(email) || phone.replace(/\D/g, "").length < 10) {
       return json({ error: "driver name, email, and phone are required" }, 400);
     }
 
@@ -124,11 +128,13 @@ serve(async (req) => {
     if (!quote) return json({ error: "Vehicle is not available for booking" }, 404);
 
     // Identity reuse (V7): verified + unexpired for this email, any team.
+    // Use .eq — email is server-normalized above; ilike here was a wildcard
+    // vector (%, _ in email) that has no defensible use for identity reuse.
     const { data: verifiedRows } = await admin
       .from("identity_verifications")
       .select("id, document_expiry, customers!inner(email)")
       .eq("status", "verified")
-      .ilike("customers.email", email)
+      .eq("customers.email", email)
       .limit(1);
     const identity = verifiedRows?.[0] as { document_expiry: string | null } | undefined;
     const identityVerified = Boolean(
