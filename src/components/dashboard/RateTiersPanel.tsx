@@ -301,6 +301,24 @@ export const RateTiersPanel = () => {
                             className="w-24 ml-auto text-right"
                           />
                         </TableCell>
+                        <TableCell className="text-right">
+                          <Input
+                            type="number"
+                            value={editingRates.deposit_override}
+                            onChange={(e) =>
+                              setEditingRates((prev) => ({
+                                ...prev,
+                                deposit_override: e.target.value,
+                              }))
+                            }
+                            placeholder={
+                              defaultDepositDollars != null
+                                ? `Default ${Math.round(defaultDepositDollars)}`
+                                : "Default"
+                            }
+                            className="w-28 ml-auto text-right"
+                          />
+                        </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
                             <Button
