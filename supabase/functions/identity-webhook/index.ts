@@ -176,6 +176,22 @@ serve(async (req) => {
     await admin.from("customers").update(customerPatch).eq("id", row.customer_id);
   }
 
+  // Phase 6: once the renter clears ID verification, auto-promote any
+  // already-paid marketplace bookings from pending_documents → confirmed.
+  // The payment webhook parks them there when payment lands ahead of ID.
+  if (notifyVerified && row.customer_id) {
+    const { error: promoteErr } = await admin
+      .from("bookings")
+      .update({ status: "confirmed" })
+      .eq("customer_id", row.customer_id)
+      .eq("booking_source", "marketplace")
+      .eq("status", "pending_documents")
+      .not("paid_at", "is", null);
+    if (promoteErr) {
+      console.error("[IDENTITY-WEBHOOK] pending_documents → confirmed promotion failed", promoteErr);
+    }
+  }
+
   // Bell notifications for the tenant's team (decision V6 + verified/retry alerts).
   const notifyType = notifyManualReview
     ? "identity_manual_review"
