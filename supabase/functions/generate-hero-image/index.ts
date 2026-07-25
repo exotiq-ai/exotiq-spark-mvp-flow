@@ -210,24 +210,21 @@ serve(async (req) => {
       );
     }
 
-    // H1 (2026-07-25): TTL reduced from 365d → 7d. Workspace policy blocks
-    // public buckets, so we still sign, but a 7-day credential is a much
-    // smaller blast radius than a year. Proper fix is to route hero reads
-    // through rent-public-media (1h, re-signed on demand) — tracked as a
-    // renter-app follow-up.
-    const { data: signedData, error: signedError } = await supabase.storage
+    // H1 close-out (2026-07-25): vehicle-photos bucket is now public. Return
+    // a stable public URL (no TTL, no token) so hero images never rot.
+    const { data: publicData } = supabase.storage
       .from("vehicle-photos")
-      .createSignedUrl(storagePath, 60 * 60 * 24 * 7); // 7 days
+      .getPublicUrl(storagePath);
 
-    if (signedError || !signedData?.signedUrl) {
-      console.error("Failed to create signed URL:", signedError);
+    if (!publicData?.publicUrl) {
+      console.error("Failed to build public URL for", storagePath);
       return new Response(
         JSON.stringify({ success: false, error: "Failed to create image URL" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const imageUrl = signedData.signedUrl;
+    const imageUrl = publicData.publicUrl;
 
 
     const generatedAt = new Date().toISOString();
