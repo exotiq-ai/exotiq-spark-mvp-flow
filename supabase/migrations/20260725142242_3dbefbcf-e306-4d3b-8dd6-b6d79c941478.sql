@@ -1,0 +1,1 @@
+DROP FUNCTION IF EXISTS public.create_marketplace_booking(text,text,date,date,text,text,text,text,numeric,numeric,text,bigint,text,bigint,bigint);
