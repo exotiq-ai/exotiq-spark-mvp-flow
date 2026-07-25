@@ -716,6 +716,46 @@ export const templates = {
   </table>
 </body>
 </html>`,
+
+  // Stub for the post-payment ID-verify drip. Insurance-upload flow ships
+  // separately; this template mentions it as "coming next" so we don't
+  // block launch on the insurance surface. Refresh copy once insurance is
+  // wired.
+  verifyIdRequested: `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Payment received — verify your ID next | Drive Exotiq</title>
+</head>
+<body style="margin:0; padding:0; background:#0E1013; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color:#F0F2F5;">
+  <div style="display:none; max-height:0; overflow:hidden;">Payment received for booking {{BOOKING_REF}} — verify your ID to lock in {{VEHICLE_SHORT}} for {{DATE_RANGE}}.</div>
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#0E1013;">
+    <tr><td align="center" style="padding:32px 16px;">
+      <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="max-width:600px; background:#151821; border-radius:12px; padding:32px;">
+        <tr><td>
+          <div style="font-size:12px; letter-spacing:2px; color:#8E95A3; text-transform:uppercase; margin-bottom:8px;">Payment received</div>
+          <h1 style="font-size:24px; line-height:32px; margin:0 0 16px; color:#F0F2F5; font-weight:700;">Now let's verify your ID</h1>
+          <p style="font-size:14px; line-height:22px; color:#C4C9D3; margin:0 0 20px;">
+            Thanks — your payment for <strong>{{VEHICLE_SHORT}}</strong> on {{DATE_RANGE}} has cleared
+            (booking {{BOOKING_REF}}). To finalize your reservation, please verify your ID with our
+            secure partner. It takes about two minutes.
+          </p>
+          <div style="margin:24px 0;">
+            <a href="{{VERIFY_URL}}" style="display:inline-block; background:#F0F2F5; color:#0E1013; text-decoration:none; padding:12px 24px; border-radius:8px; font-weight:600; font-size:14px;">Verify my ID</a>
+          </div>
+          <p style="font-size:13px; line-height:20px; color:#8E95A3; margin:0 0 16px;">
+            Insurance upload is coming next — we'll send a separate link once you've cleared ID verification.
+          </p>
+          <p style="font-size:12px; line-height:18px; color:#5C6272; margin:24px 0 0; padding-top:16px; border-top:1px solid #2A2E3A;">
+            Booking {{BOOKING_REF}} · Operator: {{OPERATOR_NAME}} · Questions? Just reply to this email.
+          </p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`,
 } as const;
 
 export type TemplateName = keyof typeof templates;

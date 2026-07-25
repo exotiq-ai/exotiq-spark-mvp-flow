@@ -3518,6 +3518,7 @@ export type Database = {
           created_at: string | null
           currency: string
           data_region: string
+          default_deposit_cents: number | null
           deleted_at: string | null
           deleted_by: string | null
           deletion_scheduled_for: string | null
@@ -3583,6 +3584,7 @@ export type Database = {
           created_at?: string | null
           currency?: string
           data_region?: string
+          default_deposit_cents?: number | null
           deleted_at?: string | null
           deleted_by?: string | null
           deletion_scheduled_for?: string | null
@@ -3648,6 +3650,7 @@ export type Database = {
           created_at?: string | null
           currency?: string
           data_region?: string
+          default_deposit_cents?: number | null
           deleted_at?: string | null
           deleted_by?: string | null
           deletion_scheduled_for?: string | null
@@ -4991,6 +4994,7 @@ export type Database = {
           current_rate: number
           default_mileage_limit: number | null
           default_security_deposit: number
+          deposit_override_cents: number | null
           id: string
           image_url: string | null
           last_known_name: string | null
@@ -5032,6 +5036,7 @@ export type Database = {
           current_rate?: number
           default_mileage_limit?: number | null
           default_security_deposit?: number
+          deposit_override_cents?: number | null
           id?: string
           image_url?: string | null
           last_known_name?: string | null
@@ -5073,6 +5078,7 @@ export type Database = {
           current_rate?: number
           default_mileage_limit?: number | null
           default_security_deposit?: number
+          deposit_override_cents?: number | null
           id?: string
           image_url?: string | null
           last_known_name?: string | null
@@ -6189,6 +6195,7 @@ export type Database = {
         Args: { _team_id: string }
         Returns: boolean
       }
+      resolve_deposit_cents: { Args: { _vehicle_id: string }; Returns: number }
       restore_vehicle_from_archive: {
         Args: { p_vehicle_id: string }
         Returns: undefined

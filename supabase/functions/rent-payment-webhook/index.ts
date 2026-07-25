@@ -44,27 +44,43 @@ function admin() {
   );
 }
 
-/** Confirm iff both legs succeeded (idempotent; safe under redelivery). */
+/** Confirm iff both legs succeeded (idempotent; safe under redelivery).
+ *  Phase 6: if the renter hasn't cleared ID verification yet, park at
+ *  `pending_documents` and fire the ID-drip email instead of jumping to
+ *  `confirmed`. The identity-webhook auto-promotes to `confirmed` once
+ *  identity_status becomes 'verified'. */
 async function confirmIfFullyPaid(db: ReturnType<typeof admin>, bookingRef: string, mode: string) {
   const { data: booking } = await db
     .from("bookings")
     .select(
       "id, status, operator_payment_intent_id, exotiq_payment_intent_id, paid_at, " +
-      "customer_email, customer_name, start_date, end_date, pickup_location, " +
+      "customer_id, customer_email, customer_name, start_date, end_date, pickup_location, " +
       "total_value, platform_fee_cents, protection_total_cents, vehicle_id, vehicle_name, " +
       "team_id, confirmation_token",
     )
     .eq("booking_ref", bookingRef)
     .maybeSingle();
   if (!booking) return;
-  if (booking.status !== "pending_payment") return; // already confirmed / expired / declined
+  if (booking.status !== "pending_payment") return; // already promoted / expired / declined
   if (!booking.operator_payment_intent_id || !booking.exotiq_payment_intent_id) return;
 
+  // Is the renter already ID-verified?
+  let identityVerified = false;
+  if (booking.customer_id) {
+    const { data: customer } = await db
+      .from("customers")
+      .select("identity_status")
+      .eq("id", booking.customer_id)
+      .maybeSingle();
+    identityVerified = customer?.identity_status === "verified";
+  }
+
+  const nextStatus = identityVerified ? "confirmed" : "pending_documents";
   const paidAt = booking.paid_at ?? new Date().toISOString();
   const { error } = await db
     .from("bookings")
     .update({
-      status: "confirmed",
+      status: nextStatus,
       paid_at: paidAt,
       payment_stripe_mode: mode,
     })
@@ -72,9 +88,9 @@ async function confirmIfFullyPaid(db: ReturnType<typeof admin>, bookingRef: stri
     .eq("status", "pending_payment"); // guard against races
   if (error) return;
 
-  logStep("Booking confirmed", { bookingRef });
+  logStep(identityVerified ? "Booking confirmed" : "Booking paid, awaiting ID", { bookingRef, nextStatus });
 
-  // Send receipt email to renter
+  // Send receipt email either way — payment cleared, renter deserves a receipt.
   if (booking.customer_email) {
     try {
       const { data: team } = await db
@@ -125,11 +141,33 @@ async function confirmIfFullyPaid(db: ReturnType<typeof admin>, bookingRef: stri
           tags: [{ name: "booking_ref", value: bookingRef }, { name: "email_type", value: "receipt_confirmed" }],
         });
       logStep("Receipt email sent", { bookingRef });
+
+      // ID-verify drip — only when we parked at pending_documents.
+      if (!identityVerified) {
+        const verifyUrl = `${origin}/verify?ref=${bookingRef}&token=${booking.confirmation_token}`;
+        await sendRenterEmail({
+          templateName: "verifyIdRequested",
+          to: booking.customer_email,
+          subject: `Verify your ID — booking ${bookingRef}`,
+          variables: {
+            BOOKING_REF: bookingRef,
+            OPERATOR_NAME: team?.name ?? "Operator",
+            VEHICLE_SHORT: vehicleShort,
+            DATE_RANGE: formatDateRange(booking.start_date, booking.end_date),
+            VERIFY_URL: verifyUrl,
+          },
+          idempotencyKey: `verify-id-${bookingRef}`,
+          replyTo: resolveRenterReplyTo(team?.support_email),
+          tags: [{ name: "booking_ref", value: bookingRef }, { name: "email_type", value: "verify_id_requested" }],
+        });
+        logStep("ID-verify drip sent", { bookingRef });
+      }
     } catch (emailError) {
-      logStep("Receipt email failed", { bookingRef, error: String(emailError) });
+      logStep("Post-payment email failed", { bookingRef, error: String(emailError) });
     }
   }
 }
+
 
 
 /**

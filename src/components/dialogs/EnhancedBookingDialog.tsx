@@ -23,6 +23,7 @@ import { CheckInOutDialog } from "./CheckInOutDialog";
 import { SendMessageDialog } from "./SendMessageDialog";
 import { ChangeVehicleDialog } from "./ChangeVehicleDialog";
 import { EditBookingDialog } from "./EditBookingDialog";
+import { isMarketplaceLocked } from "@/lib/bookingEditGuards";
 import { LinkCustomerDialog } from "./LinkCustomerDialog";
 import { LinkVehicleDialog } from "./LinkVehicleDialog";
 import { SigningCeremony } from "@/components/signing/SigningCeremony";
@@ -436,6 +437,18 @@ export const EnhancedBookingDialog = ({
   const handleSaveChanges = async (andApprove = false) => {
     if (!booking) return;
     if (blockIfRestricted()) return;
+    // Cluster A defense-in-depth: reject repricing/rescheduling of a
+    // marketplace booking once the renter is in the payment window or paid.
+    // UI hides the Edit button too, but a stale open dialog must not slip
+    // through.
+    if (isMarketplaceLocked(booking as any)) {
+      toast({
+        title: "Cannot edit paid marketplace booking",
+        description: "Cancel and refund the renter first, then create a new booking.",
+        variant: "destructive",
+      });
+      return;
+    }
     setSaving(true);
     
     try {
@@ -585,7 +598,7 @@ export const EnhancedBookingDialog = ({
                 )}
               </DialogTitle>
               <div className="flex items-center gap-2">
-                {!isEditMode && (
+                {!isEditMode && !isMarketplaceLocked(booking as any) && (
                   <Button 
                     variant="outline" 
                     size="sm" 
@@ -596,6 +609,11 @@ export const EnhancedBookingDialog = ({
                     Edit
                   </Button>
                 )}
+                {!isEditMode && isMarketplaceLocked(booking as any) && (
+                  <span className="text-[10px] uppercase tracking-wide text-muted-foreground px-2 py-1 rounded border border-border">
+                    Locked · marketplace paid
+                  </span>
+                )}
                 {isEditMode && hasUnsavedChanges && (
                   <span className="h-2 w-2 rounded-full bg-warning animate-pulse" title="Unsaved changes" />
                 )}
@@ -605,6 +623,7 @@ export const EnhancedBookingDialog = ({
               </div>
             </div>
           </DialogHeader>
+
 
           {/* Vehicle Hero Section */}
           <div className="px-6 pt-4">
