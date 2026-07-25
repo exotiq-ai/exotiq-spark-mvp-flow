@@ -25,6 +25,7 @@ import { UpcomingBookingsCard } from "@/components/dashboard/UpcomingBookingsCar
 import { PreviousBookingsCard } from "@/components/dashboard/PreviousBookingsCard";
 import { motion, AnimatePresence } from "framer-motion";
 import { useMoney } from "@/hooks/useMoney";
+import { isPaidOrCaptured } from "@/lib/bookingPaymentState";
 import { 
   Calendar as CalendarIcon, 
   Clock, 
