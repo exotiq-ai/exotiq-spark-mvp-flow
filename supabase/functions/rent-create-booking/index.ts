@@ -128,11 +128,13 @@ serve(async (req) => {
     if (!quote) return json({ error: "Vehicle is not available for booking" }, 404);
 
     // Identity reuse (V7): verified + unexpired for this email, any team.
+    // Use .eq — email is server-normalized above; ilike here was a wildcard
+    // vector (%, _ in email) that has no defensible use for identity reuse.
     const { data: verifiedRows } = await admin
       .from("identity_verifications")
       .select("id, document_expiry, customers!inner(email)")
       .eq("status", "verified")
-      .ilike("customers.email", email)
+      .eq("customers.email", email)
       .limit(1);
     const identity = verifiedRows?.[0] as { document_expiry: string | null } | undefined;
     const identityVerified = Boolean(
