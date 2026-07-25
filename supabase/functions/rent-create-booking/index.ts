@@ -55,7 +55,10 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
-  if (!allowRequest(req)) return json({ error: "Too many requests" }, 429);
+
+  const ip = clientIp(req);
+  const allowed = await checkRateLimit(`rent-create-booking:${ip}`, MAX_PER_HOUR, WINDOW_SECONDS);
+  if (!allowed) return json({ error: "Too many requests" }, 429);
 
   try {
     const admin = createClient(
@@ -65,14 +68,32 @@ serve(async (req) => {
     );
 
     const body = await req.json().catch(() => ({}));
+
+    // Turnstile (only enforced when CLOUDFLARE_TURNSTILE_SECRET is set).
+    const turnstile = await verifyTurnstile(body?.turnstile_token, ip);
+    if (!turnstile.ok) {
+      return json({ error: "Bot check failed. Please retry." }, 400);
+    }
+
     const teamSlug = String(body.team_slug ?? "").trim();
     const vehicleSlug = String(body.vehicle_slug ?? "").trim();
     const startDate = String(body.start_date ?? "").trim();
     const endDate = String(body.end_date ?? "").trim();
     const pickupTime = String(body.pickup_time ?? "10:00 AM").trim().slice(0, 16);
-    const protection = ["premium", "standard", "decline"].includes(body.protection)
-      ? body.protection
-      : "premium";
+
+    // Strict protection validation (item #4): unknown values are rejected
+    // rather than silently coerced to premium (the most expensive tier).
+    const ALLOWED_PROTECTION = ["premium", "standard", "decline"] as const;
+    const rawProtection = body.protection;
+    let protection: (typeof ALLOWED_PROTECTION)[number] = "premium";
+    if (rawProtection === undefined || rawProtection === null || rawProtection === "") {
+      protection = "premium";
+    } else if (typeof rawProtection === "string" && (ALLOWED_PROTECTION as readonly string[]).includes(rawProtection)) {
+      protection = rawProtection as (typeof ALLOWED_PROTECTION)[number];
+    } else {
+      return json({ error: "protection must be one of: premium, standard, decline" }, 400);
+    }
+
     const driver = body.driver ?? {};
     const name = String(driver.name ?? "").trim().slice(0, 120);
     const email = String(driver.email ?? "").trim().toLowerCase().slice(0, 200);
@@ -88,6 +109,7 @@ serve(async (req) => {
     if (name.length < 2 || !email.includes("@") || phone.replace(/\D/g, "").length < 10) {
       return json({ error: "driver name, email, and phone are required" }, 400);
     }
+
 
     // Server-side quote — the only totals that count (D1/D9/D5).
     const { data: quoteRows, error: quoteError } = await admin.rpc("public_vehicle_quote", {
