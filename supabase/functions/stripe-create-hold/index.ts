@@ -34,56 +34,83 @@ serve(async (req) => {
     const user = userData.user;
     if (!user) throw new Error("User not authenticated");
 
-    const { booking_id, amount, customer_email, customer_name, description } = await req.json();
-    if (!booking_id || !amount || amount <= 0) throw new Error("booking_id and positive amount are required");
+    const body = await req.json();
+    const { booking_id, customer_email, customer_name, description } = body;
+    if (!booking_id) throw new Error("booking_id is required");
 
-    logStep("Request", { booking_id, amount });
+    // Reject stale callers that still supply amount — the deposit amount is
+    // resolved server-side via resolve_deposit_cents(vehicle_id) so a client
+    // cannot set its own hold. Fail loudly instead of silently overriding.
+    if (Object.prototype.hasOwnProperty.call(body, "amount")) {
+      throw new Error("amount is no longer accepted; deposit is resolved server-side from vehicle/tenant config");
+    }
 
-    // Get team and stripe account
-    const { data: teamMember } = await supabaseClient
+    logStep("Request", { booking_id });
+
+    // Load the booking to derive vehicle_id and team_id. Team is the
+    // BOOKING's team (not the caller's), so users in multiple teams cannot
+    // cross-place a hold. Caller must be a member of that team.
+    const { data: booking, error: bookingErr } = await supabaseClient
+      .from("bookings")
+      .select("id, vehicle_id, team_id")
+      .eq("id", booking_id)
+      .maybeSingle();
+    if (bookingErr) throw bookingErr;
+    if (!booking) throw new Error("Booking not found");
+    if (!booking.vehicle_id) throw new Error("Booking has no vehicle");
+
+    const { data: membership, error: memErr } = await supabaseClient
       .from("team_members")
-      .select("team_id")
+      .select("id")
       .eq("user_id", user.id)
+      .eq("team_id", booking.team_id)
       .eq("is_active", true)
-      .limit(1)
-      .single();
+      .maybeSingle();
+    if (memErr) throw memErr;
+    if (!membership) throw new Error("Not authorized for this booking's team");
 
-    if (!teamMember) throw new Error("No team found");
-
-    const { data: team } = await supabaseClient
+    const { data: team, error: teamErr } = await supabaseClient
       .from("teams")
       .select("stripe_account_id, stripe_charges_enabled, currency")
-      .eq("id", teamMember.team_id)
+      .eq("id", booking.team_id)
       .single();
-
+    if (teamErr) throw teamErr;
     if (!team?.stripe_account_id) throw new Error("Stripe account not connected. Please complete onboarding first.");
     if (!team.stripe_charges_enabled) throw new Error("Stripe account is not yet enabled for charges. Please complete onboarding.");
+
+    // Server-authoritative deposit amount — cents. Fallback chain lives in
+    // the RPC (vehicle override → tenant default → $1,000 platform floor).
+    const { data: depositCentsRaw, error: depErr } = await supabaseClient
+      .rpc("resolve_deposit_cents", { _vehicle_id: booking.vehicle_id });
+    if (depErr) throw depErr;
+    const depositCents = Number(depositCentsRaw);
+    if (!Number.isFinite(depositCents) || depositCents <= 0) {
+      throw new Error("Could not resolve deposit amount for this vehicle");
+    }
 
     // Tenant currency drives the hold currency. Defaults to USD so existing
     // US tenants see identical behaviour.
     const currency = (team.currency || "USD").toLowerCase();
 
-    // DECISION D1 (2026-07-15, docs/rent/DECISIONS.md): the legacy hardcoded
-    // 20% marketplace application fee is retired. Security deposits are
-    // operator-owned and explicitly excluded from the Exotiq fee base, so a
-    // deposit hold never carries an application fee regardless of
-    // booking_source. The renter-side booking fee lands in M6 as a separate
-    // Exotiq charge.
+    // DECISION D1 (2026-07-15, docs/rent/DECISIONS.md): deposits are
+    // operator-owned and excluded from the Exotiq application fee.
     const platformFee = 0;
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
-    // Create PaymentIntent with manual capture on connected account
+    // resolve_deposit_cents returns CENTS — do NOT multiply by 100.
     const piParams: Stripe.PaymentIntentCreateParams = {
-      amount: Math.round(amount * 100),
+      amount: depositCents,
       currency,
       capture_method: "manual",
-      description: description || `Security deposit hold for booking ${booking_id.substring(0, 8)}`,
+      description: description || `Security deposit hold for booking ${String(booking_id).substring(0, 8)}`,
       metadata: {
         booking_id,
+        vehicle_id: booking.vehicle_id,
         user_id: user.id,
-        team_id: teamMember.team_id,
+        team_id: booking.team_id,
         type: "security_deposit_hold",
+        deposit_source: "resolve_deposit_cents",
       },
     };
 
@@ -113,21 +140,22 @@ serve(async (req) => {
       { stripeAccount: team.stripe_account_id }
     );
 
-    logStep("Hold created", { piId: paymentIntent.id, clientSecret: "***" });
+    logStep("Hold created", { piId: paymentIntent.id, amountCents: depositCents });
 
-    // Record in payments table
+    // payments.amount is a DOLLAR column — convert cents back down.
+    const amountDollars = depositCents / 100;
     await supabaseClient.from("payments").insert({
       booking_id,
       user_id: user.id,
-      amount,
+      amount: amountDollars,
       payment_type: "security_deposit",
       payment_method: "stripe",
       payment_status: "pending",
       stripe_payment_intent_id: paymentIntent.id,
       hold_status: "pending",
-      original_amount: amount,
+      original_amount: amountDollars,
       platform_fee: platformFee / 100,
-      team_id: teamMember.team_id,
+      team_id: booking.team_id,
       transaction_date: new Date().toISOString(),
     });
 
@@ -135,6 +163,7 @@ serve(async (req) => {
       payment_intent_id: paymentIntent.id,
       client_secret: paymentIntent.client_secret,
       status: paymentIntent.status,
+      amount_cents: depositCents,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
