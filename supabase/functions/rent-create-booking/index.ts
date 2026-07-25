@@ -51,6 +51,10 @@ const logStep = (step: string, details?: Record<string, unknown>) => {
 };
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+// Cluster C item #29: strict RFC-5322-lite email. `.includes("@")` accepted
+// bare "@", trailing dots, and whitespace-in-local-part, which then flowed
+// into ilike identity lookups. Reject at the door.
+const EMAIL_RE = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
