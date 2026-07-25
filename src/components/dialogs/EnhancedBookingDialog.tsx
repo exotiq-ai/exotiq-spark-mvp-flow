@@ -23,6 +23,7 @@ import { CheckInOutDialog } from "./CheckInOutDialog";
 import { SendMessageDialog } from "./SendMessageDialog";
 import { ChangeVehicleDialog } from "./ChangeVehicleDialog";
 import { EditBookingDialog } from "./EditBookingDialog";
+import { isMarketplaceLocked } from "@/lib/bookingEditGuards";
 import { LinkCustomerDialog } from "./LinkCustomerDialog";
 import { LinkVehicleDialog } from "./LinkVehicleDialog";
 import { SigningCeremony } from "@/components/signing/SigningCeremony";
