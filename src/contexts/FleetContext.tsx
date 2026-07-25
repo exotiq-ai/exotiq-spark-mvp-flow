@@ -947,9 +947,36 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
     if (!user) return;
 
     const booking = bookings.find(b => b.id === bookingId);
+
+    // Marketplace approval routing: 'pending' (legacy direct) OR 'requested'
+    // (marketplace ID-verified) → rent-approve-booking (which sets
+    // pending_payment + emails the pay link). Never call the generic branch
+    // for these — see the hard guard below.
     const isMarketplaceApproval = booking?.booking_source === 'marketplace' &&
-      booking.status === 'pending' &&
+      (booking.status === 'pending' || booking.status === 'requested') &&
       status === 'confirmed';
+
+    // Hard guard: a marketplace booking must never jump from a request status
+    // to 'confirmed' through the generic branch. The confirmed transition
+    // belongs to rent-approve-booking → rent-checkout → payment webhook.
+    // Without this, `updateBookingStatus(id, 'confirmed')` on a
+    // 'pending_documents' row would silently confirm a car without payment.
+    if (
+      booking?.booking_source === 'marketplace' &&
+      (booking.status === 'requested' || booking.status === 'pending_documents') &&
+      status === 'confirmed' &&
+      !isMarketplaceApproval
+    ) {
+      toast({
+        title: "Cannot approve yet",
+        description:
+          booking.status === 'pending_documents'
+            ? "Renter must complete ID verification first."
+            : "Marketplace bookings must be approved through the approval flow.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     if (isMarketplaceApproval) {
       // M6d: marketplace requests require the renter to pay before they are confirmed.
@@ -991,6 +1018,7 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       syncBookingToGCal(status === "cancelled" ? "delete" : "update", bookingId, booking.team_id);
     }
   };
+
 
 
   const updateBookingVehicle = async (bookingId: string, newVehicleId: string) => {

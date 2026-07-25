@@ -84,7 +84,9 @@ const PendingApprovalsBar = ({
         <CollapsibleContent>
           <div className="px-4 pb-3 space-y-2">
             <AnimatePresence mode="popLayout">
-              {pendingBookings.slice(0, 5).map((booking) => (
+              {pendingBookings.slice(0, 5).map((booking) => {
+                const awaitingId = booking.status === 'pending_documents';
+                return (
                 <motion.div
                   key={booking.id}
                   layout
@@ -100,15 +102,23 @@ const PendingApprovalsBar = ({
                     >{booking.customer_name}</p>
                     <p className="text-xs text-muted-foreground truncate">
                       {getVehicleDisplay(booking)} · {formatDate(booking.start_date)}
+                      {awaitingId && <span className="ml-2 text-warning">· Awaiting renter ID</span>}
                     </p>
                   </div>
                   <div className="flex gap-2 flex-shrink-0 ml-3">
                     <Button size="sm" variant="ghost" onClick={() => onView(booking)}>View</Button>
                     <Button size="sm" variant="outline" onClick={() => onDecline(booking.id)}>Decline</Button>
-                    <Button size="sm" onClick={() => onApprove(booking.id)}>Approve</Button>
+                    <Button
+                      size="sm"
+                      onClick={() => onApprove(booking.id)}
+                      disabled={awaitingId}
+                      title={awaitingId ? "Renter must complete ID verification before you can approve" : undefined}
+                    >
+                      Approve
+                    </Button>
                   </div>
                 </motion.div>
-              ))}
+              );})}
             </AnimatePresence>
             {pendingBookings.length > 5 && (
               <p className="text-xs text-muted-foreground text-center pt-1">
@@ -118,6 +128,7 @@ const PendingApprovalsBar = ({
           </div>
         </CollapsibleContent>
       </Card>
+
     </Collapsible>
   );
 };
@@ -250,10 +261,18 @@ export const BookEnhanced = () => {
       .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime())[0] || null;
   }, [bookings]);
 
-  // Get pending bookings for approval section
+  // Pending bookings for approval: direct-booking 'pending', marketplace
+  // 'requested' (ID verified, awaiting operator approval), and marketplace
+  // 'pending_documents' (visible so operator can see the pipeline, but not
+  // approvable until renter completes ID verification).
   const pendingBookings = useMemo(() => {
-    return bookings.filter(b => b.status === 'pending');
+    return bookings.filter(b =>
+      b.status === 'pending' ||
+      b.status === 'requested' ||
+      b.status === 'pending_documents'
+    );
   }, [bookings]);
+
 
   const todayBookings = useMemo(() => {
     const now = new Date();
