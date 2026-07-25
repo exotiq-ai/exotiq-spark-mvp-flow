@@ -76,6 +76,34 @@ export const TeamSettingsSection = () => {
     }
   };
 
+  const handleSaveDeposit = async () => {
+    if (!currentTeam?.id) return;
+    const trimmed = depositDollars.trim();
+    let cents: number | null = null;
+    if (trimmed !== "") {
+      const dollars = Number(trimmed);
+      if (!Number.isFinite(dollars) || dollars < 0) {
+        toast({ title: "Invalid amount", description: "Deposit must be zero or greater", variant: "destructive" });
+        return;
+      }
+      cents = Math.round(dollars * 100);
+    }
+    setSavingDeposit(true);
+    try {
+      const { error } = await supabase
+        .from('teams')
+        .update({ default_deposit_cents: cents })
+        .eq('id', currentTeam.id);
+      if (error) throw error;
+      await refreshTeam();
+      toast({ title: "Deposit updated", description: "Default deposit hold saved" });
+    } catch (err: any) {
+      toast({ title: "Save failed", description: err?.message || "Could not update deposit", variant: "destructive" });
+    } finally {
+      setSavingDeposit(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-6">
