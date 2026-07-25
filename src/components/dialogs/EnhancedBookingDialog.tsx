@@ -437,6 +437,18 @@ export const EnhancedBookingDialog = ({
   const handleSaveChanges = async (andApprove = false) => {
     if (!booking) return;
     if (blockIfRestricted()) return;
+    // Cluster A defense-in-depth: reject repricing/rescheduling of a
+    // marketplace booking once the renter is in the payment window or paid.
+    // UI hides the Edit button too, but a stale open dialog must not slip
+    // through.
+    if (isMarketplaceLocked(booking as any)) {
+      toast({
+        title: "Cannot edit paid marketplace booking",
+        description: "Cancel and refund the renter first, then create a new booking.",
+        variant: "destructive",
+      });
+      return;
+    }
     setSaving(true);
     
     try {
