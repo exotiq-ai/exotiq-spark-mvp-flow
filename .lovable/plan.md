@@ -1,55 +1,79 @@
-## Command Center — Deposit Hold Configuration (P2 UI)
+## Review of Claude's deposit handoff
 
-Backend is live: `teams.default_deposit_cents`, `vehicles.deposit_override_cents`, and `resolve_deposit_cents(vehicle_id)` RPC are all confirmed. This work is UI-only in SPARK, plus swapping the hold path to use the RPC. No migrations.
+Claude's plan is accurate and complete. I verified the two bugs he called out:
 
-### 1. Tenant default — Team Settings
+- `stripe-capture-hold` (lines 42–53) and `stripe-release-hold` (lines 38–49) both still derive `team_id` from `team_members` on the caller — same class of bug I already fixed in `stripe-create-hold`. Confirmed.
+- The tenant-default gap on `teams.default_deposit_cents` matches what we saw when building the CC settings UI: no tenant has a default set, so blank per-vehicle overrides silently resolve to the $1,000 platform floor.
 
-File: `src/components/dashboard/TeamSettingsSection.tsx` (the "Pricing" card that already holds Minimum Rate + Gas Fee).
+One thing to flag, not disagree with: the M6-D1 rev 2 decision (deposits are operator-owned, no PM cloning, setup-mode Checkout on the connected account) means every renter has to complete a second Stripe screen 72h before pickup. That's the right call for money-safety, but it will produce support volume the first few weeks — worth pre-writing a canned "why am I being asked for a card again?" reply for tenants. Not a code change, just an ops heads-up.
 
-- Add a **Security Deposit** subsection under Pricing (below Gas Fee), with `ShieldCheck` icon.
-- New field: **"Default deposit hold amount"** — currency input in dollars, tenant currency label via `useMoney()`.
-- Persist directly to `teams.default_deposit_cents` (× 100 on save, ÷ 100 on load). Not via `user_settings` — this is a team-scoped policy, not per-user.
-  - Load: read `currentTeam.default_deposit_cents` from `TeamContext`.
-  - Save: `supabase.from('teams').update({ default_deposit_cents }).eq('id', currentTeam.id)` then refresh team context.
-- Helper text: "Manual-capture hold placed at pickup. Overridable per vehicle. Leave blank for no default (defaults to $1,000)."
-- Validate: non-negative integer; block save if negative. Empty = null.
-- Gate write with `PermissionGuard minRole="admin"` (deposit policy is admin-level, matching payment settings).
+Proceeding with all five workstreams below.
 
-### 2. Per-vehicle override — Rate Card
+---
 
-File: `src/components/dashboard/RateTiersPanel.tsx` (rate tier table).
+## 1. `stripe-create-hold` — add off-session confirm path
 
-- Add a **5th editable column** "Deposit Hold" after Multi-Day, before the actions column.
-  - Display: `formatRate(deposit_override_cents / 100)` when set; otherwise render muted "Default ($X)" using the resolved team default.
-  - Edit: currency input, empty = clear override (null), value = override in dollars.
-- Extend `VehicleRates` interface with `deposit_override_cents: number | null`; extend `EditingRates` with `deposit_override: string`.
-- Save path: include `deposit_override_cents: editingRates.deposit_override ? Math.round(parseFloat(...) * 100) : null` in the `updateVehicle` payload. `useLocationFilteredFleet.updateVehicle` already forwards arbitrary columns.
-- Validate: non-negative; no min-rate coupling (deposits are unrelated to rental min).
-- Update the info Alert copy to mention deposit override behavior.
+Keep the existing unconfirmed / client-secret path as fallback (card-present at counter). Add an off-session branch used by the CC "Place hold" button:
 
-### 3. Swap hold path to `resolve_deposit_cents`
+- New optional body param `mode: "off_session" | "client_secret"` (default `client_secret` for back-compat).
+- In `off_session` mode: list PMs on the operator's connected customer (`stripe.paymentMethods.list({customer, type:"card"}, {stripeAccount})`). If none → return `409 {error:"no_card_on_file"}`.
+- Create PI with `payment_method`, `off_session: true`, `confirm: true`, `capture_method: "manual"`.
+- Add `bookings.deposit_hold_attempt integer not null default 0` and use `deposit-hold-{booking_ref}-{attempt}` as `idempotencyKey`. Bump attempt on each retry.
+- Catch `StripeCardError` with `code === "authentication_required"` → return `402 {error:"authentication_required", requires_action:true}` so the CC can show "renter must confirm" and re-send the setup/hold email instead of marking the hold placed.
+- Persist the resulting PI into `payments` with `hold_status` reflecting `requires_action` vs `requires_capture`.
 
-Search results confirm the RPC is only referenced by docs today. Find every place SPARK computes/reads a deposit amount for a booking (likely `NewBookingDialog`, `EnhancedBookingDialog`, any check-in / hold-placement path) and replace hardcoded values with:
+## 2. New function: `stripe-create-deposit-setup-session`
 
-```ts
-const { data: depositCents } = await supabase.rpc('resolve_deposit_cents', { _vehicle_id: vehicleId });
-```
+Setup-mode Checkout (never Payment Link) on the connected account so the renter's card lands on the operator's customer:
 
-Scope of this step during build: grep for `deposit` in `src/` + `supabase/functions/` first, list the call sites, and swap each to the RPC. If a site is renter-app-only (e.g. `rent-checkout`), leave it — that's Claude's repo.
+- Input: `{ booking_id }`. Derive team + vehicle from booking (same booking-scoped auth pattern as create-hold).
+- Ensure a Stripe `Customer` exists on the connected account for that renter (email match, else create). Store the connected-account customer id on the booking (new column `bookings.operator_stripe_customer_id text`) so #1 can look up PMs without re-searching.
+- `stripe.checkout.sessions.create({ mode:"setup", payment_method_types:["card"], customer, success_url, cancel_url, metadata:{booking_ref, purpose:"deposit_card_on_file"} }, { stripeAccount })`.
+- Return `{ url }` for the email link and the CC "Request deposit card" button.
 
-### 4. Types
+## 3. Renter email + scheduler
 
-`src/integrations/supabase/types.ts` already includes `default_deposit_cents`, `deposit_override_cents`, and `resolve_deposit_cents` — no regen needed.
+- New `depositCardRequested` template in `send-renter-email` with `{{OPERATOR_NAME}}`, `{{VEHICLE_SHORT}}`, `{{DEPOSIT_AMOUNT}}`, `{{SETUP_URL}}`. Uses `resolveRenterReplyTo` (tenant support_email).
+- Extend `rent-payment-scheduler` (pg_cron jobid 10) with a T-72h sweep over `confirmed` marketplace bookings where `operator_stripe_customer_id` is null OR no card is on file yet, calling `stripe-create-deposit-setup-session` and sending the email. Idempotent via a `deposit_card_requested_at` timestamp column.
 
-### 5. Verify
+## 4. Command Center — Deposit panel
 
-- Set tenant default in Team Settings → confirm `teams.default_deposit_cents` updated via `supabase--read_query`.
-- Set an override on one vehicle in Rate Tiers → confirm `vehicles.deposit_override_cents` updated.
-- Call `select public.resolve_deposit_cents('<that-vehicle-id>')` → returns override; clear override → returns team default; clear both → returns null (caller falls back to $1,000).
-- Typecheck.
+New `DepositPanel.tsx` inside `EnhancedBookingDialog`, visible only for `confirmed` marketplace bookings:
 
-### Out of scope (handed off, not in this plan)
+- Line 1: resolved deposit (via `supabase.rpc('resolve_deposit_cents',{_vehicle_id})`) — never editable here.
+- Line 2: card-on-file state (green check if PM found, "Not on file" otherwise). Manager+ can click **Request deposit card** → calls #2, toasts success.
+- Line 3: hold state + authorization age. If `requires_capture`, show days since `created` and warn at ≥5 days ("expires in Xd"). Buttons **Place hold** (#1 off_session), **Release**, **Capture** — already wired to existing functions.
+- Handle `authentication_required` response by showing "Renter must confirm — link re-sent" and auto-triggering #3.
 
-- Renter app checkout / hold placement lives in `exotiq-rent`.
-- P3 email-link money battery — separate pass after this lands.
-- Insurance spec + SPARK edge-function commit chore — flagged, not part of this UI work.
+Also add a note: extended authorizations (30-day) on MCC 7512 are worth confirming with Stripe for these connected accounts — out of scope for code, but I'll drop a TODO on the panel.
+
+## 5. Fix pre-existing team-scoping bugs
+
+`stripe-capture-hold` and `stripe-release-hold`: replace the `team_members`-derived team lookup with the same pattern as fixed `stripe-create-hold`:
+
+1. Load booking by `booking_id` → get `team_id` + `vehicle_id`.
+2. Assert `team_members` membership of the caller for **that** booking's `team_id`.
+3. Load the team's `stripe_account_id` from the booking's team, not the caller's.
+
+## 6. Tenant default backfill + marketplace-visibility gate
+
+- One-off SQL: `UPDATE teams SET default_deposit_cents = 100000 WHERE default_deposit_cents IS NULL;` (safe floor; tenants adjust in CC).
+- Add trigger `enforce_deposit_source_on_marketplace_visible`: when flipping `teams.marketplace_visible = true`, require `default_deposit_cents IS NOT NULL`. When flipping `vehicles.marketplace_visible = true`, require `resolve_deposit_cents(id) IS NOT NULL`. Mirrors the platform-fee gate.
+- Backfill note for `fredo-d-lima`: their 21 vehicles all resolve to the $1,000 floor today. Inert while unlisted; the trigger will force a real default before they can be flipped visible.
+
+## 7. Repo hygiene (Claude's standing ask)
+
+Not a code change from this plan, but I'll also commit the currently-deployed money functions (`rent-checkout`, `rent-payment-webhook`, `rent-cancel-booking`, `rent-refund-booking`, `rent-approve-booking`, `rent-retry-exotiq-leg`, updated `send-renter-email`, updated `identity-webhook`, plus the new `stripe-create-deposit-setup-session` and revised `stripe-create-hold` / `-capture-hold` / `-release-hold`) to `supabase/functions/` so a redeploy from `main` can't revert them.
+
+## Verify
+
+- Off-session hold on a test booking with a saved PM → PI lands `requires_capture` under `deposit-hold-BK-XXXX-1`.
+- Force `authentication_required` (Stripe test card `4000002500003155`) → function returns 402, CC surfaces "renter must confirm", email re-sends.
+- Setup session on a fresh renter → PM appears on the connected account's customer; second hold call succeeds off-session.
+- Manually run capture and release on a different booking with a two-team user → both succeed against the booking's team, not the caller's.
+- `UPDATE teams SET marketplace_visible=true` on a tenant with null default_deposit_cents → rejected by trigger.
+
+## Out of scope
+
+- Extended-authorization (30-day) enrollment with Stripe — ops task, not code.
+- Anything in `exotiq-rent` (renter checkout copy already handled per Claude's note).
