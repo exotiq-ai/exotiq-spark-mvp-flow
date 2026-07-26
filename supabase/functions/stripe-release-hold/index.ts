@@ -8,9 +8,7 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
@@ -30,23 +28,41 @@ serve(async (req) => {
     const user = userData.user;
     if (!user) throw new Error("User not authenticated");
 
-    const { payment_intent_id } = await req.json();
+    const { payment_intent_id, booking_id } = await req.json();
     if (!payment_intent_id) throw new Error("payment_intent_id is required");
 
-    // Get team's stripe account
-    const { data: teamMember } = await supabaseClient
-      .from("team_members")
+    // Booking-scoped team resolution (same fix as create-hold / capture-hold).
+    let teamId: string | null = null;
+    const { data: paymentRow } = await supabaseClient
+      .from("payments")
       .select("team_id")
+      .eq("stripe_payment_intent_id", payment_intent_id)
+      .maybeSingle();
+    if (paymentRow?.team_id) teamId = paymentRow.team_id;
+
+    if (!teamId && booking_id) {
+      const { data: b } = await supabaseClient
+        .from("bookings")
+        .select("team_id")
+        .eq("id", booking_id)
+        .maybeSingle();
+      if (b?.team_id) teamId = b.team_id;
+    }
+    if (!teamId) throw new Error("Could not resolve booking's team");
+
+    const { data: membership } = await supabaseClient
+      .from("team_members")
+      .select("id")
       .eq("user_id", user.id)
+      .eq("team_id", teamId)
       .eq("is_active", true)
-      .limit(1)
-      .single();
-    if (!teamMember) throw new Error("No team found");
+      .maybeSingle();
+    if (!membership) throw new Error("Not authorized for this booking's team");
 
     const { data: team } = await supabaseClient
       .from("teams")
       .select("stripe_account_id")
-      .eq("id", teamMember.team_id)
+      .eq("id", teamId)
       .single();
     if (!team?.stripe_account_id) throw new Error("Stripe account not connected");
 
@@ -57,13 +73,9 @@ serve(async (req) => {
       { stripeAccount: team.stripe_account_id }
     );
 
-    // Update payment record
     await supabaseClient
       .from("payments")
-      .update({
-        hold_status: "released",
-        payment_status: "cancelled",
-      })
+      .update({ hold_status: "released", payment_status: "cancelled" })
       .eq("stripe_payment_intent_id", payment_intent_id);
 
     return new Response(JSON.stringify({

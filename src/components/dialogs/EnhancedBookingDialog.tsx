@@ -24,6 +24,7 @@ import { SendMessageDialog } from "./SendMessageDialog";
 import { ChangeVehicleDialog } from "./ChangeVehicleDialog";
 import { EditBookingDialog } from "./EditBookingDialog";
 import { isMarketplaceLocked } from "@/lib/bookingEditGuards";
+import { DepositPanel } from "./DepositPanel";
 import { LinkCustomerDialog } from "./LinkCustomerDialog";
 import { LinkVehicleDialog } from "./LinkVehicleDialog";
 import { SigningCeremony } from "@/components/signing/SigningCeremony";
@@ -1171,7 +1172,9 @@ export const EnhancedBookingDialog = ({
 
                     {/* Payments Tab */}
                     <TabsContent value="payments" className="space-y-4 mt-4">
+                      <DepositPanel booking={booking as any} />
                       <div className="grid grid-cols-3 gap-3">
+
                         <div className="p-3 bg-muted/30 rounded-lg text-center">
                           <div className="text-sm text-muted-foreground">Total</div>
                           <div className="text-lg font-bold">{fmt(Number(booking.total_value))}</div>

@@ -226,7 +226,9 @@ export type Database = {
           delivery_address: string | null
           delivery_fee: number | null
           deposit_amount: number | null
+          deposit_card_requested_at: string | null
           deposit_cents_snapshot: number
+          deposit_hold_attempt: number
           discount_amount: number | null
           discount_reason: string | null
           dropoff_location: string | null
@@ -245,6 +247,7 @@ export type Database = {
           mileage_overage_fee: number | null
           notes: string | null
           operator_payment_intent_id: string | null
+          operator_stripe_customer_id: string | null
           paid_at: string | null
           payment_due_at: string | null
           payment_reminder_sent_at: string | null
@@ -298,7 +301,9 @@ export type Database = {
           delivery_address?: string | null
           delivery_fee?: number | null
           deposit_amount?: number | null
+          deposit_card_requested_at?: string | null
           deposit_cents_snapshot?: number
+          deposit_hold_attempt?: number
           discount_amount?: number | null
           discount_reason?: string | null
           dropoff_location?: string | null
@@ -317,6 +322,7 @@ export type Database = {
           mileage_overage_fee?: number | null
           notes?: string | null
           operator_payment_intent_id?: string | null
+          operator_stripe_customer_id?: string | null
           paid_at?: string | null
           payment_due_at?: string | null
           payment_reminder_sent_at?: string | null
@@ -370,7 +376,9 @@ export type Database = {
           delivery_address?: string | null
           delivery_fee?: number | null
           deposit_amount?: number | null
+          deposit_card_requested_at?: string | null
           deposit_cents_snapshot?: number
+          deposit_hold_attempt?: number
           discount_amount?: number | null
           discount_reason?: string | null
           dropoff_location?: string | null
@@ -389,6 +397,7 @@ export type Database = {
           mileage_overage_fee?: number | null
           notes?: string | null
           operator_payment_intent_id?: string | null
+          operator_stripe_customer_id?: string | null
           paid_at?: string | null
           payment_due_at?: string | null
           payment_reminder_sent_at?: string | null
