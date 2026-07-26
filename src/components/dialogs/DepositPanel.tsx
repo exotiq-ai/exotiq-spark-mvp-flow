@@ -31,7 +31,7 @@ interface Props {
 // hold is placed / released / captured on the operator's Stripe account.
 export function DepositPanel({ booking, onRefresh }: Props) {
   const { toast } = useToast();
-  const { format: fmtMoney } = useMoney();
+  const { money: fmtMoney } = useMoney();
   const [depositCents, setDepositCents] = useState<number | null>(null);
   const [latest, setLatest] = useState<DepositPayment | null>(null);
   const [loading, setLoading] = useState(false);
