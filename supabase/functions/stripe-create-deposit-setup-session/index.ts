@@ -5,6 +5,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { teamConnectedAccountId } from "../_shared/stripeMode.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -74,11 +75,11 @@ serve(async (req) => {
 
     const { data: team, error: tErr } = await supabase
       .from("teams")
-      .select("stripe_account_id, stripe_charges_enabled, name")
+      .select("stripe_account_id, stripe_test_account_id, stripe_charges_enabled, name")
       .eq("id", booking.team_id)
       .single();
     if (tErr) throw tErr;
-    if (!team?.stripe_account_id) throw new Error("Operator's Stripe account not connected");
+    const stripeAccountId = teamConnectedAccountId(team);
     if (!team.stripe_charges_enabled) throw new Error("Operator's Stripe account not enabled for charges");
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
