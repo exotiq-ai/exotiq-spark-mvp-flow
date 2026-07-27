@@ -756,7 +756,6 @@ export const templates = {
   </table>
 </body>
 </html>`,
-,
   // T-72h card-on-file request for the operator's damage deposit. The card
   // lands on the operator's connected account (never the platform), so the
   // renter completes a setup-mode Stripe Checkout — no money moves.
