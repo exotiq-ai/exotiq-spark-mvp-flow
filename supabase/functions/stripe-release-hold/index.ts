@@ -71,7 +71,7 @@ serve(async (req) => {
 
     const cancelled = await stripe.paymentIntents.cancel(
       payment_intent_id,
-      { stripeAccount: team.stripe_account_id }
+      { stripeAccount: stripeAccountId }
     );
 
     await supabaseClient

@@ -78,7 +78,7 @@ serve(async (req) => {
 
     const refund = await stripe.refunds.create(
       refundParams,
-      { stripeAccount: team.stripe_account_id }
+      { stripeAccount: stripeAccountId }
     );
 
     logStep("Refund created", { refundId: refund.id, amount: refund.amount });
@@ -92,7 +92,7 @@ serve(async (req) => {
         refund_reason: reason || null,
         payment_status: refund.amount === (await stripe.paymentIntents.retrieve(
           payment_intent_id,
-          { stripeAccount: team.stripe_account_id }
+          { stripeAccount: stripeAccountId }
         )).amount ? "refunded" : "partially_refunded",
       })
       .eq("stripe_payment_intent_id", payment_intent_id);

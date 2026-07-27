@@ -82,7 +82,7 @@ serve(async (req) => {
     const captured = await stripe.paymentIntents.capture(
       payment_intent_id,
       captureParams,
-      { stripeAccount: team.stripe_account_id }
+      { stripeAccount: stripeAccountId }
     );
 
     logStep("Hold captured", { piId: captured.id, amount: captured.amount_received });

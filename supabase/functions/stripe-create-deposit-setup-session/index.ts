@@ -89,14 +89,14 @@ serve(async (req) => {
     if (!connectedCustomerId) {
       const existing = await stripe.customers.list(
         { email: booking.customer_email, limit: 1 },
-        { stripeAccount: team.stripe_account_id }
+        { stripeAccount: stripeAccountId }
       );
       if (existing.data.length > 0) {
         connectedCustomerId = existing.data[0].id;
       } else {
         const created = await stripe.customers.create(
           { email: booking.customer_email, name: booking.customer_name ?? undefined },
-          { stripeAccount: team.stripe_account_id }
+          { stripeAccount: stripeAccountId }
         );
         connectedCustomerId = created.id;
       }
@@ -120,7 +120,7 @@ serve(async (req) => {
           purpose: "deposit_card_on_file",
         },
       },
-      { stripeAccount: team.stripe_account_id }
+      { stripeAccount: stripeAccountId }
     );
 
     // Stamp the request so the scheduler is idempotent.
