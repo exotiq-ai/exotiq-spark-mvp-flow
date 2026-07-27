@@ -279,6 +279,10 @@ describe("Auth page smoke — sign-up tab", () => {
     fireEvent.change(passwordInput, { target: { value: "password123" } });
     fireEvent.change(confirmPasswordInput, { target: { value: "password123" } });
 
+    // App requires accepting Terms/Privacy/AUP before enabling submit (ConsentCheckbox).
+    const acceptTerms = document.getElementById("signup-accept-terms") as HTMLInputElement | null;
+    if (acceptTerms) fireEvent.click(acceptTerms);
+
     const form = nameInput.closest("form")!;
     fireEvent.submit(form);
 
@@ -324,6 +328,6 @@ describe("Auth page smoke — forgot password flow", () => {
     const forgotLink = screen.getByText(/forgot password/i);
     fireEvent.click(forgotLink);
 
-    expect(screen.getByText(/reset password/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /reset password/i })).toBeInTheDocument();
   });
 });

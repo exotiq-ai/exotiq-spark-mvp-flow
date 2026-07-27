@@ -7,6 +7,7 @@ const repoRoot = process.cwd();
 const listFunctionDirs = () =>
   readdirSync(resolve(repoRoot, "supabase/functions"))
     .filter((entry) => statSync(resolve(repoRoot, "supabase/functions", entry)).isDirectory())
+    .filter((entry) => !entry.startsWith("_")) // _shared is shared code, not a function
     .sort();
 
 const listConfiguredFunctions = () => {
