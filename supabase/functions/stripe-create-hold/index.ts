@@ -106,7 +106,7 @@ serve(async (req) => {
 
       const pms = await stripe.paymentMethods.list(
         { customer: connectedCustomerId, type: "card", limit: 1 },
-        { stripeAccount: team.stripe_account_id }
+        { stripeAccount: stripeAccountId }
       );
       const pm = pms.data[0];
       if (!pm) {
@@ -141,7 +141,7 @@ serve(async (req) => {
             },
           },
           {
-            stripeAccount: team.stripe_account_id,
+            stripeAccount: stripeAccountId,
             idempotencyKey: `deposit-hold-${booking.booking_ref ?? booking_id}-${attempt}`,
           }
         );
@@ -208,14 +208,14 @@ serve(async (req) => {
     if (customer_email) {
       const customers = await stripe.customers.list(
         { email: customer_email, limit: 1 },
-        { stripeAccount: team.stripe_account_id }
+        { stripeAccount: stripeAccountId }
       );
       if (customers.data.length > 0) {
         piParams.customer = customers.data[0].id;
       } else {
         const newCustomer = await stripe.customers.create(
           { email: customer_email, name: customer_name },
-          { stripeAccount: team.stripe_account_id }
+          { stripeAccount: stripeAccountId }
         );
         piParams.customer = newCustomer.id;
       }
@@ -230,7 +230,7 @@ serve(async (req) => {
 
     const paymentIntent = await stripe.paymentIntents.create(
       piParams,
-      { stripeAccount: team.stripe_account_id }
+      { stripeAccount: stripeAccountId }
     );
 
     logStep("Hold created (client_secret)", { piId: paymentIntent.id, amountCents: depositCents });
