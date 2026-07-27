@@ -3531,6 +3531,7 @@ export type Database = {
           deleted_at: string | null
           deleted_by: string | null
           deletion_scheduled_for: string | null
+          deposit_source_confirmed_at: string | null
           eu_representative_address: string | null
           eu_representative_email: string | null
           eu_representative_name: string | null
@@ -3597,6 +3598,7 @@ export type Database = {
           deleted_at?: string | null
           deleted_by?: string | null
           deletion_scheduled_for?: string | null
+          deposit_source_confirmed_at?: string | null
           eu_representative_address?: string | null
           eu_representative_email?: string | null
           eu_representative_name?: string | null
@@ -3663,6 +3665,7 @@ export type Database = {
           deleted_at?: string | null
           deleted_by?: string | null
           deletion_scheduled_for?: string | null
+          deposit_source_confirmed_at?: string | null
           eu_representative_address?: string | null
           eu_representative_email?: string | null
           eu_representative_name?: string | null
