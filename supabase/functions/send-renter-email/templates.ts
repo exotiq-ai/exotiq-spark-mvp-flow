@@ -370,7 +370,7 @@ export const templates = {
           </tr>
           <tr>
             <td align="center" class="px" style="padding: 12px 48px 14px;">
-              <div style="font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size:12px; line-height:18px; color:#5C6272;">A refundable security deposit hold is placed at pickup — it is never charged unless there's damage. Free cancellation with a full refund until 72 hours before pickup.</div>
+              <div style="font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size:12px; line-height:18px; color:#5C6272;">{{OPERATOR_NAME}} will email you a secure link about 72 hours before pickup to put a card on file for your refundable damage deposit. It's a hold, not a charge. Free cancellation with a full refund until 72 hours before pickup.</div>
             </td>
           </tr>
 
