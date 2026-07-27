@@ -52,6 +52,19 @@ export const MarketplaceReadinessPanel = ({ teamId }: Props) => {
     },
   });
 
+  const { data: depositRow } = useQuery({
+    queryKey: ['marketplace-readiness-deposit', teamId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('teams')
+        .select('deposit_source_confirmed_at, default_deposit_cents')
+        .eq('id', teamId)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
   if (isLoading) {
     return (
       <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
