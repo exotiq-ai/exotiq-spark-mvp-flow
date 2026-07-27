@@ -13,3 +13,12 @@ Object.defineProperty(window, "matchMedia", {
     dispatchEvent: () => {},
   }),
 });
+
+// Polyfill ResizeObserver for Radix UI components (checkbox/tabs) in jsdom.
+class ResizeObserverPolyfill {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+(globalThis as unknown as { ResizeObserver: typeof ResizeObserverPolyfill }).ResizeObserver =
+  ResizeObserverPolyfill;
