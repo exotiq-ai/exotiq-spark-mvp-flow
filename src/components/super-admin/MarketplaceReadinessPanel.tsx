@@ -52,6 +52,19 @@ export const MarketplaceReadinessPanel = ({ teamId }: Props) => {
     },
   });
 
+  const { data: depositRow } = useQuery({
+    queryKey: ['marketplace-readiness-deposit', teamId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('teams')
+        .select('deposit_source_confirmed_at, default_deposit_cents')
+        .eq('id', teamId)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
   if (isLoading) {
     return (
       <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
@@ -105,6 +118,22 @@ export const MarketplaceReadinessPanel = ({ teamId }: Props) => {
             </span>
           </div>
         ))}
+      </div>
+
+      <div className="pt-2 border-t space-y-1.5">
+        <div className="flex items-center gap-2 text-xs">
+          {depositRow?.deposit_source_confirmed_at ? (
+            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+          ) : (
+            <XCircle className="h-3.5 w-3.5 text-destructive" />
+          )}
+          <span className={depositRow?.deposit_source_confirmed_at ? 'text-foreground' : 'text-muted-foreground'}>
+            Default security deposit confirmed by operator
+            {!depositRow?.deposit_source_confirmed_at && (
+              <span className="ml-1 text-destructive/80">— save it in Command Center → Team Settings</span>
+            )}
+          </span>
+        </div>
       </div>
 
       <div className="text-xs text-muted-foreground pt-1 border-t">

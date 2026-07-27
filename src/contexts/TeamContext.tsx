@@ -34,6 +34,7 @@ export interface Team {
   invoice_sequence?: number;
   // Deposit hold policy (M6 — deposits)
   default_deposit_cents?: number | null;
+  deposit_source_confirmed_at?: string | null;
   min_rate?: number | null;
   support_email?: string | null;
 }

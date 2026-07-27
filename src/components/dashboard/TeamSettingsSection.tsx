@@ -92,7 +92,10 @@ export const TeamSettingsSection = () => {
     try {
       const { error } = await supabase
         .from('teams')
-        .update({ default_deposit_cents: cents })
+        .update({
+          default_deposit_cents: cents,
+          deposit_source_confirmed_at: new Date().toISOString(),
+        })
         .eq('id', currentTeam.id);
       if (error) throw error;
       await refreshTeam();
