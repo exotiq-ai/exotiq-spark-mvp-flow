@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { teamConnectedAccountId } from "../_shared/stripeMode.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -66,10 +67,10 @@ serve(async (req) => {
 
     const { data: team } = await supabaseClient
       .from("teams")
-      .select("stripe_account_id")
+      .select("stripe_account_id, stripe_test_account_id")
       .eq("id", teamId)
       .single();
-    if (!team?.stripe_account_id) throw new Error("Stripe account not connected");
+    const stripeAccountId = teamConnectedAccountId(team ?? { stripe_account_id: null, stripe_test_account_id: null });
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
@@ -81,7 +82,7 @@ serve(async (req) => {
     const captured = await stripe.paymentIntents.capture(
       payment_intent_id,
       captureParams,
-      { stripeAccount: team.stripe_account_id }
+      { stripeAccount: stripeAccountId }
     );
 
     logStep("Hold captured", { piId: captured.id, amount: captured.amount_received });

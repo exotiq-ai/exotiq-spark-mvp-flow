@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { resolveStripeMode } from "../_shared/stripeMode.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -55,11 +56,13 @@ serve(async (req) => {
       teamId = teamMember.team_id;
       const { data: team } = await supabaseClient
         .from("teams")
-        .select("stripe_account_id, stripe_charges_enabled")
+        .select("stripe_account_id, stripe_test_account_id, stripe_charges_enabled")
         .eq("id", teamMember.team_id)
         .single();
-      if (team?.stripe_account_id && team?.stripe_charges_enabled) {
-        stripeAccountId = team.stripe_account_id;
+      const mode = resolveStripeMode();
+      const modeAcct = mode === "test" ? team?.stripe_test_account_id : team?.stripe_account_id;
+      if (modeAcct && team?.stripe_charges_enabled) {
+        stripeAccountId = modeAcct;
       }
     }
 

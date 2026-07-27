@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { teamConnectedAccountId } from "../_shared/stripeMode.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -70,11 +71,14 @@ serve(async (req) => {
 
     const { data: team, error: teamErr } = await supabaseClient
       .from("teams")
-      .select("stripe_account_id, stripe_charges_enabled, currency")
+      .select("stripe_account_id, stripe_test_account_id, stripe_charges_enabled, currency")
       .eq("id", booking.team_id)
       .single();
     if (teamErr) throw teamErr;
-    if (!team?.stripe_account_id) throw new Error("Stripe account not connected. Please complete onboarding first.");
+    // Mode-aware: resolves live acct id when the key is sk_live_ and the
+    // test acct id when sk_test_. Hard-fails on missing mapping so we never
+    // silently ship a wrong-mode account id to Stripe.
+    const stripeAccountId = teamConnectedAccountId(team);
     if (!team.stripe_charges_enabled) throw new Error("Stripe account is not yet enabled for charges. Please complete onboarding.");
 
     const { data: depositCentsRaw, error: depErr } = await supabaseClient
@@ -102,7 +106,7 @@ serve(async (req) => {
 
       const pms = await stripe.paymentMethods.list(
         { customer: connectedCustomerId, type: "card", limit: 1 },
-        { stripeAccount: team.stripe_account_id }
+        { stripeAccount: stripeAccountId }
       );
       const pm = pms.data[0];
       if (!pm) {
@@ -137,7 +141,7 @@ serve(async (req) => {
             },
           },
           {
-            stripeAccount: team.stripe_account_id,
+            stripeAccount: stripeAccountId,
             idempotencyKey: `deposit-hold-${booking.booking_ref ?? booking_id}-${attempt}`,
           }
         );
@@ -204,14 +208,14 @@ serve(async (req) => {
     if (customer_email) {
       const customers = await stripe.customers.list(
         { email: customer_email, limit: 1 },
-        { stripeAccount: team.stripe_account_id }
+        { stripeAccount: stripeAccountId }
       );
       if (customers.data.length > 0) {
         piParams.customer = customers.data[0].id;
       } else {
         const newCustomer = await stripe.customers.create(
           { email: customer_email, name: customer_name },
-          { stripeAccount: team.stripe_account_id }
+          { stripeAccount: stripeAccountId }
         );
         piParams.customer = newCustomer.id;
       }
@@ -226,7 +230,7 @@ serve(async (req) => {
 
     const paymentIntent = await stripe.paymentIntents.create(
       piParams,
-      { stripeAccount: team.stripe_account_id }
+      { stripeAccount: stripeAccountId }
     );
 
     logStep("Hold created (client_secret)", { piId: paymentIntent.id, amountCents: depositCents });

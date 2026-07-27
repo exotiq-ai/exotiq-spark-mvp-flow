@@ -1,39 +1,61 @@
-## 1. Fix the marketplace-visibility deposit gate (real bug)
 
-Both branches of `enforce_deposit_source_on_marketplace_visible` are unreachable after the $1,000 backfill — the trigger cannot distinguish an operator's explicit choice from our fallback. Adopt the suggested `deposit_source_confirmed_at` signal.
+# External audit — final fix plan
 
-### Migration
-- Add `teams.deposit_source_confirmed_at timestamptz` (nullable).
-- Backfill: leave NULL for every existing tenant. The backfilled $1,000 no longer counts as "confirmed" — operators must re-save in the Command Center before flipping visible. Sunset/already-visible tenants: set `deposit_source_confirmed_at = now()` for any team where `marketplace_visible = true` today, so we don't retroactively break live tenants (Exotiq).
-- Replace `enforce_deposit_source_on_marketplace_visible()` body:
-  - **Teams branch:** on `NEW.marketplace_visible = true AND OLD.marketplace_visible IS DISTINCT FROM true`, require `NEW.deposit_source_confirmed_at IS NOT NULL`. Error message names the CC path: "Set your default security deposit in Command Center → Team Settings before going live."
-  - **Vehicles branch:** on `NEW.marketplace_visible = true AND OLD.marketplace_visible IS DISTINCT FROM true`, require `NEW.deposit_override_cents IS NOT NULL OR (SELECT deposit_source_confirmed_at FROM teams WHERE id = NEW.team_id) IS NOT NULL`. Error message: "Set a deposit override on this vehicle, or confirm the tenant default first."
-- Keep the `resolve_deposit_cents` $1,000 COALESCE floor untouched — it stays as a runtime safety net; it just no longer satisfies the readiness gate.
+Answers logged:
+- **#1 webhooks**: sandbox `rent-payment-webhook` and live `stripe-webhook` are separate URLs → Stripe delivers each event to only one endpoint per mode → **#2 race can't happen today**. Skipping the consumer-key migration. Logging as latent: when you add `rent-payment-webhook` in live mode, if `stripe-webhook` (live) is also subscribed to `checkout.session.completed` / `payment_intent.succeeded`, revisit.
+- **#5 charges_enabled**: skip the `stripe_test_charges_enabled` column (test-mode only, not worth the extra state).
+- **#6 backfill**: set all 17 tenants to 10% now; keep the 10% column default.
 
-### App wiring
-- `TeamSettingsSection.tsx` deposit save: include `deposit_source_confirmed_at: new Date().toISOString()` in the same `update()` that writes `default_deposit_cents`. That's the only place operators set the tenant default, so it's the only place that stamps confirmation.
-- Add `deposit_source_confirmed_at` to the `Team` type in `TeamContext.tsx` so downstream code (Marketplace Readiness panel, etc.) can surface "deposit default not yet confirmed" as a blocker before the operator hits the trigger.
-- Update `MarketplaceReadinessPanel.tsx` to show the deposit-confirmation requirement alongside the existing checks (unblock UX so the failure isn't first seen as a Postgres exception).
+## Phase A — Frontend/UI fixes
 
-### Verify
-- Attempt `UPDATE teams SET marketplace_visible=true WHERE slug='gm-luxe'` → rejected (deposit_source_confirmed_at IS NULL). Save the deposit in CC → retry → succeeds.
-- Attempt `UPDATE vehicles SET marketplace_visible=true` on a fredo-d-lima vehicle with no override and unconfirmed team default → rejected. Set an override → succeeds. Or confirm team default → succeeds.
-- Exotiq (already visible) unaffected by the migration.
+**A1. `src/lib/bookingEditGuards.ts`**
+- `LOCKED_STATUSES` → `['pending_payment','pending_documents','confirmed','active','completed']`
+- Removes dead `'in_progress'` entry; adds real `'active'` and `'pending_documents'` states
 
-## 2. Add deposit expectation line to `receiptConfirmed` email
+**A2. `src/components/dashboard/PaymentTracker.tsx`**
+- Gate "Collect Deposit" (line ~470) and the sibling "Take Payment" button on `!booking.isMarketplace`
+- Marketplace deposit flows go through setup-session → off-session hold, never the Record Payment dialog
 
-Single-line addition in `supabase/functions/send-renter-email/templates.ts`, in the small-print block currently at line 373 (the "refundable security deposit hold is placed at pickup" copy — which is now stale post-M6-D1 rev 2).
+## Phase B — Edge functions (mode-aware Stripe routing)
 
-Replace that line with two sentences using existing variables `{{OPERATOR_NAME}}`:
+**B1. Update 8 functions to use `teamConnectedAccountId(team, mode)` from `_shared/stripeMode.ts`**
+- `stripe-create-hold`, `stripe-create-deposit-setup-session`, `stripe-capture-hold`, `stripe-release-hold`, `stripe-create-refund`, `create-payment-checkout`, `stripe-get-balance`, `stripe-payment-history`
+- Each: change `.select("stripe_account_id, ...")` → `.select("stripe_account_id, stripe_test_account_id, ...")`, then resolve via helper
+- Unblocks sandbox deposit rehearsal (Phase D)
 
-> {{OPERATOR_NAME}} will email you a secure link about 72 hours before pickup to put a card on file for your refundable damage deposit. It's a hold, not a charge. Free cancellation with a full refund until 72 hours before pickup.
+**B2. `create-payment-checkout` hardening**
+- Fetch booking by `booking_id`; resolve `team_id` from the booking (not the caller's first team membership)
+- Assert caller's active membership in booking's team
+- Hard-refuse when `booking_source = 'marketplace'` (defense-in-depth with A2)
+- Non-marketplace direct-charge path continues to accept operator-supplied `amount`
 
-No new template variables needed — `OPERATOR_NAME` is already passed by `rent-payment-webhook` when it invokes `receiptConfirmed`. Redeploy `send-renter-email`.
+## Phase C — Backend / SQL
 
-### Verify
-- Trigger a test receipt (existing money-battery hook) → email body contains the 72h deposit sentence naming the operator.
+**C1. Migration: backfill all tenants + enforce marketplace fee gate**
+- `UPDATE teams SET platform_fee_percent = 10.00 WHERE platform_fee_percent = 0.00` (17 rows)
+- Add a trigger (mirroring `enforce_deposit_source_on_marketplace_visible`) that blocks `marketplace_visible = true` when `platform_fee_percent <= 0`
+- Column default already 10.00 — new tenants inherit
+- No changes to `approve_marketplace_request` needed; trigger fires on the UPDATE it performs
 
-## Out of scope
-- T-72h scheduler sweep for `stripe-create-deposit-setup-session` (still owed from prior turn's handoff).
-- Extended-authorization MCC enrollment (Stripe ops task).
-- The other renter email templates — only `receiptConfirmed` was flagged; approval/reminder/refund copy stays as-is until we see a specific ask.
+## Phase D — Sandbox deposit rehearsal (after B1 deploys)
+
+One end-to-end run on a test marketplace booking:
+1. Request card (setup session on connected test account)
+2. Save card in Stripe test Checkout
+3. Place hold via `stripe-create-hold` — assert PI `amount == resolve_deposit_cents(vehicle_id)`
+4. Release hold
+5. Report PI id + amount
+
+This is the gate before the live flip — the deposit path must not run for the first time against a real renter's card.
+
+## Not in scope
+
+- **#2 consumer-key migration** — different URLs per mode makes it inapplicable today; will re-check when you deploy live `rent-payment-webhook`
+- **`stripe_test_charges_enabled` column** — skipped per your call
+
+## Technical notes
+
+- All Phase A changes are UI-only, no data/schema impact
+- Phase B changes are edge-function-only, all functions already deploy on save
+- Phase C is one migration (data + trigger); zero downtime
+- Phase D is manual verification with a real Stripe test-mode transaction

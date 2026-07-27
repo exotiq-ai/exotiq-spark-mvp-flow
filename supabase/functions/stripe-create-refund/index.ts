@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { teamConnectedAccountId } from "../_shared/stripeMode.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -54,10 +55,10 @@ serve(async (req) => {
 
     const { data: team } = await supabaseClient
       .from("teams")
-      .select("stripe_account_id")
+      .select("stripe_account_id, stripe_test_account_id")
       .eq("id", teamMember.team_id)
       .single();
-    if (!team?.stripe_account_id) throw new Error("Stripe account not connected");
+    const stripeAccountId = teamConnectedAccountId(team ?? { stripe_account_id: null, stripe_test_account_id: null });
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
@@ -77,7 +78,7 @@ serve(async (req) => {
 
     const refund = await stripe.refunds.create(
       refundParams,
-      { stripeAccount: team.stripe_account_id }
+      { stripeAccount: stripeAccountId }
     );
 
     logStep("Refund created", { refundId: refund.id, amount: refund.amount });
@@ -91,7 +92,7 @@ serve(async (req) => {
         refund_reason: reason || null,
         payment_status: refund.amount === (await stripe.paymentIntents.retrieve(
           payment_intent_id,
-          { stripeAccount: team.stripe_account_id }
+          { stripeAccount: stripeAccountId }
         )).amount ? "refunded" : "partially_refunded",
       })
       .eq("stripe_payment_intent_id", payment_intent_id);

@@ -16,10 +16,17 @@ export interface BookingLockFields {
   status?: string | null;
 }
 
+// Live CHECK on bookings.status allows: pending, confirmed, active, completed,
+// cancelled, requested, pending_documents, pending_payment, declined, refunded,
+// payment_expired. Once the renter has committed money (pending_payment) or
+// beyond, the price/dates the renter accepted are frozen. `pending_documents`
+// is where confirmIfFullyPaid parks a paid booking that's still awaiting ID —
+// it MUST be locked or Edit reprices from vehicle.current_rate.
 const LOCKED_STATUSES = new Set([
   "pending_payment",
+  "pending_documents",
   "confirmed",
-  "in_progress",
+  "active",
   "completed",
 ]);
 
