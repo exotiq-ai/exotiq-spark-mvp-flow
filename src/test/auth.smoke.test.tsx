@@ -324,6 +324,6 @@ describe("Auth page smoke — forgot password flow", () => {
     const forgotLink = screen.getByText(/forgot password/i);
     fireEvent.click(forgotLink);
 
-    expect(screen.getByText(/reset password/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /reset password/i })).toBeInTheDocument();
   });
 });
