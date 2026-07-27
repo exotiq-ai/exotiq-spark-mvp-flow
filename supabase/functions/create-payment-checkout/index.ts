@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { teamConnectedAccountId } from "../_shared/stripeMode.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -29,13 +30,14 @@ serve(async (req) => {
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
 
-    const { 
+    const {
       booking_id, customer_id, customer_email, customer_name,
-      amount, payment_type, description 
+      amount, payment_type, description
     } = await req.json();
-    
+
     logStep("Request body parsed", { booking_id, amount, payment_type, customer_email });
 
+    if (!booking_id) throw new Error("booking_id is required");
     if (!amount || amount <= 0) throw new Error("Invalid payment amount");
 
     // Authenticate user
@@ -48,43 +50,59 @@ serve(async (req) => {
     if (!user) throw new Error("User not authenticated");
     logStep("User authenticated", { userId: user.id });
 
-    // Get team and connected Stripe account — hard-fail if missing to prevent
-    // revenue from silently landing on the platform account.
-    const { data: teamMember, error: teamMemberError } = await supabaseClient
-      .from("team_members")
-      .select("team_id")
-      .eq("user_id", user.id)
-      .eq("is_active", true)
-      .limit(1)
+    // Booking-scoped auth: resolve team from the booking, NOT the caller's
+    // first team membership. Prevents cross-tenant charge routing when a user
+    // belongs to multiple teams.
+    const { data: booking, error: bookingErr } = await supabaseClient
+      .from("bookings")
+      .select("id, team_id, booking_source, status")
+      .eq("id", booking_id)
       .maybeSingle();
+    if (bookingErr) throw new Error(`Booking lookup error: ${bookingErr.message}`);
+    if (!booking) throw new Error("Booking not found");
 
-    if (teamMemberError) throw new Error(`Team lookup error: ${teamMemberError.message}`);
-    if (!teamMember) {
+    // Hard refuse marketplace bookings: those go through rent-checkout so the
+    // Exotiq fee leg + platform routing happen. A manual Record Payment here
+    // would bill the operator's account with no fee split and no on_behalf_of.
+    if (booking.booking_source === "marketplace") {
       return new Response(
-        JSON.stringify({ error: "No active team membership found. Payments cannot be routed." }),
+        JSON.stringify({
+          error: "Marketplace bookings cannot be charged manually. The renter pays via the marketplace checkout link.",
+          code: "marketplace_manual_charge_blocked",
+        }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 409 },
       );
     }
 
-    const teamId: string = teamMember.team_id;
+    // Assert active membership in THIS booking's team.
+    const { data: membership, error: memErr } = await supabaseClient
+      .from("team_members")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("team_id", booking.team_id)
+      .eq("is_active", true)
+      .maybeSingle();
+    if (memErr) throw new Error(`Membership lookup error: ${memErr.message}`);
+    if (!membership) {
+      return new Response(
+        JSON.stringify({ error: "Not authorized for this booking's team." }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 403 },
+      );
+    }
+
+    const teamId = booking.team_id;
 
     const { data: team, error: teamError } = await supabaseClient
       .from("teams")
-      .select("stripe_account_id, stripe_charges_enabled, currency")
+      .select("stripe_account_id, stripe_test_account_id, stripe_charges_enabled, currency")
       .eq("id", teamId)
       .single();
 
     if (teamError) throw new Error(`Team fetch error: ${teamError.message}`);
 
-    if (!team?.stripe_account_id) {
-      return new Response(
-        JSON.stringify({
-          error: "Payment processing is not set up for this team. Connect a Stripe account in Settings → Payments.",
-          code: "stripe_not_connected",
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 409 },
-      );
-    }
+    // Mode-aware: routes to the live or test connected account based on the
+    // current Stripe key. Hard-fails on missing mapping.
+    const stripeAccountId = teamConnectedAccountId(team);
 
     if (!team.stripe_charges_enabled) {
       return new Response(
@@ -96,17 +114,14 @@ serve(async (req) => {
       );
     }
 
-    const stripeAccountId: string = team.stripe_account_id;
     // Tenant currency drives Stripe checkout currency. Defaults to USD so
     // existing US tenants see identical behaviour.
     const currency: string = (team.currency || "USD").toLowerCase();
 
     // DECISION D1 (2026-07-15, docs/rent/DECISIONS.md): the legacy hardcoded
     // 20% marketplace application fee is retired. The Exotiq booking fee is a
-    // renter-side charge (10% of rental subtotal, charged separately from the
-    // operator's charge) and will be implemented in the M6 renter payment
-    // flow — it is never taken as an application fee on operator-initiated
-    // checkouts or deposit holds.
+    // renter-side charge handled in rent-checkout; operator-initiated direct
+    // charges take no application fee.
     const platformFee = 0;
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
