@@ -304,7 +304,7 @@ serve(async (req) => {
         const { data: bookingRow } = await db
           .from("bookings")
           .select(
-            "id, status, total_value, paid_at, platform_fee_cents, protection_total_cents, exotiq_payment_intent_id, exotiq_leg_attempt",
+            "id, status, total_value, paid_at, platform_fee_cents, protection_total_cents, state_fee_cents, processing_fee_cents, exotiq_payment_intent_id, exotiq_leg_attempt",
           )
           .eq("booking_ref", bookingRef)
           .maybeSingle();
@@ -350,8 +350,14 @@ serve(async (req) => {
           break;
         }
 
+        // Exotiq leg = platform fee + protection + state fee + processing fee.
+        // All four are snapshotted at booking time by rent-create-booking so
+        // "shown == snapshot == charged" holds even if the quote drifts.
         const exotiqCents =
-          Number(bookingRow.platform_fee_cents ?? 0) + Number(bookingRow.protection_total_cents ?? 0);
+          Number(bookingRow.platform_fee_cents ?? 0)
+          + Number(bookingRow.protection_total_cents ?? 0)
+          + Number(bookingRow.state_fee_cents ?? 0)
+          + Number(bookingRow.processing_fee_cents ?? 0);
         if (exotiqCents <= 0) {
           await db
             .from("bookings")
