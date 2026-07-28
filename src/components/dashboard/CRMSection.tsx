@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { moduleIdToPath } from "@/lib/moduleRoutes";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { useRealtimeTable } from "@/hooks/useRealtimeTable";
@@ -12,6 +13,7 @@ import { useTeam } from "@/contexts/TeamContext";
 import { useGrowthCalculation, useRevenueGrowth } from "@/hooks/useGrowthCalculation";
 import { SkeletonMetric, SkeletonTable } from "@/components/ui/skeleton-card";
 import { EmptyState } from "@/components/common/EmptyState";
+import { CustomerListRow } from "@/components/dashboard/CustomerListRow";
 import { 
   Users, 
   Search, 
@@ -24,7 +26,10 @@ import {
   Plus,
   Filter,
   Calendar,
-  Download
+  Download,
+  LayoutGrid,
+  List,
+  ExternalLink
 } from "lucide-react";
 import { CustomerProfileDialog } from "@/components/dialogs/CustomerProfileDialog";
 import { AddCustomerDialog } from "@/components/dialogs/AddCustomerDialog";
@@ -50,11 +55,19 @@ export const CRMSection = () => {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [viewMode, setViewMode] = useState<'cards' | 'list'>(() => {
+    if (typeof window === 'undefined') return 'cards';
+    return (localStorage.getItem('exotiq-crm-view-mode') as 'cards' | 'list') || 'cards';
+  });
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [showCustomerProfile, setShowCustomerProfile] = useState(false);
   const [showAddCustomer, setShowAddCustomer] = useState(false);
   const [showNewBooking, setShowNewBooking] = useState(false);
   const [prefillCustomer, setPrefillCustomer] = useState<Customer | null>(null);
+
+  useEffect(() => {
+    localStorage.setItem('exotiq-crm-view-mode', viewMode);
+  }, [viewMode]);
 
   // Deep-link: auto-open customer profile from URL params
   // Deep-link: auto-open customer profile from URL params
@@ -149,6 +162,13 @@ export const CRMSection = () => {
   }, [filteredCustomers, lastBookingMap]);
 
   const handleCustomerClick = (customerId: string) => {
+    const exists = customers.find(c => c.id === customerId);
+    if (!exists) return;
+    setSelectedCustomerId(customerId);
+    setShowCustomerProfile(true);
+  };
+
+  const handleOpenCustomerInNewTab = (customerId: string) => {
     const url = moduleIdToPath('book', { tab: 'crm', customerId });
     window.open(url, '_blank', 'noopener,noreferrer');
   };
@@ -231,9 +251,25 @@ export const CRMSection = () => {
 
       {/* Customer List */}
       <Card className="card-premium p-6">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
           <h3 className="text-xl font-semibold">Customer Database</h3>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            <ToggleGroup
+              type="single"
+              value={viewMode}
+              onValueChange={(value) => value && setViewMode(value as 'cards' | 'list')}
+              variant="outline"
+              size="sm"
+            >
+              <ToggleGroupItem value="cards" aria-label="Cards view">
+                <LayoutGrid className="w-4 h-4 mr-1" />
+                Cards
+              </ToggleGroupItem>
+              <ToggleGroupItem value="list" aria-label="List view">
+                <List className="w-4 h-4 mr-1" />
+                List
+              </ToggleGroupItem>
+            </ToggleGroup>
             <Button variant="outline" size="sm" onClick={handleExport} disabled={customers.length === 0}>
               <Download className="w-4 h-4 mr-2" />
               Export
@@ -284,78 +320,148 @@ export const CRMSection = () => {
           </div>
         </div>
 
-        {/* Customer Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {filteredCustomers.map((customer) => {
-            const lastBooking = lastBookingMap[customer.id];
-            return (
-            <div
-              key={customer.id}
-              onClick={() => handleCustomerClick(customer.id)}
-              onKeyDown={(e) => handleCustomerKeyDown(e, customer.id)}
-              tabIndex={0}
-              role="button"
-              aria-label={`Open ${customer.full_name} profile in new tab`}
-              className="p-4 rounded-lg bg-muted/30 border border-primary/10 hover-scale cursor-pointer"
-            >
-              <div className="flex items-start justify-between mb-3">
-                <div>
-                  <h4 className="font-semibold text-lg">{customer.full_name}</h4>
-                  <p className="text-sm text-muted-foreground">{customer.email}</p>
-                </div>
-                {getStatusBadge(customer.customer_status)}
-              </div>
-
-              <div className="grid grid-cols-3 gap-3 text-sm">
-                <div>
-                  <div className="text-muted-foreground text-xs">Bookings</div>
-                  <div className="font-medium">{customer.total_bookings || 0}</div>
-                </div>
-                <div>
-                  <div className="text-muted-foreground text-xs">Lifetime Value</div>
-                  <div className="font-medium text-success">{formatCurrency(customer.lifetime_value || 0)}</div>
-                </div>
-                <div>
-                  <div className="text-muted-foreground text-xs">Last Booking</div>
-                  <div className="font-medium text-xs">
-                    {lastBooking ? formatDistanceToNow(new Date(lastBooking), { addSuffix: true }) : 'Never'}
+        {/* Cards View */}
+        {viewMode === 'cards' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {filteredCustomers.map((customer) => {
+              const lastBooking = lastBookingMap[customer.id];
+              return (
+              <div
+                key={customer.id}
+                onClick={() => handleCustomerClick(customer.id)}
+                onKeyDown={(e) => handleCustomerKeyDown(e, customer.id)}
+                tabIndex={0}
+                role="button"
+                aria-label={`Open ${customer.full_name} profile`}
+                className="group p-4 rounded-lg bg-muted/30 border border-primary/10 hover-scale cursor-pointer"
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <h4 className="font-semibold text-lg">{customer.full_name}</h4>
+                    <p className="text-sm text-muted-foreground">{customer.email}</p>
                   </div>
-                </div>
-              </div>
-
-              {/* Quick Actions */}
-              <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/50">
-                <div className="flex gap-1">
-                  {customer.phone && (
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); window.open(`tel:${customer.phone}`); }}>
-                      <Phone className="w-3.5 h-3.5" />
+                  <div className="flex items-center gap-1">
+                    {getStatusBadge(customer.customer_status)}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 opacity-0 group-hover:opacity-60 hover:opacity-100 transition-opacity"
+                      aria-label={`Open ${customer.full_name} profile in new tab`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenCustomerInNewTab(customer.id);
+                      }}
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
                     </Button>
-                  )}
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); window.open(`mailto:${customer.email}`); }}>
-                    <Mail className="w-3.5 h-3.5" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => {
-                    e.stopPropagation();
-                    setPrefillCustomer(customer);
-                    setShowNewBooking(true);
-                  }}>
-                    <Calendar className="w-3.5 h-3.5" />
-                  </Button>
-                </div>
-                {(customer as any).tags?.length > 0 && (
-                  <div className="flex gap-1">
-                    {((customer as any).tags as string[]).slice(0, 2).map((tag: string) => (
-                      <Badge key={tag} variant="secondary" className="text-[10px] px-1.5 py-0">{tag}</Badge>
-                    ))}
                   </div>
-                )}
-              </div>
-            </div>
-            );
-          })}
+                </div>
 
-          {filteredCustomers.length === 0 && searchQuery === "" && filterStatus === "all" && (
-            <div className="col-span-2">
+                <div className="grid grid-cols-3 gap-3 text-sm">
+                  <div>
+                    <div className="text-muted-foreground text-xs">Bookings</div>
+                    <div className="font-medium">{customer.total_bookings || 0}</div>
+                  </div>
+                  <div>
+                    <div className="text-muted-foreground text-xs">Lifetime Value</div>
+                    <div className="font-medium text-success">{formatCurrency(customer.lifetime_value || 0)}</div>
+                  </div>
+                  <div>
+                    <div className="text-muted-foreground text-xs">Last Booking</div>
+                    <div className="font-medium text-xs">
+                      {lastBooking ? formatDistanceToNow(new Date(lastBooking), { addSuffix: true }) : 'Never'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quick Actions */}
+                <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/50">
+                  <div className="flex gap-1">
+                    {customer.phone && (
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); window.open(`tel:${customer.phone}`); }}>
+                        <Phone className="w-3.5 h-3.5" />
+                      </Button>
+                    )}
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); window.open(`mailto:${customer.email}`); }}>
+                      <Mail className="w-3.5 h-3.5" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => {
+                      e.stopPropagation();
+                      setPrefillCustomer(customer);
+                      setShowNewBooking(true);
+                    }}>
+                      <Calendar className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                  {(customer as any).tags?.length > 0 && (
+                    <div className="flex gap-1">
+                      {((customer as any).tags as string[]).slice(0, 2).map((tag: string) => (
+                        <Badge key={tag} variant="secondary" className="text-[10px] px-1.5 py-0">{tag}</Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              );
+            })}
+
+            {filteredCustomers.length === 0 && searchQuery === "" && filterStatus === "all" && (
+              <div className="col-span-2">
+                <EmptyState
+                  icon={<Users className="h-16 w-16" />}
+                  title="No customers yet"
+                  description="Start building your customer base by adding your first customer. Track bookings, lifetime value, and communication history."
+                  action={{
+                    label: "Add First Customer",
+                    onClick: () => setShowAddCustomer(true)
+                  }}
+                />
+              </div>
+            )}
+            
+            {filteredCustomers.length === 0 && (searchQuery !== "" || filterStatus !== "all") && (
+              <div className="col-span-2 text-center py-12 text-muted-foreground">
+                <Search className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p>No customers match your filters</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSearchQuery("");
+                    setFilterStatus("all");
+                  }}
+                  className="mt-4"
+                >
+                  Clear Filters
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* List View */}
+        {viewMode === 'list' && (
+          <div className="space-y-2">
+            {filteredCustomers.length > 0 && (
+              <div className="hidden md:grid grid-cols-12 gap-4 px-4 pb-2 text-xs text-muted-foreground uppercase tracking-wider">
+                <div className="col-span-4">Customer</div>
+                <div className="col-span-3">Email</div>
+                <div className="col-span-2">Lifetime Value</div>
+                <div className="col-span-2">Last Booking</div>
+                <div className="col-span-1"></div>
+              </div>
+            )}
+            {filteredCustomers.map((customer) => (
+              <CustomerListRow
+                key={customer.id}
+                customer={customer}
+                lastBooking={lastBookingMap[customer.id]}
+                onClick={() => handleCustomerClick(customer.id)}
+                onOpenInNewTab={handleOpenCustomerInNewTab}
+              />
+            ))}
+
+            {filteredCustomers.length === 0 && searchQuery === "" && filterStatus === "all" && (
               <EmptyState
                 icon={<Users className="h-16 w-16" />}
                 title="No customers yet"
@@ -365,27 +471,27 @@ export const CRMSection = () => {
                   onClick: () => setShowAddCustomer(true)
                 }}
               />
-            </div>
-          )}
-          
-          {filteredCustomers.length === 0 && (searchQuery !== "" || filterStatus !== "all") && (
-            <div className="col-span-2 text-center py-12 text-muted-foreground">
-              <Search className="w-12 h-12 mx-auto mb-3 opacity-50" />
-              <p>No customers match your filters</p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setSearchQuery("");
-                  setFilterStatus("all");
-                }}
-                className="mt-4"
-              >
-                Clear Filters
-              </Button>
-            </div>
-          )}
-        </div>
+            )}
+            
+            {filteredCustomers.length === 0 && (searchQuery !== "" || filterStatus !== "all") && (
+              <div className="text-center py-12 text-muted-foreground">
+                <Search className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p>No customers match your filters</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSearchQuery("");
+                    setFilterStatus("all");
+                  }}
+                  className="mt-4"
+                >
+                  Clear Filters
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
       </Card>
 
       {/* Dialogs */}
