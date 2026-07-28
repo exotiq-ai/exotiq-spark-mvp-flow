@@ -208,18 +208,6 @@ export const CustomerProfileDialog = ({
               </DialogDescription>
             </div>
             <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                aria-label={`Open ${customer.full_name} profile in new tab`}
-                onClick={() => {
-                  const url = moduleIdToPath('book', { tab: 'crm', customerId: customer.id });
-                  window.open(url, '_blank', 'noopener,noreferrer');
-                }}
-              >
-                <ExternalLink className="w-4 h-4" />
-              </Button>
               {getStatusBadge()}
             </div>
           </div>
