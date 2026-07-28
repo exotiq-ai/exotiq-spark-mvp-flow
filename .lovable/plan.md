@@ -1,47 +1,35 @@
-# Fix silently-failing paid branch in identity-webhook
+## Problem
 
-## Confirmed
-- `guard_marketplace_confirm_transition` raises `check_violation` on both `requested → confirmed` AND `pending_documents → confirmed` for marketplace bookings.
-- `identity-webhook`'s paid-path update (`pending_documents → confirmed` when `paid_at IS NOT NULL`) hits that guard, is caught only by `console.error`, and the webhook still returns 200. Silent failure in a money-adjacent webhook — must fix.
-- Reachable via redact-then-reverify and payment/ID race orderings. Not a launch blocker but a real correctness bug.
+Clicking "View Full Profile" in the booking details dialog jumps to FleetCopilot (`/dashboard/fleetcopilot?view=crm&customerId=…`), which doesn't render a customer profile. The CRM actually lives inside the **Book** module (`/dashboard/bookings?tab=customers&customerId=…`), where `CRMSection` reads `customerId` from the URL and opens the profile.
 
-## Decision: relax the trigger, keep the webhook branch
+## Root cause
 
-Rationale: the branch encodes a legitimate state ("payment landed before ID cleared"). Deleting it just moves the silent failure into a real one on the race. Better to teach the guard that `pending_documents → confirmed` is legal specifically when payment has already been captured — that's the invariant the guard actually cares about (no confirming without money).
+`src/hooks/useModuleNavigation.ts` -> `goToCustomerProfile` targets module `core` (FleetCopilot) instead of `book`. Every call site that funnels through this helper (or duplicates it inline) inherits the wrong route.
 
-## Migration
+## Miswired call sites (audit)
 
-Update `public.guard_marketplace_confirm_transition` to:
+1. `src/hooks/useModuleNavigation.ts:14-17` — `goToCustomerProfile` routes to `core` with `view: 'crm'`.
+2. `src/components/dialogs/EnhancedBookingDialog.tsx:1327` — "View Full Profile" button calls `onNavigateToModule("core", { customerId })`; parent handlers in `BookEnhanced.tsx` then invoke the broken `goToCustomerProfile`.
+3. `src/components/dashboard/BookEnhanced.tsx:381` and `:583` — treat `moduleId === 'core' + customerId` as "go to customer profile", reinforcing the wrong contract.
+4. `src/components/dashboard/DashboardBottomActionBar.tsx:242` — customer command-palette action navigates to `moduleIdToPath("core", { customerId })` inline.
 
-```sql
-IF NEW.status = 'confirmed'
-   AND NEW.booking_source = 'marketplace' THEN
-  -- requested → confirmed: always blocked, must flow through approval + payment
-  IF OLD.status = 'requested' THEN
-    RAISE EXCEPTION 'Marketplace bookings cannot be confirmed directly from requested — approval must go through rent-approve-booking (→ pending_payment → payment webhook → confirmed).'
-      USING ERRCODE = 'check_violation';
-  END IF;
-  -- pending_documents → confirmed: allowed ONLY when payment already captured
-  -- (the payment-first / ID-second race handled by identity-webhook).
-  IF OLD.status = 'pending_documents' AND NEW.paid_at IS NULL THEN
-    RAISE EXCEPTION 'Marketplace bookings cannot be confirmed from pending_documents without a captured payment.'
-      USING ERRCODE = 'check_violation';
-  END IF;
-END IF;
-RETURN NEW;
-```
+Other callers (`EnhancedGlobalSearch.tsx:319`, `CommandPalette.tsx:162`) already correctly use `book` + `tab: 'crm'`, confirming Book is the right destination.
 
-## Webhook cleanup (same turn)
+## Fix
 
-In `supabase/functions/identity-webhook/index.ts`, promote the paid-branch error from `console.error` to a hard failure path: if the update returns an error, log it AND return 500 so Stripe retries. The unpaid branch stays as-is (its update is now the only "expected to succeed" one in the block, and `requested` transitions aren't guarded).
+Point every customer-profile navigation at Book/CRM:
 
-## Not doing (per your message)
-- OTP / Supabase Auth config — parked.
-- B1 webhook dedupe — waiting on Gregory's Stripe dashboard event list.
-- Plan step 3 (draft-endpoint) from the previous plan — dropped; booking is created at reserve, so OTP-verified email just flows into `rent-create-booking` normally when we build OTP later.
+- Update `goToCustomerProfile` in `useModuleNavigation.ts` to:
+  `navigate(moduleIdToPath('book', { tab: 'crm', customerId }))`
+- In `EnhancedBookingDialog.tsx`, change the "View Full Profile" click to emit `onNavigateToModule('book', { tab: 'crm', customerId })` (semantics now match the destination).
+- In `BookEnhanced.tsx` (both handlers, lines 375 and 582), replace the `moduleId === 'core' && customerId` branch with a `moduleId === 'book' && context?.customerId` branch that calls `goToCustomerProfile(context.customerId)`. Keeps the vehicle/payments branches untouched.
+- In `DashboardBottomActionBar.tsx:242`, replace the inline `moduleIdToPath("core", { customerId })` with `moduleIdToPath("book", { tab: "crm", customerId })` (or reuse `goToCustomerProfile` via the hook to stay DRY).
 
-## Verification after apply
-1. Re-run the pending_documents → confirmed transition with `paid_at IS NOT NULL` on a test row → succeeds.
-2. Same transition with `paid_at IS NULL` → raises check_violation.
-3. `requested → confirmed` still blocked.
-4. Re-check `identity-webhook` logs on a synthetic verified event for a paid booking → no error line, status flips to confirmed.
+No changes to CRMSection, no schema/backend changes, no routing table changes — `BookEnhanced` already consumes `tab=customers` (accepts `crm` alias, line 169) and `CRMSection` already consumes `customerId`.
+
+## Verification
+
+- Open a booking from `/dashboard/bookings` calendar → click **View Full Profile** → lands on `/dashboard/bookings?tab=customers&customerId=…` with the customer profile dialog open.
+- Trigger the same button from `BookEnhanced` list view and from `CustomerProfileDialog`'s nested booking dialog — both should reach the CRM profile, not FleetCopilot.
+- Command palette + bottom action bar customer entries should still open the CRM profile.
+- No regression to Change Vehicle (motoriq) or Payments navigation.
