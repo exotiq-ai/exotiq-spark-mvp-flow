@@ -580,7 +580,7 @@ export const BookEnhanced = () => {
         <TabsContent value="calendar">
           <BookingCalendar 
             onNavigateToModule={(moduleId, context) => {
-              if (moduleId === 'core' && context?.customerId) {
+              if ((moduleId === 'book' || moduleId === 'core') && context?.customerId) {
                 goToCustomerProfile(context.customerId);
               } else if (moduleId === 'motoriq' && context?.vehicleId) {
                 goToVehicleDetails(context.vehicleId);
