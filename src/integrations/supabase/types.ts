@@ -3553,6 +3553,7 @@ export type Database = {
           min_rate: number | null
           name: string
           owner_id: string
+          platform_fee_confirmed_at: string | null
           platform_fee_percent: number
           primary_jurisdiction: string | null
           public_description: string | null
@@ -3620,6 +3621,7 @@ export type Database = {
           min_rate?: number | null
           name: string
           owner_id: string
+          platform_fee_confirmed_at?: string | null
           platform_fee_percent?: number
           primary_jurisdiction?: string | null
           public_description?: string | null
@@ -3687,6 +3689,7 @@ export type Database = {
           min_rate?: number | null
           name?: string
           owner_id?: string
+          platform_fee_confirmed_at?: string | null
           platform_fee_percent?: number
           primary_jurisdiction?: string | null
           public_description?: string | null

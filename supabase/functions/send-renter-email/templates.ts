@@ -370,7 +370,7 @@ export const templates = {
           </tr>
           <tr>
             <td align="center" class="px" style="padding: 12px 48px 14px;">
-              <div style="font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size:12px; line-height:18px; color:#5C6272;">{{OPERATOR_NAME}} will email you a secure link about 72 hours before pickup to put a card on file for your refundable damage deposit. It's a hold, not a charge. Free cancellation with a full refund until 72 hours before pickup.</div>
+              <div style="font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size:12px; line-height:18px; color:#5C6272;">Free cancellation with a full refund until 72 hours before pickup.</div>
             </td>
           </tr>
 
@@ -756,45 +756,9 @@ export const templates = {
   </table>
 </body>
 </html>`,
-  // T-72h card-on-file request for the operator's damage deposit. The card
-  // lands on the operator's connected account (never the platform), so the
-  // renter completes a setup-mode Stripe Checkout — no money moves.
-  depositCardRequested: `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Add a card for your security deposit | Drive Exotiq</title>
-</head>
-<body style="margin:0; padding:0; background:#0E1013; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color:#F0F2F5;">
-  <div style="display:none; max-height:0; overflow:hidden;">Add a card for the refundable {{DEPOSIT_AMOUNT}} security hold on {{VEHICLE_SHORT}}.</div>
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#0E1013;">
-    <tr><td align="center" style="padding:32px 16px;">
-      <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="max-width:600px; background:#151821; border-radius:12px; padding:32px;">
-        <tr><td>
-          <div style="font-size:12px; letter-spacing:2px; color:#8E95A3; text-transform:uppercase; margin-bottom:8px;">Pickup in 72 hours</div>
-          <h1 style="font-size:24px; line-height:32px; margin:0 0 16px; color:#F0F2F5; font-weight:700;">Add a card for your security deposit</h1>
-          <p style="font-size:14px; line-height:22px; color:#C4C9D3; margin:0 0 20px;">
-            Before you pick up <strong>{{VEHICLE_SHORT}}</strong>, {{OPERATOR_NAME}} needs a card on file
-            for a refundable <strong>{{DEPOSIT_AMOUNT}}</strong> security hold. Nothing is charged now —
-            this is only an authorization placed at pickup and released after the car is returned
-            without damage.
-          </p>
-          <div style="margin:24px 0;">
-            <a href="{{SETUP_URL}}" style="display:inline-block; background:#F0F2F5; color:#0E1013; text-decoration:none; padding:12px 24px; border-radius:8px; font-weight:600; font-size:14px;">Add my card</a>
-          </div>
-          <p style="font-size:13px; line-height:20px; color:#8E95A3; margin:0 0 16px;">
-            The card is stored securely by Stripe on {{OPERATOR_NAME}}'s account. Exotiq never sees it.
-          </p>
-          <p style="font-size:12px; line-height:18px; color:#5C6272; margin:24px 0 0; padding-top:16px; border-top:1px solid #2A2E3A;">
-            Booking {{BOOKING_REF}} · Operator: {{OPERATOR_NAME}} · Questions? Just reply to this email.
-          </p>
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>`,
+  // depositCardRequested template removed 2026-07-28. Exotiq exited the
+  // security-deposit flow entirely — renters settle the deposit with the
+  // operator at pickup by whatever method the operator accepts.
 } as const;
 
 
