@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { moduleIdToPath } from "@/lib/moduleRoutes";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { useRealtimeTable } from "@/hooks/useRealtimeTable";
 import { useFleet } from "@/contexts/FleetContext";
