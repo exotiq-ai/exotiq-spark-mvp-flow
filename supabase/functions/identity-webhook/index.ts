@@ -191,7 +191,11 @@ serve(async (req) => {
       .eq("status", "pending_documents")
       .not("paid_at", "is", null);
     if (promotePaidErr) {
+      // Guard trigger now permits pending_documents → confirmed when paid_at IS NOT NULL,
+      // so any error here is a real integrity failure — fail loudly so Stripe retries
+      // instead of leaving a paid, verified booking stuck in pending_documents.
       console.error("[IDENTITY-WEBHOOK] pending_documents → confirmed promotion failed", promotePaidErr);
+      return new Response("Booking promotion failed", { status: 500 });
     }
     const { error: promoteUnpaidErr } = await admin
       .from("bookings")
@@ -202,6 +206,7 @@ serve(async (req) => {
       .is("paid_at", null);
     if (promoteUnpaidErr) {
       console.error("[IDENTITY-WEBHOOK] pending_documents → requested promotion failed", promoteUnpaidErr);
+      return new Response("Booking promotion failed", { status: 500 });
     }
   }
 
