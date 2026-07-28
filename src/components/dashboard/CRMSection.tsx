@@ -162,6 +162,13 @@ export const CRMSection = () => {
   }, [filteredCustomers, lastBookingMap]);
 
   const handleCustomerClick = (customerId: string) => {
+    const exists = customers.find(c => c.id === customerId);
+    if (!exists) return;
+    setSelectedCustomerId(customerId);
+    setShowCustomerProfile(true);
+  };
+
+  const handleOpenCustomerInNewTab = (customerId: string) => {
     const url = moduleIdToPath('book', { tab: 'crm', customerId });
     window.open(url, '_blank', 'noopener,noreferrer');
   };
