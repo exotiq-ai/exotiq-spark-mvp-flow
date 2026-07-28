@@ -52,12 +52,12 @@ export const MarketplaceReadinessPanel = ({ teamId }: Props) => {
     },
   });
 
-  const { data: depositRow } = useQuery({
-    queryKey: ['marketplace-readiness-deposit', teamId],
+  const { data: feeRow } = useQuery({
+    queryKey: ['marketplace-readiness-fee', teamId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('teams')
-        .select('deposit_source_confirmed_at, default_deposit_cents')
+        .select('platform_fee_confirmed_at, platform_fee_percent')
         .eq('id', teamId)
         .maybeSingle();
       if (error) throw error;
