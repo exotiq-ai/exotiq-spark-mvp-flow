@@ -262,6 +262,7 @@ export type Database = {
           platform_fee_base: number
           platform_fee_cents: number | null
           platform_fee_percent_snapshot: number
+          processing_fee_cents: number
           protection_cents_snapshot: number
           protection_tier: string | null
           protection_total_cents: number | null
@@ -272,6 +273,7 @@ export type Database = {
           security_deposit_amount: number | null
           security_deposit_status: string | null
           start_date: string
+          state_fee_cents: number
           status: string | null
           subtotal: number
           tax_amount: number
@@ -338,6 +340,7 @@ export type Database = {
           platform_fee_base?: number
           platform_fee_cents?: number | null
           platform_fee_percent_snapshot?: number
+          processing_fee_cents?: number
           protection_cents_snapshot?: number
           protection_tier?: string | null
           protection_total_cents?: number | null
@@ -348,6 +351,7 @@ export type Database = {
           security_deposit_amount?: number | null
           security_deposit_status?: string | null
           start_date: string
+          state_fee_cents?: number
           status?: string | null
           subtotal?: number
           tax_amount?: number
@@ -414,6 +418,7 @@ export type Database = {
           platform_fee_base?: number
           platform_fee_cents?: number | null
           platform_fee_percent_snapshot?: number
+          processing_fee_cents?: number
           protection_cents_snapshot?: number
           protection_tier?: string | null
           protection_total_cents?: number | null
@@ -424,6 +429,7 @@ export type Database = {
           security_deposit_amount?: number | null
           security_deposit_status?: string | null
           start_date?: string
+          state_fee_cents?: number
           status?: string | null
           subtotal?: number
           tax_amount?: number
@@ -5562,30 +5568,57 @@ export type Database = {
         Returns: number
       }
       count_admins: { Args: never; Returns: number }
-      create_marketplace_booking: {
-        Args: {
-          _customer_email: string
-          _customer_name: string
-          _customer_phone: string
-          _daily_rate: number
-          _end_date: string
-          _initial_status: string
-          _pickup_time: string
-          _platform_fee_cents: number
-          _protection_tier: string
-          _protection_total_cents: number
-          _start_date: string
-          _team_slug: string
-          _total_value: number
-          _vehicle_slug: string
-        }
-        Returns: {
-          booking_id: string
-          booking_ref: string
-          confirmation_token: string
-          status: string
-        }[]
-      }
+      create_marketplace_booking:
+        | {
+            Args: {
+              _customer_email: string
+              _customer_name: string
+              _customer_phone: string
+              _daily_rate: number
+              _end_date: string
+              _initial_status: string
+              _pickup_time: string
+              _platform_fee_cents: number
+              _protection_tier: string
+              _protection_total_cents: number
+              _start_date: string
+              _team_slug: string
+              _total_value: number
+              _vehicle_slug: string
+            }
+            Returns: {
+              booking_id: string
+              booking_ref: string
+              confirmation_token: string
+              status: string
+            }[]
+          }
+        | {
+            Args: {
+              _customer_email: string
+              _customer_name: string
+              _customer_phone: string
+              _daily_rate: number
+              _end_date: string
+              _initial_status: string
+              _pickup_time: string
+              _platform_fee_cents: number
+              _processing_fee_cents?: number
+              _protection_tier: string
+              _protection_total_cents: number
+              _start_date: string
+              _state_fee_cents?: number
+              _team_slug: string
+              _total_value: number
+              _vehicle_slug: string
+            }
+            Returns: {
+              booking_id: string
+              booking_ref: string
+              confirmation_token: string
+              status: string
+            }[]
+          }
       deactivate_team_member:
         | {
             Args: {
@@ -6167,11 +6200,13 @@ export type Database = {
           operator_total_cents: number
           platform_fee_cents: number
           platform_fee_percent: number
+          processing_fee_cents: number
           protection_daily_cents: number
           protection_tier: string
           protection_total_cents: number
           rental_days: number
           rental_subtotal_cents: number
+          state_fee_cents: number
         }[]
       }
       purge_old_notifications: { Args: never; Returns: undefined }
