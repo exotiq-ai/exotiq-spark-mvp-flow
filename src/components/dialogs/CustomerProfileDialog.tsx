@@ -35,7 +35,8 @@ import {
   FileText,
   Truck,
   Pencil,
-  UserCheck
+  UserCheck,
+  ExternalLink
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -58,6 +59,7 @@ import { EntityCommentThread } from "@/components/comments/EntityCommentThread";
 import { useTeam } from "@/contexts/TeamContext";
 import { useMoney } from "@/hooks/useMoney";
 import { startIdentityVerification, stripeIdentityDashboardUrl } from "@/lib/identityVerification";
+import { moduleIdToPath } from "@/lib/moduleRoutes";
 import { toast } from "sonner";
 
 
