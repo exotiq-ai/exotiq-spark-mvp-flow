@@ -35,8 +35,7 @@ import {
   FileText,
   Truck,
   Pencil,
-  UserCheck,
-  ExternalLink
+  UserCheck
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
