@@ -237,6 +237,7 @@ export type Database = {
           exotiq_charge_cents: number
           exotiq_leg_attempt: number
           exotiq_payment_intent_id: string | null
+          expiry_warning_sent_at: string | null
           gas_fee: number | null
           gas_fee_waived: boolean | null
           google_calendar_event_id: string | null
@@ -312,6 +313,7 @@ export type Database = {
           exotiq_charge_cents?: number
           exotiq_leg_attempt?: number
           exotiq_payment_intent_id?: string | null
+          expiry_warning_sent_at?: string | null
           gas_fee?: number | null
           gas_fee_waived?: boolean | null
           google_calendar_event_id?: string | null
@@ -387,6 +389,7 @@ export type Database = {
           exotiq_charge_cents?: number
           exotiq_leg_attempt?: number
           exotiq_payment_intent_id?: string | null
+          expiry_warning_sent_at?: string | null
           gas_fee?: number | null
           gas_fee_waived?: boolean | null
           google_calendar_event_id?: string | null
@@ -5624,6 +5627,24 @@ export type Database = {
           customer_email: string
           status: string
           team_id: string
+        }[]
+      }
+      find_holds_needing_warning: {
+        Args: never
+        Returns: {
+          booking_ref: string
+          confirmation_token: string
+          customer_email: string
+          customer_name: string
+          deadline: string
+          end_date: string
+          id: string
+          pickup_location: string
+          start_date: string
+          status: string
+          team_id: string
+          vehicle_id: string
+          vehicle_name: string
         }[]
       }
       fn_transition_payout: {
