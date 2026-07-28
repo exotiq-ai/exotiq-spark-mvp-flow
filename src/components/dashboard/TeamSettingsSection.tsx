@@ -314,18 +314,19 @@ export const TeamSettingsSection = () => {
 
         <Separator className="my-4" />
 
-        {/* Security Deposit Hold */}
+        {/* Pickup Deposit (operator reference only) */}
         <div className="space-y-4">
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-4 h-4 text-muted-foreground" />
-            <h4 className="text-sm font-semibold">Security Deposit</h4>
+            <h4 className="text-sm font-semibold">Deposit you collect at pickup</h4>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="defaultDeposit">Default deposit hold amount ({currency})</Label>
+            <Label htmlFor="defaultDeposit">Default deposit amount ({currency})</Label>
             <p className="text-sm text-muted-foreground">
-              Manual-capture hold placed at pickup. Overridable per vehicle on the rate card.
-              Leave blank for no default (falls back to $1,000).
+              Reference only — Exotiq does not collect this. You settle the deposit directly
+              with the renter at pickup (card, cash, or your own terminal). Overridable per
+              vehicle on the rate card. Leave blank for no default.
             </p>
             <div className="flex items-center gap-2">
               <Input
