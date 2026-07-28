@@ -292,6 +292,10 @@ export const CRMSection = () => {
             <div
               key={customer.id}
               onClick={() => handleCustomerClick(customer.id)}
+              onKeyDown={(e) => handleCustomerKeyDown(e, customer.id)}
+              tabIndex={0}
+              role="button"
+              aria-label={`Open ${customer.full_name} profile in new tab`}
               className="p-4 rounded-lg bg-muted/30 border border-primary/10 hover-scale cursor-pointer"
             >
               <div className="flex items-start justify-between mb-3">
