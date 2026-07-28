@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { moduleIdToPath } from "@/lib/moduleRoutes";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { useRealtimeTable } from "@/hooks/useRealtimeTable";
@@ -12,6 +13,7 @@ import { useTeam } from "@/contexts/TeamContext";
 import { useGrowthCalculation, useRevenueGrowth } from "@/hooks/useGrowthCalculation";
 import { SkeletonMetric, SkeletonTable } from "@/components/ui/skeleton-card";
 import { EmptyState } from "@/components/common/EmptyState";
+import { CustomerListRow } from "@/components/dashboard/CustomerListRow";
 import { 
   Users, 
   Search, 
@@ -24,7 +26,10 @@ import {
   Plus,
   Filter,
   Calendar,
-  Download
+  Download,
+  LayoutGrid,
+  List,
+  ExternalLink
 } from "lucide-react";
 import { CustomerProfileDialog } from "@/components/dialogs/CustomerProfileDialog";
 import { AddCustomerDialog } from "@/components/dialogs/AddCustomerDialog";
