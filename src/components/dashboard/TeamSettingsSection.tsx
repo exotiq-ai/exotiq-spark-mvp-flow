@@ -94,12 +94,11 @@ export const TeamSettingsSection = () => {
         .from('teams')
         .update({
           default_deposit_cents: cents,
-          deposit_source_confirmed_at: new Date().toISOString(),
         })
         .eq('id', currentTeam.id);
       if (error) throw error;
       await refreshTeam();
-      toast({ title: "Deposit updated", description: "Default deposit hold saved" });
+      toast({ title: "Deposit updated", description: "Pickup deposit reference amount saved" });
     } catch (err: any) {
       toast({ title: "Save failed", description: err?.message || "Could not update deposit", variant: "destructive" });
     } finally {
