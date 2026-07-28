@@ -171,7 +171,7 @@ export const BookEnhanced = () => {
       setActiveTab(tabMap[tab] || tab);
       const newParams = new URLSearchParams(searchParams);
       newParams.delete('tab');
-      newParams.delete('customerId'); // consumed by CRM component or future use
+      // customerId is intentionally preserved here so CRMSection can open the profile dialog
       setSearchParams(newParams, { replace: true });
     }
   }, [searchParams, setSearchParams]);
