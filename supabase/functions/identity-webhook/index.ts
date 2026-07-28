@@ -176,19 +176,32 @@ serve(async (req) => {
     await admin.from("customers").update(customerPatch).eq("id", row.customer_id);
   }
 
-  // Phase 6: once the renter clears ID verification, auto-promote any
-  // already-paid marketplace bookings from pending_documents → confirmed.
-  // The payment webhook parks them there when payment lands ahead of ID.
+  // Once the renter clears ID verification, promote any pending_documents
+  // marketplace bookings out of that hold. Split by payment state:
+  //   paid_at IS NOT NULL → 'confirmed' (payment landed first, ID second)
+  //   paid_at IS NULL     → 'requested' (normal path: ID first, operator approves next)
+  // Without the paid_at IS NULL branch, first-time renters get stuck in
+  // pending_documents forever — rent-approve-booking rejects that status by design.
   if (notifyVerified && row.customer_id) {
-    const { error: promoteErr } = await admin
+    const { error: promotePaidErr } = await admin
       .from("bookings")
       .update({ status: "confirmed" })
       .eq("customer_id", row.customer_id)
       .eq("booking_source", "marketplace")
       .eq("status", "pending_documents")
       .not("paid_at", "is", null);
-    if (promoteErr) {
-      console.error("[IDENTITY-WEBHOOK] pending_documents → confirmed promotion failed", promoteErr);
+    if (promotePaidErr) {
+      console.error("[IDENTITY-WEBHOOK] pending_documents → confirmed promotion failed", promotePaidErr);
+    }
+    const { error: promoteUnpaidErr } = await admin
+      .from("bookings")
+      .update({ status: "requested" })
+      .eq("customer_id", row.customer_id)
+      .eq("booking_source", "marketplace")
+      .eq("status", "pending_documents")
+      .is("paid_at", null);
+    if (promoteUnpaidErr) {
+      console.error("[IDENTITY-WEBHOOK] pending_documents → requested promotion failed", promoteUnpaidErr);
     }
   }
 

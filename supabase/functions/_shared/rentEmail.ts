@@ -7,7 +7,9 @@ export type RenterTemplateName =
   | "receiptConfirmed"
   | "refundConfirmation"
   | "paymentExpired"
-  | "operatorExpired";
+  | "operatorExpired"
+  | "holdWarning"
+  | "holdCancelled";
 
 export interface SendRenterEmailArgs {
   templateName: RenterTemplateName;

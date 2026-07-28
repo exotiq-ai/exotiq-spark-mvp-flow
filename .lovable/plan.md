@@ -1,89 +1,49 @@
+## Diagnosis review
 
-# Exit Exotiq from the deposit flow
+Claude's root cause is correct — verified against the code:
 
-Renter now settles the damage deposit directly with the operator at pickup. Exotiq still collects rental + booking fee + protection at booking — unchanged. Deposit fields stay in the schema but become operator-only reference data.
+- `identity-webhook/index.ts` (lines 182–193): promotes `pending_documents → confirmed` only when `paid_at IS NOT NULL`. Nothing handles the pre-payment case.
+- `rent-approve-booking/index.ts` (line 84): `APPROVABLE = ["pending","requested"]` — intentionally excludes `pending_documents`, so the operator can't rescue it.
+- `expire_unverified_holds()` (migration `20260725002742…sql` line 102): cancels both `requested` and `pending_documents` after `4 hours` — so even after we fix the transition, a weekend request still dies before an operator sees it.
 
-## Phase A — Quote migration (do first, atomically)
+Claude's proposed fix (split on `paid_at` inside identity-webhook, keep `pending_documents` non-approvable) is the right shape. Two refinements worth making:
 
-Single migration that supersedes `public_vehicle_quote` from `20260725151456`:
+- **Different clocks for different waits.** `pending_documents` is waiting on the *renter* to verify ID — a shorter window there is fine (24h). `requested` is waiting on the *operator* — that's the one that must survive nights and weekends (72h). Collapsing both to 72h means an abandoned unverified booking blocks the calendar for 3 days. Split the expiry.
+- **Pre-cancel warning email, not just at cancel.** Send at T-24h before auto-cancel, then again on cancel, to both renter and operator.
 
-- Keep the return signature identical, including `deposit_cents bigint`.
-- Compute `deposit_cents` as `0` (constant) in the SELECT.
-- Compute `operator_total_cents = daily_rate_cents * rental_days` (no deposit).
-- Compute `grand_total_cents = operator_total_cents + platform_fee_cents + protection_total_cents` (no deposit).
-- Preserve every other column, grants (`anon, authenticated`), and behavior.
+No pushback on the core fix — it's the smallest correct change and preserves the "verification before approval" precondition.
 
-Verification query (must return `deposit_cents = 0`, `grand_total = rental + fee + protection`, no $10k):
+## Plan
 
-```text
-SELECT deposit_cents, operator_total_cents, grand_total_cents
-  FROM public_vehicle_quote('exotiq','2023-bugatti-chiron-sport',
-    (now()+interval '30 days')::date,(now()+interval '33 days')::date,
-    '{"protection":"premium"}'::jsonb);
-```
+### 1. Fix the missing transition (the launch blocker)
+`supabase/functions/identity-webhook/index.ts`, in the `notifyVerified` branch:
+- If `paid_at IS NOT NULL` → set `status = 'confirmed'` (existing behavior).
+- If `paid_at IS NULL` → set `status = 'requested'` (new — this is what's missing).
+- Both scoped to `booking_source='marketplace'` and `status='pending_documents'` as today.
+- Redeploy the function.
 
-This ordering is safe: renter-side adapters subtract `deposit_cents` from totals; with `deposit_cents=0` the subtraction is a no-op, and totals don't inflate.
+### 2. Rescue BK-03458 before 19:14 UTC
+One-off SQL update: flip BK-03458 from `pending_documents` → `requested` so the operator can approve it. Do this immediately after (1) ships so the fix is in place for anything else already in-flight.
 
-## Phase B — Remove renter-facing deposit surfaces
+### 3. Widen the expiry window, split by who we're waiting on
+Migration to replace `expire_unverified_holds()`:
+- `pending_documents` (waiting on renter ID): expire at `created_at + 24h`.
+- `requested` (waiting on operator): expire at `created_at + 72h`.
+- Return the same shape so `rent-payment-scheduler` / any caller keeps working.
 
-1. **DepositPanel** (`src/components/dialogs/DepositPanel.tsx`) — remove the "Request deposit card" button that calls `stripe-create-deposit-setup-session`. Keep the optional hold/capture/release controls (operators may use them on their own Stripe account); relabel the panel to make it clear this is an optional operator tool, not an Exotiq-mediated flow. Update copy referencing "we email the renter".
-2. **Edge function `stripe-create-deposit-setup-session`** — replace body with an immediate `410 Gone` returning `{ error: "deposit_flow_removed", see: "2026-07-28 decision" }`. Leave the file in place (do not delete deployed function) with a header comment linking this decision.
-3. **Email template `depositCardRequested`** (`supabase/functions/send-renter-email/templates.ts`) — delete the template and any `sendRenterEmail({ templateName: "depositCardRequested" ... })` call sites.
-4. **`receiptConfirmed` template** — remove the deposit sentence at line ~373 ("...will email you a secure link about 72 hours before pickup..."). Nothing replaces it.
-5. **T-72h scheduler sweep** — remove the deposit-request branch from `rent-payment-scheduler` permanently (payment-expiry and 24h-reminder branches stay). If a `cron.unschedule(...)` is needed for a dedicated deposit job, include it in Phase A migration.
-6. **Stop writing** `bookings.deposit_card_requested_at` and `bookings.operator_stripe_customer_id` anywhere in the codebase. Leave the columns in place. Grep to confirm no remaining writers.
+### 4. Warn before cancelling, notify on cancel
+- Add a scheduler pass (extend `rent-payment-scheduler` or add a sibling) that finds rows within 24h of their expiry and haven't been warned yet — email renter + operator, stamp a `expiry_warning_sent_at` column so we don't re-warn.
+- On actual auto-cancel, send a cancellation email to both parties with `cancellation_reason` in the body. Today it's silent.
+- Two new email templates in `send-renter-email/templates.ts`: `unverifiedHoldWarning`, `unverifiedHoldExpired` (renter copy; operator copy piggybacks on existing bell notifications + a short email).
 
-## Phase C — Repurpose deposit fields as operator reference
+### 5. Surface `cancellation_reason` in the renter app
+Out of scope for this repo (renter app lives in `exotiq-rent`) — call it out in the Claude handoff so it lands there. On our side, make sure `cancellation_reason` is being written on every auto-cancel path (already is for `unverified_hold_expired`; confirm the same for payment expiry).
 
-Kept and relabeled Command-Center-only:
+### 6. Handoff note for Claude
+Short doc under `docs/rent/` summarizing: the transition fix, the new expiry windows, the new email templates + their variables, and the renter-app action item (render `cancellation_reason`).
 
-- `resolve_deposit_cents(vehicle_id)` RPC, `teams.default_deposit_cents`, `vehicles.deposit_override_cents`.
-- `TeamSettingsSection.tsx` "Security deposit" subsection — relabel to: **"Deposit you collect at pickup (reference only — Exotiq does not collect this)"**. Remove the `deposit_source_confirmed_at` write on save.
-- `RateTiersPanel.tsx` "Deposit Hold" column — relabel header to **"Deposit at pickup (operator reference)"** with matching helper copy.
-- `DepositPanel.tsx` (kept parts) — update header/blurb to say the hold is optional and runs on the operator's own Stripe account.
+## Technical details
 
-## Phase D — Swap marketplace-readiness gate to platform fee
-
-Current gate keys off `deposit_source_confirmed_at`; that no longer matches Exotiq's money flow. Replace it with an **explicitly-chosen** platform-fee confirmation, mirroring the same "default doesn't satisfy the gate" pattern.
-
-Migration:
-
-- `ALTER TABLE public.teams ADD COLUMN IF NOT EXISTS platform_fee_confirmed_at timestamptz;`
-- Backfill `platform_fee_confirmed_at = now()` for teams already `marketplace_visible = true` (so we don't break the one live tenant).
-- Replace `enforce_deposit_source_on_marketplace_visible` trigger logic on `teams` and `vehicles` to check `platform_fee_confirmed_at IS NOT NULL AND platform_fee_percent > 0` instead of `deposit_source_confirmed_at`. Keep the existing `20260727213240` `> 0` check as a belt.
-- Keep existing 10% default and backfill — that migration already ran.
-
-UI:
-
-- `MarketplaceReadinessPanel.tsx` — read `platform_fee_confirmed_at` + `platform_fee_percent` instead of `deposit_source_confirmed_at`; show "Platform fee confirmed" row; add an admin action "Confirm platform fee" that stamps `platform_fee_confirmed_at = now()` (only enabled when `platform_fee_percent > 0`). Remove deposit-source row entirely.
-- Add a "Platform fee" input to Super Admin (or team settings, admin-only) that writes `platform_fee_percent` and clears `platform_fee_confirmed_at` on change, forcing re-confirmation.
-
-## Phase E — Carry-over items from prior prompt
-
-Still open, unchanged priority:
-
-1. **Item 1 — Stripe webhook endpoint check**: enumerate live vs test webhook endpoints via Stripe API and confirm `rent-payment-webhook` (test) and `stripe-webhook` (live) are the only subscribers for `checkout.session.completed` / `payment_intent.succeeded`. Report findings; no code change unless a duplicate subscription exists.
-2. **Item 3 — `bookingEditGuards.LOCKED_STATUSES`**: already updated in prior turn to include `active` and `pending_documents`. Re-verify no regression.
-3. **Item 4 — `PaymentTracker.tsx` marketplace guard**: already gated in prior turn. Re-verify.
-
-## Deferred / downgraded
-
-- Sandbox deposit rehearsal — downgraded from launch gate to nice-to-have.
-- Extended-authorization (30-day) MCC enrollment with Stripe — cancelled.
-- `stripe-create-hold` / `stripe-capture-hold` / `stripe-release-hold` — kept as optional operator tool, no longer a launch dependency.
-
-## Verification checklist
-
-- Quote returns `deposit_cents = 0` for the Chiron example.
-- `rent-create-booking` and renter-side `adaptQuote` produce identical `_total_value` as before (delta = 0 because we removed the same amount from both sides).
-- No code writes `deposit_card_requested_at` or `operator_stripe_customer_id`.
-- `stripe-create-deposit-setup-session` returns 410.
-- `receiptConfirmed` renders with no deposit sentence.
-- Marketplace toggle refuses to set `marketplace_visible = true` unless `platform_fee_confirmed_at IS NOT NULL AND platform_fee_percent > 0`.
-- Editing `platform_fee_percent` clears the confirmation stamp.
-
-## Technical notes
-
-- All work is additive to schema (one new column, one trigger replacement, one view/function replacement). Zero downtime.
-- Two migrations total: one for the quote function, one for the trigger swap + `platform_fee_confirmed_at` column + backfill. Split so a failure in the trigger swap doesn't hold up the money-critical quote change.
-- Edge-function-only changes deploy on save. No renter-app coordination needed thanks to the `deposit_cents = 0` no-op strategy; the exotiq-rent repo can drop its subtraction on its own schedule.
+- **Files touched:** `supabase/functions/identity-webhook/index.ts`, `supabase/functions/rent-payment-scheduler/index.ts` (or a new `rent-hold-expiry-scheduler`), `supabase/functions/send-renter-email/templates.ts`, one new migration for `expire_unverified_holds()` + `bookings.expiry_warning_sent_at`.
+- **Not touched:** `rent-approve-booking` (keep `pending_documents` non-approvable — the precondition is correct).
+- **Verification:** after (1), create a fresh marketplace booking, verify ID with the Stripe test doc, confirm the row lands in `requested` and appears in the operator's approval queue. Re-run the identity webhook against BK-03458's session id to prove idempotency.
