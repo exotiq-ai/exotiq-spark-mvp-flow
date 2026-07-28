@@ -58,7 +58,7 @@ import { EntityCommentThread } from "@/components/comments/EntityCommentThread";
 import { useTeam } from "@/contexts/TeamContext";
 import { useMoney } from "@/hooks/useMoney";
 import { startIdentityVerification, stripeIdentityDashboardUrl } from "@/lib/identityVerification";
-import { moduleIdToPath } from "@/lib/moduleRoutes";
+
 import { toast } from "sonner";
 
 
