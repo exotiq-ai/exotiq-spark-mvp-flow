@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ShieldCheck, CreditCard, Loader2, AlertTriangle, Mail, Lock, Unlock, Check } from "lucide-react";
+import { ShieldCheck, CreditCard, Loader2, AlertTriangle, Lock, Unlock, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useMoney } from "@/hooks/useMoney";
 
@@ -22,13 +22,16 @@ interface Props {
     booking_source?: string | null;
     status?: string | null;
     operator_stripe_customer_id?: string | null;
-    deposit_card_requested_at?: string | null;
   };
   onRefresh?: () => void;
 }
 
-// Deposit lifecycle panel for marketplace bookings. Operator-owned money —
-// hold is placed / released / captured on the operator's Stripe account.
+// Optional operator tool. As of 2026-07-28 Exotiq no longer collects or
+// mediates security deposits — renters settle the deposit with the operator
+// at pickup by whatever method that operator accepts. Operators may
+// optionally use their own Stripe account to place a hold on a card the
+// renter provided at pickup; this panel is where they do that. Nothing here
+// is a required step in the booking flow, and no email is sent to the renter.
 export function DepositPanel({ booking, onRefresh }: Props) {
   const { toast } = useToast();
   const { money: fmtMoney } = useMoney();
@@ -75,18 +78,15 @@ export function DepositPanel({ booking, onRefresh }: Props) {
       const { data, error } = await supabase.functions.invoke(fn, { body });
       if (error) throw error;
       const payload = data as { error?: string; requires_action?: boolean; message?: string } | null;
-      if (payload?.error === "authentication_required" || payload?.requires_action) {
-        toast({
-          title: "Renter must confirm",
-          description: "Card needs 3-D Secure. Re-sending the card-on-file link.",
-        });
-        await invoke("stripe-create-deposit-setup-session", { booking_id: booking.id }, "email-resend");
-        return;
-      }
       if (payload?.error === "no_card_on_file") {
-        toast({ title: "No card on file", description: "Send the card-on-file link first.", variant: "destructive" });
+        toast({
+          title: "No card on file",
+          description: "Save a card on the operator's Stripe account before placing a hold.",
+          variant: "destructive",
+        });
         return;
       }
+      if (payload?.error) throw new Error(payload.message ?? payload.error);
       toast({ title: `${label} succeeded` });
       await refresh();
       onRefresh?.();
@@ -103,12 +103,18 @@ export function DepositPanel({ booking, onRefresh }: Props) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <ShieldCheck className="h-4 w-4 text-primary" />
-          <h4 className="font-semibold text-sm">Security deposit</h4>
+          <h4 className="font-semibold text-sm">Deposit at pickup (optional)</h4>
         </div>
         <div className="text-sm font-mono">
           {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : depositCents != null ? fmtMoney(depositCents / 100) : "—"}
         </div>
       </div>
+
+      <p className="text-[11px] text-muted-foreground leading-relaxed">
+        Exotiq does not collect the security deposit. You settle it with the renter at pickup
+        (card, cash, or your own terminal). If you want to run a card hold on your own Stripe
+        account, you can do it here — this is an optional operator tool, never a required step.
+      </p>
 
       <div className="grid grid-cols-2 gap-2 text-xs">
         <div className="flex items-center gap-1.5">
@@ -142,15 +148,6 @@ export function DepositPanel({ booking, onRefresh }: Props) {
       )}
 
       <div className="flex flex-wrap gap-2">
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={!!action}
-          onClick={() => invoke("stripe-create-deposit-setup-session", { booking_id: booking.id }, "Card link sent")}
-        >
-          {action === "Card link sent" ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Mail className="h-3 w-3 mr-1" />}
-          Request deposit card
-        </Button>
         {hasCardOnFile && !holdActive && (
           <Button
             size="sm"
@@ -182,11 +179,6 @@ export function DepositPanel({ booking, onRefresh }: Props) {
           </>
         )}
       </div>
-
-      <p className="text-[10px] text-muted-foreground">
-        Deposit is held on the operator's Stripe account. Authorizations last ~7 days (30 days on approved
-        vehicle-rental MCC accounts — confirm with Stripe).
-      </p>
     </div>
   );
 }
