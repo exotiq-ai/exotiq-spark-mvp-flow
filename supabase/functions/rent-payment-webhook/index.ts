@@ -109,7 +109,10 @@ async function confirmIfFullyPaid(db: ReturnType<typeof admin>, bookingRef: stri
       const timezone = team?.timezone ?? "UTC";
       const rentalAmount = Number(booking.total_value ?? 0);
       const exotiqAmount =
-        (Number(booking.platform_fee_cents ?? 0) + Number(booking.protection_total_cents ?? 0)) / 100;
+        (Number(booking.platform_fee_cents ?? 0)
+          + Number(booking.protection_total_cents ?? 0)
+          + Number(booking.state_fee_cents ?? 0)
+          + Number(booking.processing_fee_cents ?? 0)) / 100;
       const totalPaid = rentalAmount + exotiqAmount;
 
       const vehicleName = booking.vehicle_name || "Vehicle";
