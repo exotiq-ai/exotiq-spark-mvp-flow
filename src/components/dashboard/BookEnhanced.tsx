@@ -378,7 +378,7 @@ export const BookEnhanced = () => {
           
           if (moduleId === 'motoriq' && context?.vehicleId) {
             goToVehicleDetails(context.vehicleId);
-          } else if (moduleId === 'core' && context?.customerId) {
+          } else if ((moduleId === 'book' || moduleId === 'core') && context?.customerId) {
             goToCustomerProfile(context.customerId);
           } else if (moduleId === 'pulse' && context?.bookingId) {
             goToPayments(context.bookingId);
