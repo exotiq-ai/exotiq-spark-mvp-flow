@@ -203,9 +203,9 @@ export const RateTiersPanel = () => {
           <AlertDescription>
             <strong>Daily (24hr)</strong> is the primary rate used across the system.
             3-Hour and 6-Hour are flat rates. Multi-day is a per-day rate for 2+ day rentals.
-            <strong> Deposit hold</strong> overrides the tenant default
+            <strong> Pickup deposit</strong> overrides the tenant default
             {defaultDepositDollars != null ? ` (${formatCurrency(defaultDepositDollars)})` : " ($1,000 fallback)"}
-            for this vehicle. Leave blank to use the default.
+            for this vehicle. Reference only — Exotiq does not collect this; you settle it with the renter at pickup. Leave blank to use the default.
           </AlertDescription>
         </Alert>
 
