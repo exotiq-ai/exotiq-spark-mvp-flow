@@ -1,35 +1,21 @@
-## Problem
+Change the customer card click behavior in the CRM grid so it opens the customer profile in a new browser tab instead of an inline modal, keeping the existing quick-action buttons untouched.
 
-Clicking "View Full Profile" in the booking details dialog jumps to FleetCopilot (`/dashboard/fleetcopilot?view=crm&customerId=…`), which doesn't render a customer profile. The CRM actually lives inside the **Book** module (`/dashboard/bookings?tab=customers&customerId=…`), where `CRMSection` reads `customerId` from the URL and opens the profile.
+### Changes
+1. `src/components/dashboard/CRMSection.tsx`
+   - Replace `handleCustomerClick` inline modal behavior with `window.open(moduleIdToPath('book', { tab: 'crm', customerId: customer.id }), '_blank', 'noopener,noreferrer')`.
+   - Keep the inner quick-action buttons (phone, email, new booking) as-is — they already call `e.stopPropagation()` so they won't trigger the new-tab action.
+   - Ensure the entire card is still keyboard-accessible (the wrapping div is already focusable via cursor-pointer, but we should verify the click handler works with Enter/Space).
 
-## Root cause
+2. Reuse existing deep-link support
+   - The URL `/dashboard/bookings?tab=crm&customerId=<id>` is already handled by `CRMSection`'s `useEffect` deep-link that auto-opens the `CustomerProfileDialog` in the new tab. No new route or full-page view needed.
 
-`src/hooks/useModuleNavigation.ts` -> `goToCustomerProfile` targets module `core` (FleetCopilot) instead of `book`. Every call site that funnels through this helper (or duplicates it inline) inherits the wrong route.
+### UX considerations
+- Right-click / middle-click on the card will not automatically open the link context menu because it's still a clickable div, not an `<a>` tag. If we want native link affordances (e.g. "Open in new tab" right-click), we should wrap the card in a `<Link>` from `react-router-dom` instead of a click handler. Decision needed.
 
-## Miswired call sites (audit)
+### Scope question
+- Should this apply to the CRM grid cards only, or also to other customer representations (e.g., customer links in `EntityLink`, search results in `EnhancedGlobalSearch`, booking detail customer rows)?
 
-1. `src/hooks/useModuleNavigation.ts:14-17` — `goToCustomerProfile` routes to `core` with `view: 'crm'`.
-2. `src/components/dialogs/EnhancedBookingDialog.tsx:1327` — "View Full Profile" button calls `onNavigateToModule("core", { customerId })`; parent handlers in `BookEnhanced.tsx` then invoke the broken `goToCustomerProfile`.
-3. `src/components/dashboard/BookEnhanced.tsx:381` and `:583` — treat `moduleId === 'core' + customerId` as "go to customer profile", reinforcing the wrong contract.
-4. `src/components/dashboard/DashboardBottomActionBar.tsx:242` — customer command-palette action navigates to `moduleIdToPath("core", { customerId })` inline.
-
-Other callers (`EnhancedGlobalSearch.tsx:319`, `CommandPalette.tsx:162`) already correctly use `book` + `tab: 'crm'`, confirming Book is the right destination.
-
-## Fix
-
-Point every customer-profile navigation at Book/CRM:
-
-- Update `goToCustomerProfile` in `useModuleNavigation.ts` to:
-  `navigate(moduleIdToPath('book', { tab: 'crm', customerId }))`
-- In `EnhancedBookingDialog.tsx`, change the "View Full Profile" click to emit `onNavigateToModule('book', { tab: 'crm', customerId })` (semantics now match the destination).
-- In `BookEnhanced.tsx` (both handlers, lines 375 and 582), replace the `moduleId === 'core' && customerId` branch with a `moduleId === 'book' && context?.customerId` branch that calls `goToCustomerProfile(context.customerId)`. Keeps the vehicle/payments branches untouched.
-- In `DashboardBottomActionBar.tsx:242`, replace the inline `moduleIdToPath("core", { customerId })` with `moduleIdToPath("book", { tab: "crm", customerId })` (or reuse `goToCustomerProfile` via the hook to stay DRY).
-
-No changes to CRMSection, no schema/backend changes, no routing table changes — `BookEnhanced` already consumes `tab=customers` (accepts `crm` alias, line 169) and `CRMSection` already consumes `customerId`.
-
-## Verification
-
-- Open a booking from `/dashboard/bookings` calendar → click **View Full Profile** → lands on `/dashboard/bookings?tab=customers&customerId=…` with the customer profile dialog open.
-- Trigger the same button from `BookEnhanced` list view and from `CustomerProfileDialog`'s nested booking dialog — both should reach the CRM profile, not FleetCopilot.
-- Command palette + bottom action bar customer entries should still open the CRM profile.
-- No regression to Change Vehicle (motoriq) or Payments navigation.
+### Verification
+- Smoke-test: click a customer card in CRM → new tab opens at `/dashboard/bookings?tab=crm&customerId=<id>` with the customer profile dialog visible.
+- Confirm phone, email, and new-booking buttons still work inside the card without opening a new tab.
+- Confirm the original tab remains on the CRM list (no state loss).
