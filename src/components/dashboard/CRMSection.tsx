@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { moduleIdToPath } from "@/lib/moduleRoutes";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { useRealtimeTable } from "@/hooks/useRealtimeTable";
 import { useFleet } from "@/contexts/FleetContext";
@@ -148,8 +149,15 @@ export const CRMSection = () => {
   }, [filteredCustomers, lastBookingMap]);
 
   const handleCustomerClick = (customerId: string) => {
-    setSelectedCustomerId(customerId);
-    setShowCustomerProfile(true);
+    const url = moduleIdToPath('book', { tab: 'crm', customerId });
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleCustomerKeyDown = (e: React.KeyboardEvent, customerId: string) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleCustomerClick(customerId);
+    }
   };
 
   const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
@@ -284,6 +292,10 @@ export const CRMSection = () => {
             <div
               key={customer.id}
               onClick={() => handleCustomerClick(customer.id)}
+              onKeyDown={(e) => handleCustomerKeyDown(e, customer.id)}
+              tabIndex={0}
+              role="button"
+              aria-label={`Open ${customer.full_name} profile in new tab`}
               className="p-4 rounded-lg bg-muted/30 border border-primary/10 hover-scale cursor-pointer"
             >
               <div className="flex items-start justify-between mb-3">
