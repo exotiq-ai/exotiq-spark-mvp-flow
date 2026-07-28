@@ -5621,6 +5621,9 @@ export type Database = {
         Returns: {
           booking_id: string
           booking_ref: string
+          customer_email: string
+          status: string
+          team_id: string
         }[]
       }
       fn_transition_payout: {
