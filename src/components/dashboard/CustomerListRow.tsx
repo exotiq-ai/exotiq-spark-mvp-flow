@@ -1,4 +1,3 @@
-import { CustomerProfileDialog } from "@/components/dialogs/CustomerProfileDialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
