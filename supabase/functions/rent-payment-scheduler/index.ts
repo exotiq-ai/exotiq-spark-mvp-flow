@@ -263,8 +263,130 @@ serve(async (req) => {
       }
     }
 
-    logStep("Run complete", { expired: expiredCount, reminders: reminderCount, errors: errorCount });
-    return json({ expired: expiredCount, reminders: reminderCount, errors: errorCount });
+    // 3. Unverified-hold WARNING sweep (renter + operator).
+    //    Fires within 6-12h of a pending_documents/requested auto-cancel deadline.
+    let warningCount = 0;
+    const { data: warnings, error: warningError } = await admin.rpc("find_holds_needing_warning");
+    if (warningError) {
+      console.error("[RENT-PAYMENT-SCHEDULER] warning query failed", warningError);
+    }
+    for (const b of (warnings ?? []) as any[]) {
+      warningCount += 1;
+      const team = await getTeamContext(admin, b.team_id);
+      if (!team) { errorCount += 1; continue; }
+      const vehicleSlug = await getVehicleSlug(admin, b.vehicle_id);
+      const isRenterHold = b.status === "pending_documents";
+      const renterActionUrl = buildPayUrl(b.booking_ref, b.confirmation_token, origin);
+      const operatorActionUrl = `https://app.exotiq.ai/bookings?ref=${b.booking_ref}`;
+      const deadlineFmt = formatPaymentDeadline(b.deadline, team.timezone ?? "UTC");
+      const vehicleShort = shortVehicleName(b.vehicle_name || "Vehicle");
+      const baseVars = {
+        BOOKING_REF: b.booking_ref,
+        OPERATOR_NAME: team.name,
+        VEHICLE_NAME: b.vehicle_name || "Vehicle",
+        VEHICLE_SHORT: vehicleShort,
+        DATE_RANGE: formatDateRange(b.start_date, b.end_date),
+        DEADLINE: deadlineFmt,
+      };
+
+      // Renter side (only makes sense on pending_documents — ID verification needed)
+      if (isRenterHold && b.customer_email) {
+        try {
+          await sendRenterEmail({
+            templateName: "holdWarning",
+            to: b.customer_email,
+            subject: `Heads up — booking ${b.booking_ref} needs your ID`,
+            variables: { ...baseVars, ACTION_NEEDED: "your ID verification", ACTION_URL: renterActionUrl, ACTION_LABEL: "Verify my ID" },
+            idempotencyKey: `hold-warn-renter-${b.booking_ref}`,
+            replyTo: resolveRenterReplyTo(team.support_email),
+            tags: [{ name: "booking_ref", value: b.booking_ref }, { name: "email_type", value: "hold_warning_renter" }],
+          });
+        } catch (e) { logStep("Renter warning failed", { ref: b.booking_ref, error: String(e) }); errorCount += 1; }
+      }
+
+      // Operator side (both statuses — approve or nudge the renter)
+      const opEmails = await getOperatorEmails(admin, b.team_id);
+      const opActionNeeded = isRenterHold ? "your renter to finish ID verification" : "your approval";
+      const opLabel = isRenterHold ? "Open booking" : "Review & approve";
+      for (const email of opEmails) {
+        try {
+          await sendRenterEmail({
+            templateName: "holdWarning",
+            to: email,
+            subject: `Booking ${b.booking_ref} auto-cancels ${deadlineFmt}`,
+            variables: { ...baseVars, ACTION_NEEDED: opActionNeeded, ACTION_URL: operatorActionUrl, ACTION_LABEL: opLabel },
+            idempotencyKey: `hold-warn-operator-${b.booking_ref}-${email}`,
+            tags: [{ name: "booking_ref", value: b.booking_ref }, { name: "email_type", value: "hold_warning_operator" }],
+          });
+        } catch (e) { logStep("Operator warning failed", { ref: b.booking_ref, error: String(e) }); errorCount += 1; }
+      }
+
+      await admin.from("bookings").update({ expiry_warning_sent_at: new Date().toISOString() }).eq("id", b.id);
+    }
+
+    // 4. Unverified-hold CANCELLATION sweep.
+    //    expire_unverified_holds cancels stale pending_documents (24h) / requested (72h) rows
+    //    and returns them so we can notify both sides.
+    let holdCancelledCount = 0;
+    const { data: cancelled, error: cancelError } = await admin.rpc("expire_unverified_holds");
+    if (cancelError) {
+      console.error("[RENT-PAYMENT-SCHEDULER] hold-cancel sweep failed", cancelError);
+    }
+    for (const row of (cancelled ?? []) as any[]) {
+      holdCancelledCount += 1;
+      const { data: full } = await admin
+        .from("bookings")
+        .select("id, booking_ref, customer_email, customer_name, start_date, end_date, pickup_location, vehicle_id, vehicle_name, team_id, confirmation_token")
+        .eq("id", row.booking_id)
+        .maybeSingle();
+      if (!full) continue;
+      const team = await getTeamContext(admin, full.team_id);
+      if (!team) { errorCount += 1; continue; }
+      const vehicleShort = shortVehicleName(full.vehicle_name || "Vehicle");
+      const reasonHuman = row.status === "unverified_hold_expired"
+        ? "the renter didn't finish ID verification in time"
+        : "the request wasn't approved in time";
+      const renterUrl = buildStorefrontUrl(team.slug, origin);
+      const operatorUrl = "https://app.exotiq.ai/bookings";
+      const baseVars = {
+        BOOKING_REF: full.booking_ref,
+        OPERATOR_NAME: team.name,
+        VEHICLE_NAME: full.vehicle_name || "Vehicle",
+        VEHICLE_SHORT: vehicleShort,
+        DATE_RANGE: formatDateRange(full.start_date, full.end_date),
+        REASON_HUMAN: reasonHuman,
+      };
+
+      if (full.customer_email) {
+        try {
+          await sendRenterEmail({
+            templateName: "holdCancelled",
+            to: full.customer_email,
+            subject: `Booking ${full.booking_ref} released — nothing charged`,
+            variables: { ...baseVars, ACTION_URL: renterUrl, ACTION_LABEL: "Browse other dates" },
+            idempotencyKey: `hold-cancel-renter-${full.booking_ref}`,
+            replyTo: resolveRenterReplyTo(team.support_email),
+            tags: [{ name: "booking_ref", value: full.booking_ref }, { name: "email_type", value: "hold_cancelled_renter" }],
+          });
+        } catch (e) { logStep("Renter cancel email failed", { ref: full.booking_ref, error: String(e) }); errorCount += 1; }
+      }
+      const opEmails = await getOperatorEmails(admin, full.team_id);
+      for (const email of opEmails) {
+        try {
+          await sendRenterEmail({
+            templateName: "holdCancelled",
+            to: email,
+            subject: `Booking ${full.booking_ref} auto-cancelled`,
+            variables: { ...baseVars, ACTION_URL: operatorUrl, ACTION_LABEL: "Open bookings" },
+            idempotencyKey: `hold-cancel-operator-${full.booking_ref}-${email}`,
+            tags: [{ name: "booking_ref", value: full.booking_ref }, { name: "email_type", value: "hold_cancelled_operator" }],
+          });
+        } catch (e) { logStep("Operator cancel email failed", { ref: full.booking_ref, error: String(e) }); errorCount += 1; }
+      }
+    }
+
+    logStep("Run complete", { expired: expiredCount, reminders: reminderCount, warnings: warningCount, holdCancelled: holdCancelledCount, errors: errorCount });
+    return json({ expired: expiredCount, reminders: reminderCount, warnings: warningCount, holdCancelled: holdCancelledCount, errors: errorCount });
   } catch (error) {
     console.error("[RENT-PAYMENT-SCHEDULER] error", error);
     return json({ error: "Scheduler error" }, 500);
