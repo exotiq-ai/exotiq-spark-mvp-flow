@@ -168,10 +168,6 @@ export const CRMSection = () => {
     setShowCustomerProfile(true);
   };
 
-  const handleOpenCustomerInNewTab = (customerId: string) => {
-    const url = moduleIdToPath('book', { tab: 'crm', customerId });
-    window.open(url, '_blank', 'noopener,noreferrer');
-  };
 
   const handleCustomerKeyDown = (e: React.KeyboardEvent, customerId: string) => {
     if (e.key === 'Enter' || e.key === ' ') {
@@ -445,7 +441,6 @@ export const CRMSection = () => {
                 customer={customer}
                 lastBooking={lastBookingMap[customer.id]}
                 onClick={() => handleCustomerClick(customer.id)}
-                onOpenInNewTab={handleOpenCustomerInNewTab}
               />
             ))}
 

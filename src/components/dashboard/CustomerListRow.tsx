@@ -1,7 +1,6 @@
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
-import { ExternalLink, Star, AlertTriangle } from "lucide-react";
+import { Star, AlertTriangle } from "lucide-react";
 import { Database } from "@/integrations/supabase/types";
 import { formatCurrency } from "@/lib/utils";
 
@@ -11,14 +10,12 @@ interface CustomerListRowProps {
   customer: Customer;
   lastBooking?: string;
   onClick: () => void;
-  onOpenInNewTab: (customerId: string) => void;
 }
 
 export const CustomerListRow = ({
   customer,
   lastBooking,
   onClick,
-  onOpenInNewTab,
 }: CustomerListRowProps) => {
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -67,7 +64,7 @@ export const CustomerListRow = ({
             {getStatusBadge(customer.customer_status)}
           </div>
         </div>
-        <div className="col-span-3 text-muted-foreground truncate">
+        <div className="col-span-4 text-muted-foreground truncate">
           {customer.email}
         </div>
         <div className="col-span-2 font-medium text-success">
@@ -77,20 +74,6 @@ export const CustomerListRow = ({
           {lastBooking
             ? formatDistanceToNow(new Date(lastBooking), { addSuffix: true })
             : 'Never'}
-        </div>
-        <div className="col-span-1 flex justify-end">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 opacity-60 group-hover:opacity-100"
-            aria-label={`Open ${customer.full_name} profile in new tab`}
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpenInNewTab(customer.id);
-            }}
-          >
-            <ExternalLink className="w-4 h-4" />
-          </Button>
         </div>
       </div>
 
@@ -105,18 +88,6 @@ export const CustomerListRow = ({
           </div>
           <div className="flex items-center gap-2 shrink-0">
             {getStatusBadge(customer.customer_status)}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              aria-label={`Open ${customer.full_name} profile in new tab`}
-              onClick={(e) => {
-                e.stopPropagation();
-                onOpenInNewTab(customer.id);
-              }}
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-            </Button>
           </div>
         </div>
         <div className="flex items-center gap-4 text-xs text-muted-foreground">
