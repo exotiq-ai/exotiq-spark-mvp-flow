@@ -218,7 +218,7 @@ export const RateTiersPanel = () => {
                 <TableHead className="text-right min-w-[100px]">6-Hour</TableHead>
                 <TableHead className="text-right min-w-[100px]">Daily (24hr)</TableHead>
                 <TableHead className="text-right min-w-[100px]">Multi-Day</TableHead>
-                <TableHead className="text-right min-w-[120px]">Deposit Hold</TableHead>
+                <TableHead className="text-right min-w-[120px]">Pickup Deposit</TableHead>
                 <TableHead className="w-[100px]"></TableHead>
               </TableRow>
             </TableHeader>
