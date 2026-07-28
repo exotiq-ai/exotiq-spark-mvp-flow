@@ -1324,7 +1324,7 @@ export const EnhancedBookingDialog = ({
                         </div>
                       </div>
 
-                      <Button variant="outline" className="w-full" onClick={() => { onOpenChange(false); onNavigateToModule?.("core", { customerId: booking.customer_id }); }}>
+                      <Button variant="outline" className="w-full" onClick={() => { onOpenChange(false); onNavigateToModule?.("book", { tab: "crm", customerId: booking.customer_id }); }}>
                         <User className="h-4 w-4 mr-2" />
                         View Full Profile
                         <ExternalLink className="h-3 w-3 ml-2" />
