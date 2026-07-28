@@ -429,10 +429,9 @@ export const CRMSection = () => {
             {filteredCustomers.length > 0 && (
               <div className="hidden md:grid grid-cols-12 gap-4 px-4 pb-2 text-xs text-muted-foreground uppercase tracking-wider">
                 <div className="col-span-4">Customer</div>
-                <div className="col-span-3">Email</div>
+                <div className="col-span-4">Email</div>
                 <div className="col-span-2">Lifetime Value</div>
                 <div className="col-span-2">Last Booking</div>
-                <div className="col-span-1"></div>
               </div>
             )}
             {filteredCustomers.map((customer) => (
