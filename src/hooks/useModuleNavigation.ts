@@ -12,7 +12,7 @@ export const useModuleNavigation = () => {
   const location = useLocation();
 
   const goToCustomerProfile = (customerId: string) => {
-    navigate(moduleIdToPath('core', { view: 'crm', customerId }));
+    navigate(moduleIdToPath('book', { tab: 'crm', customerId }));
     scrollToTop();
   };
 
