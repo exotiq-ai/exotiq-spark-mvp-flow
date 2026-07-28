@@ -35,8 +35,7 @@ import {
   FileText,
   Truck,
   Pencil,
-  UserCheck,
-  ExternalLink
+  UserCheck
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -59,7 +58,7 @@ import { EntityCommentThread } from "@/components/comments/EntityCommentThread";
 import { useTeam } from "@/contexts/TeamContext";
 import { useMoney } from "@/hooks/useMoney";
 import { startIdentityVerification, stripeIdentityDashboardUrl } from "@/lib/identityVerification";
-import { moduleIdToPath } from "@/lib/moduleRoutes";
+
 import { toast } from "sonner";
 
 
@@ -208,18 +207,6 @@ export const CustomerProfileDialog = ({
               </DialogDescription>
             </div>
             <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                aria-label={`Open ${customer.full_name} profile in new tab`}
-                onClick={() => {
-                  const url = moduleIdToPath('book', { tab: 'crm', customerId: customer.id });
-                  window.open(url, '_blank', 'noopener,noreferrer');
-                }}
-              >
-                <ExternalLink className="w-4 h-4" />
-              </Button>
               {getStatusBadge()}
             </div>
           </div>

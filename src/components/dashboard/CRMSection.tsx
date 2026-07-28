@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { moduleIdToPath } from "@/lib/moduleRoutes";
+
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { useRealtimeTable } from "@/hooks/useRealtimeTable";
 import { useFleet } from "@/contexts/FleetContext";
@@ -28,8 +28,7 @@ import {
   Calendar,
   Download,
   LayoutGrid,
-  List,
-  ExternalLink
+  List
 } from "lucide-react";
 import { CustomerProfileDialog } from "@/components/dialogs/CustomerProfileDialog";
 import { AddCustomerDialog } from "@/components/dialogs/AddCustomerDialog";
@@ -168,10 +167,6 @@ export const CRMSection = () => {
     setShowCustomerProfile(true);
   };
 
-  const handleOpenCustomerInNewTab = (customerId: string) => {
-    const url = moduleIdToPath('book', { tab: 'crm', customerId });
-    window.open(url, '_blank', 'noopener,noreferrer');
-  };
 
   const handleCustomerKeyDown = (e: React.KeyboardEvent, customerId: string) => {
     if (e.key === 'Enter' || e.key === ' ') {
@@ -342,18 +337,6 @@ export const CRMSection = () => {
                   </div>
                   <div className="flex items-center gap-1">
                     {getStatusBadge(customer.customer_status)}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 opacity-0 group-hover:opacity-60 hover:opacity-100 transition-opacity"
-                      aria-label={`Open ${customer.full_name} profile in new tab`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleOpenCustomerInNewTab(customer.id);
-                      }}
-                    >
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </Button>
                   </div>
                 </div>
 
@@ -445,10 +428,9 @@ export const CRMSection = () => {
             {filteredCustomers.length > 0 && (
               <div className="hidden md:grid grid-cols-12 gap-4 px-4 pb-2 text-xs text-muted-foreground uppercase tracking-wider">
                 <div className="col-span-4">Customer</div>
-                <div className="col-span-3">Email</div>
+                <div className="col-span-4">Email</div>
                 <div className="col-span-2">Lifetime Value</div>
                 <div className="col-span-2">Last Booking</div>
-                <div className="col-span-1"></div>
               </div>
             )}
             {filteredCustomers.map((customer) => (
@@ -457,7 +439,6 @@ export const CRMSection = () => {
                 customer={customer}
                 lastBooking={lastBookingMap[customer.id]}
                 onClick={() => handleCustomerClick(customer.id)}
-                onOpenInNewTab={handleOpenCustomerInNewTab}
               />
             ))}
 
