@@ -717,10 +717,8 @@ export const templates = {
 </body>
 </html>`,
 
-  // Stub for the post-payment ID-verify drip. Insurance-upload flow ships
-  // separately; this template mentions it as "coming next" so we don't
-  // block launch on the insurance surface. Refresh copy once insurance is
-  // wired.
+  // Post-payment ID-verify drip. Insurance-upload surface does not exist yet
+  // and is not on the launch path — do not mention it in copy until it ships.
   verifyIdRequested: `<!DOCTYPE html>
 <html lang="en">
 <head>
