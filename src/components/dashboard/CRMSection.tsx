@@ -342,18 +342,6 @@ export const CRMSection = () => {
                   </div>
                   <div className="flex items-center gap-1">
                     {getStatusBadge(customer.customer_status)}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 opacity-0 group-hover:opacity-60 hover:opacity-100 transition-opacity"
-                      aria-label={`Open ${customer.full_name} profile in new tab`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleOpenCustomerInNewTab(customer.id);
-                      }}
-                    >
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </Button>
                   </div>
                 </div>
 
