@@ -759,6 +759,46 @@ export const templates = {
   // depositCardRequested template removed 2026-07-28. Exotiq exited the
   // security-deposit flow entirely — renters settle the deposit with the
   // operator at pickup by whatever method the operator accepts.
+
+  // Sent to renter + operator when a marketplace booking is within a few
+  // hours of the auto-cancel deadline (pending_documents 24h / requested 72h).
+  holdWarning: `<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Heads up — booking {{BOOKING_REF}} | Drive Exotiq</title></head>
+<body style="margin:0; padding:0; background-color:#06070a;">
+  <div style="display:none; max-height:0; overflow:hidden;">Booking {{BOOKING_REF}} auto-cancels at {{DEADLINE}} unless {{ACTION_NEEDED}}.</div>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#06070a">
+    <tr><td align="center" style="padding:28px 12px 40px;">
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" bgcolor="#0D0F14" style="max-width:600px; background:#0D0F14; border-radius:16px; border:1px solid #2A2E3A; overflow:hidden;">
+        <tr><td align="center" style="padding:30px 40px 6px; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size:12px; letter-spacing:6px; color:#C8A664; text-transform:uppercase;">Drive Exotiq</td></tr>
+        <tr><td align="center" style="padding:22px 40px 0; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size:10px; letter-spacing:4px; color:#5C6272; text-transform:uppercase;">Action needed</td></tr>
+        <tr><td align="center" style="padding:10px 40px 0; font-family:Georgia, serif; font-size:28px; line-height:34px; color:#F0F2F5;">Booking {{BOOKING_REF}} needs {{ACTION_NEEDED}}.</td></tr>
+        <tr><td align="center" style="padding:12px 48px 8px; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size:14px; line-height:22px; color:#9BA1B0;">Without action, it will auto-cancel on <strong style="color:#F0F2F5;">{{DEADLINE}}</strong> and the {{VEHICLE_SHORT}} dates ({{DATE_RANGE}}) will release back to the calendar.</td></tr>
+        <tr><td align="center" style="padding:20px 40px;"><a href="{{ACTION_URL}}" style="display:inline-block; background:#C8A664; color:#1A1308; text-decoration:none; padding:14px 26px; border-radius:10px; font-weight:700; font-size:14px; font-family:-apple-system, sans-serif;">{{ACTION_LABEL}}</a></td></tr>
+        <tr><td style="padding:8px 40px 30px; border-top:1px solid #2A2E3A; font-family:-apple-system, sans-serif; font-size:12px; line-height:18px; color:#5C6272;">Booking {{BOOKING_REF}} · {{OPERATOR_NAME}} · Reply to this email with questions.</td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`,
+
+  // Sent to renter + operator after an unpaid marketplace booking auto-cancels
+  // (either pending_documents timed out or the operator didn't approve in time).
+  holdCancelled: `<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Booking {{BOOKING_REF}} released | Drive Exotiq</title></head>
+<body style="margin:0; padding:0; background-color:#06070a;">
+  <div style="display:none; max-height:0; overflow:hidden;">Booking {{BOOKING_REF}} was auto-cancelled: {{REASON_HUMAN}}.</div>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#06070a">
+    <tr><td align="center" style="padding:28px 12px 40px;">
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" bgcolor="#0D0F14" style="max-width:600px; background:#0D0F14; border-radius:16px; border:1px solid #2A2E3A; overflow:hidden;">
+        <tr><td align="center" style="padding:30px 40px 6px; font-family:-apple-system, sans-serif; font-size:12px; letter-spacing:6px; color:#C8A664; text-transform:uppercase;">Drive Exotiq</td></tr>
+        <tr><td align="center" style="padding:22px 40px 0; font-family:-apple-system, sans-serif; font-size:10px; letter-spacing:4px; color:#5C6272; text-transform:uppercase;">Booking released</td></tr>
+        <tr><td align="center" style="padding:10px 40px 0; font-family:Georgia, serif; font-size:28px; line-height:34px; color:#F0F2F5;">The dates released back to the calendar.</td></tr>
+        <tr><td align="center" style="padding:12px 48px 8px; font-family:-apple-system, sans-serif; font-size:14px; line-height:22px; color:#9BA1B0;">Booking {{BOOKING_REF}} for the {{VEHICLE_SHORT}} on {{DATE_RANGE}} was auto-cancelled — {{REASON_HUMAN}}. Nothing was charged.</td></tr>
+        <tr><td align="center" style="padding:20px 40px;"><a href="{{ACTION_URL}}" style="display:inline-block; background:#C8A664; color:#1A1308; text-decoration:none; padding:14px 26px; border-radius:10px; font-weight:700; font-size:14px; font-family:-apple-system, sans-serif;">{{ACTION_LABEL}}</a></td></tr>
+        <tr><td style="padding:8px 40px 30px; border-top:1px solid #2A2E3A; font-family:-apple-system, sans-serif; font-size:12px; line-height:18px; color:#5C6272;">Booking {{BOOKING_REF}} · {{OPERATOR_NAME}} · Reply to this email with questions.</td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`,
 } as const;
 
 
