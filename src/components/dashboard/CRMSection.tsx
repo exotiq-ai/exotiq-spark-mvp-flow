@@ -333,7 +333,7 @@ export const CRMSection = () => {
                 tabIndex={0}
                 role="button"
                 aria-label={`Open ${customer.full_name} profile`}
-                className="p-4 rounded-lg bg-muted/30 border border-primary/10 hover-scale cursor-pointer"
+                className="group p-4 rounded-lg bg-muted/30 border border-primary/10 hover-scale cursor-pointer"
               >
                 <div className="flex items-start justify-between mb-3">
                   <div>
@@ -345,7 +345,7 @@ export const CRMSection = () => {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7 opacity-60 hover:opacity-100"
+                      className="h-7 w-7 opacity-0 group-hover:opacity-60 hover:opacity-100 transition-opacity"
                       aria-label={`Open ${customer.full_name} profile in new tab`}
                       onClick={(e) => {
                         e.stopPropagation();
