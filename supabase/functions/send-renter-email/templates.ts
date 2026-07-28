@@ -717,10 +717,8 @@ export const templates = {
 </body>
 </html>`,
 
-  // Stub for the post-payment ID-verify drip. Insurance-upload flow ships
-  // separately; this template mentions it as "coming next" so we don't
-  // block launch on the insurance surface. Refresh copy once insurance is
-  // wired.
+  // Post-payment ID-verify drip. Insurance-upload surface does not exist yet
+  // and is not on the launch path — do not mention it in copy until it ships.
   verifyIdRequested: `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -745,7 +743,7 @@ export const templates = {
             <a href="{{VERIFY_URL}}" style="display:inline-block; background:#F0F2F5; color:#0E1013; text-decoration:none; padding:12px 24px; border-radius:8px; font-weight:600; font-size:14px;">Verify my ID</a>
           </div>
           <p style="font-size:13px; line-height:20px; color:#8E95A3; margin:0 0 16px;">
-            Insurance upload is coming next — we'll send a separate link once you've cleared ID verification.
+            Once verification clears, {{OPERATOR_NAME}} will be in touch with pickup details.
           </p>
           <p style="font-size:12px; line-height:18px; color:#5C6272; margin:24px 0 0; padding-top:16px; border-top:1px solid #2A2E3A;">
             Booking {{BOOKING_REF}} · Operator: {{OPERATOR_NAME}} · Questions? Just reply to this email.
