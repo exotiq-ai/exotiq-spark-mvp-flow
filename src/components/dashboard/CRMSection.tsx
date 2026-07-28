@@ -149,8 +149,15 @@ export const CRMSection = () => {
   }, [filteredCustomers, lastBookingMap]);
 
   const handleCustomerClick = (customerId: string) => {
-    setSelectedCustomerId(customerId);
-    setShowCustomerProfile(true);
+    const url = moduleIdToPath('book', { tab: 'crm', customerId });
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleCustomerKeyDown = (e: React.KeyboardEvent, customerId: string) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleCustomerClick(customerId);
+    }
   };
 
   const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
