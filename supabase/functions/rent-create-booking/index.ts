@@ -153,16 +153,18 @@ serve(async (req) => {
       _customer_email: email,
       _customer_phone: phone,
       _daily_rate: Number(quote.daily_rate_cents) / 100,
-      // M6b: operator_total_cents has included deposit_cents since the
-      // 2026-07-22 quote update — total_value must be CHARGES only (the
-      // deposit is an authorization at pickup, never part of the rental
-      // charge). Subtract it defensively (older quote shape lacks the field).
+      // Rental charge only (deposit is 0 per M6d; kept subtraction defensively
+      // in case an older cached quote returns non-zero).
       _total_value: (Number(quote.operator_total_cents) - Number(quote.deposit_cents ?? 0)) / 100,
       _initial_status: initialStatus,
-      // M6b fee snapshot: what rent-checkout charges as the Exotiq leg.
+      // Fee snapshot — what rent-checkout charges as the Exotiq leg.
+      // Shown == snapshot == charged; the webhook sums platform_fee +
+      // protection + state_fee + processing_fee off the booking row.
       _protection_tier: protection,
       _platform_fee_cents: Math.round(Number(quote.platform_fee_cents)),
       _protection_total_cents: Math.round(Number(quote.protection_total_cents)),
+      _state_fee_cents: Math.round(Number(quote.state_fee_cents ?? 0)),
+      _processing_fee_cents: Math.round(Number(quote.processing_fee_cents ?? 0)),
     });
 
     if (createError) {

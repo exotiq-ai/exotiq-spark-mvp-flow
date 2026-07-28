@@ -57,7 +57,7 @@ async function confirmIfFullyPaid(db: ReturnType<typeof admin>, bookingRef: stri
     .select(
       "id, status, operator_payment_intent_id, exotiq_payment_intent_id, paid_at, " +
       "customer_id, customer_email, customer_name, start_date, end_date, pickup_location, " +
-      "total_value, platform_fee_cents, protection_total_cents, vehicle_id, vehicle_name, " +
+      "total_value, platform_fee_cents, protection_total_cents, state_fee_cents, processing_fee_cents, vehicle_id, vehicle_name, " +
       "team_id, confirmation_token",
     )
     .eq("booking_ref", bookingRef)
@@ -109,7 +109,10 @@ async function confirmIfFullyPaid(db: ReturnType<typeof admin>, bookingRef: stri
       const timezone = team?.timezone ?? "UTC";
       const rentalAmount = Number(booking.total_value ?? 0);
       const exotiqAmount =
-        (Number(booking.platform_fee_cents ?? 0) + Number(booking.protection_total_cents ?? 0)) / 100;
+        (Number(booking.platform_fee_cents ?? 0)
+          + Number(booking.protection_total_cents ?? 0)
+          + Number(booking.state_fee_cents ?? 0)
+          + Number(booking.processing_fee_cents ?? 0)) / 100;
       const totalPaid = rentalAmount + exotiqAmount;
 
       const vehicleName = booking.vehicle_name || "Vehicle";
@@ -304,7 +307,7 @@ serve(async (req) => {
         const { data: bookingRow } = await db
           .from("bookings")
           .select(
-            "id, status, total_value, paid_at, platform_fee_cents, protection_total_cents, exotiq_payment_intent_id, exotiq_leg_attempt",
+            "id, status, total_value, paid_at, platform_fee_cents, protection_total_cents, state_fee_cents, processing_fee_cents, exotiq_payment_intent_id, exotiq_leg_attempt",
           )
           .eq("booking_ref", bookingRef)
           .maybeSingle();
@@ -350,8 +353,14 @@ serve(async (req) => {
           break;
         }
 
+        // Exotiq leg = platform fee + protection + state fee + processing fee.
+        // All four are snapshotted at booking time by rent-create-booking so
+        // "shown == snapshot == charged" holds even if the quote drifts.
         const exotiqCents =
-          Number(bookingRow.platform_fee_cents ?? 0) + Number(bookingRow.protection_total_cents ?? 0);
+          Number(bookingRow.platform_fee_cents ?? 0)
+          + Number(bookingRow.protection_total_cents ?? 0)
+          + Number(bookingRow.state_fee_cents ?? 0)
+          + Number(bookingRow.processing_fee_cents ?? 0);
         if (exotiqCents <= 0) {
           await db
             .from("bookings")
