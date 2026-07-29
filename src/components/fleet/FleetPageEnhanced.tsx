@@ -636,6 +636,11 @@ export const FleetPageEnhanced = () => {
           <MaintenanceHub />
         </TabsContent>
 
+        {/* Inspections Tab Content */}
+        <TabsContent value="inspections" className="mt-0">
+          <InspectionsTab vehicles={vehicles as any} />
+        </TabsContent>
+
         {/* Photos Tab Content */}
         <TabsContent value="photos" className="mt-0">
           <PhotoHubTab vehicles={vehiclesForPhotos} loading={loading} />
