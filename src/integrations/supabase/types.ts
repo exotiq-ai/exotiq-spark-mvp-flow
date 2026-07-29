@@ -218,11 +218,13 @@ export type Database = {
           booking_id: string
           charge_method: string
           created_at: string
+          exotiq_payment_intent_id: string | null
           extended_by_user_id: string | null
           failure_reason: string | null
           id: string
           invoice_id: string | null
           new_end_date: string
+          operator_payment_intent_id: string | null
           payment_intent_id: string | null
           previous_end_date: string
           rate_cents_per_day: number
@@ -240,11 +242,13 @@ export type Database = {
           booking_id: string
           charge_method: string
           created_at?: string
+          exotiq_payment_intent_id?: string | null
           extended_by_user_id?: string | null
           failure_reason?: string | null
           id?: string
           invoice_id?: string | null
           new_end_date: string
+          operator_payment_intent_id?: string | null
           payment_intent_id?: string | null
           previous_end_date: string
           rate_cents_per_day: number
@@ -262,11 +266,13 @@ export type Database = {
           booking_id?: string
           charge_method?: string
           created_at?: string
+          exotiq_payment_intent_id?: string | null
           extended_by_user_id?: string | null
           failure_reason?: string | null
           id?: string
           invoice_id?: string | null
           new_end_date?: string
+          operator_payment_intent_id?: string | null
           payment_intent_id?: string | null
           previous_end_date?: string
           rate_cents_per_day?: number
