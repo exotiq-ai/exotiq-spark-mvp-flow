@@ -6,6 +6,7 @@
 const MODULE_TO_SEGMENT: Record<string, string> = {
   dashboard: '',
   book: 'bookings',
+  customers: 'customers',
   fleet: 'fleet',
   pulse: 'pulse',
   motoriq: 'motoriq',
