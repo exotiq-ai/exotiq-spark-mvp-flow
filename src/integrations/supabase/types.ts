@@ -4362,6 +4362,7 @@ export type Database = {
           created_at: string | null
           email: string
           expires_at: string | null
+          full_name: string | null
           id: string
           invited_by: string
           permissions: string[] | null
@@ -4374,6 +4375,7 @@ export type Database = {
           created_at?: string | null
           email: string
           expires_at?: string | null
+          full_name?: string | null
           id?: string
           invited_by: string
           permissions?: string[] | null
@@ -4386,6 +4388,7 @@ export type Database = {
           created_at?: string | null
           email?: string
           expires_at?: string | null
+          full_name?: string | null
           id?: string
           invited_by?: string
           permissions?: string[] | null
