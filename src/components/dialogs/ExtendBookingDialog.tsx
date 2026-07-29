@@ -155,24 +155,31 @@ export function ExtendBookingDialog({
           </div>
 
           {addedDays > 0 && rateNum > 0 && (
-            <div className="rounded-lg border bg-muted/30 p-3 space-y-1.5 text-sm">
+            <div className="rounded-lg border bg-muted/30 p-3 space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Added days</span>
                 <span className="font-medium">{addedDays}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Subtotal ({addedDays} × {fmt(rateNum)})</span>
-                <span>{fmt(addedSubtotal)}</span>
+              <div className="space-y-1 pt-1 border-t">
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">To operator</div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Rental ({addedDays} × {fmt(rateNum)})</span>
+                  <span>{fmt(addedSubtotal)}</span>
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">State rental fee</span>
-                <span>{fmt(addedStateFee)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Processing fee (est.)</span>
-                <span>{fmt(addedProcessingFee)}</span>
+              <div className="space-y-1 pt-1 border-t">
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Fees</div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">State rental fee</span>
+                  <span>{fmt(addedStateFee)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Processing fee (est.)</span>
+                  <span>{fmt(addedProcessingFee)}</span>
+                </div>
               </div>
               <div className="flex justify-between pt-1.5 border-t font-semibold">
+
                 <span>Balance due</span>
                 <span>{fmt(addedTotal)}</span>
               </div>
