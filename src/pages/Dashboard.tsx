@@ -217,6 +217,7 @@ const DashboardInner = () => {
     dashboard: "Dashboard",
     core: "FleetCopilot™",
     book: "Book",
+    customers: "Customers",
     pulse: "Pulse",
     motoriq: "MotorIQ",
     vault: "Vault",
