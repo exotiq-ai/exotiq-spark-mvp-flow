@@ -158,19 +158,33 @@ export const BookEnhanced = () => {
     }>;
   } | null>(null);
 
+  const navigate = useNavigate();
+
   // Handle tab and customerId URL parameters
   useEffect(() => {
     const tab = searchParams.get('tab');
-    if (tab) {
-      // Map URL param 'crm' to tab id 'customers'
-      const tabMap: Record<string, string> = { crm: 'customers' };
-      setActiveTab(tabMap[tab] || tab);
+    if (!tab) return;
+
+    // Legacy tabs moved to their own modules — redirect preserving other params.
+    if (tab === 'crm' || tab === 'customers') {
       const newParams = new URLSearchParams(searchParams);
       newParams.delete('tab');
-      // customerId is intentionally preserved here so CRMSection can open the profile dialog
-      setSearchParams(newParams, { replace: true });
+      const qs = newParams.toString();
+      navigate(qs ? `/dashboard/customers?${qs}` : '/dashboard/customers', { replace: true });
+      return;
     }
-  }, [searchParams, setSearchParams]);
+    if (tab === 'inspections') {
+      const newParams = new URLSearchParams(searchParams);
+      const qs = newParams.toString();
+      navigate(qs ? `/dashboard/fleet?${qs}` : '/dashboard/fleet?tab=inspections', { replace: true });
+      return;
+    }
+
+    setActiveTab(tab);
+    const newParams = new URLSearchParams(searchParams);
+    newParams.delete('tab');
+    setSearchParams(newParams, { replace: true });
+  }, [searchParams, setSearchParams, navigate]);
 
   // Handle bookingId URL parameter to auto-open booking details
   useEffect(() => {
