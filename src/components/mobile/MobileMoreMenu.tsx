@@ -13,7 +13,8 @@ import {
   TrendingUp,
   BarChart3,
   Car,
-  DollarSign
+  DollarSign,
+  Users
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { featureFlags } from "@/lib/featureFlags";
