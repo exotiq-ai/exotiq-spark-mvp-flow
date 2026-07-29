@@ -105,7 +105,9 @@ serve(async (req) => {
       .select(
         "id, booking_ref, status, booking_source, confirmation_token, start_date, end_date, paid_at, " +
         "customer_email, customer_name, pickup_location, total_value, platform_fee_cents, protection_total_cents, " +
+        "state_fee_cents, processing_fee_cents, " +
         "operator_payment_intent_id, exotiq_payment_intent_id, user_id, team_id, vehicle_id, vehicle_name",
+
       )
       .eq("booking_ref", bookingRef)
       .eq("booking_source", "marketplace")
