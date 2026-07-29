@@ -47,6 +47,7 @@ export const MobileMoreMenu = ({ onAddLocation, activeModule: activeModuleProp, 
 
   // Operations group items
   const operationsItems = [
+    { id: "customers", label: "Customers", description: "CRM & customer profiles", icon: Users },
     { id: "fleet", label: "Fleet", description: "Vehicle ops & task management", icon: Car },
     { id: "pulse", label: "Pulse", description: "Analytics & performance insights", icon: BarChart3 },
   ];
