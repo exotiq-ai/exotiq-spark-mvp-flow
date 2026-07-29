@@ -207,6 +207,104 @@ export type Database = {
           },
         ]
       }
+      booking_extensions: {
+        Row: {
+          added_days: number
+          added_platform_fee_cents: number
+          added_processing_fee_cents: number
+          added_state_fee_cents: number
+          added_subtotal_cents: number
+          added_total_cents: number
+          booking_id: string
+          charge_method: string
+          created_at: string
+          extended_by_user_id: string | null
+          failure_reason: string | null
+          id: string
+          invoice_id: string | null
+          new_end_date: string
+          payment_intent_id: string | null
+          previous_end_date: string
+          rate_cents_per_day: number
+          status: string
+          team_id: string
+          updated_at: string
+        }
+        Insert: {
+          added_days: number
+          added_platform_fee_cents?: number
+          added_processing_fee_cents?: number
+          added_state_fee_cents?: number
+          added_subtotal_cents?: number
+          added_total_cents?: number
+          booking_id: string
+          charge_method: string
+          created_at?: string
+          extended_by_user_id?: string | null
+          failure_reason?: string | null
+          id?: string
+          invoice_id?: string | null
+          new_end_date: string
+          payment_intent_id?: string | null
+          previous_end_date: string
+          rate_cents_per_day: number
+          status?: string
+          team_id: string
+          updated_at?: string
+        }
+        Update: {
+          added_days?: number
+          added_platform_fee_cents?: number
+          added_processing_fee_cents?: number
+          added_state_fee_cents?: number
+          added_subtotal_cents?: number
+          added_total_cents?: number
+          booking_id?: string
+          charge_method?: string
+          created_at?: string
+          extended_by_user_id?: string | null
+          failure_reason?: string | null
+          id?: string
+          invoice_id?: string | null
+          new_end_date?: string
+          payment_intent_id?: string | null
+          previous_end_date?: string
+          rate_cents_per_day?: number
+          status?: string
+          team_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_extensions_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "booking_payment_summary"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "booking_extensions_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_extensions_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "deposit_ledger"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "booking_extensions_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bookings: {
         Row: {
           balance_due: number | null
