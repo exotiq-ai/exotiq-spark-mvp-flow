@@ -199,6 +199,22 @@ export function ExtendBookingDialog({
               </div>
               <div className="space-y-1 pt-1 border-t">
                 <div className="text-xs uppercase tracking-wide text-muted-foreground">Fees</div>
+                {addedPlatformFee > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">
+                      Platform fee ({(platformFeePct * 100).toFixed(1)}%)
+                    </span>
+                    <span>{fmt(addedPlatformFee)}</span>
+                  </div>
+                )}
+                {addedProtection > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">
+                      Protection · {booking?.protection_tier ?? "premium"} (+{addedDays}d)
+                    </span>
+                    <span>{fmt(addedProtection)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">State rental fee</span>
                   <span>{fmt(addedStateFee)}</span>
@@ -208,6 +224,7 @@ export function ExtendBookingDialog({
                   <span>{fmt(addedProcessingFee)}</span>
                 </div>
               </div>
+
               <div className="flex justify-between pt-1.5 border-t font-semibold">
 
                 <span>Balance due</span>
