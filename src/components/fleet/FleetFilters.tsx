@@ -316,8 +316,9 @@ export const FleetFilters = ({
             </div>
 
             {/* Scrollable body */}
-            <ScrollArea className="flex-1 min-h-0">
+            <ScrollArea className="flex-1 min-h-0 overscroll-contain">
               <div className="p-4 space-y-5">
+
                 {/* Quick toggles */}
                 <div className="space-y-2">
                   <SectionHeader title="Quick filters" />
