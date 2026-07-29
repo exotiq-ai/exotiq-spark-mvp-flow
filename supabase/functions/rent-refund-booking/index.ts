@@ -137,8 +137,37 @@ serve(async (req) => {
       reverseTransfer: false,
       idempotencyKey: `op-refund-exotiq-${booking.booking_ref}`,
     });
-    if (!rentalOk || !exotiqOk) {
-      return json({ error: "Refund partially failed — retry (idempotent) or resolve in the Stripe dashboard", rentalOk, exotiqOk }, 502);
+
+    // Walk booking_extensions and refund each captured row's two legs.
+    // Ops-initiated refund is all-or-nothing → always refund extensions.
+    const { data: extensions } = await admin
+      .from("booking_extensions")
+      .select("id, operator_payment_intent_id, exotiq_payment_intent_id")
+      .eq("booking_id", booking.id)
+      .in("status", ["paid", "partially_paid"]);
+
+    let extensionsOk = true;
+    for (const ext of extensions ?? []) {
+      const extOpOk = await refundLeg(stripe, ext.operator_payment_intent_id, {
+        reverseTransfer: true,
+        idempotencyKey: `op-refund-ext-op-${ext.id}`,
+      });
+      const extFeeOk = await refundLeg(stripe, ext.exotiq_payment_intent_id, {
+        reverseTransfer: false,
+        idempotencyKey: `op-refund-ext-exotiq-${ext.id}`,
+      });
+      if (extOpOk && extFeeOk) {
+        await admin
+          .from("booking_extensions")
+          .update({ status: "refunded" })
+          .eq("id", ext.id);
+      } else {
+        extensionsOk = false;
+      }
+    }
+
+    if (!rentalOk || !exotiqOk || !extensionsOk) {
+      return json({ error: "Refund partially failed — retry (idempotent) or resolve in the Stripe dashboard", rentalOk, exotiqOk, extensionsOk }, 502);
     }
 
     const { error: updateError } = await admin
@@ -146,6 +175,7 @@ serve(async (req) => {
       .update({ status: "refunded" })
       .eq("id", booking.id);
     if (updateError) throw updateError;
+
 
     if (booking.customer_email) {
       try {
