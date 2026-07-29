@@ -65,11 +65,6 @@ function stripeFeeEstimateCents(amountCents: number): number {
   return Math.round(amountCents * 0.029) + 30;
 }
 
-// Exotiq leg processing fee estimate (matches public_vehicle_quote):
-// 2% platform overhead + Stripe 2.9% + 30¢ on the rental subtotal.
-function estimateProcessingFeeCents(rentalSubtotalCents: number): number {
-  return Math.round(0.02 * rentalSubtotalCents) + Math.round(rentalSubtotalCents * 0.029) + 30;
-}
 
 
 function daysBetween(start: Date, end: Date): number {
