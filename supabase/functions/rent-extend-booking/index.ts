@@ -45,6 +45,21 @@ const json = (body: unknown, status = 200) =>
 // + exemption table for MT/OR/NH/DE/AK).
 const STATE_FEE_CENTS_PER_DAY = 589;
 
+// Protection tier daily cents — mirrors public_vehicle_quote (server-side
+// source of truth). Do NOT derive from protection_total_cents / days: on a
+// second extension that divisor has already been bumped, so the derived rate
+// silently overcharges. Read the rate from the tier instead.
+function protectionDailyCentsForTier(tier: string | null | undefined): number {
+  switch ((tier ?? "premium").toLowerCase()) {
+    case "premium":
+      return 28900;
+    case "standard":
+      return 8900;
+    default:
+      return 0;
+  }
+}
+
 // Operator's estimated Stripe processing share (matches rent-checkout).
 function stripeFeeEstimateCents(amountCents: number): number {
   return Math.round(amountCents * 0.029) + 30;
@@ -55,6 +70,7 @@ function stripeFeeEstimateCents(amountCents: number): number {
 function estimateProcessingFeeCents(rentalSubtotalCents: number): number {
   return Math.round(0.02 * rentalSubtotalCents) + Math.round(rentalSubtotalCents * 0.029) + 30;
 }
+
 
 function daysBetween(start: Date, end: Date): number {
   const ms = end.getTime() - start.getTime();
