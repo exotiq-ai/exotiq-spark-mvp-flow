@@ -95,7 +95,7 @@ export const MobileMoreMenu = ({ onAddLocation, activeModule: activeModuleProp, 
     setOpen(false);
   };
 
-  const isActive = ["motoriq", "pulse", "vault", "margin", "fleet", "settings", "super-admin"].includes(activeModule);
+  const isActive = ["motoriq", "pulse", "vault", "margin", "fleet", "customers", "settings", "super-admin"].includes(activeModule);
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
