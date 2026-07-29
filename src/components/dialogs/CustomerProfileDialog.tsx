@@ -191,7 +191,7 @@ export const CustomerProfileDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[700px] max-h-[90vh] flex flex-col overflow-hidden">
+      <DialogContent className="w-[95vw] sm:max-w-[700px] max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <div className="flex items-start justify-between">
             <div>
