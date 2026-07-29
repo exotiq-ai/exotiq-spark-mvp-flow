@@ -103,6 +103,7 @@ serve(async (req) => {
       new_end_date,
       rate_cents_per_day,
       charge_method = "card_on_file", // 'card_on_file' | 'manual'
+      channel, // 'phone' | 'in_person' | 'email' — consent trail
     } = body ?? {};
 
     if (!booking_id || !new_end_date || rate_cents_per_day == null) {
@@ -118,11 +119,12 @@ serve(async (req) => {
     const { data: booking, error: bErr } = await db
       .from("bookings")
       .select(
-        "id, team_id, vehicle_id, booking_ref, booking_source, status, start_date, end_date, total_value, operator_payment_intent_id, exotiq_payment_intent_id, paid_at, customer_email, customer_name, platform_fee_cents, state_fee_cents, processing_fee_cents, protection_total_cents",
+        "id, team_id, vehicle_id, booking_ref, booking_source, status, start_date, end_date, total_value, operator_payment_intent_id, exotiq_payment_intent_id, paid_at, customer_email, customer_name, platform_fee_cents, state_fee_cents, processing_fee_cents, protection_total_cents, protection_tier",
       )
       .eq("id", booking_id)
       .single();
     if (bErr || !booking) return json({ error: "Booking not found" }, 404);
+
 
     const { data: membership } = await db
       .from("team_members")
