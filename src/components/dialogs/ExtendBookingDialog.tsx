@@ -24,6 +24,8 @@ interface ExtendBookingDialogProps {
     total_value?: number | null;
     operator_payment_intent_id?: string | null;
     platform_fee_cents?: number | null;
+    protection_tier?: string | null;
+    protection_total_cents?: number | null;
   } | null;
   vehicleName?: string;
   defaultRatePerDay: number; // dollars/day
@@ -32,9 +34,18 @@ interface ExtendBookingDialogProps {
 
 const STATE_FEE_CENTS_PER_DAY = 589;
 
-function estimateProcessingFeeCents(subtotalCents: number): number {
-  return Math.round(0.02 * subtotalCents) + Math.round(subtotalCents * 0.029) + 30;
+// Mirrors public_vehicle_quote / rent-extend-booking.
+function protectionDailyCentsForTier(tier: string | null | undefined): number {
+  switch ((tier ?? "premium").toLowerCase()) {
+    case "premium":
+      return 28900;
+    case "standard":
+      return 8900;
+    default:
+      return 0;
+  }
 }
+
 
 export function ExtendBookingDialog({
   open,
