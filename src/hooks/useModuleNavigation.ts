@@ -32,7 +32,7 @@ export const useModuleNavigation = () => {
   };
 
   const goToInspection = (inspectionId: string) => {
-    navigate(moduleIdToPath('vault', { view: 'inspections', inspectionId }));
+    navigate(moduleIdToPath('fleet', { tab: 'inspections', inspectionId }));
     scrollToTop();
   };
 
