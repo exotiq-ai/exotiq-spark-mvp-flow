@@ -6,6 +6,7 @@
 const MODULE_TO_SEGMENT: Record<string, string> = {
   dashboard: '',
   book: 'bookings',
+  customers: 'customers',
   fleet: 'fleet',
   pulse: 'pulse',
   motoriq: 'motoriq',
@@ -30,6 +31,7 @@ SEGMENT_TO_MODULE['activity'] = 'team-hub';
 export const MODULE_TITLES: Record<string, string> = {
   dashboard: 'Dashboard | Exotiq.ai',
   book: 'Bookings | Exotiq.ai',
+  customers: 'Customers | Exotiq.ai',
   fleet: 'Fleet | Exotiq.ai',
   pulse: 'Pulse Analytics | Exotiq.ai',
   motoriq: 'MotorIQ | Exotiq.ai',

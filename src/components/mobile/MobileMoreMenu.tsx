@@ -13,7 +13,8 @@ import {
   TrendingUp,
   BarChart3,
   Car,
-  DollarSign
+  DollarSign,
+  Users
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { featureFlags } from "@/lib/featureFlags";
@@ -46,6 +47,7 @@ export const MobileMoreMenu = ({ onAddLocation, activeModule: activeModuleProp, 
 
   // Operations group items
   const operationsItems = [
+    { id: "customers", label: "Customers", description: "CRM & customer profiles", icon: Users },
     { id: "fleet", label: "Fleet", description: "Vehicle ops & task management", icon: Car },
     { id: "pulse", label: "Pulse", description: "Analytics & performance insights", icon: BarChart3 },
   ];
@@ -93,7 +95,7 @@ export const MobileMoreMenu = ({ onAddLocation, activeModule: activeModuleProp, 
     setOpen(false);
   };
 
-  const isActive = ["motoriq", "pulse", "vault", "margin", "fleet", "settings", "super-admin"].includes(activeModule);
+  const isActive = ["motoriq", "pulse", "vault", "margin", "fleet", "customers", "settings", "super-admin"].includes(activeModule);
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>

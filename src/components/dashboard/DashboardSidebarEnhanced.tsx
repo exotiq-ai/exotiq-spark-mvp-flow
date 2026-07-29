@@ -22,7 +22,8 @@ import {
   Activity,
   MessageSquare,
   Car,
-  DollarSign
+  DollarSign,
+  Users
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -190,6 +191,7 @@ export const DashboardSidebarEnhanced = ({
       items: [
         { id: "dashboard", name: "Dashboard", icon: Home },
         { id: "book", name: "Bookings", icon: Calendar, minRole: 'operator' },
+        { id: "customers", name: "Customers", icon: Users, minRole: 'operator' },
         { id: "fleet", name: "Fleet", icon: Car, minRole: 'operator' },
         { id: "pulse", name: "Pulse", icon: BarChart3, minRole: 'operator' },
       ]

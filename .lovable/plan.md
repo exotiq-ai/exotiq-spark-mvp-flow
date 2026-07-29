@@ -1,48 +1,113 @@
-## Problem
 
-"Open in new tab" from a customer card/row/modal opened as a different tenant. Root cause is not the click handler — it's that the app is served from two different origins:
+# Navigation Restructure — Book, Customers, Fleet, Vault
 
-- Lovable editor preview iframe: `*.lovableproject.com`
-- Published app: `exotiq-spark-mvp-flow.lovable.app` (and `app.exotiq.ai`)
+Goal: Sharpen module purpose, align with role-based depth, and remove the "catch-all" feel from Book. No business logic changes — this is a navigation, labeling, and view-composition refactor.
 
-Supabase stores its session in **localStorage, scoped per origin**. Each origin holds an independent signed-in user. `window.open(relativeUrl, '_blank')` from inside the editor iframe opens a top-level tab that can resolve to the sibling origin, which reads that origin's own (possibly stale) session. Auth logs confirm two different users active on this project within the same browser in a 10-minute window.
+## Sidebar after the change
 
-This is a tenant-safety hazard: any operator with an older session on the sibling origin will silently land in the wrong tenant. We cannot make cross-origin `localStorage` sessions share, and we should not paper over it by shipping access tokens through the URL.
+```
+Intelligence
+  Dashboard
+  FleetCopilot™
+  MotorIQ
 
-## Fix
+Operations
+  Pulse
+  Book          ← Calendar + Bookings + slim Payments only
+  Customers     ← promoted from CRM tab (renamed)
+  Fleet         ← + Inspections tab
+  Vault         ← keeps deep Payments/Refunds/Deposits/Damage
+```
 
-Remove the "open in new tab" affordance and instead navigate to the profile in the **same tab**. Same-tab navigation reuses the exact session that was authenticated in the current tab — no cross-origin session lookup, no risk of tenant swap. Users who genuinely want a second tab can still Cmd/Ctrl-click any link in the app; the browser will open same-origin with the correct session for that origin.
+Book keeps its Overview tab (per your answer). Margin is unchanged.
 
-### Changes
+## Module responsibilities
 
-1. `src/components/dashboard/CRMSection.tsx`
-   - Remove `handleOpenCustomerInNewTab` and the `ExternalLink` icon buttons on cards.
-   - Keep the click behavior that opens the `CustomerProfileDialog` modal (unchanged).
+### Book (transaction layer)
+Tabs: **Overview · Calendar · Bookings · Payments**
+- Payments here becomes the *operator* view only (see below).
+- CRM tab removed.
+- Inspections tab removed.
 
-2. `src/components/dashboard/CustomerListRow.tsx`
-   - Remove the "Open in new tab" ghost button.
-   - Row click still opens the modal.
+### Customers (new sidebar item, renamed from CRM)
+Landing view: customer directory with Cards ↔ List toggle (as today) plus:
+- **Segments/filters**: All · VIP · Repeat · New · At-risk (computed from existing customer fields — no schema change)
+- **Import/Export CSV**: reuse existing `useImportHistory` + `exportUtils` patterns
+- Clicking a customer opens `CustomerProfileDialog` in the same tab (unchanged — keeps the session-safety fix)
+- Roles: Viewer sees list read-only; Operator+ can edit; Manager+ can import/export
 
-3. `src/components/dialogs/CustomerProfileDialog.tsx`
-   - Remove the `ExternalLink` icon in the dialog header (which used `window.open`).
-   - If we want to keep an "expand to full page" affordance, replace it with `navigate(moduleIdToPath('book', { tab: 'crm', customerId }))` (same tab) — but default plan is to remove it entirely, since the modal already shows everything.
+### Fleet (vehicle layer)
+Add **Inspections** as a new tab alongside existing fleet tabs.
+- Move the inspections list, filters, and history view from Book → Fleet.
+- Check-in/out dialogs still launch from a booking (deep-linked); the *record* lives in Fleet.
+- Deep links from notifications / global search updated to `/dashboard/fleet?tab=inspections&inspectionId=…`.
 
-4. `src/hooks/useModuleNavigation.ts` — no changes; still used for in-app `navigate()`.
+### Book → Payments (slim, operator-level)
+Shows per-booking:
+- Payment status + amount paid / due (read-only summary)
+- **Record manual payment** (cash/transfer) — existing action
+- **Send payment reminder** email — existing action
+Removed from Book's Payments view (kept in Vault):
+- Refund flows, Stripe fee breakdowns, reconciliation exports, deposit tooling, dispute handling
 
-### Non-goals
+### Vault (finance/compliance depth) — unchanged surface, gains authority
+Continues to own: refunds, deposits (operator reference), damage claims, document archive, deep payment reconciliation. Manager+ / Owner-Admin gated as today.
 
-- No auth/session refactor. The multi-origin serving of the app is a platform reality; the fix is to stop relying on new tabs for authenticated navigation.
-- No changes to the Cards/List toggle or the modal contents.
+## Role visibility matrix
 
-## Verification
+| Module      | Viewer | Operator | Manager | Admin/Owner |
+|-------------|--------|----------|---------|-------------|
+| Book        | read   | full     | full    | full        |
+| Customers   | read   | edit     | + I/O   | full        |
+| Fleet       | read   | edit     | + OOO   | full        |
+| Vault       | —      | —        | read    | full        |
 
-- Playwright: sign in, open a customer card and a list row — both open the modal, no `window.open` fires, no new tab appears.
-- Grep confirms no remaining `window.open(` calls in the CRM surfaces except `tel:` / `mailto:` (which are safe).
-- Manual: with a stale session on the sibling origin, confirm no path in CRM navigates cross-tab.
+(Matches existing `useUserRole` gating; no new roles.)
 
-## Follow-up (optional, not in this change)
+## Routing
 
-If you want a genuine "open in new tab" later, the safe pattern is:
-- Only render it when `window.location.origin` matches your canonical production origin (e.g. `app.exotiq.ai`), never inside the editor preview.
-- Never inside the Lovable editor iframe.
-- Still uses same-origin only — no token passing through URLs.
+Add to `src/lib/moduleRoutes.ts`:
+- `customers` → `/dashboard/customers`
+- Legacy `bookings?tab=crm[&customerId=…]` → redirect to `/dashboard/customers?customerId=…`
+- Legacy `bookings?tab=inspections[&inspectionId=…]` → redirect to `/dashboard/fleet?tab=inspections&inspectionId=…`
+
+Update all `useModuleNavigation` helpers (`goToCustomerProfile`, `goToInspection`, `goToCustomerBookings`) to point at the new paths. Update deep links in notifications, global search, Rari, and email templates.
+
+## Files touched (no logic changes)
+
+- `src/lib/moduleRoutes.ts` — add `customers`, update titles, legacy redirects
+- `src/components/dashboard/DashboardSidebar.tsx` — add Customers item (Users icon), reorder Operations
+- `src/App.tsx` (or dashboard router) — new `/dashboard/customers` route; back-compat redirects
+- `src/hooks/useModuleNavigation.ts` — repoint customer + inspection helpers
+- `src/components/dashboard/BookEnhanced.tsx` — remove CRM + Inspections tabs; slim Payments tab contents
+- `src/components/dashboard/CRMSection.tsx` → mount under new `CustomersPage.tsx`; add Segments filter row
+- New `src/pages/dashboard/CustomersPage.tsx` — thin wrapper
+- New `src/components/fleet/FleetInspectionsTab.tsx` — mounts existing inspections components
+- `src/components/dashboard/FleetPageEnhanced.tsx` — add Inspections tab
+- Notification/search/Rari deep-link builders — repoint to new paths
+- Email templates using `/dashboard/bookings?tab=crm|inspections` — repoint
+
+## Backwards compatibility
+
+Every legacy URL (bookmarks, notifications sent last week, Rari links) resolves via redirect. Nothing 404s.
+
+## Out of scope
+
+- No DB migrations. No RLS changes. No new roles. No pricing/payment logic changes.
+- No new CRM features beyond segments filter + CSV (both reuse existing utilities).
+- Marketing site, published marketplace, and Command Center super-admin views are untouched.
+
+## Rollout
+
+1. Ship routing + redirects + sidebar entry (dark, no visible change until pages exist).
+2. Move Customers page + verify redirects.
+3. Move Inspections into Fleet + verify redirects.
+4. Slim Book → Payments.
+5. Smoke test across roles (Viewer, Operator, Manager, Owner) on one live tenant before broad announce.
+
+## Why this shape (short rationale)
+
+- **Book stays a transaction module** — advisor is right; five tabs was too many mental models.
+- **"Customers" beats "CRM"** — matches operator language, future-proofs for Leads later.
+- **Inspections belong to vehicles**, not transactions — operators ask "what's this car's condition history?", not "what did this booking do?"
+- **Payments split by depth, not module** — one dataset, two audiences, matches existing RBAC intent. Avoids a third top-level "Payments" module that would bloat the sidebar.

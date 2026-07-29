@@ -12,7 +12,7 @@ export const useModuleNavigation = () => {
   const location = useLocation();
 
   const goToCustomerProfile = (customerId: string) => {
-    navigate(moduleIdToPath('book', { tab: 'crm', customerId }));
+    navigate(moduleIdToPath('customers', { customerId }));
     scrollToTop();
   };
 
@@ -32,7 +32,7 @@ export const useModuleNavigation = () => {
   };
 
   const goToInspection = (inspectionId: string) => {
-    navigate(moduleIdToPath('vault', { view: 'inspections', inspectionId }));
+    navigate(moduleIdToPath('fleet', { tab: 'inspections', inspectionId }));
     scrollToTop();
   };
 

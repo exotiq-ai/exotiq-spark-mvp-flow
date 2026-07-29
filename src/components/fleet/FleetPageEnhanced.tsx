@@ -33,6 +33,7 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { SkeletonVehicleCard } from '@/components/ui/skeleton-specialized';
 import { ModuleTabs, TabsContent } from '@/components/common/ModuleTabs';
 import { PhotoHubTab } from '@/components/photos/PhotoHubTab';
+import { InspectionsTab } from '@/components/dashboard/InspectionsTab';
 import {
   Car,
   Smartphone,
@@ -43,6 +44,7 @@ import {
   Upload,
   Trash2,
   Wrench,
+  ClipboardCheck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSearchParams } from 'react-router-dom';
@@ -124,6 +126,8 @@ export const FleetPageEnhanced = () => {
     const taskId = searchParams.get('taskId');
     
     if (tab === 'maintenance') setActiveTab('maintenance');
+    if (tab === 'inspections') setActiveTab('inspections');
+    if (tab === 'photos') setActiveTab('photos');
     if (taskId && tasks.length > 0) {
       const task = tasks.find(t => t.id === taskId);
       if (task) setSelectedTask(task);
@@ -439,6 +443,7 @@ export const FleetPageEnhanced = () => {
   const moduleTabs = [
     { id: 'fleet', label: 'Fleet', shortLabel: 'Fleet', icon: Car },
     { id: 'maintenance', label: 'Maintenance', shortLabel: 'Maint.', icon: Wrench },
+    { id: 'inspections', label: 'Inspections', shortLabel: 'Insp.', icon: ClipboardCheck },
     { id: 'photos', label: 'Photos', shortLabel: 'Photos', icon: Camera },
   ];
 
@@ -629,6 +634,11 @@ export const FleetPageEnhanced = () => {
         {/* Maintenance Tab Content */}
         <TabsContent value="maintenance" className="mt-0">
           <MaintenanceHub />
+        </TabsContent>
+
+        {/* Inspections Tab Content */}
+        <TabsContent value="inspections" className="mt-0">
+          <InspectionsTab vehicles={vehicles as any} />
         </TabsContent>
 
         {/* Photos Tab Content */}

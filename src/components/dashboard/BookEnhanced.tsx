@@ -6,14 +6,12 @@ import { TabsContent } from "@/components/ui/tabs";
 import { ModuleTabs } from "@/components/common/ModuleTabs";
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { useModuleNavigation } from "@/hooks/useModuleNavigation";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { NewBookingDialog } from "@/components/dialogs/NewBookingDialog";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { EnhancedBookingDialog } from "@/components/dialogs/EnhancedBookingDialog";
 import { BookingCalendar } from "@/components/dashboard/BookingCalendar";
 import { PaymentTracker } from "@/components/dashboard/PaymentTracker";
-import { InspectionsTab } from "@/components/dashboard/InspectionsTab";
-import { CRMSection } from "@/components/dashboard/CRMSection";
 import { VehicleImageDialog } from "@/components/dialogs/VehicleImageDialog";
 import { AskRariQuickAction } from "@/components/common/AskRariQuickAction";
 import { LocationBadge } from "@/components/common/LocationBadge";
@@ -34,13 +32,11 @@ import {
   DollarSign,
   Plus,
   Receipt,
-  ClipboardCheck,
   CheckCircle,
   Circle,
   AlertCircle,
   ChevronDown,
-  ChevronUp,
-  Users
+  ChevronUp
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tables } from "@/integrations/supabase/types";
@@ -162,19 +158,33 @@ export const BookEnhanced = () => {
     }>;
   } | null>(null);
 
+  const navigate = useNavigate();
+
   // Handle tab and customerId URL parameters
   useEffect(() => {
     const tab = searchParams.get('tab');
-    if (tab) {
-      // Map URL param 'crm' to tab id 'customers'
-      const tabMap: Record<string, string> = { crm: 'customers' };
-      setActiveTab(tabMap[tab] || tab);
+    if (!tab) return;
+
+    // Legacy tabs moved to their own modules — redirect preserving other params.
+    if (tab === 'crm' || tab === 'customers') {
       const newParams = new URLSearchParams(searchParams);
       newParams.delete('tab');
-      // customerId is intentionally preserved here so CRMSection can open the profile dialog
-      setSearchParams(newParams, { replace: true });
+      const qs = newParams.toString();
+      navigate(qs ? `/dashboard/customers?${qs}` : '/dashboard/customers', { replace: true });
+      return;
     }
-  }, [searchParams, setSearchParams]);
+    if (tab === 'inspections') {
+      const newParams = new URLSearchParams(searchParams);
+      const qs = newParams.toString();
+      navigate(qs ? `/dashboard/fleet?${qs}` : '/dashboard/fleet?tab=inspections', { replace: true });
+      return;
+    }
+
+    setActiveTab(tab);
+    const newParams = new URLSearchParams(searchParams);
+    newParams.delete('tab');
+    setSearchParams(newParams, { replace: true });
+  }, [searchParams, setSearchParams, navigate]);
 
   // Handle bookingId URL parameter to auto-open booking details
   useEffect(() => {
@@ -390,9 +400,7 @@ export const BookEnhanced = () => {
         tabs={[
           { id: "overview", label: "Overview", shortLabel: "Home", icon: Car },
           { id: "calendar", label: "Calendar", shortLabel: "Cal", icon: CalendarIcon },
-          { id: "customers", label: "CRM", shortLabel: "CRM", icon: Users },
           { id: "payments", label: "Payments", shortLabel: "Pay", icon: Receipt },
-          { id: "inspections", label: "Inspections", shortLabel: "Check", icon: ClipboardCheck },
         ]}
         defaultValue="overview"
         value={activeTab}
@@ -591,16 +599,8 @@ export const BookEnhanced = () => {
           />
         </TabsContent>
 
-        <TabsContent value="customers">
-          <CRMSection />
-        </TabsContent>
-
         <TabsContent value="payments">
           <PaymentTracker />
-        </TabsContent>
-
-        <TabsContent value="inspections">
-          <InspectionsTab vehicles={vehicles} />
         </TabsContent>
       </ModuleTabs>
       <ConfirmationDialog
