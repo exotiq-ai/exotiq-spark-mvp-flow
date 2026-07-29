@@ -448,7 +448,10 @@ serve(async (req) => {
           const msg = feeErr instanceof Error ? feeErr.message : String(feeErr);
           log("Exotiq leg failed — refunding operator leg", { error: msg });
           try {
-            await stripe.refunds.create({ payment_intent: operatorPi.id });
+            await stripe.refunds.create(
+              { payment_intent: operatorPi.id },
+              { idempotencyKey: `ext-rollback-op-${extension.id}` },
+            );
           } catch (rErr) {
             log("Operator refund attempt failed", {
               error: (rErr as Error).message,
@@ -470,7 +473,10 @@ serve(async (req) => {
         if (exotiqPi.status !== "succeeded") {
           log("Exotiq leg not settled — refunding operator leg");
           try {
-            await stripe.refunds.create({ payment_intent: operatorPi.id });
+            await stripe.refunds.create(
+              { payment_intent: operatorPi.id },
+              { idempotencyKey: `ext-rollback-op-${extension.id}` },
+            );
           } catch (rErr) {
             log("Operator refund attempt failed", { error: (rErr as Error).message });
           }
@@ -489,6 +495,7 @@ serve(async (req) => {
           );
         }
       }
+
 
       // -------- BOTH LEGS OK — bump booking + record payments --------
       const paymentRows: Array<Record<string, unknown>> = [
