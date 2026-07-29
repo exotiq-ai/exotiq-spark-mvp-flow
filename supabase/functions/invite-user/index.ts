@@ -144,6 +144,7 @@ serve(async (req: Request) => {
         token,
         status: "pending",
         team_id: inviterTeam.team_id,
+        full_name: inviteeName,
       })
       .select()
       .single();
