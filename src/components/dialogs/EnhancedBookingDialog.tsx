@@ -589,7 +589,7 @@ export const EnhancedBookingDialog = ({
       )}
 
       <Dialog open={open} onOpenChange={handleDialogClose}>
-        <DialogContent className="sm:max-w-[700px] max-h-[90vh] p-0">
+        <DialogContent className="sm:max-w-[900px] max-h-[90vh] p-0">
           <DialogHeader className="px-6 pt-6 pb-0">
             <div className="flex items-center justify-between">
               <DialogTitle className="text-xl">
