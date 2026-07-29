@@ -61,6 +61,15 @@ export const CRMSection = () => {
     // Default to list view on mobile for better scanability
     return window.innerWidth < 768 ? 'list' : 'cards';
   });
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  const [showCustomerProfile, setShowCustomerProfile] = useState(false);
+  const [showAddCustomer, setShowAddCustomer] = useState(false);
+  const [showNewBooking, setShowNewBooking] = useState(false);
+  const [prefillCustomer, setPrefillCustomer] = useState<Customer | null>(null);
+
+  useEffect(() => {
+    localStorage.setItem('exotiq-crm-view-mode', viewMode);
+  }, [viewMode]);
 
   // Deep-link: auto-open customer profile from URL params
   // Deep-link: auto-open customer profile from URL params
