@@ -683,12 +683,11 @@ export const EnhancedBookingDialog = ({
                   <Button variant="outline" size="sm" onClick={() => setShowChangeVehicle(true)}>
                     <Repeat className="h-3 w-3 mr-1" />Change Vehicle
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => setShowEditBooking(true)}>
-                    <Edit className="h-3 w-3 mr-1" />Edit Booking
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={handleAddToGoogleCalendar}>
-                    <CalendarPlus className="h-3 w-3 mr-1" />Add to Google
-                  </Button>
+                  {(booking.status === "confirmed" || booking.status === "active" || booking.status === "checked_out") && (
+                    <Button variant="outline" size="sm" onClick={() => setShowExtendBooking(true)}>
+                      <Clock className="h-3 w-3 mr-1" />Extend Booking
+                    </Button>
+                  )}
                   
                   {/* Link Customer Button - shown when customer_id is null */}
                   {!booking.customer_id && (
