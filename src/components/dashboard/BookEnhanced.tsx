@@ -32,13 +32,11 @@ import {
   DollarSign,
   Plus,
   Receipt,
-  ClipboardCheck,
   CheckCircle,
   Circle,
   AlertCircle,
   ChevronDown,
-  ChevronUp,
-  Users
+  ChevronUp
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tables } from "@/integrations/supabase/types";
