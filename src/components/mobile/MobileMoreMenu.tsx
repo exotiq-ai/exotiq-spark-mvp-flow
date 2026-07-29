@@ -39,7 +39,7 @@ export const MobileMoreMenu = ({ onAddLocation, activeModule: activeModuleProp, 
   // Intelligence group items
   const intelligenceItems = [
     { id: "motoriq", label: "MotorIQ", description: "AI-powered pricing & demand intelligence", icon: TrendingUp },
-    { id: "core", label: "FleetCopilot™", description: "AI-powered fleet assistant", icon: TrendingUp },
+    { id: "core", label: "FleetCopilot™", description: "AI-powered fleet assistant", icon: Brain },
     { id: "vault", label: "Vault", description: "Documents & Knowledge Base", icon: Shield },
     ...(featureFlags.margin
       ? [{ id: "margin", label: "Margin", description: "Per-vehicle P&L, expenses & partner payouts", icon: DollarSign }]
