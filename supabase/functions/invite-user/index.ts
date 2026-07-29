@@ -86,7 +86,8 @@ serve(async (req: Request) => {
       throw new Error("Could not determine your team. Please contact support.");
     }
 
-    const { email, role, permissions }: InviteRequest = await req.json();
+    const { email, role, permissions, fullName }: InviteRequest = await req.json();
+    const inviteeName = (fullName || "").trim() || null;
 
     if (!email) {
       throw new Error("Email is required");
