@@ -176,10 +176,24 @@ serve(async (req) => {
         : 0;
     const addedPlatformFeeCents = Math.round(addedSubtotalCents * platformFeePct);
 
-    const addedProcessingFeeCents = estimateProcessingFeeCents(addedSubtotalCents);
+    // Protection is per-day and MANDATORY (tier defaults to premium on the
+    // base booking). Read the daily rate from the tier — never derive by
+    // dividing an already-bumped total (Claude review #1).
+    const protectionDailyCents = protectionDailyCentsForTier(booking.protection_tier);
+    const addedProtectionCents = protectionDailyCents * addedDays;
 
-    const addedExotiqLegCents =
-      addedPlatformFeeCents + addedStateFeeCents + addedProcessingFeeCents;
+    // Processing fee estimate is computed on the FULL pre-fee Exotiq leg,
+    // so protection must be added BEFORE the estimate. Matches
+    // public_vehicle_quote's 2% + 2.9% + 30¢ on rental subtotal, plus we
+    // now add protection to what Exotiq is actually charging.
+    const exotiqPreFeeCents =
+      addedPlatformFeeCents + addedStateFeeCents + addedProtectionCents;
+    const addedProcessingFeeCents =
+      Math.round(0.02 * addedSubtotalCents) +
+      Math.round((addedSubtotalCents + addedProtectionCents) * 0.029) +
+      30;
+
+    const addedExotiqLegCents = exotiqPreFeeCents + addedProcessingFeeCents;
     const addedTotalCents = addedSubtotalCents + addedExotiqLegCents;
 
     log("Computed deltas", {
@@ -189,6 +203,7 @@ serve(async (req) => {
       addedStateFeeCents,
       addedProcessingFeeCents,
       addedPlatformFeeCents,
+      addedProtectionCents,
       addedExotiqLegCents,
       addedTotalCents,
     });
@@ -207,8 +222,10 @@ serve(async (req) => {
         added_state_fee_cents: addedStateFeeCents,
         added_processing_fee_cents: addedProcessingFeeCents,
         added_platform_fee_cents: addedPlatformFeeCents,
+        added_protection_cents: addedProtectionCents,
         added_total_cents: addedTotalCents,
         charge_method,
+        channel: typeof channel === "string" ? channel : "phone",
         status: "pending",
       })
       .select()
@@ -217,6 +234,7 @@ serve(async (req) => {
       log("Failed to insert extension row", { error: exErr?.message });
       return json({ error: "Failed to record extension" }, 500);
     }
+
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
     const mode = resolveStripeMode();
