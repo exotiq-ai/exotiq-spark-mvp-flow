@@ -140,14 +140,24 @@ serve(async (req) => {
     const addedDays = daysBetween(prevEnd, newEnd);
     if (addedDays < 1) return json({ error: "Extension must be at least 1 day" }, 400);
 
-    // Availability re-check.
+    // Availability re-check. Status list must match the exclusion constraint on
+    // marketplace bookings — include pending_documents / pending_payment so an
+    // extension can't overlap a hold that's awaiting docs or payment.
     if (booking.vehicle_id) {
       const { data: conflicts } = await db
         .from("bookings")
         .select("id, booking_ref, status, start_date, end_date")
         .eq("vehicle_id", booking.vehicle_id)
         .neq("id", booking.id)
-        .in("status", ["pending", "requested", "confirmed", "active", "checked_out"])
+        .in("status", [
+          "pending",
+          "pending_documents",
+          "pending_payment",
+          "requested",
+          "confirmed",
+          "active",
+          "checked_out",
+        ])
         .lt("start_date", newEnd.toISOString())
         .gt("end_date", prevEnd.toISOString());
       if (conflicts && conflicts.length > 0) {
@@ -174,19 +184,28 @@ serve(async (req) => {
     // Protection is per-day and MANDATORY (tier defaults to premium on the
     // base booking). Read the daily rate from the tier — never derive by
     // dividing an already-bumped total (Claude review #1).
+    // TODO drift-risk: 28900/8900 also live in public_vehicle_quote (RPC) and
+    // src/lib/pricing/totals.ts. Move to a single get_protection_daily_cents
+    // RPC in a follow-up so a reprice can't miss this call site.
     const protectionDailyCents = protectionDailyCentsForTier(booking.protection_tier);
     const addedProtectionCents = protectionDailyCents * addedDays;
 
-    // Processing fee estimate is computed on the FULL pre-fee Exotiq leg,
-    // so protection must be added BEFORE the estimate. Matches
-    // public_vehicle_quote's 2% + 2.9% + 30¢ on rental subtotal, plus we
-    // now add protection to what Exotiq is actually charging.
+    // Processing fee — matches public_vehicle_quote exactly:
+    //   2% platform overhead on rental subtotal
+    // + Stripe 2.9% + 30¢ applied to the EXOTIQ LEG ONLY (platform + state +
+    //   protection + the 2% itself).
+    // Do NOT apply Stripe 2.9% to the rental subtotal here: the rental sits on
+    // a separate destination-charge PI and Stripe's fee on it is already
+    // absorbed by the operator via stripeFeeEstimateCents on the operator leg.
+    // Applying 2.9% again to the rental would double-bill the renter for it.
+    const platformOverheadCents = Math.round(0.02 * addedSubtotalCents);
+    const exotiqPreProcessingCents =
+      addedPlatformFeeCents + addedStateFeeCents + addedProtectionCents + platformOverheadCents;
+    const addedProcessingFeeCents =
+      platformOverheadCents + Math.round(exotiqPreProcessingCents * 0.029) + 30;
     const exotiqPreFeeCents =
       addedPlatformFeeCents + addedStateFeeCents + addedProtectionCents;
-    const addedProcessingFeeCents =
-      Math.round(0.02 * addedSubtotalCents) +
-      Math.round((addedSubtotalCents + addedProtectionCents) * 0.029) +
-      30;
+
 
     const addedExotiqLegCents = exotiqPreFeeCents + addedProcessingFeeCents;
     const addedTotalCents = addedSubtotalCents + addedExotiqLegCents;
