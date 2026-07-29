@@ -26,6 +26,7 @@ import { EditBookingDialog } from "./EditBookingDialog";
 import { isMarketplaceLocked } from "@/lib/bookingEditGuards";
 import { DepositPanel } from "./DepositPanel";
 import { LinkCustomerDialog } from "./LinkCustomerDialog";
+import { ExtendBookingDialog } from "./ExtendBookingDialog";
 import { LinkVehicleDialog } from "./LinkVehicleDialog";
 import { SigningCeremony } from "@/components/signing/SigningCeremony";
 import { DocumentPicker } from "@/components/signing/DocumentPicker";
@@ -116,6 +117,7 @@ export const EnhancedBookingDialog = ({
   const [showMessageDialog, setShowMessageDialog] = useState(false);
   const [showChangeVehicle, setShowChangeVehicle] = useState(false);
   const [showEditBooking, setShowEditBooking] = useState(false);
+  const [showExtendBooking, setShowExtendBooking] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [showLinkCustomer, setShowLinkCustomer] = useState(false);
   const [showLinkVehicle, setShowLinkVehicle] = useState(false);
@@ -585,9 +587,17 @@ export const EnhancedBookingDialog = ({
           onBookingUpdated={refreshData}
         />
       )}
+      <ExtendBookingDialog
+        open={showExtendBooking}
+        onOpenChange={setShowExtendBooking}
+        booking={booking as any}
+        vehicleName={vehicle?.name || (booking as any)?.vehicle_name}
+        defaultRatePerDay={Number(vehicle?.current_rate || 0)}
+        onExtended={refreshData}
+      />
 
       <Dialog open={open} onOpenChange={handleDialogClose}>
-        <DialogContent className="sm:max-w-[700px] max-h-[90vh] p-0">
+        <DialogContent className="sm:max-w-[900px] max-h-[90vh] p-0">
           <DialogHeader className="px-6 pt-6 pb-0">
             <div className="flex items-center justify-between">
               <DialogTitle className="text-xl">
@@ -599,6 +609,17 @@ export const EnhancedBookingDialog = ({
                 )}
               </DialogTitle>
               <div className="flex items-center gap-2">
+                {!isEditMode && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleAddToGoogleCalendar}
+                    className="h-7 w-7"
+                    title="Add to Google Calendar"
+                  >
+                    <CalendarPlus className="h-4 w-4" />
+                  </Button>
+                )}
                 {!isEditMode && !isMarketplaceLocked(booking as any) && (
                   <Button 
                     variant="outline" 
@@ -670,12 +691,11 @@ export const EnhancedBookingDialog = ({
                   <Button variant="outline" size="sm" onClick={() => setShowChangeVehicle(true)}>
                     <Repeat className="h-3 w-3 mr-1" />Change Vehicle
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => setShowEditBooking(true)}>
-                    <Edit className="h-3 w-3 mr-1" />Edit Booking
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={handleAddToGoogleCalendar}>
-                    <CalendarPlus className="h-3 w-3 mr-1" />Add to Google
-                  </Button>
+                  {(booking.status === "confirmed" || booking.status === "active" || booking.status === "checked_out") && (
+                    <Button variant="outline" size="sm" onClick={() => setShowExtendBooking(true)}>
+                      <Clock className="h-3 w-3 mr-1" />Extend Booking
+                    </Button>
+                  )}
                   
                   {/* Link Customer Button - shown when customer_id is null */}
                   {!booking.customer_id && (
