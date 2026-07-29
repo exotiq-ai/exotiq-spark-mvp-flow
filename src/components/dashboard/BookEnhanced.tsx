@@ -585,16 +585,8 @@ export const BookEnhanced = () => {
           />
         </TabsContent>
 
-        <TabsContent value="customers">
-          <CRMSection />
-        </TabsContent>
-
         <TabsContent value="payments">
           <PaymentTracker />
-        </TabsContent>
-
-        <TabsContent value="inspections">
-          <InspectionsTab vehicles={vehicles} />
         </TabsContent>
       </ModuleTabs>
       <ConfirmationDialog
