@@ -33,6 +33,7 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { SkeletonVehicleCard } from '@/components/ui/skeleton-specialized';
 import { ModuleTabs, TabsContent } from '@/components/common/ModuleTabs';
 import { PhotoHubTab } from '@/components/photos/PhotoHubTab';
+import { InspectionsTab } from '@/components/dashboard/InspectionsTab';
 import {
   Car,
   Smartphone,
@@ -43,6 +44,7 @@ import {
   Upload,
   Trash2,
   Wrench,
+  ClipboardCheck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSearchParams } from 'react-router-dom';
