@@ -96,7 +96,8 @@ serve(async (req) => {
         "id, booking_ref, status, booking_source, paid_at, team_id, user_id, " +
         "operator_payment_intent_id, exotiq_payment_intent_id, payment_stripe_mode, " +
         "customer_email, customer_name, start_date, end_date, pickup_location, " +
-        "total_value, platform_fee_cents, protection_total_cents, vehicle_id, vehicle_name",
+        "total_value, platform_fee_cents, protection_total_cents, state_fee_cents, processing_fee_cents, vehicle_id, vehicle_name",
+
       )
       .eq("booking_ref", bookingRef)
       .eq("booking_source", "marketplace")
