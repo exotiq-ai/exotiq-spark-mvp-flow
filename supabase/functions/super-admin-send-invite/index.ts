@@ -27,26 +27,32 @@ serve(async (req: Request) => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("No authorization header");
 
-    // Verify caller is a super admin
-    const supabaseUser = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const { data: { user }, error: userError } = await supabaseUser.auth.getUser();
-    if (userError || !user) throw new Error("Unauthorized");
-
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { data: superAdmin, error: superAdminError } = await supabaseAdmin
-      .from("super_admins")
-      .select("user_id")
-      .eq("user_id", user.id)
-      .maybeSingle();
+    // Allow direct service-role invocation (used by tooling); otherwise require
+    // that the caller's JWT belongs to a super admin.
+    const bearer = authHeader.replace(/^Bearer\s+/i, "").trim();
+    const isServiceRole = bearer === supabaseServiceKey;
 
-    if (superAdminError) {
-      console.error("super_admins lookup failed:", superAdminError);
-      throw new Error("Permission check failed");
+    if (!isServiceRole) {
+      const supabaseUser = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const { data: { user }, error: userError } = await supabaseUser.auth.getUser();
+      if (userError || !user) throw new Error("Unauthorized");
+
+      const { data: superAdmin, error: superAdminError } = await supabaseAdmin
+        .from("super_admins")
+        .select("user_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (superAdminError) {
+        console.error("super_admins lookup failed:", superAdminError);
+        throw new Error("Permission check failed");
+      }
+      if (!superAdmin) throw new Error("Only super admins can call this function");
     }
-    if (!superAdmin) throw new Error("Only super admins can call this function");
 
     const { invitation_id, app_origin }: SendRequest = await req.json();
     if (!invitation_id) throw new Error("invitation_id is required");
