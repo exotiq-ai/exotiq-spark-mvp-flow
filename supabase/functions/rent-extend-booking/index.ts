@@ -529,11 +529,17 @@ serve(async (req) => {
         const msg = bumpErr instanceof Error ? bumpErr.message : String(bumpErr);
         log("Booking bump failed after both charges — refunding both legs", { error: msg });
         try {
-          await stripe.refunds.create({ payment_intent: operatorPi.id });
+          await stripe.refunds.create(
+            { payment_intent: operatorPi.id },
+            { idempotencyKey: `ext-rollback-op-${extension.id}` },
+          );
         } catch (_) { /* noop */ }
         if (exotiqPi) {
           try {
-            await stripe.refunds.create({ payment_intent: exotiqPi.id });
+            await stripe.refunds.create(
+              { payment_intent: exotiqPi.id },
+              { idempotencyKey: `ext-rollback-exotiq-${extension.id}` },
+            );
           } catch (_) { /* noop */ }
         }
         await markFailed(`Booking update failed after charges; both refunded: ${msg}`, {
@@ -542,6 +548,7 @@ serve(async (req) => {
         });
         return json({ error: "Booking update failed after charges; both refunded" }, 500);
       }
+
 
       await db
         .from("booking_extensions")
