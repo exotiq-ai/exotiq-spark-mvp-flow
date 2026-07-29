@@ -56,7 +56,10 @@ export const CRMSection = () => {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [viewMode, setViewMode] = useState<'cards' | 'list'>(() => {
     if (typeof window === 'undefined') return 'cards';
-    return (localStorage.getItem('exotiq-crm-view-mode') as 'cards' | 'list') || 'cards';
+    const stored = localStorage.getItem('exotiq-crm-view-mode') as 'cards' | 'list' | null;
+    if (stored) return stored;
+    // Default to list view on mobile for better scanability
+    return window.innerWidth < 768 ? 'list' : 'cards';
   });
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [showCustomerProfile, setShowCustomerProfile] = useState(false);
@@ -196,26 +199,26 @@ export const CRMSection = () => {
   return (
     <div className="space-y-6">
       {/* CRM Overview Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card className="card-premium p-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6">
+        <Card className="card-premium p-4 md:p-6">
           <div className="flex items-center justify-between mb-2">
             <Users className="h-5 w-5 text-primary" />
             <TrendingUp className="h-4 w-4 text-success" />
           </div>
-          <div className="text-2xl font-bold">{customers.length}</div>
-          <div className="text-sm text-muted-foreground">Total Customers</div>
+          <div className="text-xl md:text-2xl font-bold">{customers.length}</div>
+          <div className="text-xs md:text-sm text-muted-foreground">Total Customers</div>
         </Card>
 
-        <Card className="card-premium p-6">
+        <Card className="card-premium p-4 md:p-6">
           <div className="flex items-center justify-between mb-2">
             <Star className="h-5 w-5 text-primary" />
             <Badge className="bg-primary/10 text-primary">{vipCustomers.length}</Badge>
           </div>
-          <div className="text-2xl font-bold">{Math.round((vipCustomers.length / Math.max(customers.length, 1)) * 100)}%</div>
-          <div className="text-sm text-muted-foreground">VIP Customers</div>
+          <div className="text-xl md:text-2xl font-bold">{Math.round((vipCustomers.length / Math.max(customers.length, 1)) * 100)}%</div>
+          <div className="text-xs md:text-sm text-muted-foreground">VIP Customers</div>
         </Card>
 
-        <Card className="card-premium p-6">
+        <Card className="card-premium p-4 md:p-6">
           <div className="flex items-center justify-between mb-2">
             {revenueGrowth !== null && revenueGrowth >= 0 ? (
               <TrendingUp className="h-5 w-5 text-success" />
@@ -230,25 +233,25 @@ export const CRMSection = () => {
               </span>
             )}
           </div>
-          <div className="text-2xl font-bold">{formatCurrency(totalRevenue)}</div>
-          <div className="text-sm text-muted-foreground">Total CLV</div>
+          <div className="text-xl md:text-2xl font-bold truncate">{formatCurrency(totalRevenue)}</div>
+          <div className="text-xs md:text-sm text-muted-foreground">Total CLV</div>
         </Card>
 
-        <Card className="card-premium p-6">
+        <Card className="card-premium p-4 md:p-6">
           <div className="flex items-center justify-between mb-2">
             <Users className="h-5 w-5 text-accent" />
             <TrendingUp className="h-4 w-4 text-success" />
           </div>
-          <div className="text-2xl font-bold">{avgBookings}</div>
-          <div className="text-sm text-muted-foreground">Avg Bookings/Customer</div>
+          <div className="text-xl md:text-2xl font-bold">{avgBookings}</div>
+          <div className="text-xs md:text-sm text-muted-foreground">Avg Bookings/Customer</div>
         </Card>
       </div>
 
       {/* Customer List */}
-      <Card className="card-premium p-6">
-        <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
-          <h3 className="text-xl font-semibold">Customer Database</h3>
-          <div className="flex items-center gap-2">
+      <Card className="card-premium p-4 md:p-6">
+        <div className="flex items-center justify-between mb-4 md:mb-6 flex-wrap gap-3">
+          <h3 className="text-lg md:text-xl font-semibold">Customer Database</h3>
+          <div className="flex items-center gap-2 flex-wrap">
             <ToggleGroup
               type="single"
               value={viewMode}
@@ -257,21 +260,21 @@ export const CRMSection = () => {
               size="sm"
             >
               <ToggleGroupItem value="cards" aria-label="Cards view">
-                <LayoutGrid className="w-4 h-4 mr-1" />
-                Cards
+                <LayoutGrid className="w-4 h-4 sm:mr-1" />
+                <span className="hidden sm:inline">Cards</span>
               </ToggleGroupItem>
               <ToggleGroupItem value="list" aria-label="List view">
-                <List className="w-4 h-4 mr-1" />
-                List
+                <List className="w-4 h-4 sm:mr-1" />
+                <span className="hidden sm:inline">List</span>
               </ToggleGroupItem>
             </ToggleGroup>
             <Button variant="outline" size="sm" onClick={handleExport} disabled={customers.length === 0}>
-              <Download className="w-4 h-4 mr-2" />
-              Export
+              <Download className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Export</span>
             </Button>
-            <Button onClick={() => setShowAddCustomer(true)} className="btn-premium">
-              <Plus className="w-4 h-4 mr-2" />
-              Add Customer
+            <Button onClick={() => setShowAddCustomer(true)} className="btn-premium" size="sm">
+              <Plus className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Add Customer</span>
             </Button>
           </div>
         </div>

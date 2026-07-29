@@ -1,60 +1,78 @@
-## Extend Booking — Claude review v3 fixes
+## Mobile & Tablet UI Sweep
 
-Two blockers (money bug + missing consent email) plus three smaller items. Ship in this order; E2E last.
-
----
-
-### Blocker 1 — Processing fee overcharge (money bug)
-
-**Current (wrong):** 2.9% is applied to `addedSubtotalCents + addedProtectionCents` — the rental subtotal is billed to the renter here AND already absorbed by the operator through the destination-charge Stripe fee. Renter pays Stripe on rental twice. Verified against BK-03459: 2881¢ correct vs 5033¢ shipped, ~$21.52/day overcharge.
-
-**Fix in `supabase/functions/rent-extend-booking/index.ts`** (~line 191):
-
-```
-addedProcessingFeeCents =
-  Math.round(0.02 * addedSubtotalCents) +
-  Math.round((addedPlatformFeeCents + addedStateFeeCents + addedProtectionCents + Math.round(0.02 * addedSubtotalCents)) * 0.029) +
-  30
-```
-
-i.e. 2% flat platform commission on rental + Stripe 2.9%+30¢ applied to the **Exotiq leg only** (platform + state + protection + the 2% itself). Matches `public_vehicle_quote` reconstruction (39689 → 1181 → 2881).
-
-Also delete the dead & wrong `estimateProcessingFeeCents` helper.
-
-### Blocker 2 — Renter consent email
-
-`rent-extend-booking` never calls `sendRenterEmail`. Two off-session charges land silently → chargeback + no written consent trail.
-
-**Fix:**
-1. Add `bookingExtended` template to `supabase/functions/send-renter-email/templates.ts` + type union in `_shared/rentEmail.ts`. Content: extension summary (added days, new return date, itemized breakdown, both charge amounts, operator name, "if you did not authorize this, reply immediately").
-2. In `rent-extend-booking` after `applyBookingBump` succeeds on the `card_on_file` path, call `sendRenterEmail({ templateName: "bookingExtended", idempotencyKey: \`ext-${extension.id}\`, ... })`. Failure to send emails must NOT reverse the charge — log and continue.
-3. Resolve reply-to via `resolveRenterReplyTo(team.support_email)`.
+Goal: on every viewport (375 / 414 / 768 / 1024), nothing spills the frame, every sheet/dialog scrolls internally, and recently-changed surfaces (Booking + Extend dialogs, Customers, Mobile More menu) feel right on a phone.
 
 ---
 
-### Smaller items
+### 1. Mobile "More" sheet — scrollable + Customers reachable
 
-**S1 — Availability status list.** Line 155: add `pending_documents` and `pending_payment` to the `.in("status", [...])` list so extensions can't overlap holds/awaiting-payment bookings.
+`src/components/mobile/MobileMoreMenu.tsx`
 
-**S2 — Row lock on the booking during extend.** Currently `SELECT → charge → UPDATE` with no lock: two concurrent extensions both pass the availability check and both charge. Wrap the booking read + availability check + insert in an RPC `begin_booking_extension(booking_id, new_end_date)` that does `SELECT ... FOR UPDATE` on the booking row and re-validates status ∈ {confirmed, active, checked_out} before returning the snapshot the function uses to charge. Prevents both the concurrent-extend race and the "renter cancels mid-extension" race (review item 6).
+- Sheet content is currently a fixed `SheetContent side="bottom"` with `pb-8 pt-2 px-4` — no max-height, no overflow. On short phones the Management + Secondary items get pushed off-screen and Customers isn't tappable.
+- Fix:
+  - Wrap `SheetContent` with `max-h-[85vh] flex flex-col`.
+  - Move header + location selector into a non-scrolling top region.
+  - Wrap `menuItems` + `secondaryItems` in a single `overflow-y-auto overscroll-contain flex-1 -mx-4 px-4` scroll region.
+  - Add `Customers` to the menu (it's currently missing from `operationsItems` — that's why the user can't reach it) and drop the duplicate `TrendingUp` icon on FleetCopilot (use `Brain`).
+  - Ensure `isActive` list includes `"customers"`.
 
-**S3 — Protection rate drift (3rd copy).** `protectionDailyCentsForTier` restates rates that already live in `public_vehicle_quote` and `totals.ts`. Read the rate from the quote: extend the RPC (or add a small `get_protection_daily_cents(tier)` SQL function) and call it from the edge function instead of hardcoding. Fallback to the current constants only if the RPC fails, and log a warning.
+### 2. Customers module — mobile defaults + top-card sizing
 
-**S4 — Idempotency keys on failure-path refunds.** In `rent-extend-booking` rollback branches, pass `idempotencyKey: \`ext-rollback-op-${extension.id}\`` / `ext-rollback-exotiq-${extension.id}\`` to the `refunds.create` calls, matching the pattern used in `rent-cancel-booking`.
+`src/components/dashboard/CRMSection.tsx`, `src/components/dashboard/CustomerListRow.tsx`
 
----
+- Default `viewMode` to `list` on mobile (first-load only, still user-overridable and still persisted):
+  - Use `useIsMobile()`; if no stored preference and mobile, initialize to `'list'`.
+- Top KPI/highlight cards: switch the grid to `grid-cols-2 gap-3 md:grid-cols-4`, shrink numbers to `text-xl md:text-2xl`, tighten padding `p-3 md:p-5`, truncate labels.
+- Toggle group + search + filter row: stack to `flex-col gap-2 sm:flex-row`, make search full-width on mobile.
+- Cards grid: `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3` so nothing overflows at 375.
+- `CustomerListRow`: enforce single-line truncation on name/email columns; hide low-priority columns under `sm:` / `md:` breakpoints so the row fits without horizontal scroll.
+- `CustomerProfileDialog`: `max-w-[calc(100vw-1rem)] sm:max-w-2xl`, body `max-h-[85vh] overflow-y-auto`, sticky header.
 
-### E2E (after fixes only)
+### 3. Booking + Extend dialogs — fit-to-screen
 
-Operator extends BK-03459 by 1 day in the Command Center. Claude verifies from DB + Stripe:
-- Both PIs, amounts vs quote formula (expect 2881¢ processing, not 5033¢)
-- `bookings` snapshot bumps (`total_value`, `platform_fee_cents`, `state_fee_cents`, `processing_fee_cents`, `protection_total_cents`)
-- `booking_extensions` row status = `paid`
-- Renter received `bookingExtended` email
-- Then cancel in free window → confirm both base legs AND both extension legs refunded (4 PIs total)
+`src/components/dialogs/EnhancedBookingDialog.tsx`, `src/components/dialogs/ExtendBookingDialog.tsx`
+
+- Current width is 900px — on tablets and small laptops this butts the edges; on mobile it overflows.
+- Change to `w-[95vw] max-w-[900px] max-h-[90vh] flex flex-col`, body region `flex-1 overflow-y-auto`, header + footer sticky.
+- Tab strip: `overflow-x-auto` with `flex-nowrap` so 4-5 tabs scroll horizontally instead of wrapping ugly.
+- Header icon row (Edit, Calendar-add, Close): collapse labels to icon-only under `sm:`, add `aria-label`s.
+- Extend dialog line-items: switch two-column receipt to single column stacked under `sm:`.
+
+### 4. Booking calendar day popover — already scrollable, verify
+
+`src/components/dashboard/BookingCalendar.tsx` (previously fixed). Re-verify at 375/414 that:
+- Popover `max-h-[70vh] overflow-y-auto` still applies.
+- Reservation cards use `min-w-0` + truncation so long vehicle names don't push width.
+
+### 5. Global sweep — dialogs, sheets, cards
+
+Repo-wide pass with a small checklist applied per surface:
+- `DialogContent`: `max-w-[calc(100vw-1rem)]`, `max-h-[90vh]`, body `overflow-y-auto`.
+- `SheetContent side="bottom"`: `max-h-[85vh]`, internal scroll region.
+- Horizontal card rows/tables: `overflow-x-auto` on the wrapper, `min-w-0` on flex children with truncation.
+- Any hardcoded `w-[...px]` over 360 gets a `max-w-[calc(100vw-1rem)]` sibling.
+
+Surfaces to walk (based on recent changes):
+- `FleetPageEnhanced` (Inspections tab moved in)
+- `PaymentTracker`, `PaymentsSection`
+- `VaultEnhanced`, `MarginEnhanced` (VehiclePnLTable already tightened — re-check phone)
+- `DashboardBottomActionBar` — make sure it never overlaps the More sheet
+- `RariSidebar` on mobile
+
+### 6. Verification (Playwright, headless)
+
+Script drives localhost at three viewports: 375×812 (iPhone), 768×1024 (iPad portrait), 1024×1366 (iPad landscape). For each:
+- Open More menu → confirm Customers is visible + tappable, scroll to bottom of sheet.
+- Navigate to Customers → confirm list view is default on 375, cards on 1024.
+- Open a customer → dialog fits, scrolls.
+- Open a booking → Booking + Extend dialogs fit, tabs scroll horizontally, no body clipping.
+- Screenshot each state, view screenshots, confirm no clipped content.
+
+### Out of scope
+- No business-logic changes (extension math, RLS, edge functions untouched).
+- No visual redesign — spacing, sizing, and scroll only.
 
 ### Technical notes
-
-- Do NOT deploy edge functions until all four fixes are in one push (fee math + email + status list + idempotency). S2 requires a migration for the RPC — that lands first, then the edge function switches to use it.
-- S3 can ship in the same edge deploy if the RPC is trivial; otherwise defer S3 to a follow-up and leave a `// TODO drift-risk` comment referencing the two other locations.
-- No UI changes needed; `ExtendBookingDialog` already computes the same processing formula client-side for the preview — it needs the same fix to keep the preview equal to the server (edit `src/components/dialogs/ExtendBookingDialog.tsx` line ~93 in parallel).
+- Prefer Tailwind responsive prefixes over JS branching; only use `useIsMobile()` where behavior differs (view-mode default, header collapse).
+- Preserve existing `data-testid` selectors used by Playwright tests.
+- Keep semantic tokens (no hardcoded colors).
