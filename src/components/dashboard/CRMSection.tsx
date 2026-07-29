@@ -56,17 +56,11 @@ export const CRMSection = () => {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [viewMode, setViewMode] = useState<'cards' | 'list'>(() => {
     if (typeof window === 'undefined') return 'cards';
-    return (localStorage.getItem('exotiq-crm-view-mode') as 'cards' | 'list') || 'cards';
+    const stored = localStorage.getItem('exotiq-crm-view-mode') as 'cards' | 'list' | null;
+    if (stored) return stored;
+    // Default to list view on mobile for better scanability
+    return window.innerWidth < 768 ? 'list' : 'cards';
   });
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
-  const [showCustomerProfile, setShowCustomerProfile] = useState(false);
-  const [showAddCustomer, setShowAddCustomer] = useState(false);
-  const [showNewBooking, setShowNewBooking] = useState(false);
-  const [prefillCustomer, setPrefillCustomer] = useState<Customer | null>(null);
-
-  useEffect(() => {
-    localStorage.setItem('exotiq-crm-view-mode', viewMode);
-  }, [viewMode]);
 
   // Deep-link: auto-open customer profile from URL params
   // Deep-link: auto-open customer profile from URL params
