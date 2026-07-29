@@ -126,6 +126,8 @@ export const FleetPageEnhanced = () => {
     const taskId = searchParams.get('taskId');
     
     if (tab === 'maintenance') setActiveTab('maintenance');
+    if (tab === 'inspections') setActiveTab('inspections');
+    if (tab === 'photos') setActiveTab('photos');
     if (taskId && tasks.length > 0) {
       const task = tasks.find(t => t.id === taskId);
       if (task) setSelectedTask(task);
