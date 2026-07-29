@@ -246,8 +246,23 @@ serve(async (req) => {
       .single();
     if (exErr || !extension) {
       log("Failed to insert extension row", { error: exErr?.message });
+      // 23505 = unique_violation on booking_extensions_one_pending_per_booking:
+      // another extension is already in flight for this booking. Concurrent
+      // charge race (Claude review S2) — surface a clear 409 so the operator
+      // waits/retries instead of double-charging.
+      const code = (exErr as { code?: string } | null)?.code;
+      if (code === "23505") {
+        return json(
+          {
+            error:
+              "Another extension is already being processed for this booking. Please wait a moment and try again.",
+          },
+          409,
+        );
+      }
       return json({ error: "Failed to record extension" }, 500);
     }
+
 
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
