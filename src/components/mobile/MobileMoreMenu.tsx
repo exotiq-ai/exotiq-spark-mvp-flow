@@ -11,6 +11,7 @@ import {
   HelpCircle,
   ChevronRight,
   TrendingUp,
+  Brain,
   BarChart3,
   Car,
   DollarSign,
