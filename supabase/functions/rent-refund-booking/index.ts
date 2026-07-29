@@ -96,7 +96,8 @@ serve(async (req) => {
         "id, booking_ref, status, booking_source, paid_at, team_id, user_id, " +
         "operator_payment_intent_id, exotiq_payment_intent_id, payment_stripe_mode, " +
         "customer_email, customer_name, start_date, end_date, pickup_location, " +
-        "total_value, platform_fee_cents, protection_total_cents, vehicle_id, vehicle_name",
+        "total_value, platform_fee_cents, protection_total_cents, state_fee_cents, processing_fee_cents, vehicle_id, vehicle_name",
+
       )
       .eq("booking_ref", bookingRef)
       .eq("booking_source", "marketplace")
@@ -137,8 +138,37 @@ serve(async (req) => {
       reverseTransfer: false,
       idempotencyKey: `op-refund-exotiq-${booking.booking_ref}`,
     });
-    if (!rentalOk || !exotiqOk) {
-      return json({ error: "Refund partially failed — retry (idempotent) or resolve in the Stripe dashboard", rentalOk, exotiqOk }, 502);
+
+    // Walk booking_extensions and refund each captured row's two legs.
+    // Ops-initiated refund is all-or-nothing → always refund extensions.
+    const { data: extensions } = await admin
+      .from("booking_extensions")
+      .select("id, operator_payment_intent_id, exotiq_payment_intent_id")
+      .eq("booking_id", booking.id)
+      .in("status", ["paid", "partially_paid"]);
+
+    let extensionsOk = true;
+    for (const ext of extensions ?? []) {
+      const extOpOk = await refundLeg(stripe, ext.operator_payment_intent_id, {
+        reverseTransfer: true,
+        idempotencyKey: `op-refund-ext-op-${ext.id}`,
+      });
+      const extFeeOk = await refundLeg(stripe, ext.exotiq_payment_intent_id, {
+        reverseTransfer: false,
+        idempotencyKey: `op-refund-ext-exotiq-${ext.id}`,
+      });
+      if (extOpOk && extFeeOk) {
+        await admin
+          .from("booking_extensions")
+          .update({ status: "refunded" })
+          .eq("id", ext.id);
+      } else {
+        extensionsOk = false;
+      }
+    }
+
+    if (!rentalOk || !exotiqOk || !extensionsOk) {
+      return json({ error: "Refund partially failed — retry (idempotent) or resolve in the Stripe dashboard", rentalOk, exotiqOk, extensionsOk }, 502);
     }
 
     const { error: updateError } = await admin
@@ -146,6 +176,7 @@ serve(async (req) => {
       .update({ status: "refunded" })
       .eq("id", booking.id);
     if (updateError) throw updateError;
+
 
     if (booking.customer_email) {
       try {
@@ -161,10 +192,16 @@ serve(async (req) => {
           .maybeSingle();
         const currency = team?.currency ?? "USD";
         const timezone = team?.timezone ?? "UTC";
+        // Booking columns include any extension bumps by this point.
         const rentalAmount = Number(booking.total_value ?? 0);
         const exotiqAmount =
-          (Number(booking.platform_fee_cents ?? 0) + Number(booking.protection_total_cents ?? 0)) / 100;
+          (Number(booking.platform_fee_cents ?? 0) +
+            Number(booking.protection_total_cents ?? 0) +
+            Number((booking as { state_fee_cents?: number }).state_fee_cents ?? 0) +
+            Number((booking as { processing_fee_cents?: number }).processing_fee_cents ?? 0)) /
+          100;
         const totalPaid = rentalAmount + exotiqAmount;
+
 
         const vehicleName = booking.vehicle_name || "Vehicle";
         const vehicleShort = shortVehicleName(vehicleName);

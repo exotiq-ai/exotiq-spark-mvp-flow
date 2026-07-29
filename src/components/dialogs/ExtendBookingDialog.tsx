@@ -24,6 +24,8 @@ interface ExtendBookingDialogProps {
     total_value?: number | null;
     operator_payment_intent_id?: string | null;
     platform_fee_cents?: number | null;
+    protection_tier?: string | null;
+    protection_total_cents?: number | null;
   } | null;
   vehicleName?: string;
   defaultRatePerDay: number; // dollars/day
@@ -32,9 +34,18 @@ interface ExtendBookingDialogProps {
 
 const STATE_FEE_CENTS_PER_DAY = 589;
 
-function estimateProcessingFeeCents(subtotalCents: number): number {
-  return Math.round(0.02 * subtotalCents) + Math.round(subtotalCents * 0.029) + 30;
+// Mirrors public_vehicle_quote / rent-extend-booking.
+function protectionDailyCentsForTier(tier: string | null | undefined): number {
+  switch ((tier ?? "premium").toLowerCase()) {
+    case "premium":
+      return 28900;
+    case "standard":
+      return 8900;
+    default:
+      return 0;
+  }
 }
+
 
 export function ExtendBookingDialog({
   open,
@@ -64,8 +75,27 @@ export function ExtendBookingDialog({
   const rateNum = Math.max(0, Number(ratePerDay) || 0);
   const addedSubtotal = rateNum * addedDays;
   const addedStateFee = (STATE_FEE_CENTS_PER_DAY * addedDays) / 100;
-  const addedProcessingFee = estimateProcessingFeeCents(Math.round(addedSubtotal * 100)) / 100;
-  const addedTotal = addedSubtotal + addedStateFee + addedProcessingFee;
+
+  // Platform fee % derived from the original booking snapshot so extensions
+  // charge the same rate the renter agreed to at checkout.
+  const originalRental = Number(booking?.total_value ?? 0);
+  const originalPlatformCents = Number(booking?.platform_fee_cents ?? 0);
+  const platformFeePct =
+    originalRental > 0 ? originalPlatformCents / (originalRental * 100) : 0.10;
+  const addedPlatformFee = addedSubtotal * platformFeePct;
+
+  // Protection: read rate from the tier (do NOT derive from bumped totals).
+  const protectionDaily = protectionDailyCentsForTier(booking?.protection_tier) / 100;
+  const addedProtection = protectionDaily * addedDays;
+
+  // Processing = 2% of (rental+protection subtotal) + Stripe 2.9% + $0.30
+  const processingBaseCents = Math.round((addedSubtotal + addedProtection) * 100);
+  const addedProcessingFee =
+    (Math.round(0.02 * processingBaseCents) + Math.round(processingBaseCents * 0.029) + 30) / 100;
+
+  const addedTotal =
+    addedSubtotal + addedStateFee + addedPlatformFee + addedProtection + addedProcessingFee;
+
 
   const canSubmit = addedDays > 0 && rateNum > 0 && !submitting;
 
@@ -169,6 +199,22 @@ export function ExtendBookingDialog({
               </div>
               <div className="space-y-1 pt-1 border-t">
                 <div className="text-xs uppercase tracking-wide text-muted-foreground">Fees</div>
+                {addedPlatformFee > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">
+                      Platform fee ({(platformFeePct * 100).toFixed(1)}%)
+                    </span>
+                    <span>{fmt(addedPlatformFee)}</span>
+                  </div>
+                )}
+                {addedProtection > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">
+                      Protection · {booking?.protection_tier ?? "premium"} (+{addedDays}d)
+                    </span>
+                    <span>{fmt(addedProtection)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">State rental fee</span>
                   <span>{fmt(addedStateFee)}</span>
@@ -178,6 +224,7 @@ export function ExtendBookingDialog({
                   <span>{fmt(addedProcessingFee)}</span>
                 </div>
               </div>
+
               <div className="flex justify-between pt-1.5 border-t font-semibold">
 
                 <span>Balance due</span>

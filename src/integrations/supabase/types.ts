@@ -212,10 +212,12 @@ export type Database = {
           added_days: number
           added_platform_fee_cents: number
           added_processing_fee_cents: number
+          added_protection_cents: number
           added_state_fee_cents: number
           added_subtotal_cents: number
           added_total_cents: number
           booking_id: string
+          channel: string | null
           charge_method: string
           created_at: string
           exotiq_payment_intent_id: string | null
@@ -236,10 +238,12 @@ export type Database = {
           added_days: number
           added_platform_fee_cents?: number
           added_processing_fee_cents?: number
+          added_protection_cents?: number
           added_state_fee_cents?: number
           added_subtotal_cents?: number
           added_total_cents?: number
           booking_id: string
+          channel?: string | null
           charge_method: string
           created_at?: string
           exotiq_payment_intent_id?: string | null
@@ -260,10 +264,12 @@ export type Database = {
           added_days?: number
           added_platform_fee_cents?: number
           added_processing_fee_cents?: number
+          added_protection_cents?: number
           added_state_fee_cents?: number
           added_subtotal_cents?: number
           added_total_cents?: number
           booking_id?: string
+          channel?: string | null
           charge_method?: string
           created_at?: string
           exotiq_payment_intent_id?: string | null
@@ -6212,9 +6218,11 @@ export type Database = {
           paid_at: string
           payment_due_at: string
           platform_fee_cents: number
+          processing_fee_cents: number
           protection_tier: string
           protection_total_cents: number
           start_at: string
+          state_fee_cents: number
           status: string
           team_name: string
           team_slug: string

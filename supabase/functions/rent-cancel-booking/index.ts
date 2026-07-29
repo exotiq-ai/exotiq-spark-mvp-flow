@@ -105,7 +105,9 @@ serve(async (req) => {
       .select(
         "id, booking_ref, status, booking_source, confirmation_token, start_date, end_date, paid_at, " +
         "customer_email, customer_name, pickup_location, total_value, platform_fee_cents, protection_total_cents, " +
+        "state_fee_cents, processing_fee_cents, " +
         "operator_payment_intent_id, exotiq_payment_intent_id, user_id, team_id, vehicle_id, vehicle_name",
+
       )
       .eq("booking_ref", bookingRef)
       .eq("booking_source", "marketplace")
@@ -129,6 +131,7 @@ serve(async (req) => {
     );
 
     let refunded = false;
+    let extensionRefundTotalCents = 0;
     if (paid && inFreeWindow) {
       const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, { apiVersion: "2025-08-27.basil" });
       const mode = resolveStripeMode();
@@ -140,7 +143,39 @@ serve(async (req) => {
         reverseTransfer: false,
         idempotencyKey: `cancel-exotiq-${booking.booking_ref}`,
       });
-      if (!rentalOk || !exotiqOk) {
+
+      // Walk booking_extensions and refund both legs of each captured row.
+      // Without this, extension charges are stranded on the renter's card.
+      // Component-by-component forfeit does NOT apply here — we are in the
+      // free window, so everything refunds.
+      const { data: extensions } = await admin
+        .from("booking_extensions")
+        .select("id, operator_payment_intent_id, exotiq_payment_intent_id, added_total_cents")
+        .eq("booking_id", booking.id)
+        .in("status", ["paid", "partially_paid"]);
+
+      let extensionsOk = true;
+      for (const ext of extensions ?? []) {
+        const extOpOk = await refundLeg(stripe, ext.operator_payment_intent_id, {
+          reverseTransfer: true,
+          idempotencyKey: `cancel-ext-op-${ext.id}`,
+        });
+        const extFeeOk = await refundLeg(stripe, ext.exotiq_payment_intent_id, {
+          reverseTransfer: false,
+          idempotencyKey: `cancel-ext-exotiq-${ext.id}`,
+        });
+        if (extOpOk && extFeeOk) {
+          extensionRefundTotalCents += Number(ext.added_total_cents ?? 0);
+          await admin
+            .from("booking_extensions")
+            .update({ status: "refunded" })
+            .eq("id", ext.id);
+        } else {
+          extensionsOk = false;
+        }
+      }
+
+      if (!rentalOk || !exotiqOk || !extensionsOk) {
         // Partial refund state: do NOT flip the status; surface for ops and
         // let the renter retry (idempotency keys make retries safe).
         try {
@@ -148,13 +183,14 @@ serve(async (req) => {
             user_id: booking.user_id,
             team_id: booking.team_id,
             action: "renter_cancel_refund_failed",
-            details: { booking_ref: booking.booking_ref, rentalOk, exotiqOk, mode },
+            details: { booking_ref: booking.booking_ref, rentalOk, exotiqOk, extensionsOk, mode },
           });
         } catch (_) { /* telemetry only */ }
         return json({ error: "Refund could not be completed — please try again or contact support" }, 502);
       }
       refunded = true;
     }
+
     if (paid && !inFreeWindow) {
       // M6-D5/D7: inside 72h everything is forfeit. The frontend warns
       // before submitting; enforce a second explicit acknowledgement here.
@@ -185,10 +221,17 @@ serve(async (req) => {
           .maybeSingle();
         const currency = team?.currency ?? "USD";
         const timezone = team?.timezone ?? "UTC";
+        // total_value and fee columns already reflect any extension bumps
+        // (rent-extend-booking updates them on both-legs success).
         const rentalAmount = Number(booking.total_value ?? 0);
         const exotiqAmount =
-          (Number(booking.platform_fee_cents ?? 0) + Number(booking.protection_total_cents ?? 0)) / 100;
+          (Number(booking.platform_fee_cents ?? 0) +
+            Number(booking.protection_total_cents ?? 0) +
+            Number((booking as { state_fee_cents?: number }).state_fee_cents ?? 0) +
+            Number((booking as { processing_fee_cents?: number }).processing_fee_cents ?? 0)) /
+          100;
         const totalPaid = rentalAmount + exotiqAmount;
+
 
         const vehicleName = booking.vehicle_name || "Vehicle";
         const vehicleShort = shortVehicleName(vehicleName);

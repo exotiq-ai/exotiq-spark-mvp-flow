@@ -45,6 +45,21 @@ const json = (body: unknown, status = 200) =>
 // + exemption table for MT/OR/NH/DE/AK).
 const STATE_FEE_CENTS_PER_DAY = 589;
 
+// Protection tier daily cents — mirrors public_vehicle_quote (server-side
+// source of truth). Do NOT derive from protection_total_cents / days: on a
+// second extension that divisor has already been bumped, so the derived rate
+// silently overcharges. Read the rate from the tier instead.
+function protectionDailyCentsForTier(tier: string | null | undefined): number {
+  switch ((tier ?? "premium").toLowerCase()) {
+    case "premium":
+      return 28900;
+    case "standard":
+      return 8900;
+    default:
+      return 0;
+  }
+}
+
 // Operator's estimated Stripe processing share (matches rent-checkout).
 function stripeFeeEstimateCents(amountCents: number): number {
   return Math.round(amountCents * 0.029) + 30;
@@ -55,6 +70,7 @@ function stripeFeeEstimateCents(amountCents: number): number {
 function estimateProcessingFeeCents(rentalSubtotalCents: number): number {
   return Math.round(0.02 * rentalSubtotalCents) + Math.round(rentalSubtotalCents * 0.029) + 30;
 }
+
 
 function daysBetween(start: Date, end: Date): number {
   const ms = end.getTime() - start.getTime();
@@ -87,6 +103,7 @@ serve(async (req) => {
       new_end_date,
       rate_cents_per_day,
       charge_method = "card_on_file", // 'card_on_file' | 'manual'
+      channel, // 'phone' | 'in_person' | 'email' — consent trail
     } = body ?? {};
 
     if (!booking_id || !new_end_date || rate_cents_per_day == null) {
@@ -102,11 +119,12 @@ serve(async (req) => {
     const { data: booking, error: bErr } = await db
       .from("bookings")
       .select(
-        "id, team_id, vehicle_id, booking_ref, booking_source, status, start_date, end_date, total_value, operator_payment_intent_id, exotiq_payment_intent_id, paid_at, customer_email, customer_name, platform_fee_cents, state_fee_cents, processing_fee_cents, protection_total_cents",
+        "id, team_id, vehicle_id, booking_ref, booking_source, status, start_date, end_date, total_value, operator_payment_intent_id, exotiq_payment_intent_id, paid_at, customer_email, customer_name, platform_fee_cents, state_fee_cents, processing_fee_cents, protection_total_cents, protection_tier",
       )
       .eq("id", booking_id)
       .single();
     if (bErr || !booking) return json({ error: "Booking not found" }, 404);
+
 
     const { data: membership } = await db
       .from("team_members")
@@ -158,10 +176,24 @@ serve(async (req) => {
         : 0;
     const addedPlatformFeeCents = Math.round(addedSubtotalCents * platformFeePct);
 
-    const addedProcessingFeeCents = estimateProcessingFeeCents(addedSubtotalCents);
+    // Protection is per-day and MANDATORY (tier defaults to premium on the
+    // base booking). Read the daily rate from the tier — never derive by
+    // dividing an already-bumped total (Claude review #1).
+    const protectionDailyCents = protectionDailyCentsForTier(booking.protection_tier);
+    const addedProtectionCents = protectionDailyCents * addedDays;
 
-    const addedExotiqLegCents =
-      addedPlatformFeeCents + addedStateFeeCents + addedProcessingFeeCents;
+    // Processing fee estimate is computed on the FULL pre-fee Exotiq leg,
+    // so protection must be added BEFORE the estimate. Matches
+    // public_vehicle_quote's 2% + 2.9% + 30¢ on rental subtotal, plus we
+    // now add protection to what Exotiq is actually charging.
+    const exotiqPreFeeCents =
+      addedPlatformFeeCents + addedStateFeeCents + addedProtectionCents;
+    const addedProcessingFeeCents =
+      Math.round(0.02 * addedSubtotalCents) +
+      Math.round((addedSubtotalCents + addedProtectionCents) * 0.029) +
+      30;
+
+    const addedExotiqLegCents = exotiqPreFeeCents + addedProcessingFeeCents;
     const addedTotalCents = addedSubtotalCents + addedExotiqLegCents;
 
     log("Computed deltas", {
@@ -171,6 +203,7 @@ serve(async (req) => {
       addedStateFeeCents,
       addedProcessingFeeCents,
       addedPlatformFeeCents,
+      addedProtectionCents,
       addedExotiqLegCents,
       addedTotalCents,
     });
@@ -189,8 +222,10 @@ serve(async (req) => {
         added_state_fee_cents: addedStateFeeCents,
         added_processing_fee_cents: addedProcessingFeeCents,
         added_platform_fee_cents: addedPlatformFeeCents,
+        added_protection_cents: addedProtectionCents,
         added_total_cents: addedTotalCents,
         charge_method,
+        channel: typeof channel === "string" ? channel : "phone",
         status: "pending",
       })
       .select()
@@ -199,6 +234,7 @@ serve(async (req) => {
       log("Failed to insert extension row", { error: exErr?.message });
       return json({ error: "Failed to record extension" }, 500);
     }
+
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
     const mode = resolveStripeMode();
@@ -216,7 +252,10 @@ serve(async (req) => {
             Number(booking.state_fee_cents ?? 0) + addedStateFeeCents,
           processing_fee_cents:
             Number(booking.processing_fee_cents ?? 0) + addedProcessingFeeCents,
+          protection_total_cents:
+            Number(booking.protection_total_cents ?? 0) + addedProtectionCents,
         } as Record<string, unknown>)
+
         .eq("id", booking.id);
       if (updErr) throw new Error(`Booking update failed: ${updErr.message}`);
       if (paymentRows.length > 0) {
