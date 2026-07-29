@@ -229,14 +229,21 @@ serve(async (req: Request) => {
       const newUserName = newUserProfile?.full_name || invitation.email;
       const newUserEmail = newUserProfile?.email || invitation.email;
 
-      // Update the new user's profile with company name and mark onboarding complete
+      // Update the new user's profile with company name and mark onboarding complete.
+      // Pre-fill full_name from the invitation if the profile doesn't already have one.
+      const profileUpdate: Record<string, unknown> = {
+        company_name: companyName,
+        onboarding_completed: true,
+        updated_at: new Date().toISOString(),
+      };
+      const invitedFullName = (invitation.full_name || "").trim();
+      if (invitedFullName && !newUserProfile?.full_name) {
+        profileUpdate.full_name = invitedFullName;
+      }
+
       const { error: profileError } = await supabaseAdmin
         .from("profiles")
-        .update({
-          company_name: companyName,
-          onboarding_completed: true,
-          updated_at: new Date().toISOString(),
-        })
+        .update(profileUpdate)
         .eq("id", userId);
 
       if (profileError) {

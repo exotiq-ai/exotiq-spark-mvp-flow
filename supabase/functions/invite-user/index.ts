@@ -13,6 +13,7 @@ interface InviteRequest {
   email: string;
   role: string;
   permissions: string[];
+  fullName?: string;
 }
 
 // Role hierarchy - higher number = more permissions
@@ -85,7 +86,8 @@ serve(async (req: Request) => {
       throw new Error("Could not determine your team. Please contact support.");
     }
 
-    const { email, role, permissions }: InviteRequest = await req.json();
+    const { email, role, permissions, fullName }: InviteRequest = await req.json();
+    const inviteeName = (fullName || "").trim() || null;
 
     if (!email) {
       throw new Error("Email is required");
@@ -142,6 +144,7 @@ serve(async (req: Request) => {
         token,
         status: "pending",
         team_id: inviterTeam.team_id,
+        full_name: inviteeName,
       })
       .select()
       .single();
@@ -194,7 +197,7 @@ serve(async (req: Request) => {
           </div>
           
           <p style="font-size: 16px; margin-bottom: 20px;">
-            Hi there,
+            Hi ${inviteeName || "there"},
           </p>
           
           <p style="font-size: 16px; margin-bottom: 20px;">
