@@ -587,6 +587,14 @@ export const EnhancedBookingDialog = ({
           onBookingUpdated={refreshData}
         />
       )}
+      <ExtendBookingDialog
+        open={showExtendBooking}
+        onOpenChange={setShowExtendBooking}
+        booking={booking as any}
+        vehicleName={vehicle?.name || (booking as any)?.vehicle_name}
+        defaultRatePerDay={Number(vehicle?.current_rate || 0)}
+        onExtended={refreshData}
+      />
 
       <Dialog open={open} onOpenChange={handleDialogClose}>
         <DialogContent className="sm:max-w-[900px] max-h-[90vh] p-0">
