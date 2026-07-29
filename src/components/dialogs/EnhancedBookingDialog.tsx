@@ -601,6 +601,17 @@ export const EnhancedBookingDialog = ({
                 )}
               </DialogTitle>
               <div className="flex items-center gap-2">
+                {!isEditMode && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleAddToGoogleCalendar}
+                    className="h-7 w-7"
+                    title="Add to Google Calendar"
+                  >
+                    <CalendarPlus className="h-4 w-4" />
+                  </Button>
+                )}
                 {!isEditMode && !isMarketplaceLocked(booking as any) && (
                   <Button 
                     variant="outline" 
