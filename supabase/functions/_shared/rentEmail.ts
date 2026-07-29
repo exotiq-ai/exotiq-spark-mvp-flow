@@ -9,7 +9,9 @@ export type RenterTemplateName =
   | "paymentExpired"
   | "operatorExpired"
   | "holdWarning"
-  | "holdCancelled";
+  | "holdCancelled"
+  | "bookingExtended";
+
 
 export interface SendRenterEmailArgs {
   templateName: RenterTemplateName;

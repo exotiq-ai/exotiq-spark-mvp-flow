@@ -65,11 +65,6 @@ function stripeFeeEstimateCents(amountCents: number): number {
   return Math.round(amountCents * 0.029) + 30;
 }
 
-// Exotiq leg processing fee estimate (matches public_vehicle_quote):
-// 2% platform overhead + Stripe 2.9% + 30¢ on the rental subtotal.
-function estimateProcessingFeeCents(rentalSubtotalCents: number): number {
-  return Math.round(0.02 * rentalSubtotalCents) + Math.round(rentalSubtotalCents * 0.029) + 30;
-}
 
 
 function daysBetween(start: Date, end: Date): number {
@@ -145,14 +140,24 @@ serve(async (req) => {
     const addedDays = daysBetween(prevEnd, newEnd);
     if (addedDays < 1) return json({ error: "Extension must be at least 1 day" }, 400);
 
-    // Availability re-check.
+    // Availability re-check. Status list must match the exclusion constraint on
+    // marketplace bookings — include pending_documents / pending_payment so an
+    // extension can't overlap a hold that's awaiting docs or payment.
     if (booking.vehicle_id) {
       const { data: conflicts } = await db
         .from("bookings")
         .select("id, booking_ref, status, start_date, end_date")
         .eq("vehicle_id", booking.vehicle_id)
         .neq("id", booking.id)
-        .in("status", ["pending", "requested", "confirmed", "active", "checked_out"])
+        .in("status", [
+          "pending",
+          "pending_documents",
+          "pending_payment",
+          "requested",
+          "confirmed",
+          "active",
+          "checked_out",
+        ])
         .lt("start_date", newEnd.toISOString())
         .gt("end_date", prevEnd.toISOString());
       if (conflicts && conflicts.length > 0) {
@@ -179,19 +184,28 @@ serve(async (req) => {
     // Protection is per-day and MANDATORY (tier defaults to premium on the
     // base booking). Read the daily rate from the tier — never derive by
     // dividing an already-bumped total (Claude review #1).
+    // TODO drift-risk: 28900/8900 also live in public_vehicle_quote (RPC) and
+    // src/lib/pricing/totals.ts. Move to a single get_protection_daily_cents
+    // RPC in a follow-up so a reprice can't miss this call site.
     const protectionDailyCents = protectionDailyCentsForTier(booking.protection_tier);
     const addedProtectionCents = protectionDailyCents * addedDays;
 
-    // Processing fee estimate is computed on the FULL pre-fee Exotiq leg,
-    // so protection must be added BEFORE the estimate. Matches
-    // public_vehicle_quote's 2% + 2.9% + 30¢ on rental subtotal, plus we
-    // now add protection to what Exotiq is actually charging.
+    // Processing fee — matches public_vehicle_quote exactly:
+    //   2% platform overhead on rental subtotal
+    // + Stripe 2.9% + 30¢ applied to the EXOTIQ LEG ONLY (platform + state +
+    //   protection + the 2% itself).
+    // Do NOT apply Stripe 2.9% to the rental subtotal here: the rental sits on
+    // a separate destination-charge PI and Stripe's fee on it is already
+    // absorbed by the operator via stripeFeeEstimateCents on the operator leg.
+    // Applying 2.9% again to the rental would double-bill the renter for it.
+    const platformOverheadCents = Math.round(0.02 * addedSubtotalCents);
+    const exotiqPreProcessingCents =
+      addedPlatformFeeCents + addedStateFeeCents + addedProtectionCents + platformOverheadCents;
+    const addedProcessingFeeCents =
+      platformOverheadCents + Math.round(exotiqPreProcessingCents * 0.029) + 30;
     const exotiqPreFeeCents =
       addedPlatformFeeCents + addedStateFeeCents + addedProtectionCents;
-    const addedProcessingFeeCents =
-      Math.round(0.02 * addedSubtotalCents) +
-      Math.round((addedSubtotalCents + addedProtectionCents) * 0.029) +
-      30;
+
 
     const addedExotiqLegCents = exotiqPreFeeCents + addedProcessingFeeCents;
     const addedTotalCents = addedSubtotalCents + addedExotiqLegCents;
@@ -232,8 +246,23 @@ serve(async (req) => {
       .single();
     if (exErr || !extension) {
       log("Failed to insert extension row", { error: exErr?.message });
+      // 23505 = unique_violation on booking_extensions_one_pending_per_booking:
+      // another extension is already in flight for this booking. Concurrent
+      // charge race (Claude review S2) — surface a clear 409 so the operator
+      // waits/retries instead of double-charging.
+      const code = (exErr as { code?: string } | null)?.code;
+      if (code === "23505") {
+        return json(
+          {
+            error:
+              "Another extension is already being processed for this booking. Please wait a moment and try again.",
+          },
+          409,
+        );
+      }
       return json({ error: "Failed to record extension" }, 500);
     }
+
 
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
@@ -419,7 +448,10 @@ serve(async (req) => {
           const msg = feeErr instanceof Error ? feeErr.message : String(feeErr);
           log("Exotiq leg failed — refunding operator leg", { error: msg });
           try {
-            await stripe.refunds.create({ payment_intent: operatorPi.id });
+            await stripe.refunds.create(
+              { payment_intent: operatorPi.id },
+              { idempotencyKey: `ext-rollback-op-${extension.id}` },
+            );
           } catch (rErr) {
             log("Operator refund attempt failed", {
               error: (rErr as Error).message,
@@ -441,7 +473,10 @@ serve(async (req) => {
         if (exotiqPi.status !== "succeeded") {
           log("Exotiq leg not settled — refunding operator leg");
           try {
-            await stripe.refunds.create({ payment_intent: operatorPi.id });
+            await stripe.refunds.create(
+              { payment_intent: operatorPi.id },
+              { idempotencyKey: `ext-rollback-op-${extension.id}` },
+            );
           } catch (rErr) {
             log("Operator refund attempt failed", { error: (rErr as Error).message });
           }
@@ -460,6 +495,7 @@ serve(async (req) => {
           );
         }
       }
+
 
       // -------- BOTH LEGS OK — bump booking + record payments --------
       const paymentRows: Array<Record<string, unknown>> = [
@@ -493,11 +529,17 @@ serve(async (req) => {
         const msg = bumpErr instanceof Error ? bumpErr.message : String(bumpErr);
         log("Booking bump failed after both charges — refunding both legs", { error: msg });
         try {
-          await stripe.refunds.create({ payment_intent: operatorPi.id });
+          await stripe.refunds.create(
+            { payment_intent: operatorPi.id },
+            { idempotencyKey: `ext-rollback-op-${extension.id}` },
+          );
         } catch (_) { /* noop */ }
         if (exotiqPi) {
           try {
-            await stripe.refunds.create({ payment_intent: exotiqPi.id });
+            await stripe.refunds.create(
+              { payment_intent: exotiqPi.id },
+              { idempotencyKey: `ext-rollback-exotiq-${extension.id}` },
+            );
           } catch (_) { /* noop */ }
         }
         await markFailed(`Booking update failed after charges; both refunded: ${msg}`, {
@@ -506,6 +548,7 @@ serve(async (req) => {
         });
         return json({ error: "Booking update failed after charges; both refunded" }, 500);
       }
+
 
       await db
         .from("booking_extensions")
@@ -516,12 +559,91 @@ serve(async (req) => {
         })
         .eq("id", extension.id);
 
+      // Renter consent email — silent off-session charges MUST be disclosed
+      // in writing (Claude review blocker 2). If the send fails, keep the
+      // charge; log and continue.
+      if (booking.customer_email) {
+        try {
+          const [{ data: teamRow }, { data: vehicleRow }] = await Promise.all([
+            db
+              .from("teams")
+              .select("name, support_email")
+              .eq("id", booking.team_id)
+              .maybeSingle(),
+            booking.vehicle_id
+              ? db
+                  .from("vehicles")
+                  .select("year, make, model")
+                  .eq("id", booking.vehicle_id)
+                  .maybeSingle()
+              : Promise.resolve({ data: null }),
+          ]);
+          const operatorName = teamRow?.name ?? "Your operator";
+          const vehicleShort = vehicleRow
+            ? [vehicleRow.year, vehicleRow.make, vehicleRow.model].filter(Boolean).join(" ")
+            : "your booking";
+          const money = (cents: number) =>
+            `$${(cents / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+          const fmtDate = (iso: string) =>
+            new Date(iso).toLocaleDateString("en-US", {
+              weekday: "short",
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            });
+          await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-renter-email`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-internal-token": Deno.env.get("INTERNAL_FUNCTION_TOKEN") ?? "",
+            },
+            body: JSON.stringify({
+              templateName: "bookingExtended",
+              to: booking.customer_email,
+              subject: `Booking ${booking.booking_ref} extended — ${money(addedSubtotalCents + addedExotiqLegCents)} charged`,
+              idempotencyKey: `ext-${extension.id}`,
+              replyTo:
+                teamRow?.support_email?.trim() ||
+                Deno.env.get("RENTER_EMAIL_REPLY_TO") ||
+                "support@exotiq.ai",
+              variables: {
+                BOOKING_REF: booking.booking_ref ?? "",
+                OPERATOR_NAME: operatorName,
+                VEHICLE_SHORT: vehicleShort,
+                ADDED_DAYS: String(addedDays),
+                NEW_END_DATE: fmtDate(newEnd.toISOString()),
+                RENTAL_TOTAL: money(addedSubtotalCents),
+                FEES_TOTAL: money(addedExotiqLegCents),
+                GRAND_TOTAL: money(addedSubtotalCents + addedExotiqLegCents),
+                RATE_PER_DAY: money(ratePerDayCents),
+                PROTECTION_TIER: (booking.protection_tier ?? "premium").toString(),
+                PROTECTION_TOTAL: money(addedProtectionCents),
+                STATE_FEE_TOTAL: money(addedStateFeeCents),
+                PLATFORM_FEE_TOTAL: money(addedPlatformFeeCents),
+                PROCESSING_FEE_TOTAL: money(addedProcessingFeeCents),
+                CHANNEL: (typeof channel === "string" ? channel : "phone"),
+              },
+              tags: [
+                { name: "email_type", value: "booking_extended" },
+                { name: "booking_ref", value: booking.booking_ref ?? "" },
+              ],
+            }),
+          });
+        } catch (emailErr) {
+          log("bookingExtended email send failed (charge kept)", {
+            error: (emailErr as Error).message,
+            extensionId: extension.id,
+          });
+        }
+      }
+
       log("Extension charged (two-leg) + booking updated", {
         bookingRef: booking.booking_ref,
         addedDays,
         addedSubtotalCents,
         addedExotiqLegCents,
       });
+
 
       return json({
         success: true,

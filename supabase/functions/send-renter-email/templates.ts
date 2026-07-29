@@ -797,7 +797,42 @@ export const templates = {
     </td></tr>
   </table>
 </body></html>`,
+  // Renter consent + receipt for an operator-initiated extension charged
+  // off-session to the card on file. Silent card charges MUST be disclosed
+  // in writing per Stripe / card-network mandate.
+  bookingExtended: `<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Booking {{BOOKING_REF}} extended | Drive Exotiq</title></head>
+<body style="margin:0; padding:0; background-color:#06070a;">
+  <div style="display:none; max-height:0; overflow:hidden;">Booking {{BOOKING_REF}} extended by {{ADDED_DAYS}} day(s). {{GRAND_TOTAL}} charged to your card on file.</div>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#06070a">
+    <tr><td align="center" style="padding:28px 12px 40px;">
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" bgcolor="#0D0F14" style="max-width:600px; background:#0D0F14; border-radius:16px; border:1px solid #2A2E3A; overflow:hidden;">
+        <tr><td align="center" style="padding:30px 40px 6px; font-family:-apple-system, sans-serif; font-size:12px; letter-spacing:6px; color:#C8A664; text-transform:uppercase;">Drive Exotiq</td></tr>
+        <tr><td align="center" style="padding:22px 40px 0; font-family:-apple-system, sans-serif; font-size:10px; letter-spacing:4px; color:#5C6272; text-transform:uppercase;">Booking extended</td></tr>
+        <tr><td align="center" style="padding:10px 40px 0; font-family:Georgia, serif; font-size:28px; line-height:34px; color:#F0F2F5;">+{{ADDED_DAYS}} day(s) added to your {{VEHICLE_SHORT}}.</td></tr>
+        <tr><td align="center" style="padding:12px 48px 8px; font-family:-apple-system, sans-serif; font-size:14px; line-height:22px; color:#9BA1B0;">
+          At your request ({{CHANNEL}}), {{OPERATOR_NAME}} extended booking {{BOOKING_REF}}. New return: <strong style="color:#F0F2F5;">{{NEW_END_DATE}}</strong>. Your saved card on file was charged <strong style="color:#F0F2F5;">{{GRAND_TOTAL}}</strong> for the added days.
+        </td></tr>
+        <tr><td style="padding:20px 40px 0;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:1px solid #2A2E3A;">
+            <tr><td style="padding:14px 0 4px; font-family:-apple-system, sans-serif; font-size:11px; letter-spacing:2px; color:#5C6272; text-transform:uppercase;">Charge summary</td></tr>
+            <tr><td style="padding:6px 0; font-family:-apple-system, sans-serif; font-size:13px; color:#9BA1B0;">Rental ({{ADDED_DAYS}} × {{RATE_PER_DAY}}) <span style="float:right; color:#F0F2F5;">{{RENTAL_TOTAL}}</span></td></tr>
+            <tr><td style="padding:6px 0; font-family:-apple-system, sans-serif; font-size:13px; color:#9BA1B0;">Protection ({{PROTECTION_TIER}}) <span style="float:right; color:#F0F2F5;">{{PROTECTION_TOTAL}}</span></td></tr>
+            <tr><td style="padding:6px 0; font-family:-apple-system, sans-serif; font-size:13px; color:#9BA1B0;">Platform fee <span style="float:right; color:#F0F2F5;">{{PLATFORM_FEE_TOTAL}}</span></td></tr>
+            <tr><td style="padding:6px 0; font-family:-apple-system, sans-serif; font-size:13px; color:#9BA1B0;">State rental fee <span style="float:right; color:#F0F2F5;">{{STATE_FEE_TOTAL}}</span></td></tr>
+            <tr><td style="padding:6px 0 14px; font-family:-apple-system, sans-serif; font-size:13px; color:#9BA1B0;">Processing fee <span style="float:right; color:#F0F2F5;">{{PROCESSING_FEE_TOTAL}}</span></td></tr>
+            <tr><td style="padding:14px 0; border-top:1px solid #2A2E3A; font-family:-apple-system, sans-serif; font-size:15px; color:#F0F2F5; font-weight:700;">Total charged <span style="float:right;">{{GRAND_TOTAL}}</span></td></tr>
+          </table>
+        </td></tr>
+        <tr><td style="padding:14px 40px 30px; border-top:1px solid #2A2E3A; font-family:-apple-system, sans-serif; font-size:12px; line-height:18px; color:#5C6272;">
+          If you did not request this extension, reply to this email immediately — we'll reverse the charge and restore the original return date. Booking {{BOOKING_REF}} · {{OPERATOR_NAME}}.
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`,
 } as const;
+
 
 
 export type TemplateName = keyof typeof templates;

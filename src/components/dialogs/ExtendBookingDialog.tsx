@@ -88,13 +88,20 @@ export function ExtendBookingDialog({
   const protectionDaily = protectionDailyCentsForTier(booking?.protection_tier) / 100;
   const addedProtection = protectionDaily * addedDays;
 
-  // Processing = 2% of (rental+protection subtotal) + Stripe 2.9% + $0.30
-  const processingBaseCents = Math.round((addedSubtotal + addedProtection) * 100);
+  // Processing fee — mirrors public_vehicle_quote / rent-extend-booking:
+  //   2% platform overhead on rental subtotal
+  // + Stripe 2.9% + $0.30 on the EXOTIQ LEG only (platform + state + protection + 2%).
+  // Do NOT charge Stripe 2.9% on the rental subtotal — the operator absorbs
+  // that on their destination-charge leg. Applying it here double-bills.
+  const platformOverhead = 0.02 * addedSubtotal;
+  const exotiqPreProcessing =
+    addedPlatformFee + addedStateFee + addedProtection + platformOverhead;
   const addedProcessingFee =
-    (Math.round(0.02 * processingBaseCents) + Math.round(processingBaseCents * 0.029) + 30) / 100;
+    platformOverhead + (Math.round(exotiqPreProcessing * 100 * 0.029) + 30) / 100;
 
   const addedTotal =
     addedSubtotal + addedStateFee + addedPlatformFee + addedProtection + addedProcessingFee;
+
 
 
   const canSubmit = addedDays > 0 && rateNum > 0 && !submitting;
