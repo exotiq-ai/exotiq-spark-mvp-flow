@@ -443,6 +443,7 @@ export const FleetPageEnhanced = () => {
   const moduleTabs = [
     { id: 'fleet', label: 'Fleet', shortLabel: 'Fleet', icon: Car },
     { id: 'maintenance', label: 'Maintenance', shortLabel: 'Maint.', icon: Wrench },
+    { id: 'inspections', label: 'Inspections', shortLabel: 'Insp.', icon: ClipboardCheck },
     { id: 'photos', label: 'Photos', shortLabel: 'Photos', icon: Camera },
   ];
 
