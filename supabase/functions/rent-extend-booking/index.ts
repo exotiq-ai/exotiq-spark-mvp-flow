@@ -252,7 +252,10 @@ serve(async (req) => {
             Number(booking.state_fee_cents ?? 0) + addedStateFeeCents,
           processing_fee_cents:
             Number(booking.processing_fee_cents ?? 0) + addedProcessingFeeCents,
+          protection_total_cents:
+            Number(booking.protection_total_cents ?? 0) + addedProtectionCents,
         } as Record<string, unknown>)
+
         .eq("id", booking.id);
       if (updErr) throw new Error(`Booking update failed: ${updErr.message}`);
       if (paymentRows.length > 0) {
