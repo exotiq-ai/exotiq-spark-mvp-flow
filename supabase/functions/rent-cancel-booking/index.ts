@@ -219,10 +219,17 @@ serve(async (req) => {
           .maybeSingle();
         const currency = team?.currency ?? "USD";
         const timezone = team?.timezone ?? "UTC";
+        // total_value and fee columns already reflect any extension bumps
+        // (rent-extend-booking updates them on both-legs success).
         const rentalAmount = Number(booking.total_value ?? 0);
         const exotiqAmount =
-          (Number(booking.platform_fee_cents ?? 0) + Number(booking.protection_total_cents ?? 0)) / 100;
+          (Number(booking.platform_fee_cents ?? 0) +
+            Number(booking.protection_total_cents ?? 0) +
+            Number((booking as { state_fee_cents?: number }).state_fee_cents ?? 0) +
+            Number((booking as { processing_fee_cents?: number }).processing_fee_cents ?? 0)) /
+          100;
         const totalPaid = rentalAmount + exotiqAmount;
+
 
         const vehicleName = booking.vehicle_name || "Vehicle";
         const vehicleShort = shortVehicleName(vehicleName);
