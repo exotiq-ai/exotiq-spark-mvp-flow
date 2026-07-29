@@ -45,7 +45,7 @@ export function ExtendBookingDialog({
   onExtended,
 }: ExtendBookingDialogProps) {
   const { toast } = useToast();
-  const { format: fmt } = useMoney();
+  const { money: fmt } = useMoney();
 
   const currentEnd = booking ? new Date(booking.end_date) : new Date();
   const [newEndDate, setNewEndDate] = useState<Date | undefined>(() => addDays(currentEnd, 1));
