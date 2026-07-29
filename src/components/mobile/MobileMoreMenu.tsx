@@ -115,74 +115,77 @@ export const MobileMoreMenu = ({ onAddLocation, activeModule: activeModuleProp, 
           <span className="text-[10px] font-semibold tracking-tight">More</span>
         </motion.button>
       </SheetTrigger>
-      <SheetContent side="bottom" className="rounded-t-3xl pb-8 pt-2 px-4">
+      <SheetContent side="bottom" className="rounded-t-3xl p-0 max-h-[85vh] flex flex-col">
         {/* Drag Handle */}
-        <div className="flex justify-center py-2 mb-2">
+        <div className="flex justify-center py-2 shrink-0">
           <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
         </div>
-        
-        <SheetHeader className="text-left pb-3">
+
+        <SheetHeader className="text-left px-4 pb-3 shrink-0">
           <SheetTitle className="text-base font-semibold">More Options</SheetTitle>
         </SheetHeader>
 
-        {/* Mobile Location Selector */}
-        <div className="mb-4">
-          <MobileLocationSelector onAddLocation={onAddLocation} />
-        </div>
-        
-        {/* Primary Navigation Items */}
-        <div className="space-y-2 mb-5">
-          {menuItems.map((item, index) => (
-            <motion.button
-              key={item.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05, type: "spring", stiffness: 300, damping: 25 }}
-              onClick={() => handleItemClick(item.id)}
-              whileTap={{ scale: 0.98 }}
-              className={cn(
-                "w-full flex items-center justify-between p-3.5 rounded-2xl transition-colors",
-                activeModule === item.id
-                  ? "bg-primary/10 border border-primary/20"
-                  : "bg-muted/40 active:bg-muted"
-              )}
-            >
-              <div className="flex items-center gap-3.5">
-                <div className={cn(
-                  "w-11 h-11 rounded-xl flex items-center justify-center",
-                  activeModule === item.id ? "bg-primary text-primary-foreground" : "bg-background shadow-sm"
-                )}>
-                  <item.icon className="h-5 w-5" />
-                </div>
-                <div className="text-left">
-                  <p className={cn("font-medium text-sm", activeModule === item.id && "text-primary")}>{item.label}</p>
-                  <p className="text-xs text-muted-foreground">{item.description}</p>
-                </div>
-              </div>
-              <ChevronRight className="h-5 w-5 text-muted-foreground" />
-            </motion.button>
-          ))}
-        </div>
+        {/* Scrollable region */}
+        <div className="flex-1 overflow-y-auto overscroll-contain px-4 pb-8">
+          {/* Mobile Location Selector */}
+          <div className="mb-4">
+            <MobileLocationSelector onAddLocation={onAddLocation} />
+          </div>
 
-        {/* Divider */}
-        <div className="h-px bg-border/60 my-3" />
+          {/* Primary Navigation Items */}
+          <div className="space-y-2 mb-5">
+            {menuItems.map((item, index) => (
+              <motion.button
+                key={item.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05, type: "spring", stiffness: 300, damping: 25 }}
+                onClick={() => handleItemClick(item.id)}
+                whileTap={{ scale: 0.98 }}
+                className={cn(
+                  "w-full flex items-center justify-between p-3.5 rounded-2xl transition-colors",
+                  activeModule === item.id
+                    ? "bg-primary/10 border border-primary/20"
+                    : "bg-muted/40 active:bg-muted"
+                )}
+              >
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <div className={cn(
+                    "w-11 h-11 rounded-xl flex items-center justify-center shrink-0",
+                    activeModule === item.id ? "bg-primary text-primary-foreground" : "bg-background shadow-sm"
+                  )}>
+                    <item.icon className="h-5 w-5" />
+                  </div>
+                  <div className="text-left min-w-0">
+                    <p className={cn("font-medium text-sm truncate", activeModule === item.id && "text-primary")}>{item.label}</p>
+                    <p className="text-xs text-muted-foreground truncate">{item.description}</p>
+                  </div>
+                </div>
+                <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
+              </motion.button>
+            ))}
+          </div>
 
-        {/* Secondary Items */}
-        <div className="space-y-0.5">
-          {secondaryItems.map((item, index) => (
-            <motion.button
-              key={item.id}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.15 + index * 0.03 }}
-              onClick={() => handleItemClick(item.id)}
-              whileTap={{ scale: 0.98 }}
-              className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-muted-foreground active:bg-muted/50 transition-colors"
-            >
-              <item.icon className="h-5 w-5" />
-              <span className="text-sm font-medium">{item.label}</span>
-            </motion.button>
-          ))}
+          {/* Divider */}
+          <div className="h-px bg-border/60 my-3" />
+
+          {/* Secondary Items */}
+          <div className="space-y-0.5">
+            {secondaryItems.map((item, index) => (
+              <motion.button
+                key={item.id}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.15 + index * 0.03 }}
+                onClick={() => handleItemClick(item.id)}
+                whileTap={{ scale: 0.98 }}
+                className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-muted-foreground active:bg-muted/50 transition-colors"
+              >
+                <item.icon className="h-5 w-5" />
+                <span className="text-sm font-medium">{item.label}</span>
+              </motion.button>
+            ))}
+          </div>
         </div>
       </SheetContent>
     </Sheet>
