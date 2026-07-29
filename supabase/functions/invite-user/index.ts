@@ -197,7 +197,7 @@ serve(async (req: Request) => {
           </div>
           
           <p style="font-size: 16px; margin-bottom: 20px;">
-            Hi there,
+            Hi ${inviteeName || "there"},
           </p>
           
           <p style="font-size: 16px; margin-bottom: 20px;">
