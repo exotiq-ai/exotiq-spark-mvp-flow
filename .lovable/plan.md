@@ -1,38 +1,26 @@
-## Combined plan — name-aware invitations + Laura's Denver admin invite
+# Fix Fleet Filters popover — clipping + scroll-through
 
-### 1. Schema (migration)
-Add nullable `full_name text` to `public.user_invitations`. No policy/grant changes.
+## Problem
+On the Fleet page filter dropdown:
+1. Top of the popover is cut off (content above "Booking Status" is unreachable — the "Include retired" toggle is clipped).
+2. Scrolling inside the popover scrolls the underlying page instead of the popover body.
 
-### 2. Edge function: `invite-user` (existing, in-app)
-- Accept optional `fullName` in the request body; write to `user_invitations.full_name`.
-- Greeting changes from `Hi there,` to `Hi ${fullName ?? "there"},`; add name to the "invited to join" line when present.
-- Everything else in the template unchanged (Exotiq brand, CTA, expiry copy).
+Root cause in `src/components/fleet/FleetFilters.tsx` (lines 289–293): `PopoverContent` uses a hardcoded `max-h-[80vh]` with no collision padding and no available-height binding, so Radix can position it taller than the viewport allows. The inner `ScrollArea` also lets wheel/touch events bubble to the page.
 
-### 3. Edge function: `super-admin-send-invite` (new)
-- JWT-verified; only callers listed in `super_admins` may invoke.
-- Input: `{ invitation_id }`. Loads the invitation, resolves team name, sends the same Resend template as `invite-user` from `Exotiq <noreply@mail.exotiq.ai>`, subject `You've been invited to join <team name>`, CTA `https://app.exotiq.ai/auth?invite=<token>`, greeting uses `full_name` when set.
-- Left deployed for future cross-tenant invites.
+## Changes (single file: `src/components/fleet/FleetFilters.tsx`)
 
-### 4. Edge function: `accept-invite` (existing)
-- When creating/updating the accepting user's `profiles` row, copy `invitation.full_name` into `profiles.full_name` if the invitation carries one and the profile doesn't already have a name. User can still edit later.
+1. Replace the fixed `max-h-[80vh]` with Radix's available-height CSS var and add `collisionPadding` so the popover always fits between the trigger and viewport edges:
+   - `PopoverContent` className → `w-[min(26rem,calc(100vw-2rem))] p-0 flex flex-col z-[60] overflow-hidden`
+   - Add inline `style={{ maxHeight: 'var(--radix-popover-content-available-height)' }}`
+   - Add `collisionPadding={16}` and keep `align="start"`, `sideOffset={8}`
+2. Prevent scroll bubbling to the page:
+   - Add `overscroll-contain` to the `ScrollArea` wrapper and its viewport.
+   - Wrap the ScrollArea in a `min-h-0 flex-1` container so flex sizing works with the new max-height.
+3. Mobile polish: when viewport width < 480px, the width clamp above already keeps it inside the frame; keep the sticky header/footer untouched.
 
-### 5. Deploy `invite-user`, `super-admin-send-invite`, `accept-invite`.
+No logic, no filter-state, no API changes. Presentation only.
 
-### 6. Issue Laura's invite (data insert)
-Insert one `user_invitations` row:
-- `team_id` = `c71d6655-710a-46da-95b4-f9b0e5f91386` (Denver Exotic Rental Cars)
-- `email` = `ms.lamoruso@gmail.com`
-- `full_name` = `Laura Amoruso`
-- `role` = `admin`, `permissions` = `[]`
-- `invited_by` = `fd9bb57e-8ad7-4db9-9f8e-bfba30aac1e2` (J Davidson)
-- `token` = freshly generated, `status` = `pending`, `expires_at` = now + 7 days
-
-Also log a `role_audit_log` row (`action = 'user_invited'`, scoped to Denver, metadata notes it was issued via super-admin).
-
-### 7. Send the email
-Invoke `super-admin-send-invite` with the new invitation id. Verify a Resend message id comes back in the function logs.
-
-### Notes
-- `team_members` stays as-is — it's a join table with no name column. Laura's name lives on the invitation (for the email) and on her `profiles` row (after accept), which is the correct home.
-- No changes to the in-app invite modal in this pass; can add a "Full name (optional)" field in a follow-up.
-- No auth-config, rate-limit, or existing UI changes.
+## Verification
+- Typecheck.
+- Open Fleet → Filters at mobile (390px), tablet (768px), desktop widths: header visible, footer visible, body scrolls internally, page behind stays put.
+- Confirm with a Playwright screenshot at 390×800 that the top "Include retired" row is reachable and no clipping.

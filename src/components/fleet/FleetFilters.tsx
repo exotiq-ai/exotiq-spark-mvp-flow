@@ -287,9 +287,11 @@ export const FleetFilters = ({
             </Button>
           </PopoverTrigger>
           <PopoverContent
-            className="w-[26rem] p-0 max-h-[80vh] flex flex-col z-[60]"
+            className="w-[min(26rem,calc(100vw-2rem))] p-0 flex flex-col z-[60] overflow-hidden"
+            style={{ maxHeight: 'var(--radix-popover-content-available-height)' }}
             align="start"
             sideOffset={8}
+            collisionPadding={16}
           >
             {/* Sticky Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b bg-background/95 backdrop-blur sticky top-0">
@@ -314,8 +316,9 @@ export const FleetFilters = ({
             </div>
 
             {/* Scrollable body */}
-            <ScrollArea className="flex-1 min-h-0">
+            <ScrollArea className="flex-1 min-h-0 overscroll-contain">
               <div className="p-4 space-y-5">
+
                 {/* Quick toggles */}
                 <div className="space-y-2">
                   <SectionHeader title="Quick filters" />
