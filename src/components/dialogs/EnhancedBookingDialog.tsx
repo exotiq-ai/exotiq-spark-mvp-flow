@@ -26,6 +26,7 @@ import { EditBookingDialog } from "./EditBookingDialog";
 import { isMarketplaceLocked } from "@/lib/bookingEditGuards";
 import { DepositPanel } from "./DepositPanel";
 import { LinkCustomerDialog } from "./LinkCustomerDialog";
+import { ExtendBookingDialog } from "./ExtendBookingDialog";
 import { LinkVehicleDialog } from "./LinkVehicleDialog";
 import { SigningCeremony } from "@/components/signing/SigningCeremony";
 import { DocumentPicker } from "@/components/signing/DocumentPicker";
