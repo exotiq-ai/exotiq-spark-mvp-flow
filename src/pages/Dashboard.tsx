@@ -346,6 +346,9 @@ const DashboardInner = () => {
       case "margin":
         content = <MarginEnhanced />;
         break;
+      case "customers":
+        content = <CRMSection />;
+        break;
       case "settings":
         content = <SettingsLayout />;
         break;
