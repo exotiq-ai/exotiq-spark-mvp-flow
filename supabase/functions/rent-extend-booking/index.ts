@@ -559,12 +559,91 @@ serve(async (req) => {
         })
         .eq("id", extension.id);
 
+      // Renter consent email — silent off-session charges MUST be disclosed
+      // in writing (Claude review blocker 2). If the send fails, keep the
+      // charge; log and continue.
+      if (booking.customer_email) {
+        try {
+          const [{ data: teamRow }, { data: vehicleRow }] = await Promise.all([
+            db
+              .from("teams")
+              .select("name, support_email")
+              .eq("id", booking.team_id)
+              .maybeSingle(),
+            booking.vehicle_id
+              ? db
+                  .from("vehicles")
+                  .select("year, make, model")
+                  .eq("id", booking.vehicle_id)
+                  .maybeSingle()
+              : Promise.resolve({ data: null }),
+          ]);
+          const operatorName = teamRow?.name ?? "Your operator";
+          const vehicleShort = vehicleRow
+            ? [vehicleRow.year, vehicleRow.make, vehicleRow.model].filter(Boolean).join(" ")
+            : "your booking";
+          const money = (cents: number) =>
+            `$${(cents / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+          const fmtDate = (iso: string) =>
+            new Date(iso).toLocaleDateString("en-US", {
+              weekday: "short",
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            });
+          await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-renter-email`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-internal-token": Deno.env.get("INTERNAL_FUNCTION_TOKEN") ?? "",
+            },
+            body: JSON.stringify({
+              templateName: "bookingExtended",
+              to: booking.customer_email,
+              subject: `Booking ${booking.booking_ref} extended — ${money(addedSubtotalCents + addedExotiqLegCents)} charged`,
+              idempotencyKey: `ext-${extension.id}`,
+              replyTo:
+                teamRow?.support_email?.trim() ||
+                Deno.env.get("RENTER_EMAIL_REPLY_TO") ||
+                "support@exotiq.ai",
+              variables: {
+                BOOKING_REF: booking.booking_ref ?? "",
+                OPERATOR_NAME: operatorName,
+                VEHICLE_SHORT: vehicleShort,
+                ADDED_DAYS: String(addedDays),
+                NEW_END_DATE: fmtDate(newEnd.toISOString()),
+                RENTAL_TOTAL: money(addedSubtotalCents),
+                FEES_TOTAL: money(addedExotiqLegCents),
+                GRAND_TOTAL: money(addedSubtotalCents + addedExotiqLegCents),
+                RATE_PER_DAY: money(ratePerDayCents),
+                PROTECTION_TIER: (booking.protection_tier ?? "premium").toString(),
+                PROTECTION_TOTAL: money(addedProtectionCents),
+                STATE_FEE_TOTAL: money(addedStateFeeCents),
+                PLATFORM_FEE_TOTAL: money(addedPlatformFeeCents),
+                PROCESSING_FEE_TOTAL: money(addedProcessingFeeCents),
+                CHANNEL: (typeof channel === "string" ? channel : "phone"),
+              },
+              tags: [
+                { name: "email_type", value: "booking_extended" },
+                { name: "booking_ref", value: booking.booking_ref ?? "" },
+              ],
+            }),
+          });
+        } catch (emailErr) {
+          log("bookingExtended email send failed (charge kept)", {
+            error: (emailErr as Error).message,
+            extensionId: extension.id,
+          });
+        }
+      }
+
       log("Extension charged (two-leg) + booking updated", {
         bookingRef: booking.booking_ref,
         addedDays,
         addedSubtotalCents,
         addedExotiqLegCents,
       });
+
 
       return json({
         success: true,
