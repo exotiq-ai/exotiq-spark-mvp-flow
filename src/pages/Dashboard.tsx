@@ -52,6 +52,7 @@ const SettingsLayout = lazyWithRetry(() => import('@/components/dashboard/settin
 const TeamHub = lazyWithRetry(() => import('@/components/dashboard/TeamHub'));
 const TeamMessaging = lazyWithRetry(() => import('@/components/messaging/TeamMessaging'));
 const MarginEnhanced = lazyWithRetry(() => import('@/components/dashboard/MarginEnhanced'));
+const CRMSection = lazyWithRetry(() => import('@/components/dashboard/CRMSection').then(m => ({ default: m.CRMSection })));
 
 import { DashboardSidebarEnhanced } from "@/components/dashboard/DashboardSidebarEnhanced";
 import { KeyboardShortcutsHelp } from "@/components/common/KeyboardShortcutsHelp";
