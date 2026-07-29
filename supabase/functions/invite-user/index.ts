@@ -13,6 +13,7 @@ interface InviteRequest {
   email: string;
   role: string;
   permissions: string[];
+  fullName?: string;
 }
 
 // Role hierarchy - higher number = more permissions
