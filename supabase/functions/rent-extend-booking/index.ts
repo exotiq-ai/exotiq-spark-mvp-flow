@@ -1,16 +1,24 @@
-// Extend an existing booking by additional days and (for marketplace bookings
-// with a saved card) auto-charge the balance off-session on the tenant's
-// connected account. Direct bookings are marked "manual" — the operator
-// records payment via the normal payments flow.
+// Extend an existing booking by additional days. For marketplace bookings
+// with a saved card on the platform customer (setup_future_usage from
+// rent-checkout), split the extension into two off-session PaymentIntents
+// that mirror the original M6 charge model:
 //
-// Safety:
-// - Team-membership check on the booking's team_id (never trust caller team).
-// - Availability re-check inside the request so races with a new booking on
-//   the same vehicle window fail closed.
-// - Idempotency key = booking_id + previous_end_date + new_end_date so a
-//   retried request can't double-charge.
-// - If DB update fails after a successful charge, the PI is auto-refunded
-//   and the extension is marked failed.
+//   Operator leg  — destination charge on platform, transfer to operator
+//                   connected acct minus operator's Stripe processing share.
+//                   Amount = rate_per_day × added_days.
+//   Exotiq  leg  — plain platform charge (no transfer).
+//                   Amount = platform_fee + state_fee + processing_fee_est.
+//
+// If the operator leg succeeds but the Exotiq leg fails, refund the
+// operator leg so the customer isn't left with a partial charge and the
+// operator isn't left holding rental $ that Exotiq never fee'd.
+//
+// Direct (non-marketplace) bookings and marketplace bookings without a
+// saved PI fall to the manual branch — dates move now, operator records
+// payment in the Payments tab.
+//
+// Safety: team-membership check, availability re-check inside the request,
+// idempotency keys keyed on (booking_id, previous_end, new_end).
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
@@ -32,9 +40,18 @@ const json = (body: unknown, status = 200) =>
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
-// State fee: matches rent-create-booking (589¢/day).
+// System-wide flat rate — matches rent-create-booking and public_vehicle_quote.
+// TODO: replace with per-jurisdiction lookup (locations.state_fee_cents_per_day
+// + exemption table for MT/OR/NH/DE/AK).
 const STATE_FEE_CENTS_PER_DAY = 589;
-// Processing fee estimate (Exotiq leg): 2% platform overhead + Stripe 2.9% + 30¢.
+
+// Operator's estimated Stripe processing share (matches rent-checkout).
+function stripeFeeEstimateCents(amountCents: number): number {
+  return Math.round(amountCents * 0.029) + 30;
+}
+
+// Exotiq leg processing fee estimate (matches public_vehicle_quote):
+// 2% platform overhead + Stripe 2.9% + 30¢ on the rental subtotal.
 function estimateProcessingFeeCents(rentalSubtotalCents: number): number {
   return Math.round(0.02 * rentalSubtotalCents) + Math.round(rentalSubtotalCents * 0.029) + 30;
 }
@@ -72,7 +89,7 @@ serve(async (req) => {
       charge_method = "card_on_file", // 'card_on_file' | 'manual'
     } = body ?? {};
 
-    if (!booking_id || !new_end_date || !rate_cents_per_day) {
+    if (!booking_id || !new_end_date || rate_cents_per_day == null) {
       return json({ error: "booking_id, new_end_date, rate_cents_per_day required" }, 400);
     }
     if (!["card_on_file", "manual"].includes(charge_method)) {
@@ -82,17 +99,15 @@ serve(async (req) => {
       return json({ error: "rate_cents_per_day must be >= 0" }, 400);
     }
 
-    // Load booking.
     const { data: booking, error: bErr } = await db
       .from("bookings")
       .select(
-        "id, team_id, vehicle_id, booking_ref, status, start_date, end_date, total_value, operator_payment_intent_id, exotiq_payment_intent_id, paid_at, customer_email, customer_name, platform_fee_cents, state_fee_cents, processing_fee_cents, protection_total_cents",
+        "id, team_id, vehicle_id, booking_ref, booking_source, status, start_date, end_date, total_value, operator_payment_intent_id, exotiq_payment_intent_id, paid_at, customer_email, customer_name, platform_fee_cents, state_fee_cents, processing_fee_cents, protection_total_cents",
       )
       .eq("id", booking_id)
       .single();
     if (bErr || !booking) return json({ error: "Booking not found" }, 404);
 
-    // Auth: user must be an active member of the booking's team.
     const { data: membership } = await db
       .from("team_members")
       .select("id")
@@ -112,8 +127,7 @@ serve(async (req) => {
     const addedDays = daysBetween(prevEnd, newEnd);
     if (addedDays < 1) return json({ error: "Extension must be at least 1 day" }, 400);
 
-    // Availability check: any other blocking booking on the same vehicle
-    // whose window overlaps [prevEnd, newEnd].
+    // Availability re-check.
     if (booking.vehicle_id) {
       const { data: conflicts } = await db
         .from("bookings")
@@ -125,20 +139,17 @@ serve(async (req) => {
         .gt("end_date", prevEnd.toISOString());
       if (conflicts && conflicts.length > 0) {
         return json(
-          {
-            error: "Extension conflicts with another booking",
-            conflict: conflicts[0],
-          },
+          { error: "Extension conflicts with another booking", conflict: conflicts[0] },
           409,
         );
       }
     }
 
     // Compute deltas.
-    const addedSubtotalCents = Math.round(Number(rate_cents_per_day)) * addedDays;
+    const ratePerDayCents = Math.round(Number(rate_cents_per_day));
+    const addedSubtotalCents = ratePerDayCents * addedDays;
     const addedStateFeeCents = STATE_FEE_CENTS_PER_DAY * addedDays;
-    // Platform fee delta uses the same % as the original booking snapshot,
-    // when the original had one. Otherwise 0 (direct booking, no marketplace fee).
+
     const originalSubtotalCents = Math.max(0, Math.round(Number(booking.total_value ?? 0) * 100));
     const originalPlatformFeeCents = Number(booking.platform_fee_cents ?? 0);
     const platformFeePct =
@@ -146,20 +157,24 @@ serve(async (req) => {
         ? originalPlatformFeeCents / originalSubtotalCents
         : 0;
     const addedPlatformFeeCents = Math.round(addedSubtotalCents * platformFeePct);
+
     const addedProcessingFeeCents = estimateProcessingFeeCents(addedSubtotalCents);
-    const addedTotalCents =
-      addedSubtotalCents + addedStateFeeCents + addedProcessingFeeCents;
+
+    const addedExotiqLegCents =
+      addedPlatformFeeCents + addedStateFeeCents + addedProcessingFeeCents;
+    const addedTotalCents = addedSubtotalCents + addedExotiqLegCents;
 
     log("Computed deltas", {
       addedDays,
+      ratePerDayCents,
       addedSubtotalCents,
       addedStateFeeCents,
       addedProcessingFeeCents,
       addedPlatformFeeCents,
+      addedExotiqLegCents,
       addedTotalCents,
     });
 
-    // Insert extension row (pending) — audit trail even if charge fails.
     const { data: extension, error: exErr } = await db
       .from("booking_extensions")
       .insert({
@@ -169,7 +184,7 @@ serve(async (req) => {
         previous_end_date: booking.end_date,
         new_end_date: newEnd.toISOString(),
         added_days: addedDays,
-        rate_cents_per_day: Math.round(Number(rate_cents_per_day)),
+        rate_cents_per_day: ratePerDayCents,
         added_subtotal_cents: addedSubtotalCents,
         added_state_fee_cents: addedStateFeeCents,
         added_processing_fee_cents: addedProcessingFeeCents,
@@ -185,194 +200,136 @@ serve(async (req) => {
       return json({ error: "Failed to record extension" }, 500);
     }
 
-    // Resolve tenant's connected account.
-    const mode = resolveStripeMode();
-    const { data: team } = await db
-      .from("teams")
-      .select("stripe_account_id, stripe_test_account_id")
-      .eq("id", booking.team_id)
-      .single();
-    let stripeAccountId: string | null = null;
-    try {
-      stripeAccountId = teamConnectedAccountId(
-        team ?? { stripe_account_id: null, stripe_test_account_id: null },
-        mode,
-      );
-    } catch (_) {
-      // Direct bookings on tenants without a Stripe account can't auto-charge.
-      stripeAccountId = null;
-    }
-
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
+    const mode = resolveStripeMode();
+
+    // Shared helper to persist booking date/fee bumps + write payment row(s).
+    const applyBookingBump = async (paymentRows: Array<Record<string, unknown>>) => {
+      const { error: updErr } = await db
+        .from("bookings")
+        .update({
+          end_date: newEnd.toISOString(),
+          total_value: Number(booking.total_value ?? 0) + addedSubtotalCents / 100,
+          platform_fee_cents:
+            Number(booking.platform_fee_cents ?? 0) + addedPlatformFeeCents,
+          state_fee_cents:
+            Number(booking.state_fee_cents ?? 0) + addedStateFeeCents,
+          processing_fee_cents:
+            Number(booking.processing_fee_cents ?? 0) + addedProcessingFeeCents,
+        } as Record<string, unknown>)
+        .eq("id", booking.id);
+      if (updErr) throw new Error(`Booking update failed: ${updErr.message}`);
+      if (paymentRows.length > 0) {
+        await db.from("payments").insert(paymentRows as never);
+      }
+    };
+
+    const markFailed = async (reason: string, extras: Record<string, unknown> = {}) => {
+      await db
+        .from("booking_extensions")
+        .update({ status: "failed", failure_reason: reason, ...extras })
+        .eq("id", extension.id);
+    };
 
     if (charge_method === "card_on_file") {
-      if (!booking.operator_payment_intent_id) {
-        await db
-          .from("booking_extensions")
-          .update({ status: "failed", failure_reason: "No original payment intent on booking (direct booking has no saved card). Use manual charge instead." })
-          .eq("id", extension.id);
+      if (booking.booking_source !== "marketplace" || !booking.operator_payment_intent_id) {
+        await markFailed(
+          "No card on file for this booking. Use 'balance owed' to record payment manually.",
+        );
         return json(
           {
-            error: "No card on file for this booking. Use 'Mark as balance owed' to record payment manually.",
+            error:
+              "No card on file for this booking. Use 'Mark as balance owed' to record payment manually.",
             extension_id: extension.id,
           },
           422,
         );
       }
-      if (!stripeAccountId) {
-        await db
-          .from("booking_extensions")
-          .update({ status: "failed", failure_reason: "Tenant Stripe account not configured for current mode." })
-          .eq("id", extension.id);
-        return json({ error: "Tenant Stripe account not configured for current mode" }, 422);
+
+      // Resolve operator connected account for the operator-leg transfer.
+      const { data: team } = await db
+        .from("teams")
+        .select("stripe_account_id, stripe_test_account_id")
+        .eq("id", booking.team_id)
+        .single();
+      let operatorAccountId: string;
+      try {
+        operatorAccountId = teamConnectedAccountId(
+          team ?? { stripe_account_id: null, stripe_test_account_id: null },
+          mode,
+        );
+      } catch (accErr) {
+        const msg = accErr instanceof Error ? accErr.message : String(accErr);
+        await markFailed(`Tenant Stripe account not configured for ${mode} mode: ${msg}`);
+        return json({ error: `Tenant Stripe account not configured for ${mode} mode` }, 422);
       }
 
+      // Retrieve the original destination-charged PI from the PLATFORM
+      // (not the connected account — destination charges live on platform).
+      let customer: string | undefined;
+      let paymentMethod: string | undefined;
+      let currency: string;
       try {
         const originalPi = await stripe.paymentIntents.retrieve(
           booking.operator_payment_intent_id,
-          { stripeAccount: stripeAccountId },
         );
-        const paymentMethod = typeof originalPi.payment_method === "string"
-          ? originalPi.payment_method
-          : originalPi.payment_method?.id;
-        const customer = typeof originalPi.customer === "string"
-          ? originalPi.customer
-          : originalPi.customer?.id;
-        if (!paymentMethod || !customer) {
-          await db
-            .from("booking_extensions")
-            .update({
-              status: "failed",
-              failure_reason: "Original PaymentIntent has no saved payment method or customer.",
-            })
-            .eq("id", extension.id);
-          return json({ error: "Original booking has no saved card to reuse. Record payment manually." }, 422);
-        }
+        customer =
+          typeof originalPi.customer === "string"
+            ? originalPi.customer
+            : originalPi.customer?.id;
+        paymentMethod =
+          typeof originalPi.payment_method === "string"
+            ? originalPi.payment_method
+            : originalPi.payment_method?.id;
+        currency = originalPi.currency;
+      } catch (retrErr) {
+        const msg = retrErr instanceof Error ? retrErr.message : String(retrErr);
+        await markFailed(`Could not retrieve original payment intent: ${msg}`);
+        return json({ error: "Could not retrieve original payment intent" }, 502);
+      }
 
-        const pi = await stripe.paymentIntents.create(
+      if (!customer || !paymentMethod) {
+        await markFailed("Original PaymentIntent has no saved payment method or customer.");
+        return json(
+          { error: "Original booking has no saved card to reuse. Record payment manually." },
+          422,
+        );
+      }
+
+      const idempotencyEnvelope = `${booking.id}-${prevEnd.toISOString()}-${newEnd.toISOString()}`;
+
+      // -------- OPERATOR LEG (destination charge on platform) --------
+      let operatorPi: Stripe.PaymentIntent;
+      try {
+        operatorPi = await stripe.paymentIntents.create(
           {
-            amount: addedTotalCents,
-            currency: originalPi.currency,
+            amount: addedSubtotalCents,
+            currency,
             customer,
             payment_method: paymentMethod,
             off_session: true,
             confirm: true,
-            application_fee_amount:
-              addedPlatformFeeCents > 0 ? addedPlatformFeeCents : undefined,
-            statement_descriptor_suffix: "EXT",
-            description: `Booking extension ${booking.booking_ref} +${addedDays}d`,
+            on_behalf_of: operatorAccountId,
+            transfer_data: {
+              destination: operatorAccountId,
+              amount: addedSubtotalCents - stripeFeeEstimateCents(addedSubtotalCents),
+            },
+            description: `Booking extension ${booking.booking_ref} +${addedDays}d (rental)`,
             metadata: {
               booking_ref: booking.booking_ref ?? "",
               booking_id: booking.id,
               extension_id: extension.id,
               added_days: String(addedDays),
-              leg: "extension",
+              leg: "operator_rental_extension",
               stripe_mode: mode,
             },
           },
-          {
-            stripeAccount: stripeAccountId,
-            idempotencyKey: `extend-${booking.id}-${prevEnd.toISOString()}-${newEnd.toISOString()}`,
-          },
+          { idempotencyKey: `extend-op-${idempotencyEnvelope}` },
         );
-
-        if (pi.status !== "succeeded") {
-          await db
-            .from("booking_extensions")
-            .update({
-              status: "failed",
-              payment_intent_id: pi.id,
-              failure_reason: `Payment did not settle immediately (status=${pi.status}). Try again or record payment manually.`,
-            })
-            .eq("id", extension.id);
-          return json(
-            {
-              error: `Charge did not settle (${pi.status}). Try again or record payment manually.`,
-              payment_intent_id: pi.id,
-            },
-            402,
-          );
-        }
-
-        // Charge succeeded — update booking + mirror payment.
-        const { error: updErr } = await db
-          .from("bookings")
-          .update({
-            end_date: newEnd.toISOString(),
-            total_value: Number(booking.total_value ?? 0) + addedSubtotalCents / 100,
-            platform_fee_cents:
-              Number(booking.platform_fee_cents ?? 0) + addedPlatformFeeCents,
-            state_fee_cents:
-              Number(booking.state_fee_cents ?? 0) + addedStateFeeCents,
-            processing_fee_cents:
-              Number(booking.processing_fee_cents ?? 0) + addedProcessingFeeCents,
-          } as any)
-          .eq("id", booking.id);
-
-        if (updErr) {
-          // Refund and mark failed.
-          log("Charge captured but booking update failed — refunding", { error: updErr.message });
-          try {
-            await stripe.refunds.create(
-              { payment_intent: pi.id },
-              { stripeAccount: stripeAccountId },
-            );
-          } catch (rErr) {
-            log("Refund attempt failed", { error: (rErr as Error).message });
-          }
-          await db
-            .from("booking_extensions")
-            .update({
-              status: "failed",
-              payment_intent_id: pi.id,
-              failure_reason: `Booking update failed after charge; refund attempted: ${updErr.message}`,
-            })
-            .eq("id", extension.id);
-          return json({ error: "Booking update failed after charge; refund attempted" }, 500);
-        }
-
-        await db.from("payments").insert({
-          booking_id: booking.id,
-          team_id: booking.team_id,
-          amount: addedTotalCents / 100,
-          payment_method: "stripe",
-          payment_status: "completed",
-          stripe_payment_intent_id: pi.id,
-          notes: `Booking extension (+${addedDays} day${addedDays === 1 ? "" : "s"})`,
-          paid_at: new Date().toISOString(),
-        } as any);
-
-        await db
-          .from("booking_extensions")
-          .update({
-            status: "paid",
-            payment_intent_id: pi.id,
-          })
-          .eq("id", extension.id);
-
-        log("Extension charged + booking updated", {
-          bookingRef: booking.booking_ref,
-          addedDays,
-          addedTotalCents,
-        });
-
-        return json({
-          success: true,
-          extension_id: extension.id,
-          payment_intent_id: pi.id,
-          added_total_cents: addedTotalCents,
-          new_end_date: newEnd.toISOString(),
-        });
-      } catch (chargeErr) {
-        const msg = chargeErr instanceof Error ? chargeErr.message : String(chargeErr);
-        log("Off-session charge failed", { error: msg });
-        await db
-          .from("booking_extensions")
-          .update({
-            status: "failed",
-            failure_reason: msg,
-          })
-          .eq("id", extension.id);
+      } catch (opErr) {
+        const msg = opErr instanceof Error ? opErr.message : String(opErr);
+        log("Operator leg failed", { error: msg });
+        await markFailed(`Operator card charge failed: ${msg}`);
         return json(
           {
             error: `Card charge failed: ${msg}. You can record payment manually to complete the extension.`,
@@ -380,27 +337,171 @@ serve(async (req) => {
           402,
         );
       }
-    }
 
-    // Manual path — extend dates now, operator records payment separately.
-    const { error: updErr } = await db
-      .from("bookings")
-      .update({
-        end_date: newEnd.toISOString(),
-        total_value: Number(booking.total_value ?? 0) + addedSubtotalCents / 100,
-        platform_fee_cents:
-          Number(booking.platform_fee_cents ?? 0) + addedPlatformFeeCents,
-        state_fee_cents:
-          Number(booking.state_fee_cents ?? 0) + addedStateFeeCents,
-        processing_fee_cents:
-          Number(booking.processing_fee_cents ?? 0) + addedProcessingFeeCents,
-      } as any)
-      .eq("id", booking.id);
-    if (updErr) {
+      if (operatorPi.status !== "succeeded") {
+        await markFailed(
+          `Operator charge did not settle (${operatorPi.status})`,
+          { operator_payment_intent_id: operatorPi.id },
+        );
+        return json(
+          {
+            error: `Card did not settle (${operatorPi.status}). Try again or record payment manually.`,
+            payment_intent_id: operatorPi.id,
+          },
+          402,
+        );
+      }
+
+      // -------- EXOTIQ LEG (plain platform charge, no transfer) --------
+      let exotiqPi: Stripe.PaymentIntent | null = null;
+      if (addedExotiqLegCents > 0) {
+        try {
+          exotiqPi = await stripe.paymentIntents.create(
+            {
+              amount: addedExotiqLegCents,
+              currency,
+              customer,
+              payment_method: paymentMethod,
+              off_session: true,
+              confirm: true,
+              description: `Booking extension ${booking.booking_ref} +${addedDays}d (fees)`,
+              metadata: {
+                booking_ref: booking.booking_ref ?? "",
+                booking_id: booking.id,
+                extension_id: extension.id,
+                added_days: String(addedDays),
+                leg: "exotiq_fees_extension",
+                stripe_mode: mode,
+              },
+            },
+            { idempotencyKey: `extend-fee-${idempotencyEnvelope}` },
+          );
+        } catch (feeErr) {
+          const msg = feeErr instanceof Error ? feeErr.message : String(feeErr);
+          log("Exotiq leg failed — refunding operator leg", { error: msg });
+          try {
+            await stripe.refunds.create({ payment_intent: operatorPi.id });
+          } catch (rErr) {
+            log("Operator refund attempt failed", {
+              error: (rErr as Error).message,
+              operatorPiId: operatorPi.id,
+            });
+          }
+          await markFailed(
+            `Exotiq fee charge failed (operator leg refunded): ${msg}`,
+            { operator_payment_intent_id: operatorPi.id },
+          );
+          return json(
+            {
+              error: `Fee charge failed and rental charge was refunded: ${msg}. Try again or record payment manually.`,
+            },
+            402,
+          );
+        }
+
+        if (exotiqPi.status !== "succeeded") {
+          log("Exotiq leg not settled — refunding operator leg");
+          try {
+            await stripe.refunds.create({ payment_intent: operatorPi.id });
+          } catch (rErr) {
+            log("Operator refund attempt failed", { error: (rErr as Error).message });
+          }
+          await markFailed(
+            `Exotiq charge did not settle (${exotiqPi.status}); operator leg refunded`,
+            {
+              operator_payment_intent_id: operatorPi.id,
+              exotiq_payment_intent_id: exotiqPi.id,
+            },
+          );
+          return json(
+            {
+              error: `Fee charge did not settle (${exotiqPi.status}); rental refunded. Try again or record payment manually.`,
+            },
+            402,
+          );
+        }
+      }
+
+      // -------- BOTH LEGS OK — bump booking + record payments --------
+      const paymentRows: Array<Record<string, unknown>> = [
+        {
+          booking_id: booking.id,
+          team_id: booking.team_id,
+          amount: addedSubtotalCents / 100,
+          payment_method: "stripe",
+          payment_status: "completed",
+          stripe_payment_intent_id: operatorPi.id,
+          notes: `Booking extension rental (+${addedDays} day${addedDays === 1 ? "" : "s"})`,
+          paid_at: new Date().toISOString(),
+        },
+      ];
+      if (exotiqPi) {
+        paymentRows.push({
+          booking_id: booking.id,
+          team_id: booking.team_id,
+          amount: addedExotiqLegCents / 100,
+          payment_method: "stripe",
+          payment_status: "completed",
+          stripe_payment_intent_id: exotiqPi.id,
+          notes: `Booking extension fees (state + platform + processing)`,
+          paid_at: new Date().toISOString(),
+        });
+      }
+
+      try {
+        await applyBookingBump(paymentRows);
+      } catch (bumpErr) {
+        const msg = bumpErr instanceof Error ? bumpErr.message : String(bumpErr);
+        log("Booking bump failed after both charges — refunding both legs", { error: msg });
+        try {
+          await stripe.refunds.create({ payment_intent: operatorPi.id });
+        } catch (_) { /* noop */ }
+        if (exotiqPi) {
+          try {
+            await stripe.refunds.create({ payment_intent: exotiqPi.id });
+          } catch (_) { /* noop */ }
+        }
+        await markFailed(`Booking update failed after charges; both refunded: ${msg}`, {
+          operator_payment_intent_id: operatorPi.id,
+          exotiq_payment_intent_id: exotiqPi?.id ?? null,
+        });
+        return json({ error: "Booking update failed after charges; both refunded" }, 500);
+      }
+
       await db
         .from("booking_extensions")
-        .update({ status: "failed", failure_reason: updErr.message })
+        .update({
+          status: "paid",
+          operator_payment_intent_id: operatorPi.id,
+          exotiq_payment_intent_id: exotiqPi?.id ?? null,
+        })
         .eq("id", extension.id);
+
+      log("Extension charged (two-leg) + booking updated", {
+        bookingRef: booking.booking_ref,
+        addedDays,
+        addedSubtotalCents,
+        addedExotiqLegCents,
+      });
+
+      return json({
+        success: true,
+        extension_id: extension.id,
+        operator_payment_intent_id: operatorPi.id,
+        exotiq_payment_intent_id: exotiqPi?.id ?? null,
+        added_subtotal_cents: addedSubtotalCents,
+        added_exotiq_leg_cents: addedExotiqLegCents,
+        added_total_cents: addedTotalCents,
+        new_end_date: newEnd.toISOString(),
+      });
+    }
+
+    // -------- MANUAL PATH — extend dates now, operator reconciles later --------
+    try {
+      await applyBookingBump([]);
+    } catch (bumpErr) {
+      const msg = bumpErr instanceof Error ? bumpErr.message : String(bumpErr);
+      await markFailed(msg);
       return json({ error: "Failed to update booking dates" }, 500);
     }
     await db
