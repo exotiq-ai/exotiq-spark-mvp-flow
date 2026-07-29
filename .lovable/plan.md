@@ -1,86 +1,50 @@
-# Booking dialog upgrades
 
-## 1. Header cleanup — move Google Cal, dedupe Edit
+## Verification: `setup_future_usage`
 
-Header (right of title) becomes: `[Cal icon] [Edit] [Status badge] [X]`.
-- Replace the "Add to Google" text button in Quick Actions with a compact icon-only button (`CalendarPlus`, tooltip "Add to Google Calendar") sitting to the left of Edit.
-- Remove the duplicate "Edit Booking" pill from Quick Actions. Header Edit already opens edit mode; the second button opened a separate `EditBookingDialog` — redundant.
-- Keep "Change Vehicle" in Quick Actions.
+Confirmed in `supabase/functions/rent-checkout/index.ts:174` — `payment_intent_data.setup_future_usage: "off_session"` is already set, and `payment_method_types` is card-only (line 158). Every marketplace booking created since M6b has a reusable card on file at the **platform** customer. No change needed to `rent-checkout`; backward-compat clause is moot.
 
-## 2. Extend Booking
+## Bugs to fix in `rent-extend-booking`
 
-New action in Quick Actions: **Extend booking**. Only shown when booking is `confirmed` / `active` / `checked_out` and end_date is in the future or within 24h past pickup.
+The M6 charge model is a **destination charge on the platform** with `on_behalf_of` + `transfer_data` for the operator rental, plus a **separate platform charge** for the Exotiq leg. My first pass got two things wrong:
 
-### UI flow (new `ExtendBookingDialog`)
-1. Shows current end date + a date picker for new end date (must be after current end).
-2. Recalculates: added days, per-day rate (pre-filled with original snapshot rate, **operator-editable**), added subtotal, added state fee (`589¢ × added_days`), added processing fee (`2% + Stripe 2.9%+30¢` on Exotiq leg), **balance due**.
-3. Availability check: calls existing conflict helper — blocks if extension collides with another booking or an out-of-service window. Shows the conflicting booking ref.
-4. Charge method picker:
-   - **Marketplace booking with saved card** → "Charge card on file now" (default).
-   - **Direct booking / no saved PM** → "Send payment link" (Stripe hosted invoice) OR "Mark as balance owed" (operator will record payment).
-5. Confirm → runs the edge function, shows success/failure toast, refreshes booking.
+1. **PI lives on the platform, not the connected account.** I called `stripe.paymentIntents.retrieve(pi, { stripeAccount })` — that queries the connected account and would return "not found" for every marketplace booking. Fix: retrieve without `stripeAccount`, pull `customer` + `payment_method` from the platform PI.
 
-### Backend — `rent-extend-booking` edge function
-Single function, transactional:
-1. Auth: JWT → team membership check on booking.team_id.
-2. Validate: new_end_date > current end_date; not a marketplace-locked cancellation; availability re-check inside a transaction (SELECT ... FOR UPDATE on overlapping rows via `check_booking_conflict` RPC).
-3. Compute deltas (added_days, added_subtotal_cents, added_state_fee_cents, added_processing_fee_cents, added_total_cents).
-4. Charge path:
-   - **Marketplace + saved PM present**: create off-session `PaymentIntent` on the connected account for `added_total_cents`, with `application_fee_amount` = added platform fee, `customer` + `payment_method` from original PI, `off_session: true`, `confirm: true`. On `requires_action` → return `requires_action` to the UI (operator sees "3DS needed; sending payment link") and fall through to hosted invoice.
-   - **Direct or no PM**: create a Stripe Invoice (hosted) on the tenant's connected account, email link to renter, mark extension `pending_payment` in a new `booking_extensions` row.
-   - **Manual**: skip Stripe, mark extension `balance_owed`.
-5. On successful capture (or manual confirm): update `bookings.end_date`, bump `total_value`, `platform_fee_cents`, `state_fee_cents`, `processing_fee_cents`, append to `payments` (new row with `payment_type='extension'`), emit `booking_extended` notification to renter (new email template) + operator activity log entry.
-6. Google Calendar sync: if `gcal_event_id` set, PATCH the event end time.
+2. **Single PI on the connected account is wrong split.** I created one PI for `added_total_cents` on the connected account with `application_fee_amount`. That routes the state fee + Exotiq platform fee to the operator's Stripe balance, then claws back only the platform fee — the state fee stays with the operator instead of Exotiq. Correct split for an extension of +N days:
+   - **Operator leg** (destination charge on platform): `rental_rate × added_days` — `transfer_data.destination = operator`, `amount = rental − operator's Stripe processing share` (mirrors `stripeFeeEstimateCents` in `rent-checkout`).
+   - **Exotiq leg** (plain platform charge): `platform_fee_pct × added_rental + state_fee_589¢ × added_days + processing_fee_est`. No `transfer_data`; stays on the platform.
+   Both use the same saved PM off-session on the platform customer. Two `paymentIntents.create` calls, distinct idempotency keys (`extend-op-…`, `extend-fee-…`).
 
-### New table: `booking_extensions`
-Tracks each extension as an audit row so financial history stays reconstructible.
-```
-id, booking_id, extended_by_user_id, previous_end_date, new_end_date,
-added_days, added_subtotal_cents, added_state_fee_cents,
-added_processing_fee_cents, added_total_cents, rate_cents_per_day,
-charge_method ('card_on_file' | 'payment_link' | 'manual'),
-payment_intent_id, invoice_id, status ('paid' | 'pending' | 'failed' | 'manual'),
-created_at
-```
-Full GRANTs + RLS scoped by `team_id` via booking join.
+3. **Failure ordering.** Charge operator leg first, then Exotiq. If operator succeeds but Exotiq fails, mark extension `partially_paid`, refund the operator leg, and surface a clear error — never leave the operator with rental $ but Exotiq with $0.
 
-### Safety rails
-- **Idempotency**: `Idempotency-Key` on the Stripe call = `booking_id + previous_end_date + new_end_date`. Prevents double-charge on retry.
-- **Rollback**: if DB update fails after successful charge, refund the PI and surface the error.
-- **Payment failure UX**: `card_declined` / `authentication_required` never mutates dates — operator sees the error and falls back to payment link.
-- **Marketplace locked bookings**: extensions still allowed post-payment (dates aren't the locked field), but the extended leg is a separate PI so refund policy stays clean.
-- **Availability race**: transaction-level lock prevents two operators extending into the same window.
+4. Insert two `payments` rows (one per leg) to match how `rent-payment-webhook` records the original two legs.
 
-## 3. Dialog width — my recommendation
+## Fees on extensions
 
-**Widen to ~900px, keep as modal.** Reasoning:
-- The card is genuinely dense (5 tabs + hero + actions + financial summary). 700px forces awkward wrapping on Payments and Activity tabs.
-- 1100px + 2-column crosses into "page" territory — operators lose context of the list behind. Full page navigation is the wrong tradeoff for a quick-read card.
-- 900px hits the sweet spot: tabs breathe, financial rows stop wrapping, still overlays the list. Verified against your 989px viewport → sits comfortably with sidebar collapsed.
-- No need for A/B — the density complaint is real, and the fix is cheap and reversible. Ship it and iterate if we see friction.
-- Also tighten header spacing and reduce hero padding by ~4px to reclaim vertical room.
+Per your direction — every added day carries the same three components as the original booking:
+- Rental rate × added days → operator
+- Platform fee % of added rental → Exotiq
+- State rental fee 589¢ × added days → Exotiq
+- Processing fee estimate on the Exotiq leg → Exotiq
 
-Mobile stays full-screen inset (already handled).
+Snapshot all four onto `booking_extensions` so the row is a self-contained receipt.
 
-## Testing
+## Flag: state-fee jurisdiction gap (system-wide, not extension-specific)
 
-- **Unit**: `booking_extensions` computations (added_days, fee math), RLS on new table, availability conflict function returns the right blocker.
-- **Edge function**: happy path (marketplace card charge succeeds), 3DS-required fallback to invoice, direct booking → invoice, availability collision → 409, unauthorized team member → 403, idempotency (same key returns cached result), Stripe decline → no date mutation.
-- **E2E (Playwright)**: extend a confirmed marketplace booking end-to-end in sandbox, verify PI captured, `bookings.end_date` moved, `payments` row created, GCal PATCH called.
-- **Regression**: existing tests for `EnhancedBookingDialog` still pass, calendar collision detection unchanged for non-extended flows.
+The 589¢/day state fee is **hardcoded and location-blind everywhere it appears** — `rent-create-booking`, `public_vehicle_quote`, and now the extension. There is no `location.state` → tax-rate lookup, no exemption table, and the `state_fee_cents` column has no jurisdiction metadata. So:
+- Bookings originating in Montana, Oregon, New Hampshire, Delaware, or Alaska (no sales tax) currently overcharge.
+- Bookings originating in states with short-term rental tax that isn't 589¢/day (most of them) are wrong too — the 589¢ figure was a placeholder in the M6d fee migration.
+- Extensions will inherit whatever wrong-or-right rate was on the original booking, which is at least internally consistent, but the underlying flaw is not extension-specific.
 
-## Files touched
+Recommendation: leave the extension using 589¢/day for now (matches the rest of the system), and open a follow-up to add a per-location `state_fee_cents_per_day` on `locations` with exemption support. That's a M6-adjacent tax project, not part of this extend-booking work.
 
-- `src/components/dialogs/EnhancedBookingDialog.tsx` — header restructure, Quick Actions cleanup, width bump, add "Extend booking" button.
-- `src/components/dialogs/ExtendBookingDialog.tsx` — **new**.
-- `src/lib/pricing.ts` — export `computeExtensionDeltas()` helper for UI + edge to share math.
-- `supabase/functions/rent-extend-booking/index.ts` — **new**.
-- `supabase/functions/send-renter-email/templates.ts` — new `bookingExtended` template.
-- `supabase/functions/gcal-sync/index.ts` — accept extension patches.
-- `supabase/migrations/<ts>_booking_extensions.sql` — new table + RLS + GRANTs.
-- Tests: `src/lib/__tests__/pricing.extend.test.ts`, `tests/e2e/booking-extend.spec.ts`.
+## Files touched (implementation phase)
 
-## Open items requiring your input
+- `supabase/functions/rent-extend-booking/index.ts` — rewrite charge section per the two-leg model above; keep the manual/`card_on_file` branch, availability re-check, and idempotency envelope.
+- `src/components/dialogs/ExtendBookingDialog.tsx` — no functional change; copy tweak so the receipt block itemizes "Rental (operator)" and "Fees (Exotiq)" separately, matching the receipt renters see in the confirmation email.
+- No DB migration — `booking_extensions` already carries all four cent columns.
 
-- **Stripe verification**: for marketplace bookings, does the current Checkout session set `payment_intent_data.setup_future_usage: 'off_session'`? If not, first-time extensions won't have a saved PM and will always fall back to invoice. I'll check `rent-checkout` during build; if it doesn't, we'll add it (backward-compatible for new bookings only — pre-existing bookings will use the invoice path).
-- **State fee for extensions**: assuming same `589¢/day` for now — flag if extensions should be tax-exempt in any jurisdiction.
+## Verification after implementation
+
+- Typecheck.
+- Manual sandbox test on BK-03458 (or a fresh test booking): extend +1 day, confirm two PIs appear in Stripe (one destination-charged to operator connected acct, one on platform), both `succeeded`, both mirrored in `payments`.
+- Force the Exotiq leg to fail (bad amount) and confirm the operator leg is auto-refunded and extension row lands `failed` with a useful reason.
