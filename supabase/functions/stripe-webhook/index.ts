@@ -6,6 +6,22 @@ const logStep = (step: string, details?: Record<string, unknown>) => {
   console.log(`[STRIPE-WEBHOOK] ${step}${details ? ` - ${JSON.stringify(details)}` : ''}`);
 };
 
+// Renter marketplace money objects (rent-checkout / rent-payment-webhook /
+// rent-extend-booking) always stamp a `leg` in metadata. Those events belong
+// exclusively to rent-payment-webhook — this legacy endpoint must never act
+// on them, or the two-leg charge/receipt flow gets double-handled.
+const RENTER_LEGS = new Set([
+  "operator_rental",
+  "exotiq_fee_protection",
+  "operator_rental_extension",
+  "exotiq_fees_extension",
+]);
+
+const isRenterMoneyObject = (metadata?: Record<string, string> | null): boolean => {
+  const leg = metadata?.leg;
+  return typeof leg === "string" && RENTER_LEGS.has(leg);
+};
+
 serve(async (req) => {
   if (req.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
@@ -31,13 +47,17 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
-    // Idempotency check
+    // Idempotency check — scoped to this consumer. The renter money flow
+    // (`rent-payment-webhook`) shares this table and subscribes to some of
+    // the same event types; keying per consumer keeps the two endpoints from
+    // suppressing each other's processing of the same Stripe event.
     const { data: existing } = await supabaseClient
       .from("stripe_webhook_events")
       .select("id")
+      .eq("consumer", "legacy")
       .eq("stripe_event_id", event.id)
       .limit(1)
-      .single();
+      .maybeSingle();
 
     if (existing) {
       logStep("Duplicate event, skipping", { eventId: event.id });
@@ -46,6 +66,7 @@ serve(async (req) => {
 
     // Record event
     await supabaseClient.from("stripe_webhook_events").insert({
+      consumer: "legacy",
       stripe_event_id: event.id,
       event_type: event.type,
       payload: JSON.parse(body),
@@ -130,6 +151,14 @@ serve(async (req) => {
         const session = event.data.object as Stripe.Checkout.Session;
         logStep("Checkout completed", { sessionId: session.id, mode: session.mode });
 
+        if (isRenterMoneyObject(session.metadata)) {
+          logStep("Renter marketplace event — owned by rent-payment-webhook, skipping", {
+            sessionId: session.id,
+            leg: session.metadata?.leg,
+          });
+          break;
+        }
+
         if (session.mode === "payment" && session.metadata?.booking_id) {
           // Tenant payment — update booking and payment records
           const bookingId = session.metadata.booking_id;
@@ -162,6 +191,14 @@ serve(async (req) => {
       case "payment_intent.succeeded": {
         const pi = event.data.object as Stripe.PaymentIntent;
         logStep("PaymentIntent succeeded", { piId: pi.id });
+
+        if (isRenterMoneyObject(pi.metadata)) {
+          logStep("Renter marketplace PI — owned by rent-payment-webhook, skipping", {
+            piId: pi.id,
+            leg: pi.metadata?.leg,
+          });
+          break;
+        }
 
         await supabaseClient
           .from("payments")

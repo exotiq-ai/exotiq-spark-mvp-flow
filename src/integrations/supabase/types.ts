@@ -3258,6 +3258,7 @@ export type Database = {
       }
       stripe_webhook_events: {
         Row: {
+          consumer: string
           event_type: string
           id: string
           payload: Json | null
@@ -3265,6 +3266,7 @@ export type Database = {
           stripe_event_id: string
         }
         Insert: {
+          consumer?: string
           event_type: string
           id?: string
           payload?: Json | null
@@ -3272,6 +3274,7 @@ export type Database = {
           stripe_event_id: string
         }
         Update: {
+          consumer?: string
           event_type?: string
           id?: string
           payload?: Json | null
