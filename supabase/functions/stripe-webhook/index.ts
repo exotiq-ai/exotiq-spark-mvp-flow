@@ -6,6 +6,22 @@ const logStep = (step: string, details?: Record<string, unknown>) => {
   console.log(`[STRIPE-WEBHOOK] ${step}${details ? ` - ${JSON.stringify(details)}` : ''}`);
 };
 
+// Renter marketplace money objects (rent-checkout / rent-payment-webhook /
+// rent-extend-booking) always stamp a `leg` in metadata. Those events belong
+// exclusively to rent-payment-webhook — this legacy endpoint must never act
+// on them, or the two-leg charge/receipt flow gets double-handled.
+const RENTER_LEGS = new Set([
+  "operator_rental",
+  "exotiq_fee_protection",
+  "operator_rental_extension",
+  "exotiq_fees_extension",
+]);
+
+const isRenterMoneyObject = (metadata?: Record<string, string> | null): boolean => {
+  const leg = metadata?.leg;
+  return typeof leg === "string" && RENTER_LEGS.has(leg);
+};
+
 serve(async (req) => {
   if (req.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
