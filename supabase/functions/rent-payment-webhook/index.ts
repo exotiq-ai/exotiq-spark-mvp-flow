@@ -266,10 +266,12 @@ serve(async (req) => {
   const mode = resolveStripeMode();
 
   // Dedupe via the existing stripe_webhook_events table (Lovable flag #6).
-  // APPLY NOTE: align column names with the deployed table if they differ.
+  // Keyed on (consumer, stripe_event_id) so the legacy `stripe-webhook`
+  // endpoint — which subscribes to the same event types — can never claim
+  // an event out from under this function.
   const { error: dedupeError } = await db
     .from("stripe_webhook_events")
-    .insert({ stripe_event_id: event.id, event_type: event.type });
+    .insert({ consumer: "rent", stripe_event_id: event.id, event_type: event.type });
   if (dedupeError) {
     // Unique violation → already processed; anything else → let Stripe retry.
     if ((dedupeError as { code?: string }).code === "23505") {
