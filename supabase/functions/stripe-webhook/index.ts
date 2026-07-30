@@ -31,13 +31,17 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
-    // Idempotency check
+    // Idempotency check — scoped to this consumer. The renter money flow
+    // (`rent-payment-webhook`) shares this table and subscribes to some of
+    // the same event types; keying per consumer keeps the two endpoints from
+    // suppressing each other's processing of the same Stripe event.
     const { data: existing } = await supabaseClient
       .from("stripe_webhook_events")
       .select("id")
+      .eq("consumer", "legacy")
       .eq("stripe_event_id", event.id)
       .limit(1)
-      .single();
+      .maybeSingle();
 
     if (existing) {
       logStep("Duplicate event, skipping", { eventId: event.id });
@@ -46,6 +50,7 @@ serve(async (req) => {
 
     // Record event
     await supabaseClient.from("stripe_webhook_events").insert({
+      consumer: "legacy",
       stripe_event_id: event.id,
       event_type: event.type,
       payload: JSON.parse(body),
