@@ -465,7 +465,11 @@ serve(async (req) => {
     // Release the dedupe row so Stripe's redelivery actually reprocesses —
     // otherwise the duplicate check would swallow the retry of failed work.
     // Per-leg idempotency keys keep the retry from double-charging.
-    await db.from("stripe_webhook_events").delete().eq("stripe_event_id", event.id);
+    await db
+      .from("stripe_webhook_events")
+      .delete()
+      .eq("consumer", "rent")
+      .eq("stripe_event_id", event.id);
     return new Response("Handler error", { status: 500 });
   }
 });
