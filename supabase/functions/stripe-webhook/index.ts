@@ -135,6 +135,14 @@ serve(async (req) => {
         const session = event.data.object as Stripe.Checkout.Session;
         logStep("Checkout completed", { sessionId: session.id, mode: session.mode });
 
+        if (isRenterMoneyObject(session.metadata)) {
+          logStep("Renter marketplace event — owned by rent-payment-webhook, skipping", {
+            sessionId: session.id,
+            leg: session.metadata?.leg,
+          });
+          break;
+        }
+
         if (session.mode === "payment" && session.metadata?.booking_id) {
           // Tenant payment — update booking and payment records
           const bookingId = session.metadata.booking_id;
@@ -167,6 +175,14 @@ serve(async (req) => {
       case "payment_intent.succeeded": {
         const pi = event.data.object as Stripe.PaymentIntent;
         logStep("PaymentIntent succeeded", { piId: pi.id });
+
+        if (isRenterMoneyObject(pi.metadata)) {
+          logStep("Renter marketplace PI — owned by rent-payment-webhook, skipping", {
+            piId: pi.id,
+            leg: pi.metadata?.leg,
+          });
+          break;
+        }
 
         await supabaseClient
           .from("payments")
