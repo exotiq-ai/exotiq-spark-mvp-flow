@@ -1793,19 +1793,67 @@ async function executeFunction(functionName: string, args: Record<string, unknow
 
       case "getVaultDocuments": {
         const { category, status } = args;
-        
-        // Mock documents for now
-        const mockDocs = [
-          { name: "McLaren 720S Insurance", category: "insurance", status: "active", expires: "2025-03-15" },
-          { name: "Ferrari SF90 Registration", category: "registration", status: "active", expires: "2025-06-30" },
-          { name: "Lamborghini Service Record", category: "inspection", status: "expiring", expires: "2024-11-18" }
-        ];
 
-        return { 
-          documents: mockDocs,
-          summary: `Found ${mockDocs.length} documents in vault`
-        };
+        let docsQuery = supabase
+          .from('documents')
+          .select('id, name, type, status, expires_at, verification_status, vehicles(make, model, year)')
+          .eq('team_id', teamId)
+          .order('expires_at', { ascending: true, nullsFirst: false })
+          .limit(50);
+
+        if (category) docsQuery = docsQuery.eq('type', category);
+        if (status) docsQuery = docsQuery.eq('status', status);
+
+        const { data: docs, error: docsError } = await docsQuery;
+
+        if (docsError) {
+          console.error('[getVaultDocuments] Query failed:', docsError);
+          return {
+            error: 'document_lookup_failed',
+            summary: `I couldn't read the document vault just now (${docsError.message}). I don't want to tell you it's empty when I simply couldn't check.`,
+          };
+        }
+
+        const now = Date.now();
+        const documents = (docs || []).map((d: any) => {
+          const expiresAt = d.expires_at ? new Date(d.expires_at) : null;
+          const daysToExpiry = expiresAt
+            ? Math.round((expiresAt.getTime() - now) / 86400000)
+            : null;
+          const vehicle = d.vehicles
+            ? `${d.vehicles.year || ''} ${d.vehicles.make || ''} ${d.vehicles.model || ''}`.trim()
+            : null;
+          return {
+            name: d.name,
+            category: d.type,
+            status: d.status,
+            verification: d.verification_status,
+            vehicle,
+            expires: d.expires_at ? d.expires_at.slice(0, 10) : null,
+            expired: daysToExpiry !== null && daysToExpiry < 0,
+            expiringSoon: daysToExpiry !== null && daysToExpiry >= 0 && daysToExpiry <= 30,
+          };
+        });
+
+        const expired = documents.filter((d) => d.expired).length;
+        const expiringSoon = documents.filter((d) => d.expiringSoon).length;
+
+        let summary: string;
+        if (documents.length === 0) {
+          summary = category || status
+            ? `No documents match that filter.`
+            : `There are no documents in your vault yet.`;
+        } else {
+          summary = `Found ${documents.length} document${documents.length === 1 ? '' : 's'}`;
+          if (expired) summary += `, ${expired} expired`;
+          if (expiringSoon) summary += `, ${expiringSoon} expiring within 30 days`;
+          summary += '.';
+        }
+
+        console.log(`[getVaultDocuments] team ${teamId}: ${documents.length} docs (${expired} expired, ${expiringSoon} expiring)`);
+        return { documents, expired, expiringSoon, summary };
       }
+
 
       case "getDemandForecast": {
         const { city = 'miami', days = 14, location } = args;
