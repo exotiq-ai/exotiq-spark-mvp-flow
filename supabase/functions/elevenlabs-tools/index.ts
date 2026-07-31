@@ -2099,19 +2099,10 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         };
       }
 
-      case "getWeatherInfo": {
-        const { location } = args;
-        
-        const conditions = ["Sunny", "Partly Cloudy", "Cloudy", "Light Rain"];
-        return {
-          location,
-          temperature: `${Math.floor(Math.random() * 30) + 60}°F`,
-          conditions: conditions[Math.floor(Math.random() * conditions.length)],
-          humidity: `${Math.floor(Math.random() * 40) + 40}%`,
-          wind: `${Math.floor(Math.random() * 15) + 5} mph`,
-          note: "Weather data is simulated for demo purposes"
-        };
-      }
+      // getWeatherInfo removed 2026-07-31: it returned Math.random() temperature,
+      // conditions, humidity and wind and presented them as fact. Do not
+      // reintroduce without a real weather data source.
+
 
       case "getCarJoke": {
         const jokes = [
