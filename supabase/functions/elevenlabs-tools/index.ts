@@ -2256,93 +2256,109 @@ async function executeFunction(functionName: string, args: Record<string, unknow
       // ENTERPRISE HANDLERS - Advanced Business Intelligence
       // ============================================================
 
+      case "getFleetProfitLoss":
       case "getVehicleProfitLoss": {
         const { vehicleName, timeframe, location } = args;
         console.log(`[getVehicleProfitLoss] Team: ${teamId}, Vehicle: ${vehicleName || 'all'}, Timeframe: ${timeframe || 'all'}, Location: ${location || 'all'}`);
-        
-        // Get date filter
-        let dateFilter = new Date();
-        if (timeframe === 'today') dateFilter.setHours(0, 0, 0, 0);
-        else if (timeframe === 'week') dateFilter.setDate(dateFilter.getDate() - 7);
-        else if (timeframe === 'month') dateFilter.setMonth(dateFilter.getMonth() - 1);
-        else if (timeframe === 'year') dateFilter.setFullYear(dateFilter.getFullYear() - 1);
-        else dateFilter = new Date(0);
-        
-        // Get vehicles
-        let vehicleQuery = supabase
-          .from('vehicles')
-          .select('id, name, make, model, year, location, current_rate, utilization, revenue');
-        
-        if (teamId) {
-          vehicleQuery = vehicleQuery.eq('team_id', teamId);
-        }
-        
-        if (vehicleName) {
-          vehicleQuery = vehicleQuery.or(`name.ilike.%${vehicleName}%,make.ilike.%${vehicleName}%,model.ilike.%${vehicleName}%`);
-        }
-        if (location && location !== 'all') {
-          vehicleQuery = vehicleQuery.ilike('location', `%${location}%`);
-        }
-        
-        const { data: vehicles } = await vehicleQuery;
-        
-        if (!vehicles || vehicles.length === 0) {
-          return { summary: `I couldn't find any vehicles matching your criteria.` };
-        }
-        
-        // Get bookings for revenue
-        const vehicleIds = vehicles.map((v: any) => v.id);
-        const { data: bookings } = await supabase
-          .from('bookings')
-          .select('vehicle_id, total_value')
-          .in('vehicle_id', vehicleIds)
-          .in('status', ['completed', 'active'])
-          .gte('created_at', dateFilter.toISOString());
-        
-        // Get maintenance costs
-        const { data: maintenance } = await supabase
-          .from('maintenance_schedules')
-          .select('vehicle_id, estimated_cost')
-          .in('vehicle_id', vehicleIds)
-          .eq('status', 'completed')
-          .gte('created_at', dateFilter.toISOString());
-        
-        // Calculate P/L
-        const profitLoss = vehicles.map((vehicle: any) => {
-          const vBookings = bookings?.filter((b: any) => b.vehicle_id === vehicle.id) || [];
-          const vMaintenance = maintenance?.filter((m: any) => m.vehicle_id === vehicle.id) || [];
-          
-          const revenue = vBookings.reduce((sum: number, b: any) => sum + Number(b.total_value || 0), 0);
-          const expenses = vMaintenance.reduce((sum: number, m: any) => sum + Number(m.estimated_cost || 0), 0);
-          const profit = revenue - expenses;
-          
-          return {
-            vehicle: `${vehicle.year} ${vehicle.make} ${vehicle.model}`,
-            location: vehicle.location || 'Miami',
-            revenue: `$${revenue.toFixed(0)}`,
-            expenses: `$${expenses.toFixed(0)}`,
-            profit: `$${profit.toFixed(0)}`,
-            profitMargin: revenue > 0 ? `${((profit / revenue) * 100).toFixed(1)}%` : '0%',
-            utilization: `${vehicle.utilization || 0}%`
-          };
+
+        // Route through fn_vehicle_pnl so Rari reports exactly the same numbers
+        // as the Margin / Per-vehicle P&L tab. The previous inline maths only
+        // counted maintenance_schedules as an expense and used created_at as
+        // the date axis, which under-reported costs and mis-bucketed rentals.
+        const window = resolveTimeframeWindow(timeframe);
+        const pStart = (window.start ?? '2000-01-01T00:00:00.000Z').slice(0, 10);
+        const pEnd = window.end.slice(0, 10);
+
+        const { data: pnlRows, error: pnlError } = await supabase.rpc('fn_vehicle_pnl', {
+          p_team_id: teamId,
+          p_start: pStart,
+          p_end: pEnd,
         });
-        
-        profitLoss.sort((a: any, b: any) => parseFloat(b.profit.replace('$', '')) - parseFloat(a.profit.replace('$', '')));
-        
-        const totalRevenue = profitLoss.reduce((sum: number, v: any) => sum + parseFloat(v.revenue.replace('$', '')), 0);
-        const totalExpenses = profitLoss.reduce((sum: number, v: any) => sum + parseFloat(v.expenses.replace('$', '')), 0);
-        const totalProfit = totalRevenue - totalExpenses;
-        
+
+        if (pnlError) {
+          console.error('[getVehicleProfitLoss] fn_vehicle_pnl failed:', pnlError);
+          return {
+            error: 'pnl_lookup_failed',
+            summary: `I couldn't pull the profit and loss numbers just now (${pnlError.message}). I'd rather tell you that than guess.`,
+          };
+        }
+
+        let rows: any[] = pnlRows || [];
+
+        // Location filter needs the vehicles table (fn_vehicle_pnl doesn't return it).
+        if (location && location !== 'all') {
+          const { data: locVehicles } = await supabase
+            .from('vehicles')
+            .select('id')
+            .eq('team_id', teamId)
+            .ilike('location', `%${location}%`);
+          const allowed = new Set((locVehicles || []).map((v: any) => v.id));
+          rows = rows.filter((r) => allowed.has(r.vehicle_id));
+        }
+
+        if (vehicleName) {
+          const needle = String(vehicleName).toLowerCase();
+          rows = rows.filter((r) => String(r.vehicle_name || '').toLowerCase().includes(needle));
+        }
+
+        if (rows.length === 0) {
+          return {
+            vehicles: [],
+            summary: vehicleName || location
+              ? `I couldn't find any vehicles matching that for ${window.label}.`
+              : `There's no profit and loss activity for ${window.label} yet.`,
+          };
+        }
+
+        rows.sort((a, b) => Number(b.operator_net || 0) - Number(a.operator_net || 0));
+
+        const profitLoss = rows.map((r) => ({
+          vehicle: r.vehicle_name,
+          grossRevenue: formatUsdWords(Number(r.gross_revenue || 0)),
+          platformFees: formatUsdWords(Number(r.platform_fees || 0)),
+          netRevenue: formatUsdWords(Number(r.net_revenue || 0)),
+          expenses: formatUsdWords(Number(r.total_expenses || 0)),
+          partnerPayouts: formatUsdWords(Number(r.partner_payouts || 0)),
+          operatorNet: formatUsdWords(Number(r.operator_net || 0)),
+          operatorNetRaw: Number(r.operator_net || 0),
+          margin: `${Number(r.margin_pct || 0).toFixed(1)}%`,
+          bookings: Number(r.booking_count || 0),
+        }));
+
+        const sum = (k: string) => rows.reduce((t, r) => t + Number(r[k] || 0), 0);
+        const totalGross = sum('gross_revenue');
+        const totalExpenses = sum('total_expenses');
+        const totalPayouts = sum('partner_payouts');
+        const totalFees = sum('platform_fees');
+        const totalNet = sum('operator_net');
+        const overallMargin = totalGross > 0 ? (totalNet / totalGross) * 100 : 0;
+
+        const best = profitLoss[0];
+        const worst = profitLoss[profitLoss.length - 1];
+
+        let summary = `Across ${rows.length} vehicle${rows.length === 1 ? '' : 's'} for ${window.label}`;
+        if (location && location !== 'all') summary += ` in ${location}`;
+        summary += `: gross revenue ${formatUsdWords(totalGross)}, expenses ${formatUsdWords(totalExpenses)}, partner payouts ${formatUsdWords(totalPayouts)}, platform fees ${formatUsdWords(totalFees)}, leaving you ${formatUsdWords(totalNet)} at a ${overallMargin.toFixed(1)} percent margin.`;
+        if (rows.length > 1) {
+          summary += ` Best is ${best.vehicle} at ${best.operatorNet}; weakest is ${worst.vehicle} at ${worst.operatorNet}.`;
+        }
+
         return {
           vehicles: profitLoss,
-          totalRevenue: `$${totalRevenue.toFixed(0)}`,
-          totalExpenses: `$${totalExpenses.toFixed(0)}`,
-          totalProfit: `$${totalProfit.toFixed(0)}`,
-          overallMargin: totalRevenue > 0 ? `${((totalProfit / totalRevenue) * 100).toFixed(1)}%` : '0%',
-          timeframe: timeframe || 'all time',
-          summary: `Fleet P/L (${timeframe || 'all time'})${location ? ` in ${location}` : ''}: Revenue $${totalRevenue.toFixed(0)}, Expenses $${totalExpenses.toFixed(0)}, Profit $${totalProfit.toFixed(0)} (${totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100).toFixed(1) : 0}% margin). Top performer: ${profitLoss[0]?.vehicle || 'N/A'} with ${profitLoss[0]?.profit || '$0'} profit.`
+          totals: {
+            grossRevenue: formatUsdWords(totalGross),
+            platformFees: formatUsdWords(totalFees),
+            expenses: formatUsdWords(totalExpenses),
+            partnerPayouts: formatUsdWords(totalPayouts),
+            operatorNet: formatUsdWords(totalNet),
+            operatorNetRaw: totalNet,
+            margin: `${overallMargin.toFixed(1)}%`,
+          },
+          timeframe: window.label,
+          summary,
         };
       }
+
 
       case "compareLocations": {
         const { locations: requestedLocations, timeframe } = args;
