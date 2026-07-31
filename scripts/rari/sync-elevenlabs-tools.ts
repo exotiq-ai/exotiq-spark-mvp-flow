@@ -216,6 +216,10 @@ async function main() {
   report('updated', updated);
   report('unchanged', unchanged);
   report('deleted', deleted);
+  if (shadowed.length) {
+    report('name collisions with unowned legacy tools (registry version used)', shadowed);
+  }
+
 
   const writeTools = FLEET_TOOLS.filter((t) => !t.readOnly).map((t) => t.name);
   console.log(
