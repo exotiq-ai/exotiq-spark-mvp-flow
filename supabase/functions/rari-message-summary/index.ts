@@ -102,9 +102,9 @@ serve(async (req) => {
       throw new Error('Failed to send summary message');
     }
 
-    // Create participant entry for the user if needed
+    // Create member entry for the user if needed
     await supabase
-      .from('conversation_participants')
+      .from('conversation_members')
       .upsert({
         conversation_id: summariesConversationId,
         user_id: userId,
@@ -113,6 +113,7 @@ serve(async (req) => {
         onConflict: 'conversation_id,user_id',
         ignoreDuplicates: true,
       });
+
 
     console.log('[Rari Message Summary] Summary sent to user:', userId);
 

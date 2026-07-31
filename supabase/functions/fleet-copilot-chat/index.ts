@@ -215,18 +215,7 @@ serve(async (req) => {
         }
       },
       {
-        type: "function",
-        name: "getWeatherInfo",
-        description: "Get current weather information for a location",
-        parameters: {
-          type: "object",
-          properties: {
-            location: { type: "string", description: "City or location name" }
-          },
-          required: ["location"]
-        }
-      },
-      {
+
         type: "function",
         name: "getCarJoke",
         description: "Get a random automotive-related joke",
@@ -491,39 +480,58 @@ serve(async (req) => {
 
           case "getVaultDocuments": {
             const { category, status } = args;
-            
-            const { data: documents } = await supabase
-              .from('vehicle_documents')
-              .select('*')
-              .eq('user_id', userId);
 
-            // Mock document structure since we don't have real documents yet
-            const mockDocs = [
-              { name: "McLaren 720S Insurance", category: "insurance", status: "active", expires: "2025-03-15" },
-              { name: "Ferrari SF90 Registration", category: "registration", status: "active", expires: "2025-06-30" },
-              { name: "Lamborghini Service Record", category: "inspection", status: "expiring", expires: "2024-11-18" }
-            ];
+            // Scope to the caller's own team, never the whole documents table.
+            const { data: membership } = await supabase
+              .from('team_members')
+              .select('team_id')
+              .eq('user_id', userId)
+              .eq('is_active', true)
+              .maybeSingle();
 
-            return { 
-              documents: mockDocs,
-              summary: `Found ${mockDocs.length} documents in vault`
-            };
-          }
+            if (!membership?.team_id) {
+              return { error: "no_team_membership", summary: "Your account isn't linked to a fleet, so there are no documents to read." };
+            }
 
-          case "getWeatherInfo": {
-            const { location } = args;
-            
-            // Simulated weather data - in production integrate with actual weather API
-            const conditions = ["Sunny", "Partly Cloudy", "Cloudy", "Light Rain"];
+            let docsQuery = supabase
+              .from('documents')
+              .select('name, type, status, expires_at, verification_status')
+              .eq('team_id', membership.team_id)
+              .order('expires_at', { ascending: true, nullsFirst: false })
+              .limit(50);
+
+            if (category) docsQuery = docsQuery.eq('type', category);
+            if (status) docsQuery = docsQuery.eq('status', status);
+
+            const { data: docs, error: docsError } = await docsQuery;
+
+            if (docsError) {
+              console.error('[getVaultDocuments] Query failed:', docsError);
+              return {
+                error: 'document_lookup_failed',
+                summary: `I couldn't read the document vault (${docsError.message}), so I can't tell you whether it's empty.`,
+              };
+            }
+
+            const documents = (docs || []).map((d: any) => ({
+              name: d.name,
+              category: d.type,
+              status: d.status,
+              verification: d.verification_status,
+              expires: d.expires_at ? d.expires_at.slice(0, 10) : null,
+            }));
+
             return {
-              location,
-              temperature: `${Math.floor(Math.random() * 30) + 60}°F`,
-              conditions: conditions[Math.floor(Math.random() * conditions.length)],
-              humidity: `${Math.floor(Math.random() * 40) + 40}%`,
-              wind: `${Math.floor(Math.random() * 15) + 5} mph`,
-              note: "Weather data is simulated for demo purposes"
+              documents,
+              summary: documents.length
+                ? `Found ${documents.length} document${documents.length === 1 ? '' : 's'} in the vault.`
+                : `There are no documents in the vault yet.`,
             };
           }
+
+          // getWeatherInfo removed 2026-07-31: it returned randomised values
+          // presented as real weather. Do not reintroduce without a real source.
+
 
           case "getCarJoke": {
             const jokes = [

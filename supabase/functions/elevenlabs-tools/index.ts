@@ -104,14 +104,13 @@ interface Booking {
   vehicle_id?: string;
   customer_id?: string;
   vehicles?: Vehicle & { vehicle_name?: string };
-  customers?: { first_name?: string; last_name?: string; email?: string };
+  customers?: { full_name?: string; email?: string };
 }
 
 interface Customer {
   id: string;
-  first_name?: string;
-  last_name?: string;
   full_name?: string;
+
   email?: string;
   phone?: string;
   customer_tier?: string;
@@ -204,7 +203,7 @@ const KNOWN_TOOLS = new Set([
   'getRevenueAnalysis', 'getTopPerformers', 'searchBookings',
   'getDamageReports', 'getUpcomingMaintenance', 'getCustomerLifetimeValue',
   'getVaultDocuments', 'getDemandForecast', 'getPricingRecommendation',
-  'getFleetPricingOverview', 'getEventImpact', 'getWeatherInfo',
+  'getFleetPricingOverview', 'getEventImpact',
   'getCarJoke', 'getVehicleSpecs', 'logFeedback', 'featureComingSoon',
   'getVehicleProfitLoss', 'getFleetProfitLoss', 'getCompetitorRates',
   'getSeasonalPricing', 'getFleetInsights', 'getActionItems',
@@ -441,7 +440,55 @@ function formatNumberWords(n: number): string {
  * Formats a USD amount using words for natural speech
  * Examples: 1500 -> "$1.5 thousand", 2000000 -> "$2 million", 950 -> "$950"
  */
+/**
+ * Resolves a spoken timeframe into a rental window.
+ *
+ * IMPORTANT: rental activity must be measured against the rental window
+ * (start_date / end_date), never created_at. A booking created six months ago
+ * for a rental happening this week belongs to "this week", and a booking
+ * created today for next month does not.
+ *
+ * Returns ISO bounds; `start` is null for all-time.
+ */
+function resolveTimeframeWindow(timeframe?: string): { start: string | null; end: string; label: string } {
+  const now = new Date();
+  const end = new Date(now);
+  end.setHours(23, 59, 59, 999);
+
+  const start = new Date(now);
+  switch (timeframe) {
+    case 'today':
+      start.setHours(0, 0, 0, 0);
+      return { start: start.toISOString(), end: end.toISOString(), label: 'today' };
+    case 'week':
+      start.setDate(start.getDate() - 7);
+      start.setHours(0, 0, 0, 0);
+      return { start: start.toISOString(), end: end.toISOString(), label: 'the last 7 days' };
+    case 'month':
+      start.setMonth(start.getMonth() - 1);
+      start.setHours(0, 0, 0, 0);
+      return { start: start.toISOString(), end: end.toISOString(), label: 'the last 30 days' };
+    case 'year':
+      start.setFullYear(start.getFullYear() - 1);
+      start.setHours(0, 0, 0, 0);
+      return { start: start.toISOString(), end: end.toISOString(), label: 'the last 12 months' };
+    default:
+      return { start: null, end: end.toISOString(), label: 'all time' };
+  }
+}
+
+/**
+ * Applies a rental-window overlap filter to a bookings query.
+ * A booking counts when its rental period intersects [start, end].
+ */
+function applyRentalWindow<T>(query: T, window: { start: string | null; end: string }): T {
+  if (!window.start) return query;
+  // overlap: booking.start_date <= window.end AND booking.end_date >= window.start
+  return (query as any).lte('start_date', window.end).gte('end_date', window.start) as T;
+}
+
 function formatUsdWords(amount: number): string {
+
   const absAmount = Math.abs(amount);
   const sign = amount < 0 ? '-' : '';
   
@@ -513,9 +560,6 @@ function formatDateRange(startIso: string, endIso: string): string {
   }
 }
 
-// Default user ID for demo/unauthenticated access - can be overridden via DEMO_USER_ID secret
-const HARDCODED_DEMO_USER_ID = '99d902d4-5878-4b59-a108-142bafb1c862';
-
 serve(async (req) => {
   const requestId = generateRequestId();
   
@@ -527,12 +571,11 @@ serve(async (req) => {
   const url = new URL(req.url);
   if (url.pathname.endsWith('/health') && req.method === 'GET') {
     const hasToolSecret = !!Deno.env.get('RARI_TOOL_TOKEN_SECRET');
-    const hasDemoUser = !!Deno.env.get('DEMO_USER_ID');
     return new Response(JSON.stringify({
       ok: true,
       requestId,
       hasToolSecret,
-      hasDemoUser,
+      authMode: 'tool_token_only',
       timestamp: new Date().toISOString(),
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
@@ -557,81 +600,68 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // ============================================================
-    // IDENTITY RESOLUTION (prioritized, non-blocking)
+    // IDENTITY RESOLUTION — FAIL CLOSED
+    //
+    // The ONLY accepted credential is the signed per-session tool
+    // token minted by `elevenlabs-session`, which carries the real
+    // userId + teamId. There are deliberately no fallbacks:
+    // caller-supplied metadata, DEMO_USER_ID and hardcoded demo
+    // users all allowed one tenant's data to be served to another.
+    // Do not reintroduce them.
     // ============================================================
-    let userId: string | null = null;
-    let teamId: string | null = null;
-    let authMethod = 'none';
-
-    // 1. Try tool token from Authorization header (best - carries userId + teamId)
-    const authHeader = req.headers.get('authorization') || req.headers.get('Authorization');
-    if (authHeader && authHeader.startsWith('Bearer ') && RARI_TOOL_TOKEN_SECRET) {
-      const token = authHeader.slice(7).trim();
-      
-      console.log(`[${requestId}] [Auth] Bearer token received (${token.length} chars, JWT-like: ${looksLikeJwt(token)})`);
-
-      if (looksLikeJwt(token)) {
-        const payload = await verifyToolToken(token, RARI_TOOL_TOKEN_SECRET);
-        if (payload) {
-          userId = payload.userId;
-          teamId = payload.teamId;
-          authMethod = 'tool_token';
-          console.log(`[${requestId}] ✓ Verified tool token: userId=${userId}, teamId=${teamId}`);
-        } else {
-          // IMPORTANT: Do NOT return 401 here - just log and continue to fallbacks
-          // The token might be a Supabase session JWT or something else
-          console.log(`[${requestId}] ⚠ Bearer token did not verify as tool token - trying fallbacks`);
-        }
-      } else {
-        console.log(`[${requestId}] ⚠ Bearer token is not JWT format - trying fallbacks`);
-      }
-    }
-
-    // 2. Fallback: Check conversation metadata (ElevenLabs can send this)
-    if (!userId) {
-      const metaUserId = body.conversation_metadata?.user_id || body.metadata?.user_id;
-      if (metaUserId) {
-        userId = metaUserId;
-        authMethod = 'conversation_metadata';
-        console.log(`[${requestId}] Using user_id from metadata: ${userId}`);
-      }
-    }
-
-    // 3. Fallback: DEMO_USER_ID from environment (must be valid UUID)
-    if (!userId) {
-      const demoUserId = Deno.env.get('DEMO_USER_ID');
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      
-      if (demoUserId && uuidRegex.test(demoUserId)) {
-        userId = demoUserId;
-        authMethod = 'demo_user_env';
-        console.log(`[${requestId}] Using DEMO_USER_ID from env: ${userId}`);
-      } else if (demoUserId) {
-        console.log(`[${requestId}] DEMO_USER_ID env var is not a valid UUID: ${demoUserId.substring(0, 10)}...`);
-      }
-    }
-
-    // 4. Fallback: Use hardcoded demo user (for truly anonymous access)
-    if (!userId) {
-      userId = HARDCODED_DEMO_USER_ID;
-      authMethod = 'demo_user_hardcoded';
-      console.log(`[${requestId}] Using hardcoded demo user: ${userId}`);
-    }
-
-    // At this point we should always have a userId
-    if (!userId) {
-      console.error(`[${requestId}] FATAL: No user ID resolved - this should never happen`);
+    const unauthorized = (reason: string, detail: string) => {
+      console.warn(`[${requestId}] ✗ 401 (${reason}) — refusing to serve tenant data`);
       return new Response(
         JSON.stringify({
           error: 'Authentication required',
-          summary: 'I need you to be logged in to access your fleet data. Please make sure you are signed in to your account.',
+          reason,
+          summary: `I can't verify which account this request belongs to, so I won't guess. ${detail}`,
           requestId,
         }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    };
+
+    if (!RARI_TOOL_TOKEN_SECRET) {
+      console.error(`[${requestId}] RARI_TOOL_TOKEN_SECRET is not configured`);
+      return unauthorized(
+        'tool_token_secret_missing',
+        'The voice assistant is not fully configured on the server yet.'
+      );
     }
 
-    console.log(`[${requestId}] Auth resolved: method=${authMethod}, userId=${userId}, teamId=${teamId || 'null'}`);
+    const authHeader = req.headers.get('authorization') || req.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return unauthorized(
+        'missing_bearer_token',
+        'Please start a new session from inside the app so I can confirm your account.'
+      );
+    }
+
+    const token = authHeader.slice(7).trim();
+    console.log(`[${requestId}] [Auth] Bearer token received (${token.length} chars, JWT-like: ${looksLikeJwt(token)})`);
+
+    if (!looksLikeJwt(token)) {
+      return unauthorized(
+        'token_not_session_token',
+        'This request is using a static key instead of a per-session token, so I cannot tell which account is asking.'
+      );
+    }
+
+    const payload = await verifyToolToken(token, RARI_TOOL_TOKEN_SECRET);
+    if (!payload?.userId) {
+      return unauthorized(
+        'token_verification_failed',
+        'Your session token could not be verified. Please start a new session from inside the app.'
+      );
+    }
+
+    const userId: string = payload.userId;
+    let teamId: string | null = payload.teamId ?? null;
+    const authMethod = 'tool_token';
+
+    console.log(`[${requestId}] ✓ Verified tool token: userId=${userId}, teamId=${teamId || 'null'}`);
+
     
     // Resolve tool + parameters from request
     const { toolName, parameters } = extractToolCall(body, url);
@@ -650,61 +680,74 @@ serve(async (req) => {
       );
     }
     
-    // Verify user exists in profiles table
+    // Verify user exists in profiles table. We never create a profile here —
+    // an unknown user id means the token is stale or forged, not that we
+    // should manufacture an account.
     const { data: userProfile, error: userError } = await supabase
       .from('profiles')
       .select('id, full_name, email')
       .eq('id', userId)
       .maybeSingle();
-    
+
     if (userError) {
       console.error(`[${requestId}] Profile lookup error:`, userError);
-    }
-    
-    if (!userProfile) {
-      console.log(`[${requestId}] ⚠ User ${userId} not found in profiles - creating minimal profile`);
-      // Auto-create a minimal profile for demo users
-      await supabase.from('profiles').upsert({
-        id: userId,
-        email: `demo-${userId.substring(0, 8)}@exotiq.demo`,
-        full_name: 'Demo User',
-        created_at: new Date().toISOString(),
-      }, { onConflict: 'id' });
-    } else {
-      console.log(`[${requestId}] User verified: ${userProfile.full_name || userProfile.email}`);
+      return unauthorized(
+        'profile_lookup_failed',
+        'I could not confirm your account just now. Please try again in a moment.'
+      );
     }
 
-    // Get user's team_id if not already from token
-    if (!teamId) {
-      teamId = await getUserTeamId(supabase, userId);
-      console.log(`[${requestId}] Team from DB: ${teamId || 'null'}`);
+    if (!userProfile) {
+      console.warn(`[${requestId}] ✗ User ${userId} has no profile - refusing`);
+      return unauthorized(
+        'unknown_user',
+        'That account is not recognised. Please start a new session from inside the app.'
+      );
     }
-    
-    // If still no team, try to find any team and add user to it (for demo purposes)
-    if (!teamId) {
-      console.log(`[${requestId}] No team found - looking for default team`);
-      const { data: anyTeam } = await supabase
-        .from('teams')
-        .select('id')
-        .eq('is_deleted', false)
-        .limit(1)
+
+    console.log(`[${requestId}] User verified: ${userProfile.full_name || userProfile.email}`);
+
+    // Resolve the team strictly from this user's own membership.
+    // The token's teamId is treated as a claim to be confirmed, never trusted
+    // on its own, and there is deliberately no "pick any team" fallback.
+    const membershipTeamId = await getUserTeamId(supabase, userId);
+
+    if (teamId && teamId !== membershipTeamId) {
+      const { data: claimedMembership } = await supabase
+        .from('team_members')
+        .select('team_id')
+        .eq('user_id', userId)
+        .eq('team_id', teamId)
+        .eq('is_active', true)
         .maybeSingle();
-      
-      if (anyTeam) {
-        teamId = anyTeam.id;
-        // Add user to team as viewer
-        await supabase.from('team_members').upsert({
-          user_id: userId,
-          team_id: teamId,
-          role: 'viewer',
-          is_active: true,
-          joined_at: new Date().toISOString(),
-        }, { onConflict: 'user_id,team_id' }).catch(() => {});
-        console.log(`[${requestId}] Auto-joined user to team: ${teamId}`);
-      } else {
-        console.warn(`[${requestId}] ⚠ No teams exist - data queries will be empty`);
+
+      if (!claimedMembership) {
+        console.warn(`[${requestId}] ✗ Token claimed team ${teamId} but user is not a member - refusing`);
+        return unauthorized(
+          'team_claim_rejected',
+          'Your session is pointing at an account you do not have access to.'
+        );
       }
     }
+
+    if (!teamId) {
+      teamId = membershipTeamId;
+      console.log(`[${requestId}] Team from membership: ${teamId || 'null'}`);
+    }
+
+    if (!teamId) {
+      console.warn(`[${requestId}] ✗ User ${userId} belongs to no active team - refusing`);
+      return new Response(
+        JSON.stringify({
+          error: 'No team access',
+          reason: 'no_team_membership',
+          summary: 'Your account is not linked to a fleet yet, so there is no data for me to look at.',
+          requestId,
+        }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
 
     // Execute the requested tool with team_id
     console.log(`[${requestId}] Executing tool: ${toolName}`);
@@ -1067,12 +1110,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         const { timeframe, location } = args;
         console.log(`[getFleetMetrics] Team: ${teamId}, Timeframe: ${timeframe}, Location: ${location || 'all'}`);
         
-        let dateFilter = new Date();
-        
-        if (timeframe === 'today') dateFilter.setHours(0, 0, 0, 0);
-        else if (timeframe === 'week') dateFilter.setDate(dateFilter.getDate() - 7);
-        else if (timeframe === 'month') dateFilter.setMonth(dateFilter.getMonth() - 1);
-        else if (timeframe === 'year') dateFilter.setFullYear(dateFilter.getFullYear() - 1);
+        const window = resolveTimeframeWindow(timeframe);
 
         // Get vehicles with optional location filter
         let vehicleQuery = supabase.from('vehicles').select('*');
@@ -1088,14 +1126,14 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         if (teamId) {
           bookingsQuery = bookingsQuery.eq('team_id', teamId);
         }
-        bookingsQuery = bookingsQuery.gte('created_at', dateFilter.toISOString());
+        bookingsQuery = applyRentalWindow(bookingsQuery, window);
         
         // Get revenue bookings with team filter
         let revenueQuery = supabase.from('bookings').select('total_value, vehicles(location)');
         if (teamId) {
           revenueQuery = revenueQuery.eq('team_id', teamId);
         }
-        revenueQuery = revenueQuery.eq('status', 'completed').gte('created_at', dateFilter.toISOString());
+        revenueQuery = applyRentalWindow(revenueQuery.eq('status', 'completed'), window);
         
         const [vehiclesResult, bookingsResult, revenueResult] = await Promise.all([
           vehicleQuery,
@@ -1262,12 +1300,8 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         const { status, timeframe, location } = args;
         console.log(`[getPaymentSummary] Team: ${teamId}, Status: ${status || 'all'}, Timeframe: ${timeframe || 'all'}, Location: ${location || 'all'}`);
         
-        let dateFilter = new Date();
-        if (timeframe === 'today') dateFilter.setHours(0, 0, 0, 0);
-        else if (timeframe === 'week') dateFilter.setDate(dateFilter.getDate() - 7);
-        else if (timeframe === 'month') dateFilter.setMonth(dateFilter.getMonth() - 1);
-        else if (timeframe === 'year') dateFilter.setFullYear(dateFilter.getFullYear() - 1);
-        else dateFilter = new Date(0); // All time
+        // Payments are events, not rentals: created_at IS the correct axis here.
+        const window = resolveTimeframeWindow(timeframe);
         
         // Get payments with team filter
         let paymentsQuery = supabase
@@ -1278,8 +1312,8 @@ async function executeFunction(functionName: string, args: Record<string, unknow
           paymentsQuery = paymentsQuery.eq('team_id', teamId);
         }
         
+        if (window.start) paymentsQuery = paymentsQuery.gte('created_at', window.start);
         const { data: payments, error } = await paymentsQuery
-          .gte('created_at', dateFilter.toISOString())
           .order('created_at', { ascending: false });
         
         if (error) {
@@ -1355,12 +1389,12 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         if (includeBookings) {
           const { data: bookings } = await supabase
             .from('bookings')
-            .select('*, customers(first_name, last_name)')
+            .select('*, customers(full_name)')
             .eq('vehicle_id', vehicle.id)
             .order('start_date', { ascending: false })
             .limit(5);
           bookingsData = bookings?.map(b => {
-            const customerName = b.customers ? `${b.customers.first_name} ${b.customers.last_name}` : b.customer_name || 'Unknown';
+            const customerName = b.customers?.full_name || b.customer_name || 'Unknown';
             return {
               customer: customerName,
               dates: `${new Date(b.start_date).toLocaleDateString()} to ${new Date(b.end_date).toLocaleDateString()}`,
@@ -1514,13 +1548,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
 
       case "getRevenueAnalysis": {
         const { timeframe, vehicleName, location } = args;
-        let dateFilter = new Date();
-        
-        if (timeframe === 'today') dateFilter.setHours(0, 0, 0, 0);
-        else if (timeframe === 'week') dateFilter.setDate(dateFilter.getDate() - 7);
-        else if (timeframe === 'month') dateFilter.setMonth(dateFilter.getMonth() - 1);
-        else if (timeframe === 'year') dateFilter.setFullYear(dateFilter.getFullYear() - 1);
-        else dateFilter = new Date(0);
+        const window = resolveTimeframeWindow(timeframe);
 
         let query = supabase
           .from('bookings')
@@ -1530,9 +1558,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
           query = query.eq('team_id', teamId);
         }
         
-        const { data: bookings } = await query
-          .eq('status', 'completed')
-          .gte('created_at', dateFilter.toISOString());
+        const { data: bookings } = await applyRentalWindow(query.eq('status', 'completed'), window);
         
         let filteredBookings = bookings || [];
         
@@ -1637,7 +1663,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         const { status, daysRange, location } = args;
         let query = supabase
           .from('bookings')
-          .select('*, vehicles(make, model, year, location), customers(first_name, last_name)');
+          .select('*, vehicles(make, model, year, location), customers(full_name)');
         
         if (teamId) {
           query = query.eq('team_id', teamId);
@@ -1664,7 +1690,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
           const vehicleName = b.vehicles ? `${b.vehicles.year} ${b.vehicles.make} ${b.vehicles.model}` : 'vehicle';
           const amt = Number(b.total_value || b.total_amount || 0);
           return {
-            customer: b.customers ? `${b.customers.first_name} ${b.customers.last_name}` : b.customer_name || 'Unknown',
+            customer: b.customers?.full_name || b.customer_name || 'Unknown',
             vehicle: vehicleName,
             location: b.vehicles?.location || 'Miami',
             dates: formatDateRange(b.start_date, b.end_date),
@@ -1798,19 +1824,67 @@ async function executeFunction(functionName: string, args: Record<string, unknow
 
       case "getVaultDocuments": {
         const { category, status } = args;
-        
-        // Mock documents for now
-        const mockDocs = [
-          { name: "McLaren 720S Insurance", category: "insurance", status: "active", expires: "2025-03-15" },
-          { name: "Ferrari SF90 Registration", category: "registration", status: "active", expires: "2025-06-30" },
-          { name: "Lamborghini Service Record", category: "inspection", status: "expiring", expires: "2024-11-18" }
-        ];
 
-        return { 
-          documents: mockDocs,
-          summary: `Found ${mockDocs.length} documents in vault`
-        };
+        let docsQuery = supabase
+          .from('documents')
+          .select('id, name, type, status, expires_at, verification_status, vehicles(make, model, year)')
+          .eq('team_id', teamId)
+          .order('expires_at', { ascending: true, nullsFirst: false })
+          .limit(50);
+
+        if (category) docsQuery = docsQuery.eq('type', category);
+        if (status) docsQuery = docsQuery.eq('status', status);
+
+        const { data: docs, error: docsError } = await docsQuery;
+
+        if (docsError) {
+          console.error('[getVaultDocuments] Query failed:', docsError);
+          return {
+            error: 'document_lookup_failed',
+            summary: `I couldn't read the document vault just now (${docsError.message}). I don't want to tell you it's empty when I simply couldn't check.`,
+          };
+        }
+
+        const now = Date.now();
+        const documents = (docs || []).map((d: any) => {
+          const expiresAt = d.expires_at ? new Date(d.expires_at) : null;
+          const daysToExpiry = expiresAt
+            ? Math.round((expiresAt.getTime() - now) / 86400000)
+            : null;
+          const vehicle = d.vehicles
+            ? `${d.vehicles.year || ''} ${d.vehicles.make || ''} ${d.vehicles.model || ''}`.trim()
+            : null;
+          return {
+            name: d.name,
+            category: d.type,
+            status: d.status,
+            verification: d.verification_status,
+            vehicle,
+            expires: d.expires_at ? d.expires_at.slice(0, 10) : null,
+            expired: daysToExpiry !== null && daysToExpiry < 0,
+            expiringSoon: daysToExpiry !== null && daysToExpiry >= 0 && daysToExpiry <= 30,
+          };
+        });
+
+        const expired = documents.filter((d) => d.expired).length;
+        const expiringSoon = documents.filter((d) => d.expiringSoon).length;
+
+        let summary: string;
+        if (documents.length === 0) {
+          summary = category || status
+            ? `No documents match that filter.`
+            : `There are no documents in your vault yet.`;
+        } else {
+          summary = `Found ${documents.length} document${documents.length === 1 ? '' : 's'}`;
+          if (expired) summary += `, ${expired} expired`;
+          if (expiringSoon) summary += `, ${expiringSoon} expiring within 30 days`;
+          summary += '.';
+        }
+
+        console.log(`[getVaultDocuments] team ${teamId}: ${documents.length} docs (${expired} expired, ${expiringSoon} expiring)`);
+        return { documents, expired, expiringSoon, summary };
       }
+
 
       case "getDemandForecast": {
         const { city = 'miami', days = 14, location } = args;
@@ -2056,19 +2130,10 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         };
       }
 
-      case "getWeatherInfo": {
-        const { location } = args;
-        
-        const conditions = ["Sunny", "Partly Cloudy", "Cloudy", "Light Rain"];
-        return {
-          location,
-          temperature: `${Math.floor(Math.random() * 30) + 60}°F`,
-          conditions: conditions[Math.floor(Math.random() * conditions.length)],
-          humidity: `${Math.floor(Math.random() * 40) + 40}%`,
-          wind: `${Math.floor(Math.random() * 15) + 5} mph`,
-          note: "Weather data is simulated for demo purposes"
-        };
-      }
+      // getWeatherInfo removed 2026-07-31: it returned Math.random() temperature,
+      // conditions, humidity and wind and presented them as fact. Do not
+      // reintroduce without a real weather data source.
+
 
       case "getCarJoke": {
         const jokes = [
@@ -2191,93 +2256,109 @@ async function executeFunction(functionName: string, args: Record<string, unknow
       // ENTERPRISE HANDLERS - Advanced Business Intelligence
       // ============================================================
 
+      case "getFleetProfitLoss":
       case "getVehicleProfitLoss": {
         const { vehicleName, timeframe, location } = args;
         console.log(`[getVehicleProfitLoss] Team: ${teamId}, Vehicle: ${vehicleName || 'all'}, Timeframe: ${timeframe || 'all'}, Location: ${location || 'all'}`);
-        
-        // Get date filter
-        let dateFilter = new Date();
-        if (timeframe === 'today') dateFilter.setHours(0, 0, 0, 0);
-        else if (timeframe === 'week') dateFilter.setDate(dateFilter.getDate() - 7);
-        else if (timeframe === 'month') dateFilter.setMonth(dateFilter.getMonth() - 1);
-        else if (timeframe === 'year') dateFilter.setFullYear(dateFilter.getFullYear() - 1);
-        else dateFilter = new Date(0);
-        
-        // Get vehicles
-        let vehicleQuery = supabase
-          .from('vehicles')
-          .select('id, name, make, model, year, location, current_rate, utilization, revenue');
-        
-        if (teamId) {
-          vehicleQuery = vehicleQuery.eq('team_id', teamId);
-        }
-        
-        if (vehicleName) {
-          vehicleQuery = vehicleQuery.or(`name.ilike.%${vehicleName}%,make.ilike.%${vehicleName}%,model.ilike.%${vehicleName}%`);
-        }
-        if (location && location !== 'all') {
-          vehicleQuery = vehicleQuery.ilike('location', `%${location}%`);
-        }
-        
-        const { data: vehicles } = await vehicleQuery;
-        
-        if (!vehicles || vehicles.length === 0) {
-          return { summary: `I couldn't find any vehicles matching your criteria.` };
-        }
-        
-        // Get bookings for revenue
-        const vehicleIds = vehicles.map((v: any) => v.id);
-        const { data: bookings } = await supabase
-          .from('bookings')
-          .select('vehicle_id, total_value')
-          .in('vehicle_id', vehicleIds)
-          .in('status', ['completed', 'active'])
-          .gte('created_at', dateFilter.toISOString());
-        
-        // Get maintenance costs
-        const { data: maintenance } = await supabase
-          .from('maintenance_schedules')
-          .select('vehicle_id, estimated_cost')
-          .in('vehicle_id', vehicleIds)
-          .eq('status', 'completed')
-          .gte('created_at', dateFilter.toISOString());
-        
-        // Calculate P/L
-        const profitLoss = vehicles.map((vehicle: any) => {
-          const vBookings = bookings?.filter((b: any) => b.vehicle_id === vehicle.id) || [];
-          const vMaintenance = maintenance?.filter((m: any) => m.vehicle_id === vehicle.id) || [];
-          
-          const revenue = vBookings.reduce((sum: number, b: any) => sum + Number(b.total_value || 0), 0);
-          const expenses = vMaintenance.reduce((sum: number, m: any) => sum + Number(m.estimated_cost || 0), 0);
-          const profit = revenue - expenses;
-          
-          return {
-            vehicle: `${vehicle.year} ${vehicle.make} ${vehicle.model}`,
-            location: vehicle.location || 'Miami',
-            revenue: `$${revenue.toFixed(0)}`,
-            expenses: `$${expenses.toFixed(0)}`,
-            profit: `$${profit.toFixed(0)}`,
-            profitMargin: revenue > 0 ? `${((profit / revenue) * 100).toFixed(1)}%` : '0%',
-            utilization: `${vehicle.utilization || 0}%`
-          };
+
+        // Route through fn_vehicle_pnl so Rari reports exactly the same numbers
+        // as the Margin / Per-vehicle P&L tab. The previous inline maths only
+        // counted maintenance_schedules as an expense and used created_at as
+        // the date axis, which under-reported costs and mis-bucketed rentals.
+        const window = resolveTimeframeWindow(timeframe);
+        const pStart = (window.start ?? '2000-01-01T00:00:00.000Z').slice(0, 10);
+        const pEnd = window.end.slice(0, 10);
+
+        const { data: pnlRows, error: pnlError } = await supabase.rpc('fn_vehicle_pnl', {
+          p_team_id: teamId,
+          p_start: pStart,
+          p_end: pEnd,
         });
-        
-        profitLoss.sort((a: any, b: any) => parseFloat(b.profit.replace('$', '')) - parseFloat(a.profit.replace('$', '')));
-        
-        const totalRevenue = profitLoss.reduce((sum: number, v: any) => sum + parseFloat(v.revenue.replace('$', '')), 0);
-        const totalExpenses = profitLoss.reduce((sum: number, v: any) => sum + parseFloat(v.expenses.replace('$', '')), 0);
-        const totalProfit = totalRevenue - totalExpenses;
-        
+
+        if (pnlError) {
+          console.error('[getVehicleProfitLoss] fn_vehicle_pnl failed:', pnlError);
+          return {
+            error: 'pnl_lookup_failed',
+            summary: `I couldn't pull the profit and loss numbers just now (${pnlError.message}). I'd rather tell you that than guess.`,
+          };
+        }
+
+        let rows: any[] = pnlRows || [];
+
+        // Location filter needs the vehicles table (fn_vehicle_pnl doesn't return it).
+        if (location && location !== 'all') {
+          const { data: locVehicles } = await supabase
+            .from('vehicles')
+            .select('id')
+            .eq('team_id', teamId)
+            .ilike('location', `%${location}%`);
+          const allowed = new Set((locVehicles || []).map((v: any) => v.id));
+          rows = rows.filter((r) => allowed.has(r.vehicle_id));
+        }
+
+        if (vehicleName) {
+          const needle = String(vehicleName).toLowerCase();
+          rows = rows.filter((r) => String(r.vehicle_name || '').toLowerCase().includes(needle));
+        }
+
+        if (rows.length === 0) {
+          return {
+            vehicles: [],
+            summary: vehicleName || location
+              ? `I couldn't find any vehicles matching that for ${window.label}.`
+              : `There's no profit and loss activity for ${window.label} yet.`,
+          };
+        }
+
+        rows.sort((a, b) => Number(b.operator_net || 0) - Number(a.operator_net || 0));
+
+        const profitLoss = rows.map((r) => ({
+          vehicle: r.vehicle_name,
+          grossRevenue: formatUsdWords(Number(r.gross_revenue || 0)),
+          platformFees: formatUsdWords(Number(r.platform_fees || 0)),
+          netRevenue: formatUsdWords(Number(r.net_revenue || 0)),
+          expenses: formatUsdWords(Number(r.total_expenses || 0)),
+          partnerPayouts: formatUsdWords(Number(r.partner_payouts || 0)),
+          operatorNet: formatUsdWords(Number(r.operator_net || 0)),
+          operatorNetRaw: Number(r.operator_net || 0),
+          margin: `${Number(r.margin_pct || 0).toFixed(1)}%`,
+          bookings: Number(r.booking_count || 0),
+        }));
+
+        const sum = (k: string) => rows.reduce((t, r) => t + Number(r[k] || 0), 0);
+        const totalGross = sum('gross_revenue');
+        const totalExpenses = sum('total_expenses');
+        const totalPayouts = sum('partner_payouts');
+        const totalFees = sum('platform_fees');
+        const totalNet = sum('operator_net');
+        const overallMargin = totalGross > 0 ? (totalNet / totalGross) * 100 : 0;
+
+        const best = profitLoss[0];
+        const worst = profitLoss[profitLoss.length - 1];
+
+        let summary = `Across ${rows.length} vehicle${rows.length === 1 ? '' : 's'} for ${window.label}`;
+        if (location && location !== 'all') summary += ` in ${location}`;
+        summary += `: gross revenue ${formatUsdWords(totalGross)}, expenses ${formatUsdWords(totalExpenses)}, partner payouts ${formatUsdWords(totalPayouts)}, platform fees ${formatUsdWords(totalFees)}, leaving you ${formatUsdWords(totalNet)} at a ${overallMargin.toFixed(1)} percent margin.`;
+        if (rows.length > 1) {
+          summary += ` Best is ${best.vehicle} at ${best.operatorNet}; weakest is ${worst.vehicle} at ${worst.operatorNet}.`;
+        }
+
         return {
           vehicles: profitLoss,
-          totalRevenue: `$${totalRevenue.toFixed(0)}`,
-          totalExpenses: `$${totalExpenses.toFixed(0)}`,
-          totalProfit: `$${totalProfit.toFixed(0)}`,
-          overallMargin: totalRevenue > 0 ? `${((totalProfit / totalRevenue) * 100).toFixed(1)}%` : '0%',
-          timeframe: timeframe || 'all time',
-          summary: `Fleet P/L (${timeframe || 'all time'})${location ? ` in ${location}` : ''}: Revenue $${totalRevenue.toFixed(0)}, Expenses $${totalExpenses.toFixed(0)}, Profit $${totalProfit.toFixed(0)} (${totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100).toFixed(1) : 0}% margin). Top performer: ${profitLoss[0]?.vehicle || 'N/A'} with ${profitLoss[0]?.profit || '$0'} profit.`
+          totals: {
+            grossRevenue: formatUsdWords(totalGross),
+            platformFees: formatUsdWords(totalFees),
+            expenses: formatUsdWords(totalExpenses),
+            partnerPayouts: formatUsdWords(totalPayouts),
+            operatorNet: formatUsdWords(totalNet),
+            operatorNetRaw: totalNet,
+            margin: `${overallMargin.toFixed(1)}%`,
+          },
+          timeframe: window.label,
+          summary,
         };
       }
+
 
       case "compareLocations": {
         const { locations: requestedLocations, timeframe } = args;
@@ -2352,7 +2433,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         // Get bookings with outstanding balances
         let query = supabase
           .from('bookings')
-          .select('*, vehicles(make, model, year, location), customers(first_name, last_name, email, phone)');
+          .select('*, vehicles(make, model, year, location), customers(full_name, email, phone)');
         
         if (teamId) {
           query = query.eq('team_id', teamId);
@@ -2381,7 +2462,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
           const daysOverdue = Math.floor((new Date().getTime() - endDate.getTime()) / (1000 * 60 * 60 * 24));
           
           return {
-            customer: b.customers ? `${b.customers.first_name} ${b.customers.last_name}` : b.customer_name || 'Unknown',
+            customer: b.customers?.full_name || b.customer_name || 'Unknown',
             vehicle: b.vehicles ? `${b.vehicles.year} ${b.vehicles.make} ${b.vehicles.model}` : 'Unknown',
             location: b.vehicles?.location || 'Miami',
             balanceDue: `$${Number(b.balance_due || b.total_value || 0).toFixed(0)}`,
