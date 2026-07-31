@@ -1,6 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.77.0';
 import { logTransfer } from "../_shared/transferGuard.ts";
 import { getUserTeamId } from "../_shared/fleet-tools/auth.ts";
 import { executeFunction as executeSharedFunction } from "../_shared/fleet-tools/executor.ts";
