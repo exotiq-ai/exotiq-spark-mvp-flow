@@ -633,61 +633,74 @@ serve(async (req) => {
       );
     }
     
-    // Verify user exists in profiles table
+    // Verify user exists in profiles table. We never create a profile here —
+    // an unknown user id means the token is stale or forged, not that we
+    // should manufacture an account.
     const { data: userProfile, error: userError } = await supabase
       .from('profiles')
       .select('id, full_name, email')
       .eq('id', userId)
       .maybeSingle();
-    
+
     if (userError) {
       console.error(`[${requestId}] Profile lookup error:`, userError);
-    }
-    
-    if (!userProfile) {
-      console.log(`[${requestId}] ⚠ User ${userId} not found in profiles - creating minimal profile`);
-      // Auto-create a minimal profile for demo users
-      await supabase.from('profiles').upsert({
-        id: userId,
-        email: `demo-${userId.substring(0, 8)}@exotiq.demo`,
-        full_name: 'Demo User',
-        created_at: new Date().toISOString(),
-      }, { onConflict: 'id' });
-    } else {
-      console.log(`[${requestId}] User verified: ${userProfile.full_name || userProfile.email}`);
+      return unauthorized(
+        'profile_lookup_failed',
+        'I could not confirm your account just now. Please try again in a moment.'
+      );
     }
 
-    // Get user's team_id if not already from token
-    if (!teamId) {
-      teamId = await getUserTeamId(supabase, userId);
-      console.log(`[${requestId}] Team from DB: ${teamId || 'null'}`);
+    if (!userProfile) {
+      console.warn(`[${requestId}] ✗ User ${userId} has no profile - refusing`);
+      return unauthorized(
+        'unknown_user',
+        'That account is not recognised. Please start a new session from inside the app.'
+      );
     }
-    
-    // If still no team, try to find any team and add user to it (for demo purposes)
-    if (!teamId) {
-      console.log(`[${requestId}] No team found - looking for default team`);
-      const { data: anyTeam } = await supabase
-        .from('teams')
-        .select('id')
-        .eq('is_deleted', false)
-        .limit(1)
+
+    console.log(`[${requestId}] User verified: ${userProfile.full_name || userProfile.email}`);
+
+    // Resolve the team strictly from this user's own membership.
+    // The token's teamId is treated as a claim to be confirmed, never trusted
+    // on its own, and there is deliberately no "pick any team" fallback.
+    const membershipTeamId = await getUserTeamId(supabase, userId);
+
+    if (teamId && teamId !== membershipTeamId) {
+      const { data: claimedMembership } = await supabase
+        .from('team_members')
+        .select('team_id')
+        .eq('user_id', userId)
+        .eq('team_id', teamId)
+        .eq('is_active', true)
         .maybeSingle();
-      
-      if (anyTeam) {
-        teamId = anyTeam.id;
-        // Add user to team as viewer
-        await supabase.from('team_members').upsert({
-          user_id: userId,
-          team_id: teamId,
-          role: 'viewer',
-          is_active: true,
-          joined_at: new Date().toISOString(),
-        }, { onConflict: 'user_id,team_id' }).catch(() => {});
-        console.log(`[${requestId}] Auto-joined user to team: ${teamId}`);
-      } else {
-        console.warn(`[${requestId}] ⚠ No teams exist - data queries will be empty`);
+
+      if (!claimedMembership) {
+        console.warn(`[${requestId}] ✗ Token claimed team ${teamId} but user is not a member - refusing`);
+        return unauthorized(
+          'team_claim_rejected',
+          'Your session is pointing at an account you do not have access to.'
+        );
       }
     }
+
+    if (!teamId) {
+      teamId = membershipTeamId;
+      console.log(`[${requestId}] Team from membership: ${teamId || 'null'}`);
+    }
+
+    if (!teamId) {
+      console.warn(`[${requestId}] ✗ User ${userId} belongs to no active team - refusing`);
+      return new Response(
+        JSON.stringify({
+          error: 'No team access',
+          reason: 'no_team_membership',
+          summary: 'Your account is not linked to a fleet yet, so there is no data for me to look at.',
+          requestId,
+        }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
 
     // Execute the requested tool with team_id
     console.log(`[${requestId}] Executing tool: ${toolName}`);
