@@ -135,7 +135,24 @@ async function main() {
   );
 
   const listed = await el<{ tools: RemoteTool[] }>('/convai/tools');
-  const remote = new Map(listed.tools.map((t) => [t.tool_config.name, t]));
+
+  // Names can collide with legacy client/webhook tools this script does not own.
+  // Always resolve to the registry-owned webhook tool so we never PATCH a legacy one.
+  const remote = new Map<string, RemoteTool>();
+  const shadowed: string[] = [];
+  for (const t of listed.tools) {
+    const name = t.tool_config.name;
+    const owned = t.tool_config.description?.includes(OWNED_MARKER) ?? false;
+    const current = remote.get(name);
+    if (!current) {
+      remote.set(name, t);
+      continue;
+    }
+    const currentOwned = current.tool_config.description?.includes(OWNED_MARKER) ?? false;
+    if (owned && !currentOwned) remote.set(name, t);
+    if (!shadowed.includes(name)) shadowed.push(name);
+  }
+
 
   const created: string[] = [];
   const updated: string[] = [];
