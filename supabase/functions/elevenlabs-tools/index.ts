@@ -51,24 +51,6 @@ const PARAMETER_TO_TOOL_MAP: Record<string, string> = {
   'days': 'getDemandForecast',         // { "days": 14 } -> getDemandForecast
 };
 
-// Known valid tool names (to distinguish from parameter keys)
-const KNOWN_TOOLS = new Set([
-  'get_fleet_vehicles', 'get_bookings', 'get_recent_activity',
-  'getFleetMetrics', 'getLocationMetrics', 'getPaymentSummary',
-  'getVehicleDetails', 'getCustomerProfile', 'checkAvailability',
-  'getRevenueAnalysis', 'getTopPerformers', 'searchBookings',
-  'getDamageReports', 'getUpcomingMaintenance', 'getCustomerLifetimeValue',
-  'getVaultDocuments', 'getDemandForecast', 'getPricingRecommendation',
-  'getFleetPricingOverview', 'getEventImpact',
-  'getCarJoke', 'getVehicleSpecs', 'logFeedback', 'featureComingSoon',
-  'getVehicleProfitLoss', 'getFleetProfitLoss', 'getCompetitorRates',
-
-  'createBooking', 'updateBooking', 'sendCustomerMessage',
-  // New ops tools (2026-06-12)
-  'get_vehicle_status', 'get_todays_schedule', 'get_booking_by_reference',
-  'search_customer', 'get_open_work_orders', 'create_booking_hold',
-]);
-
 function extractToolCall(body: any, url: URL): { toolName?: string; parameters: any } {
   // 1) Query params (supports /elevenlabs-tools?tool_name=...)
   // 0) Path suffix takes priority: /elevenlabs-tools/<toolName>?...

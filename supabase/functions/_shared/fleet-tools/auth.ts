@@ -63,6 +63,7 @@ export async function verifyToolToken(token: string, secret: string): Promise<To
     console.error('Token verification error:', error);
     return null;
   }
+}
 
 // Helper function to get user's team_id
 export async function getUserTeamId(supabase: SupabaseClient, userId: string): Promise<string | null> {
