@@ -359,20 +359,10 @@ export const FLEET_TOOLS: FleetToolDefinition[] = [
     params: [p('feedback', 'string', 'What the user said', { required: true })],
     readOnly: false,
   },
-  {
-    name: 'featureComingSoon',
-    category: 'meta',
-    description: 'Acknowledge a capability that does not exist yet and log the request.',
-    params: [p('feature', 'string', 'Requested capability')],
-    readOnly: false,
-  },
-  {
-    name: 'getCarJoke',
-    category: 'meta',
-    description: 'Tell a short car joke.',
-    params: [],
-    readOnly: true,
-  },
+  // Deliberately not exposed: `featureComingSoon` (false affordance on a live
+  // tenant account) and `getCarJoke` (burns a voice turn). Their executor cases
+  // remain but are unreachable because dispatch is gated on this registry.
+
 ];
 
 export const FLEET_TOOL_NAMES: string[] = FLEET_TOOLS.map((t) => t.name);
