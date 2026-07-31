@@ -62,18 +62,19 @@ function toWebhookToolConfig(tool: FleetToolDefinition) {
     properties: Record<string, { type: string; description: string; enum?: string[] }>;
     required?: string[];
   };
-  const required = new Set(schema.required ?? []);
 
   const properties: Record<string, unknown> = {};
   for (const [name, prop] of Object.entries(schema.properties)) {
+    // Requiredness lives only in the top-level `required` array — the API drops a
+    // per-property `required` flag, which would make every tool look changed.
     properties[name] = {
       type: prop.type,
       description: prop.enum
         ? `${prop.description} (one of: ${prop.enum.join(', ')})`
         : prop.description,
-      required: required.has(name),
     };
   }
+
 
   return {
     type: 'webhook' as const,
@@ -114,13 +115,45 @@ function stableJson(value: unknown): string {
   );
 }
 
+/**
+ * The API echoes back many defaulted fields we never author. Compare only the
+ * keys our config declares, or every tool looks "changed" on every run.
+ */
+function projectOnto(desired: unknown, actual: unknown): unknown {
+  if (!desired || typeof desired !== 'object' || Array.isArray(desired)) return actual;
+  if (!actual || typeof actual !== 'object' || Array.isArray(actual)) return actual;
+  const out: Record<string, unknown> = {};
+  for (const [key, want] of Object.entries(desired as Record<string, unknown>)) {
+    out[key] = projectOnto(want, (actual as Record<string, unknown>)[key]);
+  }
+  return out;
+}
+
+
 async function main() {
   console.log(
     `${APPLY ? 'APPLYING' : 'DRY RUN'} — ${FLEET_TOOLS.length} registry tools -> agent ${AGENT_ID}\n`,
   );
 
   const listed = await el<{ tools: RemoteTool[] }>('/convai/tools');
-  const remote = new Map(listed.tools.map((t) => [t.tool_config.name, t]));
+
+  // Names can collide with legacy client/webhook tools this script does not own.
+  // Always resolve to the registry-owned webhook tool so we never PATCH a legacy one.
+  const remote = new Map<string, RemoteTool>();
+  const shadowed: string[] = [];
+  for (const t of listed.tools) {
+    const name = t.tool_config.name;
+    const owned = t.tool_config.description?.includes(OWNED_MARKER) ?? false;
+    const current = remote.get(name);
+    if (!current) {
+      remote.set(name, t);
+      continue;
+    }
+    const currentOwned = current.tool_config.description?.includes(OWNED_MARKER) ?? false;
+    if (owned && !currentOwned) remote.set(name, t);
+    if (!shadowed.includes(name)) shadowed.push(name);
+  }
+
 
   const created: string[] = [];
   const updated: string[] = [];
@@ -146,7 +179,7 @@ async function main() {
 
     toolIds.push(existing.id);
     const full = await el<{ tool_config: unknown }>(`/convai/tools/${existing.id}`);
-    if (stableJson(full.tool_config) === stableJson(config)) {
+    if (stableJson(projectOnto(config, full.tool_config)) === stableJson(config)) {
       unchanged.push(tool.name);
       continue;
     }
@@ -184,6 +217,10 @@ async function main() {
   report('updated', updated);
   report('unchanged', unchanged);
   report('deleted', deleted);
+  if (shadowed.length) {
+    report('name collisions with unowned legacy tools (registry version used)', shadowed);
+  }
+
 
   const writeTools = FLEET_TOOLS.filter((t) => !t.readOnly).map((t) => t.name);
   console.log(
