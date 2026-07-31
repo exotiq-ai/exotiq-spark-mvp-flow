@@ -114,6 +114,21 @@ function stableJson(value: unknown): string {
   );
 }
 
+/**
+ * The API echoes back many defaulted fields we never author. Compare only the
+ * keys our config declares, or every tool looks "changed" on every run.
+ */
+function projectOnto(desired: unknown, actual: unknown): unknown {
+  if (!desired || typeof desired !== 'object' || Array.isArray(desired)) return actual;
+  if (!actual || typeof actual !== 'object' || Array.isArray(actual)) return actual;
+  const out: Record<string, unknown> = {};
+  for (const [key, want] of Object.entries(desired as Record<string, unknown>)) {
+    out[key] = projectOnto(want, (actual as Record<string, unknown>)[key]);
+  }
+  return out;
+}
+
+
 async function main() {
   console.log(
     `${APPLY ? 'APPLYING' : 'DRY RUN'} — ${FLEET_TOOLS.length} registry tools -> agent ${AGENT_ID}\n`,
