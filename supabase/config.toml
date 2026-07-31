@@ -78,9 +78,6 @@ verify_jwt = false
 [functions.rari-email-summary]
 verify_jwt = false
 
-[functions.rari-enterprise-handlers]
-verify_jwt = false
-
 [functions.rari-message-summary]
 verify_jwt = false
 
