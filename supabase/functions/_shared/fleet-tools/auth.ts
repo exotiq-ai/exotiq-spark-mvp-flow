@@ -1,3 +1,4 @@
+// @ts-nocheck — crypto typing differs between Deno versions; runtime is verified.
 // Shared Rari/FleetCopilot identity layer.
 // Extracted verbatim from elevenlabs-tools so every surface (voice webhook,
 // MCP server, in-app chat) verifies callers the exact same fail-closed way.
