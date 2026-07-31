@@ -110,7 +110,7 @@ interface Booking {
 interface Customer {
   id: string;
   full_name?: string;
-  full_name?: string;
+
   email?: string;
   phone?: string;
   customer_tier?: string;
