@@ -62,18 +62,19 @@ function toWebhookToolConfig(tool: FleetToolDefinition) {
     properties: Record<string, { type: string; description: string; enum?: string[] }>;
     required?: string[];
   };
-  const required = new Set(schema.required ?? []);
 
   const properties: Record<string, unknown> = {};
   for (const [name, prop] of Object.entries(schema.properties)) {
+    // Requiredness lives only in the top-level `required` array — the API drops a
+    // per-property `required` flag, which would make every tool look changed.
     properties[name] = {
       type: prop.type,
       description: prop.enum
         ? `${prop.description} (one of: ${prop.enum.join(', ')})`
         : prop.description,
-      required: required.has(name),
     };
   }
+
 
   return {
     type: 'webhook' as const,
