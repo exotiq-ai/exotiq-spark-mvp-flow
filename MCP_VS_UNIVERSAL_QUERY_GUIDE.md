@@ -1,3 +1,5 @@
+> **SUPERSEDED (2026-07-31).** The `rari-universal-query` edge function has been retired. Its natural-language routing now lives in the shared FleetCopilot registry as the `ask_fleet` tool (`supabase/functions/_shared/fleet-tools/`), available on all Rari surfaces (voice, MCP, in-app chat). This document is kept for history only.
+
 # 🎯 MCP vs Universal Query - The Ultimate Rari Guide
 
 **Date:** January 8, 2026  
