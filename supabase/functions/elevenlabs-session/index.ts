@@ -29,7 +29,7 @@ async function generateToolToken(userId: string, teamId: string | null, secret: 
     userId,
     teamId,
     iat: now,
-    exp: now + 900, // 15 minutes expiry
+    exp: now + 3600, // 60 minutes — long voice calls were expiring mid-conversation
   };
 
   const encoder = new TextEncoder();
