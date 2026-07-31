@@ -215,18 +215,7 @@ serve(async (req) => {
         }
       },
       {
-        type: "function",
-        name: "getWeatherInfo",
-        description: "Get current weather information for a location",
-        parameters: {
-          type: "object",
-          properties: {
-            location: { type: "string", description: "City or location name" }
-          },
-          required: ["location"]
-        }
-      },
-      {
+
         type: "function",
         name: "getCarJoke",
         description: "Get a random automotive-related joke",
