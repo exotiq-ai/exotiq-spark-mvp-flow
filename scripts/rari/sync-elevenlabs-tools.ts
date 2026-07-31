@@ -161,7 +161,7 @@ async function main() {
 
     toolIds.push(existing.id);
     const full = await el<{ tool_config: unknown }>(`/convai/tools/${existing.id}`);
-    if (stableJson(full.tool_config) === stableJson(config)) {
+    if (stableJson(projectOnto(config, full.tool_config)) === stableJson(config)) {
       unchanged.push(tool.name);
       continue;
     }
