@@ -104,13 +104,12 @@ interface Booking {
   vehicle_id?: string;
   customer_id?: string;
   vehicles?: Vehicle & { vehicle_name?: string };
-  customers?: { first_name?: string; last_name?: string; email?: string };
+  customers?: { full_name?: string; email?: string };
 }
 
 interface Customer {
   id: string;
-  first_name?: string;
-  last_name?: string;
+  full_name?: string;
   full_name?: string;
   email?: string;
   phone?: string;
@@ -1351,12 +1350,12 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         if (includeBookings) {
           const { data: bookings } = await supabase
             .from('bookings')
-            .select('*, customers(first_name, last_name)')
+            .select('*, customers(full_name)')
             .eq('vehicle_id', vehicle.id)
             .order('start_date', { ascending: false })
             .limit(5);
           bookingsData = bookings?.map(b => {
-            const customerName = b.customers ? `${b.customers.first_name} ${b.customers.last_name}` : b.customer_name || 'Unknown';
+            const customerName = b.customers?.full_name || b.customer_name || 'Unknown';
             return {
               customer: customerName,
               dates: `${new Date(b.start_date).toLocaleDateString()} to ${new Date(b.end_date).toLocaleDateString()}`,
@@ -1633,7 +1632,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         const { status, daysRange, location } = args;
         let query = supabase
           .from('bookings')
-          .select('*, vehicles(make, model, year, location), customers(first_name, last_name)');
+          .select('*, vehicles(make, model, year, location), customers(full_name)');
         
         if (teamId) {
           query = query.eq('team_id', teamId);
@@ -1660,7 +1659,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
           const vehicleName = b.vehicles ? `${b.vehicles.year} ${b.vehicles.make} ${b.vehicles.model}` : 'vehicle';
           const amt = Number(b.total_value || b.total_amount || 0);
           return {
-            customer: b.customers ? `${b.customers.first_name} ${b.customers.last_name}` : b.customer_name || 'Unknown',
+            customer: b.customers?.full_name || b.customer_name || 'Unknown',
             vehicle: vehicleName,
             location: b.vehicles?.location || 'Miami',
             dates: formatDateRange(b.start_date, b.end_date),
@@ -2348,7 +2347,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         // Get bookings with outstanding balances
         let query = supabase
           .from('bookings')
-          .select('*, vehicles(make, model, year, location), customers(first_name, last_name, email, phone)');
+          .select('*, vehicles(make, model, year, location), customers(full_name, email, phone)');
         
         if (teamId) {
           query = query.eq('team_id', teamId);
@@ -2377,7 +2376,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
           const daysOverdue = Math.floor((new Date().getTime() - endDate.getTime()) / (1000 * 60 * 60 * 24));
           
           return {
-            customer: b.customers ? `${b.customers.first_name} ${b.customers.last_name}` : b.customer_name || 'Unknown',
+            customer: b.customers?.full_name || b.customer_name || 'Unknown',
             vehicle: b.vehicles ? `${b.vehicles.year} ${b.vehicles.make} ${b.vehicles.model}` : 'Unknown',
             location: b.vehicles?.location || 'Miami',
             balanceDue: `$${Number(b.balance_due || b.total_value || 0).toFixed(0)}`,
