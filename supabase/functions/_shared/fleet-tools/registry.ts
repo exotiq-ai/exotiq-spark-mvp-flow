@@ -337,6 +337,19 @@ export const FLEET_TOOLS: FleetToolDefinition[] = [
     params: [LIMIT],
     readOnly: true,
   },
+  {
+    name: 'ask_fleet',
+    category: 'insights',
+    description:
+      'Answer a free-form natural-language question about this fleet (revenue, P&L, bookings, idle vehicles, payments, customers, pricing, maintenance, locations). Use this when no specific tool clearly matches the question.',
+    params: [
+      p('question', 'string', 'The question exactly as the user asked it', { required: true }),
+      TIMEFRAME,
+      LOCATION,
+    ],
+    readOnly: true,
+  },
+
 
   // ---------------- meta ----------------
   {
