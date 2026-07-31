@@ -440,7 +440,55 @@ function formatNumberWords(n: number): string {
  * Formats a USD amount using words for natural speech
  * Examples: 1500 -> "$1.5 thousand", 2000000 -> "$2 million", 950 -> "$950"
  */
+/**
+ * Resolves a spoken timeframe into a rental window.
+ *
+ * IMPORTANT: rental activity must be measured against the rental window
+ * (start_date / end_date), never created_at. A booking created six months ago
+ * for a rental happening this week belongs to "this week", and a booking
+ * created today for next month does not.
+ *
+ * Returns ISO bounds; `start` is null for all-time.
+ */
+function resolveTimeframeWindow(timeframe?: string): { start: string | null; end: string; label: string } {
+  const now = new Date();
+  const end = new Date(now);
+  end.setHours(23, 59, 59, 999);
+
+  const start = new Date(now);
+  switch (timeframe) {
+    case 'today':
+      start.setHours(0, 0, 0, 0);
+      return { start: start.toISOString(), end: end.toISOString(), label: 'today' };
+    case 'week':
+      start.setDate(start.getDate() - 7);
+      start.setHours(0, 0, 0, 0);
+      return { start: start.toISOString(), end: end.toISOString(), label: 'the last 7 days' };
+    case 'month':
+      start.setMonth(start.getMonth() - 1);
+      start.setHours(0, 0, 0, 0);
+      return { start: start.toISOString(), end: end.toISOString(), label: 'the last 30 days' };
+    case 'year':
+      start.setFullYear(start.getFullYear() - 1);
+      start.setHours(0, 0, 0, 0);
+      return { start: start.toISOString(), end: end.toISOString(), label: 'the last 12 months' };
+    default:
+      return { start: null, end: end.toISOString(), label: 'all time' };
+  }
+}
+
+/**
+ * Applies a rental-window overlap filter to a bookings query.
+ * A booking counts when its rental period intersects [start, end].
+ */
+function applyRentalWindow<T>(query: T, window: { start: string | null; end: string }): T {
+  if (!window.start) return query;
+  // overlap: booking.start_date <= window.end AND booking.end_date >= window.start
+  return (query as any).lte('start_date', window.end).gte('end_date', window.start) as T;
+}
+
 function formatUsdWords(amount: number): string {
+
   const absAmount = Math.abs(amount);
   const sign = amount < 0 ? '-' : '';
   
