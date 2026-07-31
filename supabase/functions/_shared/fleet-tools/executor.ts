@@ -7,7 +7,7 @@
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.77.0';
 
 // Type definitions for database records
-interface Vehicle {
+export interface Vehicle {
   id: string;
   name?: string;
   make: string;
@@ -24,7 +24,7 @@ interface Vehicle {
   suggested_rate?: number;
 }
 
-interface Booking {
+export interface Booking {
   id: string;
   start_date: string;
   end_date: string;
@@ -42,7 +42,7 @@ interface Booking {
   customers?: { full_name?: string; email?: string };
 }
 
-interface Customer {
+export interface Customer {
   id: string;
   full_name?: string;
 
@@ -55,7 +55,7 @@ interface Customer {
   lifetime_value?: number;
 }
 
-interface DamageReport {
+export interface DamageReport {
   id: string;
   severity?: string;
   claim_status?: string;
@@ -64,7 +64,7 @@ interface DamageReport {
   vehicles?: Vehicle;
 }
 
-interface MaintenanceRecord {
+export interface MaintenanceRecord {
   id: string;
   maintenance_type?: string;
   scheduled_date?: string;
@@ -73,7 +73,7 @@ interface MaintenanceRecord {
   vehicles?: Vehicle;
 }
 
-interface ToolResult {
+export interface ToolResult {
   [key: string]: unknown;
   summary?: string;
   error?: string;
