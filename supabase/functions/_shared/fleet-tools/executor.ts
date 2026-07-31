@@ -298,11 +298,118 @@ export function buildTeamFilter(teamId: string | null): { field: string; value: 
   return { field: 'team_id', value: teamId };
 }
 
+// ---------------------------------------------------------------------------
+// ask_fleet — natural language router (folded in from the retired
+// `rari-universal-query` function). It owns NO queries of its own: it maps a
+// free-form question onto the existing, team-scoped executor cases below.
+// ---------------------------------------------------------------------------
+
+const ASK_FLEET_INTENTS: Array<{ tool: string; keywords: string[] }> = [
+  { tool: 'getFleetProfitLoss', keywords: ['profit', 'loss', 'p&l', 'p & l', 'margin', 'expense', 'roi', 'net'] },
+  { tool: 'getRevenueAnalysis', keywords: ['revenue', 'income', 'earnings', 'sales', 'money made', 'gross'] },
+  { tool: 'getIdleVehicles', keywords: ['idle', 'unused', 'sitting', 'not rented', 'underperforming', 'underused'] },
+  { tool: 'getOutstandingBalances', keywords: ['outstanding', 'balance', 'unpaid', 'owe', 'overdue payment', 'past due'] },
+  { tool: 'getPaymentSummary', keywords: ['payment', 'paid', 'deposit', 'invoice'] },
+  { tool: 'getUpcomingMaintenance', keywords: ['maintenance', 'service due', 'repair', 'work order', 'out of service'] },
+  { tool: 'getCustomerSegments', keywords: ['segment', 'vip', 'retention', 'loyal', 'repeat customer'] },
+  { tool: 'getCustomerLifetimeValue', keywords: ['lifetime value', 'ltv', 'best customer', 'top customer'] },
+  { tool: 'getTopPerformers', keywords: ['top performer', 'best vehicle', 'highest earning', 'most booked'] },
+  { tool: 'getDemandForecast', keywords: ['forecast', 'predict', 'demand', 'projection', 'upcoming demand'] },
+  { tool: 'getPricingRecommendation', keywords: ['price', 'pricing', 'rate', 'surge', 'optimize rate'] },
+  { tool: 'compareLocations', keywords: ['compare', ' vs ', 'versus', 'comparison', 'which market', 'which location'] },
+  { tool: 'get_bookings', keywords: ['booking', 'reservation', 'rental', 'who is renting'] },
+  { tool: 'getRariInsights', keywords: ['insight', 'recommendation', 'suggest', 'opportunity', 'what should i'] },
+  { tool: 'get_fleet_vehicles', keywords: ['vehicle', 'car', 'fleet list', 'available', 'inventory'] },
+  { tool: 'getLocationMetrics', keywords: ['location', 'market', 'city', 'by region'] },
+];
+
+const ASK_FLEET_TIMEFRAMES: Array<{ value: string; keywords: string[] }> = [
+  { value: 'today', keywords: ['today', 'tonight', 'right now'] },
+  { value: 'week', keywords: ['this week', 'last week', 'past week', '7 days'] },
+  { value: 'month', keywords: ['this month', 'last month', 'past month', '30 days'] },
+  { value: 'year', keywords: ['this year', 'last year', 'past year', 'ytd', '12 months'] },
+  { value: 'all', keywords: ['all time', 'ever', 'overall', 'lifetime'] },
+];
+
+function detectAskFleetTool(question: string): string {
+  const q = ` ${question.toLowerCase()} `;
+  for (const intent of ASK_FLEET_INTENTS) {
+    if (intent.keywords.some((k) => q.includes(k))) return intent.tool;
+  }
+  return 'getFleetMetrics';
+}
+
+function detectAskFleetTimeframe(question: string): string | undefined {
+  const q = question.toLowerCase();
+  for (const tf of ASK_FLEET_TIMEFRAMES) {
+    if (tf.keywords.some((k) => q.includes(k))) return tf.value;
+  }
+  return undefined;
+}
+
+/**
+ * Resolves a location mentioned in the question against the TEAM'S OWN
+ * locations. No hardcoded city list — every tenant works out of the box.
+ */
+async function detectAskFleetLocation(
+  supabase: SupabaseClient,
+  teamId: string | null,
+  question: string,
+): Promise<string | undefined> {
+  if (!teamId) return undefined;
+  const { data } = await supabase
+    .from('vehicles')
+    .select('location')
+    .eq('team_id', teamId)
+    .not('location', 'is', null);
+
+  const locations = [...new Set((data || []).map((r: any) => String(r.location).trim()).filter(Boolean))];
+  const q = question.toLowerCase();
+  // Longest match wins so "north miami" beats "miami".
+  return locations
+    .filter((loc) => q.includes(loc.toLowerCase()))
+    .sort((a, b) => b.length - a.length)[0];
+}
+
 export async function executeFunction(functionName: string, args: Record<string, unknown>, supabase: SupabaseClient, userId: string, teamId: string | null): Promise<ToolResult> {
   console.log(`[TOOL] Executing: ${functionName} | User: ${userId} | Team: ${teamId} | Args:`, JSON.stringify(args));
 
   try {
     switch (functionName) {
+      case "ask_fleet": {
+        const { question, timeframe, location } = args as {
+          question?: string;
+          timeframe?: string;
+          location?: string;
+        };
+
+        if (!question || !String(question).trim()) {
+          return {
+            error: 'A question is required.',
+            summary: 'What would you like to know about the fleet?',
+          };
+        }
+
+        const asked = String(question).trim();
+        const routedTool = detectAskFleetTool(asked);
+        const routedTimeframe = timeframe || detectAskFleetTimeframe(asked);
+        const routedLocation = location || (await detectAskFleetLocation(supabase, teamId, asked));
+
+        const routedArgs: Record<string, unknown> = {};
+        if (routedTimeframe && routedTimeframe !== 'all') routedArgs.timeframe = routedTimeframe;
+        if (routedTimeframe === 'all') routedArgs.timeframe = 'all';
+        if (routedLocation) routedArgs.location = routedLocation;
+
+        console.log(`[ask_fleet] "${asked}" -> ${routedTool}`, routedArgs);
+
+        const result = await executeFunction(routedTool, routedArgs, supabase, userId, teamId);
+        return {
+          ...(result as Record<string, unknown>),
+          question: asked,
+          routed_to: routedTool,
+        } as ToolResult;
+      }
+
       case "get_fleet_vehicles": {
         const { status, location } = args as { status?: string; location?: string };
         console.log(`[get_fleet_vehicles] Querying vehicles for team ${teamId}, status: ${status || 'all'}, location: ${location || 'all'}`);
