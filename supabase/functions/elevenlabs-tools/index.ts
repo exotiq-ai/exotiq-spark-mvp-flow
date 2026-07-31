@@ -1110,12 +1110,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         const { timeframe, location } = args;
         console.log(`[getFleetMetrics] Team: ${teamId}, Timeframe: ${timeframe}, Location: ${location || 'all'}`);
         
-        let dateFilter = new Date();
-        
-        if (timeframe === 'today') dateFilter.setHours(0, 0, 0, 0);
-        else if (timeframe === 'week') dateFilter.setDate(dateFilter.getDate() - 7);
-        else if (timeframe === 'month') dateFilter.setMonth(dateFilter.getMonth() - 1);
-        else if (timeframe === 'year') dateFilter.setFullYear(dateFilter.getFullYear() - 1);
+        const window = resolveTimeframeWindow(timeframe);
 
         // Get vehicles with optional location filter
         let vehicleQuery = supabase.from('vehicles').select('*');
@@ -1131,14 +1126,14 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         if (teamId) {
           bookingsQuery = bookingsQuery.eq('team_id', teamId);
         }
-        bookingsQuery = bookingsQuery.gte('created_at', dateFilter.toISOString());
+        bookingsQuery = applyRentalWindow(bookingsQuery, window);
         
         // Get revenue bookings with team filter
         let revenueQuery = supabase.from('bookings').select('total_value, vehicles(location)');
         if (teamId) {
           revenueQuery = revenueQuery.eq('team_id', teamId);
         }
-        revenueQuery = revenueQuery.eq('status', 'completed').gte('created_at', dateFilter.toISOString());
+        revenueQuery = applyRentalWindow(revenueQuery.eq('status', 'completed'), window);
         
         const [vehiclesResult, bookingsResult, revenueResult] = await Promise.all([
           vehicleQuery,
@@ -1305,12 +1300,8 @@ async function executeFunction(functionName: string, args: Record<string, unknow
         const { status, timeframe, location } = args;
         console.log(`[getPaymentSummary] Team: ${teamId}, Status: ${status || 'all'}, Timeframe: ${timeframe || 'all'}, Location: ${location || 'all'}`);
         
-        let dateFilter = new Date();
-        if (timeframe === 'today') dateFilter.setHours(0, 0, 0, 0);
-        else if (timeframe === 'week') dateFilter.setDate(dateFilter.getDate() - 7);
-        else if (timeframe === 'month') dateFilter.setMonth(dateFilter.getMonth() - 1);
-        else if (timeframe === 'year') dateFilter.setFullYear(dateFilter.getFullYear() - 1);
-        else dateFilter = new Date(0); // All time
+        // Payments are events, not rentals: created_at IS the correct axis here.
+        const window = resolveTimeframeWindow(timeframe);
         
         // Get payments with team filter
         let paymentsQuery = supabase
@@ -1321,8 +1312,8 @@ async function executeFunction(functionName: string, args: Record<string, unknow
           paymentsQuery = paymentsQuery.eq('team_id', teamId);
         }
         
+        if (window.start) paymentsQuery = paymentsQuery.gte('created_at', window.start);
         const { data: payments, error } = await paymentsQuery
-          .gte('created_at', dateFilter.toISOString())
           .order('created_at', { ascending: false });
         
         if (error) {
@@ -1557,13 +1548,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
 
       case "getRevenueAnalysis": {
         const { timeframe, vehicleName, location } = args;
-        let dateFilter = new Date();
-        
-        if (timeframe === 'today') dateFilter.setHours(0, 0, 0, 0);
-        else if (timeframe === 'week') dateFilter.setDate(dateFilter.getDate() - 7);
-        else if (timeframe === 'month') dateFilter.setMonth(dateFilter.getMonth() - 1);
-        else if (timeframe === 'year') dateFilter.setFullYear(dateFilter.getFullYear() - 1);
-        else dateFilter = new Date(0);
+        const window = resolveTimeframeWindow(timeframe);
 
         let query = supabase
           .from('bookings')
@@ -1573,9 +1558,7 @@ async function executeFunction(functionName: string, args: Record<string, unknow
           query = query.eq('team_id', teamId);
         }
         
-        const { data: bookings } = await query
-          .eq('status', 'completed')
-          .gte('created_at', dateFilter.toISOString());
+        const { data: bookings } = await applyRentalWindow(query.eq('status', 'completed'), window);
         
         let filteredBookings = bookings || [];
         
