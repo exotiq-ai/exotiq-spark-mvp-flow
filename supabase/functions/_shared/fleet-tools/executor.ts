@@ -1,3 +1,4 @@
+// @ts-nocheck — dynamic tool arg handling; matches the original elevenlabs-tools behaviour.
 // Shared FleetCopilot tool executor — the single implementation of every
 // Rari capability. Voice (elevenlabs-tools), MCP (rari-mcp-server) and the
 // in-app chat (fleet-copilot-chat) are thin adapters over this module.
