@@ -418,20 +418,6 @@ const TOOL_MANIFEST = {
   },
 
   // Utility Tools
-  getWeatherInfo: {
-    name: "getWeatherInfo",
-    description: "Get current weather information for a location.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        location: {
-          type: "string",
-          description: "Location to get weather for"
-        }
-      },
-      required: ["location"]
-    }
-  },
   getCarJoke: {
     name: "getCarJoke",
     description: "Get a fun car-themed joke.",
@@ -588,7 +574,12 @@ const FUNCTION_BASE_URL = `https://${SUPABASE_PROJECT_ID}.supabase.co/functions/
 // Optional token authentication
 function validateAuth(req: Request): boolean {
   const expectedToken = Deno.env.get('MCP_SECRET_TOKEN');
-  if (!expectedToken) return true; // No token configured = open access
+  // Fail closed: without a configured token this endpoint would expose the
+  // whole database to anyone. Never return true here.
+  if (!expectedToken) {
+    console.error('[rari-mcp-server] MCP_SECRET_TOKEN is not configured - denying all requests');
+    return false;
+  }
   
   const authHeader = req.headers.get('authorization');
   if (authHeader === `Bearer ${expectedToken}`) return true;
@@ -1524,11 +1515,7 @@ async function executeFunction(functionName: string, args: any, supabase: any, t
         return { error: "Vehicle specs not found", summary: `No specs for "${vehicleName}". Try Ferrari SF90, Lamborghini Aventador, McLaren 720S, Bugatti Chiron, or Porsche 911.` };
       }
 
-      case "getWeatherInfo": {
-        const { location } = args;
-        const conditions = ["Sunny", "Partly Cloudy", "Cloudy", "Light Rain"];
-        return { location, temperature: `${Math.floor(Math.random() * 30) + 60}°F`, conditions: conditions[Math.floor(Math.random() * conditions.length)], note: "Simulated data" };
-      }
+      // getWeatherInfo removed 2026-07-31: returned randomised values as fact.
 
       case "getCarJoke": {
         const jokes = [
