@@ -203,7 +203,7 @@ const KNOWN_TOOLS = new Set([
   'getRevenueAnalysis', 'getTopPerformers', 'searchBookings',
   'getDamageReports', 'getUpcomingMaintenance', 'getCustomerLifetimeValue',
   'getVaultDocuments', 'getDemandForecast', 'getPricingRecommendation',
-  'getFleetPricingOverview', 'getEventImpact', 'getWeatherInfo',
+  'getFleetPricingOverview', 'getEventImpact',
   'getCarJoke', 'getVehicleSpecs', 'logFeedback', 'featureComingSoon',
   'getVehicleProfitLoss', 'getFleetProfitLoss', 'getCompetitorRates',
   'getSeasonalPricing', 'getFleetInsights', 'getActionItems',
