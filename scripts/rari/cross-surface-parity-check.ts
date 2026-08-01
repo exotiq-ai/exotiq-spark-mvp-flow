@@ -121,15 +121,22 @@ function compareResults(voice: any, mcp: any): string | null {
     return `One surface returned an error: voice=${JSON.stringify(voiceJson?.error)} mcp=${JSON.stringify(mcpJson?.error)}`;
   }
 
-  // Normalize both to a comparable JSON object
-  const a = normalize(voiceJson);
-  const b = normalize(mcpJson);
+  // The voice adapter adds a `_meta` envelope with request/team/user IDs.
+  // Strip it so we compare only business data, which is identical across surfaces.
+  const a = normalize(stripMeta(voiceJson));
+  const b = normalize(stripMeta(mcpJson));
 
   if (JSON.stringify(a) !== JSON.stringify(b)) {
     return `Payloads differ.\nVoice: ${JSON.stringify(a, null, 2)}\nMCP:   ${JSON.stringify(b, null, 2)}`;
   }
 
   return null;
+}
+
+function stripMeta(v: any): any {
+  if (!v || typeof v !== 'object') return v;
+  const { _meta, ...rest } = v;
+  return rest;
 }
 
 function normalize(v: any): any {
