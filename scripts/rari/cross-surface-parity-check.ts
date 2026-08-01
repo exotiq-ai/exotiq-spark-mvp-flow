@@ -19,6 +19,7 @@ import { createClient } from '@supabase/supabase-js';
 const SUPABASE_URL = requireEnv('SUPABASE_URL');
 const SUPABASE_SERVICE_ROLE_KEY = requireEnv('SUPABASE_SERVICE_ROLE_KEY');
 const RARI_TOOL_TOKEN_SECRET = requireEnv('RARI_TOOL_TOKEN_SECRET');
+const USER_ID = requireEnv('USER_ID');
 const SUPABASE_AUTH_TOKEN = process.env.SUPABASE_AUTH_TOKEN; // optional; chat uses the user's auth token, not the tool token
 const BASE_URL =
   process.env.RARI_BASE_URL ||
