@@ -14,6 +14,8 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "rari:sync-tools": "bun scripts/rari/sync-elevenlabs-tools.ts",
+    "rari:parity-check": "bun scripts/rari/cross-surface-parity-check.ts",
+    "rari:tenant-isolation": "bun scripts/rari/tenant-isolation-proof.ts",
     "prepare": "husky"
 
   },
