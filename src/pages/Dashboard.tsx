@@ -134,11 +134,20 @@ const DashboardInner = () => {
       // Strip the params and route to the Payments tab so the badge is visible.
       nav('/dashboard/settings?tab=payments', { replace: true });
 
-      // Poll for up to 60s for the webhook to flip charges_enabled.
+      // Poll Stripe directly (not just the cached team row) for up to 60s so
+      // activation shows up even if the account.updated webhook is delayed.
       for (let i = 0; i < 12 && !cancelled; i++) {
+        try {
+          const { data } = await supabase.functions.invoke('stripe-connect-status', {});
+          if (data?.status === 'active') {
+            await refreshTeam();
+            break;
+          }
+        } catch { /* keep polling */ }
         await refreshTeam();
         await new Promise((r) => setTimeout(r, 5000));
       }
+
     })();
 
     return () => {

@@ -42,6 +42,9 @@ export const PaymentMethodsSection = () => {
   const [saving, setSaving] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [enabledMethods, setEnabledMethods] = useState<string[]>(DEFAULT_METHODS);
+  const [syncing, setSyncing] = useState(false);
+  const [requirements, setRequirements] = useState<string[]>([]);
+  const [disabledReason, setDisabledReason] = useState<string | null>(null);
 
   const stripeAccountId = currentTeam?.stripe_account_id ?? null;
   const chargesEnabled = currentTeam?.stripe_charges_enabled ?? false;
@@ -100,7 +103,7 @@ export const PaymentMethodsSection = () => {
     setConnecting(true);
     try {
       const { data, error } = await supabase.functions.invoke('stripe-connect-onboard', {
-        body: {},
+        body: { team_id: currentTeam?.id },
       });
 
       // Extract structured error body from non-2xx responses
@@ -149,7 +152,7 @@ export const PaymentMethodsSection = () => {
     setConnecting(true);
     try {
       const { data, error } = await supabase.functions.invoke('stripe-connect-refresh', {
-        body: {},
+        body: { team_id: currentTeam?.id },
       });
       if (error) throw error;
       if (data?.url) {
@@ -165,7 +168,7 @@ export const PaymentMethodsSection = () => {
   const handleOpenDashboard = async () => {
     try {
       const { data, error } = await supabase.functions.invoke('stripe-connect-dashboard', {
-        body: {},
+        body: { team_id: currentTeam?.id },
       });
       if (error) throw error;
       if (data?.url) {
@@ -176,10 +179,52 @@ export const PaymentMethodsSection = () => {
     }
   };
 
-  const handleRefreshStatus = async () => {
-    await refreshTeam();
-    toast({ title: "Status Refreshed", description: "Payment account status has been updated." });
+  // Pulls the account straight from Stripe rather than trusting the cached
+  // flags — onboarding must resolve even if the webhook is slow or misrouted.
+  const syncStatus = async (silent = false) => {
+    setSyncing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('stripe-connect-status', {
+        body: { team_id: currentTeam?.id },
+      });
+      if (error) throw error;
+
+      setDisabledReason(data?.disabled_reason ?? null);
+      setRequirements([...(data?.past_due ?? []), ...(data?.currently_due ?? [])]);
+      await refreshTeam();
+
+      if (!silent) {
+        toast({
+          title: data?.status === 'active' ? "Payments Active" : "Status Refreshed",
+          description:
+            data?.status === 'active'
+              ? "Card payments and payouts are enabled."
+              : data?.status === 'not_connected'
+              ? "No Stripe account connected yet."
+              : "Stripe still needs a few details before payments go live.",
+        });
+      }
+    } catch (err) {
+      if (!silent) {
+        toast({
+          title: "Error",
+          description: err instanceof Error ? err.message : "Failed to check Stripe status.",
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setSyncing(false);
+    }
   };
+
+  const handleRefreshStatus = () => syncStatus(false);
+
+  // Sync once on mount so a tenant returning from Stripe sees the real state
+  // without hunting for a button.
+  useEffect(() => {
+    if (currentTeam?.id) void syncStatus(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentTeam?.id]);
 
   return (
     <div className="space-y-6">
@@ -211,6 +256,20 @@ export const PaymentMethodsSection = () => {
             </Badge>
           )}
         </div>
+
+        {(requirements.length > 0 || disabledReason) && connectStatus !== "not_connected" && (
+          <div className="p-3 rounded-lg bg-muted/50 border border-border space-y-1">
+            <p className="text-sm font-medium">Stripe still needs:</p>
+            <ul className="text-xs text-muted-foreground list-disc pl-4 space-y-0.5">
+              {requirements.slice(0, 8).map((item) => (
+                <li key={item}>{item.replace(/[._]/g, ' ')}</li>
+              ))}
+              {requirements.length === 0 && disabledReason && (
+                <li>{disabledReason.replace(/[._]/g, ' ')}</li>
+              )}
+            </ul>
+          </div>
+        )}
 
         {connectStatus === "not_connected" && (
           <div className="p-4 rounded-lg bg-primary/5 border border-primary/20 space-y-3">
@@ -248,7 +307,8 @@ export const PaymentMethodsSection = () => {
                 {connecting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
                 Continue Setup
               </Button>
-              <Button onClick={handleRefreshStatus} variant="ghost" size="sm">
+              <Button onClick={handleRefreshStatus} variant="ghost" size="sm" disabled={syncing}>
+                {syncing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
                 Refresh Status
               </Button>
             </div>
