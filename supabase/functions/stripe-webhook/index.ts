@@ -30,16 +30,44 @@ serve(async (req) => {
   try {
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
+    const connectWebhookSecret = Deno.env.get("STRIPE_CONNECT_WEBHOOK_SECRET");
     if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
-    if (!webhookSecret) throw new Error("STRIPE_WEBHOOK_SECRET is not set");
+    if (!webhookSecret && !connectWebhookSecret) {
+      throw new Error("No Stripe webhook signing secret is set");
+    }
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
     const body = await req.text();
     const signature = req.headers.get("stripe-signature");
     if (!signature) throw new Error("No stripe-signature header");
 
-    const event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
-    logStep("Event received", { type: event.type, id: event.id });
+    // This URL is registered twice in Stripe: once as a platform endpoint and
+    // once as a connected-accounts endpoint. Each has its own signing secret,
+    // so try both before rejecting.
+    const candidates: Array<{ secret: string; consumer: "legacy" | "legacy_connect" }> = [];
+    if (webhookSecret) candidates.push({ secret: webhookSecret, consumer: "legacy" });
+    if (connectWebhookSecret) {
+      candidates.push({ secret: connectWebhookSecret, consumer: "legacy_connect" });
+    }
+
+    let event: Stripe.Event | null = null;
+    let consumer: "legacy" | "legacy_connect" = "legacy";
+    let lastError: unknown = null;
+    for (const candidate of candidates) {
+      try {
+        event = await stripe.webhooks.constructEventAsync(body, signature, candidate.secret);
+        consumer = candidate.consumer;
+        break;
+      } catch (err) {
+        lastError = err;
+      }
+    }
+    if (!event) {
+      logStep("Signature verification failed for all secrets");
+      throw lastError instanceof Error ? lastError : new Error("Invalid signature");
+    }
+
+    logStep("Event received", { type: event.type, id: event.id, consumer });
 
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -50,27 +78,30 @@ serve(async (req) => {
     // Idempotency check — scoped to this consumer. The renter money flow
     // (`rent-payment-webhook`) shares this table and subscribes to some of
     // the same event types; keying per consumer keeps the two endpoints from
-    // suppressing each other's processing of the same Stripe event.
+    // suppressing each other's processing of the same Stripe event. Platform
+    // and connected-account deliveries of the same event type are also kept
+    // apart by their distinct consumer keys.
     const { data: existing } = await supabaseClient
       .from("stripe_webhook_events")
       .select("id")
-      .eq("consumer", "legacy")
+      .eq("consumer", consumer)
       .eq("stripe_event_id", event.id)
       .limit(1)
       .maybeSingle();
 
     if (existing) {
-      logStep("Duplicate event, skipping", { eventId: event.id });
+      logStep("Duplicate event, skipping", { eventId: event.id, consumer });
       return new Response(JSON.stringify({ received: true, duplicate: true }), { status: 200 });
     }
 
     // Record event
     await supabaseClient.from("stripe_webhook_events").insert({
-      consumer: "legacy",
+      consumer,
       stripe_event_id: event.id,
       event_type: event.type,
       payload: JSON.parse(body),
     });
+
 
     // Handle events
     switch (event.type) {
