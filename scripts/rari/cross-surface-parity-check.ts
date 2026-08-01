@@ -88,10 +88,10 @@ async function callMcp(tool: string, args: Record<string, unknown>, token: strin
   return { status: res.status, body };
 }
 
-async function callChat(message: string, token: string) {
+async function callChat(message: string, authToken: string) {
   const res = await fetch(`${BASE_URL}/fleet-copilot-chat`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
     body: JSON.stringify({ messages: [{ role: 'user', content: message }] }),
   });
   const text = await res.text();
