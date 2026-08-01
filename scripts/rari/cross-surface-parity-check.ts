@@ -193,13 +193,17 @@ async function main() {
     }
 
     if (tc.chatPrompt) {
-      const chat = await callChat(tc.chatPrompt, token);
-      if (chat.status !== 200) {
-        console.log(`FAIL: chat smoke test status ${chat.status}`);
-        console.log(chat.body.slice(0, 500));
-        failures++;
+      if (!SUPABASE_AUTH_TOKEN) {
+        console.log('SKIP: chat smoke test (SUPABASE_AUTH_TOKEN not provided)');
       } else {
-        console.log('PASS: chat smoke test returned a successful response');
+        const chat = await callChat(tc.chatPrompt, SUPABASE_AUTH_TOKEN);
+        if (chat.status !== 200) {
+          console.log(`FAIL: chat smoke test status ${chat.status}`);
+          console.log(chat.body.slice(0, 500));
+          failures++;
+        } else {
+          console.log('PASS: chat smoke test returned a successful response');
+        }
       }
     }
   }
