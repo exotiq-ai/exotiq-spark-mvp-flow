@@ -6,9 +6,9 @@
  * creates missing webhook tools, updates changed ones, deletes registry-orphans
  * that this script owns, and pins the agent's `tool_ids` to the result.
  *
- * Auth model is unchanged: every tool carries
- *   Authorization: Bearer {{secret__rari_tool_token}}
- * which is the per-conversation, per-tenant HS256 token minted by
+ * Auth model is unchanged: every tool's Authorization header references the
+ * `secret__rari_tool_token` dynamic variable, whose runtime value is
+ * `Bearer <token>`. The token is the per-conversation, per-tenant HS256 token minted by
  * `elevenlabs-session`. Native MCP cannot carry that (its headers are static and
  * workspace-scoped), which is why voice stays on webhook tools.
  *
@@ -89,8 +89,9 @@ function toWebhookToolConfig(tool: FleetToolDefinition) {
       url: `${TOOLS_URL!.replace(/\/$/, '')}/${tool.name}`,
       method: 'POST' as const,
       request_headers: {
-        // Per-conversation tenant identity. Never a static workspace token.
-        Authorization: 'Bearer {{secret__rari_tool_token}}',
+        // ElevenLabs' API requires an explicit dynamic-variable locator here.
+        // A template string is stored literally and reaches the webhook unchanged.
+        Authorization: { variable_name: 'secret__rari_tool_token' },
       },
       request_body_schema: {
         type: 'object' as const,
