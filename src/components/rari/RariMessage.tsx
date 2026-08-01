@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { useEntityDetection, splitContentWithEntities } from '@/hooks/useEntityDetection';
 import { useEntityEnrichment } from '@/hooks/useEntityEnrichment';
 import { EntityLink } from './EntityLink';
+import { RariMessageFeedback } from './RariMessageFeedback';
 
 interface Message {
   role: 'user' | 'assistant';
