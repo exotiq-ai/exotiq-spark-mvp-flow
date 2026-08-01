@@ -355,7 +355,7 @@ export const FLEET_TOOLS: FleetToolDefinition[] = [
   {
     name: 'logFeedback',
     category: 'meta',
-    description: 'Record user feedback about the assistant. Mutates data.',
+    description: 'Record user feedback about the assistant.',
     params: [p('feedback', 'string', 'What the user said', { required: true })],
     readOnly: false,
   },
