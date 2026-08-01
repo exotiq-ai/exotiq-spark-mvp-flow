@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { useEntityDetection, splitContentWithEntities } from '@/hooks/useEntityDetection';
 import { useEntityEnrichment } from '@/hooks/useEntityEnrichment';
 import { EntityLink } from './EntityLink';
+import { RariMessageFeedback } from './RariMessageFeedback';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -16,9 +17,24 @@ interface RariMessageProps {
   message: Message;
   isOwn: boolean;
   showAvatar?: boolean;
+  /** Preceding user question, used for feedback context */
+  userQuery?: string;
+  conversationId?: string | null;
+  /** Surface label stored with feedback */
+  surface?: string;
+  /** Hide the thumbs up/down control */
+  hideFeedback?: boolean;
 }
 
-export const RariMessage = ({ message, isOwn, showAvatar = true }: RariMessageProps) => {
+export const RariMessage = ({
+  message,
+  isOwn,
+  showAvatar = true,
+  userQuery,
+  conversationId,
+  surface = 'voice',
+  hideFeedback = false,
+}: RariMessageProps) => {
   const entities = useEntityDetection(message.content);
   const enrichedEntities = useEntityEnrichment(entities);
   const segments = splitContentWithEntities(message.content, enrichedEntities);
@@ -84,6 +100,15 @@ export const RariMessage = ({ message, isOwn, showAvatar = true }: RariMessagePr
             )}>
               {entities.length} link{entities.length > 1 ? 's' : ''}
             </span>
+          )}
+          {!isOwn && !hideFeedback && message.content.trim().length > 0 && (
+            <RariMessageFeedback
+              className="ml-auto"
+              response={message.content}
+              userQuery={userQuery}
+              conversationId={conversationId}
+              surface={surface}
+            />
           )}
         </div>
       </div>

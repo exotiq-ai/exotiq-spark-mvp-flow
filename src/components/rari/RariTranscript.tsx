@@ -113,13 +113,16 @@ export const RariTranscript = ({
             {messages.map((msg, idx) => {
               const prevMsg = idx > 0 ? messages[idx - 1] : null;
               const showAvatar = !prevMsg || prevMsg.role !== msg.role;
-              
+              const lastUserMsg = [...messages.slice(0, idx)].reverse().find((m) => m.role === 'user');
+
               return (
                 <RariMessage
                   key={idx}
                   message={msg}
                   isOwn={msg.role === 'user'}
                   showAvatar={showAvatar}
+                  userQuery={lastUserMsg?.content}
+                  conversationId={conversationId}
                 />
               );
             })}
