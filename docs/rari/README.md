@@ -38,4 +38,4 @@ Both are generated from the current registry and should be updated whenever the 
 - 37 live tools in the canonical registry.
 - Voice, MCP, and in-app chat all use the same executor and registry.
 - Authentication is fail-closed: only a signed, per-session tool token is accepted.
-- Two mutating tools require ElevenLabs "Requires approval": `create_booking_hold` and `logFeedback`.
+- Two mutating tools require spoken operator confirmation before running: `create_booking_hold` and `logFeedback`. ElevenLabs has no approval toggle for webhook tools, so this is enforced by the system prompt.

@@ -39,12 +39,15 @@ Tools not created by this script are never touched.
 
 ## Manual step that remains after sync
 
-The script can create and update tools, but it cannot set the **Auth connection** and **Requires approval** fields in the ElevenLabs UI. For every registry-owned tool, make these two checks:
+The script can create and update tools, but it cannot set the **Auth connection** field in the ElevenLabs UI. For every registry-owned tool:
 
-1. **Auth connection:** Set to **None**. Our tools authenticate via the `Authorization: Bearer {{secret__rari_tool_token}}` header in the Headers section, not via an ElevenLabs auth connection. A leftover auth connection such as "Cursor - Cursor API Key" should be removed.
-2. **Requires approval:** Set `create_booking_hold` and `logFeedback` to **Requires approval**. These are the only mutating tools in the registry. All other tools can be auto-approved.
+1. **Auth connection:** Set to **None** (`"auth_connection": null` in the tool JSON). Our tools authenticate via the `Authorization: Bearer {{secret__rari_tool_token}}` header in the Headers section, not via an ElevenLabs auth connection. A leftover auth connection such as "Cursor - Cursor API Key" should be removed.
 
-The script prints the exact list of mutating tools at the end of every run.
+There is **no "Requires approval" toggle to set.** That control exists only for native MCP servers in ElevenLabs (`approval_policy` on the MCP server, plus a per-tool `tool-approvals` resource). Webhook tools — which is what all registry tools are — have no approval field, so do not go looking for it in the tool panel. Mutating tools are gated by the system prompt's confirmation rule instead.
+
+Rari cannot move to native MCP just to gain that toggle: MCP auth headers are static and workspace-scoped, which would break the per-conversation tenant token.
+
+The script prints the list of mutating tools at the end of every run.
 
 ## Other changes in this pass
 

@@ -224,7 +224,11 @@ async function main() {
 
   const writeTools = FLEET_TOOLS.filter((t) => !t.readOnly).map((t) => t.name);
   console.log(
-    `\nSet "requires approval" in the agent UI for the ${writeTools.length} mutating tools: ${writeTools.join(', ')}`,
+    `\n${writeTools.length} mutating tools: ${writeTools.join(', ')}` +
+      '\nElevenLabs has no "requires approval" setting for webhook tools (it is MCP-only),' +
+      '\nso these are gated by the system prompt rule: summarize and wait for operator confirmation.' +
+      '\nIn the agent UI every registry tool should have Auth connection = None; the tenant token' +
+      '\ntravels in the Authorization header written by this script.',
   );
   if (!APPLY) console.log('\nRe-run with --apply to write these changes.');
 }
