@@ -105,13 +105,6 @@ All other tools are read-only and can be auto-approved.
 
 ---
 
-## Tool count
-
-The live registry contains **37 tools** across fleet, bookings, customers, money, pricing, operations, insights, and meta. Always use the tool catalog if available; otherwise, fall back to `ask_fleet`.
-
-
----
-
 ## If something goes wrong
 
 If Rari says "I can't verify your account" or a tool returns an authentication error, the voice session token may have expired. Reopen Rari from inside the app to get a fresh session.
