@@ -172,7 +172,9 @@ export const FLEET_TOOLS: FleetToolDefinition[] = [
   {
     name: 'create_booking_hold',
     category: 'bookings',
-    description: 'Place a provisional hold on a vehicle for a date range. Mutates data.',
+    // The mutation warning is appended by the surface adapters (see
+    // scripts/rari/sync-elevenlabs-tools.ts) — do not repeat it here.
+    description: 'Place a provisional hold on a vehicle for a date range.',
     params: [
       p('vehicle', 'string', 'Vehicle name or make/model', { required: true }),
       p('startDate', 'string', 'ISO start date', { required: true }),

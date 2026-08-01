@@ -96,12 +96,12 @@ Rari will choose the right tool, call it, and reply in plain language.
 
 ## Approval rules
 
-Two tools require ElevenLabs "Requires approval" before they execute:
+ElevenLabs has no "requires approval" setting for webhook tools — that feature exists only for native MCP servers. All Rari tools are webhook tools, so approval is enforced conversationally: summarize the action and wait for the operator to confirm before calling either mutating tool.
 
-- `create_booking_hold` — Places a provisional hold on a vehicle.
-- `logFeedback` — Records user feedback about the assistant.
+- `create_booking_hold` — Places a provisional hold on a vehicle. Confirm first.
+- `logFeedback` — Records user feedback about the assistant. Confirm first.
 
-All other tools are read-only and can be auto-approved.
+All other tools are read-only and run without confirmation.
 
 ---
 
