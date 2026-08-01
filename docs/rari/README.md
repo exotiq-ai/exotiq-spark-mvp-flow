@@ -20,9 +20,9 @@ This folder is the canonical home for Rari / Fleet Copilot documentation. The ro
 - **MCP adapter:** `supabase/functions/rari-mcp-server/index.ts`
 - **In-app chat adapter:** `supabase/functions/fleet-copilot-chat/index.ts`
 - **Session token minting:** `supabase/functions/elevenlabs-session/index.ts`
-- **Sync script:** `scripts/rari/sync-elevenlabs-tools.ts` → run via `bun run rari:sync-tools`
-- **Parity test:** `scripts/rari/cross-surface-parity-check.ts` → `bun run rari:parity-check`
-- **Tenant isolation proof:** `scripts/rari/tenant-isolation-proof.ts` → `bun run rari:tenant-isolation`
+- **Sync script:** `scripts/rari/sync-elevenlabs-tools.ts` → run via `bun run rari:sync-tools` (requires `ELEVENLABS_API_KEY`, `ELEVENLABS_AGENT_ID`, `RARI_TOOLS_URL`)
+- **Parity test:** `scripts/rari/cross-surface-parity-check.ts` → `bun run rari:parity-check` (requires `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `RARI_TOOL_TOKEN_SECRET`, `USER_ID`; optional `SUPABASE_AUTH_TOKEN` for chat smoke test)
+- **Tenant isolation proof:** `scripts/rari/tenant-isolation-proof.ts` → `bun run rari:tenant-isolation` (requires `USER_ID_A` and `USER_ID_B` from different tenants)
 
 ## System prompt + knowledge base
 
