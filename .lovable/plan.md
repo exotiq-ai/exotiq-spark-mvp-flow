@@ -4,7 +4,8 @@ The tool layer is done: one registry (37 tools), one executor, one auth path, al
 
 ## 1. Finish the ElevenLabs agent config (manual, ~10 min)
 
-- Set **Requires approval** on the two mutating tools: `create_booking_hold`, `logFeedback`. Everything else is read-only and can stay auto-approved.
+- **Auth connection** for every registry tool must be set to **None**. Our tools authenticate via the `Authorization: Bearer {{secret__rari_tool_token}}` header in the Headers section, not via an ElevenLabs auth connection. The screenshot shows `create_booking_hold` currently bound to a "Cursor - Cursor API Key" auth connection — that is leftover and should be removed.
+- **Set Requires approval** on the two mutating tools: `create_booking_hold`, `logFeedback`. This is a separate approval toggle/checkbox in the ElevenLabs tool UI, not the auth connection dropdown. Everything else is read-only and can stay auto-approved.
 - Refresh the agent's system prompt and knowledge base. The current prompt and `RARI_CAPABILITIES_KNOWLEDGE_BASE.md` still describe the old 25-tool catalog, name tools that no longer exist (`getCarJoke`, `featureComingSoon`, `getWeatherInfo`), and don't mention `ask_fleet` — which is the tool the agent should reach for whenever no specific tool matches. Without this the agent will keep guessing at tools that aren't there.
 - Confirm the agent's first-message and fallback copy doesn't promise capabilities the registry no longer exposes.
 
