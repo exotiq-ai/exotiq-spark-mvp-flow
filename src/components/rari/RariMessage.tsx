@@ -101,6 +101,15 @@ export const RariMessage = ({
               {entities.length} link{entities.length > 1 ? 's' : ''}
             </span>
           )}
+          {!isOwn && !hideFeedback && message.content.trim().length > 0 && (
+            <RariMessageFeedback
+              className="ml-auto"
+              response={message.content}
+              userQuery={userQuery}
+              conversationId={conversationId}
+              surface={surface}
+            />
+          )}
         </div>
       </div>
       
