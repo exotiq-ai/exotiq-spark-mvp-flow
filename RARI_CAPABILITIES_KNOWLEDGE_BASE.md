@@ -96,12 +96,19 @@ Rari will choose the right tool, call it, and reply in plain language.
 
 ## Approval rules
 
-Two tools require explicit operator approval before they execute:
+Two tools require ElevenLabs "Requires approval" before they execute:
 
 - `create_booking_hold` — Places a provisional hold on a vehicle.
 - `logFeedback` — Records user feedback about the assistant.
 
 All other tools are read-only and can be auto-approved.
+
+---
+
+## Tool count
+
+The live registry contains **37 tools** across fleet, bookings, customers, money, pricing, operations, insights, and meta. Always use the tool catalog if available; otherwise, fall back to `ask_fleet`.
+
 
 ---
 
