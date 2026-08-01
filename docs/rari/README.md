@@ -26,12 +26,12 @@ This folder is the canonical home for Rari / Fleet Copilot documentation. The ro
 
 ## System prompt + knowledge base
 
-The latest prompt text to paste into the ElevenLabs agent is at the repo root:
+The latest prompt and knowledge base to paste into the ElevenLabs agent are kept here:
 
-- `RARI_ELEVENLABS_SYSTEM_PROMPT.md`
-- `RARI_CAPABILITIES_KNOWLEDGE_BASE.md`
+- `docs/rari/SYSTEM_PROMPT.md`
+- `docs/rari/KNOWLEDGE_BASE.md`
 
-Both are generated from the current registry and should be updated whenever the registry changes.
+Both are generated from the current registry and should be updated whenever the registry changes. As of 2026-08-01, the agent prompt and knowledge base have been updated via API to these files.
 
 ## Current state (2026-08-01)
 
