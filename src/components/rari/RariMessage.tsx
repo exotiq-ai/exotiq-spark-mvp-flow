@@ -17,9 +17,24 @@ interface RariMessageProps {
   message: Message;
   isOwn: boolean;
   showAvatar?: boolean;
+  /** Preceding user question, used for feedback context */
+  userQuery?: string;
+  conversationId?: string | null;
+  /** Surface label stored with feedback */
+  surface?: string;
+  /** Hide the thumbs up/down control */
+  hideFeedback?: boolean;
 }
 
-export const RariMessage = ({ message, isOwn, showAvatar = true }: RariMessageProps) => {
+export const RariMessage = ({
+  message,
+  isOwn,
+  showAvatar = true,
+  userQuery,
+  conversationId,
+  surface = 'voice',
+  hideFeedback = false,
+}: RariMessageProps) => {
   const entities = useEntityDetection(message.content);
   const enrichedEntities = useEntityEnrichment(entities);
   const segments = splitContentWithEntities(message.content, enrichedEntities);
