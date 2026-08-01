@@ -6,7 +6,10 @@ Last verified: 2026-08-01
 
 ## ⚠️ Read this first (platform state)
 
-The platform's `STRIPE_SECRET_KEY` is currently a **sandbox (test) key**.
+The platform's `STRIPE_SECRET_KEY` is currently a **sandbox (test) key**
+(re-verified 2026-08-01 via `stripe-connect-status` → `mode: "test"`).
+Full cutover steps live in `STRIPE_LIVE_CUTOVER_RUNBOOK.md`.
+
 
 That means any tenant who connects today gets a **sandbox Express account** —
 real cards will not be charged and no real payouts happen. The app is now
