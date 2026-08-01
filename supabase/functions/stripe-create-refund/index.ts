@@ -43,6 +43,19 @@ serve(async (req) => {
       throw new Error(`Invalid reason. Must be one of: ${validReasons.join(", ")}`);
     }
 
+    // Owner/Admin only — refunds move real money.
+    const { data: roleRows } = await supabaseClient
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id);
+    const roles = ((roleRows ?? []) as { role: string }[]).map((r) => r.role);
+    if (!roles.includes("owner") && !roles.includes("admin")) {
+      return new Response(JSON.stringify({ error: "Forbidden — owner or admin only" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Get team's stripe account
     const { data: teamMember } = await supabaseClient
       .from("team_members")
@@ -53,12 +66,55 @@ serve(async (req) => {
       .single();
     if (!teamMember) throw new Error("No team found");
 
+    // The payment intent must belong to a booking on the caller's team.
+    const { data: ownerBooking } = await supabaseClient
+      .from("bookings")
+      .select("id, team_id, booking_source")
+      .or(
+        `operator_payment_intent_id.eq.${payment_intent_id},exotiq_payment_intent_id.eq.${payment_intent_id}`,
+      )
+      .limit(1)
+      .maybeSingle();
+
+    if (!ownerBooking) {
+      // Fall back to the direct payments ledger for non-marketplace charges.
+      const { data: paymentRow } = await supabaseClient
+        .from("payments")
+        .select("id, team_id")
+        .eq("stripe_payment_intent_id", payment_intent_id)
+        .limit(1)
+        .maybeSingle();
+      if (!paymentRow || paymentRow.team_id !== teamMember.team_id) {
+        return new Response(
+          JSON.stringify({ error: "Payment intent not found for this team" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+    } else {
+      if (ownerBooking.team_id !== teamMember.team_id) {
+        return new Response(
+          JSON.stringify({ error: "Payment intent not found for this team" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      if (ownerBooking.booking_source === "marketplace") {
+        return new Response(
+          JSON.stringify({
+            error:
+              "Marketplace bookings must be refunded via rent-refund-booking so both legs and extensions are walked",
+          }),
+          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+    }
+
     const { data: team } = await supabaseClient
       .from("teams")
       .select("stripe_account_id, stripe_test_account_id")
       .eq("id", teamMember.team_id)
       .single();
     const stripeAccountId = teamConnectedAccountId(team ?? { stripe_account_id: null, stripe_test_account_id: null });
+
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
