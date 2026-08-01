@@ -49,6 +49,11 @@ const REQUIRED_ENDPOINTS: Array<{
       "invoice.payment_failed",
       "charge.refunded",
       "charge.dispute.created",
+      // The deployed function has live handlers for these two: captured flips
+      // payments.hold_status, succeeded logs the Stripe processing fee.
+      // Omitting them silently breaks both features in live mode.
+      "charge.captured",
+      "charge.succeeded",
       "payout.paid",
     ],
     connect: true,
@@ -72,6 +77,11 @@ const REQUIRED_ENDPOINTS: Array<{
       "identity.verification_session.verified",
       "identity.verification_session.requires_input",
       "identity.verification_session.canceled",
+      // identity-webhook handles all five; redacted is the PII-cleanup path
+      // (clears verified_name) and must be subscribed or redaction never
+      // reaches the database.
+      "identity.verification_session.processing",
+      "identity.verification_session.redacted",
     ],
     connect: false,
     secretName: "STRIPE_IDENTITY_WEBHOOK_SECRET",
@@ -109,8 +119,8 @@ function form(obj: Record<string, string | string[] | boolean>) {
 }
 
 async function main() {
-  if (!KEY.startsWith("sk_live_")) {
-    console.error("STRIPE_LIVE_KEY must be a sk_live_ key. Aborting.");
+  if (!/^(sk|rk)_live_/.test(KEY)) {
+    console.error("STRIPE_LIVE_KEY must be a sk_live_ or rk_live_ key. Aborting.");
     process.exit(2);
   }
 
