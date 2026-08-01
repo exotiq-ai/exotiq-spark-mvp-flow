@@ -89,8 +89,9 @@ function toWebhookToolConfig(tool: FleetToolDefinition) {
       url: `${TOOLS_URL!.replace(/\/$/, '')}/${tool.name}`,
       method: 'POST' as const,
       request_headers: {
-        // Per-conversation tenant identity. Never a static workspace token.
-        Authorization: 'Bearer {{secret__rari_tool_token}}',
+        // ElevenLabs' API requires an explicit dynamic-variable locator here.
+        // A template string is stored literally and reaches the webhook unchanged.
+        Authorization: { variable_name: 'secret__rari_tool_token' },
       },
       request_body_schema: {
         type: 'object' as const,
