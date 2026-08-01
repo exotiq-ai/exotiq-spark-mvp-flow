@@ -60,7 +60,7 @@ serve(async (req) => {
   const { data: booking } = await admin
     .from("bookings")
     .select(
-      "id, team_id, status, booking_source, platform_fee_cents, protection_total_cents, operator_payment_intent_id, exotiq_payment_intent_id, exotiq_leg_attempt",
+      "id, team_id, status, booking_source, platform_fee_cents, protection_total_cents, state_fee_cents, processing_fee_cents, operator_payment_intent_id, exotiq_payment_intent_id, exotiq_leg_attempt",
     )
     .eq("booking_ref", bookingRef)
     .maybeSingle();
@@ -100,8 +100,13 @@ serve(async (req) => {
     });
   }
 
+  // Must match rent-payment-webhook's Exotiq leg exactly: fee + protection +
+  // state fee + processing fee. Dropping the last two silently undercharges.
   const exotiqCents =
-    Number(booking.platform_fee_cents ?? 0) + Number(booking.protection_total_cents ?? 0);
+    Number(booking.platform_fee_cents ?? 0)
+    + Number(booking.protection_total_cents ?? 0)
+    + Number(booking.state_fee_cents ?? 0)
+    + Number(booking.processing_fee_cents ?? 0);
   if (exotiqCents <= 0) {
     return new Response(JSON.stringify({ error: "Nothing to charge" }), {
       status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -134,7 +139,7 @@ serve(async (req) => {
         off_session: true,
         confirm: true,
         statement_descriptor_suffix: "EXOTIQ RENT",
-        description: `Exotiq booking fee + protection — ${bookingRef} (retry ${attempt})`,
+        description: `Exotiq booking fees + protection — ${bookingRef} (retry ${attempt})`,
         metadata: {
           booking_ref: bookingRef,
           leg: "exotiq_fee_protection",
