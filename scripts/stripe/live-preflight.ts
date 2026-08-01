@@ -38,25 +38,35 @@ const REQUIRED_ENDPOINTS: Array<{
   connect: boolean;
   secretName: string;
 }> = [
+  // stripe-webhook is a MIXED consumer but verifies ONE signing secret, so it
+  // can be fed by exactly one Stripe endpoint. A Stripe endpoint delivers
+  // either platform events or connected-account events, never both:
+  //   - platform side: customer.subscription.* / invoice.* (Command Center
+  //     billing), charge.* for renter destination charges (rent-checkout uses
+  //     on_behalf_of + transfer_data, so the charge lives on the platform),
+  //     payout.paid for Exotiq's own bank payouts (handler's null-team path).
+  //   - connected side: account.updated onboarding flips, deauthorization,
+  //     operator payouts, and charge.captured/succeeded for the manual hold
+  //     flow (stripe-create-hold charges directly on the connected account).
+  // The platform half carries subscriptions and renter money bookkeeping, so
+  // it wins the single secret. The connected half needs a second endpoint +
+  // a STRIPE_CONNECT_WEBHOOK_SECRET fallback in the function's signature
+  // check before it can exist without permanently failing deliveries —
+  // do NOT create it until that patch ships.
   {
-    name: "operator / connect + subscriptions",
+    name: "platform / subscriptions + charges",
     url: `${FUNCTIONS_BASE}/stripe-webhook`,
     events: [
-      "account.updated",
-      "account.application.deauthorized",
       "customer.subscription.updated",
       "customer.subscription.deleted",
       "invoice.payment_failed",
       "charge.refunded",
       "charge.dispute.created",
-      // The deployed function has live handlers for these two: captured flips
-      // payments.hold_status, succeeded logs the Stripe processing fee.
-      // Omitting them silently breaks both features in live mode.
-      "charge.captured",
+      // succeeded logs the Stripe processing fee on renter destination charges.
       "charge.succeeded",
       "payout.paid",
     ],
-    connect: true,
+    connect: false,
     secretName: "STRIPE_WEBHOOK_SECRET",
   },
   {
