@@ -153,6 +153,9 @@ verify_jwt = false
 [functions.stripe-webhook]
 verify_jwt = false
 
+[functions.super-admin-send-invite]
+verify_jwt = true
+
 [functions.switch-subscription]
 verify_jwt = false
 
