@@ -119,6 +119,7 @@ export const MarketplaceVisibilityTab = () => {
   const [search, setSearch] = useState('');
   const [expanded, setExpanded] = useState<string | null>(null);
   const [onlyVisible, setOnlyVisible] = useState(false);
+  const [rejectionReasons, setRejectionReasons] = useState<Record<string, string>>({});
 
   const { data: teams = [], isLoading, error } = useTeams();
 
