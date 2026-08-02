@@ -19,11 +19,27 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { ChevronDown, ChevronRight, Search, AlertTriangle, Loader2 } from 'lucide-react';
 import { MarketplaceReadinessPanel } from './MarketplaceReadinessPanel';
 
+interface TeamRecord {
+  id: string;
+  name: string;
+  slug: string | null;
+  marketplace_visible: boolean;
+  marketplace_request_status: string | null;
+  marketplace_requested_at: string | null;
+  marketplace_rejection_reason: string | null;
+  marketplace_test_mode: boolean;
+  is_demo_account: boolean;
+  owner_id: string | null;
+}
+
 interface TeamRow {
   id: string;
   name: string;
   slug: string | null;
   marketplace_visible: boolean;
+  marketplace_request_status: string | null;
+  marketplace_requested_at: string | null;
+  marketplace_rejection_reason: string | null;
   marketplace_test_mode: boolean;
   is_demo_account: boolean;
   owner_id: string | null;
@@ -60,7 +76,7 @@ const useTeams = () =>
     queryFn: async (): Promise<TeamRow[]> => {
       const { data: teams, error } = await supabase
         .from('teams')
-        .select('id, name, slug, marketplace_visible, marketplace_test_mode, is_demo_account, owner_id')
+        .select('id, name, slug, marketplace_visible, marketplace_request_status, marketplace_requested_at, marketplace_rejection_reason, marketplace_test_mode, is_demo_account, owner_id')
         .is('deleted_at', null)
         .order('name', { ascending: true });
       if (error) throw error;
@@ -77,17 +93,23 @@ const useTeams = () =>
         );
       }
 
-      return (teams ?? []).map((t) => ({
-        id: t.id,
-        name: t.name,
-        slug: (t as any).slug ?? null,
-        marketplace_visible: !!t.marketplace_visible,
-        marketplace_test_mode: !!(t as any).marketplace_test_mode,
-        is_demo_account: !!t.is_demo_account,
-        owner_id: t.owner_id,
-        owner_email: t.owner_id ? profileMap[t.owner_id]?.email ?? null : null,
-        owner_company_name: t.owner_id ? profileMap[t.owner_id]?.company_name ?? null : null,
-      }));
+      return (teams ?? []).map((t) => {
+        const record = t as unknown as TeamRecord;
+        return {
+          id: record.id,
+          name: record.name,
+          slug: record.slug ?? null,
+          marketplace_visible: !!record.marketplace_visible,
+          marketplace_request_status: record.marketplace_request_status ?? null,
+          marketplace_requested_at: record.marketplace_requested_at ?? null,
+          marketplace_rejection_reason: record.marketplace_rejection_reason ?? null,
+          marketplace_test_mode: !!record.marketplace_test_mode,
+          is_demo_account: !!record.is_demo_account,
+          owner_id: record.owner_id,
+          owner_email: record.owner_id ? profileMap[record.owner_id]?.email ?? null : null,
+          owner_company_name: record.owner_id ? profileMap[record.owner_id]?.company_name ?? null : null,
+        };
+      });
     },
   });
 
@@ -113,6 +135,7 @@ export const MarketplaceVisibilityTab = () => {
   const [search, setSearch] = useState('');
   const [expanded, setExpanded] = useState<string | null>(null);
   const [onlyVisible, setOnlyVisible] = useState(false);
+  const [rejectionReasons, setRejectionReasons] = useState<Record<string, string>>({});
 
   const { data: teams = [], isLoading, error } = useTeams();
 
@@ -146,8 +169,49 @@ export const MarketplaceVisibilityTab = () => {
         description: vars.team.name,
       });
     },
-    onError: (e: any) =>
-      toast({ title: 'Update failed', description: e.message, variant: 'destructive' }),
+    onError: (e: unknown) =>
+      toast({ title: 'Update failed', description: e instanceof Error ? e.message : String(e), variant: 'destructive' }),
+  });
+
+  const approveRequest = useMutation({
+    mutationFn: async ({ teamId, teamName }: { teamId: string; teamName: string }) => {
+      const { error, data } = await supabase.rpc('approve_marketplace_request', {
+        _team_id: teamId,
+        _visible: true,
+      });
+      if (error) throw error;
+      await logAdminAction('approve_marketplace_request', { team_id: teamId, team_name: teamName, result: data });
+      return data;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ['sa-marketplace-teams'] });
+      qc.invalidateQueries({ queryKey: ['marketplace-readiness', vars.teamId] });
+      toast({ title: 'Marketplace request approved', description: vars.teamName });
+    },
+    onError: (e: unknown) =>
+      toast({ title: 'Approval failed', description: e instanceof Error ? e.message : String(e), variant: 'destructive' }),
+  });
+
+  const rejectRequest = useMutation({
+    mutationFn: async ({ teamId, teamName, reason }: { teamId: string; teamName: string; reason: string }) => {
+      const { error } = await supabase.rpc('reject_marketplace_request', {
+        _team_id: teamId,
+        _reason: reason,
+      });
+      if (error) throw error;
+      await logAdminAction('reject_marketplace_request', {
+        team_id: teamId,
+        team_name: teamName,
+        reason,
+      });
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ['sa-marketplace-teams'] });
+      qc.invalidateQueries({ queryKey: ['marketplace-readiness', vars.teamId] });
+      toast({ title: 'Marketplace request rejected', description: vars.teamName });
+    },
+    onError: (e: unknown) =>
+      toast({ title: 'Rejection failed', description: e instanceof Error ? e.message : String(e), variant: 'destructive' }),
   });
 
   const markProduction = useMutation({
@@ -163,8 +227,8 @@ export const MarketplaceVisibilityTab = () => {
       qc.invalidateQueries({ queryKey: ['sa-marketplace-teams'] });
       toast({ title: 'Team marked as production' });
     },
-    onError: (e: any) =>
-      toast({ title: 'Update failed', description: e.message, variant: 'destructive' }),
+    onError: (e: unknown) =>
+      toast({ title: 'Update failed', description: e instanceof Error ? e.message : String(e), variant: 'destructive' }),
   });
 
   const syncNameFromProfile = useMutation({
@@ -176,11 +240,15 @@ export const MarketplaceVisibilityTab = () => {
         _new_name: target,
       });
       if (error) throw error;
+      interface RenameResult {
+        slug_changed?: boolean;
+      }
+      const firstRow = Array.isArray(data) && data.length > 0 ? (data[0] as RenameResult) : null;
       await logAdminAction('sync_team_name_from_profile', {
         team_id: team.id,
         from: team.name,
         to: target,
-        slug_changed: Array.isArray(data) ? (data[0] as any)?.slug_changed ?? false : false,
+        slug_changed: firstRow?.slug_changed ?? false,
       });
       return data;
     },
@@ -191,8 +259,8 @@ export const MarketplaceVisibilityTab = () => {
         description: `${team.name} → ${(team.owner_company_name ?? '').trim()}`,
       });
     },
-    onError: (e: any) =>
-      toast({ title: 'Rename failed', description: e.message, variant: 'destructive' }),
+    onError: (e: unknown) =>
+      toast({ title: 'Rename failed', description: e instanceof Error ? e.message : String(e), variant: 'destructive' }),
   });
 
   const toggleTestMode = useMutation({
@@ -211,8 +279,8 @@ export const MarketplaceVisibilityTab = () => {
         description: vars.team.name,
       });
     },
-    onError: (e: any) =>
-      toast({ title: 'Update failed', description: e.message, variant: 'destructive' }),
+    onError: (e: unknown) =>
+      toast({ title: 'Update failed', description: e instanceof Error ? e.message : String(e), variant: 'destructive' }),
   });
 
   const toggleVehicle = useMutation({
@@ -239,8 +307,8 @@ export const MarketplaceVisibilityTab = () => {
     onSuccess: (_d, vars) => {
       qc.invalidateQueries({ queryKey: ['sa-marketplace-vehicles', vars.teamId] });
     },
-    onError: (e: any) =>
-      toast({ title: 'Update failed', description: e.message, variant: 'destructive' }),
+    onError: (e: unknown) =>
+      toast({ title: 'Update failed', description: e instanceof Error ? e.message : String(e), variant: 'destructive' }),
   });
 
   const bulkVehicles = useMutation({
@@ -272,8 +340,8 @@ export const MarketplaceVisibilityTab = () => {
         description: `${vars.ids.length} vehicle${vars.ids.length === 1 ? '' : 's'}`,
       });
     },
-    onError: (e: any) =>
-      toast({ title: 'Bulk update failed', description: e.message, variant: 'destructive' }),
+    onError: (e: unknown) =>
+      toast({ title: 'Bulk update failed', description: e instanceof Error ? e.message : String(e), variant: 'destructive' }),
   });
 
   return (
@@ -338,6 +406,14 @@ export const MarketplaceVisibilityTab = () => {
                         {team.marketplace_visible && (
                           <Badge className="text-xs">On marketplace</Badge>
                         )}
+                        {team.marketplace_request_status === 'requested' && (
+                          <Badge className="text-xs bg-amber-500/10 text-amber-600 border-amber-500/30 hover:bg-amber-500/10">
+                            Requested
+                          </Badge>
+                        )}
+                        {team.marketplace_request_status === 'rejected' && (
+                          <Badge variant="destructive" className="text-xs">Rejected</Badge>
+                        )}
                         {(() => {
                           const target = (team.owner_company_name ?? '').trim();
                           if (!target || target === team.name.trim()) return null;
@@ -358,6 +434,12 @@ export const MarketplaceVisibilityTab = () => {
                       <p className="text-xs text-muted-foreground truncate">
                         {team.owner_email ?? '—'}
                         {team.slug ? <> · <span className="font-mono">/{team.slug}</span></> : null}
+                        {team.marketplace_requested_at && (
+                          <span>
+                            {' · Requested '}
+                            {new Date(team.marketplace_requested_at).toLocaleString()}
+                          </span>
+                        )}
                       </p>
                     </div>
                     {(() => {
@@ -382,6 +464,47 @@ export const MarketplaceVisibilityTab = () => {
                         </Tooltip>
                       );
                     })()}
+
+                    {(team.marketplace_request_status === 'requested' || team.marketplace_request_status === 'rejected') && (
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                        {team.marketplace_request_status === 'requested' && (
+                          <Button
+                            size="sm"
+                            onClick={() => approveRequest.mutate({ teamId: team.id, teamName: team.name })}
+                            disabled={approveRequest.isPending}
+                          >
+                            {approveRequest.isPending && <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />}
+                            Approve
+                          </Button>
+                        )}
+                        <div className="flex items-center gap-2">
+                          <Input
+                            placeholder="Rejection reason (optional)"
+                            className="h-8 text-xs w-48 sm:w-56"
+                            value={rejectionReasons[team.id] ?? ''}
+                            onChange={(e) =>
+                              setRejectionReasons((prev) => ({ ...prev, [team.id]: e.target.value }))
+                            }
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() =>
+                              rejectRequest.mutate({
+                                teamId: team.id,
+                                teamName: team.name,
+                                reason: rejectionReasons[team.id] ?? 'Did not meet marketplace requirements',
+                              })
+                            }
+                            disabled={rejectRequest.isPending}
+                          >
+                            {rejectRequest.isPending && <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />}
+                            Reject
+                          </Button>
+                        </div>
+                      </div>
+                    )}
 
                     <Switch
                       checked={team.marketplace_visible}
