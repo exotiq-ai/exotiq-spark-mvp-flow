@@ -191,10 +191,32 @@ serve(async (req) => {
         }
 
         if (session.mode === "payment" && session.metadata?.booking_id) {
-          // Tenant payment — update booking and payment records
+          // Tenant payment — update booking and payment records. This event can
+          // arrive on the platform endpoint OR on the connected-accounts
+          // endpoint (create-payment-checkout mints the session on the
+          // tenant's connected account), so both consumers land here.
           const bookingId = session.metadata.booking_id;
           const userId = session.metadata.user_id;
           const paymentType = session.metadata.payment_type || "balance";
+          const paymentIntentId = session.payment_intent as string | null;
+
+          // Guard against a double insert if both endpoints deliver the same
+          // session (distinct consumer keys bypass the event-level dedupe).
+          let alreadyRecorded = false;
+          if (paymentIntentId) {
+            const { data: existingPayment } = await supabaseClient
+              .from("payments")
+              .select("id")
+              .eq("stripe_payment_intent_id", paymentIntentId)
+              .limit(1)
+              .maybeSingle();
+            alreadyRecorded = !!existingPayment;
+          }
+
+          if (alreadyRecorded) {
+            logStep("Payment already recorded, skipping insert", { bookingId, paymentIntentId });
+            break;
+          }
 
           await supabaseClient.from("payments").insert({
             booking_id: bookingId,
@@ -203,10 +225,11 @@ serve(async (req) => {
             payment_type: paymentType,
             payment_method: "stripe",
             payment_status: "completed",
-            stripe_payment_intent_id: session.payment_intent as string,
+            stripe_payment_intent_id: paymentIntentId,
             transaction_date: new Date().toISOString(),
             platform_fee: session.metadata?.platform_fee ? Number(session.metadata.platform_fee) : null,
           });
+
 
           // Update booking payment status
           await supabaseClient
@@ -231,11 +254,43 @@ serve(async (req) => {
           break;
         }
 
-        await supabaseClient
+        const { data: existingPaymentRow } = await supabaseClient
           .from("payments")
-          .update({ payment_status: "completed" })
-          .eq("stripe_payment_intent_id", pi.id);
+          .select("id")
+          .eq("stripe_payment_intent_id", pi.id)
+          .limit(1)
+          .maybeSingle();
+
+        if (existingPaymentRow) {
+          await supabaseClient
+            .from("payments")
+            .update({ payment_status: "completed" })
+            .eq("stripe_payment_intent_id", pi.id);
+          break;
+        }
+
+        // Safety net: an operator-initiated Checkout charge on a connected
+        // account whose checkout.session.completed delivery never arrived.
+        // The PI carries the same metadata, so we can still record the money.
+        if (pi.metadata?.booking_id) {
+          await supabaseClient.from("payments").insert({
+            booking_id: pi.metadata.booking_id,
+            user_id: pi.metadata.user_id || null,
+            amount: (pi.amount_received || pi.amount || 0) / 100,
+            payment_type: pi.metadata.payment_type || "balance",
+            payment_method: "stripe",
+            payment_status: "completed",
+            stripe_payment_intent_id: pi.id,
+            transaction_date: new Date().toISOString(),
+          });
+          await supabaseClient
+            .from("bookings")
+            .update({ payment_status: "partial" })
+            .eq("id", pi.metadata.booking_id);
+          logStep("Payment recorded from PI fallback", { piId: pi.id, bookingId: pi.metadata.booking_id });
+        }
         break;
+
       }
 
       case "payment_intent.amount_capturable_updated": {
