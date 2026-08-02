@@ -340,8 +340,8 @@ export const MarketplaceVisibilityTab = () => {
         description: `${vars.ids.length} vehicle${vars.ids.length === 1 ? '' : 's'}`,
       });
     },
-    onError: (e: any) =>
-      toast({ title: 'Bulk update failed', description: e.message, variant: 'destructive' }),
+    onError: (e: unknown) =>
+      toast({ title: 'Bulk update failed', description: e instanceof Error ? e.message : String(e), variant: 'destructive' }),
   });
 
   return (
