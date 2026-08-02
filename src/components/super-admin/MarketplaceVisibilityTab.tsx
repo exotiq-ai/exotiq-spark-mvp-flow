@@ -307,8 +307,8 @@ export const MarketplaceVisibilityTab = () => {
     onSuccess: (_d, vars) => {
       qc.invalidateQueries({ queryKey: ['sa-marketplace-vehicles', vars.teamId] });
     },
-    onError: (e: any) =>
-      toast({ title: 'Update failed', description: e.message, variant: 'destructive' }),
+    onError: (e: unknown) =>
+      toast({ title: 'Update failed', description: e instanceof Error ? e.message : String(e), variant: 'destructive' }),
   });
 
   const bulkVehicles = useMutation({
