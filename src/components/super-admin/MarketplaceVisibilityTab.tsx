@@ -240,11 +240,15 @@ export const MarketplaceVisibilityTab = () => {
         _new_name: target,
       });
       if (error) throw error;
+      interface RenameResult {
+        slug_changed?: boolean;
+      }
+      const firstRow = Array.isArray(data) && data.length > 0 ? (data[0] as RenameResult) : null;
       await logAdminAction('sync_team_name_from_profile', {
         team_id: team.id,
         from: team.name,
         to: target,
-        slug_changed: Array.isArray(data) ? (data[0] as any)?.slug_changed ?? false : false,
+        slug_changed: firstRow?.slug_changed ?? false,
       });
       return data;
     },
@@ -255,8 +259,8 @@ export const MarketplaceVisibilityTab = () => {
         description: `${team.name} → ${(team.owner_company_name ?? '').trim()}`,
       });
     },
-    onError: (e: any) =>
-      toast({ title: 'Rename failed', description: e.message, variant: 'destructive' }),
+    onError: (e: unknown) =>
+      toast({ title: 'Rename failed', description: e instanceof Error ? e.message : String(e), variant: 'destructive' }),
   });
 
   const toggleTestMode = useMutation({
