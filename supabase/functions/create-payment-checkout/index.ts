@@ -145,7 +145,13 @@ serve(async (req) => {
       }
     }
 
-    const origin = req.headers.get("origin") || "https://exotiq.lovable.app";
+    // Return the operator to the real app. Lovable preview origins are
+    // storage-partitioned, so a top-level return there has no session and
+    // bounces to /auth — always fall back to the canonical app URL.
+    const rawOrigin = req.headers.get("origin") || "";
+    const isPreviewOrigin = /lovable\.app$|localhost|127\.0\.0\.1/.test(rawOrigin);
+    const origin = rawOrigin && !isPreviewOrigin ? rawOrigin : "https://app.exotiq.ai";
+
 
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       customer: stripeCustomerId,
