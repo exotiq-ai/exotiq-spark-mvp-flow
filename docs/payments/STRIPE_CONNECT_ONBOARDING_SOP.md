@@ -1,36 +1,35 @@
 # SOP — Connecting a Tenant's Stripe Account (Stripe Connect Express)
 
-Last verified: 2026-08-01
+Last verified: 2026-08-02
 
 ---
 
 ## ⚠️ Read this first (platform state)
 
-The platform's `STRIPE_SECRET_KEY` is currently a **sandbox (test) key**
-(re-verified 2026-08-01 via `stripe-connect-status` → `mode: "test"`).
-Full cutover steps live in `STRIPE_LIVE_CUTOVER_RUNBOOK.md`.
+The platform's `STRIPE_SECRET_KEY` is currently a **live key** (`sk_live_…`).
+Tenants who connect today will create **live Express accounts** and can take real
+payments immediately after onboarding is complete.
 
+If you ever need to test Connect onboarding without real money, you must
+switch the platform key back to `sk_test_…` and create a matching sandbox
+webhook endpoint. The app is mode-aware, so a sandbox key will write to
+`teams.stripe_test_account_id` instead of `teams.stripe_account_id`.
 
-That means any tenant who connects today gets a **sandbox Express account** —
-real cards will not be charged and no real payouts happen. The app is now
-mode-aware, so the sandbox account is stored in `teams.stripe_test_account_id`
-and does **not** touch the tenant's live payment badges.
+**Before onboarding a real tenant, confirm the platform is live:**
 
-**Before onboarding a real, money-taking tenant, flip the platform to live:**
-
-1. Complete the **live** Connect platform profile
-   (Stripe Dashboard → Connect → Platform profile → accept loss-liability).
-2. Replace `STRIPE_SECRET_KEY` with the `sk_live_…` key.
-3. Create the **live** webhook endpoints (same URLs as sandbox):
-   - `/functions/v1/stripe-webhook` — enable **"Listen to events on connected
-     accounts"** and include `account.updated`.
+1. `STRIPE_SECRET_KEY` starts with `sk_live_`.
+2. The live webhook endpoints are configured and their secrets are saved:
+   - `/functions/v1/stripe-webhook` — listen on connected accounts,
+     `account.updated` enabled.
    - `/functions/v1/rent-payment-webhook` — `checkout.session.completed`,
      `payment_intent.succeeded`, `payment_intent.payment_failed`.
-4. Update `STRIPE_WEBHOOK_SECRET` and `RENT_PAYMENT_WEBHOOK_SECRET` with the
-   live signing secrets.
-5. Re-run the verification steps at the bottom of this doc.
+3. `STRIPE_WEBHOOK_SECRET` and `RENT_PAYMENT_WEBHOOK_SECRET` match the live
+   endpoints.
+4. Re-run the verification checklist at the bottom of this doc.
 
-No code changes are needed for the flip — mode is derived from the key itself.
+No code changes are needed to flip between test and live — mode is derived
+from the key itself.
+
 
 ---
 
