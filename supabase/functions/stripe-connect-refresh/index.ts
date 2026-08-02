@@ -64,7 +64,7 @@ serve(async (req) => {
     if (!accountId) throw new Error("No Stripe account found. Please start onboarding first.");
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
-    const origin = req.headers.get("origin") || "https://exotiq.lovable.app";
+    const origin = req.headers.get("origin") || "https://app.exotiq.ai";
 
     const accountLink = await stripe.accountLinks.create({
       account: accountId,
