@@ -63,7 +63,7 @@ const useTeams = () =>
     queryFn: async (): Promise<TeamRow[]> => {
       const { data: teams, error } = await supabase
         .from('teams')
-        .select('id, name, slug, marketplace_visible, marketplace_test_mode, is_demo_account, owner_id')
+        .select('id, name, slug, marketplace_visible, marketplace_request_status, marketplace_requested_at, marketplace_rejection_reason, marketplace_test_mode, is_demo_account, owner_id')
         .is('deleted_at', null)
         .order('name', { ascending: true });
       if (error) throw error;
@@ -85,6 +85,9 @@ const useTeams = () =>
         name: t.name,
         slug: (t as any).slug ?? null,
         marketplace_visible: !!t.marketplace_visible,
+        marketplace_request_status: (t as any).marketplace_request_status ?? null,
+        marketplace_requested_at: (t as any).marketplace_requested_at ?? null,
+        marketplace_rejection_reason: (t as any).marketplace_rejection_reason ?? null,
         marketplace_test_mode: !!(t as any).marketplace_test_mode,
         is_demo_account: !!t.is_demo_account,
         owner_id: t.owner_id,
