@@ -107,7 +107,7 @@ serve(async (req: Request) => {
     }
 
     // Build confirmation URL
-    const appUrl = Deno.env.get("APP_URL") || "https://exotiq-spark-mvp-flow.lovable.app";
+    const appUrl = Deno.env.get("APP_URL") || "https://app.exotiq.ai";
     const confirmationUrl = `${appUrl}/dashboard?deletion_token=${confirmationToken}`;
 
     // Send email via Resend

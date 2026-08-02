@@ -8,7 +8,7 @@ Deno.serve(async (req) => {
     const error = url.searchParams.get("error");
 
     // Get the frontend URL for redirects
-    const frontendUrl = Deno.env.get("FRONTEND_URL") || "https://exotiq-spark-mvp-flow.lovable.app";
+    const frontendUrl = Deno.env.get("FRONTEND_URL") || "https://app.exotiq.ai";
 
     if (error) {
       console.error("Google OAuth error:", error);
@@ -122,7 +122,7 @@ Deno.serve(async (req) => {
     return Response.redirect(`${frontendUrl}/dashboard?tab=settings&gcal=success`, 302);
   } catch (err) {
     console.error("gcal-callback error:", err);
-    const frontendUrl = Deno.env.get("FRONTEND_URL") || "https://exotiq-spark-mvp-flow.lovable.app";
+    const frontendUrl = Deno.env.get("FRONTEND_URL") || "https://app.exotiq.ai";
     return Response.redirect(`${frontendUrl}/dashboard?gcal=error&reason=unexpected`, 302);
   }
 });

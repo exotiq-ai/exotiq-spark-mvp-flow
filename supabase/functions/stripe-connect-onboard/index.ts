@@ -113,7 +113,7 @@ serve(async (req) => {
     }
 
     // Generate Account Link for onboarding
-    const origin = req.headers.get("origin") || "https://exotiq.lovable.app";
+    const origin = req.headers.get("origin") || "https://app.exotiq.ai";
 
     const accountLink = await stripe.accountLinks.create({
       account: accountId,
