@@ -110,6 +110,29 @@ const DashboardInner = () => {
     }
   }, [searchParams, nav]);
 
+  // Stripe Checkout return handler for operator-initiated booking payments
+  // (create-payment-checkout redirects to /dashboard?payment=success|cancelled).
+  useEffect(() => {
+    const payment = searchParams.get('payment');
+    if (payment !== 'success' && payment !== 'cancelled') return;
+
+    if (payment === 'success') {
+      toast.success("Payment received", {
+        description: "It will appear on the booking's payment record within a few seconds.",
+      });
+    } else {
+      toast.info("Payment cancelled", { description: "No charge was made." });
+    }
+
+    const next = new URLSearchParams(searchParams);
+    next.delete('payment');
+    next.delete('booking_id');
+    next.delete('session_id');
+    const qs = next.toString();
+    nav(`/dashboard${qs ? `?${qs}` : ''}`, { replace: true });
+  }, [searchParams, nav]);
+
+
   // Stripe Connect onboarding return handler — Stripe redirects tenants back
   // to /dashboard?stripe_onboard=complete or ?stripe_refresh=true after the
   // hosted flow. Webhooks normally fire within seconds, so we poll briefly to
