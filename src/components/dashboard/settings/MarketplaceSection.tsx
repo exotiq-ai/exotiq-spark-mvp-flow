@@ -83,10 +83,10 @@ export const MarketplaceSection = () => {
         title: 'Review requested',
         description: 'Your marketplace review request has been submitted. We will notify you once it is approved.',
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Request failed',
-        description: err.message || 'Could not submit review request.',
+        description: err instanceof Error ? err.message : 'Could not submit review request.',
         variant: 'destructive',
       });
     } finally {
