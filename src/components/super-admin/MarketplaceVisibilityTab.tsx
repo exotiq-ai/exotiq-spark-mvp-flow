@@ -386,6 +386,14 @@ export const MarketplaceVisibilityTab = () => {
                         {team.marketplace_visible && (
                           <Badge className="text-xs">On marketplace</Badge>
                         )}
+                        {team.marketplace_request_status === 'requested' && (
+                          <Badge className="text-xs bg-amber-500/10 text-amber-600 border-amber-500/30 hover:bg-amber-500/10">
+                            Requested
+                          </Badge>
+                        )}
+                        {team.marketplace_request_status === 'rejected' && (
+                          <Badge variant="destructive" className="text-xs">Rejected</Badge>
+                        )}
                         {(() => {
                           const target = (team.owner_company_name ?? '').trim();
                           if (!target || target === team.name.trim()) return null;
@@ -406,6 +414,12 @@ export const MarketplaceVisibilityTab = () => {
                       <p className="text-xs text-muted-foreground truncate">
                         {team.owner_email ?? '—'}
                         {team.slug ? <> · <span className="font-mono">/{team.slug}</span></> : null}
+                        {team.marketplace_requested_at && (
+                          <span>
+                            {' · Requested '}
+                            {new Date(team.marketplace_requested_at).toLocaleString()}
+                          </span>
+                        )}
                       </p>
                     </div>
                     {(() => {
