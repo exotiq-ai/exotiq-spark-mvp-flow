@@ -254,11 +254,43 @@ serve(async (req) => {
           break;
         }
 
-        await supabaseClient
+        const { data: existingPaymentRow } = await supabaseClient
           .from("payments")
-          .update({ payment_status: "completed" })
-          .eq("stripe_payment_intent_id", pi.id);
+          .select("id")
+          .eq("stripe_payment_intent_id", pi.id)
+          .limit(1)
+          .maybeSingle();
+
+        if (existingPaymentRow) {
+          await supabaseClient
+            .from("payments")
+            .update({ payment_status: "completed" })
+            .eq("stripe_payment_intent_id", pi.id);
+          break;
+        }
+
+        // Safety net: an operator-initiated Checkout charge on a connected
+        // account whose checkout.session.completed delivery never arrived.
+        // The PI carries the same metadata, so we can still record the money.
+        if (pi.metadata?.booking_id) {
+          await supabaseClient.from("payments").insert({
+            booking_id: pi.metadata.booking_id,
+            user_id: pi.metadata.user_id || null,
+            amount: (pi.amount_received || pi.amount || 0) / 100,
+            payment_type: pi.metadata.payment_type || "balance",
+            payment_method: "stripe",
+            payment_status: "completed",
+            stripe_payment_intent_id: pi.id,
+            transaction_date: new Date().toISOString(),
+          });
+          await supabaseClient
+            .from("bookings")
+            .update({ payment_status: "partial" })
+            .eq("id", pi.metadata.booking_id);
+          logStep("Payment recorded from PI fallback", { piId: pi.id, bookingId: pi.metadata.booking_id });
+        }
         break;
+
       }
 
       case "payment_intent.amount_capturable_updated": {
