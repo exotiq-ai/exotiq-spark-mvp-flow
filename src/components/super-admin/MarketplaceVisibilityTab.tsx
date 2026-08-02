@@ -24,6 +24,9 @@ interface TeamRow {
   name: string;
   slug: string | null;
   marketplace_visible: boolean;
+  marketplace_request_status: string | null;
+  marketplace_requested_at: string | null;
+  marketplace_rejection_reason: string | null;
   marketplace_test_mode: boolean;
   is_demo_account: boolean;
   owner_id: string | null;
