@@ -113,7 +113,14 @@ serve(async (req) => {
       .eq("team_id", booking.team_id)
       .eq("is_active", true)
       .maybeSingle();
-    if (!membership) return json({ error: "Not a member of this booking's team" }, 403);
+    // Platform super admins may refund any tenant's booking (go-live smoke
+    // runs and ops escalations); everyone else needs active membership.
+    let authorized = Boolean(membership);
+    if (!authorized) {
+      const { data: isSuper } = await admin.rpc("is_super_admin", { check_user_id: userId });
+      authorized = Boolean(isSuper);
+    }
+    if (!authorized) return json({ error: "Not a member of this booking's team" }, 403);
 
     // Cluster A: refund by PI presence, not paid_at. paid_at only gets set
     // when BOTH legs succeed; a partial-capture booking (rental charged,

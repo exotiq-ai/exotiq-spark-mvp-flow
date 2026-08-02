@@ -3256,6 +3256,59 @@ export type Database = {
           },
         ]
       }
+      smoke_test_runs: {
+        Row: {
+          amount_cents: number
+          cleanup_state: string
+          context: Json
+          created_at: string
+          created_by: string | null
+          id: string
+          mode: string
+          parent_run_id: string | null
+          scenario: string
+          status: string
+          steps: Json
+          updated_at: string
+        }
+        Insert: {
+          amount_cents?: number
+          cleanup_state?: string
+          context?: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          mode: string
+          parent_run_id?: string | null
+          scenario: string
+          status?: string
+          steps?: Json
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number
+          cleanup_state?: string
+          context?: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          mode?: string
+          parent_run_id?: string | null
+          scenario?: string
+          status?: string
+          steps?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "smoke_test_runs_parent_run_id_fkey"
+            columns: ["parent_run_id"]
+            isOneToOne: false
+            referencedRelation: "smoke_test_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stripe_webhook_events: {
         Row: {
           consumer: string
