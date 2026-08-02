@@ -107,7 +107,7 @@ export const BusinessProfileSection = () => {
       if (!emailOk) {
         toast({
           title: "Invalid support email",
-          description: "Enter a valid email address, or leave blank to use Exotiq support.",
+          description: "Enter a valid email address, or leave blank to use exotiq support.",
           variant: "destructive",
         });
         return;
@@ -388,7 +388,7 @@ export const BusinessProfileSection = () => {
           <h3 className="text-lg font-semibold">Support email</h3>
         </div>
         <p className="text-sm text-muted-foreground -mt-2">
-          Where renter replies to booking emails go. Leave blank to use Exotiq
+          Where renter replies to booking emails go. Leave blank to use exotiq
           support. Booking emails are always sent from{" "}
           <span className="font-mono">bookings@exotiq.rent</span>; only the
           reply address changes.

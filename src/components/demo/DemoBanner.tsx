@@ -39,7 +39,7 @@ export const DemoBanner = () => {
             <div className="flex items-center space-x-2">
               <Sparkles className="w-5 h-5 text-primary-foreground" />
               <span className="font-semibold text-primary-foreground">
-                🚀 Exotiq.ai Demo Environment
+                🚀 exotiq.ai Demo Environment
               </span>
             </div>
             
@@ -86,7 +86,7 @@ export const DemoBanner = () => {
         </div>
 
         <div className="mt-2 text-xs text-primary-foreground/80">
-          💡 This is a live demo with realistic data. All interactions are simulated to showcase Exotiq.ai's capabilities.
+          💡 This is a live demo with realistic data. All interactions are simulated to showcase exotiq.ai's capabilities.
         </div>
       </div>
     </div>

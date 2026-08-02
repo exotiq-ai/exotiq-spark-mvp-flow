@@ -448,7 +448,7 @@ export default function Onboarding() {
       });
 
       toast({
-        title: "Welcome to Exotiq! 🎉",
+        title: "Welcome to exotiq! 🎉",
         description: "Your account is ready. Let's optimize your fleet!",
       });
 

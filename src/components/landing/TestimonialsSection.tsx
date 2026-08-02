@@ -13,7 +13,7 @@ export const TestimonialsSection = () => {
             Loved by fleet operators
           </h2>
           <p className="text-lg text-muted-foreground max-w-xl mx-auto">
-            See why leading exotic car rental businesses choose Exotiq
+            See why leading exotic car rental businesses choose exotiq
           </p>
         </div>
         

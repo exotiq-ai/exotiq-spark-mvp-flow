@@ -564,7 +564,7 @@ export const VerificationSection = () => {
             <DialogTitle>Verification link ready</DialogTitle>
             <DialogDescription>
               Share this secure Stripe Identity link with {linkDialog?.customer.full_name}. The link
-              guides them through document + selfie capture — no ID images are stored in Exotiq.
+              guides them through document + selfie capture — no ID images are stored in exotiq.
             </DialogDescription>
           </DialogHeader>
           {linkDialog && (

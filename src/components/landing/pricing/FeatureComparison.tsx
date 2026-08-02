@@ -18,7 +18,7 @@ const includedInAllPlans = [
   'Customer CRM',
   'Document Vault',
   'Stripe Connect Payments',
-  'Drive Exotiq Marketplace',
+  'Drive exotiq Marketplace',
   'Analytics & Reports',
   'Team Management',
   'Mobile Responsive',

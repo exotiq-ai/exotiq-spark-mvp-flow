@@ -102,7 +102,7 @@ export const SuperAdminPaymentsTestTab = () => {
               <CheckCircle2 className="h-5 w-5 text-primary" />
             </div>
             <div className="flex-1">
-              <h3 className="font-medium">Create Exotiq test Connect account</h3>
+              <h3 className="font-medium">Create exotiq test Connect account</h3>
               <p className="text-sm text-muted-foreground">
                 Team: <span className="font-mono">{EXOTIQ_TEAM_ID}</span> ·{" "}
                 <span className="font-mono">{EXOTIQ_EMAIL}</span>

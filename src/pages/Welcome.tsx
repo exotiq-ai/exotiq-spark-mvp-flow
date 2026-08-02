@@ -112,7 +112,7 @@ const Welcome = () => {
   return (
     <div className="min-h-screen bg-background">
       <SEOHead
-        title="Welcome to Exotiq - Founding Member"
+        title="Welcome to exotiq - Founding Member"
         description="Complete your onboarding and schedule your setup session"
         url="/welcome"
       />
@@ -130,7 +130,7 @@ const Welcome = () => {
         {/* Celebration confetti */}
         <Celebration 
           trigger={showCelebration} 
-          message="Welcome to Exotiq! 🎉" 
+          message="Welcome to exotiq! 🎉" 
           variant="milestone"
           onComplete={() => setShowCelebration(false)}
         />
@@ -157,7 +157,7 @@ const Welcome = () => {
           >
             <CheckCircle2 className="h-10 w-10 text-success" />
           </motion.div>
-          <h1 className="text-4xl font-bold mb-4">Welcome to Exotiq, Founding Member!</h1>
+          <h1 className="text-4xl font-bold mb-4">Welcome to exotiq, Founding Member!</h1>
           <p className="text-xl text-muted-foreground">
             Your founder pricing is locked in forever. Let us get you started.
           </p>
@@ -244,7 +244,7 @@ const Welcome = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="referralSource">How did you hear about Exotiq?</Label>
+                <Label htmlFor="referralSource">How did you hear about exotiq?</Label>
                 <Select
                   value={formData.referralSource}
                   onValueChange={(value) => handleInputChange('referralSource', value)}

@@ -71,7 +71,7 @@ export const SuperAdminTenantDocumentsTab = () => {
             <CardTitle>Tenant Documents</CardTitle>
             <CardDescription>
               Send PDFs to a tenant for in-app electronic signature. Signed copies are stored in
-              the tenant's Vault and Exotiq's compliance archive.
+              the tenant's Vault and exotiq's compliance archive.
             </CardDescription>
           </div>
           <Button onClick={() => setSendOpen(true)} data-testid="send-tenant-document">

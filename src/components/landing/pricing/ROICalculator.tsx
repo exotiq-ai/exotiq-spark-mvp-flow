@@ -209,7 +209,7 @@ export const ROICalculator = () => {
                 {isEnterprise ? formatCurrency(revenueUplift) : formatCurrency(netGainCounter.count)}
               </p>
               <p className="text-xs text-muted-foreground mt-2">
-                {isEnterprise ? 'Uplift before custom fee' : 'After Exotiq cost'}
+                {isEnterprise ? 'Uplift before custom fee' : 'After exotiq cost'}
               </p>
             </Card>
           </div>
@@ -348,11 +348,11 @@ export const ROICalculator = () => {
                 </div>
                 <div>
                   <p className="font-medium">Payback</p>
-                  <code className="text-xs text-muted-foreground">(annual Exotiq cost ÷ revenue uplift) × 365</code>
+                  <code className="text-xs text-muted-foreground">(annual exotiq cost ÷ revenue uplift) × 365</code>
                 </div>
                 <div>
                   <p className="font-medium">ROI multiplier</p>
-                  <code className="text-xs text-muted-foreground">revenue uplift ÷ annual Exotiq cost</code>
+                  <code className="text-xs text-muted-foreground">revenue uplift ÷ annual exotiq cost</code>
                 </div>
                 <p className="text-xs text-muted-foreground italic pt-2 border-t border-border">
                   {roiMethodology.disclaimer}

@@ -23,7 +23,7 @@ export const LegalPageLayout = ({
     <div className="min-h-screen bg-background">
       <SEOHead
         title={`${title} — Exotiq`}
-        description={`${title} for the Exotiq Command Center platform.`}
+        description={`${title} for the exotiq Command Center platform.`}
         url={`/${title.toLowerCase().replace(/\s+/g, "-")}`}
       />
 
@@ -77,7 +77,7 @@ export const LegalPageLayout = ({
             <Link to="/cookies" className="hover:text-foreground transition-colors">Cookies</Link>
           </div>
           <p className="mt-4 text-xs text-muted-foreground">
-            © {new Date().getFullYear()} Exotiq Inc. All rights reserved.
+            © {new Date().getFullYear()} exotiq Inc. All rights reserved.
           </p>
         </div>
       </main>
