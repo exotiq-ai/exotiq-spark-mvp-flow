@@ -443,9 +443,7 @@ async function advanceSubscription(args: { db: any; stripe: Stripe; steps: Step[
   // Reverse it: cancel now and refund the invoice charge.
   const reversal = await reverseSubscription(stripe, subscription.id);
   setStep(steps, "reverse", reversal.ok ? "passed" : "failed", reversal.detail);
-  if (reversal.ok) {
-    await db.from("smoke_test_runs").update({ cleanup_state: "done" }).eq("id", ctx.run_id ?? "").select("id");
-  }
+  ctx.cleanup_state = reversal.ok ? "done" : "failed";
 }
 
 async function reverseSubscription(stripe: Stripe, subscriptionId: string) {
