@@ -34,7 +34,6 @@ export const CHECK_LABELS: Record<string, string> = {
 };
 
 export const VEHICLE_CHECK_LABELS: Record<string, string> = {
-export const VEHICLE_CHECK_LABELS: Record<string, string> = {
   hero_photo_set: 'Hero photo uploaded',
   photos_min_5: 'At least 5 photos',
   rate_set: 'Daily rate set',
