@@ -7,6 +7,7 @@ import {
   useMarketplaceFeeStatus,
   CHECK_LABELS,
   VEHICLE_CHECK_LABELS,
+  VEHICLE_SUGGESTION_LABELS,
 } from '@/hooks/useMarketplaceReadiness';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -228,7 +229,7 @@ export const MarketplaceSection = () => {
                       {key === 'owner_email_set' && 'The owner email is used for critical account notifications.'}
                       {key === 'terms_accepted' && 'You must accept the operator terms before going live.'}
                       {key === 'not_demo' && 'Demo accounts cannot appear on the marketplace.'}
-                      {key === 'has_ready_vehicle' && 'At least one vehicle must have photos, rate, location, and status set.'}
+                      {key === 'has_ready_vehicle' && 'At least one vehicle must have a hero photo, rate, location, and status set.'}
                     </p>
                   )}
                 </div>
@@ -331,6 +332,26 @@ export const MarketplaceSection = () => {
                         </span>
                       </div>
                     ))}
+                  {vehicle.suggestions &&
+                    Object.entries(vehicle.suggestions).map(([sKey, ok]) => (
+                      <div key={sKey} className="flex items-center gap-2 text-xs">
+                        {ok ? (
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                        ) : (
+                          <AlertCircle className="h-3.5 w-3.5 text-amber-500" />
+                        )}
+                        <span className="text-muted-foreground">
+                          {VEHICLE_SUGGESTION_LABELS[sKey] ?? sKey}
+                        </span>
+                        <Badge variant="outline" className="text-[10px] h-4 px-1">Recommended</Badge>
+                      </div>
+                    ))}
+                  {vehicle.checks && vehicle.checks.hero_photo_set === false && (
+                    <p className="text-xs text-muted-foreground">
+                      Add one hero photo to publish this vehicle. A front 3/4 (45°) angle shot performs best.
+                    </p>
+                  )}
+
                   <Button
                     variant="ghost"
                     size="sm"

@@ -13,6 +13,9 @@ export type MarketplaceReadinessData = {
     ready: boolean;
     marketplace_visible: boolean;
     checks?: Record<string, boolean>;
+    suggestions?: Record<string, boolean>;
+    photo_count?: number;
+    hero_count?: number;
   }>;
   ready_vehicle_count: number;
   checked_at: string;
@@ -31,12 +34,18 @@ export const CHECK_LABELS: Record<string, string> = {
 };
 
 export const VEHICLE_CHECK_LABELS: Record<string, string> = {
+  hero_photo_set: 'Hero photo uploaded',
   photos_min_5: 'At least 5 photos',
   rate_set: 'Daily rate set',
   location_set: 'Pickup location set',
   status_available: 'Status is available',
   not_archived: 'Not archived',
 };
+
+export const VEHICLE_SUGGESTION_LABELS: Record<string, string> = {
+  hero_angle_front_quarter: 'Hero is a front 3/4 (45°) shot',
+};
+
 
 export const useMarketplaceReadiness = (teamId: string | null | undefined) => {
   return useQuery({
