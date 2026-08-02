@@ -20,12 +20,16 @@ const sizeMap: Record<LogoSize, string> = {
   xl: 'h-16 w-16',
 };
 
+const MARK_WHITE = '/brand/logos/exotiq-mark-white.png';
+const MARK_BLACK = '/brand/logos/exotiq-mark-black.png';
+
+// Only two real marks exist (light/dark). Legacy variant names map to the closest one.
 const logoFiles: Record<Exclude<LogoVariant, 'auto'>, string> = {
-  'white': '/brand/logos/svg/d-emblem-white-transparent.svg',
-  'gulf-blue': '/brand/logos/svg/d-emblem-gulf-blue-transparent.svg',
-  'orange': '/brand/logos/svg/d-emblem-orange-transparent.svg',
-  'silver': '/brand/logos/svg/d-emblem-silver-transparent.svg',
-  'black': '/brand/logos/svg/d-emblem-black-transparent.svg',
+  'white': MARK_WHITE,
+  'gulf-blue': MARK_BLACK,
+  'orange': MARK_BLACK,
+  'silver': MARK_WHITE,
+  'black': MARK_BLACK,
 };
 
 /**
