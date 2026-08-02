@@ -188,8 +188,8 @@ export const MarketplaceVisibilityTab = () => {
       qc.invalidateQueries({ queryKey: ['marketplace-readiness', vars.teamId] });
       toast({ title: 'Marketplace request approved', description: vars.teamName });
     },
-    onError: (e: any) =>
-      toast({ title: 'Approval failed', description: e.message, variant: 'destructive' }),
+    onError: (e: unknown) =>
+      toast({ title: 'Approval failed', description: e instanceof Error ? e.message : String(e), variant: 'destructive' }),
   });
 
   const rejectRequest = useMutation({
