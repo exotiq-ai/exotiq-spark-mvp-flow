@@ -237,7 +237,7 @@ export const SuperAdminDashboard = () => {
             </TabsTrigger>
             <TabsTrigger value="payments-test">
               <Wallet className="h-4 w-4 mr-2" />
-              M6 Payments
+              Payments &amp; Go-Live
             </TabsTrigger>
             <TabsTrigger value="audit">
               <Database className="h-4 w-4 mr-2" />
