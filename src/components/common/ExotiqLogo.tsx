@@ -20,12 +20,16 @@ const sizeMap: Record<LogoSize, string> = {
   xl: 'h-16 w-16',
 };
 
+const MARK_WHITE = '/brand/logos/exotiq-mark-white.png';
+const MARK_BLACK = '/brand/logos/exotiq-mark-black.png';
+
+// Only two real marks exist (light/dark). Legacy variant names map to the closest one.
 const logoFiles: Record<Exclude<LogoVariant, 'auto'>, string> = {
-  'white': '/brand/logos/svg/d-emblem-white-transparent.svg',
-  'gulf-blue': '/brand/logos/svg/d-emblem-gulf-blue-transparent.svg',
-  'orange': '/brand/logos/svg/d-emblem-orange-transparent.svg',
-  'silver': '/brand/logos/svg/d-emblem-silver-transparent.svg',
-  'black': '/brand/logos/svg/d-emblem-black-transparent.svg',
+  'white': MARK_WHITE,
+  'gulf-blue': MARK_BLACK,
+  'orange': MARK_BLACK,
+  'silver': MARK_WHITE,
+  'black': MARK_BLACK,
 };
 
 /**
@@ -58,7 +62,7 @@ export const ExotiqLogo: React.FC<ExotiqLogoProps> = ({
   
   // Auto-select logo variant based on theme
   const effectiveVariant = variant === 'auto' 
-    ? (theme === 'dark' ? 'white' : 'gulf-blue')
+    ? (theme === 'dark' ? 'white' : 'black')
     : variant;
   
   const logoSrc = logoFiles[effectiveVariant];
@@ -68,7 +72,7 @@ export const ExotiqLogo: React.FC<ExotiqLogoProps> = ({
     <div className={cn('flex items-center gap-3', className)}>
       <img
         src={logoSrc}
-        alt="Exotiq Logo"
+        alt="exotiq"
         className={cn(
           sizeClass,
           'object-contain transition-transform duration-300 ease-out hover:scale-105'
@@ -90,7 +94,7 @@ export const ExotiqLogo: React.FC<ExotiqLogoProps> = ({
             effectiveVariant === 'black' && 'text-[#1A1A1A] dark:text-white'
           )}
         >
-          Exotiq
+          exotiq
         </span>
       )}
     </div>

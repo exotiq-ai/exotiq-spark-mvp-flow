@@ -385,7 +385,7 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
             Let's get {companyName ? <span className="font-medium text-foreground">{companyName}</span> : 'your fleet'} set up and running.
           </p>
           
-          {/* Primary CTA: See Exotiq in Action */}
+          {/* Primary CTA: See exotiq in Action */}
           <div className="flex flex-col items-center gap-3 mt-4">
             <Button
               size="lg"
@@ -393,7 +393,7 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
               className="gap-2 min-w-[260px]"
             >
               <Play className="h-5 w-5" />
-              See Exotiq in Action
+              See exotiq in Action
             </Button>
             <button
               onClick={() => setSkippedTour(true)}

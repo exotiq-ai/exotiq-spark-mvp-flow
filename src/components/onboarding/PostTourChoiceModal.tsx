@@ -103,7 +103,7 @@ export const PostTourChoiceModal = ({
               Ready to set up your fleet?
             </h2>
             <p className="text-sm text-muted-foreground mt-1">
-              You've seen what Exotiq can do. Now let's make it yours.
+              You've seen what exotiq can do. Now let's make it yours.
             </p>
           </div>
 

@@ -18,8 +18,8 @@ export const useDemoScript = () => {
     {
       id: 'intro',
       module: 'dashboard',
-      narration: "Welcome to Exotiq — your all-in-one rental fleet command center. I'm Rari, your AI assistant. Let me show you what a fully running operation looks like.",
-      subtitle: "Welcome to Exotiq — your fleet command center.",
+      narration: "Welcome to exotiq — your all-in-one rental fleet command center. I'm Rari, your AI assistant. Let me show you what a fully running operation looks like.",
+      subtitle: "Welcome to exotiq — your fleet command center.",
       duration: 12000,
     },
     {

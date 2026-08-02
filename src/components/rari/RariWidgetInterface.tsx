@@ -391,7 +391,7 @@ export const RariWidgetInterface = ({ contextSummary, recentEntities }: RariWidg
         <div className="space-y-6">
           {/* Header */}
           <div className="text-center">
-            {/* Custom Waveform - Your Exotiq Style ✨ */}
+            {/* Custom Waveform - Your exotiq Style ✨ */}
             <div className="flex items-center justify-center mb-4">
               <RariVoiceWaveform 
                 isActive={status.isActive}

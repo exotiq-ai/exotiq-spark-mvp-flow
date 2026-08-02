@@ -288,7 +288,7 @@ export const DashboardOnboarding = () => {
     }, 40);
 
     toast({
-      title: "Welcome to Exotiq!",
+      title: "Welcome to exotiq!",
       description: "You're all set. Let's build something amazing!",
       duration: 4000,
     });

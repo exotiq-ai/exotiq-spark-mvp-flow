@@ -54,7 +54,7 @@ export const STEP_BLUEPRINTS: Record<SmokeScenario, Array<Pick<SmokeStep, "key" 
     { key: "quote", label: "Quote booking and snapshot every fee" },
     { key: "booking", label: "Create, approve and generate renter Checkout" },
     { key: "pay", label: "Pay with a real card (manual)" },
-    { key: "captured", label: "Both legs captured (operator + Exotiq)" },
+    { key: "captured", label: "Both legs captured (operator + exotiq)" },
     { key: "parity", label: "Charged amounts match the snapshot to the cent" },
     { key: "split", label: "Destination charge routed to the operator account" },
   ],

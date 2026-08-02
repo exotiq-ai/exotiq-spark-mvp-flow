@@ -217,7 +217,7 @@ export const LegalSection = () => {
           <CardHeader>
             <CardTitle className="text-base">Current policies</CardTitle>
             <CardDescription>
-              The versions of Exotiq's legal documents currently in force.
+              The versions of exotiq's legal documents currently in force.
               {canAcceptForTeam
                 ? " As an account owner or admin, you can accept any policy on behalf of your organization."
                 : ""}

@@ -1,6 +1,6 @@
 {
-  "name": "Exotiq — Luxury Fleet Management",
-  "short_name": "Exotiq",
+  "name": "exotiq — Luxury Fleet Management",
+  "short_name": "exotiq",
   "description": "AI-powered fleet management platform for luxury and exotic car rental operators.",
   "start_url": "/",
   "display": "standalone",

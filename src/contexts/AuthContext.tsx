@@ -503,7 +503,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
     } else {
       toast({
-        title: "Welcome to Exotiq!",
+        title: "Welcome to exotiq!",
         description: "Your account has been created successfully.",
       });
     }
@@ -694,7 +694,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Session is now set - onAuthStateChange will fire and handle navigation
       toast({
         title: "Welcome to Demo Mode!",
-        description: "Exploring Exotiq with pre-populated data.",
+        description: "Exploring exotiq with pre-populated data.",
         duration: 3000,
       });
 

@@ -13,7 +13,7 @@ export const PricingFAQ = () => {
         <div className="text-center mb-12">
           <h2 className="text-3xl font-bold mb-4">Frequently Asked Questions</h2>
           <p className="text-lg text-muted-foreground">
-            Everything you need to know about Exotiq pricing
+            Everything you need to know about exotiq pricing
           </p>
         </div>
 

@@ -106,7 +106,7 @@ export const WelcomeVideoModal = ({
             </div>
 
             {/* Content */}
-            <h2 className="text-2xl font-bold mb-3">Welcome to Exotiq! 🚀</h2>
+            <h2 className="text-2xl font-bold mb-3">Welcome to exotiq! 🚀</h2>
             <p className="text-muted-foreground mb-6">
               Your AI-powered fleet management command center is ready. 
               Let's take a quick tour of the key features.

@@ -129,7 +129,7 @@ export function EntityTypeSelector({
         <div className="pt-2 text-sm text-muted-foreground">
           <p>
             You're importing <strong className="text-foreground">{selectedEntity}</strong> data. 
-            In the next step, you'll map your columns to ExotIQ fields.
+            In the next step, you'll map your columns to exotiq fields.
           </p>
         </div>
       )}

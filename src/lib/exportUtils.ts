@@ -189,7 +189,7 @@ const generatePDFHTML = (data: { title: string; content: any; summary?: Record<s
         ` : generateContent(content)}
 
         <footer>
-          <p>ExotIQ Fleet Management Platform | ${window.location.hostname}</p>
+          <p>Exotiq Fleet Management Platform | ${window.location.hostname}</p>
         </footer>
       </body>
     </html>

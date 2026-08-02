@@ -571,7 +571,7 @@ export default function Auth() {
               // Default header
               <>
                 <h1 className="text-2xl sm:text-3xl font-bold mb-2">
-                  Welcome to Exotiq
+                  Welcome to exotiq
                 </h1>
                 <p className="text-sm sm:text-base text-muted-foreground">
                   Premium fleet management made simple
@@ -588,7 +588,7 @@ export default function Auth() {
                 className="w-full mb-6 btn-premium bg-gradient-to-r from-accent to-primary hover:opacity-90 transition-opacity"
                 size="lg"
               >
-                <a href="mailto:hello@exotiq.com?subject=Exotiq Demo Request">
+                <a href="mailto:hello@exotiq.com?subject=exotiq Demo Request">
                   <Mail className="w-5 h-5 mr-2" />
                   Contact for Demo
                 </a>

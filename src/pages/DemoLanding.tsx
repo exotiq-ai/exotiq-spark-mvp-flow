@@ -99,7 +99,7 @@ const DemoLanding = () => {
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold mb-4">Choose Your Demo Experience</h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              Select the role that best matches your perspective to see Exotiq.ai in action 
+              Select the role that best matches your perspective to see exotiq.ai in action 
               with personalized scenarios and realistic business data.
             </p>
           </div>

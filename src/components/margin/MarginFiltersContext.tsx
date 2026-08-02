@@ -99,8 +99,8 @@ export function useMarginFilters() {
 
 export const SOURCE_OPTIONS: { value: string; label: string }[] = [
   { value: "direct", label: "Direct" },
-  { value: "marketplace", label: "Drive Exotiq" },
-  { value: "drive_exotiq", label: "Drive Exotiq" },
+  { value: "marketplace", label: "Drive exotiq" },
+  { value: "drive_exotiq", label: "Drive exotiq" },
   { value: "turo", label: "Turo" },
   { value: "getaround", label: "Getaround" },
   { value: "website", label: "Website" },
@@ -110,7 +110,7 @@ export const SOURCE_OPTIONS: { value: string; label: string }[] = [
 
 export const sourceLabel = (s: string | null | undefined) => {
   if (!s) return "Direct";
-  if (s === "marketplace" || s === "drive_exotiq") return "Drive Exotiq";
+  if (s === "marketplace" || s === "drive_exotiq") return "Drive exotiq";
   const opt = SOURCE_OPTIONS.find((o) => o.value === s);
   return opt?.label || s.replace("_", " ");
 };

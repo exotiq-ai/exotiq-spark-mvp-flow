@@ -461,7 +461,7 @@ export const PaymentTracker = () => {
                     {/* Standard payment actions — hidden on marketplace bookings.
                         Marketplace deposits use the setup-session → off-session hold
                         flow (DepositPanel), never manual Record Payment which would
-                        bypass the Exotiq fee leg and platform routing. */}
+                        bypass the exotiq fee leg and platform routing. */}
                     {!booking.isMarketplace && !booking.activeHold && !booking.depositPaid && (
                       <Button
                         size="sm"

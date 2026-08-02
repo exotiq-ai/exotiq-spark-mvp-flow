@@ -47,7 +47,7 @@ export const usePushNotifications = () => {
     try {
       const notification = new Notification(title, {
         icon: '/notification-icon-192.png',
-        badge: '/brand/logos/svg/d-emblem-gulf-blue-transparent.svg',
+        badge: '/brand/logos/exotiq-mark-black.png',
         tag: 'exotiq-notification',
         ...options,
       });

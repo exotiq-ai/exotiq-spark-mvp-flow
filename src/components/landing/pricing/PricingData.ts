@@ -55,7 +55,7 @@ export const pricingTiers: PricingTier[] = [
       'Booking calendar & CRM',
       'Document vault with alerts',
       'Stripe Connect payments',
-      'Drive Exotiq marketplace listing',
+      'Drive exotiq marketplace listing',
       'Analytics & reports',
       'Chat support (24hr)',
       'Up to 2 locations',

@@ -10,7 +10,7 @@ import { registerSW } from 'virtual:pwa-register'
 // __BUILD_ID__ is injected by vite.config.ts.
 declare const __BUILD_ID__: string;
 try {
-  console.info('[Exotiq] build', typeof __BUILD_ID__ !== 'undefined' ? __BUILD_ID__ : 'dev');
+  console.info('[exotiq] build', typeof __BUILD_ID__ !== 'undefined' ? __BUILD_ID__ : 'dev');
 } catch {
   // ignore
 }

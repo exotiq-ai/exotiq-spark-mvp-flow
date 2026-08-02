@@ -78,10 +78,10 @@ export const Footer = () => {
           </div>
         </div>
 
-        {/* Bottom — FD-08: social icon links removed; real Exotiq social URLs are not yet established */}
+        {/* Bottom — FD-08: social icon links removed; real exotiq social URLs are not yet established */}
         <div className="pt-8 border-t border-border/50 flex flex-col sm:flex-row justify-between items-center gap-4">
           <p className="text-sm text-muted-foreground">
-            © {currentYear} Exotiq.ai. All rights reserved.
+            © {currentYear} exotiq.ai. All rights reserved.
           </p>
         </div>
       </div>

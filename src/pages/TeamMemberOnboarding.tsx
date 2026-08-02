@@ -336,7 +336,7 @@ export default function TeamMemberOnboarding() {
                   <Sparkles className="w-16 h-16 mx-auto mb-4 text-primary" />
                   <h2 className="text-2xl font-bold mb-2">You're Ready!</h2>
                   <p className="text-muted-foreground">
-                    Here's what you can do in Exotiq
+                    Here's what you can do in exotiq
                   </p>
                 </div>
 

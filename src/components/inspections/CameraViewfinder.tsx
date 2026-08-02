@@ -191,7 +191,7 @@ export const CameraViewfinder = ({
       {showBranding && (
         <div className="absolute bottom-32 right-4 z-10 opacity-70">
           <img 
-            src="/brand/logos/svg/d-emblem-white-transparent.svg" 
+            src="/brand/logos/exotiq-mark-white.png" 
             alt="EQ" 
             className="h-8 w-8"
           />
