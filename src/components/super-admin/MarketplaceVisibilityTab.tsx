@@ -19,6 +19,19 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { ChevronDown, ChevronRight, Search, AlertTriangle, Loader2 } from 'lucide-react';
 import { MarketplaceReadinessPanel } from './MarketplaceReadinessPanel';
 
+interface TeamRecord {
+  id: string;
+  name: string;
+  slug: string | null;
+  marketplace_visible: boolean;
+  marketplace_request_status: string | null;
+  marketplace_requested_at: string | null;
+  marketplace_rejection_reason: string | null;
+  marketplace_test_mode: boolean;
+  is_demo_account: boolean;
+  owner_id: string | null;
+}
+
 interface TeamRow {
   id: string;
   name: string;
