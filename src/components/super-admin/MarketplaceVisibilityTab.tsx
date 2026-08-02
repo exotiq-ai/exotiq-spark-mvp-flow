@@ -445,6 +445,47 @@ export const MarketplaceVisibilityTab = () => {
                       );
                     })()}
 
+                    {(team.marketplace_request_status === 'requested' || team.marketplace_request_status === 'rejected') && (
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                        {team.marketplace_request_status === 'requested' && (
+                          <Button
+                            size="sm"
+                            onClick={() => approveRequest.mutate({ teamId: team.id, teamName: team.name })}
+                            disabled={approveRequest.isPending}
+                          >
+                            {approveRequest.isPending && <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />}
+                            Approve
+                          </Button>
+                        )}
+                        <div className="flex items-center gap-2">
+                          <Input
+                            placeholder="Rejection reason (optional)"
+                            className="h-8 text-xs w-48 sm:w-56"
+                            value={rejectionReasons[team.id] ?? ''}
+                            onChange={(e) =>
+                              setRejectionReasons((prev) => ({ ...prev, [team.id]: e.target.value }))
+                            }
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() =>
+                              rejectRequest.mutate({
+                                teamId: team.id,
+                                teamName: team.name,
+                                reason: rejectionReasons[team.id] ?? 'Did not meet marketplace requirements',
+                              })
+                            }
+                            disabled={rejectRequest.isPending}
+                          >
+                            {rejectRequest.isPending && <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />}
+                            Reject
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
                     <Switch
                       checked={team.marketplace_visible}
                       onCheckedChange={(value) => toggleTeam.mutate({ team, value })}
