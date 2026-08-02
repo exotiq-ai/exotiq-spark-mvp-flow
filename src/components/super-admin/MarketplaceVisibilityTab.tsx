@@ -169,8 +169,8 @@ export const MarketplaceVisibilityTab = () => {
         description: vars.team.name,
       });
     },
-    onError: (e: any) =>
-      toast({ title: 'Update failed', description: e.message, variant: 'destructive' }),
+    onError: (e: unknown) =>
+      toast({ title: 'Update failed', description: e instanceof Error ? e.message : String(e), variant: 'destructive' }),
   });
 
   const approveRequest = useMutation({
