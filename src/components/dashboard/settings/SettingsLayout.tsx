@@ -52,6 +52,7 @@ const allSettingsTabs: SettingsTab[] = [
   { id: "integrations", label: "Integrations", icon: Puzzle },
   { id: "data", label: "Data", icon: Database },
   { id: "payments", label: "Payments", icon: Banknote },
+  { id: "marketplace", label: "Marketplace", icon: Store, requiresAdmin: true },
   { id: "legal", label: "Legal", icon: ShieldCheck },
 ];
 
