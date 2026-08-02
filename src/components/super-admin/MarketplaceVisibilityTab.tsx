@@ -227,8 +227,8 @@ export const MarketplaceVisibilityTab = () => {
       qc.invalidateQueries({ queryKey: ['sa-marketplace-teams'] });
       toast({ title: 'Team marked as production' });
     },
-    onError: (e: any) =>
-      toast({ title: 'Update failed', description: e.message, variant: 'destructive' }),
+    onError: (e: unknown) =>
+      toast({ title: 'Update failed', description: e instanceof Error ? e.message : String(e), variant: 'destructive' }),
   });
 
   const syncNameFromProfile = useMutation({
