@@ -8,9 +8,9 @@ interface LogoProps {
 }
 
 const sizeConfig = {
-  sm: { emblem: "h-7 w-7", text: "text-base" },
-  md: { emblem: "h-9 w-9", text: "text-xl" },
-  lg: { emblem: "h-11 w-11", text: "text-2xl" },
+  sm: { emblem: "h-6 w-6", text: "text-base" },
+  md: { emblem: "h-7 w-7", text: "text-xl" },
+  lg: { emblem: "h-9 w-9", text: "text-2xl" },
 };
 
 export const Logo = ({ className, size = "md", iconOnly = false }: LogoProps) => {
