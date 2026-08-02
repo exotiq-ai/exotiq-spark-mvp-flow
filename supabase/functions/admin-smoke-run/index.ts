@@ -368,10 +368,18 @@ async function runBookingStart(args: {
     },
   });
   if (!created.ok) throw new Error(created.payload?.error ?? `rent-create-booking ${created.status}`);
-  const bookingId = created.payload.booking_id ?? created.payload.booking?.id;
-  const bookingRef = created.payload.booking_ref ?? created.payload.booking?.booking_ref;
-  const token = created.payload.confirmation_token ?? created.payload.booking?.confirmation_token;
-  if (!bookingId || !bookingRef || !token) throw new Error("rent-create-booking returned an unexpected payload.");
+  const bookingRef = created.payload.booking_ref;
+  const token = created.payload.confirmation_token;
+  if (!bookingRef || !token) throw new Error("rent-create-booking returned an unexpected payload.");
+
+  // The function returns ref + token only; resolve the row id for follow-ups.
+  const { data: bookingRow } = await db
+    .from("bookings")
+    .select("id")
+    .eq("booking_ref", bookingRef)
+    .maybeSingle();
+  const bookingId = bookingRow?.id;
+  if (!bookingId) throw new Error(`Booking ${bookingRef} was created but could not be re-read.`);
   ctx.booking_id = bookingId;
   ctx.booking_ref = bookingRef;
   ctx.confirmation_token = token;
