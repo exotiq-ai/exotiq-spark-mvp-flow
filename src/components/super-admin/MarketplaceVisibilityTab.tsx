@@ -93,20 +93,23 @@ const useTeams = () =>
         );
       }
 
-      return (teams ?? []).map((t) => ({
-        id: t.id,
-        name: t.name,
-        slug: (t as any).slug ?? null,
-        marketplace_visible: !!t.marketplace_visible,
-        marketplace_request_status: (t as any).marketplace_request_status ?? null,
-        marketplace_requested_at: (t as any).marketplace_requested_at ?? null,
-        marketplace_rejection_reason: (t as any).marketplace_rejection_reason ?? null,
-        marketplace_test_mode: !!(t as any).marketplace_test_mode,
-        is_demo_account: !!t.is_demo_account,
-        owner_id: t.owner_id,
-        owner_email: t.owner_id ? profileMap[t.owner_id]?.email ?? null : null,
-        owner_company_name: t.owner_id ? profileMap[t.owner_id]?.company_name ?? null : null,
-      }));
+      return (teams ?? []).map((t) => {
+        const record = t as unknown as TeamRecord;
+        return {
+          id: record.id,
+          name: record.name,
+          slug: record.slug ?? null,
+          marketplace_visible: !!record.marketplace_visible,
+          marketplace_request_status: record.marketplace_request_status ?? null,
+          marketplace_requested_at: record.marketplace_requested_at ?? null,
+          marketplace_rejection_reason: record.marketplace_rejection_reason ?? null,
+          marketplace_test_mode: !!record.marketplace_test_mode,
+          is_demo_account: !!record.is_demo_account,
+          owner_id: record.owner_id,
+          owner_email: record.owner_id ? profileMap[record.owner_id]?.email ?? null : null,
+          owner_company_name: record.owner_id ? profileMap[record.owner_id]?.company_name ?? null : null,
+        };
+      });
     },
   });
 
