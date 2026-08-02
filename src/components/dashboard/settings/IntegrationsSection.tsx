@@ -317,30 +317,6 @@ export const IntegrationsSection = () => {
           </div>
         </div>
       </Card>
-
-      {/* Coming Soon */}
-      <Card className="card-premium p-6">
-        <h3 className="text-lg font-semibold mb-4">Coming Soon</h3>
-        <div className="space-y-3">
-          {comingSoonIntegrations.map((integration) => (
-            <div
-              key={integration.name}
-              className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-lg bg-muted/30 opacity-60"
-            >
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-background border shrink-0">
-                  <integration.icon className="w-5 h-5 text-muted-foreground" />
-                </div>
-                <div>
-                  <h4 className="font-medium">{integration.name}</h4>
-                  <p className="text-sm text-muted-foreground">{integration.description}</p>
-                </div>
-              </div>
-              <Badge variant="secondary">Coming Soon</Badge>
-            </div>
-          ))}
-        </div>
-      </Card>
     </div>
   );
 };
