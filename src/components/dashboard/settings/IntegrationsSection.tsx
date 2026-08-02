@@ -181,12 +181,6 @@ export const IntegrationsSection = () => {
     }
   };
 
-  const comingSoonIntegrations = [
-    { name: "Stripe", description: "Payment processing and invoicing", icon: CreditCard },
-    { name: "Twilio", description: "SMS and WhatsApp notifications", icon: MessageSquare },
-    { name: "Google Maps", description: "Location services and routing", icon: Map },
-  ];
-
   return (
     <div className="space-y-6">
       {/* Overview */}
