@@ -13,6 +13,9 @@ export type MarketplaceReadinessData = {
     ready: boolean;
     marketplace_visible: boolean;
     checks?: Record<string, boolean>;
+    suggestions?: Record<string, boolean>;
+    photo_count?: number;
+    hero_count?: number;
   }>;
   ready_vehicle_count: number;
   checked_at: string;
