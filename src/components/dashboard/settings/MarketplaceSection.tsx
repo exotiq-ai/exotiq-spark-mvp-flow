@@ -7,6 +7,7 @@ import {
   useMarketplaceFeeStatus,
   CHECK_LABELS,
   VEHICLE_CHECK_LABELS,
+  VEHICLE_SUGGESTION_LABELS,
 } from '@/hooks/useMarketplaceReadiness';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
