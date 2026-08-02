@@ -18,8 +18,8 @@ export const Logo = ({ className, size = "md", iconOnly = false }: LogoProps) =>
   const isDark = resolvedTheme === "dark";
 
   const emblemSrc = isDark
-    ? "/brand/logos/svg/d-emblem-white-transparent.svg"
-    : "/brand/logos/svg/d-emblem-gulf-blue-transparent.svg";
+    ? "/brand/logos/exotiq-mark-white.png"
+    : "/brand/logos/exotiq-mark-black.png";
 
   const { emblem, text } = sizeConfig[size];
 
@@ -27,7 +27,7 @@ export const Logo = ({ className, size = "md", iconOnly = false }: LogoProps) =>
     <div className={cn("flex items-center gap-2", className)}>
       <img
         src={emblemSrc}
-        alt="Exotiq"
+        alt="exotiq"
         className={cn(emblem, "object-contain")}
       />
       {!iconOnly && (
@@ -38,7 +38,7 @@ export const Logo = ({ className, size = "md", iconOnly = false }: LogoProps) =>
             isDark ? "text-white" : "text-[hsl(var(--foreground))]"
           )}
         >
-          Exotiq
+          exotiq
         </span>
       )}
     </div>

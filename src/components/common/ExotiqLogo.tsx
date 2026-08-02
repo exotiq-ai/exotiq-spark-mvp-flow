@@ -62,7 +62,7 @@ export const ExotiqLogo: React.FC<ExotiqLogoProps> = ({
   
   // Auto-select logo variant based on theme
   const effectiveVariant = variant === 'auto' 
-    ? (theme === 'dark' ? 'white' : 'gulf-blue')
+    ? (theme === 'dark' ? 'white' : 'black')
     : variant;
   
   const logoSrc = logoFiles[effectiveVariant];
@@ -72,7 +72,7 @@ export const ExotiqLogo: React.FC<ExotiqLogoProps> = ({
     <div className={cn('flex items-center gap-3', className)}>
       <img
         src={logoSrc}
-        alt="Exotiq Logo"
+        alt="exotiq"
         className={cn(
           sizeClass,
           'object-contain transition-transform duration-300 ease-out hover:scale-105'
@@ -94,7 +94,7 @@ export const ExotiqLogo: React.FC<ExotiqLogoProps> = ({
             effectiveVariant === 'black' && 'text-[#1A1A1A] dark:text-white'
           )}
         >
-          Exotiq
+          exotiq
         </span>
       )}
     </div>
