@@ -156,6 +156,47 @@ export const MarketplaceVisibilityTab = () => {
       toast({ title: 'Update failed', description: e.message, variant: 'destructive' }),
   });
 
+  const approveRequest = useMutation({
+    mutationFn: async ({ teamId, teamName }: { teamId: string; teamName: string }) => {
+      const { error, data } = await supabase.rpc('approve_marketplace_request', {
+        _team_id: teamId,
+        _visible: true,
+      });
+      if (error) throw error;
+      await logAdminAction('approve_marketplace_request', { team_id: teamId, team_name: teamName, result: data });
+      return data;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ['sa-marketplace-teams'] });
+      qc.invalidateQueries({ queryKey: ['marketplace-readiness', vars.teamId] });
+      toast({ title: 'Marketplace request approved', description: vars.teamName });
+    },
+    onError: (e: any) =>
+      toast({ title: 'Approval failed', description: e.message, variant: 'destructive' }),
+  });
+
+  const rejectRequest = useMutation({
+    mutationFn: async ({ teamId, teamName, reason }: { teamId: string; teamName: string; reason: string }) => {
+      const { error } = await supabase.rpc('reject_marketplace_request', {
+        _team_id: teamId,
+        _reason: reason,
+      });
+      if (error) throw error;
+      await logAdminAction('reject_marketplace_request', {
+        team_id: teamId,
+        team_name: teamName,
+        reason,
+      });
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ['sa-marketplace-teams'] });
+      qc.invalidateQueries({ queryKey: ['marketplace-readiness', vars.teamId] });
+      toast({ title: 'Marketplace request rejected', description: vars.teamName });
+    },
+    onError: (e: any) =>
+      toast({ title: 'Rejection failed', description: e.message, variant: 'destructive' }),
+  });
+
   const markProduction = useMutation({
     mutationFn: async (team: TeamRow) => {
       const { error } = await supabase
