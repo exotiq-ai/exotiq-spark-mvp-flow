@@ -210,8 +210,8 @@ export const MarketplaceVisibilityTab = () => {
       qc.invalidateQueries({ queryKey: ['marketplace-readiness', vars.teamId] });
       toast({ title: 'Marketplace request rejected', description: vars.teamName });
     },
-    onError: (e: any) =>
-      toast({ title: 'Rejection failed', description: e.message, variant: 'destructive' }),
+    onError: (e: unknown) =>
+      toast({ title: 'Rejection failed', description: e instanceof Error ? e.message : String(e), variant: 'destructive' }),
   });
 
   const markProduction = useMutation({
