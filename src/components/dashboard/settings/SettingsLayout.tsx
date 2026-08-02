@@ -33,6 +33,7 @@ import { DataManagementSection } from "./DataManagementSection";
 import { PaymentMethodsSection } from "@/components/settings/PaymentMethodsSection";
 import { LegalSection } from "./LegalSection";
 import { BusinessProfileSection } from "./BusinessProfileSection";
+import { MarketplaceSection } from "./MarketplaceSection";
 
 interface SettingsTab {
   id: string;
