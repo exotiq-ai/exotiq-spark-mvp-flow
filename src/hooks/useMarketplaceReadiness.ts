@@ -48,11 +48,12 @@ export const useMarketplaceReadiness = (teamId: string | null | undefined) => {
       });
       if (error) throw error;
       return (data as unknown as MarketplaceReadinessData) ?? {
-        team_id: teamId,
+        team_id: teamId as string,
         ready: false,
         team_checks: {},
         vehicles: [],
         ready_vehicle_count: 0,
+        checked_at: new Date().toISOString(),
       };
     },
   });
