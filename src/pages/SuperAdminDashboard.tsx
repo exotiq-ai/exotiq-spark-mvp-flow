@@ -271,6 +271,7 @@ export const SuperAdminDashboard = () => {
           </TabsContent>
 
           <TabsContent value="payments-test" className="space-y-4">
+            <GoLiveSmokeTestPanel />
             <SuperAdminPaymentsTestTab />
           </TabsContent>
 
