@@ -229,7 +229,7 @@ export const MarketplaceSection = () => {
                       {key === 'owner_email_set' && 'The owner email is used for critical account notifications.'}
                       {key === 'terms_accepted' && 'You must accept the operator terms before going live.'}
                       {key === 'not_demo' && 'Demo accounts cannot appear on the marketplace.'}
-                      {key === 'has_ready_vehicle' && 'At least one vehicle must have photos, rate, location, and status set.'}
+                      {key === 'has_ready_vehicle' && 'At least one vehicle must have a hero photo, rate, location, and status set.'}
                     </p>
                   )}
                 </div>
