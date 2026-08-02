@@ -139,6 +139,8 @@ export const SettingsLayout = () => {
         return <DataManagementSection />;
       case "payments":
         return <PaymentMethodsSection />;
+      case "marketplace":
+        return isAdmin ? <MarketplaceSection /> : null;
       case "legal":
         return <LegalSection />;
       default:
