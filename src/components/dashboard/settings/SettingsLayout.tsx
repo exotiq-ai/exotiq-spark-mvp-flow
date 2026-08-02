@@ -19,6 +19,7 @@ import {
   Banknote,
   ShieldCheck,
   Globe,
+  Store,
 } from "lucide-react";
 
 // Settings sections
