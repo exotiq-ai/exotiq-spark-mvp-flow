@@ -71,7 +71,7 @@ export const useDemoOrchestrator = ({
   const fixPronunciation = (text: string): string => {
     return text
       .replace(/\bRari\b/g, 'Rarri')
-      .replace(/\bExotiq\b/g, 'Exotique')
+      .replace(/\bexotiq\b/gi, 'Exotique')
       .replace(/\bMotorIQ\b/g, 'Motor I.Q.');
   };
 

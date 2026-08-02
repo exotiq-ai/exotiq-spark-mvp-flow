@@ -45,18 +45,18 @@ interface AcceptanceRow {
 }
 
 const DPA_CONSENT_STATEMENT =
-  "On behalf of my organization, I execute and agree to the exotiq Data Processing Agreement, including its sub-processor list and security commitments.";
+  "On behalf of my organization, I execute and agree to the Exotiq Data Processing Agreement, including its sub-processor list and security commitments.";
 
 const PER_DOC_CONSENT_STATEMENT: Record<LegalDocType, string> = {
   terms:
-    "I have read and agree to the exotiq Terms and Conditions. I represent that I am authorized to bind my organization to these terms.",
+    "I have read and agree to the Exotiq Terms and Conditions. I represent that I am authorized to bind my organization to these terms.",
   privacy:
-    "I acknowledge the exotiq Privacy Policy and how my organization's data is processed.",
-  aup: "On behalf of my organization, I agree to the exotiq Acceptable Use Policy.",
+    "I acknowledge the Exotiq Privacy Policy and how my organization's data is processed.",
+  aup: "On behalf of my organization, I agree to the Exotiq Acceptable Use Policy.",
   dpa: DPA_CONSENT_STATEMENT,
   sms: SMS_CONSENT_STATEMENT,
-  cookies: "I acknowledge the exotiq Cookie Policy.",
-  dmca: "I acknowledge the exotiq DMCA and Copyright Policy.",
+  cookies: "I acknowledge the Exotiq Cookie Policy.",
+  dmca: "I acknowledge the Exotiq DMCA and Copyright Policy.",
   transfer_addendum:
     "On behalf of my organization, I execute the International Data Transfer Addendum (SCCs / UK IDTA) for transfers of personal data outside the EEA/UK.",
 };
