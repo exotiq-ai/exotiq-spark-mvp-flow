@@ -38,20 +38,35 @@ const REQUIRED_ENDPOINTS: Array<{
   connect: boolean;
   secretName: string;
 }> = [
+  // stripe-webhook is a MIXED consumer but verifies ONE signing secret, so it
+  // can be fed by exactly one Stripe endpoint. A Stripe endpoint delivers
+  // either platform events or connected-account events, never both:
+  //   - platform side: customer.subscription.* / invoice.* (Command Center
+  //     billing), charge.* for renter destination charges (rent-checkout uses
+  //     on_behalf_of + transfer_data, so the charge lives on the platform),
+  //     payout.paid for Exotiq's own bank payouts (handler's null-team path).
+  //   - connected side: account.updated onboarding flips, deauthorization,
+  //     operator payouts, and charge.captured/succeeded for the manual hold
+  //     flow (stripe-create-hold charges directly on the connected account).
+  // The platform half carries subscriptions and renter money bookkeeping, so
+  // it wins the single secret. The connected half needs a second endpoint +
+  // a STRIPE_CONNECT_WEBHOOK_SECRET fallback in the function's signature
+  // check before it can exist without permanently failing deliveries —
+  // do NOT create it until that patch ships.
   {
-    name: "operator / connect + subscriptions",
+    name: "platform / subscriptions + charges",
     url: `${FUNCTIONS_BASE}/stripe-webhook`,
     events: [
-      "account.updated",
-      "account.application.deauthorized",
       "customer.subscription.updated",
       "customer.subscription.deleted",
       "invoice.payment_failed",
       "charge.refunded",
       "charge.dispute.created",
+      // succeeded logs the Stripe processing fee on renter destination charges.
+      "charge.succeeded",
       "payout.paid",
     ],
-    connect: true,
+    connect: false,
     secretName: "STRIPE_WEBHOOK_SECRET",
   },
   {
@@ -72,6 +87,11 @@ const REQUIRED_ENDPOINTS: Array<{
       "identity.verification_session.verified",
       "identity.verification_session.requires_input",
       "identity.verification_session.canceled",
+      // identity-webhook handles all five; redacted is the PII-cleanup path
+      // (clears verified_name) and must be subscribed or redaction never
+      // reaches the database.
+      "identity.verification_session.processing",
+      "identity.verification_session.redacted",
     ],
     connect: false,
     secretName: "STRIPE_IDENTITY_WEBHOOK_SECRET",
@@ -109,8 +129,8 @@ function form(obj: Record<string, string | string[] | boolean>) {
 }
 
 async function main() {
-  if (!KEY.startsWith("sk_live_")) {
-    console.error("STRIPE_LIVE_KEY must be a sk_live_ key. Aborting.");
+  if (!/^(sk|rk)_live_/.test(KEY)) {
+    console.error("STRIPE_LIVE_KEY must be a sk_live_ or rk_live_ key. Aborting.");
     process.exit(2);
   }
 
