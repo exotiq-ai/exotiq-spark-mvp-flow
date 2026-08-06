@@ -61,6 +61,14 @@ function protectionDailyCentsForTier(tier: string | null | undefined): number {
 }
 
 // Operator's estimated Stripe processing share (matches rent-checkout).
+/** Stable, length-bounded idempotency key material. */
+async function sha256Hex(input: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(input));
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 function stripeFeeEstimateCents(amountCents: number): number {
   return Math.round(amountCents * 0.029) + 30;
 }
