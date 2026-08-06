@@ -29,6 +29,10 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Service-role function: cron token or an authenticated user only.
+  const auth = await requireServiceOrUser(req);
+  if (!auth.ok) return auth.response(corsHeaders);
+
   try {
     const { action, booking_id, team_id } = await req.json();
 
@@ -42,6 +46,24 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
+
+    // A user JWT may only sync bookings for a team it actually belongs to.
+    if (auth.userId) {
+      const { data: membership } = await adminClient
+        .from("team_members")
+        .select("id")
+        .eq("user_id", auth.userId)
+        .eq("team_id", team_id)
+        .eq("is_active", true)
+        .maybeSingle();
+      if (!membership) {
+        return new Response(JSON.stringify({ error: "Not authorized for this team" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
 
     // Get integration config
     const { data: integration } = await adminClient
