@@ -99,29 +99,12 @@ serve(async (req) => {
 
         logStep("Connected account balance retrieved", { stripeAccountId });
       } else {
-        // No connected account — try platform balance (for platform admins)
-        try {
-          const balance = await stripe.balance.retrieve();
-          const payouts = await stripe.payouts.list({ limit: 10 });
-
-          availableBalance = balance.available.reduce((sum, b) => b.currency === "usd" ? sum + b.amount : sum, 0) / 100;
-          pendingBalance = balance.pending.reduce((sum, b) => b.currency === "usd" ? sum + b.amount : sum, 0) / 100;
-
-          formattedPayouts = payouts.data.map((payout) => ({
-            id: payout.id,
-            amount: payout.amount / 100,
-            currency: payout.currency.toUpperCase(),
-            status: payout.status,
-            arrival_date: new Date(payout.arrival_date * 1000).toISOString(),
-            created: new Date(payout.created * 1000).toISOString(),
-            description: payout.description || "Payout",
-            method: payout.method,
-          }));
-        } catch (e) {
-          stripeError = e instanceof Error ? e.message : String(e);
-          logStep("Platform balance unavailable", { error: stripeError });
-        }
+        // No connected account for this team in the current Stripe mode.
+        // Do NOT fall back to the platform account — that would expose the
+        // platform's balance and payouts to any tenant.
+        logStep("No connected account for team — returning empty balance", { teamId });
       }
+
     } catch (stripeErr) {
       stripeError = stripeErr instanceof Error ? stripeErr.message : String(stripeErr);
       logStep("Stripe API error", { error: stripeError });
