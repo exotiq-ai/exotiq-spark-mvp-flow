@@ -130,6 +130,43 @@ serve(async (req) => {
       .maybeSingle();
     if (!membership) return json({ error: "Not authorized for this booking's team" }, 403);
 
+    // Extensions move money on a card on file — restrict to owner/admin/manager.
+    const { data: roleRows } = await db
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("team_id", booking.team_id);
+    const allowedRoles = new Set(["owner", "admin", "manager"]);
+    const hasRole = (roleRows ?? []).some((r: { role: string }) => allowedRoles.has(r.role));
+    if (!hasRole) {
+      return json({ error: "Extensions require manager access or above" }, 403);
+    }
+
+    // Clamp the caller-supplied rate to the vehicle's stored rate. A tampered
+    // client must not be able to charge a card on file above the listed rate.
+    if (booking.vehicle_id) {
+      const { data: vehicleRates } = await db
+        .from("vehicles")
+        .select("current_rate, rate_multiday")
+        .eq("id", booking.vehicle_id)
+        .maybeSingle();
+      const ceilingDollars = Math.max(
+        Number(vehicleRates?.current_rate ?? 0),
+        Number(vehicleRates?.rate_multiday ?? 0),
+      );
+      const ceilingCents = Math.round(ceilingDollars * 100);
+      if (ceilingCents > 0 && Number(rate_cents_per_day) > ceilingCents) {
+        return json(
+          {
+            error: "rate_cents_per_day exceeds the vehicle's stored rate",
+            max_rate_cents_per_day: ceilingCents,
+          },
+          400,
+        );
+      }
+    }
+
+
     const prevEnd = new Date(booking.end_date);
     const newEnd = new Date(new_end_date);
     if (isNaN(newEnd.getTime())) return json({ error: "Invalid new_end_date" }, 400);
