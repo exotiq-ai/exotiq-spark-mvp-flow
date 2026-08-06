@@ -114,7 +114,7 @@ serve(async (req) => {
     const { data: booking, error: bErr } = await db
       .from("bookings")
       .select(
-        "id, team_id, vehicle_id, booking_ref, booking_source, status, start_date, end_date, total_value, operator_payment_intent_id, exotiq_payment_intent_id, paid_at, customer_email, customer_name, platform_fee_cents, state_fee_cents, processing_fee_cents, protection_total_cents, protection_tier",
+        "id, user_id, team_id, vehicle_id, booking_ref, booking_source, status, start_date, end_date, total_value, operator_payment_intent_id, exotiq_payment_intent_id, paid_at, customer_email, customer_name, platform_fee_cents, state_fee_cents, processing_fee_cents, protection_total_cents, protection_tier",
       )
       .eq("id", booking_id)
       .single();
@@ -325,9 +325,11 @@ serve(async (req) => {
         .eq("id", booking.id);
       if (updErr) throw new Error(`Booking update failed: ${updErr.message}`);
       if (paymentRows.length > 0) {
-        await db.from("payments").insert(paymentRows as never);
+        // Must NOT be swallowed: a silent failure here means the renter was
+        // charged with nothing recorded. Throwing lets the caller refund.
+        const { error: payErr } = await db.from("payments").insert(paymentRows as never);
+        if (payErr) throw new Error(`Payment ledger insert failed: ${payErr.message}`);
       }
-    };
 
     const markFailed = async (reason: string, extras: Record<string, unknown> = {}) => {
       await db
