@@ -39,20 +39,34 @@ const REQUIRED_ENDPOINTS: Array<{
   secretName: string;
 }> = [
   {
-    name: "operator / connect + subscriptions",
+    // Platform-account endpoint: SaaS subscriptions + tenant-initiated
+    // checkout on the platform. Same URL as the Connect endpoint below —
+    // the handler verifies against either signing secret.
+    name: "platform / subscriptions + tenant payments",
+    url: `${FUNCTIONS_BASE}/stripe-webhook`,
+    events: [
+      "customer.subscription.updated",
+      "customer.subscription.deleted",
+      "invoice.payment_failed",
+      "checkout.session.completed",
+      "payment_intent.succeeded",
+    ],
+    connect: false,
+    secretName: "STRIPE_WEBHOOK_SECRET",
+  },
+  {
+    // Connect endpoint: connected-account lifecycle and money events.
+    name: "connect / operator accounts",
     url: `${FUNCTIONS_BASE}/stripe-webhook`,
     events: [
       "account.updated",
       "account.application.deauthorized",
-      "customer.subscription.updated",
-      "customer.subscription.deleted",
-      "invoice.payment_failed",
       "charge.refunded",
       "charge.dispute.created",
       "payout.paid",
     ],
     connect: true,
-    secretName: "STRIPE_WEBHOOK_SECRET",
+    secretName: "STRIPE_CONNECT_WEBHOOK_SECRET",
   },
   {
     name: "renter payments",
