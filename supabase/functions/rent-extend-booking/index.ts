@@ -406,7 +406,22 @@ serve(async (req) => {
         );
       }
 
-      const idempotencyEnvelope = `${booking.id}-${prevEnd.toISOString()}-${newEnd.toISOString()}`;
+      // SHA-256 over the full economic envelope: booking, both dates AND every
+      // charged amount. Hashing keeps the key inside Stripe's length limit and,
+      // critically, makes a retry with different money produce a different key
+      // instead of silently replaying the earlier intent.
+      const idempotencyEnvelope = await sha256Hex(
+        [
+          booking.id,
+          prevEnd.toISOString(),
+          newEnd.toISOString(),
+          addedSubtotalCents,
+          addedPlatformFeeCents,
+          addedStateFeeCents,
+          addedProcessingFeeCents,
+          addedProtectionCents,
+        ].join("|"),
+      );
 
       // -------- OPERATOR LEG (destination charge on platform) --------
       let operatorPi: Stripe.PaymentIntent;
