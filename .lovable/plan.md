@@ -101,5 +101,3 @@ This should be item 1, ahead of the webhook topology work.
 - `stripe-get-balance` / `stripe-payment-history` for a team with no connected
   account → `connected: false`, empty arrays, no platform figures.
 - Preflight dry-run against live reports both endpoints with correct event sets.
-
-shared dedupe consumer key instead.
