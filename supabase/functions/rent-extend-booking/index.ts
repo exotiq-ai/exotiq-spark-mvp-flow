@@ -540,28 +540,36 @@ serve(async (req) => {
 
 
       // -------- BOTH LEGS OK — bump booking + record payments --------
+      // Column set must match public.payments: user_id and payment_type are
+      // NOT NULL, and the timestamp column is transaction_date (no paid_at).
+      const ledgerOwnerId = (booking.user_id as string | null) ?? user.id;
+      const chargedAt = new Date().toISOString();
       const paymentRows: Array<Record<string, unknown>> = [
         {
           booking_id: booking.id,
           team_id: booking.team_id,
+          user_id: ledgerOwnerId,
+          payment_type: "extension_rental",
           amount: addedSubtotalCents / 100,
           payment_method: "stripe",
           payment_status: "completed",
           stripe_payment_intent_id: operatorPi.id,
           notes: `Booking extension rental (+${addedDays} day${addedDays === 1 ? "" : "s"})`,
-          paid_at: new Date().toISOString(),
+          transaction_date: chargedAt,
         },
       ];
       if (exotiqPi) {
         paymentRows.push({
           booking_id: booking.id,
           team_id: booking.team_id,
+          user_id: ledgerOwnerId,
+          payment_type: "extension_fees",
           amount: addedExotiqLegCents / 100,
           payment_method: "stripe",
           payment_status: "completed",
           stripe_payment_intent_id: exotiqPi.id,
           notes: `Booking extension fees (state + platform + processing)`,
-          paid_at: new Date().toISOString(),
+          transaction_date: chargedAt,
         });
       }
 
