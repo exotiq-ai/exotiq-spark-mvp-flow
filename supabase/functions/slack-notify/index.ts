@@ -26,6 +26,10 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Service-role function: cron token or an authenticated user only.
+  const auth = await requireServiceOrUser(req);
+  if (!auth.ok) return auth.response(corsHeaders);
+
   try {
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
