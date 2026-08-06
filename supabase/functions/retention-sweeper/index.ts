@@ -9,10 +9,12 @@
 //   - Every run writes a row to retention_sweep_log (immutable).
 
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { requireServiceOrUser } from "../_shared/serviceAuth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-cron-token",
 };
 
 // Entities we will NEVER auto-delete regardless of policy config.
@@ -124,7 +126,12 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  // Service-role function: cron token or an authenticated user only.
+  const auth = await requireServiceOrUser(req);
+  if (!auth.ok) return auth.response(corsHeaders);
+
   const db = await admin();
+
 
   // deno-lint-ignore no-explicit-any
   const { data: policies, error } = await (db.from("retention_policies") as any)

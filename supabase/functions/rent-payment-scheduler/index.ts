@@ -7,6 +7,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.77.0";
 
 import { sendRenterEmail, resolveRenterReplyTo } from "../_shared/rentEmail.ts";
+import { requireCronToken } from "../_shared/serviceAuth.ts";
 import {
   buildPayUrl,
   buildStorefrontUrl,
@@ -119,6 +120,11 @@ function baseVariables(
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  // Scheduler-only: must present the shared cron token.
+  const auth = requireCronToken(req);
+  if (!auth.ok) return auth.response(corsHeaders);
+
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
   try {

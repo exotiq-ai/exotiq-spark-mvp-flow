@@ -145,12 +145,19 @@ serve(async (req) => {
       }
     }
 
-    // Return the operator to the real app. Lovable preview origins are
-    // storage-partitioned, so a top-level return there has no session and
-    // bounces to /auth — always fall back to the canonical app URL.
-    const rawOrigin = req.headers.get("origin") || "";
-    const isPreviewOrigin = /lovable\.app$|localhost|127\.0\.0\.1/.test(rawOrigin);
-    const origin = rawOrigin && !isPreviewOrigin ? rawOrigin : "https://app.exotiq.ai";
+    // Return the operator to the real app. Only known-good origins are echoed
+    // back into Stripe redirect URLs — anything else (including Lovable preview
+    // origins, which are storage-partitioned and bounce to /auth) falls back to
+    // the canonical app URL. This prevents an attacker-supplied Origin header
+    // from turning the checkout return into an open redirect.
+    const ALLOWED_ORIGINS = new Set([
+      "https://app.exotiq.ai",
+      "https://exotiq.ai",
+      "https://www.exotiq.ai",
+    ]);
+    const rawOrigin = (req.headers.get("origin") || "").replace(/\/$/, "");
+    const origin = ALLOWED_ORIGINS.has(rawOrigin) ? rawOrigin : "https://app.exotiq.ai";
+
 
 
     const sessionParams: Stripe.Checkout.SessionCreateParams = {

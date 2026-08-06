@@ -61,6 +61,14 @@ function protectionDailyCentsForTier(tier: string | null | undefined): number {
 }
 
 // Operator's estimated Stripe processing share (matches rent-checkout).
+/** Stable, length-bounded idempotency key material. */
+async function sha256Hex(input: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(input));
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 function stripeFeeEstimateCents(amountCents: number): number {
   return Math.round(amountCents * 0.029) + 30;
 }
@@ -114,7 +122,7 @@ serve(async (req) => {
     const { data: booking, error: bErr } = await db
       .from("bookings")
       .select(
-        "id, team_id, vehicle_id, booking_ref, booking_source, status, start_date, end_date, total_value, operator_payment_intent_id, exotiq_payment_intent_id, paid_at, customer_email, customer_name, platform_fee_cents, state_fee_cents, processing_fee_cents, protection_total_cents, protection_tier",
+        "id, user_id, team_id, vehicle_id, booking_ref, booking_source, status, start_date, end_date, total_value, operator_payment_intent_id, exotiq_payment_intent_id, paid_at, customer_email, customer_name, platform_fee_cents, state_fee_cents, processing_fee_cents, protection_total_cents, protection_tier",
       )
       .eq("id", booking_id)
       .single();
@@ -129,6 +137,43 @@ serve(async (req) => {
       .eq("is_active", true)
       .maybeSingle();
     if (!membership) return json({ error: "Not authorized for this booking's team" }, 403);
+
+    // Extensions move money on a card on file — restrict to owner/admin/manager.
+    const { data: roleRows } = await db
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id);
+    const allowedRoles = new Set(["owner", "admin", "manager"]);
+    const hasRole = (roleRows ?? []).some((r: { role: string }) => allowedRoles.has(r.role));
+    if (!hasRole) {
+      return json({ error: "Extensions require manager access or above" }, 403);
+    }
+
+
+    // Clamp the caller-supplied rate to the vehicle's stored rate. A tampered
+    // client must not be able to charge a card on file above the listed rate.
+    if (booking.vehicle_id) {
+      const { data: vehicleRates } = await db
+        .from("vehicles")
+        .select("current_rate, rate_multiday")
+        .eq("id", booking.vehicle_id)
+        .maybeSingle();
+      const ceilingDollars = Math.max(
+        Number(vehicleRates?.current_rate ?? 0),
+        Number(vehicleRates?.rate_multiday ?? 0),
+      );
+      const ceilingCents = Math.round(ceilingDollars * 100);
+      if (ceilingCents > 0 && Number(rate_cents_per_day) > ceilingCents) {
+        return json(
+          {
+            error: "rate_cents_per_day exceeds the vehicle's stored rate",
+            max_rate_cents_per_day: ceilingCents,
+          },
+          400,
+        );
+      }
+    }
+
 
     const prevEnd = new Date(booking.end_date);
     const newEnd = new Date(new_end_date);
@@ -288,9 +333,14 @@ serve(async (req) => {
         .eq("id", booking.id);
       if (updErr) throw new Error(`Booking update failed: ${updErr.message}`);
       if (paymentRows.length > 0) {
-        await db.from("payments").insert(paymentRows as never);
+        // Must NOT be swallowed: a silent failure here means the renter was
+        // charged with nothing recorded. Throwing lets the caller refund.
+        const { error: payErr } = await db.from("payments").insert(paymentRows as never);
+        if (payErr) throw new Error(`Payment ledger insert failed: ${payErr.message}`);
       }
     };
+
+
 
     const markFailed = async (reason: string, extras: Record<string, unknown> = {}) => {
       await db
@@ -364,7 +414,22 @@ serve(async (req) => {
         );
       }
 
-      const idempotencyEnvelope = `${booking.id}-${prevEnd.toISOString()}-${newEnd.toISOString()}`;
+      // SHA-256 over the full economic envelope: booking, both dates AND every
+      // charged amount. Hashing keeps the key inside Stripe's length limit and,
+      // critically, makes a retry with different money produce a different key
+      // instead of silently replaying the earlier intent.
+      const idempotencyEnvelope = await sha256Hex(
+        [
+          booking.id,
+          prevEnd.toISOString(),
+          newEnd.toISOString(),
+          addedSubtotalCents,
+          addedPlatformFeeCents,
+          addedStateFeeCents,
+          addedProcessingFeeCents,
+          addedProtectionCents,
+        ].join("|"),
+      );
 
       // -------- OPERATOR LEG (destination charge on platform) --------
       let operatorPi: Stripe.PaymentIntent;
@@ -498,28 +563,36 @@ serve(async (req) => {
 
 
       // -------- BOTH LEGS OK — bump booking + record payments --------
+      // Column set must match public.payments: user_id and payment_type are
+      // NOT NULL, and the timestamp column is transaction_date (no paid_at).
+      const ledgerOwnerId = (booking.user_id as string | null) ?? user.id;
+      const chargedAt = new Date().toISOString();
       const paymentRows: Array<Record<string, unknown>> = [
         {
           booking_id: booking.id,
           team_id: booking.team_id,
+          user_id: ledgerOwnerId,
+          payment_type: "extension_rental",
           amount: addedSubtotalCents / 100,
           payment_method: "stripe",
           payment_status: "completed",
           stripe_payment_intent_id: operatorPi.id,
           notes: `Booking extension rental (+${addedDays} day${addedDays === 1 ? "" : "s"})`,
-          paid_at: new Date().toISOString(),
+          transaction_date: chargedAt,
         },
       ];
       if (exotiqPi) {
         paymentRows.push({
           booking_id: booking.id,
           team_id: booking.team_id,
+          user_id: ledgerOwnerId,
+          payment_type: "extension_fees",
           amount: addedExotiqLegCents / 100,
           payment_method: "stripe",
           payment_status: "completed",
           stripe_payment_intent_id: exotiqPi.id,
           notes: `Booking extension fees (state + platform + processing)`,
-          paid_at: new Date().toISOString(),
+          transaction_date: chargedAt,
         });
       }
 

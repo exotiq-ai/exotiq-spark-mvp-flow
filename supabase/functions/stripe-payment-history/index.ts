@@ -75,39 +75,47 @@ serve(async (req) => {
     }> = [];
     let hasMore = false;
 
-    try {
-      const params: Stripe.PaymentIntentListParams = {
-        limit: Math.min(limit, 100),
-      };
-      if (starting_after) params.starting_after = starting_after;
-
-      const stripeOpts = stripeAccountId ? { stripeAccount: stripeAccountId } : undefined;
-
-      const paymentIntents = await stripe.paymentIntents.list(params, stripeOpts);
-      const charges = await stripe.charges.list({ limit: Math.min(limit, 100) }, stripeOpts);
-      hasMore = paymentIntents.has_more;
-
-      payments = paymentIntents.data.map((pi) => {
-        const relatedCharge = charges.data.find(c => c.payment_intent === pi.id);
-        return {
-          id: pi.id,
-          amount: pi.amount / 100,
-          currency: pi.currency.toUpperCase(),
-          status: pi.status,
-          created: new Date(pi.created * 1000).toISOString(),
-          description: pi.description || relatedCharge?.description || "Payment",
-          customer_email: relatedCharge?.billing_details?.email || null,
-          customer_name: relatedCharge?.billing_details?.name || null,
-          payment_method: relatedCharge?.payment_method_details?.type || "card",
-          receipt_url: relatedCharge?.receipt_url || null,
-          metadata: pi.metadata || {},
+    if (!stripeAccountId) {
+      // No connected account for this team in the current Stripe mode. Never
+      // list the platform account's payment intents here — that would leak
+      // other tenants' charges and their customers' PII.
+      logStep("No connected account for team — skipping Stripe fetch", { teamId });
+    } else {
+      try {
+        const params: Stripe.PaymentIntentListParams = {
+          limit: Math.min(limit, 100),
         };
-      });
+        if (starting_after) params.starting_after = starting_after;
 
-      logStep("Fetched Stripe payments", { count: payments.length, connected: !!stripeAccountId });
-    } catch (stripeErr) {
-      logStep("Stripe API error, using local only", { error: stripeErr instanceof Error ? stripeErr.message : String(stripeErr) });
+        const stripeOpts = { stripeAccount: stripeAccountId };
+
+        const paymentIntents = await stripe.paymentIntents.list(params, stripeOpts);
+        const charges = await stripe.charges.list({ limit: Math.min(limit, 100) }, stripeOpts);
+        hasMore = paymentIntents.has_more;
+
+        payments = paymentIntents.data.map((pi) => {
+          const relatedCharge = charges.data.find(c => c.payment_intent === pi.id);
+          return {
+            id: pi.id,
+            amount: pi.amount / 100,
+            currency: pi.currency.toUpperCase(),
+            status: pi.status,
+            created: new Date(pi.created * 1000).toISOString(),
+            description: pi.description || relatedCharge?.description || "Payment",
+            customer_email: relatedCharge?.billing_details?.email || null,
+            customer_name: relatedCharge?.billing_details?.name || null,
+            payment_method: relatedCharge?.payment_method_details?.type || "card",
+            receipt_url: relatedCharge?.receipt_url || null,
+            metadata: pi.metadata || {},
+          };
+        });
+
+        logStep("Fetched Stripe payments", { count: payments.length, connected: true });
+      } catch (stripeErr) {
+        logStep("Stripe API error, using local only", { error: stripeErr instanceof Error ? stripeErr.message : String(stripeErr) });
+      }
     }
+
 
     // Local payments
     const { data: localPayments } = await supabaseClient

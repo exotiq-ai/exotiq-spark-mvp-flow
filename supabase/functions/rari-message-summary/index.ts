@@ -1,9 +1,10 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { requireServiceOrUser } from '../_shared/serviceAuth.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-cron-token',
 };
 
 serve(async (req) => {
@@ -11,12 +12,26 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
-  try {
-    const { conversationId, userId } = await req.json();
+  // Service-role function: authenticated callers only.
+  const auth = await requireServiceOrUser(req);
+  if (!auth.ok) return auth.response(corsHeaders);
 
-    if (!conversationId || !userId) {
+  try {
+    const { conversationId, userId: requestedUserId } = await req.json();
+
+    if (!conversationId || !requestedUserId) {
       throw new Error('Missing required parameters: conversationId and userId');
     }
+
+    // A user JWT may only summarize its own conversation.
+    if (auth.userId && auth.userId !== requestedUserId) {
+      return new Response(JSON.stringify({ error: 'Forbidden' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    const userId = requestedUserId;
+
 
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
