@@ -62,17 +62,25 @@ This should be item 1, ahead of the webhook topology work.
    (`x-cron-token` OR valid JWT) to all six; delete the `slack-notify` relay branch.
 4. **`sk_test_` guard** on `admin-stripe-account-link` and
    `admin-stripe-verify-person`, matching `admin-stripe-webhook-manager:27`.
-5. **Preflight topology** — split the spec into a connect endpoint
-   (`account.updated`, `account.application.deauthorized`, `payout.paid`,
-   `charge.refunded`, `charge.dispute.created`, `charge.captured`,
-   `charge.succeeded`, `payment_intent.amount_capturable_updated`,
-   secret `STRIPE_CONNECT_WEBHOOK_SECRET`) and a platform endpoint
-   (`customer.subscription.updated/deleted`, `invoice.payment_failed`,
-   `charge.refunded`, `charge.dispute.created`, secret `STRIPE_WEBHOOK_SECRET`),
-   add `api_version=2025-08-27.basil` to `--apply` creates, and add the two
-   identity events. Update `docs/payments/STRIPE_LIVE_CUTOVER_RUNBOOK.md` and
+5. **Preflight topology** — split the spec into two endpoints on `/stripe-webhook`:
+   - **Connect** (`connect:true`, secret `STRIPE_CONNECT_WEBHOOK_SECRET`):
+     `account.updated`, `account.application.deauthorized`, `payout.paid`,
+     `charge.refunded`, `charge.dispute.created`, `charge.captured`,
+     `charge.succeeded`, `payment_intent.amount_capturable_updated`,
+     `checkout.session.completed`, `payment_intent.succeeded`.
+   - **Platform** (`connect:false`, secret `STRIPE_WEBHOOK_SECRET`):
+     `customer.subscription.updated`, `customer.subscription.deleted`,
+     `invoice.payment_failed`, `charge.refunded`, `charge.dispute.created`.
+
+   The preflight's endpoint matcher keys on URL alone (`:155`), so it also needs
+   to match on `url + connect` or it will treat the two as one. Add
+   `api_version=2025-08-27.basil` to `--apply` creates, and add
+   `identity.verification_session.processing` + `.redacted` to the identity spec.
+   Update `docs/payments/STRIPE_LIVE_CUTOVER_RUNBOOK.md` and
    `HANDOFF_CLAUDE_STRIPE_LIVE.md` to the two-endpoint topology and the canonical
-   secret names.
+   secret names (its current "never put checkout.session.completed on
+   stripe-webhook" rule is now wrong and must be rewritten to scope that
+   exclusion to renter legs, which the metadata guard enforces in code).
 
 ### Same day, after
 6. Origin allowlist + `^/[^/]` path validation in `create-checkout-session`.
@@ -85,13 +93,13 @@ This should be item 1, ahead of the webhook topology work.
 - Deno type-check on every touched function; `bunx vitest run` full suite.
 - Seeded extension with card-on-file → two `payments` rows written, and a forced
   insert failure rolls back both Stripe legs.
+- A tenant payment through `RecordPaymentDialog` → exactly one `payments` row
+  even when the event lands on both consumers; `stripe_webhook_events` shows the
+  `legacy_connect` row and no duplicate-key error.
+- Renter marketplace booking → `stripe-webhook` logs the "owned by
+  rent-payment-webhook, skipping" line and writes no payment row.
 - `stripe-get-balance` / `stripe-payment-history` for a team with no connected
   account → `connected: false`, empty arrays, no platform figures.
 - Preflight dry-run against live reports both endpoints with correct event sets.
 
-## Open question
-
-Item 1 as written would have put renter payment events on a second endpoint. I am
-excluding that. If the intent was to cover **direct** charges on connected
-accounts (a future non-destination flow), say so and I will add them behind a
 shared dedupe consumer key instead.
