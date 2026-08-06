@@ -1,31 +1,29 @@
 # Stripe live-cutover work order — verified review + revised plan
 
-I checked each item against current `main`. Seven of nine hold up. One is already
-done, and one part of item 1 would actively break money processing if shipped.
+I checked each item against current `main`. Eight of nine hold up as written; one
+(1a) is already done in code and reduces to a preflight/docs fix.
 
-## Where Claude is wrong
+## Adjustments after review
 
 **1a. "The webhook verifies against one secret" — already fixed.**
 `stripe-webhook/index.ts:31-68` already builds a candidate list from
 `STRIPE_WEBHOOK_SECRET` (consumer `legacy`) *and* `STRIPE_CONNECT_WEBHOOK_SECRET`
 (consumer `legacy_connect`) and tries both before rejecting. Dual-secret support
-and the per-consumer dedupe key both landed. No code change needed here — the
-real gap is that `scripts/stripe/live-preflight.ts:41-56` still declares a
-*single* endpoint (`connect:true`, secret name `STRIPE_WEBHOOK_SECRET`), so
-`--apply` would create one endpoint and print its secret under the platform name.
-That is a docs/preflight fix, not a handler rewrite.
+and the per-consumer dedupe key both landed. No handler change — the real gap is
+that `scripts/stripe/live-preflight.ts:41-56` still declares a *single* endpoint
+(`connect:true`, secret name `STRIPE_WEBHOOK_SECRET`), so `--apply` would create
+one endpoint and print its secret under the platform name.
 
-**1b. Adding `checkout.session.completed`, `payment_intent.succeeded` to the
-connect endpoint is a regression — do not do it.**
-Those three events are deliberately routed to `rent-payment-webhook` only. The
-`(consumer, stripe_event_id)` dedupe is per-consumer, so the same event arriving
-at `stripe-webhook` under a different consumer key would be processed a *second
-time* — double payment rows, double fee expense rows. Renter charges are
-destination charges created on the platform account, so they surface as platform
-events anyway; a connect endpoint would not add coverage. Keep the split as-is.
-`charge.captured` / `charge.succeeded` / `payment_intent.amount_capturable_updated`
-handlers exist in `stripe-webhook` and are safe to list on the **connect**
-endpoint only (deposit/manual-capture legs on connected accounts).
+**1b. `checkout.session.completed` + `payment_intent.succeeded` stay on the
+connect endpoint — confirmed; my earlier objection was wrong.**
+Verified: `create-payment-checkout` is in active use — `RecordPaymentDialog.tsx:247`
+invokes it, and it mints the session on the tenant's connected account, so its
+`checkout.session.completed` is a connected-account event and `stripe-webhook` is
+the only recorder. Double-processing of renter legs cannot occur: the
+`isRenterMoneyObject`/`RENTER_LEGS` guard bails at `:185-191` and `:249-255`
+before the tenant branch, and both branches carry `alreadyRecorded` idempotency
+checks. This is a **hard requirement before the flip**, not a nice-to-have.
+
 
 **5 is worse than described, and it is broken today, not only in live.** Confirmed
 against the live schema: `payments.user_id` and `payments.payment_type` are both
