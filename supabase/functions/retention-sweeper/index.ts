@@ -124,7 +124,12 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  // Service-role function: cron token or an authenticated user only.
+  const auth = await requireServiceOrUser(req);
+  if (!auth.ok) return auth.response(corsHeaders);
+
   const db = await admin();
+
 
   // deno-lint-ignore no-explicit-any
   const { data: policies, error } = await (db.from("retention_policies") as any)

@@ -119,6 +119,11 @@ function baseVariables(
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  // Scheduler-only: must present the shared cron token.
+  const auth = requireCronToken(req);
+  if (!auth.ok) return auth.response(corsHeaders);
+
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
   try {
