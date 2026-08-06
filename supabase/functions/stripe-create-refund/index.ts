@@ -123,8 +123,39 @@ serve(async (req) => {
     };
 
     if (amount && amount > 0) {
-      refundParams.amount = Math.round(amount * 100);
+      // Clamp to what is actually still refundable on the intent. Without this
+      // a caller can request an arbitrary amount and Stripe errors out (or, on
+      // partially-refunded intents, the UI silently over-reports).
+      const pi = await stripe.paymentIntents.retrieve(
+        payment_intent_id,
+        { expand: ["latest_charge"] },
+        { stripeAccount: stripeAccountId },
+      );
+      const charge = pi.latest_charge as Stripe.Charge | null;
+      const capturedCents = charge?.amount_captured ?? pi.amount_received ?? 0;
+      const alreadyRefundedCents = charge?.amount_refunded ?? 0;
+      const refundableCents = Math.max(0, capturedCents - alreadyRefundedCents);
+
+      if (refundableCents === 0) {
+        return new Response(
+          JSON.stringify({ error: "This payment has already been fully refunded" }),
+          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
+      const requestedCents = Math.round(amount * 100);
+      if (requestedCents > refundableCents) {
+        return new Response(
+          JSON.stringify({
+            error: "Refund amount exceeds the remaining refundable balance",
+            max_refundable: refundableCents / 100,
+          }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      refundParams.amount = requestedCents;
     }
+
 
     // Map custom reasons to Stripe-valid reasons
     const stripeReason = reason === "damage_deduction" ? "requested_by_customer" : reason;
