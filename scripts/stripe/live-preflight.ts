@@ -166,12 +166,15 @@ async function main() {
   const { body: eps } = await stripe("webhook_endpoints?limit=100");
   const existing: any[] = eps.data ?? [];
   for (const want of REQUIRED_ENDPOINTS) {
-    const found = existing.find((e) => e.url === want.url && e.status === "enabled");
+    // Two endpoints share the /stripe-webhook URL (platform + Connect), so
+    // the connect flag is part of the identity, not an after-the-fact check.
+    const found = existing.find(
+      (e) => e.url === want.url && e.status === "enabled" && Boolean(e.connect) === want.connect,
+    );
     if (found) {
       const missing = want.events.filter((ev) => !(found.enabled_events ?? []).includes(ev) && !(found.enabled_events ?? []).includes("*"));
       if (missing.length) bad(`${want.name}: endpoint exists but missing events → ${missing.join(", ")}`);
       else ok(`${want.name}: ${found.id}`);
-      if (want.connect && !found.connect) bad(`${want.name}: endpoint is NOT listening on connected accounts`);
       warn(`${want.name}: signing secret not readable after creation — if ${want.secretName} is unset, delete + recreate with --apply`);
       continue;
     }
