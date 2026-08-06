@@ -134,13 +134,13 @@ serve(async (req) => {
     const { data: roleRows } = await db
       .from("user_roles")
       .select("role")
-      .eq("user_id", user.id)
-      .eq("team_id", booking.team_id);
+      .eq("user_id", user.id);
     const allowedRoles = new Set(["owner", "admin", "manager"]);
     const hasRole = (roleRows ?? []).some((r: { role: string }) => allowedRoles.has(r.role));
     if (!hasRole) {
       return json({ error: "Extensions require manager access or above" }, 403);
     }
+
 
     // Clamp the caller-supplied rate to the vehicle's stored rate. A tampered
     // client must not be able to charge a card on file above the listed rate.
