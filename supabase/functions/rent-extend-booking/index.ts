@@ -330,6 +330,9 @@ serve(async (req) => {
         const { error: payErr } = await db.from("payments").insert(paymentRows as never);
         if (payErr) throw new Error(`Payment ledger insert failed: ${payErr.message}`);
       }
+    };
+
+
 
     const markFailed = async (reason: string, extras: Record<string, unknown> = {}) => {
       await db
