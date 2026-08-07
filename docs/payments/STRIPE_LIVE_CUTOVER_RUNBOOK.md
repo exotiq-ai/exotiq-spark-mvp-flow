@@ -114,9 +114,11 @@ intentional — use the script above. `admin-stripe-account-link` and
 Do these back to back:
 
 1. `STRIPE_SECRET_KEY` → `sk_live_…`
-2. `STRIPE_WEBHOOK_SECRET` → live signing secret from step 2
-3. `RENT_PAYMENT_WEBHOOK_SECRET` → live signing secret from step 2
-4. `STRIPE_IDENTITY_WEBHOOK_SECRET` → live signing secret from step 2
+2. `STRIPE_WEBHOOK_SECRET` → live **platform** `/stripe-webhook` secret (step 2)
+3. `STRIPE_CONNECT_WEBHOOK_SECRET` → live **Connect** `/stripe-webhook` secret
+4. `RENT_PAYMENT_WEBHOOK_SECRET` → live signing secret from step 2
+5. `STRIPE_IDENTITY_WEBHOOK_SECRET` → live signing secret from step 2
+
 5. If `STRIPE_IDENTITY_SECRET_KEY` is set separately, swap it too
 6. Redeploy the Stripe-touching edge functions so they pick up the new env
 
@@ -145,7 +147,7 @@ New tenants follow `STRIPE_CONNECT_ONBOARDING_SOP.md` unchanged.
    hold → checkout → `rent-payment-webhook` marks paid → confirmation email →
    `rent-refund-booking` returns the money. Verify the 10% Exotiq application
    fee landed on the platform and the operator leg on `acct_1TvnfgQfNJmCrgjR`.
-4. Confirm all three live endpoints show recent **200** deliveries and
+4. Confirm all four live endpoints show recent **200** deliveries and
    `stripe_webhook_events` has rows per consumer with no duplicate-key errors.
 5. Delete the sandbox-only helpers once confident: `admin-create-test-connect`,
    `admin-stripe-webhook-manager`.
