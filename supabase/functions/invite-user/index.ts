@@ -18,6 +18,7 @@ interface InviteRequest {
 
 // Role hierarchy - higher number = more permissions
 const roleHierarchy: Record<string, number> = {
+  owner: 5,
   admin: 4,
   manager: 3,
   operator: 2,
