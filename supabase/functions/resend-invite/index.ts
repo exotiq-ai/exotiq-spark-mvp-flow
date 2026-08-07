@@ -49,15 +49,18 @@ serve(async (req: Request) => {
     // Create admin client for operations
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Check if user is admin using the has_role function
-    const { data: isAdmin, error: roleError } = await supabaseAdmin.rpc("has_role", {
-      _user_id: user.id,
-      _role: "admin",
-    });
+    // Check the caller holds an owner/admin/manager role
+    const { data: callerRoles, error: roleError } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id);
 
-    if (roleError || !isAdmin) {
+    const allowed = ["owner", "admin", "manager"];
+    const canResend = (callerRoles || []).some((r: { role: string }) => allowed.includes(r.role));
+
+    if (roleError || !canResend) {
       console.error("Role check failed:", roleError);
-      throw new Error("Only admins can resend invitations");
+      throw new Error("Only owners, admins and managers can resend invitations");
     }
 
     const { invitationId }: ResendRequest = await req.json();
@@ -78,6 +81,19 @@ serve(async (req: Request) => {
     if (fetchError || !invitation) {
       console.error("Failed to fetch invitation:", fetchError);
       throw new Error("Invitation not found");
+    }
+
+    // Tenant isolation: caller must belong to the invitation's team
+    const { data: membership } = await supabaseAdmin
+      .from("team_members")
+      .select("team_id")
+      .eq("user_id", user.id)
+      .eq("team_id", invitation.team_id)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (!membership) {
+      throw new Error("You cannot resend invitations for another team");
     }
 
     if (invitation.status !== "pending") {
