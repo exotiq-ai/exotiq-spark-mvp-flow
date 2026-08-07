@@ -198,9 +198,11 @@ async function main() {
         url: want.url,
         enabled_events: [...want.events],
         ...(want.connect ? { connect: true } : {}),
+        api_version: "2025-08-27.basil",
         description: `Exotiq ${want.name} (live)`,
       }),
     });
+
     if (created.error) bad(`${want.name}: create failed — ${created.error.message}`);
     else {
       ok(`${want.name}: created ${created.id}`);
