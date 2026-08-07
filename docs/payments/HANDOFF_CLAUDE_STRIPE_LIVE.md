@@ -44,24 +44,31 @@ Report every PASS/FAIL verbatim. Do not fix anything yet.
 STRIPE_LIVE_KEY=sk_live_xxx bun scripts/stripe/live-preflight.ts --apply
 ```
 
-Capture the three printed signing secrets and hand them back to the operator
+Capture the four printed signing secrets and hand them back to the operator
 through a secure channel (password manager, not chat, not a repo file). They
 are shown once.
 
 Requirements that must hold:
-- `/functions/v1/stripe-webhook` must have `connect: true` (listens on
-  connected accounts).
-- `checkout.session.completed`, `payment_intent.succeeded`,
-  `payment_intent.payment_failed` must be on `rent-payment-webhook` **only**,
-  never on `stripe-webhook`. The `(consumer, stripe_event_id)` dedupe design
-  depends on that split.
+- `/functions/v1/stripe-webhook` has **two** endpoints: one with
+  `connect: false` (secret `STRIPE_WEBHOOK_SECRET`) for SaaS subscriptions and
+  platform-account refunds/disputes, and one with `connect: true` (secret
+  `STRIPE_CONNECT_WEBHOOK_SECRET`) for connected-account lifecycle and every
+  tenant money leg. The handler verifies against either secret and dedupes on
+  `(consumer, stripe_event_id)` — `legacy` vs `legacy_connect`.
+- `checkout.session.completed` and `payment_intent.succeeded` belong on the
+  **Connect** endpoint (tenant payments are minted on the connected account by
+  `create-payment-checkout`) and on `rent-payment-webhook`. Renter legs stay
+  owned by `rent-payment-webhook` only — `stripe-webhook` enforces that in code
+  through its `isRenterMoneyObject` metadata guard, so the two do not collide.
+- All `--apply` creates pin `api_version=2025-08-27.basil`.
 
 ### Task 4 — Report
 
 Produce a short report with: live account ID, the four price IDs actually in
-use, the three endpoint IDs, and a checklist of anything a human still has to
+use, the four endpoint IDs, and a checklist of anything a human still has to
 do. Do not swap any project secrets yourself — the operator does that in the
 Lovable secret form.
+
 
 ### Hard rules
 
