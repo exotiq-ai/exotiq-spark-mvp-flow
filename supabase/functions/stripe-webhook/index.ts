@@ -365,14 +365,28 @@ serve(async (req) => {
             .single();
 
           if (payment) {
-            await supabaseClient.from("notifications").insert({
-              user_id: payment.user_id,
-              type: "payment",
-              title: "Payment Dispute",
-              message: `A payment dispute has been filed for $${(dispute.amount / 100).toFixed(2)}`,
-              data: { dispute_id: dispute.id, booking_id: payment.booking_id },
-            });
+            // charge.dispute.created is enabled on both the platform and the
+            // Connect endpoint, so key the notification on the dispute id
+            // rather than the event id to stay single-write.
+            const { data: existing } = await supabaseClient
+              .from("notifications")
+              .select("id")
+              .eq("type", "payment")
+              .contains("data", { dispute_id: dispute.id })
+              .limit(1)
+              .maybeSingle();
+
+            if (!existing) {
+              await supabaseClient.from("notifications").insert({
+                user_id: payment.user_id,
+                type: "payment",
+                title: "Payment Dispute",
+                message: `A payment dispute has been filed for $${(dispute.amount / 100).toFixed(2)}`,
+                data: { dispute_id: dispute.id, booking_id: payment.booking_id },
+              });
+            }
           }
+
         }
         break;
       }
@@ -540,7 +554,8 @@ async function logStripeProcessingFee(
     if (feeCents <= 0) return;
 
     // Stable uuid for idempotency
-    const chargeUuid = chargeIdToUuid(charge.id);
+    const chargeUuid = await chargeIdToUuid(charge.id);
+
 
     const { data: booking } = await supabase
       .from("bookings")
@@ -576,19 +591,15 @@ async function logStripeProcessingFee(
   }
 }
 
-// Deterministic UUID v5-ish from a charge id (namespace-stable via SHA-1)
-function chargeIdToUuid(chargeId: string): string {
-  // Simple deterministic mapping using DJB2 hash repeated — good enough for unique-on-charge.
-  // Use Web Crypto in Deno for SHA-1 in real prod; this is sync and avoids async in hot path.
-  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
-  for (let i = 0; i < chargeId.length; i++) {
-    const ch = chargeId.charCodeAt(i);
-    h1 = Math.imul(h1 ^ ch, 2654435761);
-    h2 = Math.imul(h2 ^ ch, 1597334677);
-  }
-  const a = (h1 >>> 0).toString(16).padStart(8, "0");
-  const b = (h2 >>> 0).toString(16).padStart(8, "0");
-  const c = (Math.imul(h1, 3266489917) >>> 0).toString(16).padStart(8, "0");
-  // RFC4122 v5-like layout
-  return `${a}-${b.slice(0, 4)}-5${b.slice(4, 7)}-a${c.slice(0, 3)}-${c.slice(3, 8)}${a.slice(0, 4)}`;
+// Deterministic UUID (v5-style layout) from a charge id, using SHA-256 via Web Crypto.
+async function chargeIdToUuid(chargeId: string): Promise<string> {
+  const data = new TextEncoder().encode(`stripe_charge:${chargeId}`);
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", data));
+  const b = digest.slice(0, 16);
+  // RFC4122 layout: version 5, variant 10xx
+  b[6] = (b[6] & 0x0f) | 0x50;
+  b[8] = (b[8] & 0x3f) | 0x80;
+  const hex = Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
+

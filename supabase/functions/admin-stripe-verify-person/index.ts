@@ -19,9 +19,15 @@ const json = (body: unknown, status = 200) =>
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
+    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY") ?? "";
+    if (!stripeKey.startsWith("sk_test_")) {
+      return json({ error: "STRIPE_SECRET_KEY is not sk_test_ — refusing" }, 400);
+    }
+
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) return json({ error: "unauthorized" }, 401);
     const jwt = authHeader.replace("Bearer ", "");
+
 
     const anonClient = createClient(
       Deno.env.get("SUPABASE_URL")!,

@@ -15,7 +15,7 @@ Stripe-side objects, and verification.
 
 ## What breaks if you do this out of order
 
-Between swapping `STRIPE_SECRET_KEY` and swapping the three webhook signing
+Between swapping `STRIPE_SECRET_KEY` and swapping the four webhook signing
 secrets, every incoming webhook fails signature verification and returns 400.
 Stripe retries, so nothing is permanently lost, but do steps 3.1–3.4 back to
 back within a few minutes.
@@ -50,8 +50,9 @@ It checks, against live:
 - an active Billing customer-portal configuration exists (`customer-portal`
   fails without one)
 - Connect is reachable
-- the three required webhook endpoints exist with the right events, and that
-  the operator endpoint listens on **connected accounts**
+- the four required webhook endpoints exist with the right events (two of them
+  share the `/stripe-webhook` URL and are matched on the `connect` flag)
+
 
 Anything reported FAIL must be fixed before step 3.
 
@@ -81,29 +82,43 @@ STRIPE_LIVE_KEY=sk_live_xxx bun scripts/stripe/live-preflight.ts --apply
 It creates whatever is missing and prints each signing secret **once**. Copy
 them somewhere safe for step 3; Stripe will not show them again via the API.
 
-Endpoints created (same URLs as sandbox):
+Endpoints created (same URLs as sandbox — note that `/stripe-webhook` carries
+**two** endpoints, one platform and one Connect, each with its own signing
+secret; the handler verifies against either):
 
 | URL | Events | Secret |
 |---|---|---|
-| `/functions/v1/stripe-webhook` | `account.updated`, `account.application.deauthorized`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_failed`, `charge.refunded`, `charge.dispute.created`, `payout.paid` — **connect: true** | `STRIPE_WEBHOOK_SECRET` |
+| `/functions/v1/stripe-webhook` — **connect: false** | `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_failed`, `charge.refunded`, `charge.dispute.created` | `STRIPE_WEBHOOK_SECRET` |
+| `/functions/v1/stripe-webhook` — **connect: true** | `account.updated`, `account.application.deauthorized`, `payout.paid`, `charge.refunded`, `charge.dispute.created`, `charge.captured`, `charge.succeeded`, `payment_intent.amount_capturable_updated`, `checkout.session.completed`, `payment_intent.succeeded` | `STRIPE_CONNECT_WEBHOOK_SECRET` |
 | `/functions/v1/rent-payment-webhook` | `checkout.session.completed`, `payment_intent.succeeded`, `payment_intent.payment_failed` | `RENT_PAYMENT_WEBHOOK_SECRET` |
-| `/functions/v1/identity-webhook` | `identity.verification_session.*` | `STRIPE_IDENTITY_WEBHOOK_SECRET` |
+| `/functions/v1/identity-webhook` | `identity.verification_session.verified`, `.requires_input`, `.processing`, `.redacted`, `.canceled` | `STRIPE_IDENTITY_WEBHOOK_SECRET` |
 
-Checkout / payment_intent events stay **off** the operator endpoint. That
-separation is what the `(consumer, stripe_event_id)` dedupe work depends on.
+Why `checkout.session.completed` and `payment_intent.succeeded` sit on the
+Connect endpoint: `create-payment-checkout` mints tenant payment sessions **on
+the connected account**, so those events only ever arrive over Connect, and
+`stripe-webhook` is the only recorder for them. The earlier rule "never put
+`checkout.session.completed` on `stripe-webhook`" applies to **renter legs
+only** — those are owned by `rent-payment-webhook`, and `stripe-webhook`
+enforces the exclusion in code via its `isRenterMoneyObject` metadata guard.
+Dedupe stays correct because the key is `(consumer, stripe_event_id)`, with
+`legacy` for the platform secret and `legacy_connect` for the Connect secret.
 
 Note: `admin-stripe-webhook-manager` refuses to run unless the key is
 `sk_test_`, so it cannot be used for the live endpoints. That guard is
-intentional — use the script above.
+intentional — use the script above. `admin-stripe-account-link` and
+`admin-stripe-verify-person` carry the same `sk_test_` refusal.
+
 
 ## Step 3 — Swap the secrets (short window)
 
 Do these back to back:
 
 1. `STRIPE_SECRET_KEY` → `sk_live_…`
-2. `STRIPE_WEBHOOK_SECRET` → live signing secret from step 2
-3. `RENT_PAYMENT_WEBHOOK_SECRET` → live signing secret from step 2
-4. `STRIPE_IDENTITY_WEBHOOK_SECRET` → live signing secret from step 2
+2. `STRIPE_WEBHOOK_SECRET` → live **platform** `/stripe-webhook` secret (step 2)
+3. `STRIPE_CONNECT_WEBHOOK_SECRET` → live **Connect** `/stripe-webhook` secret
+4. `RENT_PAYMENT_WEBHOOK_SECRET` → live signing secret from step 2
+5. `STRIPE_IDENTITY_WEBHOOK_SECRET` → live signing secret from step 2
+
 5. If `STRIPE_IDENTITY_SECRET_KEY` is set separately, swap it too
 6. Redeploy the Stripe-touching edge functions so they pick up the new env
 
@@ -132,7 +147,7 @@ New tenants follow `STRIPE_CONNECT_ONBOARDING_SOP.md` unchanged.
    hold → checkout → `rent-payment-webhook` marks paid → confirmation email →
    `rent-refund-booking` returns the money. Verify the 10% Exotiq application
    fee landed on the platform and the operator leg on `acct_1TvnfgQfNJmCrgjR`.
-4. Confirm all three live endpoints show recent **200** deliveries and
+4. Confirm all four live endpoints show recent **200** deliveries and
    `stripe_webhook_events` has rows per consumer with no duplicate-key errors.
 5. Delete the sandbox-only helpers once confident: `admin-create-test-connect`,
    `admin-stripe-webhook-manager`.
