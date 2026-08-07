@@ -121,7 +121,7 @@ serve(async (req: Request) => {
       .select("id")
       .eq("email", email)
       .eq("status", "pending")
-      .single();
+      .maybeSingle();
 
     if (existingInvite) {
       throw new Error("An invitation is already pending for this email");
@@ -132,7 +132,7 @@ serve(async (req: Request) => {
       .from("profiles")
       .select("id")
       .eq("email", email)
-      .single();
+      .maybeSingle();
 
     if (existingUser) {
       throw new Error("A user with this email already exists");
