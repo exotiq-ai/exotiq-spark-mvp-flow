@@ -365,14 +365,28 @@ serve(async (req) => {
             .single();
 
           if (payment) {
-            await supabaseClient.from("notifications").insert({
-              user_id: payment.user_id,
-              type: "payment",
-              title: "Payment Dispute",
-              message: `A payment dispute has been filed for $${(dispute.amount / 100).toFixed(2)}`,
-              data: { dispute_id: dispute.id, booking_id: payment.booking_id },
-            });
+            // charge.dispute.created is enabled on both the platform and the
+            // Connect endpoint, so key the notification on the dispute id
+            // rather than the event id to stay single-write.
+            const { data: existing } = await supabaseClient
+              .from("notifications")
+              .select("id")
+              .eq("type", "payment")
+              .contains("data", { dispute_id: dispute.id })
+              .limit(1)
+              .maybeSingle();
+
+            if (!existing) {
+              await supabaseClient.from("notifications").insert({
+                user_id: payment.user_id,
+                type: "payment",
+                title: "Payment Dispute",
+                message: `A payment dispute has been filed for $${(dispute.amount / 100).toFixed(2)}`,
+                data: { dispute_id: dispute.id, booking_id: payment.booking_id },
+              });
+            }
           }
+
         }
         break;
       }
