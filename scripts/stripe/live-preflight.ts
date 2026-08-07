@@ -39,31 +39,38 @@ const REQUIRED_ENDPOINTS: Array<{
   secretName: string;
 }> = [
   {
-    // Platform-account endpoint: SaaS subscriptions + tenant-initiated
-    // checkout on the platform. Same URL as the Connect endpoint below —
-    // the handler verifies against either signing secret.
-    name: "platform / subscriptions + tenant payments",
+    // Platform-account endpoint: SaaS subscriptions + platform-account money
+    // events (renter destination charges settle on the platform). Same URL as
+    // the Connect endpoint below — the handler verifies against either secret.
+    name: "platform / subscriptions",
     url: `${FUNCTIONS_BASE}/stripe-webhook`,
     events: [
       "customer.subscription.updated",
       "customer.subscription.deleted",
       "invoice.payment_failed",
-      "checkout.session.completed",
-      "payment_intent.succeeded",
+      "charge.refunded",
+      "charge.dispute.created",
     ],
     connect: false,
     secretName: "STRIPE_WEBHOOK_SECRET",
   },
   {
-    // Connect endpoint: connected-account lifecycle and money events.
-    name: "connect / operator accounts",
+    // Connect endpoint: connected-account lifecycle plus every tenant money
+    // leg. create-payment-checkout mints on the connected account, so its
+    // checkout.session.completed / payment_intent.succeeded arrive here.
+    name: "connect / operator accounts + tenant payments",
     url: `${FUNCTIONS_BASE}/stripe-webhook`,
     events: [
       "account.updated",
       "account.application.deauthorized",
+      "payout.paid",
       "charge.refunded",
       "charge.dispute.created",
-      "payout.paid",
+      "charge.captured",
+      "charge.succeeded",
+      "payment_intent.amount_capturable_updated",
+      "checkout.session.completed",
+      "payment_intent.succeeded",
     ],
     connect: true,
     secretName: "STRIPE_CONNECT_WEBHOOK_SECRET",
@@ -85,11 +92,14 @@ const REQUIRED_ENDPOINTS: Array<{
     events: [
       "identity.verification_session.verified",
       "identity.verification_session.requires_input",
+      "identity.verification_session.processing",
+      "identity.verification_session.redacted",
       "identity.verification_session.canceled",
     ],
     connect: false,
     secretName: "STRIPE_IDENTITY_WEBHOOK_SECRET",
   },
+
 ];
 
 let failures = 0;
