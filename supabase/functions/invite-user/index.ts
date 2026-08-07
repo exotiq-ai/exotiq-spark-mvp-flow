@@ -56,36 +56,42 @@ serve(async (req: Request) => {
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
     // Get inviter's role
-    const { data: inviterRole, error: roleError } = await supabaseAdmin
+    const { data: inviterRoles, error: roleError } = await supabaseAdmin
       .from("user_roles")
       .select("role")
-      .eq("user_id", user.id)
-      .single();
+      .eq("user_id", user.id);
 
-    if (roleError || !inviterRole) {
+    if (roleError || !inviterRoles || inviterRoles.length === 0) {
       console.error("Role check failed:", roleError);
       throw new Error("You don't have permission to invite users");
     }
 
-    const inviterRoleLevel = roleHierarchy[inviterRole.role] || 0;
-    
-    // Only admins and managers can invite users
+    // Use the highest role the inviter holds
+    const inviterRoleName = inviterRoles
+      .map((r: { role: string }) => r.role)
+      .sort((a: string, b: string) => (roleHierarchy[b] || 0) - (roleHierarchy[a] || 0))[0];
+    const inviterRoleLevel = roleHierarchy[inviterRoleName] || 0;
+
+    // Only owners, admins and managers can invite users
     if (inviterRoleLevel < roleHierarchy.manager) {
-      throw new Error("Only admins and managers can invite users");
+      throw new Error("Only owners, admins and managers can invite users");
     }
 
     // Get inviter's team_id from team_members
-    const { data: inviterTeam, error: teamError } = await supabaseAdmin
+    const { data: inviterTeams, error: teamError } = await supabaseAdmin
       .from("team_members")
-      .select("team_id")
+      .select("team_id, created_at")
       .eq("user_id", user.id)
       .eq("is_active", true)
-      .single();
+      .order("created_at", { ascending: true })
+      .limit(1);
 
-    if (teamError || !inviterTeam?.team_id) {
+    const inviterTeamId = inviterTeams?.[0]?.team_id;
+    if (teamError || !inviterTeamId) {
       console.error("Team lookup failed:", teamError);
       throw new Error("Could not determine your team. Please contact support.");
     }
+    const inviterTeam = { team_id: inviterTeamId };
 
     const { email, role, permissions, fullName }: InviteRequest = await req.json();
     const inviteeName = (fullName || "").trim() || null;
@@ -96,17 +102,15 @@ serve(async (req: Request) => {
 
     const targetRoleLevel = roleHierarchy[role] || 1;
 
-    // Managers can only invite operators and viewers (roles below them)
-    if (inviterRole.role === "manager") {
-      if (targetRoleLevel >= roleHierarchy.manager) {
-        throw new Error("Managers can only invite operators and viewers");
-      }
+    // Nobody can invite someone at or above their own level (owners excepted)
+    if (inviterRoleName === "manager" && targetRoleLevel >= roleHierarchy.manager) {
+      throw new Error("Managers can only invite operators and viewers");
     }
 
-    // Non-admins cannot invite admins
-    if (role === "admin" && inviterRole.role !== "admin") {
-      throw new Error("Only admins can invite other admins");
+    if (inviterRoleName !== "owner" && targetRoleLevel > inviterRoleLevel) {
+      throw new Error("You cannot invite a user with more permissions than you");
     }
+
 
     // Generate secure invitation token
     const token = crypto.randomUUID() + "-" + crypto.randomUUID();
