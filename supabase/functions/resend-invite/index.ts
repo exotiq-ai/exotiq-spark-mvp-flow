@@ -83,6 +83,19 @@ serve(async (req: Request) => {
       throw new Error("Invitation not found");
     }
 
+    // Tenant isolation: caller must belong to the invitation's team
+    const { data: membership } = await supabaseAdmin
+      .from("team_members")
+      .select("team_id")
+      .eq("user_id", user.id)
+      .eq("team_id", invitation.team_id)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (!membership) {
+      throw new Error("You cannot resend invitations for another team");
+    }
+
     if (invitation.status !== "pending") {
       throw new Error(`Cannot resend invitation with status: ${invitation.status}`);
     }
