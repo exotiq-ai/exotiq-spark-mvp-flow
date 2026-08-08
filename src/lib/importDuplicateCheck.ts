@@ -139,10 +139,64 @@ export async function checkForDuplicates(
     }
   }
 
+  // Fallback for vehicles: rows without a VIN or plate can still be duplicates.
+  // Match on make + model (+ year when both sides have one) so re-importing the
+  // same spreadsheet doesn't silently create a second copy of every car.
+  if (entityType === 'vehicles') {
+    const pending = rows
+      .map((data, index) => ({ index, data }))
+      .filter(({ index }) => !checkedIndices.has(index));
+
+    if (pending.length > 0) {
+      const { data: existingVehicles } = await supabase
+        .from('vehicles')
+        .select('*')
+        .eq('team_id', teamId);
+
+      const norm = (v: unknown) => String(v ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+      const keyOf = (make: unknown, model: unknown) => `${norm(make)}|${norm(model)}`;
+
+      const existingByKey = new Map<string, Record<string, unknown>[]>();
+      ((existingVehicles as Record<string, unknown>[] | null) ?? []).forEach((record) => {
+        const key = keyOf(record.make, record.model);
+        if (key === '|') return;
+        existingByKey.set(key, [...(existingByKey.get(key) ?? []), record]);
+      });
+
+      for (const { index, data } of pending) {
+        const key = keyOf(data.make, data.model);
+        if (key === '|') continue;
+
+        const candidates = existingByKey.get(key);
+        if (!candidates || candidates.length === 0) continue;
+
+        const importYear = data.year ? String(data.year).trim() : '';
+        const match =
+          candidates.find((c) => importYear && String(c.year ?? '').trim() === importYear) ??
+          candidates.find((c) => !importYear || !c.year) ??
+          candidates[0];
+
+        duplicates.push({
+          importRowIndex: index,
+          importRowNumber: index + 2,
+          importData: data,
+          existingRecord: match,
+          existingId: match.id as string,
+          matchField: importYear && String(match.year ?? '').trim() === importYear
+            ? 'Make, Model & Year'
+            : 'Make & Model',
+          matchValue: `${data.make ?? ''} ${data.model ?? ''}`.trim()
+        });
+        checkedIndices.add(index);
+      }
+    }
+  }
+
   // Collect new records (not duplicates)
   const newRecords = rows
     .map((data, index) => ({ index, data }))
     .filter(({ index }) => !checkedIndices.has(index));
+
 
   return {
     duplicates,
