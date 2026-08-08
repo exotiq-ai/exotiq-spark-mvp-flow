@@ -51,6 +51,14 @@ export function useVehiclePhotos(options: UseVehiclePhotosOptions = {}) {
   const fetchPhotos = useCallback(async () => {
     if (!user) return;
 
+    // A vehicle-scoped consumer passed an empty id (vehicle not resolved yet).
+    // Never widen to a team-wide query here — that surfaces another car's photos.
+    if (vehicleId !== undefined && !vehicleId) {
+      setPhotos([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -80,10 +88,18 @@ export function useVehiclePhotos(options: UseVehiclePhotosOptions = {}) {
     }
   }, [user, currentTeam, vehicleId]);
 
+  // Drop the previous vehicle's photos the instant the target changes,
+  // so a stale hero image never renders on the newly opened vehicle.
+  useEffect(() => {
+    setPhotos([]);
+    setLoading(true);
+  }, [vehicleId]);
+
   // Initial fetch
   useEffect(() => {
     fetchPhotos();
   }, [fetchPhotos]);
+
 
   // Realtime subscription
   useEffect(() => {
