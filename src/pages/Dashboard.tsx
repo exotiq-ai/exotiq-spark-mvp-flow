@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Logo } from "@/components/ui/logo";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
+import { SupportSessionBanner } from "@/components/dashboard/SupportSessionBanner";
+
 import { SkipNavigation } from "@/components/common/SkipNavigation";
 import { SEOHead } from "@/components/common/SEOHead";
 import {
@@ -459,8 +461,11 @@ const DashboardInner = () => {
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
+        {/* Support session banner (super admin working inside a customer account) */}
+        <SupportSessionBanner />
         {/* Trial status banner (hidden for grandfathered teams and paid subscribers) */}
         <TrialBanner />
+
         {/* Desktop Header */}
         <div className="hidden md:block">
           <DashboardHeader 

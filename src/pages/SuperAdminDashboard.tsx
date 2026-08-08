@@ -20,6 +20,8 @@ import { VehicleAuditTab } from '@/components/super-admin/VehicleAuditTab';
 import { SuperAdminTenantDocumentsTab } from '@/components/super-admin/SuperAdminTenantDocumentsTab';
 import { MarketplaceVisibilityTab } from '@/components/super-admin/MarketplaceVisibilityTab';
 import { SuperAdminPaymentsTestTab } from '@/components/super-admin/SuperAdminPaymentsTestTab';
+import { SupportAccessTab } from '@/components/super-admin/SupportAccessTab';
+
 import { GoLiveSmokeTestPanel } from '@/components/super-admin/GoLiveSmokeTestPanel';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -37,6 +39,8 @@ import {
   FileSignature,
   Store,
   Wallet,
+  LifeBuoy,
+
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -220,7 +224,12 @@ export const SuperAdminDashboard = () => {
               <Users className="h-4 w-4 mr-2" />
               Customers
             </TabsTrigger>
+            <TabsTrigger value="support-access">
+              <LifeBuoy className="h-4 w-4 mr-2" />
+              Support Access
+            </TabsTrigger>
             <TabsTrigger value="billing">
+
               <CreditCard className="h-4 w-4 mr-2" />
               Billing
             </TabsTrigger>
@@ -275,6 +284,12 @@ export const SuperAdminDashboard = () => {
             <GoLiveSmokeTestPanel />
             <SuperAdminPaymentsTestTab />
           </TabsContent>
+
+          <TabsContent value="support-access" className="space-y-4">
+            <SupportAccessTab />
+          </TabsContent>
+
+
 
 
 
