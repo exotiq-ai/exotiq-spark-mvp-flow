@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { getVehicleImage } from '@/lib/vehicleImageMapping';
+import { useTeam } from '@/contexts/TeamContext';
 import { cn } from '@/lib/utils';
 import { Car } from 'lucide-react';
+
 
 type ThumbnailSize = 'icon' | 'pill' | 'avatar' | 'sm' | 'md' | 'lg' | 'full';
 
