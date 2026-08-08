@@ -24,7 +24,13 @@ interface VehicleThumbnailProps {
   onClick?: () => void;
   badge?: React.ReactNode;
   loading?: 'lazy' | 'eager';
+  /**
+   * Allow the built-in demo/stock image map to stand in when no real photo exists.
+   * Defaults to demo accounts only, so real tenants never see another car's stock photo.
+   */
+  allowStaticFallback?: boolean;
 }
+
 
 /**
  * Validates if a URL is usable (not a filesystem path accidentally saved to DB)
