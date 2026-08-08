@@ -58,6 +58,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format, addDays, differenceInDays, startOfDay, subMonths, subYears } from "date-fns";
 import { DateRange } from "react-day-picker";
 import { useAIDemandForecast, type DemandForecast, type PricingAdjustment, type Opportunity } from "@/hooks/useAIDemandForecast";
+import { DEMAND_CITIES, DEFAULT_DEMAND_CITY } from "@/lib/demandCities";
+
 
 const safeFormat = (value: unknown, fmt: string, fallback = '—') => {
   if (!value) return fallback;
