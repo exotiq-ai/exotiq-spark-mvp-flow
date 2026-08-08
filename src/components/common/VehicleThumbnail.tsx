@@ -98,18 +98,22 @@ export const VehicleThumbnail = ({
   onClick,
   badge,
   loading = 'lazy',
+  allowStaticFallback,
 }: VehicleThumbnailProps) => {
   const config = sizeConfig[size];
+  const { currentTeam } = useTeam();
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [usingFallback, setUsingFallback] = useState(false);
 
   // Multi-stage image resolution:
   // 1. Validate provided URL (filter out filesystem paths)
-  // 2. Try static mapping as fallback
+  // 2. Demo/stock mapping (demo accounts only — never for real tenants)
   // 3. Show placeholder if both fail
-  const staticUrl = getVehicleImage(vehicleName);
+  const staticAllowed = allowStaticFallback ?? (currentTeam ? !!currentTeam.is_demo_account : true);
+  const staticUrl = staticAllowed ? getVehicleImage(vehicleName) : undefined;
   const primaryUrl = isValidImageUrl(providedImageUrl) ? providedImageUrl : null;
+
   
   // Determine which URL to use based on fallback state
   const resolvedImageUrl = usingFallback 
