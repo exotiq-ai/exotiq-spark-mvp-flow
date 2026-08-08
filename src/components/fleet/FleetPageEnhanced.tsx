@@ -736,7 +736,9 @@ export const FleetPageEnhanced = () => {
           status: detailsVehicle?.status,
           dailyRate: detailsVehicle?.current_rate,
           color: detailsVehicle?.color,
+          image_url: detailsVehicle?.image_url,
           license_plate: detailsVehicle?.license_plate,
+
           vin: detailsVehicle?.vin,
           ops_status: detailsVehicle?.ops_status,
           suggested_rate: detailsVehicle?.suggested_rate,
