@@ -129,8 +129,10 @@ export const DemandForecastCard = ({ bookings = [] }: DemandForecastCardProps) =
   const [events, setEvents] = useState<EventData[]>([]);
   const [demandMultiplier, setDemandMultiplier] = useState(1.0);
   const [loading, setLoading] = useState(false);
+  const [eventsError, setEventsError] = useState<string | null>(null);
   const [peakDate, setPeakDate] = useState<string | null>(null);
-  const [selectedCity, setSelectedCity] = useState('miami');
+  const [selectedCity, setSelectedCity] = useState(DEFAULT_DEMAND_CITY);
+
   const [quickRange, setQuickRange] = useState('14');
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: new Date(),
