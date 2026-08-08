@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { safeAppOriginFromRequest } from "../_shared/appOrigin.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -118,12 +119,12 @@ serve(async (req) => {
         interval: isAnnual ? 'annual' : 'monthly',
       },
       success_url: (() => {
-        const origin = req.headers.get("origin") || "https://app.exotiq.ai";
+        const origin = safeAppOriginFromRequest(req);
         const path = returnPath || "/welcome";
         const separator = path.includes("?") ? "&" : "?";
         return `${origin}${path}${separator}session_id={CHECKOUT_SESSION_ID}`;
       })(),
-      cancel_url: `${req.headers.get("origin") || "https://app.exotiq.ai"}${cancelPath || "/?canceled=true#pricing"}`,
+      cancel_url: `${safeAppOriginFromRequest(req)}${cancelPath || "/?canceled=true#pricing"}`,
       allow_promotion_codes: true,
     });
 

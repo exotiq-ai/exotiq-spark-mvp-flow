@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { resolveStripeMode } from "../_shared/stripeMode.ts";
+import { safeAppOriginFromRequest } from "../_shared/appOrigin.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -113,7 +114,7 @@ serve(async (req) => {
     }
 
     // Generate Account Link for onboarding
-    const origin = req.headers.get("origin") || "https://app.exotiq.ai";
+    const origin = safeAppOriginFromRequest(req);
 
     const accountLink = await stripe.accountLinks.create({
       account: accountId,

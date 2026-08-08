@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
+import { safeAppOrigin } from "../_shared/appOrigin.ts";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -91,9 +92,7 @@ serve(async (req: Request) => {
     }
 
     const inviteeName = (invitation.full_name || "").trim() || null;
-    const origin = (app_origin && app_origin.startsWith("http"))
-      ? app_origin.replace(/\/+$/, "")
-      : "https://app.exotiq.ai";
+    const origin = safeAppOrigin(app_origin);
     const inviteLink = `${origin}/auth?invite=${invitation.token}`;
     const role = invitation.role || "viewer";
 

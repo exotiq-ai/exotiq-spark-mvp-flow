@@ -2,6 +2,7 @@
 // account for a team and store it in teams.stripe_test_account_id.
 // Delete after M6 QA. Requires STRIPE_SECRET_KEY to be sk_test_.
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { safeAppOriginFromRequest } from "../_shared/appOrigin.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -63,7 +64,7 @@ Deno.serve(async (req) => {
     if (!acctRes.ok) return json({ error: "stripe_account_create_failed", details: acct }, acctRes.status);
 
     // Onboarding link
-    const origin = req.headers.get("origin") ?? "https://app.exotiq.ai";
+    const origin = safeAppOriginFromRequest(req);
     const linkParams = new URLSearchParams({
       account: acct.id,
       refresh_url: `${origin}/super-admin?stripe_refresh=1`,
