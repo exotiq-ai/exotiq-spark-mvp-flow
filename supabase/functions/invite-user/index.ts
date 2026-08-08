@@ -206,7 +206,16 @@ serve(async (req: Request) => {
       .single();
 
     const inviterName = inviterProfile?.full_name || "Your team";
-    const companyName = inviterProfile?.company_name || "Exotiq";
+
+    // The recipient should see the account they are joining, not the inviter's
+    // own company (which differs during a support session).
+    const { data: inviteTeam } = await supabaseAdmin
+      .from("teams")
+      .select("name")
+      .eq("id", inviterTeam.team_id)
+      .maybeSingle();
+    const companyName = inviteTeam?.name || inviterProfile?.company_name || "Exotiq";
+
 
     // Get the app URL from the request origin or use a default
     const origin = req.headers.get("origin") || "https://exotiq.ai";
