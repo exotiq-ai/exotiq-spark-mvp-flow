@@ -565,6 +565,23 @@ export const DemandForecastCard = ({ bookings = [] }: DemandForecastCardProps) =
         </Button>
       </div>
 
+      {/* Event intelligence error */}
+      {eventsError && !loading && (
+        <div className="mb-4 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+          <AlertCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+          <div className="flex-1 text-sm">
+            <p className="font-medium">Event intelligence unavailable</p>
+            <p className="text-xs text-muted-foreground">{eventsError}</p>
+          </div>
+          <Button variant="outline" size="sm" onClick={fetchEvents} className="gap-1.5">
+            <RefreshCw className="h-3.5 w-3.5" />
+            Retry
+          </Button>
+        </div>
+      )}
+
+
+
       {/* Event Legend */}
       {showLegend && (
         <div className="mb-4 p-3 rounded-lg border bg-muted/20">
