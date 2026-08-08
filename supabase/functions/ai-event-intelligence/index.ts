@@ -188,11 +188,17 @@ serve(async (req) => {
     // Category filtering happens AFTER the cache read, so the cache always
     // stores the full unfiltered event set for a (city, window) pair.
     const applyFilter = (result: ReturnType<typeof buildResult>) => {
-      if (!categories.length) return { ...result, city: city.value, cityLabel: city.label };
-      const filtered = result.events.filter((e) => categories.includes(e.category));
-      const peakSurge = result.demandMultiplier;
-      return { ...buildResult(filtered, filtered.length ? 1 : 1), demandMultiplier: filtered.length ? Math.min(peakSurge, result.demandMultiplier) : 1, city: city.value, cityLabel: city.label };
+      const events = Array.isArray(result?.events) ? result.events : [];
+      const filtered = categories.length
+        ? events.filter((e) => categories.includes(e.category))
+        : events;
+      // Surge comes only from high-confidence calendar events still in scope.
+      const surge = filtered
+        .filter((e) => e.source === 'calendar')
+        .reduce((max, e) => Math.max(max, e.impactScore / 60), 1);
+      return { ...buildResult(filtered, surge), city: city.value, cityLabel: city.label };
     };
+
 
     // ---- Cache ----
     const { data: cached, error: cacheError } = await supabase
