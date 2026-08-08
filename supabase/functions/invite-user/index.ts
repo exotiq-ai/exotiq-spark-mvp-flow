@@ -77,21 +77,49 @@ serve(async (req: Request) => {
       throw new Error("Only owners, admins and managers can invite users");
     }
 
-    // Get inviter's team_id from team_members
-    const { data: inviterTeams, error: teamError } = await supabaseAdmin
-      .from("team_members")
-      .select("team_id, created_at")
-      .eq("user_id", user.id)
-      .eq("is_active", true)
-      .order("created_at", { ascending: true })
-      .limit(1);
+    // Resolve the team the invite belongs to.
+    // If the caller is a super admin inside an active support session, the
+    // grant is the source of truth so the invite can never land on the wrong
+    // tenant. Otherwise fall back to their active membership.
+    let inviterTeamId: string | undefined;
 
-    const inviterTeamId = inviterTeams?.[0]?.team_id;
-    if (teamError || !inviterTeamId) {
-      console.error("Team lookup failed:", teamError);
-      throw new Error("Could not determine your team. Please contact support.");
+    const { data: activeGrant } = await supabaseAdmin
+      .from("support_access_grants")
+      .select("team_id, expires_at")
+      .eq("admin_user_id", user.id)
+      .is("revoked_at", null)
+      .gt("expires_at", new Date().toISOString())
+      .order("granted_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (activeGrant?.team_id) {
+      inviterTeamId = activeGrant.team_id as string;
+      console.log("Support session active — inviting into tenant", inviterTeamId);
+    }
+
+    if (!inviterTeamId) {
+      const { data: inviterTeams, error: teamError } = await supabaseAdmin
+        .from("team_members")
+        .select("team_id, joined_at")
+        .eq("user_id", user.id)
+        .eq("is_active", true)
+        .order("joined_at", { ascending: true })
+        .limit(1);
+
+      if (teamError) {
+        console.error("Team lookup failed:", teamError);
+        throw new Error(`Could not determine your team: ${teamError.message}`);
+      }
+      inviterTeamId = inviterTeams?.[0]?.team_id;
+    }
+
+    if (!inviterTeamId) {
+      throw new Error("You are not an active member of any account, so there is no team to invite into.");
     }
     const inviterTeam = { team_id: inviterTeamId };
+
+
 
     const { email, role, permissions, fullName }: InviteRequest = await req.json();
     const inviteeName = (fullName || "").trim() || null;
