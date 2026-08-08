@@ -38,6 +38,9 @@ export const ChangeVehicleDialog = ({
   endDate,
   onVehicleChanged,
 }: ChangeVehicleDialogProps) => {
+  const { currentTeam: vehicleListTeam } = useTeam();
+  const allowStockImages = !!vehicleListTeam?.is_demo_account;
+
   const { vehicles, bookings, updateBookingVehicle } = useFleet();
   const { money } = useMoney();
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
