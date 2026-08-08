@@ -11,6 +11,7 @@
 
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.77.0";
+import { safeAppOriginFromRequest } from "../_shared/appOrigin.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -155,7 +156,7 @@ Deno.serve(async (req) => {
         .single();
       if (insErr) throw insErr;
 
-      const origin = req.headers.get("origin") || "https://app.exotiq.ai";
+      const origin = safeAppOriginFromRequest(req);
       const ctx: Record<string, unknown> = {};
 
       try {

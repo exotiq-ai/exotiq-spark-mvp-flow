@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
+import { safeAppOriginFromRequest } from "../_shared/appOrigin.ts";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -150,8 +151,9 @@ serve(async (req: Request) => {
     const inviterName = inviterProfile?.full_name || "An administrator";
     const companyName = inviterProfile?.company_name || "Exotiq";
 
-    // Get the app URL from the request origin or use a default
-    const origin = req.headers.get("origin") || "https://exotiq.ai";
+    // Invite links must always point at an Exotiq-owned domain — never at the
+    // sender's browser origin, which may be a build-preview URL.
+    const origin = safeAppOriginFromRequest(req);
     const inviteLink = `${origin}/auth?invite=${newToken}`;
 
     console.log("Sending email to:", invitation.email);
