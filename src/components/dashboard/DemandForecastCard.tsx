@@ -82,19 +82,9 @@ interface DemandForecastCardProps {
   bookings?: Booking[];
 }
 
-// Luxury car rental hub cities - Miami as default for demo
-const CITIES = [
-  { value: 'miami', label: 'Miami, FL', lat: 25.7617, lon: -80.1918, isDefault: true },
-  { value: 'scottsdale', label: 'Scottsdale, AZ', lat: 33.4942, lon: -111.9261 },
-  { value: 'denver', label: 'Denver, CO', lat: 39.7392, lon: -104.9903 },
-  { value: 'los-angeles', label: 'Los Angeles, CA', lat: 34.0522, lon: -118.2437 },
-  { value: 'new-york', label: 'New York, NY', lat: 40.7128, lon: -74.0060 },
-  { value: 'las-vegas', label: 'Las Vegas, NV', lat: 36.1699, lon: -115.1398 },
-  { value: 'chicago', label: 'Chicago, IL', lat: 41.8781, lon: -87.6298 },
-  { value: 'dallas', label: 'Dallas, TX', lat: 32.7767, lon: -96.7970 },
-  { value: 'atlanta', label: 'Atlanta, GA', lat: 33.7490, lon: -84.3880 },
-  { value: 'phoenix', label: 'Phoenix, AZ', lat: 33.4484, lon: -112.0740 },
-];
+// Supported markets come from the shared registry (mirrored server-side)
+const CITIES = DEMAND_CITIES;
+
 
 const QUICK_RANGES = [
   { value: '7', label: '7 Days' },
