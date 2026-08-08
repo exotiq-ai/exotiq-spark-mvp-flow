@@ -1112,8 +1112,8 @@ export const EnhancedBookingDialog = ({
                               <StickyNote className="h-4 w-4 text-muted-foreground" />
                               <span className="text-sm text-muted-foreground">Booking note</span>
                             </div>
-                            {canEdit && (
-                              <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={handleStartEdit}>
+                            {!isMarketplaceLocked(booking as any) && (
+                              <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => setIsEditMode(true)}>
                                 Edit
                               </Button>
                             )}
