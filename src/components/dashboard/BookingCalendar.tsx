@@ -14,7 +14,7 @@ import { CustomerProfileDialog } from "@/components/dialogs/CustomerProfileDialo
 import { useFleet } from "@/contexts/FleetContext";
 import { RealtimeIndicator } from "@/components/common/RealtimeIndicator";
 import { downloadICS, bookingsToCalendarEvents } from "@/lib/calendarExport";
-import { getVehicleImage } from "@/lib/vehicleImageMapping";
+import { resolveVehicleImage } from "@/lib/vehicleImageMapping";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useDebounce } from "@/hooks/useDebounce";
@@ -80,7 +80,7 @@ const BookingPreviewCard = ({
   onViewDetails: () => void;
   onCustomerClick?: (customerId: string) => void;
 }) => {
-  const vehicleImage = vehicle ? getVehicleImage(vehicle.name) : null;
+  const vehicleImage = vehicle ? resolveVehicleImage(vehicle, allowStockImages) : null;
   
   return (
     <div className="w-72">
@@ -187,7 +187,7 @@ const DayDetailContent = ({
           selectedDayBookings.map((booking, index) => {
             const vehicle = vehicles.find(v => v.id === booking.vehicle_id);
             const vehicleColor = vehicleColors[booking.vehicle_id];
-            const vehicleImage = vehicle ? getVehicleImage(vehicle.name) : null;
+            const vehicleImage = vehicle ? resolveVehicleImage(vehicle, allowStockImages) : null;
 
             return (
               <motion.div 
@@ -916,7 +916,7 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
                             {dayBookings.map((booking, index) => {
                               const vehicle = vehicles.find(v => v.id === booking.vehicle_id);
                               const vehicleColor = vehicleColors[booking.vehicle_id];
-                              const vehicleImage = vehicle ? getVehicleImage(vehicle.name) : null;
+                              const vehicleImage = vehicle ? resolveVehicleImage(vehicle, allowStockImages) : null;
 
                               return (
                                 <motion.div
