@@ -11,7 +11,6 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { resolveVehicleImage } from "@/lib/vehicleImageMapping";
-import { useTeam } from "@/contexts/TeamContext";
 import { ShareWithTeamDialog } from "@/components/dialogs/ShareWithTeamDialog";
 import { EntityCommentThread } from "@/components/comments/EntityCommentThread";
 import { useTeam } from "@/contexts/TeamContext";
