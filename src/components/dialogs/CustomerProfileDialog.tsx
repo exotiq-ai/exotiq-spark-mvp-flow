@@ -533,7 +533,7 @@ export const CustomerProfileDialog = ({
                       {booking.notes && (
                         <div className="flex items-start gap-2 text-xs text-muted-foreground">
                           <FileText className="w-3 h-3 mt-0.5 shrink-0" />
-                          <span className="line-clamp-2">{booking.notes}</span>
+                          <span className="whitespace-pre-wrap break-words">{booking.notes}</span>
                         </div>
                       )}
                     </div>

@@ -1372,6 +1372,25 @@ export const EnhancedBookingDialog = ({
 
                     {/* Notes Tab */}
                     <TabsContent value="notes" className="space-y-4 mt-4">
+                      {booking.notes && (
+                        <div className="p-3 rounded-lg border border-primary/30 bg-primary/5">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs font-medium text-primary">Booking note</span>
+                            {!isMarketplaceLocked(booking as any) && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 px-2 text-xs"
+                                onClick={() => { setActiveTab("details"); setIsEditMode(true); }}
+                              >
+                                Edit
+                              </Button>
+                            )}
+                          </div>
+                          <p className="text-sm whitespace-pre-wrap break-words">{booking.notes}</p>
+                        </div>
+                      )}
+
                       <div className="flex gap-2">
                         <Textarea
                           placeholder="Add a note about this booking..."
