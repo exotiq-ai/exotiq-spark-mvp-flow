@@ -156,7 +156,10 @@ const DayDetailContent = ({
   onBookingClick: (id: string) => void;
   goToCustomerProfile: (id: string) => void;
 }) => {
+  const { currentTeam: dayListTeam } = useTeam();
+  const allowStockImages = !!dayListTeam?.is_demo_account;
   return (
+
     <>
       {/* Stats Bar */}
       <div className="grid grid-cols-3 gap-2 mb-4">
