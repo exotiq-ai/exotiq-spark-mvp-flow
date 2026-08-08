@@ -1104,6 +1104,25 @@ export const EnhancedBookingDialog = ({
                         )}
                       </div>
 
+                      {/* Booking note (read-only) */}
+                      {booking.notes && (
+                        <div className="bg-muted/30 rounded-lg p-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center space-x-2">
+                              <StickyNote className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-sm text-muted-foreground">Booking note</span>
+                            </div>
+                            {canEdit && (
+                              <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={handleStartEdit}>
+                                Edit
+                              </Button>
+                            )}
+                          </div>
+                          <p className="text-sm whitespace-pre-wrap break-words">{booking.notes}</p>
+                        </div>
+                      )}
+
+
                       {/* Financial Summary */}
                       <div className="space-y-3">
                         <h4 className="font-semibold flex items-center gap-2">
