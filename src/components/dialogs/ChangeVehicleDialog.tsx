@@ -13,7 +13,8 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { useFleet } from "@/contexts/FleetContext";
-import { getVehicleImage } from "@/lib/vehicleImageMapping";
+import { resolveVehicleImage } from "@/lib/vehicleImageMapping";
+import { useTeam } from "@/contexts/TeamContext";
 import { isWithinInterval } from "date-fns";
 import { Car, Check, Search, AlertCircle } from "lucide-react";
 import { useMoney } from "@/hooks/useMoney";
@@ -128,7 +129,7 @@ export const ChangeVehicleDialog = ({
               const availability = getVehicleAvailability(vehicle.id);
               const isSelected = selectedVehicleId === vehicle.id;
               const isCurrent = vehicle.id === currentVehicleId;
-              const vehicleImage = getVehicleImage(vehicle.name);
+              const vehicleImage = resolveVehicleImage(vehicle, allowStockImages);
 
               return (
                 <div
