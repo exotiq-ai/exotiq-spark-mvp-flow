@@ -203,42 +203,52 @@ export const DemandForecastCard = ({ bookings = [] }: DemandForecastCardProps) =
     };
   }, [bookings]);
 
-  const fetchEvents = async () => {
-    setLoading(true);
-    try {
-      const city = CITIES.find(c => c.value === selectedCity);
-      const startDate = dateRange?.from 
-        ? format(dateRange.from, 'yyyy-MM-dd') 
-        : format(new Date(), 'yyyy-MM-dd');
-      const endDate = dateRange?.to 
-        ? format(dateRange.to, 'yyyy-MM-dd') 
-        : format(addDays(new Date(), 14), 'yyyy-MM-dd');
+  // Monotonic request id — guarantees a slow response for a previously
+  // selected city/range can never overwrite the current selection.
+  const requestSeq = useRef(0);
 
+  const startDate = dateRange?.from
+    ? format(dateRange.from, 'yyyy-MM-dd')
+    : format(new Date(), 'yyyy-MM-dd');
+  const endDate = dateRange?.to
+    ? format(dateRange.to, 'yyyy-MM-dd')
+    : format(addDays(new Date(), 14), 'yyyy-MM-dd');
+
+  const fetchEvents = useCallback(async () => {
+    const seq = ++requestSeq.current;
+    setLoading(true);
+    setEventsError(null);
+    try {
+      // Categories are filtered client-side so toggling a chip never refetches
+      // and never fragments the server-side cache.
       const response = await supabase.functions.invoke('ai-event-intelligence', {
-        body: { 
-          city: selectedCity,
-          location: city ? { lat: city.lat, lon: city.lon, radius: 50 } : undefined,
-          startDate,
-          endDate,
-          categories: selectedCategories,
-        },
+        body: { city: selectedCity, startDate, endDate },
       });
-      
-      if (!response.error && response.data) {
-        setEvents(response.data.events || []);
-        setDemandMultiplier(response.data.demandMultiplier || 1.0);
-        setPeakDate(response.data.summary?.peakDate || null);
-      }
+
+      if (seq !== requestSeq.current) return; // stale response — discard
+
+      if (response.error) throw response.error;
+      if (response.data?.error) throw new Error(response.data.error);
+
+      setEvents(Array.isArray(response.data?.events) ? response.data.events : []);
+      setDemandMultiplier(Number(response.data?.demandMultiplier) || 1.0);
+      setPeakDate(response.data?.summary?.peakDate || null);
     } catch (err) {
+      if (seq !== requestSeq.current) return;
       console.error('Failed to fetch events:', err);
+      setEvents([]);
+      setDemandMultiplier(1.0);
+      setPeakDate(null);
+      setEventsError(err instanceof Error ? err.message : 'Could not load event intelligence');
     } finally {
-      setLoading(false);
+      if (seq === requestSeq.current) setLoading(false);
     }
-  };
+  }, [selectedCity, startDate, endDate]);
 
   useEffect(() => {
     fetchEvents();
-  }, [selectedCity, dateRange, selectedCategories]);
+  }, [fetchEvents]);
+
 
   // Generate AI forecast when events are loaded
   const handleGenerateAIForecast = useCallback(() => {
