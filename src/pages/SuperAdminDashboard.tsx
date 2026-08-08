@@ -20,6 +20,8 @@ import { VehicleAuditTab } from '@/components/super-admin/VehicleAuditTab';
 import { SuperAdminTenantDocumentsTab } from '@/components/super-admin/SuperAdminTenantDocumentsTab';
 import { MarketplaceVisibilityTab } from '@/components/super-admin/MarketplaceVisibilityTab';
 import { SuperAdminPaymentsTestTab } from '@/components/super-admin/SuperAdminPaymentsTestTab';
+import { SupportAccessTab } from '@/components/super-admin/SupportAccessTab';
+
 import { GoLiveSmokeTestPanel } from '@/components/super-admin/GoLiveSmokeTestPanel';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
