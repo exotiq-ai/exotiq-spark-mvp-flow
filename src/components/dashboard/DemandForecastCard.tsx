@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -58,6 +58,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format, addDays, differenceInDays, startOfDay, subMonths, subYears } from "date-fns";
 import { DateRange } from "react-day-picker";
 import { useAIDemandForecast, type DemandForecast, type PricingAdjustment, type Opportunity } from "@/hooks/useAIDemandForecast";
+import { DEMAND_CITIES, DEFAULT_DEMAND_CITY } from "@/lib/demandCities";
+
 
 const safeFormat = (value: unknown, fmt: string, fallback = '—') => {
   if (!value) return fallback;
@@ -82,19 +84,9 @@ interface DemandForecastCardProps {
   bookings?: Booking[];
 }
 
-// Luxury car rental hub cities - Miami as default for demo
-const CITIES = [
-  { value: 'miami', label: 'Miami, FL', lat: 25.7617, lon: -80.1918, isDefault: true },
-  { value: 'scottsdale', label: 'Scottsdale, AZ', lat: 33.4942, lon: -111.9261 },
-  { value: 'denver', label: 'Denver, CO', lat: 39.7392, lon: -104.9903 },
-  { value: 'los-angeles', label: 'Los Angeles, CA', lat: 34.0522, lon: -118.2437 },
-  { value: 'new-york', label: 'New York, NY', lat: 40.7128, lon: -74.0060 },
-  { value: 'las-vegas', label: 'Las Vegas, NV', lat: 36.1699, lon: -115.1398 },
-  { value: 'chicago', label: 'Chicago, IL', lat: 41.8781, lon: -87.6298 },
-  { value: 'dallas', label: 'Dallas, TX', lat: 32.7767, lon: -96.7970 },
-  { value: 'atlanta', label: 'Atlanta, GA', lat: 33.7490, lon: -84.3880 },
-  { value: 'phoenix', label: 'Phoenix, AZ', lat: 33.4484, lon: -112.0740 },
-];
+// Supported markets come from the shared registry (mirrored server-side)
+const CITIES = DEMAND_CITIES;
+
 
 const QUICK_RANGES = [
   { value: '7', label: '7 Days' },
@@ -137,8 +129,10 @@ export const DemandForecastCard = ({ bookings = [] }: DemandForecastCardProps) =
   const [events, setEvents] = useState<EventData[]>([]);
   const [demandMultiplier, setDemandMultiplier] = useState(1.0);
   const [loading, setLoading] = useState(false);
+  const [eventsError, setEventsError] = useState<string | null>(null);
   const [peakDate, setPeakDate] = useState<string | null>(null);
-  const [selectedCity, setSelectedCity] = useState('miami');
+  const [selectedCity, setSelectedCity] = useState(DEFAULT_DEMAND_CITY);
+
   const [quickRange, setQuickRange] = useState('14');
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: new Date(),
@@ -211,42 +205,52 @@ export const DemandForecastCard = ({ bookings = [] }: DemandForecastCardProps) =
     };
   }, [bookings]);
 
-  const fetchEvents = async () => {
-    setLoading(true);
-    try {
-      const city = CITIES.find(c => c.value === selectedCity);
-      const startDate = dateRange?.from 
-        ? format(dateRange.from, 'yyyy-MM-dd') 
-        : format(new Date(), 'yyyy-MM-dd');
-      const endDate = dateRange?.to 
-        ? format(dateRange.to, 'yyyy-MM-dd') 
-        : format(addDays(new Date(), 14), 'yyyy-MM-dd');
+  // Monotonic request id — guarantees a slow response for a previously
+  // selected city/range can never overwrite the current selection.
+  const requestSeq = useRef(0);
 
+  const startDate = dateRange?.from
+    ? format(dateRange.from, 'yyyy-MM-dd')
+    : format(new Date(), 'yyyy-MM-dd');
+  const endDate = dateRange?.to
+    ? format(dateRange.to, 'yyyy-MM-dd')
+    : format(addDays(new Date(), 14), 'yyyy-MM-dd');
+
+  const fetchEvents = useCallback(async () => {
+    const seq = ++requestSeq.current;
+    setLoading(true);
+    setEventsError(null);
+    try {
+      // Categories are filtered client-side so toggling a chip never refetches
+      // and never fragments the server-side cache.
       const response = await supabase.functions.invoke('ai-event-intelligence', {
-        body: { 
-          city: selectedCity,
-          location: city ? { lat: city.lat, lon: city.lon, radius: 50 } : undefined,
-          startDate,
-          endDate,
-          categories: selectedCategories,
-        },
+        body: { city: selectedCity, startDate, endDate },
       });
-      
-      if (!response.error && response.data) {
-        setEvents(response.data.events || []);
-        setDemandMultiplier(response.data.demandMultiplier || 1.0);
-        setPeakDate(response.data.summary?.peakDate || null);
-      }
+
+      if (seq !== requestSeq.current) return; // stale response — discard
+
+      if (response.error) throw response.error;
+      if (response.data?.error) throw new Error(response.data.error);
+
+      setEvents(Array.isArray(response.data?.events) ? response.data.events : []);
+      setDemandMultiplier(Number(response.data?.demandMultiplier) || 1.0);
+      setPeakDate(response.data?.summary?.peakDate || null);
     } catch (err) {
+      if (seq !== requestSeq.current) return;
       console.error('Failed to fetch events:', err);
+      setEvents([]);
+      setDemandMultiplier(1.0);
+      setPeakDate(null);
+      setEventsError(err instanceof Error ? err.message : 'Could not load event intelligence');
     } finally {
-      setLoading(false);
+      if (seq === requestSeq.current) setLoading(false);
     }
-  };
+  }, [selectedCity, startDate, endDate]);
 
   useEffect(() => {
     fetchEvents();
-  }, [selectedCity, dateRange, selectedCategories]);
+  }, [fetchEvents]);
+
 
   // Generate AI forecast when events are loaded
   const handleGenerateAIForecast = useCallback(() => {
@@ -560,6 +564,23 @@ export const DemandForecastCard = ({ bookings = [] }: DemandForecastCardProps) =
           <Info className="h-4 w-4" />
         </Button>
       </div>
+
+      {/* Event intelligence error */}
+      {eventsError && !loading && (
+        <div className="mb-4 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+          <AlertCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+          <div className="flex-1 text-sm">
+            <p className="font-medium">Event intelligence unavailable</p>
+            <p className="text-xs text-muted-foreground">{eventsError}</p>
+          </div>
+          <Button variant="outline" size="sm" onClick={fetchEvents} className="gap-1.5">
+            <RefreshCw className="h-3.5 w-3.5" />
+            Retry
+          </Button>
+        </div>
+      )}
+
+
 
       {/* Event Legend */}
       {showLegend && (
