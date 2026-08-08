@@ -3414,6 +3414,56 @@ export type Database = {
         }
         Relationships: []
       }
+      support_access_grants: {
+        Row: {
+          admin_email: string | null
+          admin_user_id: string
+          created_membership: boolean
+          ended_reason: string | null
+          expires_at: string
+          granted_at: string
+          home_team_id: string | null
+          id: string
+          reason: string
+          revoked_at: string | null
+          team_id: string
+        }
+        Insert: {
+          admin_email?: string | null
+          admin_user_id: string
+          created_membership?: boolean
+          ended_reason?: string | null
+          expires_at: string
+          granted_at?: string
+          home_team_id?: string | null
+          id?: string
+          reason: string
+          revoked_at?: string | null
+          team_id: string
+        }
+        Update: {
+          admin_email?: string | null
+          admin_user_id?: string
+          created_membership?: boolean
+          ended_reason?: string | null
+          expires_at?: string
+          granted_at?: string
+          home_team_id?: string | null
+          id?: string
+          reason?: string
+          revoked_at?: string | null
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_access_grants_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       team_conversations: {
         Row: {
           avatar_url: string | null
@@ -5802,6 +5852,10 @@ export type Database = {
             Args: { reason?: string; target_user_id: string }
             Returns: undefined
           }
+      end_support_session: {
+        Args: { _ended_reason?: string; _grant_id?: string }
+        Returns: number
+      }
       expire_overdue_payment_bookings: {
         Args: never
         Returns: {
@@ -5907,6 +5961,17 @@ export type Database = {
         }[]
       }
       generate_recurring_expenses: { Args: never; Returns: number }
+      get_active_support_session: {
+        Args: never
+        Returns: {
+          expires_at: string
+          granted_at: string
+          id: string
+          reason: string
+          team_id: string
+          team_name: string
+        }[]
+      }
       get_customer_full: {
         Args: { p_customer_id: string }
         Returns: {
@@ -6541,6 +6606,10 @@ export type Database = {
       }
       slugify: { Args: { _input: string }; Returns: string }
       snapshot_vehicle_billing: { Args: never; Returns: undefined }
+      start_support_session: {
+        Args: { _hours: number; _reason: string; _team_id: string }
+        Returns: string
+      }
       super_admin_has_permission: {
         Args: { check_user_id?: string; permission_name: string }
         Returns: boolean
