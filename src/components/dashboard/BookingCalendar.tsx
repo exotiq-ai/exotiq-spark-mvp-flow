@@ -14,7 +14,8 @@ import { CustomerProfileDialog } from "@/components/dialogs/CustomerProfileDialo
 import { useFleet } from "@/contexts/FleetContext";
 import { RealtimeIndicator } from "@/components/common/RealtimeIndicator";
 import { downloadICS, bookingsToCalendarEvents } from "@/lib/calendarExport";
-import { getVehicleImage } from "@/lib/vehicleImageMapping";
+import { resolveVehicleImage } from "@/lib/vehicleImageMapping";
+import { useTeam } from "@/contexts/TeamContext";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useDebounce } from "@/hooks/useDebounce";
@@ -80,7 +81,9 @@ const BookingPreviewCard = ({
   onViewDetails: () => void;
   onCustomerClick?: (customerId: string) => void;
 }) => {
-  const vehicleImage = vehicle ? getVehicleImage(vehicle.name) : null;
+  const { currentTeam } = useTeam();
+  const allowStockImages = !!currentTeam?.is_demo_account;
+  const vehicleImage = vehicle ? resolveVehicleImage(vehicle, allowStockImages) : null;
   
   return (
     <div className="w-72">
@@ -153,7 +156,10 @@ const DayDetailContent = ({
   onBookingClick: (id: string) => void;
   goToCustomerProfile: (id: string) => void;
 }) => {
+  const { currentTeam: dayListTeam } = useTeam();
+  const allowStockImages = !!dayListTeam?.is_demo_account;
   return (
+
     <>
       {/* Stats Bar */}
       <div className="grid grid-cols-3 gap-2 mb-4">
@@ -187,7 +193,7 @@ const DayDetailContent = ({
           selectedDayBookings.map((booking, index) => {
             const vehicle = vehicles.find(v => v.id === booking.vehicle_id);
             const vehicleColor = vehicleColors[booking.vehicle_id];
-            const vehicleImage = vehicle ? getVehicleImage(vehicle.name) : null;
+            const vehicleImage = vehicle ? resolveVehicleImage(vehicle, allowStockImages) : null;
 
             return (
               <motion.div 
@@ -262,6 +268,8 @@ const DayDetailContent = ({
 };
 
 export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) => {
+  const { currentTeam: calendarTeam } = useTeam();
+  const allowStockImages = !!calendarTeam?.is_demo_account;
   const { bookings, vehicles, refreshBookings } = useLocationFilteredFleet();
   const { customers } = useFleet();
   const [profileCustomerId, setProfileCustomerId] = useState<string | null>(null);
@@ -916,7 +924,7 @@ export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) =>
                             {dayBookings.map((booking, index) => {
                               const vehicle = vehicles.find(v => v.id === booking.vehicle_id);
                               const vehicleColor = vehicleColors[booking.vehicle_id];
-                              const vehicleImage = vehicle ? getVehicleImage(vehicle.name) : null;
+                              const vehicleImage = vehicle ? resolveVehicleImage(vehicle, allowStockImages) : null;
 
                               return (
                                 <motion.div

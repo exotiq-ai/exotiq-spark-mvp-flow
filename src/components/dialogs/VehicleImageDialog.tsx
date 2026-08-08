@@ -70,6 +70,7 @@ interface VehicleImageDialogProps {
     license_plate?: string;
     vin?: string;
     location?: string;
+    image_url?: string | null;
     ops_status?: string | null;
     suggested_rate?: number | null;
     maintenanceAlerts?: Array<{
@@ -126,9 +127,14 @@ export function VehicleImageDialog({
   );
 
   const mainImageUrl = useMemo(() => {
+    // While photos for this vehicle are loading, show nothing rather than the
+    // previously opened vehicle's image.
+    if (vehicleId && photosLoading) return undefined;
     if (heroPhoto?.url) return heroPhoto.url;
-    return staticImageUrl;
-  }, [heroPhoto, staticImageUrl]);
+    if (vehicleDetails?.image_url) return vehicleDetails.image_url;
+    // Stock imagery is demo-only: a real tenant should never see another car's photo.
+    return vehicleId ? undefined : staticImageUrl;
+  }, [heroPhoto, staticImageUrl, photosLoading, vehicleId, vehicleDetails?.image_url]);
 
   useEffect(() => {
     if (open) setActiveTab("details");

@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { getVehicleImage } from "@/lib/vehicleImageMapping";
+import { resolveVehicleImage } from "@/lib/vehicleImageMapping";
 import { ShareWithTeamDialog } from "@/components/dialogs/ShareWithTeamDialog";
 import { EntityCommentThread } from "@/components/comments/EntityCommentThread";
 import { useTeam } from "@/contexts/TeamContext";
@@ -77,7 +77,11 @@ export function VehicleDetailsDialog({
   damageClaims = [],
   maintenanceSchedules = [],
 }: VehicleDetailsDialogProps) {
-  const imageUrl = getVehicleImage(vehicleName);
+  const { currentTeam: imageTeam } = useTeam();
+  const imageUrl = resolveVehicleImage(
+    { name: vehicleName, image_url: (vehicleDetails as { image_url?: string | null } | undefined)?.image_url },
+    !!imageTeam?.is_demo_account
+  );
   const { currentTeam } = useTeam();
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [selectedClaimForShare, setSelectedClaimForShare] = useState<DamageClaim | null>(null);

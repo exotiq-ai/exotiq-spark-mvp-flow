@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { getVehicleImage } from '@/lib/vehicleImageMapping';
+import { useTeam } from '@/contexts/TeamContext';
 import { cn } from '@/lib/utils';
 import { Car } from 'lucide-react';
+
 
 type ThumbnailSize = 'icon' | 'pill' | 'avatar' | 'sm' | 'md' | 'lg' | 'full';
 
@@ -22,7 +24,13 @@ interface VehicleThumbnailProps {
   onClick?: () => void;
   badge?: React.ReactNode;
   loading?: 'lazy' | 'eager';
+  /**
+   * Allow the built-in demo/stock image map to stand in when no real photo exists.
+   * Defaults to demo accounts only, so real tenants never see another car's stock photo.
+   */
+  allowStaticFallback?: boolean;
 }
+
 
 /**
  * Validates if a URL is usable (not a filesystem path accidentally saved to DB)
@@ -90,18 +98,22 @@ export const VehicleThumbnail = ({
   onClick,
   badge,
   loading = 'lazy',
+  allowStaticFallback,
 }: VehicleThumbnailProps) => {
   const config = sizeConfig[size];
+  const { currentTeam } = useTeam();
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [usingFallback, setUsingFallback] = useState(false);
 
   // Multi-stage image resolution:
   // 1. Validate provided URL (filter out filesystem paths)
-  // 2. Try static mapping as fallback
+  // 2. Demo/stock mapping (demo accounts only — never for real tenants)
   // 3. Show placeholder if both fail
-  const staticUrl = getVehicleImage(vehicleName);
+  const staticAllowed = allowStaticFallback ?? (currentTeam ? !!currentTeam.is_demo_account : true);
+  const staticUrl = staticAllowed ? getVehicleImage(vehicleName) : undefined;
   const primaryUrl = isValidImageUrl(providedImageUrl) ? providedImageUrl : null;
+
   
   // Determine which URL to use based on fallback state
   const resolvedImageUrl = usingFallback 
