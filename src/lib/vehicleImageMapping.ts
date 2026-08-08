@@ -108,3 +108,20 @@ export const vehicleImageMap: Record<string, string> = {
 export const getVehicleImage = (vehicleName: string): string | undefined => {
   return vehicleImageMap[vehicleName];
 };
+
+/**
+ * Resolve the image to show for a real vehicle record.
+ * Order: the vehicle's own uploaded photo -> demo/stock map (demo accounts only) -> nothing.
+ * Real tenants must never fall through to stock imagery of a different car.
+ */
+export const resolveVehicleImage = (
+  vehicle: { name?: string | null; image_url?: string | null } | null | undefined,
+  allowStaticFallback = false
+): string | undefined => {
+  if (!vehicle) return undefined;
+  const url = vehicle.image_url;
+  if (url && !url.startsWith('/src/')) return url;
+  if (allowStaticFallback && vehicle.name) return vehicleImageMap[vehicle.name];
+  return undefined;
+};
+
