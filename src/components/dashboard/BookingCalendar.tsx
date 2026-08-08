@@ -15,6 +15,7 @@ import { useFleet } from "@/contexts/FleetContext";
 import { RealtimeIndicator } from "@/components/common/RealtimeIndicator";
 import { downloadICS, bookingsToCalendarEvents } from "@/lib/calendarExport";
 import { resolveVehicleImage } from "@/lib/vehicleImageMapping";
+import { useTeam } from "@/contexts/TeamContext";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useDebounce } from "@/hooks/useDebounce";
@@ -80,6 +81,8 @@ const BookingPreviewCard = ({
   onViewDetails: () => void;
   onCustomerClick?: (customerId: string) => void;
 }) => {
+  const { currentTeam } = useTeam();
+  const allowStockImages = !!currentTeam?.is_demo_account;
   const vehicleImage = vehicle ? resolveVehicleImage(vehicle, allowStockImages) : null;
   
   return (
@@ -262,6 +265,8 @@ const DayDetailContent = ({
 };
 
 export const BookingCalendar = ({ onNavigateToModule }: BookingCalendarProps) => {
+  const { currentTeam: calendarTeam } = useTeam();
+  const allowStockImages = !!calendarTeam?.is_demo_account;
   const { bookings, vehicles, refreshBookings } = useLocationFilteredFleet();
   const { customers } = useFleet();
   const [profileCustomerId, setProfileCustomerId] = useState<string | null>(null);
