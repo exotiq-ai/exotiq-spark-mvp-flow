@@ -268,3 +268,6 @@ verify_jwt = true
 
 [functions.uptime-check]
 verify_jwt = false
+
+[functions.admin-card-capture-link]
+verify_jwt = true
