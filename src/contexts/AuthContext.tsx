@@ -241,10 +241,45 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [toast]);
 
+  // Safety net: claim a pending invitation that matches the signed-in user's
+  // email, for people who signed up via the normal form instead of the invite
+  // link (otherwise they end up with no team and get treated as a new owner).
+  const claimPendingInviteByEmail = useCallback(async (): Promise<boolean> => {
+    try {
+      const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+      const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      if (!accessToken) return false;
+
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/accept-invite?action=claim`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+          apikey: SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.claimed) return false;
+
+      toast({
+        title: `Welcome to ${data.companyName || 'the team'}!`,
+        description: `You've joined as ${data.role || 'a team member'}.`,
+      });
+      return true;
+    } catch (err) {
+      devError('[Auth] Error claiming pending invite:', err);
+      return false;
+    }
+  }, [toast]);
+
   // Clear password recovery flag
   const clearPasswordRecovery = useCallback(() => {
     setIsPasswordRecovery(false);
   }, []);
+
 
   // Side-effect sequence guard - prevents stale async work from applying
   const authEventSeqRef = useRef(0);
