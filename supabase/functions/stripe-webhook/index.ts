@@ -190,6 +190,38 @@ serve(async (req) => {
           break;
         }
 
+        if (session.mode === "setup") {
+          // Card-capture link (e.g. a trialing team that started before we
+          // required a card). Attach the new PM as the customer default and
+          // to any live subscription so the trial converts cleanly.
+          const customerId = session.customer as string | null;
+          const setupIntentId = session.setup_intent as string | null;
+          if (customerId && setupIntentId) {
+            const si = await stripe.setupIntents.retrieve(setupIntentId);
+            const pmId = si.payment_method as string | null;
+            if (pmId) {
+              await stripe.customers.update(customerId, {
+                invoice_settings: { default_payment_method: pmId },
+              });
+              const subs = await stripe.subscriptions.list({
+                customer: customerId,
+                status: "all",
+                limit: 10,
+              });
+              for (const sub of subs.data) {
+                if (["trialing", "active", "past_due", "unpaid"].includes(sub.status)) {
+                  await stripe.subscriptions.update(sub.id, {
+                    default_payment_method: pmId,
+                    trial_settings: { end_behavior: { missing_payment_method: "cancel" } },
+                  });
+                }
+              }
+              logStep("Card saved and attached", { customerId, pmId });
+            }
+          }
+          break;
+        }
+
         if (session.mode === "payment" && session.metadata?.booking_id) {
           // Tenant payment — update booking and payment records. This event can
           // arrive on the platform endpoint OR on the connected-accounts
