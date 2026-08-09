@@ -163,6 +163,19 @@ serve(async (req: Request) => {
         .eq("id", invitation.invited_by)
         .single();
 
+      // The org name must come from the invitation's TEAM, not the inviter's own
+      // profile — a super admin inviting into another tenant would otherwise show
+      // their own company name on the invite screen.
+      let inviteTeamName: string | null = null;
+      if (invitation.team_id) {
+        const { data: inviteTeam } = await supabaseAdmin
+          .from("teams")
+          .select("name")
+          .eq("id", invitation.team_id)
+          .single();
+        inviteTeamName = inviteTeam?.name ?? null;
+      }
+
       console.log("Invitation valid for:", invitation.email);
 
       return new Response(
@@ -174,10 +187,12 @@ serve(async (req: Request) => {
             role: invitation.role,
             permissions: invitation.permissions,
             inviterName: inviterProfile?.full_name || "An administrator",
-            companyName: inviterProfile?.company_name || "ExotIQ",
+            companyName:
+              inviteTeamName || inviterProfile?.company_name || "exotiq",
             expiresAt: invitation.expires_at,
           },
         }),
+
         {
           status: 200,
           headers: { "Content-Type": "application/json", ...corsHeaders },
@@ -211,12 +226,23 @@ serve(async (req: Request) => {
         throw new Error("This invitation has expired");
       }
 
-      // Get inviter's company name
+      // Get inviter's company name (fallback only)
       const { data: inviterProfile } = await supabaseAdmin
         .from("profiles")
         .select("company_name")
         .eq("id", invitation.invited_by)
         .single();
+
+      // Authoritative org name = the team on the invitation
+      let acceptTeamName: string | null = null;
+      if (invitation.team_id) {
+        const { data: acceptTeam } = await supabaseAdmin
+          .from("teams")
+          .select("name")
+          .eq("id", invitation.team_id)
+          .single();
+        acceptTeamName = acceptTeam?.name ?? null;
+      }
 
       // Get new user's profile
       const { data: newUserProfile } = await supabaseAdmin
@@ -225,7 +251,9 @@ serve(async (req: Request) => {
         .eq("id", userId)
         .single();
 
-      const companyName = inviterProfile?.company_name || "ExotIQ";
+      const companyName =
+        acceptTeamName || inviterProfile?.company_name || "exotiq";
+
       const newUserName = newUserProfile?.full_name || invitation.email;
       const newUserEmail = newUserProfile?.email || invitation.email;
 
