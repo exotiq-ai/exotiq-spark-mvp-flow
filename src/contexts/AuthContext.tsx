@@ -468,7 +468,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
       authSubscription.unsubscribe();
     };
-  }, [pendingInviteToken, processPendingInvite, navigate, checkUserActiveStatus, toast, isPasswordRecovery]);
+  }, [pendingInviteToken, processPendingInvite, claimPendingInviteByEmail, navigate, checkUserActiveStatus, toast, isPasswordRecovery]);
 
   const checkOnboardingStatus = async (userId: string | undefined) => {
     if (!userId) {
