@@ -335,9 +335,118 @@ serve(async (req: Request) => {
           headers: { "Content-Type": "application/json", ...corsHeaders },
         }
       );
+    } else if (action === "claim") {
+      // Claim any pending invitation matching the CALLER'S VERIFIED EMAIL.
+      // Covers users who signed up through the normal form instead of the
+      // invite link — without this they end up with no team at all.
+      const authHeader = req.headers.get("Authorization") ?? "";
+      if (!authHeader.startsWith("Bearer ")) throw new Error("Unauthorized");
+      const jwt = authHeader.replace("Bearer ", "");
+
+      const { data: userData, error: userErr } = await supabaseAdmin.auth.getUser(jwt);
+      const authedUser = userData?.user;
+      if (userErr || !authedUser?.email) throw new Error("Unauthorized");
+
+      const userId = authedUser.id;
+      const email = authedUser.email.toLowerCase();
+
+      // No-op if already on a team
+      const { data: existingMembership } = await supabaseAdmin
+        .from("team_members")
+        .select("team_id")
+        .eq("user_id", userId)
+        .eq("is_active", true)
+        .limit(1);
+
+      if (existingMembership && existingMembership.length > 0) {
+        return new Response(JSON.stringify({ claimed: false, reason: "already_member" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      }
+
+      const { data: invites } = await supabaseAdmin
+        .from("user_invitations")
+        .select("*")
+        .ilike("email", email)
+        .eq("status", "pending")
+        .order("created_at", { ascending: false });
+
+      const invitation = (invites ?? []).find(
+        (i: any) => new Date(i.expires_at) > new Date() && i.team_id
+      );
+
+      if (!invitation) {
+        return new Response(JSON.stringify({ claimed: false, reason: "no_pending_invite" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      }
+
+      const { data: team } = await supabaseAdmin
+        .from("teams")
+        .select("name")
+        .eq("id", invitation.team_id)
+        .maybeSingle();
+
+      await supabaseAdmin
+        .from("profiles")
+        .update({
+          company_name: team?.name ?? undefined,
+          onboarding_completed: true,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", userId);
+
+      await supabaseAdmin.from("user_roles").insert({
+        user_id: userId,
+        role: invitation.role || "viewer",
+        permissions: invitation.permissions || [],
+        assigned_by: invitation.invited_by,
+      });
+
+      const { error: memberErr } = await supabaseAdmin.from("team_members").insert({
+        team_id: invitation.team_id,
+        user_id: userId,
+        role: invitation.role || "viewer",
+        is_active: true,
+        invited_by: invitation.invited_by,
+        joined_at: new Date().toISOString(),
+      });
+      if (memberErr) {
+        console.error("claim: team_members insert failed", memberErr);
+        throw new Error("Failed to join team");
+      }
+
+      await supabaseAdmin
+        .from("user_invitations")
+        .update({ status: "accepted" })
+        .eq("id", invitation.id);
+
+      await supabaseAdmin.from("role_audit_log").insert({
+        user_id: userId,
+        changed_by: invitation.invited_by,
+        action: "invitation_claimed_by_email",
+        new_role: invitation.role || "viewer",
+        new_permissions: invitation.permissions || [],
+        metadata: { invitation_id: invitation.id, email: invitation.email },
+        team_id: invitation.team_id,
+      });
+
+      console.log("Invitation claimed by email for:", email);
+
+      return new Response(
+        JSON.stringify({
+          claimed: true,
+          companyName: team?.name ?? "your team",
+          role: invitation.role,
+        }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
     } else {
       throw new Error("Invalid action");
     }
+
   } catch (error: any) {
     console.error("Error in accept-invite function:", error);
     return new Response(
