@@ -1,45 +1,51 @@
-# exotiq-branded invite emails + login logo
+# Fix "Join Drive Exotiq" + brand the invite email
 
-## 1. Rebrand the invite emails
+## 1. Root cause of "Join Drive Exotiq" (confirmed)
 
-Three emails currently go out with a generic dark-blue gradient header and a purple/violet button — none of them carry the exotiq mark.
+Laura's invitation row is correct — it points at **Denver Exotic Rental Cars**. The invite screen showed the wrong name because the invite-validation function builds the company name from the **inviter's own profile** (`profiles.company_name`) instead of the team on the invitation. Gregory's profile says "Drive Exotiq", so every invite he sends — for any tenant — displays "Join Drive Exotiq".
 
-- `invite-user` — new teammate invite
-- `resend-invite` — reminder invite
-- `super-admin-send-invite` — admin-sent invite
+The same wrong value is also written into the new user's profile at accept time, and the fallback string is "ExotIQ" (wrong casing).
 
-New shared design (clean minimal, matching the app):
+Fix in `supabase/functions/accept-invite`:
+- Resolve the display name from `teams.name` via the invitation's `team_id`, in all three paths (validate, accept, claim — claim already does this correctly).
+- Only fall back to the inviter's company name when the invitation has no team, and change the last-resort fallback text from "ExotIQ" to "exotiq".
+- Write the correct team name into the new member's `profiles.company_name`.
+
+No data repair needed: Laura's profile already reads "Denver Exotic Rental Cars".
+
+Also on the invite screen: "invited you as a Admin" → "invited you as an Admin" (correct article), keeping the logo and layout as-is.
+
+## 2. exotiq-branded invite emails
+
+Three invite emails currently use a generic dark-blue gradient header and a purple button, with no exotiq mark:
+`invite-user`, `resend-invite`, `super-admin-send-invite`.
+
+New shared design — logo mark, clean and minimal:
 
 ```text
 +------------------------------------------+
-|            [ exotiq mark ]  exotiq       |   white background
-|                                          |
-|   You've been invited to join            |
-|   <Company Name>                         |
-|                                          |
-|   <Inviter> invited you as <role>.        |
-|                                          |
+|            [ exotiq mark ]  exotiq        |   white background
+|                                           |
+|   You've been invited to join             |
+|   <Tenant Name>                           |
+|                                           |
+|   <Inviter> invited you as an <role>.     |
+|                                           |
 |          [  Accept invitation  ]          |   solid black button
-|                                          |
-|   Link expires in 7 days.                 |
-|   ----------------------------------      |
+|                                           |
+|   This link expires in 7 days.            |
+|   ---------------------------------       |
 |   exotiq · app.exotiq.ai                  |   small grey footer
 +------------------------------------------+
 ```
 
-Details:
-- Logo image served from the app's own domain (`https://app.exotiq.ai/brand/logos/exotiq-mark-black.png`) so it renders in every mail client, with `alt="exotiq"` fallback text.
-- Lowercase "exotiq" everywhere except at the start of a sentence.
-- No Lovable references, no `*.lovable.app` links (already enforced by the safe-origin allow-list).
-- Same markup shared by all three functions so reminders and admin invites look identical.
-- Plain-text fallback so the email doesn't look broken in text-only clients.
+- Logo served from the app's own domain (`https://app.exotiq.ai/brand/logos/exotiq-mark-black.png`) with `alt="exotiq"` so it degrades gracefully.
+- Lowercase "exotiq" everywhere except sentence-start.
+- No Lovable references and no `*.lovable.app` links.
+- Plain-text fallback alongside the HTML.
 
-Technical: extract the HTML into `supabase/functions/_shared/invite-email.ts` (one function taking company, inviter, role, link, and a "reminder" flag), use it from the three functions, then redeploy `invite-user`, `resend-invite`, `super-admin-send-invite`.
+Technical: extract one shared builder at `supabase/functions/_shared/invite-email.ts` (company, inviter, role, link, reminder flag) and use it from all three functions so reminders and admin invites look identical.
 
-## 2. Login page "Drive Exotiq"
+## 3. Deploy
 
-I searched the app and the login screen itself has no "Drive Exotiq" text — it shows the exotiq mark plus "Welcome to exotiq". "Drive Exotiq" only exists in renter/marketplace email templates and the legal pages, which are separate from the operator login.
-
-So the wording you saw most likely comes from outside our page markup (Google's sign-in consent screen, or a saved password-manager entry). Send the screenshot and I'll pin down the exact source; if it's the Google consent screen, the fix is renaming the OAuth app, not app code.
-
-Also worth aligning while we're here: the browser tab currently reads "Exotiq — Luxury Fleet Management" with a capital E — I can lowercase it to match the brand rule.
+Redeploy `accept-invite`, `invite-user`, `resend-invite`, `super-admin-send-invite`.
