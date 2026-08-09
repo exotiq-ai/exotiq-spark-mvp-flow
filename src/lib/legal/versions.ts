@@ -119,6 +119,11 @@ export function requiredDocsForJurisdiction(
 export const CURRENT_CONSENT_STATEMENT =
   "I have read and agree to the Exotiq Terms and Conditions, Privacy Policy, and Acceptable Use Policy. I represent that I am authorized to bind my organization to these terms.";
 
+// Used when the signed-in user is not attached to an organization, so the
+// "authorized representative" language would be inaccurate.
+export const INDIVIDUAL_CONSENT_STATEMENT =
+  "I have read and agree to the Exotiq Terms and Conditions, Privacy Policy, and Acceptable Use Policy.";
+
 export const CONSENT_STATEMENT_WITH_DPA =
   "I have read and agree to the Exotiq Terms and Conditions, Privacy Policy, Acceptable Use Policy, Data Processing Agreement, and International Data Transfer Addendum (SCCs / UK IDTA). I represent that I am authorized to bind my organization to these terms.";
 
@@ -129,6 +134,7 @@ export function consentStatementForJurisdiction(
     ? CONSENT_STATEMENT_WITH_DPA
     : CURRENT_CONSENT_STATEMENT;
 }
+
 
 export const SMS_CONSENT_STATEMENT =
   "I consent to receive transactional text messages from Exotiq at the phone number provided (e.g., booking confirmations, reminders, account alerts). Message frequency may vary. Message and data rates may apply. Reply HELP for help or STOP to opt out.";
