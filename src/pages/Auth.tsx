@@ -551,7 +551,7 @@ export default function Auth() {
                   Join {invitation.companyName}
                 </h1>
                 <p className="text-sm sm:text-base text-muted-foreground">
-                  <span className="font-medium">{invitation.inviterName}</span> invited you as a <span className="font-medium capitalize">{invitation.role}</span>
+                  <span className="font-medium">{invitation.inviterName}</span> invited you as {/^[aeiou]/i.test(invitation.role || '') ? 'an' : 'a'} <span className="font-medium capitalize">{invitation.role}</span>
                 </p>
               </>
             ) : authMode === 'reset' ? (
