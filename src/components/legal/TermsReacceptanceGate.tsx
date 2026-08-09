@@ -39,8 +39,13 @@ export const TermsReacceptanceGate = ({ children }: { children: React.ReactNode 
     () => requiredDocsForJurisdiction(jurisdiction),
     [jurisdiction]
   );
-  const consentStatement = consentStatementForJurisdiction(jurisdiction);
-  const canAcceptForTeam = userRole === "owner" || userRole === "admin";
+  // Users with no organization sign for themselves only — the "authorized
+  // representative" wording would be inaccurate, and they can always accept.
+  const consentStatement = teamId
+    ? consentStatementForJurisdiction(jurisdiction)
+    : INDIVIDUAL_CONSENT_STATEMENT;
+  const canAcceptForTeam = !teamId || userRole === "owner" || userRole === "admin";
+
 
   const requiredKey = requiredDocs.join(",");
   const gateQueryKey = ["terms-gate", user?.id, teamId, requiredKey] as const;
