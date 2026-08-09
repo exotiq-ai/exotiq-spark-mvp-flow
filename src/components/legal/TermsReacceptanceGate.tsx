@@ -13,8 +13,10 @@ import {
   buildDocumentsPayload,
   consentStatementForJurisdiction,
   requiredDocsForJurisdiction,
+  INDIVIDUAL_CONSENT_STATEMENT,
   type LegalDocType,
 } from "@/lib/legal/versions";
+
 import { getChangeSummary } from "@/lib/legal/changelog";
 
 interface AcceptanceRow {
