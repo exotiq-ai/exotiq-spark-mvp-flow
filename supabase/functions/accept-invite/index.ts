@@ -226,12 +226,23 @@ serve(async (req: Request) => {
         throw new Error("This invitation has expired");
       }
 
-      // Get inviter's company name
+      // Get inviter's company name (fallback only)
       const { data: inviterProfile } = await supabaseAdmin
         .from("profiles")
         .select("company_name")
         .eq("id", invitation.invited_by)
         .single();
+
+      // Authoritative org name = the team on the invitation
+      let acceptTeamName: string | null = null;
+      if (invitation.team_id) {
+        const { data: acceptTeam } = await supabaseAdmin
+          .from("teams")
+          .select("name")
+          .eq("id", invitation.team_id)
+          .single();
+        acceptTeamName = acceptTeam?.name ?? null;
+      }
 
       // Get new user's profile
       const { data: newUserProfile } = await supabaseAdmin
@@ -240,7 +251,9 @@ serve(async (req: Request) => {
         .eq("id", userId)
         .single();
 
-      const companyName = inviterProfile?.company_name || "ExotIQ";
+      const companyName =
+        acceptTeamName || inviterProfile?.company_name || "exotiq";
+
       const newUserName = newUserProfile?.full_name || invitation.email;
       const newUserEmail = newUserProfile?.email || invitation.email;
 
