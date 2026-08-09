@@ -103,10 +103,17 @@ serve(async (req) => {
         },
       ],
       mode: "subscription",
-      // Trial requires no payment method up front
-      payment_method_collection: allowTrial ? 'if_required' : 'always',
+      // Always capture a card, even for trials — the trial converts without
+      // a dunning gap and we never end up with a trialing team we can't bill.
+      payment_method_collection: 'always',
       subscription_data: {
-        ...(allowTrial ? { trial_period_days: 14 } : {}),
+        ...(allowTrial
+          ? {
+              trial_period_days: 14,
+              // Card on file is guaranteed above; cancel if it ever isn't.
+              trial_settings: { end_behavior: { missing_payment_method: 'cancel' } },
+            }
+          : {}),
         metadata: {
           tierId,
           fleetSize: String(fleetSize),
