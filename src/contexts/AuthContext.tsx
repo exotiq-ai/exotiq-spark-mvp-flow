@@ -388,6 +388,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 if (seq !== authEventSeqRef.current) return;
                 navigate('/dashboard');
               } else {
+                // Safety net: claim an email-matched pending invite (user
+                // signed up without the invite link). Reload so team context
+                // and role hydrate from the new membership.
+                const claimed = await claimPendingInviteByEmail();
+                if (seq !== authEventSeqRef.current) return;
+                if (claimed) {
+                  window.location.replace('/dashboard');
+                  return;
+                }
+
                 // GUARD: Only check onboarding if user is NOT already on a protected route
                 // If they're on dashboard/fleet/etc, they're clearly past onboarding - don't disrupt
                 const protectedRoutes = ['/dashboard', '/super-admin', '/fleet', '/bookings', '/customers', '/vault', '/pulse', '/settings', '/team'];
