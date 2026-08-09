@@ -24,20 +24,24 @@ Deno.serve(async (req) => {
     if (!authHeader?.startsWith("Bearer ")) return json({ error: "unauthorized" }, 401);
     const jwt = authHeader.replace("Bearer ", "");
 
-    const anonClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } },
-    );
-    const { data: userData, error: userErr } = await anonClient.auth.getUser(jwt);
-    if (userErr || !userData?.user) return json({ error: "unauthorized" }, 401);
-
     const db = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
-    const { data: isSuper } = await db.rpc("is_super_admin", { check_user_id: userData.user.id });
-    if (!isSuper) return json({ error: "forbidden — super admin only" }, 403);
+
+    // Service-role bearer = trusted internal caller (ops tooling).
+    const isInternal = jwt === Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!isInternal) {
+      const anonClient = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_ANON_KEY")!,
+        { global: { headers: { Authorization: authHeader } } },
+      );
+      const { data: userData, error: userErr } = await anonClient.auth.getUser(jwt);
+      if (userErr || !userData?.user) return json({ error: "unauthorized" }, 401);
+      const { data: isSuper } = await db.rpc("is_super_admin", { check_user_id: userData.user.id });
+      if (!isSuper) return json({ error: "forbidden — super admin only" }, 403);
+    }
 
     const body = await req.json().catch(() => ({}));
     let customer: string | undefined =
