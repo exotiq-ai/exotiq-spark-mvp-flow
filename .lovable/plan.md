@@ -1,4 +1,4 @@
-# Force returns on DERC historical bookings + owner email draft
+# DERC: rename to Denver Exotiq Rental Cars + force returns + owner email
 
 ## What's there now (verified)
 
