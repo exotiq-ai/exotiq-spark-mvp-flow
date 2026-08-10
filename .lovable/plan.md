@@ -8,7 +8,7 @@ Confirmed by inspecting the data:
 - All 14 `marketplace_booking_created` records belong to the Drive Exotiq team, none to DERC.
 - Gregory is an active member of the DERC team (from support access), so his name/user ID is in DERC's member list.
 
-The Recent Activity feed builds its query by collecting the team's member user IDs and then pulling every activity row for those users — regardless of which team the activity happened in. Because Gregory belongs to both teams, his Drive Exotiq activity appears on DERC's hub. The activity rows already store the team they belong to; the feed just isn't using it.
+Both surfaces share one data hook. That hook builds its query by collecting the team's member user IDs and then pulling every activity row for those users — regardless of which team the activity happened in. Because Gregory belongs to both teams, his Drive Exotiq activity appears on DERC's hub. The activity rows already store the team they belong to; the feed just isn't using it.
 
 This is a display-scoping bug, not a data leak of DERC records, and no DERC booking data is wrong.
 
