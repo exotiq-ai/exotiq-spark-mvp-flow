@@ -35,26 +35,16 @@ export const useTeamActivity = (options: UseTeamActivityOptions = {}) => {
     if (!user || !currentTeam?.id) return;
     
     try {
-      // First fetch team member user_ids to scope activity
-      const { data: teamMembersData } = await supabase
-        .from('team_members')
-        .select('user_id')
-        .eq('team_id', currentTeam.id)
-        .eq('is_active', true);
-
-      const teamUserIds = teamMembersData?.map(m => m.user_id) || [];
-      if (teamUserIds.length === 0) {
-        setActivities([]);
-        setLoading(false);
-        return;
-      }
-
+      // Scope strictly by the team the activity belongs to. Filtering by team
+      // member user_ids leaked activity from other tenants for users who
+      // belong to more than one team (e.g. support access sessions).
       let query = supabase
         .from('user_activity_log')
         .select('*')
-        .in('user_id', teamUserIds)
+        .eq('team_id', currentTeam.id)
         .order('created_at', { ascending: false })
         .limit(limit);
+
 
       if (activityTypes && activityTypes.length > 0) {
         query = query.in('activity_type', activityTypes);
