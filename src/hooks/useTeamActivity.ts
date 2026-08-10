@@ -35,26 +35,16 @@ export const useTeamActivity = (options: UseTeamActivityOptions = {}) => {
     if (!user || !currentTeam?.id) return;
     
     try {
-      // First fetch team member user_ids to scope activity
-      const { data: teamMembersData } = await supabase
-        .from('team_members')
-        .select('user_id')
-        .eq('team_id', currentTeam.id)
-        .eq('is_active', true);
-
-      const teamUserIds = teamMembersData?.map(m => m.user_id) || [];
-      if (teamUserIds.length === 0) {
-        setActivities([]);
-        setLoading(false);
-        return;
-      }
-
+      // Scope strictly by the team the activity belongs to. Filtering by team
+      // member user_ids leaked activity from other tenants for users who
+      // belong to more than one team (e.g. support access sessions).
       let query = supabase
         .from('user_activity_log')
         .select('*')
-        .in('user_id', teamUserIds)
+        .eq('team_id', currentTeam.id)
         .order('created_at', { ascending: false })
         .limit(limit);
+
 
       if (activityTypes && activityTypes.length > 0) {
         query = query.in('activity_type', activityTypes);
@@ -94,17 +84,20 @@ export const useTeamActivity = (options: UseTeamActivityOptions = {}) => {
   }, [user, currentTeam?.id, limit, activityTypes]);
 
   useEffect(() => {
+    if (!currentTeam?.id) return;
+
     fetchActivities();
 
-    // Subscribe to realtime updates
+    // Subscribe to realtime updates — scoped to this team only.
     const channel = supabase
-      .channel('activity-updates')
+      .channel(`activity-updates-${currentTeam.id}`)
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'user_activity_log'
+          table: 'user_activity_log',
+          filter: `team_id=eq.${currentTeam.id}`,
         },
         () => {
           fetchActivities();
@@ -115,7 +108,7 @@ export const useTeamActivity = (options: UseTeamActivityOptions = {}) => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [fetchActivities]);
+  }, [fetchActivities, currentTeam?.id]);
 
   const logActivity = useCallback(async (
     activityType: string,
@@ -123,11 +116,12 @@ export const useTeamActivity = (options: UseTeamActivityOptions = {}) => {
     entityId?: string,
     metadata?: Record<string, unknown>
   ) => {
-    if (!user) return;
+    if (!user || !currentTeam?.id) return;
 
     try {
       await supabase.from('user_activity_log').insert([{
         user_id: user.id,
+        team_id: currentTeam.id,
         activity_type: activityType,
         entity_type: entityType || null,
         entity_id: entityId || null,
@@ -136,7 +130,8 @@ export const useTeamActivity = (options: UseTeamActivityOptions = {}) => {
     } catch (error) {
       console.error('Error logging activity:', error);
     }
-  }, [user]);
+  }, [user, currentTeam?.id]);
+
 
   return {
     activities,
