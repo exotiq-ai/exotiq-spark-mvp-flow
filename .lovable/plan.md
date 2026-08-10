@@ -6,8 +6,17 @@ Denver Exotic Rental Cars bookings:
 - 68 completed, 41 confirmed, 14 cancelled, 1 active
 - Of those, **38 bookings have an end date in the past but are still open** (37 confirmed, 1 active) — these are the "never returned" records
 - Fleet: 7 available, 2 booked, 2 retired
+Current account record: name `Denver Exotic Rental Cars`, slug `denver-exotic-rental-cars`, 11 vehicles, no support email set.
 
-## Step 1 — Close out the past-dated bookings
+## Step 1 — Rename to Denver Exotiq Rental Cars (licensed name)
+
+Update the tenant record's display name to **Denver Exotiq Rental Cars**. The name is stored once on the account and read everywhere else — dashboard header, invites and emails, documents, rental agreements, Command Center and Super Admin lists — so this single change carries across the whole platform. A sweep of the codebase confirmed there is no hardcoded "Denver Exotic" text anywhere in the app.
+
+Public marketplace URL: the account also has a web address slug `denver-exotic-rental-cars`. Recommendation is to update it to `denver-exotiq-rental-cars` so the public listing matches the licensed name. Trade-off: any previously shared link using the old slug stops working. Say the word if you'd rather keep the old slug for now — the display name change works either way.
+
+Verification after the change: confirm the account name and slug read correctly, the public marketplace listing loads on the new address, and vehicle listing links still resolve.
+
+## Step 2 — Close out the past-dated bookings
 
 Mark the 38 bookings whose end date is already in the past as **completed** (returned). Scope is strictly `team_id = Denver Exotic Rental Cars` and `end_date < now()` and status in (`confirmed`, `active`). Future-dated bookings, cancelled bookings, and every other tenant are untouched.
 
