@@ -21,6 +21,6 @@ This is a display-scoping bug, not a data leak of DERC records, and no DERC book
 
 ## Technical notes
 
-- File: `src/hooks/useTeamActivity.ts` — replace the `team_members` → `user_id` `.in(...)` lookup with `.eq('team_id', currentTeam.id)`; the existing row-level security policy already permits owner/admin/manager reads scoped by `team_id`.
+- File: `src/hooks/useTeamActivity.ts` — replace the `team_members` → `user_id` `.in(...)` lookup with `.eq('team_id', currentTeam.id)`; the existing row-level security policy already permits owner/admin/manager reads scoped by `team_id`. This one change fixes both consumers: `TeamActivityDashboard.tsx` (Team Hub tab) and `widgets/LiveActivityStrip.tsx` (Recent Activity).
 - Add `team_id: currentTeam.id` to the insert in `logActivity`.
 - No database migration or data change required; existing rows already carry the correct team.
