@@ -1,8 +1,8 @@
-# Fix: Drive Exotiq activity leaking into DERC's Recent Activity
+# Fix: Drive Exotiq activity leaking into DERC's activity feeds
 
 ## What's happening
 
-The "marketplace booking created" entries on DERC's Team Hub are not DERC bookings. They are Drive Exotiq activity records for Gregory Ringler.
+The "marketplace booking created" entries on DERC's Team Hub — both the Recent Activity list and the Team Hub activity tab with the Logins/Bookings/Payments/Team filters — are not DERC bookings. They are Drive Exotiq activity records for Gregory Ringler.
 
 Confirmed by inspecting the data:
 - All 14 `marketplace_booking_created` records belong to the Drive Exotiq team, none to DERC.
