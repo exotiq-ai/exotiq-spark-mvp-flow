@@ -24,17 +24,19 @@ Also re-sync vehicle status afterwards: any DERC vehicle sitting in `booked` wit
 
 Before/after row counts get reported back so the change is auditable.
 
-## Step 2 — Draft email to the DERC owner
+## Step 3 — Draft email to the owner
 
 Write a plain-language draft (delivered in chat as text for review — nothing sent automatically) covering:
 
-1. **What was done** — historical rentals that were left open have been closed out as returned, so the calendar, availability and revenue reporting reflect reality.
-2. **Why it matters** — open past bookings block vehicles from showing available, distort utilization and revenue, and create false double-booking warnings.
-3. **Check-in / Check-out** — recommend running the guided inspection at both ends of every rental: timestamped photo record, fuel/mileage capture, and a clean paper trail for damage claims. Bookings then close themselves at return instead of drifting open.
-4. **Payment portal** — recommend recording payments and using the renter payment link so deposits, balances and refunds live on the booking, LTV and revenue charts stay accurate, and the card on file supports extensions and incidental charges.
-5. **Suggested operating rhythm** — daily brief in the morning, check-out at handover, check-in at return, payment recorded same day.
+1. **Name change** — the account now reads Denver Exotiq Rental Cars everywhere in the platform, including emails, documents and the public listing, under the exotiq name licence.
+2. **What was done** — historical rentals that were left open have been closed out as returned, so the calendar, availability and revenue reporting reflect reality.
+3. **Why it matters** — open past bookings block vehicles from showing available, distort utilization and revenue, and create false double-booking warnings.
+4. **Check-in / Check-out** — recommend running the guided inspection at both ends of every rental: timestamped photo record, fuel/mileage capture, and a clean paper trail for damage claims. Bookings then close themselves at return instead of drifting open.
+5. **Payment portal** — recommend recording payments and using the renter payment link so balances and refunds live on the booking, LTV and revenue charts stay accurate, and the card on file supports extensions and incidental charges.
+6. **Suggested operating rhythm** — daily brief in the morning, check-out at handover, check-in at return, payment recorded same day.
 
 ## Technical detail
 
-- Two data updates via the database tool: a scoped `UPDATE bookings SET status='completed'` and a follow-up vehicle status re-sync.
+- Three scoped data updates via the database tool: rename `teams.name` (and optionally `teams.slug`), `UPDATE bookings SET status='completed'` for past-dated open bookings, and a vehicle status re-sync.
+- All statements filtered to `team_id = c71d6655-…` — no other tenant is touched.
 - No schema change, no edge function change, no code change.
