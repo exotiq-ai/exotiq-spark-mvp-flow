@@ -1,30 +1,26 @@
-# Why Settings shows your name in a DERC support session
+# Fix: Drive Exotiq activity leaking into DERC's Recent Activity
 
-## Short answer: no tenant leakage
+## What's happening
 
-Two separate things are being shown in Settings, and only one of them is tenant data:
+The "marketplace booking created" entries on DERC's Team Hub are not DERC bookings. They are Drive Exotiq activity records for Gregory Ringler.
 
-- **My Account** — always your own login (Gregory Ringler / Drive Exotiq). A support session changes which *tenant's data* you can see; it never changes who you are signed in as. This tab reads the profile of the signed-in user by design, so it correctly shows you.
-- **Business profile** — the tenant's data (business name, region, currency, support email). This is DERC data.
+Confirmed by inspecting the data:
+- All 14 `marketplace_booking_created` records belong to the Drive Exotiq team, none to DERC.
+- Gregory is an active member of the DERC team (from support access), so his name/user ID is in DERC's member list.
 
-Checked in the database: Denver Exotic Rental Cars' owner is **J Davidson**, and DERC's member list is Jay (owner), Laura Amoruso (admin), you (admin, via support access), plus one inactive manager. Nothing from Drive Exotiq has crossed into DERC, and nothing of DERC's has been written under your profile.
+The Recent Activity feed builds its query by collecting the team's member user IDs and then pulling every activity row for those users — regardless of which team the activity happened in. Because Gregory belongs to both teams, his Drive Exotiq activity appears on DERC's hub. The activity rows already store the team they belong to; the feed just isn't using it.
 
-## Is it safe to change?
+This is a display-scoping bug, not a data leak of DERC records, and no DERC booking data is wrong.
 
-Do not edit anything on **My Account** while in a support session — those fields write to *your* Drive Exotiq profile, not Jay's. Any DERC business information changes belong on the **Business profile** tab, which is safe to edit during an active support session.
+## The fix
 
-One caveat worth fixing: saving Business profile also mirrors the business name onto the team owner's profile record (Jay's), which is intended, but there is nothing in the UI telling you that.
-
-## Proposed changes
-
-1. **Hide "My Account" during a support session.** When an active support grant is in effect for the tenant you're viewing, replace the My Account tab content with a short notice: "You're in a support session for Denver Exotic Rental Cars. Your personal account settings are not editable here — end the session to manage your own profile." This removes the possibility of accidentally editing your own profile while working in a customer account.
-
-2. **Show the tenant owner on Business profile.** Add a read-only "Account owner" line at the top of the Business profile card showing the team owner's name and email (J Davidson), so it's immediately obvious whose business you're editing and that it isn't you.
-
-3. **Make the support banner clearer.** Keep the existing amber support banner, but state the tenant name and that all edits are attributed to your real user id, so anything you change in DERC is auditable.
+1. Scope the activity feed by the team the activity belongs to, instead of by member user IDs. Rows without a team stay hidden from team feeds.
+2. Scope the realtime subscription refresh the same way so live inserts from another tenant don't repopulate the feed.
+3. Stamp the current team on newly written activity records so future entries are always attributable to one tenant.
+4. Re-check the Team Hub after the change on both DERC and Drive Exotiq to confirm each shows only its own activity.
 
 ## Technical notes
 
-- `src/components/dashboard/settings/MyAccountSection.tsx` reads `profiles` filtered by `user.id` — correct behavior, so the fix is gating the tab, not changing the query.
-- Support-session state is already available via `useSupportSession()`; gate the `account` case in `SettingsLayout.tsx` on an active grant whose `team_id` matches `currentTeam.id`.
-- `BusinessProfileSection.tsx` already has `currentTeam.owner_id`; fetch the owner's `full_name` for the read-only display line. No schema change and no new policies needed.
+- File: `src/hooks/useTeamActivity.ts` — replace the `team_members` → `user_id` `.in(...)` lookup with `.eq('team_id', currentTeam.id)`; the existing row-level security policy already permits owner/admin/manager reads scoped by `team_id`.
+- Add `team_id: currentTeam.id` to the insert in `logActivity`.
+- No database migration or data change required; existing rows already carry the correct team.
