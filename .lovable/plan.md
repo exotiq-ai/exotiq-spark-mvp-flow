@@ -41,21 +41,28 @@ Six asks came out of Ed's onboarding. Two are already fully built and just need 
 - In MotorIQ → Rate Tiers, add a "Apply pricing rule" action: choose a discount % for multi-day (and optional 3hr/6hr multipliers), select vehicles, preview computed rates, apply.
 - Rounding to the tenant's currency; respects the existing `min_rate` floor.
 
-### Phase 5 — Investor view
-- New `investor` role at the bottom of the hierarchy.
-- Investors are linked to specific vehicles through the existing `vehicle_partners` table.
-- Dedicated read-only page: their vehicles, revenue, expenses, net, payouts, utilization, and booking counts. No fleet management, no customers, no settings, no other vehicles.
-- RLS scoped to the partner's vehicle set; tenant staff invite/revoke investors from the vehicle's partner section.
+### Phase 5 — Investor view (DEFERRED, not building now)
+Parked by decision. Notes kept for later: `investor` role below Viewer, scoped through the existing `vehicle_partners` table, read-only per-vehicle P&L, no shareable public link. Revisit as its own milestone since it touches roles and RLS.
 
-### Phase 6 — Follow-up for Ed
-- Short in-app guide + updated reply to Ed once phases 1–4 ship, with the investor view dated.
+### Phase 6 — End-to-end testing (desktop + mobile)
+Every phase above ships only after it passes this gate:
+- Playwright E2E flows against the live app: import bookings from the Bookings module, import customers from the Customers module, log a past booking, bulk-apply mileage, apply a rate rule. Assert the resulting rows and that no email/Stripe/calendar side effect fired for historical entries.
+- Multi-tenant checks: run the flows on a second tenant to confirm team scoping and that nothing crosses tenants.
+- Role checks: confirm Manager+ can reach the new actions and Viewer/Operator cannot.
+- Responsive pass at 390x844 (phone), 768x1024 (tablet), and 1440x900 (desktop): every new dialog, menu, and preview table fully visible, scrollable, no overflow past the frame — same standard we applied to the mobile card/menu pass.
+- Console and network clean on each flow; screenshots captured at each viewport for review.
+- Regression: existing Fleet import path and MotorIQ rate editing still work unchanged.
+
+### Phase 7 — Follow-up for Ed
+Once phases 1–4 are built and Phase 6 passes on all viewports, re-draft the email to Ed at Revel Roam: what shipped, exact click paths for each of his six questions, and an honest note that the investor dashboard is scheduled but not yet built.
 
 ## Technical notes
 - Import: reuse `ImportWizard` / `importSchemas.ts` (already has `vehicles`, `customers`, `bookings`, `locations`); add an `initialEntityType` prop.
 - Historical bookings: new nullable `is_historical` boolean on `bookings`; guard email/Stripe/GCal side effects on it.
 - Mileage defaults: new nullable columns on `teams`; bulk update through a batched vehicle update with change-log entries (`vehicle_change_log`).
 - Rate rules: pure client computation writing to existing `rate_3hr`, `rate_6hr`, `current_rate`, `rate_multiday`.
-- Investor role: extend `app_role` enum, add `investor` to `useUserRole` hierarchy at level 0, add RLS policies joining `vehicle_partners`; reuse `fn_vehicle_pnl` filtered to the partner's vehicles.
+- Tests use the existing `data-testid` convention so the flows stay stable.
 
 ## Sequencing
-Phases 1–2 first (unblocks Ed's backfill this week), then 3–4 (pricing pass), then 5 (investor view) as its own milestone since it touches roles and RLS.
+Phases 1–2 first (unblocks Ed's backfill this week), then 3–4 (pricing pass), then Phase 6 testing across desktop/tablet/mobile, then the email in Phase 7. Phase 5 stays parked.
+
