@@ -1,6 +1,6 @@
 # Master plan — Revel Roam (Ed) requests
 
-Six asks came out of Ed's onboarding. Two are already fully built and just need better entry points, three are real product gaps worth building, and one (investor dashboard) I want to reshape before we build it.
+Six asks came out of Ed's onboarding. Two are already fully built and just need better entry points, three are real product gaps worth building, and the investor dashboard is parked for a later milestone.
 
 ## Verdict on each ask
 
@@ -10,7 +10,7 @@ Six asks came out of Ed's onboarding. Two are already fully built and just need 
 | 2 | Per-mile overage rate | Exists per vehicle (`mileage_overage_rate`), no bulk/default | Add tenant default + bulk apply |
 | 3 | Multi-day pricing | Exists per vehicle (Rate Tiers: 3hr / 6hr / daily / multiday) | Add rule-based bulk tier fill |
 | 4 | Connect Stripe | Live today | No work; document only |
-| 5 | Investor dashboard | Real gap | Build, but scoped differently than asked (see pushback) |
+| 5 | Investor dashboard | Real gap | Deferred by decision — reshaped design kept for a later milestone |
 | 6 | Bulk customer upload | Exists (`customers` import entity), buried in Fleet | Add entry point under Customers |
 
 ## Pushback / improvements
