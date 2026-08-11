@@ -52,6 +52,15 @@ export const AddVehicleDialog = ({ open, onOpenChange, onSubmit, onAddPhotos }: 
   // Auto-set location when dialog opens or selectedLocationId changes
   const effectiveLocationId = locationId || (selectedLocationId !== 'all' ? selectedLocationId : locations[0]?.id || '');
 
+  // Keep the mileage fields aligned with the tenant defaults while the dialog
+  // is closed (team data can load after first mount).
+  useEffect(() => {
+    if (!open) {
+      setDefaultMileageLimit(teamMileageLimit);
+      setMileageOverageRate(teamOverageRate);
+    }
+  }, [open, teamMileageLimit, teamOverageRate]);
+
   const resetForm = () => {
     setName("");
     setMake("");
