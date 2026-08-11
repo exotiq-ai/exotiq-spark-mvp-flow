@@ -362,7 +362,7 @@ export const bookingImportSchema: ImportEntitySchema = {
     {
       name: 'pickup_location',
       label: 'Pickup Location',
-      required: true,
+      required: false,
       type: 'string',
       aliases: ['pickup', 'start_location', 'from_location', 'collection_point'],
       description: 'Vehicle pickup location',
@@ -571,7 +571,10 @@ export const bookingImportValidation = z.object({
   vehicle_name: z.string().optional().nullable(),
   start_date: z.string().min(1, 'Start date is required'),
   end_date: z.string().min(1, 'End date is required'),
-  pickup_location: z.string().min(1, 'Pickup location is required'),
+  pickup_location: z.preprocess(
+    (v) => (v === null || v === undefined || String(v).trim() === '' ? 'Not recorded' : v),
+    z.string().min(1)
+  ),
   dropoff_location: z.string().optional().nullable(),
   daily_rate: z.preprocess(cleanNumeric, z.coerce.number().min(0, 'Daily rate must be positive')),
   total_value: z.preprocess(cleanNumeric, z.coerce.number().min(0, 'Total value must be positive')),
