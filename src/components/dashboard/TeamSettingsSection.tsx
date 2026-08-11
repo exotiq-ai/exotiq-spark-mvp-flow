@@ -13,7 +13,7 @@ import { useMoney } from "@/hooks/useMoney";
 import { useTeam } from "@/contexts/TeamContext";
 import { PermissionGuard } from "@/components/common/PermissionGuard";
 import { supabase } from "@/integrations/supabase/client";
-import { Save, Building2, Clock, Bell, Loader2, DollarSign, Fuel, ShieldCheck } from "lucide-react";
+import { Save, Building2, Clock, Bell, Loader2, DollarSign, Fuel, ShieldCheck, Gauge } from "lucide-react";
 
 interface TeamSettings {
   companyName: string;
@@ -49,6 +49,86 @@ export const TeamSettingsSection = () => {
   // Team-scoped deposit policy — persisted directly on teams.default_deposit_cents
   const [depositDollars, setDepositDollars] = useState<string>("");
   const [savingDeposit, setSavingDeposit] = useState(false);
+
+  // Team-wide mileage defaults — persisted on teams, inherited by new vehicles
+  const [mileageLimit, setMileageLimit] = useState<string>("");
+  const [mileageOverage, setMileageOverage] = useState<string>("");
+  const [savingMileage, setSavingMileage] = useState(false);
+  const [applyingMileage, setApplyingMileage] = useState(false);
+
+  useEffect(() => {
+    setMileageLimit(currentTeam?.default_mileage_limit == null ? "" : String(currentTeam.default_mileage_limit));
+    setMileageOverage(
+      currentTeam?.default_mileage_overage_rate == null ? "" : String(currentTeam.default_mileage_overage_rate),
+    );
+  }, [currentTeam?.id, currentTeam?.default_mileage_limit, currentTeam?.default_mileage_overage_rate]);
+
+  const parseMileageInputs = (): { limit: number | null; rate: number | null } | null => {
+    const l = mileageLimit.trim();
+    const r = mileageOverage.trim();
+    const limit = l === "" ? null : Number(l);
+    const rate = r === "" ? null : Number(r);
+    if (limit !== null && (!Number.isFinite(limit) || limit < 0)) return null;
+    if (rate !== null && (!Number.isFinite(rate) || rate < 0)) return null;
+    return { limit, rate };
+  };
+
+  const handleSaveMileage = async () => {
+    if (!currentTeam?.id) return;
+    const parsed = parseMileageInputs();
+    if (!parsed) {
+      toast({ title: "Invalid mileage values", description: "Use zero or a positive number", variant: "destructive" });
+      return;
+    }
+    setSavingMileage(true);
+    try {
+      const { error } = await supabase
+        .from('teams')
+        .update({
+          default_mileage_limit: parsed.limit,
+          default_mileage_overage_rate: parsed.rate,
+        })
+        .eq('id', currentTeam.id);
+      if (error) throw error;
+      await refreshTeam();
+      toast({ title: "Mileage defaults saved", description: "New vehicles will inherit these values" });
+    } catch (err: any) {
+      toast({ title: "Save failed", description: err?.message || "Could not update mileage defaults", variant: "destructive" });
+    } finally {
+      setSavingMileage(false);
+    }
+  };
+
+  const handleApplyMileageToFleet = async () => {
+    if (!currentTeam?.id) return;
+    const parsed = parseMileageInputs();
+    if (!parsed || (parsed.limit === null && parsed.rate === null)) {
+      toast({ title: "Nothing to apply", description: "Enter a mileage limit and/or overage rate first", variant: "destructive" });
+      return;
+    }
+    setApplyingMileage(true);
+    try {
+      const updates: Record<string, number | null> = {};
+      if (parsed.limit !== null) updates.default_mileage_limit = parsed.limit;
+      if (parsed.rate !== null) updates.mileage_overage_rate = parsed.rate;
+
+      const { data, error } = await supabase
+        .from('vehicles')
+        .update(updates)
+        .eq('team_id', currentTeam.id)
+        .neq('status', 'retired')
+        .select('id');
+      if (error) throw error;
+      toast({
+        title: "Applied to fleet",
+        description: `${data?.length ?? 0} vehicle${(data?.length ?? 0) === 1 ? '' : 's'} updated`,
+      });
+    } catch (err: any) {
+      toast({ title: "Update failed", description: err?.message || "Could not apply to fleet", variant: "destructive" });
+    } finally {
+      setApplyingMileage(false);
+    }
+  };
 
   useEffect(() => {
     const cents = currentTeam?.default_deposit_cents;
@@ -356,6 +436,63 @@ export const TeamSettingsSection = () => {
               </PermissionGuard>
             </div>
           </div>
+        </div>
+
+        <Separator className="my-4" />
+
+        {/* Mileage defaults */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Gauge className="w-4 h-4 text-muted-foreground" />
+            <h4 className="text-sm font-semibold">Mileage allowance</h4>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Applied to new vehicles automatically. Each vehicle can still be overridden on its rate card.
+          </p>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="defaultMileageLimit">Included miles per day</Label>
+              <Input
+                id="defaultMileageLimit"
+                type="number"
+                min="0"
+                step="1"
+                placeholder="125"
+                value={mileageLimit}
+                onChange={(e) => setMileageLimit(e.target.value)}
+                onWheel={(e) => e.currentTarget.blur()}
+                className="w-full sm:w-[200px]"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="defaultMileageOverage">Overage rate ({currency}/mi)</Label>
+              <Input
+                id="defaultMileageOverage"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="4.99"
+                value={mileageOverage}
+                onChange={(e) => setMileageOverage(e.target.value)}
+                onWheel={(e) => e.currentTarget.blur()}
+                className="w-full sm:w-[200px]"
+              />
+            </div>
+          </div>
+
+          <PermissionGuard minRole="admin" fallback={null}>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={handleSaveMileage} disabled={savingMileage}>
+                {savingMileage ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                Save defaults
+              </Button>
+              <Button variant="outline" onClick={handleApplyMileageToFleet} disabled={applyingMileage}>
+                {applyingMileage ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Gauge className="w-4 h-4 mr-2" />}
+                Apply to every vehicle
+              </Button>
+            </div>
+          </PermissionGuard>
         </div>
       </Card>
 

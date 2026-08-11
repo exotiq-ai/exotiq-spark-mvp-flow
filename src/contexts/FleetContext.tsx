@@ -919,8 +919,10 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
       toast({ title: "Booking Created", description: "Booking has been successfully created." });
       }
 
-      // Fire-and-forget Google Calendar sync
-      if (insertedBooking && teamId) {
+      // Fire-and-forget Google Calendar sync.
+      // Historical bookings are back-filled records — they must never push to
+      // the operator's calendar or trigger renter-facing side effects.
+      if (insertedBooking && teamId && !(booking as any).is_historical) {
         syncBookingToGCal("create", insertedBooking.id, teamId);
       }
 

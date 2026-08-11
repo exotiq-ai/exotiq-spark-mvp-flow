@@ -17,7 +17,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Save, DollarSign, Car, Loader2, Info, AlertCircle } from "lucide-react";
+import { Save, DollarSign, Car, Loader2, Info, AlertCircle, Percent, Wand2 } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { formatCurrency } from "@/lib/utils";
 
@@ -56,6 +58,11 @@ export const RateTiersPanel = () => {
     deposit_override: "",
   });
   const [saving, setSaving] = useState(false);
+
+  // Bulk rate rule — derive a duration tier from each vehicle's daily rate
+  const [ruleTier, setRuleTier] = useState<'rate_3hr' | 'rate_6hr' | 'rate_multiday'>('rate_multiday');
+  const [rulePercent, setRulePercent] = useState('85');
+  const [applyingRule, setApplyingRule] = useState(false);
 
   const minRate = (currentTeam as any)?.min_rate ?? 100;
   const defaultDepositCents = currentTeam?.default_deposit_cents ?? null;
@@ -165,6 +172,44 @@ export const RateTiersPanel = () => {
     }
   };
 
+  const TIER_LABELS: Record<string, string> = {
+    rate_3hr: '3-Hour',
+    rate_6hr: '6-Hour',
+    rate_multiday: 'Multi-Day (per day)',
+  };
+
+  const applyRateRule = async () => {
+    const pct = parseFloat(rulePercent);
+    if (!Number.isFinite(pct) || pct <= 0 || pct > 300) {
+      toast({ title: 'Invalid percentage', description: 'Enter a percentage between 1 and 300', variant: 'destructive' });
+      return;
+    }
+
+    setApplyingRule(true);
+    try {
+      let updated = 0;
+      let skipped = 0;
+      for (const vehicle of vehicleRates) {
+        const daily = Number(vehicle.current_rate);
+        if (!Number.isFinite(daily) || daily <= 0) { skipped++; continue; }
+        const next = Math.round((daily * pct) / 100);
+        // Never write a tier below the tenant's rate floor
+        if (next < minRate) { skipped++; continue; }
+        const ok = await updateVehicle(vehicle.id, { [ruleTier]: next } as any);
+        if (ok) updated++; else skipped++;
+      }
+      toast({
+        title: 'Rate rule applied',
+        description: `${TIER_LABELS[ruleTier]} set on ${updated} vehicle${updated === 1 ? '' : 's'}` +
+          (skipped > 0 ? ` · ${skipped} skipped (below the $${minRate} floor or missing a daily rate)` : ''),
+      });
+    } catch {
+      toast({ title: 'Error', description: 'Could not apply the rate rule', variant: 'destructive' });
+    } finally {
+      setApplyingRule(false);
+    }
+  };
+
   const formatRate = (rate: number | null) => {
     if (rate == null) return "—";
     return formatCurrency(rate);
@@ -208,6 +253,59 @@ export const RateTiersPanel = () => {
             for this vehicle. Reference only — Exotiq does not collect this; you settle it with the renter at pickup. Leave blank to use the default.
           </AlertDescription>
         </Alert>
+
+        {/* Bulk rate rule */}
+        <PermissionGuard minRole="manager" fallback={null}>
+          <div className="mb-4 rounded-lg border border-border bg-muted/30 p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <Wand2 className="h-4 w-4 text-primary" />
+              <h4 className="text-sm font-semibold">Set a tier across the whole fleet</h4>
+            </div>
+            <p className="text-xs text-muted-foreground mb-3">
+              Each vehicle's tier is calculated from its own daily rate — no need to price them one by one.
+              Anything landing below your ${minRate} floor is skipped.
+            </p>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+              <div className="space-y-1 flex-1 min-w-0">
+                <Label className="text-xs">Tier</Label>
+                <Select value={ruleTier} onValueChange={(v) => setRuleTier(v as typeof ruleTier)}>
+                  <SelectTrigger data-testid="rate-rule-tier"><SelectValue /></SelectTrigger>
+                  <SelectContent className="z-[60] bg-popover">
+                    <SelectItem value="rate_3hr">3-Hour</SelectItem>
+                    <SelectItem value="rate_6hr">6-Hour</SelectItem>
+                    <SelectItem value="rate_multiday">Multi-Day (per day)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1 sm:w-40">
+                <Label className="text-xs">% of daily rate</Label>
+                <div className="relative">
+                  <Input
+                    type="number"
+                    min="1"
+                    max="300"
+                    value={rulePercent}
+                    onChange={(e) => setRulePercent(e.target.value)}
+                    onWheel={(e) => e.currentTarget.blur()}
+                    className="pr-8"
+                    data-testid="rate-rule-percent"
+                  />
+                  <Percent className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                onClick={applyRateRule}
+                disabled={applyingRule}
+                className="w-full sm:w-auto"
+                data-testid="rate-rule-apply"
+              >
+                {applyingRule ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Wand2 className="w-4 h-4 mr-2" />}
+                Apply to {vehicleRates.length} vehicle{vehicleRates.length === 1 ? '' : 's'}
+              </Button>
+            </div>
+          </div>
+        </PermissionGuard>
 
         <div className="overflow-x-auto">
           <Table>
