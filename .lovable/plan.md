@@ -1,4 +1,4 @@
-# Master plan — Rebel & Roam (Ed) requests
+# Master plan — Revel Roam (Ed) requests
 
 Six asks came out of Ed's onboarding. Two are already fully built and just need better entry points, three are real product gaps worth building, and one (investor dashboard) I want to reshape before we build it.
 
