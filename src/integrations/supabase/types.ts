@@ -354,6 +354,7 @@ export type Database = {
           id: string
           invoice_issued_at: string | null
           invoice_number: string | null
+          is_historical: boolean
           mileage_limit: number | null
           mileage_overage_fee: number | null
           notes: string | null
@@ -432,6 +433,7 @@ export type Database = {
           id?: string
           invoice_issued_at?: string | null
           invoice_number?: string | null
+          is_historical?: boolean
           mileage_limit?: number | null
           mileage_overage_fee?: number | null
           notes?: string | null
@@ -510,6 +512,7 @@ export type Database = {
           id?: string
           invoice_issued_at?: string | null
           invoice_number?: string | null
+          is_historical?: boolean
           mileage_limit?: number | null
           mileage_overage_fee?: number | null
           notes?: string | null
@@ -3753,6 +3756,8 @@ export type Database = {
           currency: string
           data_region: string
           default_deposit_cents: number | null
+          default_mileage_limit: number | null
+          default_mileage_overage_rate: number | null
           deleted_at: string | null
           deleted_by: string | null
           deletion_scheduled_for: string | null
@@ -3821,6 +3826,8 @@ export type Database = {
           currency?: string
           data_region?: string
           default_deposit_cents?: number | null
+          default_mileage_limit?: number | null
+          default_mileage_overage_rate?: number | null
           deleted_at?: string | null
           deleted_by?: string | null
           deletion_scheduled_for?: string | null
@@ -3889,6 +3896,8 @@ export type Database = {
           currency?: string
           data_region?: string
           default_deposit_cents?: number | null
+          default_mileage_limit?: number | null
+          default_mileage_overage_rate?: number | null
           deleted_at?: string | null
           deleted_by?: string | null
           deletion_scheduled_for?: string | null

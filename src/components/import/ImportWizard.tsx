@@ -24,6 +24,8 @@ import { ImportSummary } from './ImportSummary';
 interface ImportWizardProps {
   onClose?: () => void;
   onComplete?: (entityType: ImportEntityType | string, count: number) => void;
+  /** Preselect (and lock) the entity type, skipping the "Select Type" step. */
+  initialEntityType?: ImportEntityType;
 }
 
 type WizardStep = 'upload' | 'entity' | 'mapping' | 'preview' | 'duplicates' | 'import' | 'summary';
@@ -38,7 +40,7 @@ const steps: { key: WizardStep; label: string }[] = [
   { key: 'summary', label: 'Summary' }
 ];
 
-export function ImportWizard({ onClose, onComplete }: ImportWizardProps) {
+export function ImportWizard({ onClose, onComplete, initialEntityType }: ImportWizardProps) {
   const { toast } = useToast();
   const { user } = useAuth();
   const { currentTeam } = useTeam();
@@ -52,7 +54,7 @@ export function ImportWizard({ onClose, onComplete }: ImportWizardProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
   const [detectedEntity, setDetectedEntity] = useState<EntityDetectionResult | null>(null);
-  const [selectedEntity, setSelectedEntity] = useState<ImportEntityType | null>(null);
+  const [selectedEntity, setSelectedEntity] = useState<ImportEntityType | null>(initialEntityType ?? null);
   const [columnMappings, setColumnMappings] = useState<ColumnMapping[]>([]);
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
   const [duplicateResult, setDuplicateResult] = useState<DuplicateCheckResult | null>(null);
@@ -72,7 +74,7 @@ export function ImportWizard({ onClose, onComplete }: ImportWizardProps) {
     setParsedData(null);
     setFileError(null);
     setDetectedEntity(null);
-    setSelectedEntity(null);
+    setSelectedEntity(initialEntityType ?? null);
     setColumnMappings([]);
     setValidationResult(null);
     setDuplicateResult(null);
@@ -91,7 +93,7 @@ export function ImportWizard({ onClose, onComplete }: ImportWizardProps) {
       setParsedData(data);
       const detected = detectEntityType(data.headers);
       setDetectedEntity(detected);
-      if (detected.confidence >= 70) setSelectedEntity(detected.entityType);
+      if (!initialEntityType && detected.confidence >= 70) setSelectedEntity(detected.entityType);
     } catch (error) {
       setFileError(error instanceof Error ? error.message : 'Failed to parse file');
       setSelectedFile(null);
@@ -102,7 +104,7 @@ export function ImportWizard({ onClose, onComplete }: ImportWizardProps) {
 
   const handleNext = async () => {
     if (currentStep === 'upload' && parsedData) {
-      setCurrentStep('entity');
+      setCurrentStep(initialEntityType ? 'mapping' : 'entity');
     } else if (currentStep === 'entity' && selectedEntity) {
       setCurrentStep('mapping');
     } else if (currentStep === 'mapping' && selectedEntity && parsedData) {
@@ -147,6 +149,10 @@ export function ImportWizard({ onClose, onComplete }: ImportWizardProps) {
   };
 
   const handleBack = () => {
+    if (initialEntityType && currentStep === 'mapping') {
+      setCurrentStep('upload');
+      return;
+    }
     const prevIndex = currentStepIndex - 1;
     if (prevIndex >= 0) setCurrentStep(steps[prevIndex].key);
   };
@@ -215,6 +221,23 @@ export function ImportWizard({ onClose, onComplete }: ImportWizardProps) {
     // For bookings, auto-create customers and link entities
     if (selectedEntity === 'bookings') {
       recordsToProcess = await autoCreateCustomersAndLink(recordsToProcess, currentTeam.id, user.id);
+
+      // Back-filled history: any imported booking that already ended is a
+      // record-keeping row. Mark it historical (no renter emails, no payment
+      // window, no calendar push) and close it out as completed.
+      const now = Date.now();
+      recordsToProcess = recordsToProcess.map(row => {
+        const end = (row as any).end_date ? new Date((row as any).end_date as string).getTime() : NaN;
+        if (!Number.isNaN(end) && end < now) {
+          const status = (row as any).status;
+          return {
+            ...row,
+            is_historical: true,
+            status: status && ['completed', 'cancelled'].includes(String(status)) ? status : 'completed',
+          };
+        }
+        return row;
+      });
     }
     
     const totalRows = recordsToProcess.length + updatesToProcess.length;
@@ -455,9 +478,10 @@ export function ImportWizard({ onClose, onComplete }: ImportWizardProps) {
   };
 
   // Skip duplicates step in progress indicator if no duplicates
-  const visibleSteps = duplicateResult?.duplicates?.length 
+  const visibleSteps = (duplicateResult?.duplicates?.length 
     ? steps 
-    : steps.filter(s => s.key !== 'duplicates');
+    : steps.filter(s => s.key !== 'duplicates')
+  ).filter(s => !(initialEntityType && s.key === 'entity'));
   
   const visibleStepIndex = visibleSteps.findIndex(s => s.key === currentStep);
 

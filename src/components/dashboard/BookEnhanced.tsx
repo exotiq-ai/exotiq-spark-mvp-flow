@@ -8,6 +8,15 @@ import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { useModuleNavigation } from "@/hooks/useModuleNavigation";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { NewBookingDialog } from "@/components/dialogs/NewBookingDialog";
+import { LogPastBookingDialog } from "@/components/dialogs/LogPastBookingDialog";
+import { ImportWizard } from "@/components/import/ImportWizard";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { EnhancedBookingDialog } from "@/components/dialogs/EnhancedBookingDialog";
 import { BookingCalendar } from "@/components/dashboard/BookingCalendar";
@@ -36,7 +45,9 @@ import {
   Circle,
   AlertCircle,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  History,
+  Upload
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tables } from "@/integrations/supabase/types";
@@ -136,6 +147,8 @@ export const BookEnhanced = () => {
   const { goToBookingDetails, goToVehicleDetails, goToCustomerProfile, goToPayments } = useModuleNavigation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [showNewBooking, setShowNewBooking] = useState(false);
+  const [showLogPastBooking, setShowLogPastBooking] = useState(false);
+  const [showImportBookings, setShowImportBookings] = useState(false);
   const [showBookingDetails, setShowBookingDetails] = useState(false);
   const [activeTab, setActiveTab] = useState<string | undefined>(undefined);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
@@ -374,6 +387,28 @@ export const BookEnhanced = () => {
         vehicles={vehicles}
         onSubmit={createBooking}
       />
+
+      <LogPastBookingDialog
+        open={showLogPastBooking}
+        onOpenChange={setShowLogPastBooking}
+        vehicles={vehicles}
+        onSubmit={createBooking}
+      />
+
+      <Dialog open={showImportBookings} onOpenChange={setShowImportBookings}>
+        <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Import bookings</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto">
+            <ImportWizard
+              initialEntityType="bookings"
+              onClose={() => setShowImportBookings(false)}
+              onComplete={() => setShowImportBookings(false)}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
       
       <EnhancedBookingDialog
         open={showBookingDetails}
@@ -411,10 +446,39 @@ export const BookEnhanced = () => {
         {/* Page-level header with prominent New Booking button */}
         <div className="flex items-center justify-between">
           <h2 className="font-brand text-lg font-semibold text-foreground">Booking Overview</h2>
-          <Button onClick={() => setShowNewBooking(true)} size="default" className="shadow-md text-xs sm:text-sm">
-            <Plus className="h-5 w-5 mr-2" />
-            New Booking
-          </Button>
+          <div className="flex items-stretch">
+            <Button
+              onClick={() => setShowNewBooking(true)}
+              size="default"
+              className="shadow-md text-xs sm:text-sm rounded-r-none"
+              data-testid="new-booking-button"
+            >
+              <Plus className="h-5 w-5 mr-2" />
+              New Booking
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  size="default"
+                  aria-label="More booking actions"
+                  className="shadow-md rounded-l-none border-l border-primary-foreground/20 px-2"
+                  data-testid="booking-actions-menu"
+                >
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="z-[60] w-56 bg-popover">
+                <DropdownMenuItem onClick={() => setShowLogPastBooking(true)} data-testid="log-past-booking-action">
+                  <History className="h-4 w-4 mr-2" />
+                  Log past booking
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setShowImportBookings(true)} data-testid="import-bookings-action">
+                  <Upload className="h-4 w-4 mr-2" />
+                  Import bookings
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
 
         {/* Pending Approvals — compact collapsible bar, hidden when 0 */}

@@ -28,10 +28,13 @@ import {
   Calendar,
   Download,
   LayoutGrid,
-  List
+  List,
+  Upload
 } from "lucide-react";
 import { CustomerProfileDialog } from "@/components/dialogs/CustomerProfileDialog";
 import { AddCustomerDialog } from "@/components/dialogs/AddCustomerDialog";
+import { ImportWizard } from "@/components/import/ImportWizard";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { NewBookingDialog } from "@/components/dialogs/NewBookingDialog";
 import { formatCurrency } from "@/lib/utils";
 import { Database } from "@/integrations/supabase/types";
@@ -64,6 +67,7 @@ export const CRMSection = () => {
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [showCustomerProfile, setShowCustomerProfile] = useState(false);
   const [showAddCustomer, setShowAddCustomer] = useState(false);
+  const [showImportCustomers, setShowImportCustomers] = useState(false);
   const [showNewBooking, setShowNewBooking] = useState(false);
   const [prefillCustomer, setPrefillCustomer] = useState<Customer | null>(null);
 
@@ -271,6 +275,10 @@ export const CRMSection = () => {
             <Button variant="outline" size="sm" onClick={handleExport} disabled={customers.length === 0}>
               <Download className="w-4 h-4 sm:mr-2" />
               <span className="hidden sm:inline">Export</span>
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setShowImportCustomers(true)} data-testid="import-customers-button">
+              <Upload className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Import</span>
             </Button>
             <Button onClick={() => setShowAddCustomer(true)} className="btn-premium" size="sm">
               <Plus className="w-4 h-4 sm:mr-2" />
@@ -498,6 +506,21 @@ export const CRMSection = () => {
         onOpenChange={setShowAddCustomer}
         onSubmit={createCustomer}
       />
+
+      <Dialog open={showImportCustomers} onOpenChange={setShowImportCustomers}>
+        <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Import customers</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto">
+            <ImportWizard
+              initialEntityType="customers"
+              onClose={() => setShowImportCustomers(false)}
+              onComplete={() => setShowImportCustomers(false)}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <NewBookingDialog
         open={showNewBooking}
