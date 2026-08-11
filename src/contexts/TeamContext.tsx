@@ -37,6 +37,9 @@ export interface Team {
   deposit_source_confirmed_at?: string | null;
   min_rate?: number | null;
   support_email?: string | null;
+  // Team-wide mileage allowance defaults (inherited by new vehicles)
+  default_mileage_limit?: number | null;
+  default_mileage_overage_rate?: number | null;
 }
 
 export interface Location {
