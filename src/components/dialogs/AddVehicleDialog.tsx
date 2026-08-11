@@ -24,7 +24,11 @@ interface AddVehicleDialogProps {
 }
 
 export const AddVehicleDialog = ({ open, onOpenChange, onSubmit, onAddPhotos }: AddVehicleDialogProps) => {
-  const { selectedLocationId, currentLocation, locations } = useTeam();
+  const { selectedLocationId, currentLocation, locations, currentTeam } = useTeam();
+
+  // Team-wide mileage defaults (Settings → Team) seed every new vehicle.
+  const teamMileageLimit = currentTeam?.default_mileage_limit != null ? String(currentTeam.default_mileage_limit) : "250";
+  const teamOverageRate = currentTeam?.default_mileage_overage_rate != null ? String(currentTeam.default_mileage_overage_rate) : "1.99";
   
   const [name, setName] = useState("");
   const [make, setMake] = useState("");
@@ -36,8 +40,8 @@ export const AddVehicleDialog = ({ open, onOpenChange, onSubmit, onAddPhotos }: 
   const [status, setStatus] = useState<string>("available");
   const [locationId, setLocationId] = useState<string>("");
   const [color, setColor] = useState("");
-  const [defaultMileageLimit, setDefaultMileageLimit] = useState("250");
-  const [mileageOverageRate, setMileageOverageRate] = useState("1.99");
+  const [defaultMileageLimit, setDefaultMileageLimit] = useState(teamMileageLimit);
+  const [mileageOverageRate, setMileageOverageRate] = useState(teamOverageRate);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [createdVehicle, setCreatedVehicle] = useState<{ id: string; name: string } | null>(null);
@@ -59,8 +63,8 @@ export const AddVehicleDialog = ({ open, onOpenChange, onSubmit, onAddPhotos }: 
     setStatus("available");
     setLocationId("");
     setColor("");
-    setDefaultMileageLimit("250");
-    setMileageOverageRate("1.99");
+    setDefaultMileageLimit(teamMileageLimit);
+    setMileageOverageRate(teamOverageRate);
     setError(null);
     setCreatedVehicle(null);
     setGeneratingHero(false);
@@ -332,6 +336,9 @@ export const AddVehicleDialog = ({ open, onOpenChange, onSubmit, onAddPhotos }: 
                         <SelectValue placeholder="Select rate" />
                       </SelectTrigger>
                       <SelectContent>
+                        {!MILEAGE_RATE_TIERS.some(t => t.value === teamOverageRate) && (
+                          <SelectItem value={teamOverageRate}>${teamOverageRate}/mi (your default)</SelectItem>
+                        )}
                         {MILEAGE_RATE_TIERS.map(tier => (
                           <SelectItem key={tier.value} value={tier.value}>{tier.label}</SelectItem>
                         ))}
