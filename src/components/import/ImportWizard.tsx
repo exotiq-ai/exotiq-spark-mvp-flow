@@ -227,16 +227,26 @@ export function ImportWizard({ onClose, onComplete, initialEntityType }: ImportW
       // window, no calendar push) and close it out as completed.
       const now = Date.now();
       recordsToProcess = recordsToProcess.map(row => {
-        const end = (row as any).end_date ? new Date((row as any).end_date as string).getTime() : NaN;
+        const r = row as any;
+        // Back-fill a per-day rate when the sheet only carried a total, so
+        // per-vehicle P&L and revenue-per-day stay meaningful.
+        const startMs = r.start_date ? new Date(r.start_date).getTime() : NaN;
+        const endMs = r.end_date ? new Date(r.end_date).getTime() : NaN;
+        const total = Number(r.total_value) || 0;
+        if ((!Number(r.daily_rate) || Number(r.daily_rate) <= 0) && total > 0 && !Number.isNaN(startMs) && !Number.isNaN(endMs)) {
+          const days = Math.max(1, Math.round((endMs - startMs) / 86400000));
+          r.daily_rate = Math.round((total / days) * 100) / 100;
+        }
+        const end = endMs;
         if (!Number.isNaN(end) && end < now) {
-          const status = (row as any).status;
+          const status = r.status;
           return {
-            ...row,
+            ...r,
             is_historical: true,
             status: status && ['completed', 'cancelled'].includes(String(status)) ? status : 'completed',
           };
         }
-        return row;
+        return r;
       });
     }
     
@@ -490,7 +500,7 @@ export function ImportWizard({ onClose, onComplete, initialEntityType }: ImportW
       {/* Progress Steps */}
       <div className="flex items-center gap-2 py-4">
         {visibleSteps.map((step, index) => (
-          <React.Fragment key={step.key}>
+          <div key={step.key} className="contents">
             <div className={cn('flex items-center gap-2', index <= visibleStepIndex ? 'text-primary' : 'text-muted-foreground')}>
               <div className={cn('w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium', index < visibleStepIndex ? 'bg-primary text-primary-foreground' : index === visibleStepIndex ? 'bg-primary/20 text-primary border-2 border-primary' : 'bg-muted')}>
                 {index < visibleStepIndex ? <Check className="h-4 w-4" /> : index + 1}
@@ -498,7 +508,7 @@ export function ImportWizard({ onClose, onComplete, initialEntityType }: ImportW
               <span className="text-sm hidden sm:inline">{step.label}</span>
             </div>
             {index < visibleSteps.length - 1 && <div className={cn('flex-1 h-0.5', index < visibleStepIndex ? 'bg-primary' : 'bg-muted')} />}
-          </React.Fragment>
+          </div>
         ))}
       </div>
 
