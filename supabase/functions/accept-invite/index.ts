@@ -481,35 +481,6 @@ serve(async (req: Request) => {
         });
       }
 
-      // If their only other account is an empty solo workspace auto-created at
-      // signup, retire that membership so the invited account becomes active.
-      const { data: otherMemberships } = await supabaseAdmin
-        .from("team_members")
-        .select("id, team_id")
-        .eq("user_id", userId)
-        .eq("is_active", true)
-        .neq("team_id", invitation.team_id);
-
-      for (const m of otherMemberships ?? []) {
-        const { data: otherTeam } = await supabaseAdmin
-          .from("teams")
-          .select("id, owner_id")
-          .eq("id", m.team_id)
-          .maybeSingle();
-        if (!otherTeam || otherTeam.owner_id !== userId) continue;
-
-        const [{ count: vehicleCount }, { count: bookingCount }, { count: memberCount }] =
-          await Promise.all([
-            supabaseAdmin.from("vehicles").select("id", { count: "exact", head: true }).eq("team_id", m.team_id),
-            supabaseAdmin.from("bookings").select("id", { count: "exact", head: true }).eq("team_id", m.team_id),
-            supabaseAdmin.from("team_members").select("id", { count: "exact", head: true }).eq("team_id", m.team_id).eq("is_active", true),
-          ]);
-
-        if ((vehicleCount ?? 0) === 0 && (bookingCount ?? 0) === 0 && (memberCount ?? 0) <= 1) {
-          await supabaseAdmin.from("team_members").update({ is_active: false }).eq("id", m.id);
-          console.log("join: retired empty solo workspace", m.team_id);
-        }
-      }
 
       await supabaseAdmin
         .from("profiles")
