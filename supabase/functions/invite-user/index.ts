@@ -321,8 +321,13 @@ serve(async (req: Request) => {
       text: inviteEmail.text,
     });
 
+    if (emailResponse.error) {
+      console.error("Invite email delivery failed:", emailResponse.error);
+      throw new Error(`Invitation created, but the email could not be delivered: ${emailResponse.error.message}`);
+    }
 
     console.log("Email sent successfully:", emailResponse);
+
 
     return new Response(
       JSON.stringify({
