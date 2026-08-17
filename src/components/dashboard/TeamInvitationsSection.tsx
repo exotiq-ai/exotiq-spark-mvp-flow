@@ -67,22 +67,20 @@ export const TeamInvitationsSection = () => {
   const handleResend = async (invitation: PendingInvitation) => {
     setActionLoading(invitation.id);
     try {
-      // Update expires_at to extend the invitation
-      const { error } = await supabase
-        .from("user_invitations")
-        .update({ 
-          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() 
-        })
-        .eq("id", invitation.id);
+      const { data, error } = await supabase.functions.invoke("invite-user", {
+        body: { resendId: invitation.id },
+      });
 
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
       toast({
         title: "Invitation resent",
-        description: `Invitation to ${invitation.email} has been extended`,
+        description: `A new invitation email was sent to ${invitation.email}`,
       });
 
       fetchInvitations();
+
     } catch (error: any) {
       toast({
         title: "Failed to resend invitation",
