@@ -74,6 +74,8 @@ export default function Auth() {
   const [invitation, setInvitation] = useState<InvitationDetails | null>(null);
   const [inviteLoading, setInviteLoading] = useState(!!inviteToken);
   const [inviteError, setInviteError] = useState<string | null>(null);
+  const [joiningInvite, setJoiningInvite] = useState(false);
+  const joinAttemptedRef = useRef(false);
   
   const { 
     user, 
