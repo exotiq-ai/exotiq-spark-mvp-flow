@@ -145,34 +145,51 @@ serve(async (req: Request) => {
     // Generate secure invitation token
     const token = crypto.randomUUID() + "-" + crypto.randomUUID();
 
-    // Check if email already has pending invitation
-    const { data: existingInvite } = await supabaseAdmin
-      .from("user_invitations")
-      .select("id")
-      .eq("email", email)
-      .eq("status", "pending")
-      .maybeSingle();
+    const normalizedEmail = email.trim().toLowerCase();
 
-    if (existingInvite) {
-      throw new Error("An invitation is already pending for this email");
+    // Pending invitation check is scoped to THIS account — the same person can
+    // legitimately be invited into more than one tenant.
+    const { data: existingInvites } = await supabaseAdmin
+      .from("user_invitations")
+      .select("id, expires_at")
+      .ilike("email", normalizedEmail)
+      .eq("status", "pending")
+      .eq("team_id", inviterTeam.team_id);
+
+    const livePending = (existingInvites ?? []).find(
+      (i: { expires_at: string }) => new Date(i.expires_at) > new Date(),
+    );
+    if (livePending) {
+      throw new Error("An invitation is already pending for this email on this account");
     }
 
-    // Check if user already exists
+    // An existing Exotiq user can still be invited — they just accept while
+    // signed in instead of creating an account. Only block if they are already
+    // an active member of THIS account.
     const { data: existingUser } = await supabaseAdmin
       .from("profiles")
       .select("id")
-      .eq("email", email)
+      .ilike("email", normalizedEmail)
       .maybeSingle();
 
     if (existingUser) {
-      throw new Error("A user with this email already exists");
+      const { data: existingMembership } = await supabaseAdmin
+        .from("team_members")
+        .select("id, is_active")
+        .eq("user_id", existingUser.id)
+        .eq("team_id", inviterTeam.team_id)
+        .maybeSingle();
+
+      if (existingMembership?.is_active) {
+        throw new Error("This person is already a member of this account");
+      }
     }
 
     // Create invitation with team_id
     const { data: invitation, error: inviteError } = await supabaseAdmin
       .from("user_invitations")
       .insert({
-        email,
+        email: normalizedEmail,
         invited_by: user.id,
         role: role || "viewer",
         permissions: permissions || [],
