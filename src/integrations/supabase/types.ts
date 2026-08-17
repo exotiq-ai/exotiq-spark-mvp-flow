@@ -6386,6 +6386,7 @@ export type Database = {
           status: string
           team_name: string
           team_slug: string
+          timezone: string
           total_cents: number
           vehicle_name: string
           vehicle_slug: string
@@ -6478,7 +6479,10 @@ export type Database = {
           protection_total_cents: number
           rental_days: number
           rental_subtotal_cents: number
+          state_code: string
           state_fee_cents: number
+          state_fee_daily_cents: number
+          state_fee_label: string
         }[]
       }
       purge_old_notifications: { Args: never; Returns: undefined }
