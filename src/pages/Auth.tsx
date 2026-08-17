@@ -74,6 +74,8 @@ export default function Auth() {
   const [invitation, setInvitation] = useState<InvitationDetails | null>(null);
   const [inviteLoading, setInviteLoading] = useState(!!inviteToken);
   const [inviteError, setInviteError] = useState<string | null>(null);
+  const [joiningInvite, setJoiningInvite] = useState(false);
+  const joinAttemptedRef = useRef(false);
   
   const { 
     user, 
@@ -177,16 +179,53 @@ export default function Auth() {
     }
   }, [isRecoveryFromUrl, isPasswordRecovery, user?.email]);
 
-  // Redirect authenticated users to dashboard (unless in password update mode)
+  // Redirect authenticated users to dashboard (unless in password update mode).
+  // If they arrived on an invite link while already signed in, accept the
+  // invitation with their existing account first instead of bouncing them.
   useEffect(() => {
     // Block redirect if in recovery mode or updating password
     if (isRecoveryFromUrl || isPasswordRecovery || authMode === 'update-password') {
       return;
     }
-    if (!authLoading && user) {
+    if (authLoading || !user) return;
+
+    if (inviteToken && !joinAttemptedRef.current) {
+      joinAttemptedRef.current = true;
+      void (async () => {
+        setJoiningInvite(true);
+        try {
+          const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+          const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+          const { data: sessionData } = await supabase.auth.getSession();
+          const accessToken = sessionData.session?.access_token;
+          if (!accessToken) throw new Error('Your session expired. Please sign in again.');
+
+          const res = await fetch(`${SUPABASE_URL}/functions/v1/accept-invite?action=join`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${accessToken}`,
+              apikey: SUPABASE_ANON_KEY,
+            },
+            body: JSON.stringify({ token: inviteToken }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || data?.error) {
+            throw new Error(data?.error || 'Could not accept this invitation');
+          }
+          window.location.replace('/dashboard');
+        } catch (err) {
+          setInviteError(err instanceof Error ? err.message : 'Could not accept this invitation');
+          setJoiningInvite(false);
+        }
+      })();
+      return;
+    }
+
+    if (!inviteToken) {
       navigate('/dashboard', { replace: true });
     }
-  }, [user, authLoading, navigate, authMode, isPasswordRecovery, isRecoveryFromUrl]);
+  }, [user, authLoading, navigate, authMode, isPasswordRecovery, isRecoveryFromUrl, inviteToken]);
 
   const recordSignupAcceptance = async () => {
     try {
@@ -393,12 +432,14 @@ export default function Auth() {
   };
 
   // Show loading state while validating invitation
-  if (inviteLoading) {
+  if (inviteLoading || joiningInvite) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 flex items-center justify-center p-4">
         <Card className="card-premium p-8 text-center">
           <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
-          <p className="text-muted-foreground">Validating your invitation...</p>
+          <p className="text-muted-foreground">
+            {joiningInvite ? 'Adding you to the account…' : 'Validating your invitation...'}
+          </p>
         </Card>
       </div>
     );
