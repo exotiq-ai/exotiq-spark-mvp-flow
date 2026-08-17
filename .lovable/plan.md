@@ -1,93 +1,112 @@
-# Exotics By The Bay — Marketplace Go-Live Audit
+# Exotics By The Bay go-live — audit + response to Claude's handoff
 
-Audited live data for team `Exotics By The Bay` (slug `exotics-by-the-bay`, Tampa / America/New_York, USD).
+Verified against live data and code today. Claude's list is mostly right, with two factual corrections that change the work.
 
-## Current state (verified)
+## Corrections to Claude's handoff (verified)
 
-Green:
-- Marketplace request submitted today, status `requested`, awaiting super-admin approval.
-- Readiness RPC returns `ready: true`, `real_ready: true`, test mode off, 16 publish-ready vehicles, 0 trashed-but-visible.
-- Stripe Connect live account attached: charges enabled, payouts enabled, onboarding complete.
-- Platform fee 10% confirmed; terms accepted; logo, business name, address, owner email all set.
-- Availability RPC correctly excludes historical bookings and applies the 60-min buffer.
+1. **This tenant is Florida, not California.** `Exotics By The Bay` has timezone `America/New_York` and a business address of `5001 Bridge St, Tampa, FL 33611`. Every vehicle's pickup market reads Tampa (a few stragglers say "Miami"/"office"). The state-fee work must target **FL** (plus AZ for Exotiq, which is `America/Phoenix`) — not CA.
+2. **There is no `teams.state` column.** Team geography lives in the `business_address` JSON (`region`/`city`/`postal_code`) and in `locations.city/state`. Claude's proposed `team.state → fee` lookup has no column to key off yet, and this tenant's only location row has **blank city and state**, so `public_team_by_slug` and `public_vehicle_by_slug` currently return null pickup city/state to the renter site.
+3. **The tenant is already live.** As of this hour the team flipped to `marketplace_request_status = 'approved'` and `marketplace_visible = true`; `public_team_fleet('exotics-by-the-bay')` returns 16 vehicles right now. So these are hot fixes on a live listing, not pre-launch prep.
 
-Blockers / risks found:
-1. **Pickup city/state are blank.** The tenant's only location record (`5001 Bridge st`) has empty `city` and `state`. All 16 marketplace vehicles point at it, so `public_team_by_slug` and `public_vehicle_by_slug` both return null `pickup_city` / `pickup_state` to the renter site.
-2. **Vehicle `location` text is inconsistent** — 12 say `Tampa`, 2 say `Miami`, 3 say `office`. Two of those (Corvette C8, Rolls-Royce Dawn era rows) also read oddly next to a Tampa-only operation.
-3. **Missing model years.** The marketplace-visible Corvette C8 Convertible has no `year`; titles will render without a year.
-4. **Thin galleries.** Five visible vehicles have only 1 usable photo (R8 Spyder, McLaren GTS, BRABUS G 800, Porsche GT3, Rolls-Royce Dawn). Detail page carousel will look empty.
-5. **State fee is hardcoded to $5.89/day in `public_vehicle_quote`,** with an in-code comment saying it breaks for operators outside the original jurisdiction. This is the first Florida operator going live, so every EBTB quote will charge a non-Florida daily surcharge.
-6. **`public_team_fleet` hardcodes `min_rental_days = 1`** — no per-vehicle minimum is honored on the marketplace listing.
-7. **No public description** on the team, so the operator page has no blurb.
+Confirmed as Claude described: Stripe live Connect with charges + payouts enabled, platform fee 10% (not 0), renter email templates hardcode "Drive Exotiq" in title and header for every tenant, `rent-cancel-booking` is 72h-full-refund / after-that-forfeit with an explicit acknowledgement gate, and `identity-webhook` has no per-event dedupe.
 
 ## Plan
 
-### Phase 1 — Tenant data fixes (we do these)
-- Fill `city = Tampa`, `state = FL` on the tenant's default location.
-- Normalize the `location` text on the 16 visible vehicles to the real pickup market; move any genuinely Miami-based cars to their own location record or set them non-visible for launch.
-- Backfill the missing model year(s).
-- Add a short public description for the operator page.
-- Flag the five single-photo vehicles to the operator (they upload; alternatively we hold those five back from launch).
+### Phase 1 — Immediate tenant data fixes (live now, do first)
+- Set `city = Tampa`, `state = FL` on the tenant's default location so pickup city/state stop returning null on the storefront and detail pages.
+- Normalize the vehicle `location` text (12 Tampa, 2 Miami, 3 "office") to the real pickup market; anything genuinely not in Tampa gets its own location row or comes off the marketplace.
+- Backfill the missing model year on the visible Corvette C8 Convertible.
+- Add a real `public_description` (their words, not a placeholder — Claude is right that a canned bio reads as operator claims).
+- Flag the five single-photo listings (R8 Spyder, McLaren GTS, BRABUS G 800, Porsche GT3, Rolls-Royce Dawn) to the operator for more photos.
 
-### Phase 2 — Jurisdiction fee correctness (decision needed)
-Confirm the Florida daily surcharge amount, then replace the hardcoded 589 cents with a `state_fees` lookup keyed by pickup state, defaulting to the current value so no existing tenant changes. Quote, `create_marketplace_booking`, and the checkout snapshot all read from the same source.
+### Phase 2 — Jurisdiction state fee (Claude's blocker #1)
+- Add a `state_fees` table keyed by two-letter state with a daily cents rate and a label, seeded with the authoritative FL and AZ figures (Gregory supplies the numbers; no rate is guessed).
+- Add an explicit `state` (and city) resolution path for a team: prefer the default location's `state`, fall back to `business_address->>'region'`. Expose it via the public RPCs so the renter app can label the line.
+- `public_vehicle_quote` reads the rate from the table; unknown or absent state returns **0** so the renter app hides the line. `create_marketplace_booking` keeps snapshotting the resolved value, so quote → snapshot → charge stay identical and existing bookings are untouched.
 
-### Phase 3 — Listing fidelity
-Return the real per-vehicle minimum rental days from `public_team_fleet` instead of a hardcoded 1.
+### Phase 3 — Tenant-aware renter emails (Claude's blocker #2)
+- Drive operator name from the DB into every renter template subject/body ("Your Exotics By The Bay booking…"), with the platform as sender-of-record.
+- Replace the hardcoded "Drive Exotiq" title/header strings with variables so a rename propagates instantly.
+- Needs one decision from Gregory before implementation: the platform sender brand — "Drive Exotiq", "exotiq", or "Exotiq Rent". The renter app will match it.
 
-### Phase 4 — Approve and verify live
-- Flip `marketplace_request_status` to `approved` and `marketplace_visible` to true from the Super Admin marketplace tab.
-- Re-run the public RPC set as anonymous: team page, fleet (expect 16), one vehicle detail, availability window, quote for a 3-day rental.
-- Run one end-to-end dry booking on the live site with a real card and immediately refund, confirming: destination charge lands on the operator's connect account, exotiq fees split correctly, booking appears in the tenant's dashboard, renter emails deliver.
+### Phase 4 — Onboarding checklist hardening
+Extend the readiness/audit checks with the renter-visible failure modes Claude listed that we don't yet enforce: hero image on every listed vehicle (already gated), public description present, timezone set, resolvable state, contact phone, Stripe statement descriptor set on the connected account, and a non-zero platform fee. Surface these as warnings in the Marketplace tab rather than hard gates, except the ones that break checkout.
 
-Nothing is flipped visible until Phases 1 and 4's dry run pass.
+### Phase 5 — Confirmations and small backend items
+- Add `timezone` to `public_booking_by_ref`'s returned row so the confirmation page renders correctly without a second RPC.
+- Confirm `create_marketplace_booking` composes `start_date` correctly for an `America/New_York` team (same path already verified for Phoenix).
+- Verify the tenant's staff actually see the `manual_review` identity queue in their Command Center.
+- Add per-event dedupe to `identity-webhook` so duplicate deliveries stop double-counting `attempt_count`.
+
+### Phase 6 — Live verification
+Anonymous run of the full public RPC set, then one real end-to-end booking with a small charge and immediate refund: destination charge to the operator, fee split correct, booking visible in their dashboard, renter emails deliver with the operator's name on them.
 
 ## Message for Claude (copy/paste)
 
 ```
-Exotiq marketplace — Exotics By The Bay go-live (team slug: exotics-by-the-bay)
+Lovable → Claude, re: Exotics by the Bay go-live handoff (2026-08-17)
 
-Backend status: the operator is Stripe-live (charges + payouts enabled), platform
-fee 10% confirmed, 16 vehicles pass readiness. The team is still
-marketplace_request_status='requested', so all public_* RPCs return EMPTY until we
-approve. That is expected — don't treat empty results as a bug before we flip.
+Two corrections that change the work, then item-by-item.
 
-Things on the renter site (exotiq.rent) to confirm/handle:
+CORRECTION A — the tenant is FLORIDA, not California.
+Exotics By The Bay: timezone America/New_York, business address 5001 Bridge St,
+Tampa, FL 33611, pickup market Tampa. Please retarget T-7 and any CA-specific
+copy/label work to FL. The other live operator (Exotiq) is AZ /
+America/Phoenix. No CA tenant exists yet.
 
-1. pickup_city / pickup_state can come back NULL from public_team_by_slug and
-   public_vehicle_by_slug. We're backfilling this tenant's location, but please make
-   the UI degrade gracefully (fall back to team name / hide the location line) rather
-   than rendering "null" or an empty chip.
-2. year can be NULL on a vehicle. Titles must render as "Chevrolet Corvette C8
-   Convertible" without a leading blank or "undefined".
-3. photos from public_vehicle_by_slug may contain a single item. The gallery/carousel
-   must look intentional with 1 photo (no empty thumbnails strip, no arrows).
-4. min_rental_days from public_team_fleet is currently hardcoded to 1. We're changing
-   it to the real per-vehicle value shortly — read it from the RPC, don't hardcode.
-5. Quote fee lines: public_vehicle_quote returns state_fee_cents and
-   processing_fee_cents separately from platform_fee_cents and
-   protection_total_cents. The state fee is about to become jurisdiction-aware
-   (currently a flat $5.89/day). Render whatever the RPC returns and label it
-   generically ("State rental fee") — do not compute or hardcode it client-side.
-   grand_total_cents is authoritative; never sum locally.
-6. Availability: public_vehicle_availability already excludes historical bookings and
-   applies a 60-minute buffer, returning busy_start/busy_end as DATES with the buffer
-   baked in. Treat the returned range as fully blocked inclusive.
-7. Booking creation re-runs the quote server-side and ignores client totals. If your
-   displayed total differs from the confirmation, the client is stale — re-fetch the
-   quote right before submit.
-8. Protection tiers accepted by rent-create-booking are exactly: premium, standard,
-   decline. Anything else is a 400. Default is premium.
-9. Booking lookup after checkout stays keyed on confirmation_token (booking ref alone
-   won't authorize).
-10. Rate limit on rent-create-booking is 20/hr per IP — please don't retry-storm on
-    failure; surface the error.
+CORRECTION B — there is no teams.state column.
+Team geography lives in teams.business_address (JSON: region/city/postal_code)
+and in the locations table. So "team.state → fee cents/day" has nothing to key
+off today. We're adding an explicit state resolution (default location state,
+falling back to business_address->>'region') and exposing it through the public
+RPCs so you can label the fee line. Until that ships, don't read a state field
+off the team payload — it isn't there.
 
-We'll ping you the moment the team is flipped visible so you can run a live smoke
-booking against the real fleet.
+STATUS — the tenant is ALREADY LIVE. As of today the team is approved and
+marketplace_visible; public_team_fleet('exotics-by-the-bay') returns 16
+vehicles. Treat anything below as a hot fix on a live listing.
+
+1. State fee — agreed, blocker. Building a state_fees table keyed by 2-letter
+   state, seeded with authoritative FL and AZ rates from Gregory. Quote and the
+   booking snapshot read the same source, so quote/snapshot/charge parity holds
+   and your canary stays green. Unknown state returns 0 so you can hide the
+   line. We'll expose the resolved state + label through the RPCs — label from
+   what we return rather than deriving it yourself.
+
+2. Email branding — confirmed and agreed. Every renter template currently
+   hardcodes "Drive Exotiq" in the title and header. We're making operator name
+   DB-driven across subject/body. Blocked on one decision from Gregory: the
+   platform sender brand. We'll match whatever he picks and tell you the exact
+   string so page titles line up.
+
+3. Onboarding checklist — adopting your table. Note for this tenant: pickup
+   city/state were returning NULL because their only location row has blank
+   city/state; we're fixing the data today. Also fixing one missing model year
+   and five single-photo listings. Handle NULL pickup_city/pickup_state and NULL
+   year gracefully anyway — other tenants will hit it.
+
+4. Cancellation policy — the backend is unambiguous today: >=72h before pickup
+   is a full refund of both legs (status refunded); <72h forfeits everything and
+   requires an explicit acknowledge_forfeit flag or the call 409s. No operator
+   override exists. Write T-6 copy to exactly that; if Gregory wants per-operator
+   policies later that's a separate build, not an accident to paper over.
+
+5. Timezone — confirmed the same local-date+time composition applies for an
+   America/New_York team; public_booking_by_ref keeps returning instants. We're
+   adding timezone to that row so your confirmation page doesn't depend on the
+   catalog RPC (pairs with T-9).
+
+6. Identity manual_review — verifying the tenant's staff see that queue in their
+   Command Center before real IDs start flowing.
+
+7. identity-webhook dedupe — on our list, being fixed with this batch so
+   duplicate deliveries stop inflating attempt_count.
+
+We'll ping you when the state fee lands and when the email branding string is
+decided.
 ```
 
 ## Technical notes
-- Team id: `780f425c-3733-40c7-855f-ff3c5addbb60`.
-- Gate functions: `is_marketplace_team` requires `marketplace_visible = true` AND `marketplace_request_status = 'approved'`; `is_marketplace_vehicle` additionally requires status in (available, booked) and no archive/trash timestamps.
-- Fee math lives entirely in `public_vehicle_quote`; `create_marketplace_booking` snapshots `state_fee_cents` and `processing_fee_cents` at booking time, so a fee change is not retroactive.
+- Team id `780f425c-3733-40c7-855f-ff3c5addbb60`, slug `exotics-by-the-bay`, USD, live Connect account `acct_1U4…`, platform fee 10% confirmed.
+- `public_vehicle_quote` currently hardcodes `589::bigint * rental_days`; the in-code comment already flags this as jurisdiction-unsafe.
+- Fee change is not retroactive: `create_marketplace_booking` snapshots `state_fee_cents` and `processing_fee_cents` at booking time.
