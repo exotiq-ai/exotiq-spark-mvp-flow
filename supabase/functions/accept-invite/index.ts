@@ -363,6 +363,157 @@ serve(async (req: Request) => {
           headers: { "Content-Type": "application/json", ...corsHeaders },
         }
       );
+    } else if (action === "join") {
+      // A person who ALREADY has an Exotiq account accepting an invite while
+      // signed in. Their email must match the invitation exactly.
+      const authHeader = req.headers.get("Authorization") ?? "";
+      if (!authHeader.startsWith("Bearer ")) throw new Error("Unauthorized");
+      const jwt = authHeader.replace("Bearer ", "");
+
+      const { data: userData, error: userErr } = await supabaseAdmin.auth.getUser(jwt);
+      const authedUser = userData?.user;
+      if (userErr || !authedUser?.email) throw new Error("Unauthorized");
+      if (!authedUser.email_confirmed_at) {
+        throw new Error("Please verify your email address before joining a team");
+      }
+
+      const { token }: ValidateRequest = await req.json();
+      if (!token) throw new Error("Token is required");
+
+      const { data: invitation, error: joinInviteError } = await supabaseAdmin
+        .from("user_invitations")
+        .select("*")
+        .eq("token", token)
+        .eq("status", "pending")
+        .maybeSingle();
+
+      if (joinInviteError || !invitation) throw new Error("Invalid or expired invitation");
+      if (new Date(invitation.expires_at) < new Date()) {
+        throw new Error("This invitation has expired");
+      }
+      if (invitation.email.toLowerCase() !== authedUser.email.toLowerCase()) {
+        throw new Error("This invitation was sent to a different email address");
+      }
+      if (!invitation.team_id) throw new Error("This invitation is not linked to an account");
+
+      const userId = authedUser.id;
+
+      const { data: team } = await supabaseAdmin
+        .from("teams")
+        .select("name")
+        .eq("id", invitation.team_id)
+        .maybeSingle();
+
+      // Membership (idempotent)
+      const { data: existing } = await supabaseAdmin
+        .from("team_members")
+        .select("id")
+        .eq("team_id", invitation.team_id)
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (existing) {
+        await supabaseAdmin
+          .from("team_members")
+          .update({
+            is_active: true,
+            role: invitation.role || "viewer",
+            invited_by: invitation.invited_by,
+            joined_at: new Date().toISOString(),
+          })
+          .eq("id", existing.id);
+      } else {
+        const { error: memberErr } = await supabaseAdmin.from("team_members").insert({
+          team_id: invitation.team_id,
+          user_id: userId,
+          role: invitation.role || "viewer",
+          is_active: true,
+          invited_by: invitation.invited_by,
+          joined_at: new Date().toISOString(),
+        });
+        if (memberErr) {
+          console.error("join: team_members insert failed", memberErr);
+          throw new Error("Failed to join team");
+        }
+      }
+
+      // Platform role (user_roles is one row per user)
+      const { data: currentRole } = await supabaseAdmin
+        .from("user_roles")
+        .select("id")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (!currentRole) {
+        await supabaseAdmin.from("user_roles").insert({
+          user_id: userId,
+          role: invitation.role || "viewer",
+          permissions: invitation.permissions || [],
+          assigned_by: invitation.invited_by,
+        });
+      }
+
+      // If their only other account is an empty solo workspace auto-created at
+      // signup, retire that membership so the invited account becomes active.
+      const { data: otherMemberships } = await supabaseAdmin
+        .from("team_members")
+        .select("id, team_id")
+        .eq("user_id", userId)
+        .eq("is_active", true)
+        .neq("team_id", invitation.team_id);
+
+      for (const m of otherMemberships ?? []) {
+        const { data: otherTeam } = await supabaseAdmin
+          .from("teams")
+          .select("id, owner_id")
+          .eq("id", m.team_id)
+          .maybeSingle();
+        if (!otherTeam || otherTeam.owner_id !== userId) continue;
+
+        const [{ count: vehicleCount }, { count: bookingCount }, { count: memberCount }] =
+          await Promise.all([
+            supabaseAdmin.from("vehicles").select("id", { count: "exact", head: true }).eq("team_id", m.team_id),
+            supabaseAdmin.from("bookings").select("id", { count: "exact", head: true }).eq("team_id", m.team_id),
+            supabaseAdmin.from("team_members").select("id", { count: "exact", head: true }).eq("team_id", m.team_id).eq("is_active", true),
+          ]);
+
+        if ((vehicleCount ?? 0) === 0 && (bookingCount ?? 0) === 0 && (memberCount ?? 0) <= 1) {
+          await supabaseAdmin.from("team_members").update({ is_active: false }).eq("id", m.id);
+          console.log("join: retired empty solo workspace", m.team_id);
+        }
+      }
+
+      await supabaseAdmin
+        .from("profiles")
+        .update({
+          company_name: team?.name ?? undefined,
+          onboarding_completed: true,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", userId);
+
+      await supabaseAdmin
+        .from("user_invitations")
+        .update({ status: "accepted" })
+        .eq("id", invitation.id);
+
+      await supabaseAdmin.from("role_audit_log").insert({
+        user_id: userId,
+        changed_by: invitation.invited_by,
+        action: "invitation_accepted_existing_user",
+        new_role: invitation.role || "viewer",
+        new_permissions: invitation.permissions || [],
+        metadata: { invitation_id: invitation.id, email: invitation.email },
+        team_id: invitation.team_id,
+      });
+
+      return new Response(
+        JSON.stringify({
+          joined: true,
+          companyName: team?.name ?? "your team",
+          role: invitation.role,
+        }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } },
+      );
     } else if (action === "claim") {
       // Claim any pending invitation matching the CALLER'S VERIFIED EMAIL.
       // Covers users who signed up through the normal form instead of the
