@@ -3312,6 +3312,33 @@ export type Database = {
           },
         ]
       }
+      state_rental_fees: {
+        Row: {
+          created_at: string
+          daily_cents: number
+          label: string
+          notes: string | null
+          state_code: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          daily_cents?: number
+          label: string
+          notes?: string | null
+          state_code: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          daily_cents?: number
+          label?: string
+          notes?: string | null
+          state_code?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       stripe_webhook_events: {
         Row: {
           consumer: string
@@ -6359,6 +6386,7 @@ export type Database = {
           status: string
           team_name: string
           team_slug: string
+          timezone: string
           total_cents: number
           vehicle_name: string
           vehicle_slug: string
@@ -6451,7 +6479,10 @@ export type Database = {
           protection_total_cents: number
           rental_days: number
           rental_subtotal_cents: number
+          state_code: string
           state_fee_cents: number
+          state_fee_daily_cents: number
+          state_fee_label: string
         }[]
       }
       purge_old_notifications: { Args: never; Returns: undefined }
@@ -6622,6 +6653,11 @@ export type Database = {
       super_admin_has_permission: {
         Args: { check_user_id?: string; permission_name: string }
         Returns: boolean
+      }
+      team_state_code: { Args: { _team_id: string }; Returns: string }
+      team_state_fee_daily_cents: {
+        Args: { _team_id: string }
+        Returns: number
       }
       trash_vehicle: { Args: { p_vehicle_id: string }; Returns: undefined }
       update_document_status: { Args: never; Returns: undefined }
