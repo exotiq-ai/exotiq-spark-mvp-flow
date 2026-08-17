@@ -213,7 +213,7 @@ serve(async (req: Request) => {
       action: "user_invited",
       new_role: role || "viewer",
       new_permissions: permissions || [],
-      metadata: { invited_email: email, invitation_id: invitation.id },
+      metadata: { invited_email: normalizedEmail, invitation_id: invitation.id },
       team_id: inviterTeam.team_id,
     });
 
@@ -251,7 +251,7 @@ serve(async (req: Request) => {
 
     const emailResponse = await resend.emails.send({
       from: "exotiq <noreply@mail.exotiq.ai>",
-      to: [email],
+      to: [normalizedEmail],
       subject: inviteEmail.subject,
       html: inviteEmail.html,
       text: inviteEmail.text,
