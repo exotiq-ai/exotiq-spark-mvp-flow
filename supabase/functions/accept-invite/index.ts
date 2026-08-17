@@ -637,6 +637,13 @@ serve(async (req: Request) => {
         });
       }
 
+      // Only one active team per user is allowed, so retire the empty solo
+      // workspace BEFORE activating the invited membership.
+      for (const m of retirableSolo) {
+        await supabaseAdmin.from("team_members").update({ is_active: false }).eq("id", m.id);
+        console.log("claim: retired empty solo workspace", m.team_id);
+      }
+
       const { error: memberErr } = await supabaseAdmin.from("team_members").insert({
         team_id: invitation.team_id,
         user_id: userId,
@@ -647,12 +654,11 @@ serve(async (req: Request) => {
       });
       if (memberErr) {
         console.error("claim: team_members insert failed", memberErr);
+        // Restore the solo workspace so the user is never left team-less.
+        for (const m of retirableSolo) {
+          await supabaseAdmin.from("team_members").update({ is_active: true }).eq("id", m.id);
+        }
         throw new Error("Failed to join team");
-      }
-
-      for (const m of retirableSolo) {
-        await supabaseAdmin.from("team_members").update({ is_active: false }).eq("id", m.id);
-        console.log("claim: retired empty solo workspace", m.team_id);
       }
 
       await supabaseAdmin
