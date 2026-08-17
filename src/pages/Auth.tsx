@@ -432,12 +432,14 @@ export default function Auth() {
   };
 
   // Show loading state while validating invitation
-  if (inviteLoading) {
+  if (inviteLoading || joiningInvite) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 flex items-center justify-center p-4">
         <Card className="card-premium p-8 text-center">
           <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
-          <p className="text-muted-foreground">Validating your invitation...</p>
+          <p className="text-muted-foreground">
+            {joiningInvite ? 'Adding you to the account…' : 'Validating your invitation...'}
+          </p>
         </Card>
       </div>
     );
