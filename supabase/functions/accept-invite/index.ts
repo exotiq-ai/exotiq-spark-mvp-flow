@@ -404,6 +404,35 @@ serve(async (req: Request) => {
         .eq("id", invitation.team_id)
         .maybeSingle();
 
+      // A DB constraint allows only ONE active team per user, so any empty solo
+      // workspace must be retired BEFORE the invited membership is activated.
+      const { data: preMemberships } = await supabaseAdmin
+        .from("team_members")
+        .select("id, team_id")
+        .eq("user_id", userId)
+        .eq("is_active", true)
+        .neq("team_id", invitation.team_id);
+
+      for (const m of preMemberships ?? []) {
+        const { data: otherTeam } = await supabaseAdmin
+          .from("teams")
+          .select("id, owner_id")
+          .eq("id", m.team_id)
+          .maybeSingle();
+        if (!otherTeam || otherTeam.owner_id !== userId) continue;
+
+        const [{ count: vc }, { count: bc }, { count: mc }] = await Promise.all([
+          supabaseAdmin.from("vehicles").select("id", { count: "exact", head: true }).eq("team_id", m.team_id),
+          supabaseAdmin.from("bookings").select("id", { count: "exact", head: true }).eq("team_id", m.team_id),
+          supabaseAdmin.from("team_members").select("id", { count: "exact", head: true }).eq("team_id", m.team_id).eq("is_active", true),
+        ]);
+
+        if ((vc ?? 0) === 0 && (bc ?? 0) === 0 && (mc ?? 0) <= 1) {
+          await supabaseAdmin.from("team_members").update({ is_active: false }).eq("id", m.id);
+          console.log("join: retired empty solo workspace", m.team_id);
+        }
+      }
+
       // Membership (idempotent)
       const { data: existing } = await supabaseAdmin
         .from("team_members")
@@ -452,35 +481,6 @@ serve(async (req: Request) => {
         });
       }
 
-      // If their only other account is an empty solo workspace auto-created at
-      // signup, retire that membership so the invited account becomes active.
-      const { data: otherMemberships } = await supabaseAdmin
-        .from("team_members")
-        .select("id, team_id")
-        .eq("user_id", userId)
-        .eq("is_active", true)
-        .neq("team_id", invitation.team_id);
-
-      for (const m of otherMemberships ?? []) {
-        const { data: otherTeam } = await supabaseAdmin
-          .from("teams")
-          .select("id, owner_id")
-          .eq("id", m.team_id)
-          .maybeSingle();
-        if (!otherTeam || otherTeam.owner_id !== userId) continue;
-
-        const [{ count: vehicleCount }, { count: bookingCount }, { count: memberCount }] =
-          await Promise.all([
-            supabaseAdmin.from("vehicles").select("id", { count: "exact", head: true }).eq("team_id", m.team_id),
-            supabaseAdmin.from("bookings").select("id", { count: "exact", head: true }).eq("team_id", m.team_id),
-            supabaseAdmin.from("team_members").select("id", { count: "exact", head: true }).eq("team_id", m.team_id).eq("is_active", true),
-          ]);
-
-        if ((vehicleCount ?? 0) === 0 && (bookingCount ?? 0) === 0 && (memberCount ?? 0) <= 1) {
-          await supabaseAdmin.from("team_members").update({ is_active: false }).eq("id", m.id);
-          console.log("join: retired empty solo workspace", m.team_id);
-        }
-      }
 
       await supabaseAdmin
         .from("profiles")
@@ -529,21 +529,6 @@ serve(async (req: Request) => {
       const userId = authedUser.id;
       const email = authedUser.email.toLowerCase();
 
-      // No-op if already on a team
-      const { data: existingMembership } = await supabaseAdmin
-        .from("team_members")
-        .select("team_id")
-        .eq("user_id", userId)
-        .eq("is_active", true)
-        .limit(1);
-
-      if (existingMembership && existingMembership.length > 0) {
-        return new Response(JSON.stringify({ claimed: false, reason: "already_member" }), {
-          status: 200,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        });
-      }
-
       const { data: invites } = await supabaseAdmin
         .from("user_invitations")
         .select("*")
@@ -562,6 +547,58 @@ serve(async (req: Request) => {
         });
       }
 
+      // Existing memberships. An auto-created empty solo workspace must NOT block
+      // claiming a real invitation — otherwise the user lands in a blank account.
+      const { data: existingMemberships } = await supabaseAdmin
+        .from("team_members")
+        .select("id, team_id")
+        .eq("user_id", userId)
+        .eq("is_active", true);
+
+      if ((existingMemberships ?? []).some((m: any) => m.team_id === invitation.team_id)) {
+        await supabaseAdmin
+          .from("user_invitations")
+          .update({ status: "accepted" })
+          .eq("id", invitation.id);
+        return new Response(JSON.stringify({ claimed: false, reason: "already_member" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      }
+
+      const retirableSolo: any[] = [];
+      for (const m of existingMemberships ?? []) {
+        const { data: otherTeam } = await supabaseAdmin
+          .from("teams")
+          .select("id, owner_id")
+          .eq("id", m.team_id)
+          .maybeSingle();
+        if (!otherTeam || otherTeam.owner_id !== userId) {
+          // They belong to another real account — do not silently move them.
+          return new Response(JSON.stringify({ claimed: false, reason: "already_member" }), {
+            status: 200,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          });
+        }
+
+        const [{ count: vehicleCount }, { count: bookingCount }, { count: memberCount }] =
+          await Promise.all([
+            supabaseAdmin.from("vehicles").select("id", { count: "exact", head: true }).eq("team_id", m.team_id),
+            supabaseAdmin.from("bookings").select("id", { count: "exact", head: true }).eq("team_id", m.team_id),
+            supabaseAdmin.from("team_members").select("id", { count: "exact", head: true }).eq("team_id", m.team_id).eq("is_active", true),
+          ]);
+
+        const isEmptySolo =
+          (vehicleCount ?? 0) === 0 && (bookingCount ?? 0) === 0 && (memberCount ?? 0) <= 1;
+        if (!isEmptySolo) {
+          return new Response(JSON.stringify({ claimed: false, reason: "already_member" }), {
+            status: 200,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          });
+        }
+        retirableSolo.push(m);
+      }
+
       const { data: team } = await supabaseAdmin
         .from("teams")
         .select("name")
@@ -577,12 +614,35 @@ serve(async (req: Request) => {
         })
         .eq("id", userId);
 
-      await supabaseAdmin.from("user_roles").insert({
-        user_id: userId,
-        role: invitation.role || "viewer",
-        permissions: invitation.permissions || [],
-        assigned_by: invitation.invited_by,
-      });
+      const { data: existingRole } = await supabaseAdmin
+        .from("user_roles")
+        .select("id")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (existingRole) {
+        await supabaseAdmin
+          .from("user_roles")
+          .update({
+            role: invitation.role || "viewer",
+            permissions: invitation.permissions || [],
+            assigned_by: invitation.invited_by,
+          })
+          .eq("id", existingRole.id);
+      } else {
+        await supabaseAdmin.from("user_roles").insert({
+          user_id: userId,
+          role: invitation.role || "viewer",
+          permissions: invitation.permissions || [],
+          assigned_by: invitation.invited_by,
+        });
+      }
+
+      // Only one active team per user is allowed, so retire the empty solo
+      // workspace BEFORE activating the invited membership.
+      for (const m of retirableSolo) {
+        await supabaseAdmin.from("team_members").update({ is_active: false }).eq("id", m.id);
+        console.log("claim: retired empty solo workspace", m.team_id);
+      }
 
       const { error: memberErr } = await supabaseAdmin.from("team_members").insert({
         team_id: invitation.team_id,
@@ -594,6 +654,10 @@ serve(async (req: Request) => {
       });
       if (memberErr) {
         console.error("claim: team_members insert failed", memberErr);
+        // Restore the solo workspace so the user is never left team-less.
+        for (const m of retirableSolo) {
+          await supabaseAdmin.from("team_members").update({ is_active: true }).eq("id", m.id);
+        }
         throw new Error("Failed to join team");
       }
 
