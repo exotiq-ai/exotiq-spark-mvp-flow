@@ -123,12 +123,76 @@ serve(async (req: Request) => {
 
 
 
-    const { email, role, permissions, fullName }: InviteRequest = await req.json();
+    const payload = await req.json();
+    const { email, role, permissions, fullName }: InviteRequest = payload;
+    const resendId: string | undefined = payload?.resendId;
     const inviteeName = (fullName || "").trim() || null;
+
+    // Resend path: re-deliver an existing pending invitation for this account.
+    if (resendId) {
+      const { data: existing, error: existingError } = await supabaseAdmin
+        .from("user_invitations")
+        .select("id, email, role, token, team_id, status")
+        .eq("id", resendId)
+        .eq("team_id", inviterTeam.team_id)
+        .maybeSingle();
+
+      if (existingError || !existing) {
+        throw new Error("That invitation could not be found on this account");
+      }
+      if (existing.status !== "pending") {
+        throw new Error("That invitation is no longer pending");
+      }
+
+      const newExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+      await supabaseAdmin
+        .from("user_invitations")
+        .update({ expires_at: newExpiry })
+        .eq("id", existing.id);
+
+      const { data: resendTeam } = await supabaseAdmin
+        .from("teams")
+        .select("name")
+        .eq("id", inviterTeam.team_id)
+        .maybeSingle();
+
+      const { data: resendProfile } = await supabaseAdmin
+        .from("profiles")
+        .select("full_name")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      const resendLink = `${safeAppOriginFromRequest(req)}/auth?invite=${existing.token}`;
+      const resendEmailBody = buildInviteEmail({
+        companyName: resendTeam?.name || "Exotiq",
+        inviterName: resendProfile?.full_name || "Your team",
+        role: existing.role || "viewer",
+        inviteLink: resendLink,
+      });
+
+      const resendResponse = await resend.emails.send({
+        from: "exotiq <noreply@mail.exotiq.ai>",
+        to: [existing.email],
+        subject: resendEmailBody.subject,
+        html: resendEmailBody.html,
+        text: resendEmailBody.text,
+      });
+
+      if (resendResponse.error) {
+        console.error("Resend delivery failed:", resendResponse.error);
+        throw new Error(`Could not deliver the email: ${resendResponse.error.message}`);
+      }
+
+      return new Response(
+        JSON.stringify({ success: true, resent: true, invitation: { id: existing.id, email: existing.email, expires_at: newExpiry } }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } },
+      );
+    }
 
     if (!email) {
       throw new Error("Email is required");
     }
+
 
     const targetRoleLevel = roleHierarchy[role] || 1;
 
