@@ -100,6 +100,17 @@ export const MarketplaceReadinessPanel = ({ teamId }: Props) => {
         </div>
       </div>
 
+      {!!data.trashed_marketplace_visible_count && (
+        <div className="rounded-md border border-amber-500/50 bg-amber-500/10 p-2.5 text-xs text-amber-900 dark:text-amber-200">
+          <span className="font-medium">
+            {data.trashed_marketplace_visible_count} trashed vehicle
+            {data.trashed_marketplace_visible_count === 1 ? '' : 's'} still flagged for the
+            marketplace
+          </span>{' '}
+          — they are hidden from renters, but clear the flag so the fleet list stays accurate.
+        </div>
+      )}
+
       <div className="text-xs text-muted-foreground pt-1 border-t">
         Publish-ready vehicles: <span className="font-medium text-foreground">{data.ready_vehicle_count}</span>
         {' · '}

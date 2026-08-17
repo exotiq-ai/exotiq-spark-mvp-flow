@@ -18,6 +18,7 @@ export type MarketplaceReadinessData = {
     hero_count?: number;
   }>;
   ready_vehicle_count: number;
+  trashed_marketplace_visible_count?: number;
   checked_at: string;
 };
 
