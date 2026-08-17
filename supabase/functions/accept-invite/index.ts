@@ -404,6 +404,35 @@ serve(async (req: Request) => {
         .eq("id", invitation.team_id)
         .maybeSingle();
 
+      // A DB constraint allows only ONE active team per user, so any empty solo
+      // workspace must be retired BEFORE the invited membership is activated.
+      const { data: preMemberships } = await supabaseAdmin
+        .from("team_members")
+        .select("id, team_id")
+        .eq("user_id", userId)
+        .eq("is_active", true)
+        .neq("team_id", invitation.team_id);
+
+      for (const m of preMemberships ?? []) {
+        const { data: otherTeam } = await supabaseAdmin
+          .from("teams")
+          .select("id, owner_id")
+          .eq("id", m.team_id)
+          .maybeSingle();
+        if (!otherTeam || otherTeam.owner_id !== userId) continue;
+
+        const [{ count: vc }, { count: bc }, { count: mc }] = await Promise.all([
+          supabaseAdmin.from("vehicles").select("id", { count: "exact", head: true }).eq("team_id", m.team_id),
+          supabaseAdmin.from("bookings").select("id", { count: "exact", head: true }).eq("team_id", m.team_id),
+          supabaseAdmin.from("team_members").select("id", { count: "exact", head: true }).eq("team_id", m.team_id).eq("is_active", true),
+        ]);
+
+        if ((vc ?? 0) === 0 && (bc ?? 0) === 0 && (mc ?? 0) <= 1) {
+          await supabaseAdmin.from("team_members").update({ is_active: false }).eq("id", m.id);
+          console.log("join: retired empty solo workspace", m.team_id);
+        }
+      }
+
       // Membership (idempotent)
       const { data: existing } = await supabaseAdmin
         .from("team_members")
