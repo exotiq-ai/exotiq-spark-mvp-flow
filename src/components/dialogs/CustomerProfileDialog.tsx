@@ -53,6 +53,7 @@ import { Trash2 } from "lucide-react";
 import { EnhancedBookingDialog } from "@/components/dialogs/EnhancedBookingDialog";
 import { EditCustomerDialog } from "@/components/dialogs/EditCustomerDialog";
 import { formatCurrency } from "@/lib/utils";
+import { describeFunctionError } from "@/lib/functionError";
 import { CustomerTimeline } from "@/components/crm/CustomerTimeline";
 import { EntityCommentThread } from "@/components/comments/EntityCommentThread";
 import { useTeam } from "@/contexts/TeamContext";
