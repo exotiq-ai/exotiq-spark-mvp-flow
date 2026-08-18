@@ -148,7 +148,7 @@ export const PaymentTracker = ({ focusBookingId, onFocusHandled }: PaymentTracke
   });
 
   const pendingPayments = bookingsWithPaymentStatus.filter(
-    b => (b.status === 'pending' || b.status === 'pending_payment' || b.status === 'confirmed') && !b.balancePaid
+    b => (b.status === 'pending' || b.status === 'pending_payment' || b.status === 'confirmed' || b.status === 'payment_expired') && !b.balancePaid
   );
 
   // Busy tenants can have long outstanding lists — let them find one fast.
