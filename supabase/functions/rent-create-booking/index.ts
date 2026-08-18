@@ -165,6 +165,10 @@ serve(async (req) => {
       _protection_total_cents: Math.round(Number(quote.protection_total_cents)),
       _state_fee_cents: Math.round(Number(quote.state_fee_cents ?? 0)),
       _processing_fee_cents: Math.round(Number(quote.processing_fee_cents ?? 0)),
+      // Operator tax snapshot (2026-08-18): already inside operator_total_cents
+      // when the tenant charges tax on top; stored separately so receipts and
+      // the confirmation page can show the same line the renter was quoted.
+      _operator_tax_cents: Math.round(Number(quote.operator_tax_cents ?? 0)),
     });
 
     if (createError) {
