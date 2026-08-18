@@ -81,7 +81,8 @@ export default {
 				},
 				warning: {
 					DEFAULT: 'hsl(var(--warning))',
-					foreground: 'hsl(var(--warning-foreground))'
+					foreground: 'hsl(var(--warning-foreground))',
+					tinted: 'hsl(var(--warning-tinted-foreground))'
 				},
 				popover: {
 					DEFAULT: 'hsl(var(--popover))',
