@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/popover';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { ScrollArea } from '@/components/ui/scroll-area';
+
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -196,6 +196,18 @@ export const FleetFilters = ({
   isOpsMode = false,
 }: FleetFiltersProps) => {
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const filterBodyRef = useRef<HTMLDivElement>(null);
+
+  // The nested Make/Location command lists auto-scroll their first item into
+  // view on mount, which drags the panel body down. Snap back to the top so
+  // the panel always opens at "Quick filters".
+  useEffect(() => {
+    if (!filtersOpen) return;
+    const id = requestAnimationFrame(() => {
+      if (filterBodyRef.current) filterBodyRef.current.scrollTop = 0;
+    });
+    return () => cancelAnimationFrame(id);
+  }, [filtersOpen]);
   const [makeSearch, setMakeSearch] = useState('');
 
   const activeFilterCount =
@@ -288,10 +300,19 @@ export const FleetFilters = ({
           </PopoverTrigger>
           <PopoverContent
             className="w-[min(26rem,calc(100vw-2rem))] p-0 flex flex-col z-[60] overflow-hidden"
-            style={{ maxHeight: 'var(--radix-popover-content-available-height)' }}
+            style={{
+              // Radix reports the space between the trigger and the viewport
+              // edge; the vh cap is a fallback for the first paint before the
+              // measurement lands.
+              maxHeight:
+                'min(var(--radix-popover-content-available-height, 80vh), 80vh)',
+            }}
             align="start"
             sideOffset={8}
             collisionPadding={16}
+            // Keep the panel scrolled to the top on open — autofocusing an
+            // inner control scrolls the body down and hides Quick filters.
+            onOpenAutoFocus={(e) => e.preventDefault()}
           >
             {/* Sticky Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b bg-background/95 backdrop-blur sticky top-0">
@@ -316,7 +337,7 @@ export const FleetFilters = ({
             </div>
 
             {/* Scrollable body */}
-            <ScrollArea className="flex-1 min-h-0 overscroll-contain">
+            <div ref={filterBodyRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
               <div className="p-4 space-y-5">
 
                 {/* Quick toggles */}
@@ -577,7 +598,7 @@ export const FleetFilters = ({
                   </>
                 )}
               </div>
-            </ScrollArea>
+            </div>
 
             {/* Sticky footer */}
             <div className="flex items-center justify-between gap-2 px-4 py-3 border-t bg-background/95 backdrop-blur">
