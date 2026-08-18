@@ -104,6 +104,7 @@ interface OutstandingBooking {
 }
 
 const PAGE_SIZE = 50;
+const VISIBLE_OUTSTANDING = 6;
 
 export const PaymentsSection = () => {
   const [loading, setLoading] = useState(true);
