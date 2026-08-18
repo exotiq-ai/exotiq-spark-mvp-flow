@@ -246,7 +246,7 @@ export const PaymentsSection = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-emerald-600">
-              {formatCurrency(balanceData?.balance.available || 0)}
+              {money(balanceData?.balance.available || 0)}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               Ready for payout
