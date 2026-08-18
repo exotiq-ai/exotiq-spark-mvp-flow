@@ -20,7 +20,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.77.0";
 import { resolveStripeMode } from "../_shared/stripeMode.ts";
-import { sendRenterEmail } from "../_shared/rentEmail.ts";
+import { sendRenterEmail, resolveRenterReplyTo } from "../_shared/rentEmail.ts";
 import {
   buildStorefrontUrl,
   buildVehicleUrl,
