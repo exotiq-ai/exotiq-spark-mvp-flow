@@ -785,6 +785,8 @@ export const FleetPageEnhanced = () => {
         currentUserId={user?.id}
         activeBooking={detailsVehicle ? getActiveBooking(detailsVehicle.id) : undefined}
         nextBooking={detailsVehicle ? getNextBooking(detailsVehicle.id) : undefined}
+        onOpenBooking={(bookingId) => { setDetailsVehicle(null); goToBookingDetails(bookingId); }}
+
       />
 
       {/* Edit Vehicle Dialog */}
