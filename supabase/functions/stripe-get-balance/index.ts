@@ -156,8 +156,25 @@ serve(async (req) => {
         if (due > 0.01) {
           balanceDue += due;
           balanceDueCount += 1;
+          outstanding.push({
+            id: b.id,
+            booking_ref: b.booking_ref,
+            customer_name: b.customer_name,
+            customer_email: b.customer_email,
+            vehicle_name: b.vehicle_name,
+            start_date: b.start_date,
+            end_date: b.end_date,
+            status: b.status,
+            booking_source: b.booking_source,
+            payment_due_at: b.payment_due_at,
+            amount_due: Math.round(due * 100) / 100,
+            total_value: Number(b.total_value || 0),
+          });
         }
       }
+      outstanding.sort((a, b) =>
+        String(a.start_date ?? "").localeCompare(String(b.start_date ?? "")),
+      );
     }
 
     // Get active holds from payments
