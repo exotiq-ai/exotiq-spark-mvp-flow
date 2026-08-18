@@ -73,6 +73,31 @@ export const PaymentTracker = ({ focusBookingId, onFocusHandled }: PaymentTracke
   const [refundDialog, setRefundDialog] = useState<{ paymentIntentId: string; maxAmount: number } | null>(null);
   const [refundAmount, setRefundAmount] = useState(0);
   const [refundReason, setRefundReason] = useState("requested_by_customer");
+  // Re-sending the renter's existing secure payment link. No new charge is
+  // created — the same session and the same deadline are re-mailed.
+  const [sendingLinkId, setSendingLinkId] = useState<string | null>(null);
+
+  const handleSendPaymentLink = async (booking: { id: string; status: string; customer_email?: string | null }) => {
+    setSendingLinkId(booking.id);
+    try {
+      const expired = booking.status === "payment_expired";
+      const { data, error } = await supabase.functions.invoke(
+        expired ? "rent-approve-booking" : "rent-resend-payment-link",
+        { body: { booking_id: booking.id } },
+      );
+      if (error) throw new Error(await describeFunctionError(error));
+      const deadline = (data as any)?.payment_due_at
+        ? ` · due ${new Date((data as any).payment_due_at).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`
+        : "";
+      toast.success(
+        `Payment link emailed to ${(data as any)?.sent_to || booking.customer_email || "the renter"}${deadline}`,
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not send payment link");
+    } finally {
+      setSendingLinkId(null);
+    }
+  };
 
   const handleVehicleClick = (vehicleId: string) => {
     const vehicle = vehicles.find(v => v.id === vehicleId);
