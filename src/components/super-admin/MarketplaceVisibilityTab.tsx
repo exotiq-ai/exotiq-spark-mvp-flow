@@ -630,6 +630,7 @@ interface VehicleListProps {
   onlyVisible: boolean;
   setOnlyVisible: (v: boolean) => void;
   onToggleVehicle: (v: VehicleRow, value: boolean) => void;
+  onToggleUnlisted: (v: VehicleRow, value: boolean) => void;
   onBulk: (ids: string[], value: boolean) => void;
   bulkPending: boolean;
 }
@@ -640,6 +641,8 @@ const VehicleList = ({
   onlyVisible,
   setOnlyVisible,
   onToggleVehicle,
+  onToggleUnlisted,
+
   onBulk,
   bulkPending,
 }: VehicleListProps) => {
