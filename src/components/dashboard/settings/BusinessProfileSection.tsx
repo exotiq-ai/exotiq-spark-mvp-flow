@@ -385,25 +385,65 @@ export const BusinessProfileSection = () => {
       <Card className="p-6 space-y-5">
         <div className="flex items-center gap-2">
           <Mail className="h-5 w-5 text-muted-foreground" />
-          <h3 className="text-lg font-semibold">Support email</h3>
+          <h3 className="text-lg font-semibold">Renter contact & pickup</h3>
         </div>
         <p className="text-sm text-muted-foreground -mt-2">
-          Where renter replies to booking emails go. Leave blank to use exotiq
-          support. Booking emails are always sent from{" "}
-          <span className="font-mono">bookings@exotiq.rent</span>; only the
-          reply address changes.
+          Shown to renters on booking confirmations and receipts. Leave the
+          support email blank to use exotiq support. Booking emails are always
+          sent from <span className="font-mono">bookings@exotiq.rent</span>;
+          only the reply address changes.
         </p>
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <Label>Support email</Label>
+            <Input
+              type="email"
+              value={supportEmail}
+              onChange={(e) => setSupportEmail(e.target.value)}
+              placeholder="support@yourcompany.com"
+              maxLength={255}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Support phone</Label>
+            <Input
+              type="tel"
+              value={supportPhone}
+              onChange={(e) => setSupportPhone(e.target.value)}
+              placeholder="+1 (555) 010-1234"
+              maxLength={40}
+            />
+          </div>
+        </div>
         <div className="space-y-2">
-          <Label>Support email</Label>
+          <Label>Default pickup address</Label>
           <Input
-            type="email"
-            value={supportEmail}
-            onChange={(e) => setSupportEmail(e.target.value)}
-            placeholder="support@yourcompany.com"
-            maxLength={255}
+            value={pickupAddress}
+            onChange={(e) => setPickupAddress(e.target.value)}
+            placeholder="123 Bayshore Blvd, Tampa, FL 33606"
+            maxLength={300}
           />
+          <p className="text-xs text-muted-foreground">
+            Used when a vehicle has no location assigned. Vehicles with a
+            location use that address instead.
+          </p>
+        </div>
+        <div className="space-y-2">
+          <Label>Pickup instructions</Label>
+          <Textarea
+            value={pickupInstructions}
+            onChange={(e) => setPickupInstructions(e.target.value)}
+            placeholder="Park in the visitor lot and text us on arrival. Bring your driver's licence."
+            maxLength={1000}
+            rows={4}
+          />
+          <p className="text-xs text-muted-foreground">
+            Plain text only — shown exactly as typed on the renter's
+            confirmation.
+          </p>
         </div>
       </Card>
+
 
       <div className="flex justify-end">
         <Button onClick={handleSave} disabled={saving} className="gap-2">
