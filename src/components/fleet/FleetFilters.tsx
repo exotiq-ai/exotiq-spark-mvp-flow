@@ -337,7 +337,7 @@ export const FleetFilters = ({
             </div>
 
             {/* Scrollable body */}
-            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+            <div ref={filterBodyRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
               <div className="p-4 space-y-5">
 
                 {/* Quick toggles */}
