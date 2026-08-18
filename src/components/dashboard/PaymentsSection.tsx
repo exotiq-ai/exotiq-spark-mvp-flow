@@ -327,32 +327,6 @@ export const PaymentsSection = () => {
         </Card>
       )}
 
-      {/* Security Deposits Held */}
-      {balanceData?.summary.held_security_deposits && balanceData.summary.held_security_deposits.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Banknote className="h-5 w-5 text-purple-500" />
-              Security Deposits Held
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {balanceData.summary.held_security_deposits.map((deposit) => (
-                <div key={deposit.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                  <div>
-                    <p className="font-medium">{deposit.customer_name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {formatCurrency(deposit.security_deposit_amount || 0)}
-                    </p>
-                  </div>
-                  <Badge variant="secondary">Held</Badge>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Payment History */}
       <Card>
