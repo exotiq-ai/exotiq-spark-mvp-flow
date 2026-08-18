@@ -1,47 +1,43 @@
-# Tenant → renter carryover: what's already covered, what's still missing
+# Reply to Claude — sequence, ETAs, and the two corrections
 
-## Short answer on support email
+## Corrections before we build (verified against live)
 
-Nothing to build there. `teams.support_email` exists, it's editable in Command Center under Settings → Business Profile, Exotics By The Bay already has `info@exoticsbythebay.co` saved, and every renter email uses it as Reply-To via `resolveRenterReplyTo`. The From display name is now the tenant business name.
+1. **Amendment (i) is already shipped.** Live `public_booking_by_ref` already returns `timezone` and `identity_verified` (plus `operator_tax_cents` / `operator_tax_label`, `state_fee_cents`, `processing_fee_cents`). Nothing to add — Claude can read them today.
+2. **§8 direction is inverted from the repro.** Live `create_marketplace_booking` already compares with `tstzrange(..., '[)')`, so a new booking starting exactly when another ends is *accepted*. The blocker is `public_vehicle_availability`, which pads every booking by `teams.rental_buffer_minutes` (default 60) and then casts to `::date`, so the checkout day is returned as busy and the renter calendar greys it out. So it's an availability-side widening, not a create-side comparator.
 
-What is *not* true today: that address is never shown as visible text anywhere — not in the email body, not on the renter site — and the renter app has no way to read it. That's the real gap.
+Taking Claude's ALLOW recommendation, the fix goes in the availability RPC, and create stays as-is.
 
-## Gaps found (verified against the live backend)
+## Sequence and ETAs
 
-1. **Operator contact isn't exposed to the renter app.** `public_team_by_slug` returns slug, name, logo, description, city, state, timezone, currency only. No support email. `public_booking_by_ref` returns no contact either, so a confirmation page can't show "Questions? Contact Exotics By The Bay."
-2. **No operator phone exists anywhere.** `teams` has no phone column, and both EBTB and Exotiq location rows have `phone = NULL`. For a luxury handoff business, a phone number on the confirmation is table stakes.
-3. **No pickup address or handoff instructions reach the renter.** Vehicles expose only `pickup_city` / `pickup_state`. The street address lives on the location row (EBTB's is literally named "5001 Bridge st" with address "Office"), and never leaves Command Center. Renters get a confirmation with no address and no instructions on where to meet.
-4. **Mileage terms don't carry onto the booking.** Team defaults (EBTB: 125 mi/day, $4.99 overage) show on the vehicle detail RPC, but they aren't snapshotted onto the booking or returned by `public_booking_by_ref`, and no email mentions them. A renter can be charged overage against a number they never saw at confirmation.
-5. **Cancellation policy is behavior, not text.** The 72-hour rule is enforced in code but isn't a field the renter app can read, so platform and renter copy can drift.
-6. **Receipt email carries no operator detail.** Templates reference `OPERATOR_NAME` only; no pickup, no contact block, no mileage, no cancellation line.
+### 1. §8 same-day turnover — ALLOW (same day)
+- `public_vehicle_availability`: compute busy days from the booking instants without the trailing buffer bleeding into the next calendar day — `busy_end` becomes the last day the car is genuinely out, so a 10:00 return frees that same date for a later pickup.
+- Keep the leading buffer behavior on `busy_start` unchanged.
+- Create guard untouched (already `[)`), so calendar and create agree, loosening only.
+- Per-team turnaround buffers stay a later CC feature; note it in the handoff.
+- Verify with Claude's four tests plus a same-day back-to-back create on EBTB with fresh dates.
 
-## Plan
+### 2. Tenant carryover (amended)
+- **Operator contact:** `teams.support_phone`; phone input beside support email in Business Profile.
+- **Pickup:** resolve from the vehicle's location row when present, `teams` default as fallback; snapshot `pickup_address` / `pickup_instructions` onto the booking at creation, exactly like mileage. `pickup_instructions` is operator free text — rendered escaped/plain everywhere including emails (no HTML pass-through).
+- **Mileage:** snapshot `mileage_limit_per_day` and `mileage_overage_rate_cents` onto the booking at creation from vehicle → team default.
+- **Cancellation policy:** text generated from the single enforced constant (flat forfeit inside 72h of scheduled pickup, anchored to the pickup instant in the team's timezone) and snapshotted on the booking. Never live-read, never mentions the goodwill/manual-refund path.
+- **Public RPCs:** `public_team_by_slug` gains support email/phone and pickup fields. `public_booking_by_ref` gains the snapshotted pickup, mileage, and cancellation text (contact/tz/identity already there). All additive.
+- **Emails:** operator block (name, support email, phone, pickup address + instructions, mileage allowance and overage, cancellation line) in the confirmed-receipt and payment-approved templates; every caller passes the new variables; blank fields omit their row entirely.
+- **Command Center:** readiness checklist gains support email, support phone, pickup address, mileage defaults, each stating the renter-visible consequence; plus a "What renters see" preview of the exact operator block.
+- ETA: 1–2 days after §8.
 
-### 1. Operator contact fields
-- Add `support_phone` to `teams`; add a phone input next to the existing support email in Business Profile, with light format validation.
-- Backfill EBTB's phone once they give it; leave others null.
+### 3. §9 unlisted flag — half a day after carryover
+Vehicle-level `unlisted` that keeps a car quotable/bookable by direct slug but out of the public catalog, so the $2 test-car recipe stays clean.
 
-### 2. Pickup details as first-class tenant data
-- Add `pickup_address` and `pickup_instructions` to `teams` (seeded from the default location's address where one exists), edited in Business Profile beside the support fields.
-- Clean up EBTB's location record so the address is a real street address rather than "Office".
+### 4. Standing items
+- **stripe-create-refund auth gate** (rider a): it is already owner/admin-only with team ownership checks and a hard 409 on marketplace bookings; the operator's manual refund therefore touches their rental leg only, and Exotiq-leg refunds stay platform-admin. Confirming rather than building — no ETA needed.
+- **identity-webhook per-event dedupe** (attempt_count double-count): folded into the §9 pass.
+- Drip templates already read tenant name from the DB; no hardcoding.
 
-### 3. Expose all of it through the public RPCs
-- `public_team_by_slug` gains `support_email`, `support_phone`, `pickup_city`, `pickup_state`, `pickup_address`, `pickup_instructions`.
-- `public_booking_by_ref` gains the same contact + pickup fields, plus `mileage_limit_per_day`, `mileage_overage_rate`, and `cancellation_policy` (platform standard text). All additive columns — Claude's existing calls keep working.
+## Verification pass
+Fresh-date EBTB run: quote → booking → approve → receipt. Confirm the receipt shows tenant name, support email and phone, Tampa pickup address and instructions, 125 mi/day with $4.99 overage, the 72-hour forfeit line, and correct local dates; that a tenant with those fields blank renders a clean email with no empty rows; that mileage terms match what Claude renders pre-booking from the vehicle RPC; and a same-day back-to-back booking succeeds end to end.
 
-### 4. Snapshot mileage on the booking
-- Add `mileage_limit_per_day` and `mileage_overage_rate_cents` to `bookings`, written at creation in `create_marketplace_booking` from the vehicle (falling back to the team default), so terms are frozen at booking time.
-
-### 5. Put it in the renter emails
-- Extend the confirmed-receipt and payment-approved templates with an operator block: business name, support email, support phone, pickup address and instructions, mileage allowance and overage rate, and the cancellation line.
-- Every caller (`rent-payment-webhook`, `rent-approve-booking`, `rent-payment-scheduler`, `rent-extend-booking`, `rent-cancel-booking`, `rent-refund-booking`) passes the new variables. Blank fields render as omitted rows, never as empty labels.
-
-### 6. Readiness surfacing in Command Center
-- Extend the Marketplace readiness checklist with support email, support phone, pickup address, and mileage defaults — each showing the renter-visible consequence of leaving it blank.
-- Add a "What renters see" preview panel rendering the exact operator block that goes into emails and the confirmation page.
-
-### 7. Handoff note for Claude
-A short copy-paste listing the new RPC fields, their nullability, and the fact that mileage and cancellation text should be read from `public_booking_by_ref` rather than hardcoded.
-
-## Verification
-Live quote → booking → receipt on the EBTB storefront: confirm the receipt shows tenant name, their support email and phone, the Tampa pickup address, 125 mi/day with $4.99 overage, and the 72-hour cancellation line — and that a tenant with those fields blank still renders a clean email with no empty rows.
+## Questions back (single batch)
+1. Confirm ALLOW stands given the correction above — the change lands in `public_vehicle_availability`, not the create comparator.
+2. `rental_buffer_minutes` currently pads availability for every tenant. Drop it entirely for now, or keep a sub-day buffer that never spills onto the next calendar day?
+3. Pickup instructions max length and whether operators may include a phone/URL in that free text.
