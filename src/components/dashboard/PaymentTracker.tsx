@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useModuleNavigation } from "@/hooks/useModuleNavigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
