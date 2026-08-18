@@ -19,6 +19,8 @@ interface SendBody {
   variables: Record<string, string | number | undefined>;
   idempotencyKey?: string;
   replyTo?: string;
+  /** Tenant display name for the From header ("Exotics By The Bay <bookings@…>"). */
+  fromName?: string;
   tags?: Array<{ name: string; value: string }>;
   bcc?: string | string[];
 }
