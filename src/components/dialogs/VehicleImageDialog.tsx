@@ -52,7 +52,59 @@ const OPS_STATUS_OPTIONS: { value: OpsStatus; label: string; color: string }[] =
   { value: "check_in_required", label: "Check-In Required", color: "bg-muted text-muted-foreground border-border" },
 ];
 
+// Rental status block — clickable when a booking target is available
+function RentalBlock({
+  label,
+  tone,
+  customerName,
+  detail,
+  onClick,
+}: {
+  label: string;
+  tone: 'primary' | 'accent' | 'destructive';
+  customerName?: string;
+  detail: string;
+  onClick?: () => void;
+}) {
+  const toneClasses = {
+    primary: 'bg-primary/5 border-primary/15 text-primary',
+    accent: 'bg-accent/5 border-accent/15 text-accent',
+    destructive: 'bg-destructive/5 border-destructive/20 text-destructive',
+  }[tone];
+
+  const content = (
+    <>
+      <div className="flex items-center gap-2 mb-1.5">
+        <Calendar className={cn('h-4 w-4', tone === 'primary' ? 'text-primary' : tone === 'accent' ? 'text-accent' : 'text-destructive')} />
+        <span className="text-sm font-medium text-foreground">{label}</span>
+        {onClick && <ArrowRight className="h-3.5 w-3.5 ml-auto text-muted-foreground" />}
+      </div>
+      <p className="text-sm text-foreground">{customerName || 'Reservation'}</p>
+      <p className="text-xs text-muted-foreground mt-0.5">{detail}</p>
+    </>
+  );
+
+  if (!onClick) {
+    return <div className={cn('p-3 rounded-lg border', toneClasses)}>{content}</div>;
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'w-full text-left p-3 rounded-lg border transition-colors',
+        'hover:bg-muted/50 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        toneClasses
+      )}
+    >
+      {content}
+    </button>
+  );
+}
+
 interface VehicleImageDialogProps {
+
   open: boolean;
   onOpenChange: (open: boolean) => void;
   vehicleName: string;
@@ -92,6 +144,8 @@ interface VehicleImageDialogProps {
   currentUserId?: string;
   activeBooking?: any;
   nextBooking?: any;
+  onOpenBooking?: (bookingId: string) => void;
+
 }
 
 export function VehicleImageDialog({
@@ -111,6 +165,8 @@ export function VehicleImageDialog({
   currentUserId,
   activeBooking,
   nextBooking,
+  onOpenBooking,
+
 }: VehicleImageDialogProps) {
   const staticImageUrl = getVehicleImage(vehicleName);
   const [activeTab, setActiveTab] = useState<string>("details");
@@ -329,39 +385,42 @@ export function VehicleImageDialog({
                   </>
                 )}
 
-                {/* Active Booking */}
-                {activeBooking && (
+                {/* Current rental (car is physically out) */}
+                {activeBooking && (() => {
+                  const today = new Date(); today.setHours(0, 0, 0, 0);
+                  const end = activeBooking.end_date ? new Date(activeBooking.end_date) : null;
+                  if (end) end.setHours(0, 0, 0, 0);
+                  const overdue = !!end && end.getTime() < today.getTime();
+                  const dueToday = !!end && end.getTime() === today.getTime();
+                  const label = overdue ? 'Overdue Return' : dueToday ? 'Returning Today' : 'On Rental Now';
+                  return (
+                    <>
+                      <Separator />
+                      <RentalBlock
+                        label={label}
+                        tone={overdue ? 'destructive' : 'primary'}
+                        customerName={activeBooking.customer_name}
+                        detail={`${formatDate(activeBooking.start_date)} — ${formatDate(activeBooking.end_date)}${overdue ? ' · past due' : ''}`}
+                        onClick={onOpenBooking && activeBooking.id ? () => onOpenBooking(activeBooking.id) : undefined}
+                      />
+                    </>
+                  );
+                })()}
+
+                {/* Upcoming reservation */}
+                {nextBooking && (
                   <>
                     <Separator />
-                    <div className="p-3 rounded-lg bg-primary/5 border border-primary/15">
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <Calendar className="h-4 w-4 text-primary" />
-                        <span className="text-sm font-medium">Active Rental</span>
-                      </div>
-                      <p className="text-sm text-foreground">{activeBooking.customer_name}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {formatDate(activeBooking.start_date)} — {formatDate(activeBooking.end_date)}
-                      </p>
-                    </div>
+                    <RentalBlock
+                      label="Upcoming Rental"
+                      tone="accent"
+                      customerName={nextBooking.customer_name}
+                      detail={`Starts ${formatDistanceToNow(new Date(nextBooking.start_date), { addSuffix: true })} · ${formatDate(nextBooking.start_date)} — ${formatDate(nextBooking.end_date)}`}
+                      onClick={onOpenBooking && nextBooking.id ? () => onOpenBooking(nextBooking.id) : undefined}
+                    />
                   </>
                 )}
 
-                {/* Next Booking */}
-                {nextBooking && !activeBooking && (
-                  <>
-                    <Separator />
-                    <div className="p-3 rounded-lg bg-accent/5 border border-accent/15">
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <Calendar className="h-4 w-4 text-accent" />
-                        <span className="text-sm font-medium">Next Booking</span>
-                      </div>
-                      <p className="text-sm text-foreground">{nextBooking.customer_name}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        Starts {formatDistanceToNow(new Date(nextBooking.start_date), { addSuffix: true })}
-                      </p>
-                    </div>
-                  </>
-                )}
 
                 {/* Performance Metrics */}
                 {(vehicleDetails?.utilization !== undefined || vehicleDetails?.revenue !== undefined) && (

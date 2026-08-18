@@ -152,8 +152,10 @@ export const FleetVehicleCard = ({
       className: 'border-amber-500/50 bg-amber-500/10 text-amber-600 dark:text-amber-400',
     };
     if (isWithRenter) return { label: 'With Renter', className: 'border-primary/50 bg-primary/10 text-primary' };
-    if (hasActiveBooking) return { label: 'Booked', className: 'border-primary/50 bg-primary/10 text-primary' };
+    if (hasActiveBooking) return { label: 'On Rental', className: 'border-primary/50 bg-primary/10 text-primary' };
+    if (nextBooking) return { label: 'Booked', className: 'border-accent/50 bg-accent/10 text-accent' };
     return { label: 'Available', className: 'border-success/50 bg-success/10 text-success' };
+
   };
 
   const statusDisplay = getStatusDisplay();
