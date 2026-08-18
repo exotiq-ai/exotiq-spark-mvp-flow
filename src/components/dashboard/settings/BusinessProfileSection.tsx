@@ -48,6 +48,10 @@ export const BusinessProfileSection = () => {
   const [vatNumber, setVatNumber] = useState("");
   const [address, setAddress] = useState<BusinessAddress>({});
   const [supportEmail, setSupportEmail] = useState("");
+  const [supportPhone, setSupportPhone] = useState("");
+  const [pickupAddress, setPickupAddress] = useState("");
+  const [pickupInstructions, setPickupInstructions] = useState("");
+
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
