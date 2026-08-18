@@ -113,6 +113,8 @@ export function VehicleImageDialog({
   currentUserId,
   activeBooking,
   nextBooking,
+  onOpenBooking,
+
 }: VehicleImageDialogProps) {
   const staticImageUrl = getVehicleImage(vehicleName);
   const [activeTab, setActiveTab] = useState<string>("details");
