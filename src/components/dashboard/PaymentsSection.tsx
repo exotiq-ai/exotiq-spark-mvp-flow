@@ -261,7 +261,7 @@ export const PaymentsSection = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-amber-600">
-              {formatCurrency(balanceData?.balance.pending || 0)}
+              {money(balanceData?.balance.pending || 0)}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               Processing payments
@@ -276,7 +276,7 @@ export const PaymentsSection = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600">
-              {formatCurrency(balanceData?.summary.total_collected || 0)}
+              {money(balanceData?.summary.total_collected || 0)}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               All time revenue
@@ -286,15 +286,15 @@ export const PaymentsSection = () => {
 
         <Card className="border-l-4 border-l-purple-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Security Deposits Held</CardTitle>
+            <CardTitle className="text-sm font-medium">Balance Due</CardTitle>
             <Banknote className="h-4 w-4 text-purple-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-purple-600">
-              {balanceData?.summary.held_security_deposits?.length || 0}
+              {money(balanceData?.summary.balance_due || 0)}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Active deposits
+              {balanceData?.summary.balance_due_count || 0} open bookings
             </p>
           </CardContent>
         </Card>
