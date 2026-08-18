@@ -114,6 +114,21 @@ export const PaymentTracker = () => {
     b => (b.status === 'pending' || b.status === 'pending_payment' || b.status === 'confirmed') && !b.balancePaid
   );
 
+  // Busy tenants can have long outstanding lists — let them find one fast.
+  const visiblePendingPayments = pendingSearch.trim()
+    ? pendingPayments.filter((b) => {
+        const q = pendingSearch.trim().toLowerCase();
+        return [
+          (b as any).customer_name,
+          (b as any).customer_email,
+          (b as any).booking_ref,
+          (b as any).vehicle_name,
+        ]
+          .filter(Boolean)
+          .some((v) => String(v).toLowerCase().includes(q));
+      })
+    : pendingPayments;
+
   const overduePayments = pendingPayments.filter(b => {
     // Marketplace: overdue if the payment_due_at deadline has passed.
     const dueAt = (b as any).payment_due_at;
