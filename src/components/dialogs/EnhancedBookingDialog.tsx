@@ -1214,7 +1214,9 @@ export const EnhancedBookingDialog = ({
 
                       <div className="flex flex-wrap gap-2">
                         <Button variant="outline" size="sm" onClick={() => { onOpenChange(false); onNavigateToModule?.("pulse", { bookingId: booking.id }); }}>
-                          <CreditCard className="h-3 w-3 mr-1" />Record / view payments<ExternalLink className="h-3 w-3 ml-1" />
+                          <CreditCard className="h-3 w-3 mr-1" />
+                          {booking.booking_source === 'marketplace' ? 'View payment activity' : 'Record / view payments'}
+                          <ExternalLink className="h-3 w-3 ml-1" />
                         </Button>
                       </div>
                     </TabsContent>

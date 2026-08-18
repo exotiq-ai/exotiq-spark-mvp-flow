@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useModuleNavigation } from "@/hooks/useModuleNavigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -44,7 +44,13 @@ import {
 
 type Booking = Database['public']['Tables']['bookings']['Row'];
 
-export const PaymentTracker = () => {
+interface PaymentTrackerProps {
+  /** Booking to scroll to + highlight when arriving from a booking card. */
+  focusBookingId?: string | null;
+  onFocusHandled?: () => void;
+}
+
+export const PaymentTracker = ({ focusBookingId, onFocusHandled }: PaymentTrackerProps = {}) => {
   const { bookings, payments, vehicles, createPayment } = useLocationFilteredFleet();
   const { goToCustomerProfile } = useModuleNavigation();
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
@@ -59,6 +65,8 @@ export const PaymentTracker = () => {
   const [captureDialog, setCaptureDialog] = useState<{ paymentIntentId: string; maxAmount: number } | null>(null);
   const [captureAmount, setCaptureAmount] = useState(0);
   const [pendingSearch, setPendingSearch] = useState("");
+  const [highlightedBookingId, setHighlightedBookingId] = useState<string | null>(null);
+  const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const [refundDialog, setRefundDialog] = useState<{ paymentIntentId: string; maxAmount: number } | null>(null);
   const [refundAmount, setRefundAmount] = useState(0);
   const [refundReason, setRefundReason] = useState("requested_by_customer");
@@ -129,6 +137,31 @@ export const PaymentTracker = () => {
           .some((v) => String(v).toLowerCase().includes(q));
       })
     : pendingPayments;
+
+  // Deep-link from a booking card: scroll to the row and flag it briefly.
+  useEffect(() => {
+    if (!focusBookingId || bookings.length === 0) return;
+    const target = pendingPayments.find((b) => b.id === focusBookingId);
+    if (target) {
+      setHighlightedBookingId(focusBookingId);
+      setPendingSearch("");
+      requestAnimationFrame(() => {
+        rowRefs.current[focusBookingId]?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+      const t = setTimeout(() => setHighlightedBookingId(null), 4000);
+      onFocusHandled?.();
+      return () => clearTimeout(t);
+    }
+    const settled = bookings.find((b) => b.id === focusBookingId);
+    toast.info(
+      settled
+        ? `${(settled as any).booking_ref || "This booking"} has no outstanding balance.`
+        : "That booking isn't in the outstanding list.",
+    );
+    onFocusHandled?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusBookingId, bookings.length]);
+
 
   const overduePayments = pendingPayments.filter(b => {
     // Marketplace: overdue if the payment_due_at deadline has passed.
@@ -384,7 +417,12 @@ export const PaymentTracker = () => {
               {visiblePendingPayments.map((booking) => (
                 <div
                   key={booking.id}
-                  className="p-4 rounded-lg border border-primary/10 hover:border-primary/30 transition-colors"
+                  ref={(el) => { rowRefs.current[booking.id] = el; }}
+                  className={`p-4 rounded-lg border transition-colors ${
+                    highlightedBookingId === booking.id
+                      ? "border-primary ring-2 ring-primary/40 bg-primary/5"
+                      : "border-primary/10 hover:border-primary/30"
+                  }`}
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div>
