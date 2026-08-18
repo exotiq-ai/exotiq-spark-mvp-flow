@@ -76,6 +76,7 @@ import {
   Save,
   FileText,
   Loader2,
+  AlertCircle,
 } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 
