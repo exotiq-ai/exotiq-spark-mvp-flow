@@ -314,7 +314,7 @@ export const PaymentsSection = () => {
               {balanceData.payouts.slice(0, 3).map((payout) => (
                 <div key={payout.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                   <div>
-                    <p className="font-medium">{formatCurrency(payout.amount)}</p>
+                    <p className="font-medium">{money(payout.amount)}</p>
                     <p className="text-sm text-muted-foreground">
                       Arriving {format(new Date(payout.arrival_date), "MMM d, yyyy")}
                     </p>
