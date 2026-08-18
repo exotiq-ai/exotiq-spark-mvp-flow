@@ -82,7 +82,23 @@ interface BalanceData {
     total_collected: number;
     balance_due: number;
     balance_due_count: number;
+    outstanding?: OutstandingBooking[];
   };
+}
+
+interface OutstandingBooking {
+  id: string;
+  booking_ref: string | null;
+  customer_name: string | null;
+  customer_email: string | null;
+  vehicle_name: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  status: string | null;
+  booking_source: string | null;
+  payment_due_at: string | null;
+  amount_due: number;
+  total_value: number;
 }
 
 const PAGE_SIZE = 50;
