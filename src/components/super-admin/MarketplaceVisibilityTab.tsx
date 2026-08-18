@@ -55,9 +55,11 @@ interface VehicleRow {
   model: string | null;
   status: string | null;
   marketplace_visible: boolean;
+  marketplace_unlisted: boolean;
   archived_at: string | null;
   trashed_at: string | null;
 }
+
 
 const logAdminAction = async (action: string, details: Record<string, unknown>) => {
   try {
