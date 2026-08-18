@@ -211,16 +211,13 @@ export const PaymentsSection = () => {
     );
   };
 
-  const filteredLocalPayments = localPayments.filter((payment) => {
-    const matchesSearch = 
-      payment.bookings?.customer_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      payment.bookings?.customer_email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      payment.payment_type?.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesStatus = statusFilter === "all" || payment.payment_status === statusFilter;
-    
-    return matchesSearch && matchesStatus;
-  });
+  // Search runs server-side across the whole team history; only the status
+  // filter stays local since it applies to the already-returned page.
+  const filteredLocalPayments = localPayments.filter(
+    (payment) => statusFilter === "all" || payment.payment_status === statusFilter,
+  );
+
+  const hasMore = localPayments.length < localTotal;
 
   if (loading) {
     return (
