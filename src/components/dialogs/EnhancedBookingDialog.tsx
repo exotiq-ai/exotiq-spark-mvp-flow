@@ -1053,7 +1053,7 @@ export const EnhancedBookingDialog = ({
                       <Save className="h-4 w-4 mr-2" />
                       {saving ? "Saving..." : "Save Draft"}
                     </Button>
-                    {booking.status === "pending" && (
+                    {(booking.status === "pending" || booking.status === "requested") && (
                       <Button
                         onClick={() => handleSaveChanges(true)}
                         disabled={saving || !isFormValid}
