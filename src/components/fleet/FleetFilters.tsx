@@ -196,6 +196,18 @@ export const FleetFilters = ({
   isOpsMode = false,
 }: FleetFiltersProps) => {
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const filterBodyRef = useRef<HTMLDivElement>(null);
+
+  // The nested Make/Location command lists auto-scroll their first item into
+  // view on mount, which drags the panel body down. Snap back to the top so
+  // the panel always opens at "Quick filters".
+  useEffect(() => {
+    if (!filtersOpen) return;
+    const id = requestAnimationFrame(() => {
+      if (filterBodyRef.current) filterBodyRef.current.scrollTop = 0;
+    });
+    return () => cancelAnimationFrame(id);
+  }, [filtersOpen]);
   const [makeSearch, setMakeSearch] = useState('');
 
   const activeFilterCount =
