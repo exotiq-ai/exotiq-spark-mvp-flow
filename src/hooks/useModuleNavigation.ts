@@ -36,8 +36,11 @@ export const useModuleNavigation = () => {
     scrollToTop();
   };
 
+  // `tab` is the param the Bookings page actually switches on. The booking id
+  // rides under `paymentBookingId` so the page's "open this booking's card"
+  // effect doesn't hijack the navigation.
   const goToPayments = (bookingId?: string) => {
-    navigate(moduleIdToPath('book', { view: 'payments', ...(bookingId && { bookingId }) }));
+    navigate(moduleIdToPath('book', { tab: 'payments', ...(bookingId && { paymentBookingId: bookingId }) }));
     scrollToTop();
   };
 
