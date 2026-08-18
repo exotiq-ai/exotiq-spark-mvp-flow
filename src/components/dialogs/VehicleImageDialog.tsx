@@ -92,6 +92,8 @@ interface VehicleImageDialogProps {
   currentUserId?: string;
   activeBooking?: any;
   nextBooking?: any;
+  onOpenBooking?: (bookingId: string) => void;
+
 }
 
 export function VehicleImageDialog({
