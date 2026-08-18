@@ -298,6 +298,9 @@ export const FleetFilters = ({
             align="start"
             sideOffset={8}
             collisionPadding={16}
+            // Keep the panel scrolled to the top on open — autofocusing an
+            // inner control scrolls the body down and hides Quick filters.
+            onOpenAutoFocus={(e) => e.preventDefault()}
           >
             {/* Sticky Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b bg-background/95 backdrop-blur sticky top-0">
