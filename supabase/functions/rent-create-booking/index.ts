@@ -27,6 +27,14 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.77.0";
 import { checkRateLimit, clientIp, verifyTurnstile } from "../_shared/rateLimit.ts";
+import { resolveRenterReplyTo, sendRenterEmail } from "../_shared/rentEmail.ts";
+import {
+  buildPayUrl,
+  formatCurrency,
+  formatDateRange,
+  formatPickupTime,
+  shortVehicleName,
+} from "../_shared/rentFormat.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
