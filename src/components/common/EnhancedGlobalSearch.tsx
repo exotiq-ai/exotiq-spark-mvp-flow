@@ -292,7 +292,7 @@ export const EnhancedGlobalSearch = ({ onOpenRari }: EnhancedGlobalSearchProps) 
           title: `${v.make} ${v.model}`,
           subtitle: `${plate}${v.status || 'Unknown'}`,
           icon: Car,
-          action: () => navigate(moduleIdToPath("fleet", { vehicleId: v.id })),
+          action: () => navigate(moduleIdToPath("fleet", { vehicle: v.id })),
           badge: v.status
         });
       });
