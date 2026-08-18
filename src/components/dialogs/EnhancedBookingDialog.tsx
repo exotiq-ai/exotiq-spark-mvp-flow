@@ -1460,29 +1460,9 @@ export const EnhancedBookingDialog = ({
                     </div>
                   )}
 
-                  {(booking.status === "pending" || booking.status === "requested") && (
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        onClick={() => setShowCancelConfirm(true)}
-                        className="flex-1 text-destructive border-destructive/30 hover:bg-destructive/10"
-                      >
-                        <XCircle className="h-4 w-4 mr-2" />Decline
-                      </Button>
-                      <Button
-                        onClick={() => { if (blockIfRestricted()) return; updateBookingStatus(booking.id, "confirmed"); onOpenChange(false); }}
-                        className="flex-1"
-                      >
-                        <CheckCircle className="h-4 w-4 mr-2" />
-                        {booking.booking_source === 'marketplace' ? 'Approve' : 'Confirm'}
-                      </Button>
-                    </div>
-                  )}
-                  {booking.status === "pending_documents" && (
-                    <div className="p-3 rounded-lg bg-warning/10 border border-warning/30 text-xs text-warning-tinted">
-                      Awaiting renter ID verification. This booking will become approvable once the renter completes identity verification.
-                    </div>
-                  )}
+                  {/* Approve / Decline live in the sticky footer below so they
+                      are reachable without scrolling past every tab. */}
+
 
                   {booking.status === "confirmed" && (
                     <div className="flex gap-2">
