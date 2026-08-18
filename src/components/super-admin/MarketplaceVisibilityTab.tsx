@@ -599,6 +599,10 @@ export const MarketplaceVisibilityTab = () => {
                         onToggleVehicle={(vehicle, value) =>
                           toggleVehicle.mutate({ vehicle, teamId: team.id, value })
                         }
+                        onToggleUnlisted={(vehicle, value) =>
+                          toggleUnlisted.mutate({ vehicle, teamId: team.id, value })
+                        }
+
                         onBulk={(ids, value) =>
                           bulkVehicles.mutate({ ids, teamId: team.id, value })
                         }
