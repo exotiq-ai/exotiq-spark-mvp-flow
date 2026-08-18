@@ -55,9 +55,11 @@ interface VehicleRow {
   model: string | null;
   status: string | null;
   marketplace_visible: boolean;
+  marketplace_unlisted: boolean;
   archived_at: string | null;
   trashed_at: string | null;
 }
+
 
 const logAdminAction = async (action: string, details: Record<string, unknown>) => {
   try {
@@ -121,11 +123,15 @@ const useVehicles = (teamId: string | null) =>
     queryFn: async (): Promise<VehicleRow[]> => {
       const { data, error } = await supabase
         .from('vehicles')
-        .select('id, year, make, model, status, marketplace_visible, archived_at, trashed_at')
+        .select('id, year, make, model, status, marketplace_visible, marketplace_unlisted, archived_at, trashed_at')
         .eq('team_id', teamId!)
         .order('make', { ascending: true });
       if (error) throw error;
-      return (data ?? []) as VehicleRow[];
+      return ((data ?? []) as any[]).map((v) => ({
+        ...v,
+        marketplace_unlisted: !!v.marketplace_unlisted,
+      })) as VehicleRow[];
+
     },
   });
 
@@ -310,6 +316,35 @@ export const MarketplaceVisibilityTab = () => {
     onError: (e: unknown) =>
       toast({ title: 'Update failed', description: e instanceof Error ? e.message : String(e), variant: 'destructive' }),
   });
+
+  const toggleUnlisted = useMutation({
+    mutationFn: async ({
+      vehicle,
+      teamId,
+      value,
+    }: {
+      vehicle: VehicleRow;
+      teamId: string;
+      value: boolean;
+    }) => {
+      const { error } = await supabase
+        .from('vehicles')
+        .update({ marketplace_unlisted: value } as any)
+        .eq('id', vehicle.id);
+      if (error) throw error;
+      await logAdminAction('toggle_marketplace_unlisted', {
+        team_id: teamId,
+        vehicle_id: vehicle.id,
+        value,
+      });
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ['sa-marketplace-vehicles', vars.teamId] });
+    },
+    onError: (e: unknown) =>
+      toast({ title: 'Update failed', description: e instanceof Error ? e.message : String(e), variant: 'destructive' }),
+  });
+
 
   const bulkVehicles = useMutation({
     mutationFn: async ({
@@ -564,6 +599,10 @@ export const MarketplaceVisibilityTab = () => {
                         onToggleVehicle={(vehicle, value) =>
                           toggleVehicle.mutate({ vehicle, teamId: team.id, value })
                         }
+                        onToggleUnlisted={(vehicle, value) =>
+                          toggleUnlisted.mutate({ vehicle, teamId: team.id, value })
+                        }
+
                         onBulk={(ids, value) =>
                           bulkVehicles.mutate({ ids, teamId: team.id, value })
                         }
@@ -591,6 +630,7 @@ interface VehicleListProps {
   onlyVisible: boolean;
   setOnlyVisible: (v: boolean) => void;
   onToggleVehicle: (v: VehicleRow, value: boolean) => void;
+  onToggleUnlisted: (v: VehicleRow, value: boolean) => void;
   onBulk: (ids: string[], value: boolean) => void;
   bulkPending: boolean;
 }
@@ -601,6 +641,8 @@ const VehicleList = ({
   onlyVisible,
   setOnlyVisible,
   onToggleVehicle,
+  onToggleUnlisted,
+
   onBulk,
   bulkPending,
 }: VehicleListProps) => {
@@ -671,24 +713,46 @@ const VehicleList = ({
               <div key={v.id} className="flex items-center gap-2 px-3 py-2 text-sm">
                 <div className="flex-1 min-w-0">
                   <p className="truncate">{label}</p>
-                  <p className="text-xs text-muted-foreground">{v.status ?? '—'}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {v.status ?? '—'}
+                    {v.marketplace_unlisted ? ' · unlisted (direct link only)' : ''}
+                  </p>
                 </div>
-                {disabled ? (
+                <div className="flex items-center gap-2">
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <span>
-                        <Switch checked={v.marketplace_visible} disabled aria-label="Vehicle marketplace visibility" />
+                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                        Unlisted
+                        <Switch
+                          checked={v.marketplace_unlisted}
+                          disabled={disabled}
+                          onCheckedChange={(value) => onToggleUnlisted(v, value)}
+                          aria-label="Hide vehicle from public catalog listing"
+                        />
                       </span>
                     </TooltipTrigger>
-                    <TooltipContent>{disabledReason}</TooltipContent>
+                    <TooltipContent>
+                      Hidden from the public fleet list, still bookable via its direct link
+                    </TooltipContent>
                   </Tooltip>
-                ) : (
-                  <Switch
-                    checked={v.marketplace_visible}
-                    onCheckedChange={(value) => onToggleVehicle(v, value)}
-                    aria-label="Vehicle marketplace visibility"
-                  />
-                )}
+                  {disabled ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span>
+                          <Switch checked={v.marketplace_visible} disabled aria-label="Vehicle marketplace visibility" />
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>{disabledReason}</TooltipContent>
+                    </Tooltip>
+                  ) : (
+                    <Switch
+                      checked={v.marketplace_visible}
+                      onCheckedChange={(value) => onToggleVehicle(v, value)}
+                      aria-label="Vehicle marketplace visibility"
+                    />
+                  )}
+                </div>
+
               </div>
             );
           })}

@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -48,6 +50,10 @@ export const BusinessProfileSection = () => {
   const [vatNumber, setVatNumber] = useState("");
   const [address, setAddress] = useState<BusinessAddress>({});
   const [supportEmail, setSupportEmail] = useState("");
+  const [supportPhone, setSupportPhone] = useState("");
+  const [pickupAddress, setPickupAddress] = useState("");
+  const [pickupInstructions, setPickupInstructions] = useState("");
+
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -62,6 +68,10 @@ export const BusinessProfileSection = () => {
     setVatNumber(currentTeam.vat_number || "");
     setAddress((currentTeam.business_address as BusinessAddress) || {});
     setSupportEmail(((currentTeam as any).support_email as string) || "");
+    setSupportPhone(((currentTeam as any).support_phone as string) || "");
+    setPickupAddress(((currentTeam as any).pickup_address as string) || "");
+    setPickupInstructions(((currentTeam as any).pickup_instructions as string) || "");
+
   }, [currentTeam]);
 
 
@@ -147,6 +157,12 @@ export const BusinessProfileSection = () => {
           vat_number: vatNumber.trim() || null,
           business_address: address as any,
           support_email: trimmedSupport || null,
+          support_phone: supportPhone.trim() || null,
+          pickup_address: pickupAddress.trim() || null,
+          // Plain text only — never rendered as HTML/markdown downstream
+          pickup_instructions:
+            pickupInstructions.replace(/[<>]/g, "").trim() || null,
+
         } as any)
         .eq("id", currentTeam.id);
 
@@ -385,25 +401,65 @@ export const BusinessProfileSection = () => {
       <Card className="p-6 space-y-5">
         <div className="flex items-center gap-2">
           <Mail className="h-5 w-5 text-muted-foreground" />
-          <h3 className="text-lg font-semibold">Support email</h3>
+          <h3 className="text-lg font-semibold">Renter contact & pickup</h3>
         </div>
         <p className="text-sm text-muted-foreground -mt-2">
-          Where renter replies to booking emails go. Leave blank to use exotiq
-          support. Booking emails are always sent from{" "}
-          <span className="font-mono">bookings@exotiq.rent</span>; only the
-          reply address changes.
+          Shown to renters on booking confirmations and receipts. Leave the
+          support email blank to use exotiq support. Booking emails are always
+          sent from <span className="font-mono">bookings@exotiq.rent</span>;
+          only the reply address changes.
         </p>
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <Label>Support email</Label>
+            <Input
+              type="email"
+              value={supportEmail}
+              onChange={(e) => setSupportEmail(e.target.value)}
+              placeholder="support@yourcompany.com"
+              maxLength={255}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Support phone</Label>
+            <Input
+              type="tel"
+              value={supportPhone}
+              onChange={(e) => setSupportPhone(e.target.value)}
+              placeholder="+1 (555) 010-1234"
+              maxLength={40}
+            />
+          </div>
+        </div>
         <div className="space-y-2">
-          <Label>Support email</Label>
+          <Label>Default pickup address</Label>
           <Input
-            type="email"
-            value={supportEmail}
-            onChange={(e) => setSupportEmail(e.target.value)}
-            placeholder="support@yourcompany.com"
-            maxLength={255}
+            value={pickupAddress}
+            onChange={(e) => setPickupAddress(e.target.value)}
+            placeholder="123 Bayshore Blvd, Tampa, FL 33606"
+            maxLength={300}
           />
+          <p className="text-xs text-muted-foreground">
+            Used when a vehicle has no location assigned. Vehicles with a
+            location use that address instead.
+          </p>
+        </div>
+        <div className="space-y-2">
+          <Label>Pickup instructions</Label>
+          <Textarea
+            value={pickupInstructions}
+            onChange={(e) => setPickupInstructions(e.target.value)}
+            placeholder="Park in the visitor lot and text us on arrival. Bring your driver's licence."
+            maxLength={1000}
+            rows={4}
+          />
+          <p className="text-xs text-muted-foreground">
+            Plain text only — shown exactly as typed on the renter's
+            confirmation.
+          </p>
         </div>
       </Card>
+
 
       <div className="flex justify-end">
         <Button onClick={handleSave} disabled={saving} className="gap-2">

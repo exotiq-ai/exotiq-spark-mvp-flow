@@ -32,12 +32,25 @@ function jsonResponse(body: unknown, status = 200) {
   });
 }
 
+// Operator-entered fields (pickup instructions, business name, …) flow into
+// these templates. Always escape — never let a Business Profile field inject
+// markup into a renter email.
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function interpolate(html: string, variables: Record<string, string | number | undefined>): string {
   return html.replace(/\{\{(\w+)\}\}/g, (_, key) => {
     const value = variables[key];
-    return value === undefined || value === null ? "" : String(value);
+    return value === undefined || value === null ? "" : escapeHtml(String(value));
   });
 }
+
 
 function stripHtml(html: string): string {
   return html
