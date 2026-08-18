@@ -679,7 +679,10 @@ export const BookEnhanced = () => {
         </TabsContent>
 
         <TabsContent value="payments">
-          <PaymentTracker />
+          <PaymentTracker
+            focusBookingId={focusPaymentBookingId}
+            onFocusHandled={() => setFocusPaymentBookingId(null)}
+          />
         </TabsContent>
       </ModuleTabs>
       <ConfirmationDialog
