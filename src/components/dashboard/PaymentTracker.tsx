@@ -17,13 +17,16 @@ import {
   Shield,
   ShieldCheck,
   ShieldX,
-  Undo2
+  Undo2,
+  Mail,
+  ExternalLink
 } from "lucide-react";
 import { RecordPaymentDialog } from "@/components/dialogs/RecordPaymentDialog";
 import { Database } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
+import { describeFunctionError } from "@/lib/functionError";
 import { isPaidOrCaptured } from "@/lib/bookingPaymentState";
 import {
   Dialog,
@@ -52,7 +55,7 @@ interface PaymentTrackerProps {
 
 export const PaymentTracker = ({ focusBookingId, onFocusHandled }: PaymentTrackerProps = {}) => {
   const { bookings, payments, vehicles, createPayment } = useLocationFilteredFleet();
-  const { goToCustomerProfile } = useModuleNavigation();
+  const { goToCustomerProfile, goToBookingDetails } = useModuleNavigation();
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [showRecordPayment, setShowRecordPayment] = useState(false);
   const [showVehicleImage, setShowVehicleImage] = useState(false);
@@ -70,6 +73,31 @@ export const PaymentTracker = ({ focusBookingId, onFocusHandled }: PaymentTracke
   const [refundDialog, setRefundDialog] = useState<{ paymentIntentId: string; maxAmount: number } | null>(null);
   const [refundAmount, setRefundAmount] = useState(0);
   const [refundReason, setRefundReason] = useState("requested_by_customer");
+  // Re-sending the renter's existing secure payment link. No new charge is
+  // created — the same session and the same deadline are re-mailed.
+  const [sendingLinkId, setSendingLinkId] = useState<string | null>(null);
+
+  const handleSendPaymentLink = async (booking: { id: string; status: string; customer_email?: string | null }) => {
+    setSendingLinkId(booking.id);
+    try {
+      const expired = booking.status === "payment_expired";
+      const { data, error } = await supabase.functions.invoke(
+        expired ? "rent-approve-booking" : "rent-resend-payment-link",
+        { body: { booking_id: booking.id } },
+      );
+      if (error) throw new Error(await describeFunctionError(error));
+      const deadline = (data as any)?.payment_due_at
+        ? ` · due ${new Date((data as any).payment_due_at).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`
+        : "";
+      toast.success(
+        `Payment link emailed to ${(data as any)?.sent_to || booking.customer_email || "the renter"}${deadline}`,
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not send payment link");
+    } finally {
+      setSendingLinkId(null);
+    }
+  };
 
   const handleVehicleClick = (vehicleId: string) => {
     const vehicle = vehicles.find(v => v.id === vehicleId);
@@ -120,7 +148,7 @@ export const PaymentTracker = ({ focusBookingId, onFocusHandled }: PaymentTracke
   });
 
   const pendingPayments = bookingsWithPaymentStatus.filter(
-    b => (b.status === 'pending' || b.status === 'pending_payment' || b.status === 'confirmed') && !b.balancePaid
+    b => (b.status === 'pending' || b.status === 'pending_payment' || b.status === 'confirmed' || b.status === 'payment_expired') && !b.balancePaid
   );
 
   // Busy tenants can have long outstanding lists — let them find one fast.
@@ -424,20 +452,25 @@ export const PaymentTracker = ({ focusBookingId, onFocusHandled }: PaymentTracke
                       : "border-primary/10 hover:border-primary/30"
                   }`}
                 >
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <h4 
-                        className="font-semibold cursor-pointer hover:text-primary transition-colors"
-                        onClick={() => handleVehicleClick(booking.vehicle_id)}
+                  <div className="flex items-start justify-between mb-3 gap-3">
+                    <div className="min-w-0">
+                      <button
+                        type="button"
+                        className="font-semibold text-left hover:text-primary transition-colors"
+                        onClick={() => goToBookingDetails(booking.id)}
                       >
-                        {booking.vehicle?.name}
-                      </h4>
+                        {booking.vehicle?.name || (booking as any).vehicle_name || (booking as any).booking_ref}
+                        {(booking as any).booking_ref && (
+                          <span className="text-muted-foreground font-normal"> · {(booking as any).booking_ref}</span>
+                        )}
+                      </button>
                       <p className={`text-sm text-muted-foreground ${booking.customer_id ? 'cursor-pointer hover:text-primary transition-colors' : ''}`}
                         onClick={() => booking.customer_id && goToCustomerProfile(booking.customer_id)}
                       >{booking.customer_name}</p>
                     </div>
                     {getPaymentStatusBadge(booking)}
                   </div>
+
 
                   <div className="grid grid-cols-2 gap-4 mb-3 text-sm">
                     <div>
@@ -520,6 +553,36 @@ export const PaymentTracker = ({ focusBookingId, onFocusHandled }: PaymentTracke
                       </>
                     )}
 
+                    {/* Marketplace: the renter pays through their secure link,
+                        so the operator's lever is re-sending that link (or
+                        re-approving once the window lapsed). No charge here. */}
+                    {booking.isMarketplace && (booking.status === 'pending_payment' || booking.status === 'payment_expired') && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1"
+                        disabled={sendingLinkId === booking.id}
+                        onClick={() => handleSendPaymentLink(booking as any)}
+                      >
+                        {sendingLinkId === booking.id ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <Mail className="w-4 h-4 mr-2" />
+                        )}
+                        {booking.status === 'payment_expired' ? 'Re-approve & send link' : 'Send payment link'}
+                      </Button>
+                    )}
+
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="flex-1"
+                      onClick={() => goToBookingDetails(booking.id)}
+                    >
+                      <ExternalLink className="w-4 h-4 mr-2" />
+                      View booking
+                    </Button>
+
                     {/* Standard payment actions — hidden on marketplace bookings.
                         Marketplace deposits use the setup-session → off-session hold
                         flow (DepositPanel), never manual Record Payment which would
@@ -576,7 +639,17 @@ export const PaymentTracker = ({ focusBookingId, onFocusHandled }: PaymentTracke
                       </Button>
                     )}
                   </div>
+                  {booking.isMarketplace && !booking.balancePaid && (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      {booking.status === 'payment_expired'
+                        ? 'Payment window lapsed — re-approve to set a new deadline.'
+                        : booking.status === 'pending_payment'
+                          ? `Renter has the payment link${(booking as any).payment_due_at ? ` · due ${new Date((booking as any).payment_due_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}` : ''}`
+                          : 'Awaiting your approval — approving emails the renter their payment link.'}
+                    </p>
+                  )}
                 </div>
+
               ))}
             </div>
           )}

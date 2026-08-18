@@ -53,6 +53,7 @@ import { Trash2 } from "lucide-react";
 import { EnhancedBookingDialog } from "@/components/dialogs/EnhancedBookingDialog";
 import { EditCustomerDialog } from "@/components/dialogs/EditCustomerDialog";
 import { formatCurrency } from "@/lib/utils";
+import { describeFunctionError } from "@/lib/functionError";
 import { CustomerTimeline } from "@/components/crm/CustomerTimeline";
 import { EntityCommentThread } from "@/components/comments/EntityCommentThread";
 import { useTeam } from "@/contexts/TeamContext";
@@ -86,6 +87,25 @@ export const CustomerProfileDialog = ({
   const { addCustomerNote, updateCustomer, blacklistCustomer, deleteCustomer, customerNotes, refreshCustomers } = useFleet();
   const [newNote, setNewNote] = useState("");
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
+  // Re-sends the renter's existing secure payment link (or re-approves an
+  // expired window). Never creates a charge.
+  const [sendingLinkId, setSendingLinkId] = useState<string | null>(null);
+  const sendPaymentLink = async (booking: { id: string; status: string; customer_email?: string | null }) => {
+    setSendingLinkId(booking.id);
+    try {
+      const expired = booking.status === 'payment_expired';
+      const { data, error } = await supabase.functions.invoke(
+        expired ? 'rent-approve-booking' : 'rent-resend-payment-link',
+        { body: { booking_id: booking.id } },
+      );
+      if (error) throw new Error(await describeFunctionError(error));
+      toast.success(`Payment link emailed to ${(data as any)?.sent_to || booking.customer_email || 'the renter'}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not send payment link');
+    } finally {
+      setSendingLinkId(null);
+    }
+  };
   const [isAddingNote, setIsAddingNote] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [verifyingId, setVerifyingId] = useState(false);
@@ -541,7 +561,27 @@ export const CustomerProfileDialog = ({
                           <span className="whitespace-pre-wrap break-words">{booking.notes}</span>
                         </div>
                       )}
+
+                      {/* Re-send the renter's existing payment link. No charge. */}
+                      {(booking as any).booking_source === 'marketplace' &&
+                        (booking.status === 'pending_payment' || booking.status === 'payment_expired') && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full"
+                          disabled={sendingLinkId === booking.id}
+                          onClick={(e) => { e.stopPropagation(); sendPaymentLink(booking as any); }}
+                        >
+                          <Mail className="w-3.5 h-3.5 mr-2" />
+                          {sendingLinkId === booking.id
+                            ? 'Sending...'
+                            : booking.status === 'payment_expired'
+                              ? 'Re-approve & send link'
+                              : 'Send payment link'}
+                        </Button>
+                      )}
                     </div>
+
                   );
                 })}
               </div>
