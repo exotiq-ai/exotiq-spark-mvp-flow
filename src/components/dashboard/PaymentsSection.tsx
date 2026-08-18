@@ -395,7 +395,7 @@ export const PaymentsSection = () => {
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="text-right">
-                      <p className="font-semibold">{formatCurrency(payment.amount || 0)}</p>
+                      <p className="font-semibold">{money(payment.amount || 0)}</p>
                       <p className="text-xs text-muted-foreground">
                         {payment.created_at ? format(new Date(payment.created_at), "MMM d, yyyy") : "N/A"}
                       </p>
