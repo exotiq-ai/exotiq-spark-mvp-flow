@@ -52,7 +52,59 @@ const OPS_STATUS_OPTIONS: { value: OpsStatus; label: string; color: string }[] =
   { value: "check_in_required", label: "Check-In Required", color: "bg-muted text-muted-foreground border-border" },
 ];
 
+// Rental status block — clickable when a booking target is available
+function RentalBlock({
+  label,
+  tone,
+  customerName,
+  detail,
+  onClick,
+}: {
+  label: string;
+  tone: 'primary' | 'accent' | 'destructive';
+  customerName?: string;
+  detail: string;
+  onClick?: () => void;
+}) {
+  const toneClasses = {
+    primary: 'bg-primary/5 border-primary/15 text-primary',
+    accent: 'bg-accent/5 border-accent/15 text-accent',
+    destructive: 'bg-destructive/5 border-destructive/20 text-destructive',
+  }[tone];
+
+  const content = (
+    <>
+      <div className="flex items-center gap-2 mb-1.5">
+        <Calendar className={cn('h-4 w-4', tone === 'primary' ? 'text-primary' : tone === 'accent' ? 'text-accent' : 'text-destructive')} />
+        <span className="text-sm font-medium text-foreground">{label}</span>
+        {onClick && <ArrowRight className="h-3.5 w-3.5 ml-auto text-muted-foreground" />}
+      </div>
+      <p className="text-sm text-foreground">{customerName || 'Reservation'}</p>
+      <p className="text-xs text-muted-foreground mt-0.5">{detail}</p>
+    </>
+  );
+
+  if (!onClick) {
+    return <div className={cn('p-3 rounded-lg border', toneClasses)}>{content}</div>;
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'w-full text-left p-3 rounded-lg border transition-colors',
+        'hover:bg-muted/50 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        toneClasses
+      )}
+    >
+      {content}
+    </button>
+  );
+}
+
 interface VehicleImageDialogProps {
+
   open: boolean;
   onOpenChange: (open: boolean) => void;
   vehicleName: string;
