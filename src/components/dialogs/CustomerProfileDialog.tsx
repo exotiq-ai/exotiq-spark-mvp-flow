@@ -86,6 +86,25 @@ export const CustomerProfileDialog = ({
   const { addCustomerNote, updateCustomer, blacklistCustomer, deleteCustomer, customerNotes, refreshCustomers } = useFleet();
   const [newNote, setNewNote] = useState("");
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
+  // Re-sends the renter's existing secure payment link (or re-approves an
+  // expired window). Never creates a charge.
+  const [sendingLinkId, setSendingLinkId] = useState<string | null>(null);
+  const sendPaymentLink = async (booking: { id: string; status: string; customer_email?: string | null }) => {
+    setSendingLinkId(booking.id);
+    try {
+      const expired = booking.status === 'payment_expired';
+      const { data, error } = await supabase.functions.invoke(
+        expired ? 'rent-approve-booking' : 'rent-resend-payment-link',
+        { body: { booking_id: booking.id } },
+      );
+      if (error) throw new Error(await describeFunctionError(error));
+      toast.success(`Payment link emailed to ${(data as any)?.sent_to || booking.customer_email || 'the renter'}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not send payment link');
+    } finally {
+      setSendingLinkId(null);
+    }
+  };
   const [isAddingNote, setIsAddingNote] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [verifyingId, setVerifyingId] = useState(false);
