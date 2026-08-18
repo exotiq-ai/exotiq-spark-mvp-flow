@@ -29,7 +29,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatCurrency } from "@/lib/utils";
+import { useTeam } from "@/contexts/TeamContext";
+import { useMoney } from "@/hooks/useMoney";
 
 interface StripePayment {
   id: string;
