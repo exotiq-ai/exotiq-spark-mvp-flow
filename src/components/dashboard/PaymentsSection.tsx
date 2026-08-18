@@ -79,27 +79,53 @@ interface BalanceData {
   }>;
   summary: {
     total_collected: number;
-    pending_deposits_count: number;
-    held_security_deposits: Array<{
-      id: string;
-      customer_name: string;
-      security_deposit_amount: number;
-      security_deposit_status: string;
-    }>;
+    balance_due: number;
+    balance_due_count: number;
   };
 }
+
+const PAGE_SIZE = 50;
 
 export const PaymentsSection = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [searching, setSearching] = useState(false);
   const [stripePayments, setStripePayments] = useState<StripePayment[]>([]);
   const [localPayments, setLocalPayments] = useState<LocalPayment[]>([]);
+  const [localTotal, setLocalTotal] = useState(0);
   const [balanceData, setBalanceData] = useState<BalanceData | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const { currentTeam } = useTeam();
+  const { money } = useMoney();
 
-  const fetchPaymentData = async () => {
+  // Server-side search: the history lives in the database, not in the first
+  // page of results, so the query goes to the backend rather than filtering
+  // whatever happened to be loaded.
+  const fetchHistory = async (opts: { search: string; offset: number; append: boolean }) => {
+    const { data, error } = await supabase.functions.invoke("stripe-payment-history", {
+      body: {
+        limit: PAGE_SIZE,
+        offset: opts.offset,
+        search: opts.search,
+        team_id: currentTeam?.id,
+      },
+    });
+    if (error) {
+      console.error("Payment history error:", error);
+      return;
+    }
+    if (!data) return;
+    setStripePayments(data.stripe_payments || []);
+    setLocalPayments((prev) =>
+      opts.append ? [...prev, ...(data.local_payments || [])] : (data.local_payments || []),
+    );
+    setLocalTotal(data.local_total ?? (data.local_payments?.length || 0));
+  };
+
+  const fetchPaymentData = async (search = debouncedQuery) => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
@@ -107,20 +133,7 @@ export const PaymentsSection = () => {
         return;
       }
 
-      // Fetch payment history
-      const { data: historyData, error: historyError } = await supabase.functions.invoke(
-        "stripe-payment-history",
-        {
-          body: { limit: 50 },
-        }
-      );
-
-      if (historyError) {
-        console.error("Payment history error:", historyError);
-      } else if (historyData) {
-        setStripePayments(historyData.stripe_payments || []);
-        setLocalPayments(historyData.local_payments || []);
-      }
+      await fetchHistory({ search, offset: 0, append: false });
 
       // Fetch balance data
       const { data: balData, error: balError } = await supabase.functions.invoke(
@@ -138,12 +151,38 @@ export const PaymentsSection = () => {
     } finally {
       setLoading(false);
       setRefreshing(false);
+      setSearching(false);
     }
   };
 
   useEffect(() => {
-    fetchPaymentData();
-  }, []);
+    fetchPaymentData("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentTeam?.id]);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(searchQuery.trim()), 350);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
+  const firstRender = useRef(true);
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    setSearching(true);
+    fetchHistory({ search: debouncedQuery, offset: 0, append: false }).finally(() =>
+      setSearching(false),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedQuery]);
+
+  const handleLoadMore = async () => {
+    setSearching(true);
+    await fetchHistory({ search: debouncedQuery, offset: localPayments.length, append: true });
+    setSearching(false);
+  };
 
   const handleRefresh = () => {
     setRefreshing(true);
