@@ -263,7 +263,23 @@ export const RecordPaymentDialog = ({
           description: formData.notes || `${formData.payment_type} payment for ${booking.customer_name}`,
         },
       });
-      if (error) throw error;
+      if (error) {
+        // FunctionsHttpError swallows the body — read the real message the
+        // function returned (e.g. marketplace_manual_charge_blocked) so the
+        // operator sees why, not just "non-2xx status code".
+        let detail = error.message;
+        const res = (error as any)?.context;
+        if (res && typeof res.json === "function") {
+          try {
+            const body = await res.json();
+            if (body?.error) detail = body.error;
+          } catch {
+            // fall back to the transport message
+          }
+        }
+        throw new Error(detail);
+      }
+      if (data?.error) throw new Error(data.error);
       if (data?.url) {
         toast({ title: "Redirecting to Stripe", description: "Opening Stripe Checkout in a new tab..." });
         window.open(data.url, '_blank');
