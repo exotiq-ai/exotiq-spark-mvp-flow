@@ -27,15 +27,18 @@ interface TimelineEvent {
   description?: string;
   icon: React.ReactNode;
   badge?: React.ReactNode;
+  bookingId?: string;
 }
 
 interface CustomerTimelineProps {
   bookings: Booking[];
   notes: CustomerNote[];
   identityEvents?: IdentityEvent[];
+  /** Opens the booking behind a timeline row. */
+  onBookingClick?: (bookingId: string) => void;
 }
 
-export const CustomerTimeline = ({ bookings, notes, identityEvents = [] }: CustomerTimelineProps) => {
+export const CustomerTimeline = ({ bookings, notes, identityEvents = [], onBookingClick }: CustomerTimelineProps) => {
   const events = useMemo(() => {
     const items: TimelineEvent[] = [];
 
