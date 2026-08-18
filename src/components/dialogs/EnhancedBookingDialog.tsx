@@ -1500,7 +1500,50 @@ export const EnhancedBookingDialog = ({
               )}
             </div>
           </ScrollArea>
+
+          {/* Sticky decision bar — always reachable for bookings awaiting a call */}
+          {!isEditMode && needsDecision && (
+            <div className="border-t bg-background px-6 py-3">
+              {booking.status === "pending_documents" ? (
+                <div className="flex items-center gap-2 text-xs text-warning-tinted">
+                  <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                  <span>Awaiting renter ID verification — you can approve once the renter completes it.</span>
+                </div>
+              ) : (
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowCancelConfirm(true)}
+                    disabled={approving}
+                    className="flex-1 text-destructive border-destructive/30 hover:bg-destructive/10"
+                  >
+                    <XCircle className="h-4 w-4 mr-2" />Decline
+                  </Button>
+                  <Button
+                    onClick={async () => {
+                      if (blockIfRestricted()) return;
+                      setApproving(true);
+                      try {
+                        await updateBookingStatus(booking.id, "confirmed");
+                        onOpenChange(false);
+                      } finally {
+                        setApproving(false);
+                      }
+                    }}
+                    disabled={approving}
+                    className="flex-1"
+                  >
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    {approving
+                      ? "Approving..."
+                      : booking.booking_source === 'marketplace' ? 'Approve' : 'Confirm'}
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
         </DialogContent>
+
       </Dialog>
       {booking && signingDocument && (
         <SigningCeremony
