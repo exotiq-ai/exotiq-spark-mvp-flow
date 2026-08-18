@@ -118,18 +118,26 @@ export const RecordPaymentDialog = ({
     fetchPayments();
   }, [open, booking.id]);
 
-  // Financial calculations using centralized pricing — uses local gasFeeWaived state
+  // Financial calculations using centralized pricing — uses local gasFeeWaived state.
+  // Marketplace bookings carry a snapshotted total (rental + platform fee + tax +
+  // processing) and must never be recomputed locally.
+  const isMarketplace = (booking as any).booking_source === 'marketplace';
+  const gasFeeApplies = gasFeeSettings.gasFeeEnabled && !isMarketplace;
   const financials = useMemo(() => {
-    const pricing = calculateBookingTotal({
+    const computed = calculateBookingTotal({
       startDate: booking.start_date,
       endDate: booking.end_date,
       dailyRate: Number(booking.daily_rate),
       discountAmount: Number(booking.discount_amount) || 0,
-      gasFee: Number((booking as any).gas_fee) || teamGasFee,
-      gasFeeWaived: gasFeeWaived,
+      gasFee: gasFeeApplies ? (Number((booking as any).gas_fee) || teamGasFee) : 0,
+      gasFeeWaived: gasFeeApplies ? gasFeeWaived : true,
       deliveryFee: Number(booking.delivery_fee) || 0,
       durationType: (booking as any).rental_duration_type || 'daily',
     });
+    const pricing = isMarketplace
+      ? { ...computed, gasFee: 0, grandTotal: Number(booking.total_value) || computed.grandTotal }
+      : computed;
+
     
     const depositsPaid = existingPayments
       .filter(p => p.payment_type === "deposit")
