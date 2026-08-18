@@ -19,6 +19,8 @@ interface SendBody {
   variables: Record<string, string | number | undefined>;
   idempotencyKey?: string;
   replyTo?: string;
+  /** Tenant display name for the From header ("Exotics By The Bay <bookings@…>"). */
+  fromName?: string;
   tags?: Array<{ name: string; value: string }>;
   bcc?: string | string[];
 }
@@ -93,7 +95,17 @@ serve(async (req) => {
       return jsonResponse({ error: "Unresolved template variables", variables: remaining }, 400);
     }
 
-    const from = Deno.env.get("RENTER_EMAIL_FROM") ?? "Drive Exotiq <bookings@exotiq.rent>";
+    // Tenant-first branding (2026-08-18): the operator's business name is the
+    // From display name; the sending address stays on the platform domain so
+    // DKIM/SPF continue to pass. Falls back to the platform default when a
+    // caller doesn't supply a tenant name.
+    const fromDefault = Deno.env.get("RENTER_EMAIL_FROM") ?? "exotiq <bookings@exotiq.rent>";
+    const fromAddress = (fromDefault.match(/<([^>]+)>/)?.[1] ?? fromDefault).trim();
+    const cleanFromName = (body.fromName ?? "")
+      .replace(/[<>"\r\n]/g, "")
+      .trim()
+      .slice(0, 60);
+    const from = cleanFromName ? `${cleanFromName} <${fromAddress}>` : fromDefault;
     const replyTo = body.replyTo ?? Deno.env.get("RENTER_EMAIL_REPLY_TO") ?? "support@exotiq.ai";
 
     const payload: Record<string, unknown> = {

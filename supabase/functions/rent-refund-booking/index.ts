@@ -15,7 +15,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.77.0";
-import { sendRenterEmail } from "../_shared/rentEmail.ts";
+import { sendRenterEmail, resolveRenterReplyTo } from "../_shared/rentEmail.ts";
 import {
   buildStorefrontUrl,
   buildVehicleUrl,
@@ -189,7 +189,7 @@ serve(async (req) => {
       try {
         const { data: team } = await admin
           .from("teams")
-          .select("slug, name, currency, timezone")
+          .select("slug, name, currency, timezone, support_email")
           .eq("id", booking.team_id)
           .single();
         const { data: vehicle } = await admin
@@ -219,7 +219,7 @@ serve(async (req) => {
         await sendRenterEmail({
           templateName: "refundConfirmation",
           to: booking.customer_email,
-          subject: `Refunded — booking ${bookingRef}`,
+          subject: `Refunded — booking ${bookingRef} · ${team?.name ?? "Operator"}`,
           variables: {
             BOOKING_REF: bookingRef,
             OPERATOR_NAME: team?.name ?? "Operator",
@@ -236,7 +236,8 @@ serve(async (req) => {
             VEHICLE_URL: vehicleUrl,
           },
           idempotencyKey: `refund-op-${bookingRef}`,
-          replyTo: Deno.env.get("RENTER_EMAIL_REPLY_TO") ?? "support@exotiq.ai",
+          replyTo: resolveRenterReplyTo(team?.support_email),
+          fromName: team?.name ?? undefined,
           tags: [{ name: "booking_ref", value: bookingRef }, { name: "email_type", value: "refund_confirmation" }],
         });
         logStep("Refund confirmation email sent", { bookingRef });

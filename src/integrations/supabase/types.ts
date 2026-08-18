@@ -360,6 +360,7 @@ export type Database = {
           notes: string | null
           operator_payment_intent_id: string | null
           operator_stripe_customer_id: string | null
+          operator_tax_cents: number
           paid_at: string | null
           payment_due_at: string | null
           payment_reminder_sent_at: string | null
@@ -439,6 +440,7 @@ export type Database = {
           notes?: string | null
           operator_payment_intent_id?: string | null
           operator_stripe_customer_id?: string | null
+          operator_tax_cents?: number
           paid_at?: string | null
           payment_due_at?: string | null
           payment_reminder_sent_at?: string | null
@@ -518,6 +520,7 @@ export type Database = {
           notes?: string | null
           operator_payment_intent_id?: string | null
           operator_stripe_customer_id?: string | null
+          operator_tax_cents?: number
           paid_at?: string | null
           payment_due_at?: string | null
           payment_reminder_sent_at?: string | null
@@ -5874,6 +5877,33 @@ export type Database = {
               status: string
             }[]
           }
+        | {
+            Args: {
+              _customer_email: string
+              _customer_name: string
+              _customer_phone: string
+              _daily_rate: number
+              _end_date: string
+              _initial_status: string
+              _operator_tax_cents?: number
+              _pickup_time: string
+              _platform_fee_cents: number
+              _processing_fee_cents?: number
+              _protection_tier: string
+              _protection_total_cents: number
+              _start_date: string
+              _state_fee_cents?: number
+              _team_slug: string
+              _total_value: number
+              _vehicle_slug: string
+            }
+            Returns: {
+              booking_id: string
+              booking_ref: string
+              confirmation_token: string
+              status: string
+            }[]
+          }
       deactivate_team_member:
         | {
             Args: {
@@ -6375,6 +6405,8 @@ export type Database = {
           currency: string
           end_at: string
           identity_verified: boolean
+          operator_tax_cents: number
+          operator_tax_label: string
           paid_at: string
           payment_due_at: string
           platform_fee_cents: number
@@ -6470,6 +6502,9 @@ export type Database = {
           deposit_cents: number
           exotiq_total_cents: number
           grand_total_cents: number
+          operator_tax_cents: number
+          operator_tax_label: string
+          operator_tax_rate: number
           operator_total_cents: number
           platform_fee_cents: number
           platform_fee_percent: number

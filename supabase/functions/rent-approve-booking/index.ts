@@ -169,10 +169,11 @@ serve(async (req) => {
         await sendRenterEmail({
           templateName: "paymentApproved",
           to: booking.customer_email,
-          subject: `You're approved — complete your ${vehicleShort} booking`,
+          subject: `You're approved — complete your ${vehicleShort} booking · ${operatorName}`,
           variables,
           idempotencyKey: `approve-${booking.booking_ref}`,
           replyTo: resolveRenterReplyTo(team?.support_email),
+          fromName: operatorName,
           tags: [{ name: "booking_ref", value: booking.booking_ref }, { name: "email_type", value: "payment_approved" }],
         });
         logStep("Payment-approved email sent", { bookingRef: booking.booking_ref });

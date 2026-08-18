@@ -130,7 +130,7 @@ async function confirmIfFullyPaid(db: ReturnType<typeof admin>, bookingRef: stri
         await sendRenterEmail({
           templateName: "receiptConfirmed",
           to: booking.customer_email,
-          subject: `Receipt confirmed — booking ${bookingRef}`,
+          subject: `Receipt confirmed — booking ${bookingRef} · ${team?.name ?? "Operator"}`,
           variables: {
             BOOKING_REF: bookingRef,
             OPERATOR_NAME: team?.name ?? "Operator",
@@ -148,6 +148,7 @@ async function confirmIfFullyPaid(db: ReturnType<typeof admin>, bookingRef: stri
           },
           idempotencyKey: `receipt-${bookingRef}`,
           replyTo: resolveRenterReplyTo(team?.support_email),
+          fromName: team?.name ?? undefined,
           tags: [{ name: "booking_ref", value: bookingRef }, { name: "email_type", value: "receipt_confirmed" }],
         });
       logStep("Receipt email sent", { bookingRef });
@@ -158,7 +159,7 @@ async function confirmIfFullyPaid(db: ReturnType<typeof admin>, bookingRef: stri
         await sendRenterEmail({
           templateName: "verifyIdRequested",
           to: booking.customer_email,
-          subject: `Verify your ID — booking ${bookingRef}`,
+          subject: `Verify your ID — booking ${bookingRef} · ${team?.name ?? "Operator"}`,
           variables: {
             BOOKING_REF: bookingRef,
             OPERATOR_NAME: team?.name ?? "Operator",
@@ -168,6 +169,7 @@ async function confirmIfFullyPaid(db: ReturnType<typeof admin>, bookingRef: stri
           },
           idempotencyKey: `verify-id-${bookingRef}`,
           replyTo: resolveRenterReplyTo(team?.support_email),
+          fromName: team?.name ?? undefined,
           tags: [{ name: "booking_ref", value: bookingRef }, { name: "email_type", value: "verify_id_requested" }],
         });
         logStep("ID-verify drip sent", { bookingRef });
