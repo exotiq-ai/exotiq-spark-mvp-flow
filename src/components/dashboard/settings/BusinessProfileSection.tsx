@@ -157,6 +157,12 @@ export const BusinessProfileSection = () => {
           vat_number: vatNumber.trim() || null,
           business_address: address as any,
           support_email: trimmedSupport || null,
+          support_phone: supportPhone.trim() || null,
+          pickup_address: pickupAddress.trim() || null,
+          // Plain text only — never rendered as HTML/markdown downstream
+          pickup_instructions:
+            pickupInstructions.replace(/[<>]/g, "").trim() || null,
+
         } as any)
         .eq("id", currentTeam.id);
 
