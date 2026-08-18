@@ -38,6 +38,7 @@ import { useToast } from "@/hooks/use-toast";
 import { startIdentityVerification } from "@/lib/identityVerification";
 
 import { supabase } from "@/integrations/supabase/client";
+import { describeFunctionError } from "@/lib/functionError";
 import { format } from "date-fns";
 import { getVehicleImage } from "@/lib/vehicleImageMapping";
 import { openGoogleCalendar } from "@/lib/googleCalendar";
