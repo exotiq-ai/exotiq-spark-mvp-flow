@@ -145,15 +145,16 @@ export const FleetPageEnhanced = () => {
     }
   }, [searchParams]);
 
-  // Deep-link: auto-open vehicle details from ?vehicle=<id>
+  // Deep-link: auto-open vehicle details from ?vehicle=<id> (legacy: ?vehicleId=<id>)
   useEffect(() => {
-    const vehicleId = searchParams.get('vehicle');
+    const vehicleId = searchParams.get('vehicle') || searchParams.get('vehicleId');
     if (!vehicleId || !vehicles?.length) return;
     const v = vehicles.find((x: any) => x.id === vehicleId);
     if (v) {
       setDetailsVehicle(v);
       const newParams = new URLSearchParams(searchParams);
       newParams.delete('vehicle');
+      newParams.delete('vehicleId');
       setSearchParams(newParams, { replace: true });
     }
   }, [searchParams, vehicles]);
