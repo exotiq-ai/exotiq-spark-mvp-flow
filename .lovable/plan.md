@@ -41,6 +41,16 @@ Exotiq exited the deposit flow on 2026-07-28, but the Vault still reads legacy c
 - Rename the legacy `Collect Deposit` button in Payment Status to `Record payment` (it already records an ordinary payment; the label is a leftover).
 - The stale `security_deposit_*` columns stay on the table untouched — no data migration, display only.
 
+## Money guardrail — nothing here touches Stripe
+
+Every change above is read, display, or email only. To be explicit:
+
+- No amount is created, edited, or recomputed anywhere in this work. The Payment History and Payment Status changes only change *which rows are fetched and shown*; the numbers rendered stay exactly the ones already stored.
+- The resend action re-sends the **existing** link for the **existing** payment window. It creates no charge, no PaymentIntent, no Checkout Session, and does not modify the booking's totals, fees, or deadline. The renter pays through the same session they already had.
+- Removing the deposit tile is a UI removal plus dropping one field from a response payload. No Stripe hold is placed, captured, released, or cancelled, and no `security_deposit_*` value in the database is written or cleared — the 45 legacy rows stay untouched.
+- No hardcoded amount is introduced. The only constant in this work is a 60-second resend throttle.
+- The two edge functions being edited are read-only against Stripe (`balance.retrieve`, `payouts.list`, `paymentIntents.list`). No write call to the Stripe API is added by any part of this plan.
+
 ## Technical notes
 
 - Files: `supabase/functions/rent-resend-payment-link/index.ts` (new), `supabase/functions/stripe-payment-history/index.ts`, `supabase/functions/stripe-get-balance/index.ts`, `src/components/dashboard/PaymentTracker.tsx`, `src/components/dashboard/PaymentsSection.tsx`, `src/components/dialogs/EnhancedBookingDialog.tsx`.
