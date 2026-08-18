@@ -20,6 +20,8 @@ export interface SendRenterEmailArgs {
   variables: Record<string, string | number | undefined>;
   idempotencyKey: string;
   replyTo?: string;
+  /** Tenant business name used as the From display name. */
+  fromName?: string;
   tags?: Array<{ name: string; value: string }>;
   bcc?: string | string[];
 }
