@@ -639,7 +639,17 @@ export const PaymentTracker = ({ focusBookingId, onFocusHandled }: PaymentTracke
                       </Button>
                     )}
                   </div>
+                  {booking.isMarketplace && !booking.balancePaid && (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      {booking.status === 'payment_expired'
+                        ? 'Payment window lapsed — re-approve to set a new deadline.'
+                        : booking.status === 'pending_payment'
+                          ? `Renter has the payment link${(booking as any).payment_due_at ? ` · due ${new Date((booking as any).payment_due_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}` : ''}`
+                          : 'Awaiting your approval — approving emails the renter their payment link.'}
+                    </p>
+                  )}
                 </div>
+
               ))}
             </div>
           )}
