@@ -151,6 +151,7 @@ export const BookEnhanced = () => {
   const [showImportBookings, setShowImportBookings] = useState(false);
   const [showBookingDetails, setShowBookingDetails] = useState(false);
   const [activeTab, setActiveTab] = useState<string | undefined>(undefined);
+  const [focusPaymentBookingId, setFocusPaymentBookingId] = useState<string | null>(null);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [cancellingBookingId, setCancellingBookingId] = useState<string | null>(null);
   const [showVehicleImage, setShowVehicleImage] = useState(false);
