@@ -78,6 +78,8 @@
        USE FOR: Warnings, pending states, caution notices only */
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
+    /* Readable text colour for low-opacity warning surfaces (bg-warning/10) */
+    --warning-tinted-foreground: 30 90% 26%;
     
     /* Destructive - Red
        USE FOR: Errors, deletions, critical warnings only */
@@ -175,6 +177,7 @@
 
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
+    --warning-tinted-foreground: 40 95% 78%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;

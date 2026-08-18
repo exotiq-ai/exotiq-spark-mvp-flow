@@ -118,18 +118,26 @@ export const RecordPaymentDialog = ({
     fetchPayments();
   }, [open, booking.id]);
 
-  // Financial calculations using centralized pricing — uses local gasFeeWaived state
+  // Financial calculations using centralized pricing — uses local gasFeeWaived state.
+  // Marketplace bookings carry a snapshotted total (rental + platform fee + tax +
+  // processing) and must never be recomputed locally.
+  const isMarketplace = (booking as any).booking_source === 'marketplace';
+  const gasFeeApplies = gasFeeSettings.gasFeeEnabled && !isMarketplace;
   const financials = useMemo(() => {
-    const pricing = calculateBookingTotal({
+    const computed = calculateBookingTotal({
       startDate: booking.start_date,
       endDate: booking.end_date,
       dailyRate: Number(booking.daily_rate),
       discountAmount: Number(booking.discount_amount) || 0,
-      gasFee: Number((booking as any).gas_fee) || teamGasFee,
-      gasFeeWaived: gasFeeWaived,
+      gasFee: gasFeeApplies ? (Number((booking as any).gas_fee) || teamGasFee) : 0,
+      gasFeeWaived: gasFeeApplies ? gasFeeWaived : true,
       deliveryFee: Number(booking.delivery_fee) || 0,
       durationType: (booking as any).rental_duration_type || 'daily',
     });
+    const pricing = isMarketplace
+      ? { ...computed, gasFee: 0, grandTotal: Number(booking.total_value) || computed.grandTotal }
+      : computed;
+
     
     const depositsPaid = existingPayments
       .filter(p => p.payment_type === "deposit")
@@ -169,7 +177,7 @@ export const RecordPaymentDialog = ({
       mileageCharge,
       balanceRemaining,
     };
-  }, [booking, existingPayments, gasFeeWaived]);
+  }, [booking, existingPayments, gasFeeWaived, gasFeeApplies, isMarketplace, teamGasFee]);
 
   // Total adjustments
   const adjustmentsTotal = useMemo(() => {
@@ -255,7 +263,23 @@ export const RecordPaymentDialog = ({
           description: formData.notes || `${formData.payment_type} payment for ${booking.customer_name}`,
         },
       });
-      if (error) throw error;
+      if (error) {
+        // FunctionsHttpError swallows the body — read the real message the
+        // function returned (e.g. marketplace_manual_charge_blocked) so the
+        // operator sees why, not just "non-2xx status code".
+        let detail = error.message;
+        const res = (error as any)?.context;
+        if (res && typeof res.json === "function") {
+          try {
+            const body = await res.json();
+            if (body?.error) detail = body.error;
+          } catch {
+            // fall back to the transport message
+          }
+        }
+        throw new Error(detail);
+      }
+      if (data?.error) throw new Error(data.error);
       if (data?.url) {
         toast({ title: "Redirecting to Stripe", description: "Opening Stripe Checkout in a new tab..." });
         window.open(data.url, '_blank');
@@ -380,7 +404,7 @@ export const RecordPaymentDialog = ({
                   </div>
                 )}
                 {/* Gas Fee with toggle — only shown when enabled in team settings */}
-                {gasFeeSettings.gasFeeEnabled && (
+                {gasFeeApplies && (
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-2">
                     <span className="text-muted-foreground">Gas/Re-fueling Fee</span>
