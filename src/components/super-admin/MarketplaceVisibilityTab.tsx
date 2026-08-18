@@ -317,6 +317,35 @@ export const MarketplaceVisibilityTab = () => {
       toast({ title: 'Update failed', description: e instanceof Error ? e.message : String(e), variant: 'destructive' }),
   });
 
+  const toggleUnlisted = useMutation({
+    mutationFn: async ({
+      vehicle,
+      teamId,
+      value,
+    }: {
+      vehicle: VehicleRow;
+      teamId: string;
+      value: boolean;
+    }) => {
+      const { error } = await supabase
+        .from('vehicles')
+        .update({ marketplace_unlisted: value } as any)
+        .eq('id', vehicle.id);
+      if (error) throw error;
+      await logAdminAction('toggle_marketplace_unlisted', {
+        team_id: teamId,
+        vehicle_id: vehicle.id,
+        value,
+      });
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ['sa-marketplace-vehicles', vars.teamId] });
+    },
+    onError: (e: unknown) =>
+      toast({ title: 'Update failed', description: e instanceof Error ? e.message : String(e), variant: 'destructive' }),
+  });
+
+
   const bulkVehicles = useMutation({
     mutationFn: async ({
       ids,
