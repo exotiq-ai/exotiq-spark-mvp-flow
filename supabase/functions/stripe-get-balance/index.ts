@@ -182,7 +182,8 @@ serve(async (req) => {
       payouts: formattedPayouts,
       summary: {
         total_collected: totalCollected,
-        held_security_deposits: activeBookingsWithDeposits || [],
+        balance_due: balanceDue,
+        balance_due_count: balanceDueCount,
         active_holds: activeHolds || [],
       },
       stripe_error: stripeError,
