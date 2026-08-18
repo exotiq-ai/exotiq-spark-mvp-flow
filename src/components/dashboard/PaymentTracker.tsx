@@ -58,6 +58,7 @@ export const PaymentTracker = () => {
   const [holdActionLoading, setHoldActionLoading] = useState<string | null>(null);
   const [captureDialog, setCaptureDialog] = useState<{ paymentIntentId: string; maxAmount: number } | null>(null);
   const [captureAmount, setCaptureAmount] = useState(0);
+  const [pendingSearch, setPendingSearch] = useState("");
   const [refundDialog, setRefundDialog] = useState<{ paymentIntentId: string; maxAmount: number } | null>(null);
   const [refundAmount, setRefundAmount] = useState(0);
   const [refundReason, setRefundReason] = useState("requested_by_customer");
