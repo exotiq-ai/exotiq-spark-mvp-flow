@@ -115,8 +115,32 @@ export const PaymentsSection = () => {
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [sendingLinkId, setSendingLinkId] = useState<string | null>(null);
   const { currentTeam } = useTeam();
   const { money } = useMoney();
+  const { goToPayments, goToBookingDetails } = useModuleNavigation();
+  const outstandingRef = useRef<HTMLDivElement | null>(null);
+
+  const outstanding = balanceData?.summary.outstanding ?? [];
+
+  const scrollToOutstanding = () => {
+    outstandingRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const sendPaymentLink = async (b: OutstandingBooking) => {
+    setSendingLinkId(b.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("rent-resend-payment-link", {
+        body: { booking_id: b.id },
+      });
+      if (error) throw new Error(await describeFunctionError(error));
+      toast.success(`Payment link emailed to ${data?.sent_to || b.customer_email || "the renter"}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not send payment link");
+    } finally {
+      setSendingLinkId(null);
+    }
+  };
 
   // Server-side search: the history lives in the database, not in the first
   // page of results, so the query goes to the backend rather than filtering
