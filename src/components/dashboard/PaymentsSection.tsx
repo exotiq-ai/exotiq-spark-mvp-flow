@@ -31,6 +31,8 @@ import {
 } from "@/components/ui/select";
 import { useTeam } from "@/contexts/TeamContext";
 import { useMoney } from "@/hooks/useMoney";
+import { useModuleNavigation } from "@/hooks/useModuleNavigation";
+import { describeFunctionError } from "@/lib/functionError";
 
 interface StripePayment {
   id: string;
