@@ -38,16 +38,29 @@ serve(async (req) => {
     if (!user?.email) throw new Error("User not authenticated");
     logStep("User authenticated", { userId: user.id });
 
-    const { limit = 50, starting_after } = await req.json().catch(() => ({}));
+    const {
+      limit = 50,
+      starting_after,
+      search = "",
+      offset = 0,
+      team_id: requestedTeamId,
+    } = await req.json().catch(() => ({}));
 
-    // Get team and connected Stripe account
-    const { data: teamMember } = await supabaseClient
+    const pageSize = Math.min(Number(limit) || 50, 200);
+    const pageOffset = Math.max(Number(offset) || 0, 0);
+    const searchTerm = typeof search === "string" ? search.trim() : "";
+
+    // Get team and connected Stripe account. When the caller names a team we
+    // still verify active membership in THAT team before reading its money.
+    let memberQuery = supabaseClient
       .from("team_members")
       .select("team_id")
       .eq("user_id", user.id)
-      .eq("is_active", true)
-      .limit(1)
-      .single();
+      .eq("is_active", true);
+    if (typeof requestedTeamId === "string" && requestedTeamId) {
+      memberQuery = memberQuery.eq("team_id", requestedTeamId);
+    }
+    const { data: teamMember } = await memberQuery.limit(1).maybeSingle();
 
     let stripeAccountId: string | null = null;
     let teamId: string | null = null;
