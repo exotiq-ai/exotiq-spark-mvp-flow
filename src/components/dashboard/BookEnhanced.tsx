@@ -199,9 +199,23 @@ export const BookEnhanced = () => {
     setSearchParams(newParams, { replace: true });
   }, [searchParams, setSearchParams, navigate]);
 
+  // Payments deep-link: focus a booking inside the Payments tab instead of
+  // re-opening the booking card the operator just came from.
+  useEffect(() => {
+    const paymentBookingId = searchParams.get('paymentBookingId');
+    if (!paymentBookingId) return;
+    setActiveTab('payments');
+    setFocusPaymentBookingId(paymentBookingId);
+    const newParams = new URLSearchParams(searchParams);
+    newParams.delete('paymentBookingId');
+    setSearchParams(newParams, { replace: true });
+  }, [searchParams, setSearchParams]);
+
   // Handle bookingId URL parameter to auto-open booking details
   useEffect(() => {
     const bookingId = searchParams.get('bookingId');
+    // Never auto-open the card when we're deep-linking into payments.
+    if (searchParams.get('paymentBookingId') || searchParams.get('tab') === 'payments') return;
     if (bookingId && bookings.length > 0 && !loading) {
       const booking = bookings.find(b => b.id === bookingId);
       if (booking) {
