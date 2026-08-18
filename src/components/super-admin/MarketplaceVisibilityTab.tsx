@@ -713,24 +713,46 @@ const VehicleList = ({
               <div key={v.id} className="flex items-center gap-2 px-3 py-2 text-sm">
                 <div className="flex-1 min-w-0">
                   <p className="truncate">{label}</p>
-                  <p className="text-xs text-muted-foreground">{v.status ?? '—'}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {v.status ?? '—'}
+                    {v.marketplace_unlisted ? ' · unlisted (direct link only)' : ''}
+                  </p>
                 </div>
-                {disabled ? (
+                <div className="flex items-center gap-2">
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <span>
-                        <Switch checked={v.marketplace_visible} disabled aria-label="Vehicle marketplace visibility" />
+                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                        Unlisted
+                        <Switch
+                          checked={v.marketplace_unlisted}
+                          disabled={disabled}
+                          onCheckedChange={(value) => onToggleUnlisted(v, value)}
+                          aria-label="Hide vehicle from public catalog listing"
+                        />
                       </span>
                     </TooltipTrigger>
-                    <TooltipContent>{disabledReason}</TooltipContent>
+                    <TooltipContent>
+                      Hidden from the public fleet list, still bookable via its direct link
+                    </TooltipContent>
                   </Tooltip>
-                ) : (
-                  <Switch
-                    checked={v.marketplace_visible}
-                    onCheckedChange={(value) => onToggleVehicle(v, value)}
-                    aria-label="Vehicle marketplace visibility"
-                  />
-                )}
+                  {disabled ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span>
+                          <Switch checked={v.marketplace_visible} disabled aria-label="Vehicle marketplace visibility" />
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>{disabledReason}</TooltipContent>
+                    </Tooltip>
+                  ) : (
+                    <Switch
+                      checked={v.marketplace_visible}
+                      onCheckedChange={(value) => onToggleVehicle(v, value)}
+                      aria-label="Vehicle marketplace visibility"
+                    />
+                  )}
+                </div>
+
               </div>
             );
           })}
