@@ -388,7 +388,7 @@ export const RecordPaymentDialog = ({
                   </div>
                 )}
                 {/* Gas Fee with toggle — only shown when enabled in team settings */}
-                {gasFeeSettings.gasFeeEnabled && (
+                {gasFeeApplies && (
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-2">
                     <span className="text-muted-foreground">Gas/Re-fueling Fee</span>
