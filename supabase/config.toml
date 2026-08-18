@@ -217,6 +217,9 @@ verify_jwt = false
 [functions.rent-approve-booking]
 verify_jwt = false
 
+[functions.rent-resend-payment-link]
+verify_jwt = false
+
 
 [functions.admin-stripe-account-link]
 verify_jwt = true
