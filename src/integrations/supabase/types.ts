@@ -322,6 +322,7 @@ export type Database = {
           balance_due: number | null
           booking_ref: string | null
           booking_source: string
+          cancellation_policy: string | null
           cancellation_reason: string | null
           cancelled_at: string | null
           confirmation_token: string
@@ -366,7 +367,9 @@ export type Database = {
           payment_reminder_sent_at: string | null
           payment_status: string | null
           payment_stripe_mode: string | null
+          pickup_address: string | null
           pickup_fuel_level: number | null
+          pickup_instructions: string | null
           pickup_location: string
           pickup_location_id: string | null
           pickup_odometer: number | null
@@ -402,6 +405,7 @@ export type Database = {
           balance_due?: number | null
           booking_ref?: string | null
           booking_source?: string
+          cancellation_policy?: string | null
           cancellation_reason?: string | null
           cancelled_at?: string | null
           confirmation_token?: string
@@ -446,7 +450,9 @@ export type Database = {
           payment_reminder_sent_at?: string | null
           payment_status?: string | null
           payment_stripe_mode?: string | null
+          pickup_address?: string | null
           pickup_fuel_level?: number | null
+          pickup_instructions?: string | null
           pickup_location: string
           pickup_location_id?: string | null
           pickup_odometer?: number | null
@@ -482,6 +488,7 @@ export type Database = {
           balance_due?: number | null
           booking_ref?: string | null
           booking_source?: string
+          cancellation_policy?: string | null
           cancellation_reason?: string | null
           cancelled_at?: string | null
           confirmation_token?: string
@@ -526,7 +533,9 @@ export type Database = {
           payment_reminder_sent_at?: string | null
           payment_status?: string | null
           payment_stripe_mode?: string | null
+          pickup_address?: string | null
           pickup_fuel_level?: number | null
+          pickup_instructions?: string | null
           pickup_location?: string
           pickup_location_id?: string | null
           pickup_odometer?: number | null
@@ -3813,6 +3822,8 @@ export type Database = {
           min_rate: number | null
           name: string
           owner_id: string
+          pickup_address: string | null
+          pickup_instructions: string | null
           platform_fee_confirmed_at: string | null
           platform_fee_percent: number
           primary_jurisdiction: string | null
@@ -3828,6 +3839,7 @@ export type Database = {
           stripe_payouts_enabled: boolean
           stripe_test_account_id: string | null
           support_email: string | null
+          support_phone: string | null
           tax_inclusive: boolean
           tax_label: string
           tax_rate_percent: number
@@ -3883,6 +3895,8 @@ export type Database = {
           min_rate?: number | null
           name: string
           owner_id: string
+          pickup_address?: string | null
+          pickup_instructions?: string | null
           platform_fee_confirmed_at?: string | null
           platform_fee_percent?: number
           primary_jurisdiction?: string | null
@@ -3898,6 +3912,7 @@ export type Database = {
           stripe_payouts_enabled?: boolean
           stripe_test_account_id?: string | null
           support_email?: string | null
+          support_phone?: string | null
           tax_inclusive?: boolean
           tax_label?: string
           tax_rate_percent?: number
@@ -3953,6 +3968,8 @@ export type Database = {
           min_rate?: number | null
           name?: string
           owner_id?: string
+          pickup_address?: string | null
+          pickup_instructions?: string | null
           platform_fee_confirmed_at?: string | null
           platform_fee_percent?: number
           primary_jurisdiction?: string | null
@@ -3968,6 +3985,7 @@ export type Database = {
           stripe_payouts_enabled?: boolean
           stripe_test_account_id?: string | null
           support_email?: string | null
+          support_phone?: string | null
           tax_inclusive?: boolean
           tax_label?: string
           tax_rate_percent?: number
@@ -5808,6 +5826,7 @@ export type Database = {
         Args: { _object_name: string; _user_id: string }
         Returns: boolean
       }
+      cancellation_policy_text: { Args: never; Returns: string }
       check_rate_limit: {
         Args: { _bucket: string; _limit: number; _window_seconds: number }
         Returns: boolean
@@ -6402,13 +6421,18 @@ export type Database = {
         Returns: {
           authorized: boolean
           booking_ref: string
+          cancellation_policy: string
           currency: string
           end_at: string
           identity_verified: boolean
+          mileage_limit_per_day: number
+          mileage_overage_rate: number
           operator_tax_cents: number
           operator_tax_label: string
           paid_at: string
           payment_due_at: string
+          pickup_address: string
+          pickup_instructions: string
           platform_fee_cents: number
           processing_fee_cents: number
           protection_tier: string
@@ -6416,6 +6440,8 @@ export type Database = {
           start_at: string
           state_fee_cents: number
           status: string
+          support_email: string
+          support_phone: string
           team_name: string
           team_slug: string
           timezone: string
@@ -6431,9 +6457,13 @@ export type Database = {
           currency: string
           logo_url: string
           name: string
+          pickup_address: string
+          pickup_instructions: string
           public_description: string
           slug: string
           state: string
+          support_email: string
+          support_phone: string
           timezone: string
         }[]
       }
@@ -6555,6 +6585,10 @@ export type Database = {
         Returns: boolean
       }
       resolve_deposit_cents: { Args: { _vehicle_id: string }; Returns: number }
+      resolve_pickup_address: {
+        Args: { _team_id: string; _vehicle_id: string }
+        Returns: string
+      }
       restore_vehicle_from_archive: {
         Args: { p_vehicle_id: string }
         Returns: undefined
