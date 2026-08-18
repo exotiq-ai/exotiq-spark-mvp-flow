@@ -31,6 +31,8 @@ import {
 } from "@/components/ui/select";
 import { useTeam } from "@/contexts/TeamContext";
 import { useMoney } from "@/hooks/useMoney";
+import { useModuleNavigation } from "@/hooks/useModuleNavigation";
+import { describeFunctionError } from "@/lib/functionError";
 
 interface StripePayment {
   id: string;
@@ -82,10 +84,27 @@ interface BalanceData {
     total_collected: number;
     balance_due: number;
     balance_due_count: number;
+    outstanding?: OutstandingBooking[];
   };
 }
 
+interface OutstandingBooking {
+  id: string;
+  booking_ref: string | null;
+  customer_name: string | null;
+  customer_email: string | null;
+  vehicle_name: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  status: string | null;
+  booking_source: string | null;
+  payment_due_at: string | null;
+  amount_due: number;
+  total_value: number;
+}
+
 const PAGE_SIZE = 50;
+const VISIBLE_OUTSTANDING = 6;
 
 export const PaymentsSection = () => {
   const [loading, setLoading] = useState(true);
@@ -99,8 +118,32 @@ export const PaymentsSection = () => {
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [sendingLinkId, setSendingLinkId] = useState<string | null>(null);
   const { currentTeam } = useTeam();
   const { money } = useMoney();
+  const { goToPayments, goToBookingDetails } = useModuleNavigation();
+  const outstandingRef = useRef<HTMLDivElement | null>(null);
+
+  const outstanding = balanceData?.summary.outstanding ?? [];
+
+  const scrollToOutstanding = () => {
+    outstandingRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const sendPaymentLink = async (b: OutstandingBooking) => {
+    setSendingLinkId(b.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("rent-resend-payment-link", {
+        body: { booking_id: b.id },
+      });
+      if (error) throw new Error(await describeFunctionError(error));
+      toast.success(`Payment link emailed to ${data?.sent_to || b.customer_email || "the renter"}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not send payment link");
+    } finally {
+      setSendingLinkId(null);
+    }
+  };
 
   // Server-side search: the history lives in the database, not in the first
   // page of results, so the query goes to the backend rather than filtering
@@ -281,7 +324,13 @@ export const PaymentsSection = () => {
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-purple-500">
+        <Card
+          role="button"
+          tabIndex={0}
+          onClick={scrollToOutstanding}
+          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); scrollToOutstanding(); } }}
+          className="border-l-4 border-l-purple-500 cursor-pointer transition-colors hover:border-purple-500/60 hover:bg-muted/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Balance Due</CardTitle>
             <Banknote className="h-4 w-4 text-purple-500" />
@@ -296,6 +345,83 @@ export const PaymentsSection = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Awaiting payment — who still owes money, straight from the tile above */}
+      <Card ref={outstandingRef}>
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Banknote className="h-5 w-5 text-purple-500" />
+              Awaiting payment
+            </CardTitle>
+            {outstanding.length > 0 && (
+              <Button variant="ghost" size="sm" onClick={() => goToPayments()}>
+                View all {outstanding.length > VISIBLE_OUTSTANDING ? `(${outstanding.length})` : ""}
+                <ArrowUpRight className="h-4 w-4 ml-1" />
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent>
+          {outstanding.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <CheckCircle2 className="h-10 w-10 mx-auto mb-2 opacity-50 text-emerald-500" />
+              <p className="text-sm">Every open booking is paid up.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {outstanding.slice(0, VISIBLE_OUTSTANDING).map((b) => {
+                const isMarketplace = b.booking_source === "marketplace";
+                return (
+                  <div
+                    key={b.id}
+                    className="flex flex-col gap-3 p-3 rounded-lg border border-border/60 hover:border-primary/30 transition-colors md:flex-row md:items-center md:justify-between"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => goToBookingDetails(b.id)}
+                      className="text-left min-w-0 flex-1"
+                    >
+                      <p className="font-medium truncate">
+                        {b.customer_name || "Renter"}
+                        {b.booking_ref ? <span className="text-muted-foreground font-normal"> · {b.booking_ref}</span> : null}
+                      </p>
+                      <p className="text-sm text-muted-foreground truncate">
+                        {b.vehicle_name || "Vehicle"}
+                        {b.start_date ? ` · ${format(new Date(b.start_date), "MMM d")}` : ""}
+                        {b.end_date ? ` – ${format(new Date(b.end_date), "MMM d, yyyy")}` : ""}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {isMarketplace ? "Collected automatically from the renter's card" : "Collected by you"}
+                      </p>
+                    </button>
+                    <div className="flex flex-wrap items-center gap-2 md:justify-end">
+                      <div className="mr-1">
+                        <div className="text-base font-semibold text-purple-600">{money(b.amount_due)}</div>
+                        <div className="text-xs text-muted-foreground">of {money(b.total_value)}</div>
+                      </div>
+                      {isMarketplace ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={sendingLinkId === b.id}
+                          onClick={() => sendPaymentLink(b)}
+                        >
+                          {sendingLinkId === b.id ? "Sending..." : "Send payment link"}
+                        </Button>
+                      ) : (
+                        <Button variant="outline" size="sm" onClick={() => goToPayments(b.id)}>
+                          Record payment
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Upcoming Payouts */}
       {balanceData?.payouts && balanceData.payouts.length > 0 && (

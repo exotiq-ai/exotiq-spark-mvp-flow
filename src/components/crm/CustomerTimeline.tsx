@@ -27,15 +27,18 @@ interface TimelineEvent {
   description?: string;
   icon: React.ReactNode;
   badge?: React.ReactNode;
+  bookingId?: string;
 }
 
 interface CustomerTimelineProps {
   bookings: Booking[];
   notes: CustomerNote[];
   identityEvents?: IdentityEvent[];
+  /** Opens the booking behind a timeline row. */
+  onBookingClick?: (bookingId: string) => void;
 }
 
-export const CustomerTimeline = ({ bookings, notes, identityEvents = [] }: CustomerTimelineProps) => {
+export const CustomerTimeline = ({ bookings, notes, identityEvents = [], onBookingClick }: CustomerTimelineProps) => {
   const events = useMemo(() => {
     const items: TimelineEvent[] = [];
 
@@ -45,8 +48,9 @@ export const CustomerTimeline = ({ bookings, notes, identityEvents = [] }: Custo
         date: b.created_at || b.start_date,
         type: 'booking',
         title: `Booking ${b.status === 'completed' ? 'completed' : b.status === 'cancelled' ? 'cancelled' : 'created'}`,
-        description: `${b.vehicle_name || 'Vehicle'} · ${new Date(b.start_date).toLocaleDateString()} – ${new Date(b.end_date).toLocaleDateString()}`,
+        description: `${b.vehicle_name || (b as any).booking_ref || 'Booking'} · ${new Date(b.start_date).toLocaleDateString()} – ${new Date(b.end_date).toLocaleDateString()}`,
         icon: <Car className="w-3.5 h-3.5" />,
+        bookingId: b.id,
         badge: (
           <Badge className={
             b.status === 'completed' ? 'bg-success/10 text-success border-success/30' :
@@ -152,28 +156,52 @@ export const CustomerTimeline = ({ bookings, notes, identityEvents = [] }: Custo
 
   return (
     <div className="space-y-1">
-      {events.map((event, i) => (
-        <div key={event.id} className="flex gap-3 p-3 rounded-lg hover:bg-muted/30 transition-colors">
-          <div className="flex flex-col items-center">
-            <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center shrink-0">
-              {event.icon}
+      {events.map((event, i) => {
+        // Only booking rows lead somewhere — notes and ID checks stay inert so
+        // we don't advertise a click that goes nowhere.
+        const clickable = Boolean(event.bookingId && onBookingClick);
+        const Body = (
+          <>
+            <div className="flex flex-col items-center">
+              <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center shrink-0">
+                {event.icon}
+              </div>
+              {i < events.length - 1 && <div className="w-px flex-1 bg-border mt-1" />}
             </div>
-            {i < events.length - 1 && <div className="w-px flex-1 bg-border mt-1" />}
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-sm font-medium">{event.title}</span>
-              {event.badge}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-medium">{event.title}</span>
+                {event.badge}
+              </div>
+              {event.description && (
+                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{event.description}</p>
+              )}
+              <p className="text-xs text-muted-foreground mt-1">
+                {formatDistanceToNow(new Date(event.date), { addSuffix: true })}
+              </p>
             </div>
-            {event.description && (
-              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{event.description}</p>
-            )}
-            <p className="text-xs text-muted-foreground mt-1">
-              {formatDistanceToNow(new Date(event.date), { addSuffix: true })}
-            </p>
+          </>
+        );
+
+        if (clickable) {
+          return (
+            <button
+              key={event.id}
+              type="button"
+              onClick={() => onBookingClick!(event.bookingId!)}
+              className="w-full text-left flex gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {Body}
+            </button>
+          );
+        }
+
+        return (
+          <div key={event.id} className="flex gap-3 p-3 rounded-lg hover:bg-muted/30 transition-colors">
+            {Body}
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 };

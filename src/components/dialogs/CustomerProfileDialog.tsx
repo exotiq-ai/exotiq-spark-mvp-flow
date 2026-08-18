@@ -421,7 +421,12 @@ export const CustomerProfileDialog = ({
           </TabsContent>
 
           <TabsContent value="activity" className="space-y-4 flex-1 min-h-0 overflow-y-auto pr-1">
-            <CustomerTimeline bookings={bookings} notes={customerNotesList} identityEvents={identityEvents} />
+            <CustomerTimeline
+              bookings={bookings}
+              notes={customerNotesList}
+              identityEvents={identityEvents}
+              onBookingClick={(bookingId) => setSelectedBookingId(bookingId)}
+            />
             {currentTeam?.id && (
               <div className="space-y-2 pt-2">
                 <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Team Discussion</h4>

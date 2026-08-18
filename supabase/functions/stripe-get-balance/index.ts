@@ -126,10 +126,13 @@ serve(async (req) => {
     // Exotiq exited the deposit flow on 2026-07-28.
     let balanceDue = 0;
     let balanceDueCount = 0;
+    // Same rows that feed the tile also feed the "Awaiting payment" list, so
+    // the count and the list can never disagree.
+    const outstanding: Array<Record<string, unknown>> = [];
     if (teamId) {
       const { data: openBookings } = await supabaseClient
         .from("bookings")
-        .select("id, total_value, payment_status")
+        .select("id, total_value, payment_status, booking_ref, customer_name, customer_email, vehicle_name, start_date, end_date, status, booking_source, payment_due_at")
         .eq("team_id", teamId)
         .in("status", ["pending", "requested", "pending_payment", "confirmed", "in_progress"])
         .neq("payment_status", "paid");
@@ -153,8 +156,25 @@ serve(async (req) => {
         if (due > 0.01) {
           balanceDue += due;
           balanceDueCount += 1;
+          outstanding.push({
+            id: b.id,
+            booking_ref: b.booking_ref,
+            customer_name: b.customer_name,
+            customer_email: b.customer_email,
+            vehicle_name: b.vehicle_name,
+            start_date: b.start_date,
+            end_date: b.end_date,
+            status: b.status,
+            booking_source: b.booking_source,
+            payment_due_at: b.payment_due_at,
+            amount_due: Math.round(due * 100) / 100,
+            total_value: Number(b.total_value || 0),
+          });
         }
       }
+      outstanding.sort((a, b) =>
+        String(a.start_date ?? "").localeCompare(String(b.start_date ?? "")),
+      );
     }
 
     // Get active holds from payments
@@ -184,6 +204,7 @@ serve(async (req) => {
         total_collected: totalCollected,
         balance_due: balanceDue,
         balance_due_count: balanceDueCount,
+        outstanding,
         active_holds: activeHolds || [],
       },
       stripe_error: stripeError,
