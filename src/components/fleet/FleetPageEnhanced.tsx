@@ -330,16 +330,46 @@ export const FleetPageEnhanced = () => {
     }, {} as Record<string, { name: string }>);
   }, [vehicles]);
 
-  const getActiveBooking = (vehicleId: string) => {
-    return bookings.find(b => b.vehicle_id === vehicleId && (b.status === 'active' || b.status === 'confirmed'));
+  // Date-aware rental state. "Current" means the car is physically out right
+  // now; anything starting later is upcoming, never "active".
+  const startOfDay = (d: Date | string) => {
+    const x = new Date(d);
+    x.setHours(0, 0, 0, 0);
+    return x;
   };
 
-  const getNextBooking = (vehicleId: string) => {
-    const now = new Date();
-    return bookings
-      .filter(b => b.vehicle_id === vehicleId && new Date(b.start_date) > now && b.status !== 'cancelled')
-      .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime())[0];
-  };
+  const bookingsByVehicle = useMemo(() => {
+    const today = startOfDay(new Date()).getTime();
+    const map: Record<string, { current?: any; upcoming?: any }> = {};
+
+    const relevant = bookings.filter((b: any) =>
+      b.status !== 'cancelled' && b.status !== 'declined' && !b.is_historical
+    );
+
+    for (const b of relevant as any[]) {
+      if (!b.vehicle_id || !b.start_date) continue;
+      const start = startOfDay(b.start_date).getTime();
+      const end = b.end_date ? startOfDay(b.end_date).getTime() : start;
+      const entry = map[b.vehicle_id] || (map[b.vehicle_id] = {});
+
+      const isOut = start <= today && end >= today && (b.status === 'active' || b.status === 'confirmed');
+      const isOverdue = end < today && b.status === 'active';
+
+      if (isOut || isOverdue) {
+        const existing = entry.current;
+        if (!existing || startOfDay(existing.start_date).getTime() > start) entry.current = b;
+      } else if (start > today) {
+        const existing = entry.upcoming;
+        if (!existing || startOfDay(existing.start_date).getTime() > start) entry.upcoming = b;
+      }
+    }
+    return map;
+  }, [bookings]);
+
+  const getActiveBooking = (vehicleId: string) => bookingsByVehicle[vehicleId]?.current;
+
+  const getNextBooking = (vehicleId: string) => bookingsByVehicle[vehicleId]?.upcoming;
+
 
   const taskCountMap = useMemo(() => {
     return tasks.reduce((acc, t) => {
