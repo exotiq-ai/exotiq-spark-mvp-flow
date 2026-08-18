@@ -348,16 +348,24 @@ export const PaymentTracker = () => {
 
         {/* Payment List */}
         <Card className="card-premium p-6">
-          <h3 className="text-xl font-semibold mb-6">Payment Status</h3>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+            <h3 className="text-xl font-semibold">Payment Status</h3>
+            <Input
+              placeholder="Search customer, booking ref, vehicle..."
+              value={pendingSearch}
+              onChange={(e) => setPendingSearch(e.target.value)}
+              className="sm:w-72"
+            />
+          </div>
 
-          {pendingPayments.length === 0 ? (
+          {visiblePendingPayments.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <CheckCircle className="w-12 h-12 mx-auto mb-3 opacity-50 text-success" />
-              <p>All payments are up to date!</p>
+              <p>{pendingSearch ? "No matching payments" : "All payments are up to date!"}</p>
             </div>
           ) : (
             <div className="space-y-3">
-              {pendingPayments.map((booking) => (
+              {visiblePendingPayments.map((booking) => (
                 <div
                   key={booking.id}
                   className="p-4 rounded-lg border border-primary/10 hover:border-primary/30 transition-colors"
