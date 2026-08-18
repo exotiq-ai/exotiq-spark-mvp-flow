@@ -204,6 +204,7 @@ serve(async (req) => {
         total_collected: totalCollected,
         balance_due: balanceDue,
         balance_due_count: balanceDueCount,
+        outstanding,
         active_holds: activeHolds || [],
       },
       stripe_error: stripeError,
