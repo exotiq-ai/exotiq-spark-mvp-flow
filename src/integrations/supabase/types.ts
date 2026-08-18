@@ -5303,6 +5303,7 @@ export type Database = {
           location: string | null
           location_id: string | null
           make: string
+          marketplace_unlisted: boolean
           marketplace_visible: boolean
           mileage: number | null
           mileage_overage_rate: number | null
@@ -5345,6 +5346,7 @@ export type Database = {
           location?: string | null
           location_id?: string | null
           make: string
+          marketplace_unlisted?: boolean
           marketplace_visible?: boolean
           mileage?: number | null
           mileage_overage_rate?: number | null
@@ -5387,6 +5389,7 @@ export type Database = {
           location?: string | null
           location_id?: string | null
           make?: string
+          marketplace_unlisted?: boolean
           marketplace_visible?: boolean
           mileage?: number | null
           mileage_overage_rate?: number | null
