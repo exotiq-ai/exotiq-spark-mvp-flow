@@ -541,7 +541,27 @@ export const CustomerProfileDialog = ({
                           <span className="whitespace-pre-wrap break-words">{booking.notes}</span>
                         </div>
                       )}
+
+                      {/* Re-send the renter's existing payment link. No charge. */}
+                      {(booking as any).booking_source === 'marketplace' &&
+                        (booking.status === 'pending_payment' || booking.status === 'payment_expired') && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full"
+                          disabled={sendingLinkId === booking.id}
+                          onClick={(e) => { e.stopPropagation(); sendPaymentLink(booking as any); }}
+                        >
+                          <Mail className="w-3.5 h-3.5 mr-2" />
+                          {sendingLinkId === booking.id
+                            ? 'Sending...'
+                            : booking.status === 'payment_expired'
+                              ? 'Re-approve & send link'
+                              : 'Send payment link'}
+                        </Button>
+                      )}
                     </div>
+
                   );
                 })}
               </div>
