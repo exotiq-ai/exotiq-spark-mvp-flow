@@ -17,13 +17,16 @@ import {
   Shield,
   ShieldCheck,
   ShieldX,
-  Undo2
+  Undo2,
+  Mail,
+  ExternalLink
 } from "lucide-react";
 import { RecordPaymentDialog } from "@/components/dialogs/RecordPaymentDialog";
 import { Database } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
+import { describeFunctionError } from "@/lib/functionError";
 import { isPaidOrCaptured } from "@/lib/bookingPaymentState";
 import {
   Dialog,
