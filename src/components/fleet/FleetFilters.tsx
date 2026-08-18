@@ -288,7 +288,13 @@ export const FleetFilters = ({
           </PopoverTrigger>
           <PopoverContent
             className="w-[min(26rem,calc(100vw-2rem))] p-0 flex flex-col z-[60] overflow-hidden"
-            style={{ maxHeight: 'var(--radix-popover-content-available-height)' }}
+            style={{
+              // Radix reports the space between the trigger and the viewport
+              // edge; the vh cap is a fallback for the first paint before the
+              // measurement lands.
+              maxHeight:
+                'min(var(--radix-popover-content-available-height, 80vh), 80vh)',
+            }}
             align="start"
             sideOffset={8}
             collisionPadding={16}
