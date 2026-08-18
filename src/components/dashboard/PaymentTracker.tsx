@@ -136,6 +136,31 @@ export const PaymentTracker = ({ focusBookingId, onFocusHandled }: PaymentTracke
       })
     : pendingPayments;
 
+  // Deep-link from a booking card: scroll to the row and flag it briefly.
+  useEffect(() => {
+    if (!focusBookingId || bookings.length === 0) return;
+    const target = pendingPayments.find((b) => b.id === focusBookingId);
+    if (target) {
+      setHighlightedBookingId(focusBookingId);
+      setPendingSearch("");
+      requestAnimationFrame(() => {
+        rowRefs.current[focusBookingId]?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+      const t = setTimeout(() => setHighlightedBookingId(null), 4000);
+      onFocusHandled?.();
+      return () => clearTimeout(t);
+    }
+    const settled = bookings.find((b) => b.id === focusBookingId);
+    toast.info(
+      settled
+        ? `${(settled as any).booking_ref || "This booking"} has no outstanding balance.`
+        : "That booking isn't in the outstanding list.",
+    );
+    onFocusHandled?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusBookingId, bookings.length]);
+
+
   const overduePayments = pendingPayments.filter(b => {
     // Marketplace: overdue if the payment_due_at deadline has passed.
     const dueAt = (b as any).payment_due_at;
