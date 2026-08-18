@@ -470,7 +470,7 @@ export const PaymentTracker = () => {
                         className="flex-1"
                       >
                         <DollarSign className="w-4 h-4 mr-2" />
-                        Collect Deposit
+                        Record payment
                       </Button>
                     )}
                     {!booking.isMarketplace && !booking.activeHold && booking.depositPaid && !booking.balancePaid && (
