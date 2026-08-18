@@ -55,7 +55,7 @@ interface PaymentTrackerProps {
 
 export const PaymentTracker = ({ focusBookingId, onFocusHandled }: PaymentTrackerProps = {}) => {
   const { bookings, payments, vehicles, createPayment } = useLocationFilteredFleet();
-  const { goToCustomerProfile } = useModuleNavigation();
+  const { goToCustomerProfile, goToBookingDetails } = useModuleNavigation();
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [showRecordPayment, setShowRecordPayment] = useState(false);
   const [showVehicleImage, setShowVehicleImage] = useState(false);
