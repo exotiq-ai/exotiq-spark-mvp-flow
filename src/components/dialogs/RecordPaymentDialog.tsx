@@ -177,7 +177,7 @@ export const RecordPaymentDialog = ({
       mileageCharge,
       balanceRemaining,
     };
-  }, [booking, existingPayments, gasFeeWaived]);
+  }, [booking, existingPayments, gasFeeWaived, gasFeeApplies, isMarketplace, teamGasFee]);
 
   // Total adjustments
   const adjustmentsTotal = useMemo(() => {
