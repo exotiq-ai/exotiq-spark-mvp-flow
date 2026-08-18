@@ -583,7 +583,7 @@ export const FleetFilters = ({
                   </>
                 )}
               </div>
-            </ScrollArea>
+            </div>
 
             {/* Sticky footer */}
             <div className="flex items-center justify-between gap-2 px-4 py-3 border-t bg-background/95 backdrop-blur">
