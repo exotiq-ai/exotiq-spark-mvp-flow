@@ -38,6 +38,7 @@ import { useToast } from "@/hooks/use-toast";
 import { startIdentityVerification } from "@/lib/identityVerification";
 
 import { supabase } from "@/integrations/supabase/client";
+import { describeFunctionError } from "@/lib/functionError";
 import { format } from "date-fns";
 import { getVehicleImage } from "@/lib/vehicleImageMapping";
 import { openGoogleCalendar } from "@/lib/googleCalendar";
@@ -143,6 +144,7 @@ export const EnhancedBookingDialog = ({
   const [isEditMode, setIsEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const [approving, setApproving] = useState(false);
+  const [resendingLink, setResendingLink] = useState(false);
   const [editValues, setEditValues] = useState({
     startDate: null as Date | null,
     startTime: "",
@@ -1548,6 +1550,43 @@ export const EnhancedBookingDialog = ({
                   </Button>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Awaiting payment — give the operator a one-click way to re-send
+              the renter's existing secure payment link. No new charge is made. */}
+          {!isEditMode && !needsDecision && booking.status === "pending_payment" && (
+            <div className="border-t bg-background px-6 py-3">
+              <Button
+                variant="outline"
+                className="w-full"
+                disabled={resendingLink}
+                onClick={async () => {
+                  setResendingLink(true);
+                  try {
+                    const { data, error } = await supabase.functions.invoke(
+                      "rent-resend-payment-link",
+                      { body: { booking_id: booking.id } },
+                    );
+                    if (error) throw new Error(await describeFunctionError(error));
+                    toast({
+                      title: "Payment link sent",
+                      description: `Emailed to ${data?.sent_to || booking.customer_email}`,
+                    });
+                  } catch (e) {
+                    toast({
+                      title: "Could not send payment link",
+                      description: e instanceof Error ? e.message : String(e),
+                      variant: "destructive",
+                    });
+                  } finally {
+                    setResendingLink(false);
+                  }
+                }}
+              >
+                <Mail className="h-4 w-4 mr-2" />
+                {resendingLink ? "Sending..." : "Send payment link to renter"}
+              </Button>
             </div>
           )}
         </DialogContent>

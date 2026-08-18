@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -29,7 +29,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatCurrency } from "@/lib/utils";
+import { useTeam } from "@/contexts/TeamContext";
+import { useMoney } from "@/hooks/useMoney";
 
 interface StripePayment {
   id: string;
@@ -79,27 +80,53 @@ interface BalanceData {
   }>;
   summary: {
     total_collected: number;
-    pending_deposits_count: number;
-    held_security_deposits: Array<{
-      id: string;
-      customer_name: string;
-      security_deposit_amount: number;
-      security_deposit_status: string;
-    }>;
+    balance_due: number;
+    balance_due_count: number;
   };
 }
+
+const PAGE_SIZE = 50;
 
 export const PaymentsSection = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [searching, setSearching] = useState(false);
   const [stripePayments, setStripePayments] = useState<StripePayment[]>([]);
   const [localPayments, setLocalPayments] = useState<LocalPayment[]>([]);
+  const [localTotal, setLocalTotal] = useState(0);
   const [balanceData, setBalanceData] = useState<BalanceData | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const { currentTeam } = useTeam();
+  const { money } = useMoney();
 
-  const fetchPaymentData = async () => {
+  // Server-side search: the history lives in the database, not in the first
+  // page of results, so the query goes to the backend rather than filtering
+  // whatever happened to be loaded.
+  const fetchHistory = async (opts: { search: string; offset: number; append: boolean }) => {
+    const { data, error } = await supabase.functions.invoke("stripe-payment-history", {
+      body: {
+        limit: PAGE_SIZE,
+        offset: opts.offset,
+        search: opts.search,
+        team_id: currentTeam?.id,
+      },
+    });
+    if (error) {
+      console.error("Payment history error:", error);
+      return;
+    }
+    if (!data) return;
+    setStripePayments(data.stripe_payments || []);
+    setLocalPayments((prev) =>
+      opts.append ? [...prev, ...(data.local_payments || [])] : (data.local_payments || []),
+    );
+    setLocalTotal(data.local_total ?? (data.local_payments?.length || 0));
+  };
+
+  const fetchPaymentData = async (search = debouncedQuery) => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
@@ -107,20 +134,7 @@ export const PaymentsSection = () => {
         return;
       }
 
-      // Fetch payment history
-      const { data: historyData, error: historyError } = await supabase.functions.invoke(
-        "stripe-payment-history",
-        {
-          body: { limit: 50 },
-        }
-      );
-
-      if (historyError) {
-        console.error("Payment history error:", historyError);
-      } else if (historyData) {
-        setStripePayments(historyData.stripe_payments || []);
-        setLocalPayments(historyData.local_payments || []);
-      }
+      await fetchHistory({ search, offset: 0, append: false });
 
       // Fetch balance data
       const { data: balData, error: balError } = await supabase.functions.invoke(
@@ -138,12 +152,38 @@ export const PaymentsSection = () => {
     } finally {
       setLoading(false);
       setRefreshing(false);
+      setSearching(false);
     }
   };
 
   useEffect(() => {
-    fetchPaymentData();
-  }, []);
+    fetchPaymentData("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentTeam?.id]);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(searchQuery.trim()), 350);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
+  const firstRender = useRef(true);
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    setSearching(true);
+    fetchHistory({ search: debouncedQuery, offset: 0, append: false }).finally(() =>
+      setSearching(false),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedQuery]);
+
+  const handleLoadMore = async () => {
+    setSearching(true);
+    await fetchHistory({ search: debouncedQuery, offset: localPayments.length, append: true });
+    setSearching(false);
+  };
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -171,16 +211,13 @@ export const PaymentsSection = () => {
     );
   };
 
-  const filteredLocalPayments = localPayments.filter((payment) => {
-    const matchesSearch = 
-      payment.bookings?.customer_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      payment.bookings?.customer_email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      payment.payment_type?.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesStatus = statusFilter === "all" || payment.payment_status === statusFilter;
-    
-    return matchesSearch && matchesStatus;
-  });
+  // Search runs server-side across the whole team history; only the status
+  // filter stays local since it applies to the already-returned page.
+  const filteredLocalPayments = localPayments.filter(
+    (payment) => statusFilter === "all" || payment.payment_status === statusFilter,
+  );
+
+  const hasMore = localPayments.length < localTotal;
 
   if (loading) {
     return (
@@ -206,7 +243,7 @@ export const PaymentsSection = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-emerald-600">
-              {formatCurrency(balanceData?.balance.available || 0)}
+              {money(balanceData?.balance.available || 0)}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               Ready for payout
@@ -221,7 +258,7 @@ export const PaymentsSection = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-amber-600">
-              {formatCurrency(balanceData?.balance.pending || 0)}
+              {money(balanceData?.balance.pending || 0)}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               Processing payments
@@ -236,7 +273,7 @@ export const PaymentsSection = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600">
-              {formatCurrency(balanceData?.summary.total_collected || 0)}
+              {money(balanceData?.summary.total_collected || 0)}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               All time revenue
@@ -246,15 +283,15 @@ export const PaymentsSection = () => {
 
         <Card className="border-l-4 border-l-purple-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Security Deposits Held</CardTitle>
+            <CardTitle className="text-sm font-medium">Balance Due</CardTitle>
             <Banknote className="h-4 w-4 text-purple-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-purple-600">
-              {balanceData?.summary.held_security_deposits?.length || 0}
+              {money(balanceData?.summary.balance_due || 0)}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Active deposits
+              {balanceData?.summary.balance_due_count || 0} open bookings
             </p>
           </CardContent>
         </Card>
@@ -274,7 +311,7 @@ export const PaymentsSection = () => {
               {balanceData.payouts.slice(0, 3).map((payout) => (
                 <div key={payout.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                   <div>
-                    <p className="font-medium">{formatCurrency(payout.amount)}</p>
+                    <p className="font-medium">{money(payout.amount)}</p>
                     <p className="text-sm text-muted-foreground">
                       Arriving {format(new Date(payout.arrival_date), "MMM d, yyyy")}
                     </p>
@@ -287,32 +324,6 @@ export const PaymentsSection = () => {
         </Card>
       )}
 
-      {/* Security Deposits Held */}
-      {balanceData?.summary.held_security_deposits && balanceData.summary.held_security_deposits.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Banknote className="h-5 w-5 text-purple-500" />
-              Security Deposits Held
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {balanceData.summary.held_security_deposits.map((deposit) => (
-                <div key={deposit.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                  <div>
-                    <p className="font-medium">{deposit.customer_name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {formatCurrency(deposit.security_deposit_amount || 0)}
-                    </p>
-                  </div>
-                  <Badge variant="secondary">Held</Badge>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Payment History */}
       <Card>
@@ -326,7 +337,7 @@ export const PaymentsSection = () => {
               <div className="relative flex-1 md:w-64">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search payments..."
+                  placeholder="Search name, email, booking ref, vehicle..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-9"
@@ -381,7 +392,7 @@ export const PaymentsSection = () => {
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="text-right">
-                      <p className="font-semibold">{formatCurrency(payment.amount || 0)}</p>
+                      <p className="font-semibold">{money(payment.amount || 0)}</p>
                       <p className="text-xs text-muted-foreground">
                         {payment.created_at ? format(new Date(payment.created_at), "MMM d, yyyy") : "N/A"}
                       </p>
@@ -390,6 +401,13 @@ export const PaymentsSection = () => {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+          {hasMore && (
+            <div className="flex justify-center pt-4">
+              <Button variant="outline" onClick={handleLoadMore} disabled={searching}>
+                {searching ? "Loading..." : `Load more (${localTotal - localPayments.length} left)`}
+              </Button>
             </div>
           )}
         </CardContent>

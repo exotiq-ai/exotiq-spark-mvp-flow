@@ -110,28 +110,61 @@ serve(async (req) => {
       logStep("Stripe API error", { error: stripeError });
     }
 
-    // Local DB data
-    const { data: totalRevenue } = await supabaseClient
-      .from("payments")
-      .select("amount")
-      .eq("user_id", user.id)
-      .eq("payment_status", "completed");
+    // Local DB data — team-scoped so every member sees the same tenant totals.
+    const { data: totalRevenue } = teamId
+      ? await supabaseClient
+        .from("payments")
+        .select("amount")
+        .eq("team_id", teamId)
+        .eq("payment_status", "completed")
+      : { data: [] as Array<{ amount: number | null }> };
 
     const totalCollected = totalRevenue?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0;
 
-    const { data: activeBookingsWithDeposits } = await supabaseClient
-      .from("bookings")
-      .select("id, customer_name, security_deposit_amount, security_deposit_status")
-      .eq("user_id", user.id)
-      .eq("security_deposit_status", "held")
-      .not("security_deposit_amount", "is", null);
+    // Outstanding balance across open bookings (display only — nothing here is
+    // charged). Legacy security-deposit columns are deliberately NOT read:
+    // Exotiq exited the deposit flow on 2026-07-28.
+    let balanceDue = 0;
+    let balanceDueCount = 0;
+    if (teamId) {
+      const { data: openBookings } = await supabaseClient
+        .from("bookings")
+        .select("id, total_value, payment_status")
+        .eq("team_id", teamId)
+        .in("status", ["pending", "requested", "pending_payment", "confirmed", "in_progress"])
+        .neq("payment_status", "paid");
+
+      const openIds = (openBookings ?? []).map((b) => b.id as string);
+      const paidByBooking = new Map<string, number>();
+      if (openIds.length) {
+        const { data: paidRows } = await supabaseClient
+          .from("payments")
+          .select("booking_id, amount")
+          .eq("team_id", teamId)
+          .eq("payment_status", "completed")
+          .in("booking_id", openIds);
+        for (const row of paidRows ?? []) {
+          const key = row.booking_id as string;
+          paidByBooking.set(key, (paidByBooking.get(key) ?? 0) + Number(row.amount || 0));
+        }
+      }
+      for (const b of openBookings ?? []) {
+        const due = Number(b.total_value || 0) - (paidByBooking.get(b.id as string) ?? 0);
+        if (due > 0.01) {
+          balanceDue += due;
+          balanceDueCount += 1;
+        }
+      }
+    }
 
     // Get active holds from payments
-    const { data: activeHolds } = await supabaseClient
-      .from("payments")
-      .select("id, amount, hold_status, hold_expires_at, stripe_payment_intent_id, booking_id")
-      .eq("user_id", user.id)
-      .eq("hold_status", "authorized");
+    const { data: activeHolds } = teamId
+      ? await supabaseClient
+        .from("payments")
+        .select("id, amount, hold_status, hold_expires_at, stripe_payment_intent_id, booking_id")
+        .eq("team_id", teamId)
+        .eq("hold_status", "authorized")
+      : { data: [] };
 
     if (stripeError && totalCollected > 0) {
       availableBalance = Math.round(totalCollected * 0.85);
@@ -149,7 +182,8 @@ serve(async (req) => {
       payouts: formattedPayouts,
       summary: {
         total_collected: totalCollected,
-        held_security_deposits: activeBookingsWithDeposits || [],
+        balance_due: balanceDue,
+        balance_due_count: balanceDueCount,
         active_holds: activeHolds || [],
       },
       stripe_error: stripeError,

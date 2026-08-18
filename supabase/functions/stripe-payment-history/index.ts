@@ -38,16 +38,29 @@ serve(async (req) => {
     if (!user?.email) throw new Error("User not authenticated");
     logStep("User authenticated", { userId: user.id });
 
-    const { limit = 50, starting_after } = await req.json().catch(() => ({}));
+    const {
+      limit = 50,
+      starting_after,
+      search = "",
+      offset = 0,
+      team_id: requestedTeamId,
+    } = await req.json().catch(() => ({}));
 
-    // Get team and connected Stripe account
-    const { data: teamMember } = await supabaseClient
+    const pageSize = Math.min(Number(limit) || 50, 200);
+    const pageOffset = Math.max(Number(offset) || 0, 0);
+    const searchTerm = typeof search === "string" ? search.trim() : "";
+
+    // Get team and connected Stripe account. When the caller names a team we
+    // still verify active membership in THAT team before reading its money.
+    let memberQuery = supabaseClient
       .from("team_members")
       .select("team_id")
       .eq("user_id", user.id)
-      .eq("is_active", true)
-      .limit(1)
-      .single();
+      .eq("is_active", true);
+    if (typeof requestedTeamId === "string" && requestedTeamId) {
+      memberQuery = memberQuery.eq("team_id", requestedTeamId);
+    }
+    const { data: teamMember } = await memberQuery.limit(1).maybeSingle();
 
     let stripeAccountId: string | null = null;
     let teamId: string | null = null;
@@ -117,27 +130,68 @@ serve(async (req) => {
     }
 
 
-    // Local payments
-    const { data: localPayments } = await supabaseClient
-      .from("payments")
-      .select(`
+    // Local payments — scoped to the TEAM, not the caller's user id. Payment
+    // rows are written by whoever recorded them (or by the Stripe webhook),
+    // so a user-id scope hid most of a tenant's own history.
+    let localPayments: unknown[] = [];
+    let localTotal = 0;
+
+    if (teamId) {
+      // Search is resolved server-side: match the booking first (customer,
+      // email, reference, vehicle), then pull that booking's payment rows.
+      let matchedBookingIds: string[] | null = null;
+      if (searchTerm) {
+        const like = `%${searchTerm.replace(/[%,]/g, " ")}%`;
+        const { data: matches } = await supabaseClient
+          .from("bookings")
+          .select("id")
+          .eq("team_id", teamId)
+          .or(
+            `customer_name.ilike.${like},customer_email.ilike.${like},booking_ref.ilike.${like},vehicle_name.ilike.${like}`,
+          )
+          .limit(2000);
+        matchedBookingIds = (matches ?? []).map((b) => b.id as string);
+      }
+
+      let query = supabaseClient
+        .from("payments")
+        .select(
+          `
         *,
         bookings (
+          booking_ref,
           customer_name,
           customer_email,
           vehicle_id,
+          vehicle_name,
           vehicles (name, make, model)
         )
-      `)
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(limit);
+      `,
+          { count: "exact" },
+        )
+        .eq("team_id", teamId);
 
-    logStep("Fetched local payments", { count: localPayments?.length || 0 });
+      if (matchedBookingIds) {
+        query = matchedBookingIds.length
+          ? query.in("booking_id", matchedBookingIds)
+          : query.eq("booking_id", "00000000-0000-0000-0000-000000000000");
+      }
+
+      const { data: rows, count } = await query
+        .order("created_at", { ascending: false })
+        .range(pageOffset, pageOffset + pageSize - 1);
+
+      localPayments = rows ?? [];
+      localTotal = count ?? 0;
+    }
+
+    logStep("Fetched local payments", { count: localPayments.length, total: localTotal, teamId, searchTerm });
 
     return new Response(JSON.stringify({
       stripe_payments: payments,
-      local_payments: localPayments || [],
+      local_payments: localPayments,
+      local_total: localTotal,
+      local_has_more: pageOffset + localPayments.length < localTotal,
       has_more: hasMore,
       connected_account: !!stripeAccountId,
     }), {
