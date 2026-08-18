@@ -2,6 +2,7 @@
 // Internal-only; relies on INTERNAL_FUNCTION_TOKEN for auth.
 
 export type RenterTemplateName =
+  | "bookingRequest"
   | "paymentApproved"
   | "paymentReminder"
   | "receiptConfirmed"

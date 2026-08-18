@@ -27,6 +27,14 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.77.0";
 import { checkRateLimit, clientIp, verifyTurnstile } from "../_shared/rateLimit.ts";
+import { resolveRenterReplyTo, sendRenterEmail } from "../_shared/rentEmail.ts";
+import {
+  buildPayUrl,
+  formatCurrency,
+  formatDateRange,
+  formatPickupTime,
+  shortVehicleName,
+} from "../_shared/rentFormat.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -187,6 +195,75 @@ serve(async (req) => {
 
     const row = Array.isArray(created) ? created[0] : created;
     logStep("Booking created", { ref: row.booking_ref, status: row.status });
+
+    // Request-received email (2026-08-18). This is the renter's only durable
+    // copy of the tokenized confirmation link — without it, closing the tab
+    // locks them out of their own booking until the operator approves.
+    // Best-effort: a Resend outage must never fail booking creation.
+    try {
+      const { data: team } = await admin
+        .from("teams")
+        .select("name, currency, timezone, support_email, support_phone")
+        .eq("slug", teamSlug)
+        .maybeSingle();
+      const { data: bookingRow } = await admin
+        .from("bookings")
+        .select("start_date, pickup_location, vehicle_name")
+        .eq("booking_ref", row.booking_ref)
+        .maybeSingle();
+
+      const operatorName = team?.name ?? "Your operator";
+      const timezone = team?.timezone ?? "UTC";
+      const currency = team?.currency ?? "USD";
+      const vehicleName = bookingRow?.vehicle_name || quote.vehicle_name || "Vehicle";
+      const supportEmail = resolveRenterReplyTo(team?.support_email);
+      const supportPhone = (team?.support_phone ?? "").trim();
+      const supportLine = supportPhone
+        ? `Questions? Reply to this email, write ${supportEmail}, or call ${supportPhone}.`
+        : `Questions? Reply to this email or write ${supportEmail}.`;
+      const nextStepNote = row.status === "pending_documents"
+        ? `${operatorName} reviews your request, usually within a few hours. A quick ID verification is part of the process — we'll walk you through it, nothing to do right now.`
+        : `${operatorName} reviews your request, usually within a few hours. You'll hear either way.`;
+
+      await sendRenterEmail({
+        templateName: "bookingRequest",
+        to: email,
+        subject: `Request received — ${operatorName} is reviewing your dates · ${row.booking_ref}`,
+        variables: {
+          OPERATOR_NAME: operatorName,
+          BOOKING_REF: row.booking_ref,
+          VEHICLE_NAME: vehicleName,
+          VEHICLE_SHORT: shortVehicleName(vehicleName),
+          DATE_RANGE: formatDateRange(startDate, endDate),
+          PICKUP_TIME: bookingRow?.start_date
+            ? formatPickupTime(bookingRow.start_date, timezone)
+            : pickupTime,
+          LOCATION: bookingRow?.pickup_location || "Arranged with operator",
+          RENTAL_TOTAL: formatCurrency(
+            (Number(quote.operator_total_cents) - Number(quote.deposit_cents ?? 0)) / 100,
+            currency,
+          ),
+          NEXT_STEP_NOTE: nextStepNote,
+          SUPPORT_LINE: supportLine,
+          BOOKING_URL: buildPayUrl(
+            row.booking_ref,
+            String(row.confirmation_token),
+            Deno.env.get("RENTER_APP_ORIGIN") ?? "https://book.exotiq.rent",
+          ),
+        },
+        idempotencyKey: `request-${row.booking_ref}`,
+        replyTo: supportEmail,
+        fromName: operatorName,
+        tags: [
+          { name: "booking_ref", value: row.booking_ref },
+          { name: "email_type", value: "booking_request" },
+        ],
+      });
+      logStep("Request email sent", { ref: row.booking_ref });
+    } catch (emailError) {
+      logStep("Request email failed", { ref: row.booking_ref, error: String(emailError) });
+    }
+
 
     return json({
       booking_ref: row.booking_ref,
