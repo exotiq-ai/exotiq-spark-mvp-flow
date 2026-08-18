@@ -123,11 +123,15 @@ const useVehicles = (teamId: string | null) =>
     queryFn: async (): Promise<VehicleRow[]> => {
       const { data, error } = await supabase
         .from('vehicles')
-        .select('id, year, make, model, status, marketplace_visible, archived_at, trashed_at')
+        .select('id, year, make, model, status, marketplace_visible, marketplace_unlisted, archived_at, trashed_at')
         .eq('team_id', teamId!)
         .order('make', { ascending: true });
       if (error) throw error;
-      return (data ?? []) as VehicleRow[];
+      return ((data ?? []) as any[]).map((v) => ({
+        ...v,
+        marketplace_unlisted: !!v.marketplace_unlisted,
+      })) as VehicleRow[];
+
     },
   });
 
