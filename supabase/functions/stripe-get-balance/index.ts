@@ -126,10 +126,13 @@ serve(async (req) => {
     // Exotiq exited the deposit flow on 2026-07-28.
     let balanceDue = 0;
     let balanceDueCount = 0;
+    // Same rows that feed the tile also feed the "Awaiting payment" list, so
+    // the count and the list can never disagree.
+    const outstanding: Array<Record<string, unknown>> = [];
     if (teamId) {
       const { data: openBookings } = await supabaseClient
         .from("bookings")
-        .select("id, total_value, payment_status")
+        .select("id, total_value, payment_status, booking_ref, customer_name, customer_email, vehicle_name, start_date, end_date, status, booking_source, payment_due_at")
         .eq("team_id", teamId)
         .in("status", ["pending", "requested", "pending_payment", "confirmed", "in_progress"])
         .neq("payment_status", "paid");
