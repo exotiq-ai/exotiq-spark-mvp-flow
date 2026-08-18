@@ -1440,14 +1440,25 @@ export const EnhancedBookingDialog = ({
                   <Separator />
 
                   {/* Action Buttons */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button variant="outline" onClick={() => setShowPaymentDialog(true)} className="w-full">
-                      <CreditCard className="h-4 w-4 mr-2" />Take Payment
-                    </Button>
-                    <Button variant="outline" onClick={() => setShowMessageDialog(true)} className="w-full">
-                      <MessageSquare className="h-4 w-4 mr-2" />Message
-                    </Button>
-                  </div>
+                  {booking.booking_source === 'marketplace' ? (
+                    <div className="space-y-2">
+                      <Button variant="outline" onClick={() => setShowMessageDialog(true)} className="w-full">
+                        <MessageSquare className="h-4 w-4 mr-2" />Message
+                      </Button>
+                      <p className="text-xs text-muted-foreground text-center">
+                        The renter pays through the marketplace checkout link — manual charges are disabled on marketplace bookings.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button variant="outline" onClick={() => setShowPaymentDialog(true)} className="w-full">
+                        <CreditCard className="h-4 w-4 mr-2" />Take Payment
+                      </Button>
+                      <Button variant="outline" onClick={() => setShowMessageDialog(true)} className="w-full">
+                        <MessageSquare className="h-4 w-4 mr-2" />Message
+                      </Button>
+                    </div>
+                  )}
 
                   {(booking.status === "pending" || booking.status === "requested") && (
                     <div className="flex gap-2">
