@@ -7,6 +7,8 @@ import { Database } from '@/integrations/supabase/types';
 import { z } from 'zod';
 import confetti from 'canvas-confetti';
 import { devLog, devError, devWarn } from '@/lib/logger';
+import { describeFunctionError } from '@/lib/functionError';
+
 import { useRealtimeReconnect } from '@/hooks/useRealtimeReconnect';
 import {
   customerSchema,
@@ -987,14 +989,28 @@ export const FleetProvider = ({ children }: { children: ReactNode }) => {
         body: { booking_id: bookingId },
       });
       if (error) {
-        const message = error instanceof Error ? error.message : "Approval failed";
+        const message = await describeFunctionError(error, "Approval failed. Please try again.");
+        devError('rent-approve-booking failed:', error);
         toast({ title: "Approval Failed", description: message, variant: "destructive" });
         return;
       }
-      toast({ title: "Booking Approved", description: "Renter has been sent a payment link." });
+      if (data?.error) {
+        toast({ title: "Approval Failed", description: String(data.error), variant: "destructive" });
+        return;
+      }
+      const dueAt = data?.payment_due_at ? new Date(data.payment_due_at) : null;
+      toast({
+        title: "Booking Approved",
+        description: dueAt
+          ? `Payment link sent — the renter has until ${dueAt.toLocaleString(undefined, {
+              month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
+            })} to pay.`
+          : "Renter has been sent a payment link.",
+      });
       refreshBookings();
       return;
     }
+
 
     const updates: Partial<Booking> = { status };
     if (status === 'confirmed') {

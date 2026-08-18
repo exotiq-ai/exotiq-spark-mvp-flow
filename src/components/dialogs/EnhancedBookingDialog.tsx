@@ -76,6 +76,7 @@ import {
   Save,
   FileText,
   Loader2,
+  AlertCircle,
 } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -141,6 +142,7 @@ export const EnhancedBookingDialog = ({
   // Inline edit mode state
   const [isEditMode, setIsEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [approving, setApproving] = useState(false);
   const [editValues, setEditValues] = useState({
     startDate: null as Date | null,
     startTime: "",
@@ -527,6 +529,12 @@ export const EnhancedBookingDialog = ({
 
   if (!booking) return null;
 
+  // Bookings that still need an operator decision get a sticky footer bar.
+  const needsDecision =
+    booking.status === "pending" ||
+    booking.status === "requested" ||
+    booking.status === "pending_documents";
+
   return (
     <>
       <VehicleImageDialog
@@ -683,7 +691,7 @@ export const EnhancedBookingDialog = ({
             </div>
           </div>
 
-          <ScrollArea className="max-h-[calc(90vh-220px)]">
+          <ScrollArea className={needsDecision && !isEditMode ? "max-h-[calc(90vh-300px)]" : "max-h-[calc(90vh-220px)]"}>
             <div className="px-6 pb-6 space-y-4">
               {/* Quick Actions - hidden in edit mode */}
               {!isEditMode && (
@@ -1045,7 +1053,7 @@ export const EnhancedBookingDialog = ({
                       <Save className="h-4 w-4 mr-2" />
                       {saving ? "Saving..." : "Save Draft"}
                     </Button>
-                    {booking.status === "pending" && (
+                    {(booking.status === "pending" || booking.status === "requested") && (
                       <Button
                         onClick={() => handleSaveChanges(true)}
                         disabled={saving || !isFormValid}
@@ -1460,29 +1468,9 @@ export const EnhancedBookingDialog = ({
                     </div>
                   )}
 
-                  {(booking.status === "pending" || booking.status === "requested") && (
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        onClick={() => setShowCancelConfirm(true)}
-                        className="flex-1 text-destructive border-destructive/30 hover:bg-destructive/10"
-                      >
-                        <XCircle className="h-4 w-4 mr-2" />Decline
-                      </Button>
-                      <Button
-                        onClick={() => { if (blockIfRestricted()) return; updateBookingStatus(booking.id, "confirmed"); onOpenChange(false); }}
-                        className="flex-1"
-                      >
-                        <CheckCircle className="h-4 w-4 mr-2" />
-                        {booking.booking_source === 'marketplace' ? 'Approve' : 'Confirm'}
-                      </Button>
-                    </div>
-                  )}
-                  {booking.status === "pending_documents" && (
-                    <div className="p-3 rounded-lg bg-warning/10 border border-warning/30 text-xs text-warning-tinted">
-                      Awaiting renter ID verification. This booking will become approvable once the renter completes identity verification.
-                    </div>
-                  )}
+                  {/* Approve / Decline live in the sticky footer below so they
+                      are reachable without scrolling past every tab. */}
+
 
                   {booking.status === "confirmed" && (
                     <div className="flex gap-2">
@@ -1520,7 +1508,50 @@ export const EnhancedBookingDialog = ({
               )}
             </div>
           </ScrollArea>
+
+          {/* Sticky decision bar — always reachable for bookings awaiting a call */}
+          {!isEditMode && needsDecision && (
+            <div className="border-t bg-background px-6 py-3">
+              {booking.status === "pending_documents" ? (
+                <div className="flex items-center gap-2 text-xs text-warning-tinted">
+                  <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                  <span>Awaiting renter ID verification — you can approve once the renter completes it.</span>
+                </div>
+              ) : (
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowCancelConfirm(true)}
+                    disabled={approving}
+                    className="flex-1 text-destructive border-destructive/30 hover:bg-destructive/10"
+                  >
+                    <XCircle className="h-4 w-4 mr-2" />Decline
+                  </Button>
+                  <Button
+                    onClick={async () => {
+                      if (blockIfRestricted()) return;
+                      setApproving(true);
+                      try {
+                        await updateBookingStatus(booking.id, "confirmed");
+                        onOpenChange(false);
+                      } finally {
+                        setApproving(false);
+                      }
+                    }}
+                    disabled={approving}
+                    className="flex-1"
+                  >
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    {approving
+                      ? "Approving..."
+                      : booking.booking_source === 'marketplace' ? 'Approve' : 'Confirm'}
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
         </DialogContent>
+
       </Dialog>
       {booking && signingDocument && (
         <SigningCeremony

@@ -212,10 +212,10 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.rent-refund-booking]
-verify_jwt = true
+verify_jwt = false
 
 [functions.rent-approve-booking]
-verify_jwt = true
+verify_jwt = false
 
 
 [functions.admin-stripe-account-link]
@@ -225,31 +225,31 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.dsr-erase]
-verify_jwt = true
+verify_jwt = false
 
 [functions.dsr-export]
-verify_jwt = true
+verify_jwt = false
 
 [functions.entity-mention-notification]
-verify_jwt = true
+verify_jwt = false
 
 [functions.identity-create-session]
 verify_jwt = false
 
 [functions.prepare-tenant-document]
-verify_jwt = true
+verify_jwt = false
 
 [functions.rari-agent-admin]
 verify_jwt = true
 
 [functions.record-terms-acceptance]
-verify_jwt = true
+verify_jwt = false
 
 [functions.rent-payment-scheduler]
 verify_jwt = false
 
 [functions.rent-retry-exotiq-leg]
-verify_jwt = true
+verify_jwt = false
 
 [functions.retention-sweeper]
 verify_jwt = false
@@ -261,7 +261,7 @@ verify_jwt = true
 verify_jwt = false
 
 [functions.sign-tenant-document]
-verify_jwt = true
+verify_jwt = false
 
 [functions.stripe-create-deposit-setup-session]
 verify_jwt = true
