@@ -417,7 +417,12 @@ export const PaymentTracker = ({ focusBookingId, onFocusHandled }: PaymentTracke
               {visiblePendingPayments.map((booking) => (
                 <div
                   key={booking.id}
-                  className="p-4 rounded-lg border border-primary/10 hover:border-primary/30 transition-colors"
+                  ref={(el) => { rowRefs.current[booking.id] = el; }}
+                  className={`p-4 rounded-lg border transition-colors ${
+                    highlightedBookingId === booking.id
+                      ? "border-primary ring-2 ring-primary/40 bg-primary/5"
+                      : "border-primary/10 hover:border-primary/30"
+                  }`}
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div>
