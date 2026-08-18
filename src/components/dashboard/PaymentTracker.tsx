@@ -44,7 +44,13 @@ import {
 
 type Booking = Database['public']['Tables']['bookings']['Row'];
 
-export const PaymentTracker = () => {
+interface PaymentTrackerProps {
+  /** Booking to scroll to + highlight when arriving from a booking card. */
+  focusBookingId?: string | null;
+  onFocusHandled?: () => void;
+}
+
+export const PaymentTracker = ({ focusBookingId, onFocusHandled }: PaymentTrackerProps = {}) => {
   const { bookings, payments, vehicles, createPayment } = useLocationFilteredFleet();
   const { goToCustomerProfile } = useModuleNavigation();
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
