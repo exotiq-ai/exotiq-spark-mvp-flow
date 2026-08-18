@@ -68,6 +68,10 @@ export const BusinessProfileSection = () => {
     setVatNumber(currentTeam.vat_number || "");
     setAddress((currentTeam.business_address as BusinessAddress) || {});
     setSupportEmail(((currentTeam as any).support_email as string) || "");
+    setSupportPhone(((currentTeam as any).support_phone as string) || "");
+    setPickupAddress(((currentTeam as any).pickup_address as string) || "");
+    setPickupInstructions(((currentTeam as any).pickup_instructions as string) || "");
+
   }, [currentTeam]);
 
 
