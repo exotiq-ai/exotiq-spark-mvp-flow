@@ -130,27 +130,70 @@ serve(async (req) => {
     }
 
 
-    // Local payments
-    const { data: localPayments } = await supabaseClient
-      .from("payments")
-      .select(`
+    // Local payments — scoped to the TEAM, not the caller's user id. Payment
+    // rows are written by whoever recorded them (or by the Stripe webhook),
+    // so a user-id scope hid most of a tenant's own history.
+    let localPayments: unknown[] = [];
+    let localTotal = 0;
+
+    if (teamId) {
+      // Search is resolved server-side: match the booking first (customer,
+      // email, reference, vehicle), then pull that booking's payment rows.
+      let matchedBookingIds: string[] | null = null;
+      if (searchTerm) {
+        const like = `%${searchTerm.replace(/[%,]/g, " ")}%`;
+        const { data: matches } = await supabaseClient
+          .from("bookings")
+          .select("id")
+          .eq("team_id", teamId)
+          .or(
+            `customer_name.ilike.${like},customer_email.ilike.${like},booking_ref.ilike.${like},vehicle_name.ilike.${like}`,
+          )
+          .limit(2000);
+        matchedBookingIds = (matches ?? []).map((b) => b.id as string);
+      }
+
+      const buildQuery = (head: boolean) => {
+        let q = supabaseClient
+          .from("payments")
+          .select(
+            `
         *,
         bookings (
+          booking_ref,
           customer_name,
           customer_email,
           vehicle_id,
+          vehicle_name,
           vehicles (name, make, model)
         )
-      `)
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(limit);
+      `,
+            head ? { count: "exact", head: true } : { count: "exact" },
+          )
+          .eq("team_id", teamId);
+        if (matchedBookingIds) {
+          q = matchedBookingIds.length
+            ? q.in("booking_id", matchedBookingIds)
+            : q.eq("booking_id", "00000000-0000-0000-0000-000000000000");
+        }
+        return q;
+      };
 
-    logStep("Fetched local payments", { count: localPayments?.length || 0 });
+      const { data: rows, count } = await buildQuery(false)
+        .order("created_at", { ascending: false })
+        .range(pageOffset, pageOffset + pageSize - 1);
+
+      localPayments = rows ?? [];
+      localTotal = count ?? 0;
+    }
+
+    logStep("Fetched local payments", { count: localPayments.length, total: localTotal, teamId, searchTerm });
 
     return new Response(JSON.stringify({
       stripe_payments: payments,
-      local_payments: localPayments || [],
+      local_payments: localPayments,
+      local_total: localTotal,
+      local_has_more: pageOffset + localPayments.length < localTotal,
       has_more: hasMore,
       connected_account: !!stripeAccountId,
     }), {
