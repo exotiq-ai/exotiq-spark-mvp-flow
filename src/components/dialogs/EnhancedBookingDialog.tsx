@@ -142,6 +142,7 @@ export const EnhancedBookingDialog = ({
   // Inline edit mode state
   const [isEditMode, setIsEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [approving, setApproving] = useState(false);
   const [editValues, setEditValues] = useState({
     startDate: null as Date | null,
     startTime: "",
