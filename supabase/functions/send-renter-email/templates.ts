@@ -10,7 +10,7 @@ export const templates = {
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="color-scheme" content="dark">
   <meta name="supported-color-schemes" content="dark">
-  <title>Approved — complete payment | Drive Exotiq</title>
+  <title>Approved — complete payment | {{OPERATOR_NAME}}</title>
   <!--[if mso]>
   <noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript>
   <![endif]-->
@@ -36,7 +36,7 @@ export const templates = {
           <!-- Wordmark -->
           <tr>
             <td align="center" class="px" style="padding: 30px 40px 6px;">
-              <div style="font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size:12px; letter-spacing:6px; color:#C8A664; text-transform:uppercase;">Drive&nbsp;Exotiq</div>
+              <div style="font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size:12px; letter-spacing:6px; color:#C8A664; text-transform:uppercase;">{{OPERATOR_NAME}}</div>
             </td>
           </tr>
 
@@ -147,7 +147,7 @@ export const templates = {
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="color-scheme" content="dark">
   <meta name="supported-color-schemes" content="dark">
-  <title>24 hours left to complete payment | Drive Exotiq</title>
+  <title>24 hours left to complete payment | {{OPERATOR_NAME}}</title>
   <!--[if mso]>
   <noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript>
   <![endif]-->
@@ -173,7 +173,7 @@ export const templates = {
           <!-- Wordmark -->
           <tr>
             <td align="center" class="px" style="padding: 30px 40px 6px;">
-              <div style="font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size:12px; letter-spacing:6px; color:#C8A664; text-transform:uppercase;">Drive&nbsp;Exotiq</div>
+              <div style="font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size:12px; letter-spacing:6px; color:#C8A664; text-transform:uppercase;">{{OPERATOR_NAME}}</div>
             </td>
           </tr>
 
@@ -271,7 +271,7 @@ export const templates = {
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="color-scheme" content="dark">
   <meta name="supported-color-schemes" content="dark">
-  <title>Confirmed — your receipt | Drive Exotiq</title>
+  <title>Confirmed — your receipt | {{OPERATOR_NAME}}</title>
   <!--[if mso]>
   <noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript>
   <![endif]-->
@@ -297,7 +297,7 @@ export const templates = {
           <!-- Wordmark -->
           <tr>
             <td align="center" class="px" style="padding: 30px 40px 6px;">
-              <div style="font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size:12px; letter-spacing:6px; color:#C8A664; text-transform:uppercase;">Drive&nbsp;Exotiq</div>
+              <div style="font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size:12px; letter-spacing:6px; color:#C8A664; text-transform:uppercase;">{{OPERATOR_NAME}}</div>
             </td>
           </tr>
 
@@ -403,7 +403,7 @@ export const templates = {
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="color-scheme" content="dark">
   <meta name="supported-color-schemes" content="dark">
-  <title>Refunded in full | Drive Exotiq</title>
+  <title>Refunded in full | {{OPERATOR_NAME}}</title>
   <!--[if mso]>
   <noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript>
   <![endif]-->
@@ -429,7 +429,7 @@ export const templates = {
           <!-- Wordmark -->
           <tr>
             <td align="center" class="px" style="padding: 30px 40px 6px;">
-              <div style="font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size:12px; letter-spacing:6px; color:#C8A664; text-transform:uppercase;">Drive&nbsp;Exotiq</div>
+              <div style="font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size:12px; letter-spacing:6px; color:#C8A664; text-transform:uppercase;">{{OPERATOR_NAME}}</div>
             </td>
           </tr>
 
@@ -522,7 +522,7 @@ export const templates = {
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="color-scheme" content="dark">
   <meta name="supported-color-schemes" content="dark">
-  <title>Payment window closed | Drive Exotiq</title>
+  <title>Payment window closed | {{OPERATOR_NAME}}</title>
   <!--[if mso]>
   <noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript>
   <![endif]-->
@@ -548,7 +548,7 @@ export const templates = {
           <!-- Wordmark -->
           <tr>
             <td align="center" class="px" style="padding: 30px 40px 6px;">
-              <div style="font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size:12px; letter-spacing:6px; color:#C8A664; text-transform:uppercase;">Drive&nbsp;Exotiq</div>
+              <div style="font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size:12px; letter-spacing:6px; color:#C8A664; text-transform:uppercase;">{{OPERATOR_NAME}}</div>
             </td>
           </tr>
 
@@ -631,7 +631,7 @@ export const templates = {
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="color-scheme" content="dark">
   <meta name="supported-color-schemes" content="dark">
-  <title>Payment window expired | Drive Exotiq</title>
+  <title>Payment window expired | {{OPERATOR_NAME}}</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500&display=swap');
     :root { color-scheme: dark; supported-color-schemes: dark; }
@@ -652,7 +652,7 @@ export const templates = {
         <table role="presentation" class="container" width="600" cellpadding="0" cellspacing="0" border="0" bgcolor="#0D0F14" style="width:600px; max-width:600px; background-color:#0D0F14; border-radius:16px; overflow:hidden; border:1px solid #2A2E3A;">
           <tr>
             <td align="center" class="px" style="padding: 30px 40px 6px;">
-              <div style="font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size:12px; letter-spacing:6px; color:#C8A664; text-transform:uppercase;">Drive&nbsp;Exotiq</div>
+              <div style="font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size:12px; letter-spacing:6px; color:#C8A664; text-transform:uppercase;">{{OPERATOR_NAME}}</div>
             </td>
           </tr>
           <tr>
@@ -704,7 +704,7 @@ export const templates = {
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                 <tr><td style="border-top:1px solid #2A2E3A; padding-top:20px; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size:12px; line-height:18px; color:#5C6272;">
                   Booking {{BOOKING_REF}} &middot; {{OPERATOR_NAME}}<br>
-                  Operator notification from Drive Exotiq.<br><br>
+                  Operator notification from {{OPERATOR_NAME}}.<br><br>
                   <span style="letter-spacing:3px; text-transform:uppercase; font-size:10px;">Curated exotic &amp; luxury rentals</span>
                 </td></tr>
               </table>
@@ -724,7 +724,7 @@ export const templates = {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Payment received — verify your ID next | Drive Exotiq</title>
+  <title>Payment received — verify your ID next | {{OPERATOR_NAME}}</title>
 </head>
 <body style="margin:0; padding:0; background:#0E1013; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color:#F0F2F5;">
   <div style="display:none; max-height:0; overflow:hidden;">Payment received for booking {{BOOKING_REF}} — verify your ID to lock in {{VEHICLE_SHORT}} for {{DATE_RANGE}}.</div>
@@ -761,13 +761,13 @@ export const templates = {
   // Sent to renter + operator when a marketplace booking is within a few
   // hours of the auto-cancel deadline (pending_documents 24h / requested 72h).
   holdWarning: `<!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Heads up — booking {{BOOKING_REF}} | Drive Exotiq</title></head>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Heads up — booking {{BOOKING_REF}} | {{OPERATOR_NAME}}</title></head>
 <body style="margin:0; padding:0; background-color:#06070a;">
   <div style="display:none; max-height:0; overflow:hidden;">Booking {{BOOKING_REF}} auto-cancels at {{DEADLINE}} unless {{ACTION_NEEDED}}.</div>
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#06070a">
     <tr><td align="center" style="padding:28px 12px 40px;">
       <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" bgcolor="#0D0F14" style="max-width:600px; background:#0D0F14; border-radius:16px; border:1px solid #2A2E3A; overflow:hidden;">
-        <tr><td align="center" style="padding:30px 40px 6px; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size:12px; letter-spacing:6px; color:#C8A664; text-transform:uppercase;">Drive Exotiq</td></tr>
+        <tr><td align="center" style="padding:30px 40px 6px; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size:12px; letter-spacing:6px; color:#C8A664; text-transform:uppercase;">{{OPERATOR_NAME}}</td></tr>
         <tr><td align="center" style="padding:22px 40px 0; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size:10px; letter-spacing:4px; color:#5C6272; text-transform:uppercase;">Action needed</td></tr>
         <tr><td align="center" style="padding:10px 40px 0; font-family:Georgia, serif; font-size:28px; line-height:34px; color:#F0F2F5;">Booking {{BOOKING_REF}} needs {{ACTION_NEEDED}}.</td></tr>
         <tr><td align="center" style="padding:12px 48px 8px; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size:14px; line-height:22px; color:#9BA1B0;">Without action, it will auto-cancel on <strong style="color:#F0F2F5;">{{DEADLINE}}</strong> and the {{VEHICLE_SHORT}} dates ({{DATE_RANGE}}) will release back to the calendar.</td></tr>
@@ -781,13 +781,13 @@ export const templates = {
   // Sent to renter + operator after an unpaid marketplace booking auto-cancels
   // (either pending_documents timed out or the operator didn't approve in time).
   holdCancelled: `<!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Booking {{BOOKING_REF}} released | Drive Exotiq</title></head>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Booking {{BOOKING_REF}} released | {{OPERATOR_NAME}}</title></head>
 <body style="margin:0; padding:0; background-color:#06070a;">
   <div style="display:none; max-height:0; overflow:hidden;">Booking {{BOOKING_REF}} was auto-cancelled: {{REASON_HUMAN}}.</div>
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#06070a">
     <tr><td align="center" style="padding:28px 12px 40px;">
       <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" bgcolor="#0D0F14" style="max-width:600px; background:#0D0F14; border-radius:16px; border:1px solid #2A2E3A; overflow:hidden;">
-        <tr><td align="center" style="padding:30px 40px 6px; font-family:-apple-system, sans-serif; font-size:12px; letter-spacing:6px; color:#C8A664; text-transform:uppercase;">Drive Exotiq</td></tr>
+        <tr><td align="center" style="padding:30px 40px 6px; font-family:-apple-system, sans-serif; font-size:12px; letter-spacing:6px; color:#C8A664; text-transform:uppercase;">{{OPERATOR_NAME}}</td></tr>
         <tr><td align="center" style="padding:22px 40px 0; font-family:-apple-system, sans-serif; font-size:10px; letter-spacing:4px; color:#5C6272; text-transform:uppercase;">Booking released</td></tr>
         <tr><td align="center" style="padding:10px 40px 0; font-family:Georgia, serif; font-size:28px; line-height:34px; color:#F0F2F5;">The dates released back to the calendar.</td></tr>
         <tr><td align="center" style="padding:12px 48px 8px; font-family:-apple-system, sans-serif; font-size:14px; line-height:22px; color:#9BA1B0;">Booking {{BOOKING_REF}} for the {{VEHICLE_SHORT}} on {{DATE_RANGE}} was auto-cancelled — {{REASON_HUMAN}}. Nothing was charged.</td></tr>
@@ -801,13 +801,13 @@ export const templates = {
   // off-session to the card on file. Silent card charges MUST be disclosed
   // in writing per Stripe / card-network mandate.
   bookingExtended: `<!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Booking {{BOOKING_REF}} extended | Drive Exotiq</title></head>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Booking {{BOOKING_REF}} extended | {{OPERATOR_NAME}}</title></head>
 <body style="margin:0; padding:0; background-color:#06070a;">
   <div style="display:none; max-height:0; overflow:hidden;">Booking {{BOOKING_REF}} extended by {{ADDED_DAYS}} day(s). {{GRAND_TOTAL}} charged to your card on file.</div>
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#06070a">
     <tr><td align="center" style="padding:28px 12px 40px;">
       <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" bgcolor="#0D0F14" style="max-width:600px; background:#0D0F14; border-radius:16px; border:1px solid #2A2E3A; overflow:hidden;">
-        <tr><td align="center" style="padding:30px 40px 6px; font-family:-apple-system, sans-serif; font-size:12px; letter-spacing:6px; color:#C8A664; text-transform:uppercase;">Drive Exotiq</td></tr>
+        <tr><td align="center" style="padding:30px 40px 6px; font-family:-apple-system, sans-serif; font-size:12px; letter-spacing:6px; color:#C8A664; text-transform:uppercase;">{{OPERATOR_NAME}}</td></tr>
         <tr><td align="center" style="padding:22px 40px 0; font-family:-apple-system, sans-serif; font-size:10px; letter-spacing:4px; color:#5C6272; text-transform:uppercase;">Booking extended</td></tr>
         <tr><td align="center" style="padding:10px 40px 0; font-family:Georgia, serif; font-size:28px; line-height:34px; color:#F0F2F5;">+{{ADDED_DAYS}} day(s) added to your {{VEHICLE_SHORT}}.</td></tr>
         <tr><td align="center" style="padding:12px 48px 8px; font-family:-apple-system, sans-serif; font-size:14px; line-height:22px; color:#9BA1B0;">
