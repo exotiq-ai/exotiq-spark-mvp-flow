@@ -452,20 +452,25 @@ export const PaymentTracker = ({ focusBookingId, onFocusHandled }: PaymentTracke
                       : "border-primary/10 hover:border-primary/30"
                   }`}
                 >
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <h4 
-                        className="font-semibold cursor-pointer hover:text-primary transition-colors"
-                        onClick={() => handleVehicleClick(booking.vehicle_id)}
+                  <div className="flex items-start justify-between mb-3 gap-3">
+                    <div className="min-w-0">
+                      <button
+                        type="button"
+                        className="font-semibold text-left hover:text-primary transition-colors"
+                        onClick={() => goToBookingDetails(booking.id)}
                       >
-                        {booking.vehicle?.name}
-                      </h4>
+                        {booking.vehicle?.name || (booking as any).vehicle_name || (booking as any).booking_ref}
+                        {(booking as any).booking_ref && (
+                          <span className="text-muted-foreground font-normal"> · {(booking as any).booking_ref}</span>
+                        )}
+                      </button>
                       <p className={`text-sm text-muted-foreground ${booking.customer_id ? 'cursor-pointer hover:text-primary transition-colors' : ''}`}
                         onClick={() => booking.customer_id && goToCustomerProfile(booking.customer_id)}
                       >{booking.customer_name}</p>
                     </div>
                     {getPaymentStatusBadge(booking)}
                   </div>
+
 
                   <div className="grid grid-cols-2 gap-4 mb-3 text-sm">
                     <div>
