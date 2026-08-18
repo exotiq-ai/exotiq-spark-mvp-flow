@@ -7,6 +7,8 @@ import { Database } from '@/integrations/supabase/types';
 import { z } from 'zod';
 import confetti from 'canvas-confetti';
 import { devLog, devError, devWarn } from '@/lib/logger';
+import { describeFunctionError } from '@/lib/functionError';
+
 import { useRealtimeReconnect } from '@/hooks/useRealtimeReconnect';
 import {
   customerSchema,
