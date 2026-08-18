@@ -691,7 +691,7 @@ export const EnhancedBookingDialog = ({
             </div>
           </div>
 
-          <ScrollArea className="max-h-[calc(90vh-220px)]">
+          <ScrollArea className={needsDecision && !isEditMode ? "max-h-[calc(90vh-300px)]" : "max-h-[calc(90vh-220px)]"}>
             <div className="px-6 pb-6 space-y-4">
               {/* Quick Actions - hidden in edit mode */}
               {!isEditMode && (
