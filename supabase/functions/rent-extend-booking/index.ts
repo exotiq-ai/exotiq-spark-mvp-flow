@@ -673,8 +673,9 @@ serve(async (req) => {
             body: JSON.stringify({
               templateName: "bookingExtended",
               to: booking.customer_email,
-              subject: `Booking ${booking.booking_ref} extended — ${money(addedSubtotalCents + addedExotiqLegCents)} charged`,
+              subject: `Booking ${booking.booking_ref} extended — ${money(addedSubtotalCents + addedExotiqLegCents)} charged · ${operatorName}`,
               idempotencyKey: `ext-${extension.id}`,
+              fromName: operatorName,
               replyTo:
                 teamRow?.support_email?.trim() ||
                 Deno.env.get("RENTER_EMAIL_REPLY_TO") ||

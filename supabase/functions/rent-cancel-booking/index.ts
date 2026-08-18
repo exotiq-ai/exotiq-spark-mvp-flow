@@ -211,7 +211,7 @@ serve(async (req) => {
       try {
         const { data: team } = await admin
           .from("teams")
-          .select("slug, name, currency, timezone")
+          .select("slug, name, currency, timezone, support_email")
           .eq("id", booking.team_id)
           .single();
         const { data: vehicle } = await admin
@@ -242,7 +242,7 @@ serve(async (req) => {
         await sendRenterEmail({
           templateName: "refundConfirmation",
           to: booking.customer_email,
-          subject: `Refunded — booking ${bookingRef}`,
+          subject: `Refunded — booking ${bookingRef} · ${team?.name ?? "Operator"}`,
           variables: {
             BOOKING_REF: bookingRef,
             OPERATOR_NAME: team?.name ?? "Operator",
@@ -259,7 +259,8 @@ serve(async (req) => {
             VEHICLE_URL: vehicleUrl,
           },
           idempotencyKey: `refund-renter-${bookingRef}`,
-          replyTo: `${team?.name ?? "Operator"} <no-reply@exotiq.ai>`,
+          replyTo: resolveRenterReplyTo(team?.support_email),
+          fromName: team?.name ?? undefined,
           tags: [{ name: "booking_ref", value: bookingRef }, { name: "email_type", value: "refund_confirmation" }],
         });
         logStep("Refund confirmation email sent", { bookingRef });

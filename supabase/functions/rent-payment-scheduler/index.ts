@@ -164,10 +164,11 @@ serve(async (req) => {
           await sendRenterEmail({
             templateName: "paymentExpired",
             to: booking.customer_email,
-            subject: `The payment window closed — booking ${booking.booking_ref}`,
+            subject: `The payment window closed — booking ${booking.booking_ref} · ${team.name}`,
             variables: vars,
             idempotencyKey: `expired-renter-${booking.booking_ref}`,
             replyTo: resolveRenterReplyTo(team.support_email),
+            fromName: team.name,
             tags: [{ name: "booking_ref", value: booking.booking_ref }, { name: "email_type", value: "payment_expired_renter" }],
           });
         } catch (emailError) {
@@ -253,10 +254,11 @@ serve(async (req) => {
         await sendRenterEmail({
           templateName: "paymentReminder",
           to: booking.customer_email,
-          subject: `24 hours left to lock in your ${vehicleShort}`,
+          subject: `24 hours left to lock in your ${vehicleShort} · ${team.name}`,
           variables,
           idempotencyKey: `reminder-${booking.booking_ref}`,
           replyTo: resolveRenterReplyTo(team.support_email),
+            fromName: team.name,
           tags: [{ name: "booking_ref", value: booking.booking_ref }, { name: "email_type", value: "payment_reminder" }],
         });
         await admin
@@ -301,10 +303,11 @@ serve(async (req) => {
           await sendRenterEmail({
             templateName: "holdWarning",
             to: b.customer_email,
-            subject: `Heads up — booking ${b.booking_ref} needs your ID`,
+            subject: `Heads up — booking ${b.booking_ref} needs your ID · ${team.name}`,
             variables: { ...baseVars, ACTION_NEEDED: "your ID verification", ACTION_URL: renterActionUrl, ACTION_LABEL: "Verify my ID" },
             idempotencyKey: `hold-warn-renter-${b.booking_ref}`,
             replyTo: resolveRenterReplyTo(team.support_email),
+            fromName: team.name,
             tags: [{ name: "booking_ref", value: b.booking_ref }, { name: "email_type", value: "hold_warning_renter" }],
           });
         } catch (e) { logStep("Renter warning failed", { ref: b.booking_ref, error: String(e) }); errorCount += 1; }
@@ -368,10 +371,11 @@ serve(async (req) => {
           await sendRenterEmail({
             templateName: "holdCancelled",
             to: full.customer_email,
-            subject: `Booking ${full.booking_ref} released — nothing charged`,
+            subject: `Booking ${full.booking_ref} released — nothing charged · ${team.name}`,
             variables: { ...baseVars, ACTION_URL: renterUrl, ACTION_LABEL: "Browse other dates" },
             idempotencyKey: `hold-cancel-renter-${full.booking_ref}`,
             replyTo: resolveRenterReplyTo(team.support_email),
+            fromName: team.name,
             tags: [{ name: "booking_ref", value: full.booking_ref }, { name: "email_type", value: "hold_cancelled_renter" }],
           });
         } catch (e) { logStep("Renter cancel email failed", { ref: full.booking_ref, error: String(e) }); errorCount += 1; }
