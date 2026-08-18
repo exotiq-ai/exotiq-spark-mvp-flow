@@ -553,6 +553,36 @@ export const PaymentTracker = ({ focusBookingId, onFocusHandled }: PaymentTracke
                       </>
                     )}
 
+                    {/* Marketplace: the renter pays through their secure link,
+                        so the operator's lever is re-sending that link (or
+                        re-approving once the window lapsed). No charge here. */}
+                    {booking.isMarketplace && (booking.status === 'pending_payment' || booking.status === 'payment_expired') && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1"
+                        disabled={sendingLinkId === booking.id}
+                        onClick={() => handleSendPaymentLink(booking as any)}
+                      >
+                        {sendingLinkId === booking.id ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <Mail className="w-4 h-4 mr-2" />
+                        )}
+                        {booking.status === 'payment_expired' ? 'Re-approve & send link' : 'Send payment link'}
+                      </Button>
+                    )}
+
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="flex-1"
+                      onClick={() => goToBookingDetails(booking.id)}
+                    >
+                      <ExternalLink className="w-4 h-4 mr-2" />
+                      View booking
+                    </Button>
+
                     {/* Standard payment actions — hidden on marketplace bookings.
                         Marketplace deposits use the setup-session → off-session hold
                         flow (DepositPanel), never manual Record Payment which would
