@@ -177,6 +177,7 @@
 
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
+    --warning-tinted-foreground: 40 95% 78%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
