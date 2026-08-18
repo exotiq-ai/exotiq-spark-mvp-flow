@@ -153,11 +153,10 @@ serve(async (req) => {
         matchedBookingIds = (matches ?? []).map((b) => b.id as string);
       }
 
-      const buildQuery = (head: boolean) => {
-        let q = supabaseClient
-          .from("payments")
-          .select(
-            `
+      let query = supabaseClient
+        .from("payments")
+        .select(
+          `
         *,
         bookings (
           booking_ref,
@@ -168,18 +167,17 @@ serve(async (req) => {
           vehicles (name, make, model)
         )
       `,
-            head ? { count: "exact", head: true } : { count: "exact" },
-          )
-          .eq("team_id", teamId);
-        if (matchedBookingIds) {
-          q = matchedBookingIds.length
-            ? q.in("booking_id", matchedBookingIds)
-            : q.eq("booking_id", "00000000-0000-0000-0000-000000000000");
-        }
-        return q;
-      };
+          { count: "exact" },
+        )
+        .eq("team_id", teamId);
 
-      const { data: rows, count } = await buildQuery(false)
+      if (matchedBookingIds) {
+        query = matchedBookingIds.length
+          ? query.in("booking_id", matchedBookingIds)
+          : query.eq("booking_id", "00000000-0000-0000-0000-000000000000");
+      }
+
+      const { data: rows, count } = await query
         .order("created_at", { ascending: false })
         .range(pageOffset, pageOffset + pageSize - 1);
 
