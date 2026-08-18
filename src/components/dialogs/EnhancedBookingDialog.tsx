@@ -1468,7 +1468,7 @@ export const EnhancedBookingDialog = ({
                     </div>
                   )}
                   {booking.status === "pending_documents" && (
-                    <div className="p-3 rounded-lg bg-warning/10 border border-warning/30 text-xs text-warning-foreground">
+                    <div className="p-3 rounded-lg bg-warning/10 border border-warning/30 text-xs text-warning-tinted">
                       Awaiting renter ID verification. This booking will become approvable once the renter completes identity verification.
                     </div>
                   )}
