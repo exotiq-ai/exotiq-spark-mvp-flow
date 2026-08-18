@@ -529,6 +529,12 @@ export const EnhancedBookingDialog = ({
 
   if (!booking) return null;
 
+  // Bookings that still need an operator decision get a sticky footer bar.
+  const needsDecision =
+    booking.status === "pending" ||
+    booking.status === "requested" ||
+    booking.status === "pending_documents";
+
   return (
     <>
       <VehicleImageDialog
