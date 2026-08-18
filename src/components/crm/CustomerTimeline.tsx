@@ -48,8 +48,9 @@ export const CustomerTimeline = ({ bookings, notes, identityEvents = [], onBooki
         date: b.created_at || b.start_date,
         type: 'booking',
         title: `Booking ${b.status === 'completed' ? 'completed' : b.status === 'cancelled' ? 'cancelled' : 'created'}`,
-        description: `${b.vehicle_name || 'Vehicle'} · ${new Date(b.start_date).toLocaleDateString()} – ${new Date(b.end_date).toLocaleDateString()}`,
+        description: `${b.vehicle_name || (b as any).booking_ref || 'Booking'} · ${new Date(b.start_date).toLocaleDateString()} – ${new Date(b.end_date).toLocaleDateString()}`,
         icon: <Car className="w-3.5 h-3.5" />,
+        bookingId: b.id,
         badge: (
           <Badge className={
             b.status === 'completed' ? 'bg-success/10 text-success border-success/30' :
