@@ -22,7 +22,7 @@ export const useModuleNavigation = () => {
   };
 
   const goToVehicleDetails = (vehicleId: string) => {
-    navigate(moduleIdToPath('core', { vehicleId }));
+    navigate(moduleIdToPath('fleet', { vehicle: vehicleId }));
     scrollToTop();
   };
 
