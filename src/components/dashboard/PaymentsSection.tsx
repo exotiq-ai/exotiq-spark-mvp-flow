@@ -403,6 +403,13 @@ export const PaymentsSection = () => {
               ))}
             </div>
           )}
+          {hasMore && (
+            <div className="flex justify-center pt-4">
+              <Button variant="outline" onClick={handleLoadMore} disabled={searching}>
+                {searching ? "Loading..." : `Load more (${localTotal - localPayments.length} left)`}
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
