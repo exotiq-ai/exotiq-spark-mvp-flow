@@ -1459,7 +1459,9 @@ export const EnhancedBookingDialog = ({
                       </Button>
                       <p className="text-xs text-muted-foreground text-center">
                         The renter pays through the marketplace checkout link — manual charges are disabled on marketplace bookings.
+                        Refunds outside the cancellation policy are handled by exotiq — contact support to request a goodwill refund.
                       </p>
+
                     </div>
                   ) : (
                     <div className="grid grid-cols-2 gap-2">
