@@ -5857,30 +5857,7 @@ export type Database = {
               _daily_rate: number
               _end_date: string
               _initial_status: string
-              _pickup_time: string
-              _platform_fee_cents: number
-              _protection_tier: string
-              _protection_total_cents: number
-              _start_date: string
-              _team_slug: string
-              _total_value: number
-              _vehicle_slug: string
-            }
-            Returns: {
-              booking_id: string
-              booking_ref: string
-              confirmation_token: string
-              status: string
-            }[]
-          }
-        | {
-            Args: {
-              _customer_email: string
-              _customer_name: string
-              _customer_phone: string
-              _daily_rate: number
-              _end_date: string
-              _initial_status: string
+              _operator_tax_cents?: number
               _pickup_time: string
               _platform_fee_cents: number
               _processing_fee_cents?: number
@@ -5913,6 +5890,7 @@ export type Database = {
               _processing_fee_cents?: number
               _protection_tier: string
               _protection_total_cents: number
+              _return_time?: string
               _start_date: string
               _state_fee_cents?: number
               _team_slug: string
@@ -6494,6 +6472,20 @@ export type Database = {
         Returns: {
           busy_end: string
           busy_start: string
+        }[]
+      }
+      public_vehicle_busy_windows: {
+        Args: {
+          _range_end: string
+          _range_start: string
+          _team_slug: string
+          _vehicle_slug: string
+        }
+        Returns: {
+          buffer_minutes: number
+          busy_end_at: string
+          busy_start_at: string
+          timezone: string
         }[]
       }
       public_vehicle_by_slug: {
