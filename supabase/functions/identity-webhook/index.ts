@@ -63,6 +63,21 @@ serve(async (req) => {
     { auth: { persistSession: false } },
   );
 
+  // Idempotency claim — Stripe re-delivers events, and without this a
+  // double-delivered `requires_input` double-counts attempt_count.
+  const { error: claimError } = await admin
+    .from("stripe_webhook_events")
+    .insert({
+      consumer: "identity",
+      stripe_event_id: event.id,
+      event_type: event.type,
+    });
+  if (claimError) {
+    logStep("Duplicate event ignored", { event: event.type, id: event.id });
+    return new Response(JSON.stringify({ received: true, duplicate: true }), { status: 200 });
+  }
+
+
   const { data: row } = await admin
     .from("identity_verifications")
     .select("id, customer_id, attempt_count, status")
