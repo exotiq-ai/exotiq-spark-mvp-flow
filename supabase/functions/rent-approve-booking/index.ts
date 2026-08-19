@@ -111,6 +111,28 @@ serve(async (req) => {
       .in("status", APPROVABLE);
     if (updateError) throw updateError;
 
+    // Audit trail — approval was previously invisible (only `updated_at` moved),
+    // so nobody could tell who released a booking to payment. Best-effort.
+    try {
+      await admin.from("user_activity_log").insert({
+        user_id: userId,
+        team_id: booking.team_id,
+        activity_type: "marketplace_booking_approved",
+        entity_type: "booking",
+        entity_id: bookingId,
+        metadata: {
+          booking_ref: booking.booking_ref,
+          next_status: nextStatus,
+          source: booking.booking_source,
+          payment_due_at: updates.payment_due_at ?? null,
+        },
+      });
+    } catch (_) {
+      // never block approval on audit write
+    }
+
+
+
 
     // Google Calendar sync
     try {
