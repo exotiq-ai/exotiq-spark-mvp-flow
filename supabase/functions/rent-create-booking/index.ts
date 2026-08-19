@@ -92,6 +92,12 @@ serve(async (req) => {
     const startDate = String(body.start_date ?? "").trim();
     const endDate = String(body.end_date ?? "").trim();
     const pickupTime = String(body.pickup_time ?? "10:00 AM").trim().slice(0, 16);
+    // Return time is its own field (turnover fix): a 10 AM return must not
+    // block a 10 AM pickup on the same day. Defaults to the pickup time.
+    const returnTime = body.return_time == null || String(body.return_time).trim() === ""
+      ? pickupTime
+      : String(body.return_time).trim().slice(0, 16);
+
 
     // Strict protection validation (item #4): unknown values are rejected
     // rather than silently coerced to premium (the most expensive tier).
