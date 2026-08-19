@@ -79,16 +79,30 @@ async function confirmIfFullyPaid(db: ReturnType<typeof admin>, bookingRef: stri
 
   const nextStatus = identityVerified ? "confirmed" : "pending_documents";
   const paidAt = booking.paid_at ?? new Date().toISOString();
+  // BK-03501 audit: money has cleared on both legs, so the booking's own
+  // ledger columns must say so. Previously only `paid_at` was written, which
+  // left paid marketplace bookings reading `payment_status: 'pending'` and
+  // `exotiq_charge_cents: 0` everywhere operators look.
+  const exotiqChargeCents =
+    Number(booking.platform_fee_cents ?? 0)
+    + Number(booking.protection_total_cents ?? 0)
+    + Number(booking.state_fee_cents ?? 0)
+    + Number(booking.processing_fee_cents ?? 0);
   const { error } = await db
     .from("bookings")
     .update({
       status: nextStatus,
       paid_at: paidAt,
       payment_stripe_mode: mode,
+      payment_status: "paid",
+      balance_due: 0,
+      exotiq_charge_cents: exotiqChargeCents,
+      ...(nextStatus === "confirmed" ? { confirmed_at: paidAt } : {}),
     })
     .eq("id", booking.id)
     .eq("status", "pending_payment"); // guard against races
   if (error) return;
+
 
   logStep(identityVerified ? "Booking confirmed" : "Booking paid, awaiting ID", { bookingRef, nextStatus });
 
