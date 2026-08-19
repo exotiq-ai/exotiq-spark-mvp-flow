@@ -163,6 +163,8 @@ serve(async (req) => {
       _start_date: startDate,
       _end_date: endDate,
       _pickup_time: pickupTime,
+      _return_time: returnTime,
+
       _customer_name: name,
       _customer_email: email,
       _customer_phone: phone,
