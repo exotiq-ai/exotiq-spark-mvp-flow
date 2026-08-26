@@ -462,6 +462,146 @@ async function resolveTeamVehicle(
   return { vehicle: matches[0] };
 }
 
+/** Split free text into lowercase search tokens. */
+export function searchTokens(text: unknown): string[] {
+  return String(text || '')
+    .toLowerCase()
+    .split(/\s+/)
+    .map((t) => t.trim())
+    .filter(Boolean);
+}
+
+/** True when every token appears in at least one of the haystack fields. */
+export function matchesAllTokens(tokens: string[], fields: Array<unknown>): boolean {
+  if (tokens.length === 0) return true;
+  const hay = fields
+    .map((f) => (f === null || f === undefined ? '' : String(f).toLowerCase()))
+    .filter(Boolean);
+  return tokens.every((tok) => hay.some((h) => h.includes(tok)));
+}
+
+/**
+ * Resolve a free-text vehicle phrase inside the caller's team by matching every
+ * token against name / make / model / year. Handles "Ferrari 488 Spider", which
+ * a single whole-phrase ILIKE can never match (make and model are split).
+ */
+async function findTeamVehicleByTokens(
+  supabase: SupabaseClient,
+  teamId: string | null,
+  text: string,
+): Promise<any | null> {
+  const tokens = searchTokens(text);
+  if (tokens.length === 0) return null;
+
+  let q = supabase.from('vehicles').select('*');
+  if (teamId) q = q.eq('team_id', teamId);
+  const { data } = await q.limit(500);
+  const vehicles = data || [];
+
+  const matches = vehicles.filter((v: any) =>
+    matchesAllTokens(tokens, [v.name, v.make, v.model, v.year, v.license_plate]),
+  );
+  if (matches.length > 0) return matches[0];
+
+  // Fall back to the loosest useful signal: any single token hitting make/model/name.
+  const loose = vehicles.filter((v: any) =>
+    tokens.some((tok) => matchesAllTokens([tok], [v.name, v.make, v.model, v.year, v.license_plate])),
+  );
+  return loose[0] || null;
+}
+
+/**
+ * Does the question name a vehicle in this team? Returns the matched vehicle so
+ * ask_fleet can route to the vehicle record instead of fleet-wide metrics.
+ * Ignores generic words so "how is the fleet doing" stays fleet-wide.
+ */
+const ASK_FLEET_VEHICLE_STOPWORDS = new Set([
+  'the', 'a', 'an', 'is', 'are', 'was', 'my', 'our', 'on', 'in', 'of', 'for', 'with', 'and', 'or',
+  'what', "what's", 'whats', 'how', 'how\'s', 'hows', 'who', 'when', 'where', 'why', 'going', 'doing',
+  'status', 'about', 'tell', 'me', 'show', 'give', 'do', 'does', 'did', 'it', 'this', 'that', 'to',
+  'car', 'cars', 'vehicle', 'vehicles', 'fleet', 'now', 'today', 'up', 'any', 'all', 'right',
+]);
+
+async function detectAskFleetVehicle(
+  supabase: SupabaseClient,
+  teamId: string | null,
+  question: string,
+): Promise<any | null> {
+  const tokens = searchTokens(question)
+    .map((t) => t.replace(/[^\w-]/g, ''))
+    .filter((t) => t.length >= 2 && !ASK_FLEET_VEHICLE_STOPWORDS.has(t));
+  if (tokens.length === 0) return null;
+
+  let q = supabase.from('vehicles').select('*');
+  if (teamId) q = q.eq('team_id', teamId);
+  const { data } = await q.limit(500);
+  const vehicles = data || [];
+
+  // Score each vehicle by how many of its identifying words the question names.
+  let best: { vehicle: any; score: number } | null = null;
+  for (const v of vehicles) {
+    const identifiers = [v.make, v.model, v.name, v.year, v.license_plate]
+      .filter(Boolean)
+      .flatMap((f: any) => String(f).toLowerCase().split(/\s+/))
+      .map((s) => s.replace(/[^\w-]/g, ''))
+      .filter((s) => s.length >= 2);
+    const score = tokens.filter((tok) => identifiers.includes(tok)).length;
+    if (score > 0 && (!best || score > best.score)) best = { vehicle: v, score };
+  }
+  return best?.vehicle || null;
+}
+
+/**
+ * Current + upcoming bookings for a vehicle, plus the last 2 completed ones.
+ * Upcoming are sorted soonest-first and take priority; max 5 entries total.
+ */
+async function getVehicleBookingWindow(
+  supabase: SupabaseClient,
+  vehicleId: string,
+  teamId: string | null,
+): Promise<Array<Record<string, unknown>>> {
+  let q = supabase
+    .from('bookings')
+    .select('*, customers(full_name)')
+    .eq('vehicle_id', vehicleId);
+  if (teamId) q = q.eq('team_id', teamId);
+  const { data } = await q.order('start_date', { ascending: false }).limit(100);
+  const rows = data || [];
+
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const dead = new Set(['cancelled', 'canceled', 'declined', 'expired', 'rejected']);
+
+  const live = rows.filter(
+    (b: any) => !dead.has(String(b.status || '').toLowerCase()) && new Date(b.end_date) >= todayStart,
+  );
+  live.sort((a: any, b: any) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
+
+  const past = rows
+    .filter(
+      (b: any) => !dead.has(String(b.status || '').toLowerCase()) && new Date(b.end_date) < todayStart,
+    )
+    .sort((a: any, b: any) => new Date(b.end_date).getTime() - new Date(a.end_date).getTime())
+    .slice(0, 2);
+
+  const chosen = [...live, ...past].slice(0, 5);
+
+  return chosen.map((b: any) => {
+    const start = new Date(b.start_date);
+    const end = new Date(b.end_date);
+    const isCurrent = start <= new Date() && end >= new Date();
+    return {
+      reference: b.booking_ref,
+      customer: b.customers?.full_name || b.customer_name || 'Unknown',
+      dates: `${start.toLocaleDateString()} to ${end.toLocaleDateString()}`,
+      status: b.status,
+      timing: end < todayStart ? 'past' : isCurrent ? 'current' : 'upcoming',
+      amount: `$${Number(b.total_value || b.total_amount || 0).toFixed(0)}`,
+    };
+  });
+}
+
+
 export async function executeFunction(functionName: string, rawArgs: Record<string, unknown>, supabase: SupabaseClient, userId: string, teamId: string | null): Promise<ToolResult> {
   const args = normalizeToolArgs(functionName, rawArgs || {});
   console.log(`[TOOL] Executing: ${functionName} | User: ${userId} | Team: ${teamId} | Args:`, JSON.stringify(args));
@@ -484,6 +624,27 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
         }
 
         const asked = String(question).trim();
+
+        // A question that names one of the team's own vehicles is about that
+        // vehicle, not the fleet average.
+        const namedVehicle = await detectAskFleetVehicle(supabase, teamId, asked);
+        if (namedVehicle) {
+          const vehicleRef = namedVehicle.name || vehicleDisplayName(namedVehicle);
+          console.log(`[ask_fleet] "${asked}" -> getVehicleDetails (${vehicleRef})`);
+          const detail = await executeFunction(
+            'getVehicleDetails',
+            { vehicleName: vehicleRef, vehicleId: namedVehicle.id },
+            supabase,
+            userId,
+            teamId,
+          );
+          return {
+            ...(detail as Record<string, unknown>),
+            question: asked,
+            routed_to: 'getVehicleDetails',
+          } as ToolResult;
+        }
+
         const routedTool = detectAskFleetTool(asked);
         const routedTimeframe = timeframe || detectAskFleetTimeframe(asked);
         const routedLocation = location || (await detectAskFleetLocation(supabase, teamId, asked));
@@ -1033,20 +1194,20 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
       }
 
       case "getVehicleDetails": {
-        const { vehicleName, includeBookings } = args;
-        
-        let vehicleQuery = supabase
-          .from('vehicles')
-          .select('*');
-        
-        if (teamId) {
-          vehicleQuery = vehicleQuery.eq('team_id', teamId);
+        const { vehicleName, vehicleId } = args as { vehicleName?: string; vehicleId?: string };
+
+        let vehicle: any = null;
+        if (vehicleId) {
+          let byId = supabase.from('vehicles').select('*').eq('id', vehicleId);
+          if (teamId) byId = byId.eq('team_id', teamId);
+          const { data } = await byId.maybeSingle();
+          vehicle = data || null;
         }
-        
-        const { data: vehicle } = await vehicleQuery
-          .or(`name.ilike.%${vehicleName}%,make.ilike.%${vehicleName}%,model.ilike.%${vehicleName}%`)
-          .limit(1)
-          .maybeSingle();
+        // Token-based match so "Ferrari 488 Spider" (make + model split across
+        // two columns) resolves — a single whole-phrase ILIKE never can.
+        if (!vehicle) {
+          vehicle = await findTeamVehicleByTokens(supabase, teamId, String(vehicleName || ''));
+        }
 
         if (!vehicle) return { 
           error: "Vehicle not found",
@@ -1054,24 +1215,16 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
         };
 
         const fullName = vehicleDisplayName(vehicle);
-        let bookingsData = null;
-        if (includeBookings) {
-          const { data: bookings } = await supabase
-            .from('bookings')
-            .select('*, customers(full_name)')
-            .eq('vehicle_id', vehicle.id)
-            .order('start_date', { ascending: false })
-            .limit(5);
-          bookingsData = bookings?.map(b => {
-            const customerName = b.customers?.full_name || b.customer_name || 'Unknown';
-            return {
-              customer: customerName,
-              dates: `${new Date(b.start_date).toLocaleDateString()} to ${new Date(b.end_date).toLocaleDateString()}`,
-              status: b.status,
-              amount: `$${Number(b.total_value || b.total_amount || 0).toFixed(0)}`
-            };
-          });
-        }
+        // Bookings are ALWAYS included: this used to hang off an `includeBookings`
+        // flag the registry never sends, so Rari reported "no bookings" on
+        // vehicles that were booked.
+        const bookingsData = await getVehicleBookingWindow(supabase, vehicle.id, teamId);
+        const nextBooking = bookingsData.find((b) => b.timing === 'current')
+          || bookingsData.find((b) => b.timing === 'upcoming');
+
+        const bookingSentence = nextBooking
+          ? ` ${nextBooking.timing === 'current' ? 'On rent now' : 'Next booking'}: ${nextBooking.customer}, ${nextBooking.dates} (${nextBooking.status}).`
+          : ' No current or upcoming bookings.';
 
         return { 
           vehicle: {
@@ -1083,10 +1236,13 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
             utilization: `${vehicle.utilization || 0}% utilization`,
             revenue: `$${Number(vehicle.revenue || 0).toFixed(0)} total revenue`,
             licensePlate: vehicle.license_plate,
-            vin: vehicle.vin
+            vin: vehicle.vin,
+            bookings: bookingsData,
           },
           bookings: bookingsData,
-          summary: `${fullName} in ${vehicle.location || 'Unassigned'} is currently ${vehicle.status}, priced at $${vehicle.current_rate || vehicle.daily_rate} per day with ${vehicle.utilization || 0}% utilization.`
+          bookingCount: bookingsData.length,
+          nextBooking: nextBooking || null,
+          summary: `${fullName} in ${vehicle.location || 'Unassigned'} is currently ${vehicle.status}, priced at $${vehicle.current_rate || vehicle.daily_rate} per day with ${vehicle.utilization || 0}% utilization.${bookingSentence}`
         };
       }
 
@@ -1383,52 +1539,70 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
         const maxRows = toLimit(limit, 30);
         const term = typeof searchText === 'string' ? searchText.trim() : '';
 
-        let query = supabase
-          .from('bookings')
-          .select('*, vehicles(make, model, year, location), customers(full_name)');
-        
-        if (teamId) {
-          query = query.eq('team_id', teamId);
-        }
+        const tokens = searchTokens(term);
 
-        if (status) query = query.eq('status', status);
+        const applyFilters = (q: any) => {
+          if (teamId) q = q.eq('team_id', teamId);
+          if (status) q = q.eq('status', status);
+          if (daysRange) {
+            const dateFilter = new Date();
+            dateFilter.setDate(dateFilter.getDate() - daysRange);
+            q = q.gte('start_date', dateFilter.toISOString());
+          }
+          return q;
+        };
 
-        // Free-text search across the columns that live on the booking row.
-        // Vehicle make/model live on the join, so they're matched client-side
-        // below (PostgREST can't OR across an embedded resource).
-        if (term) {
-          const like = `%${term}%`;
-          query = query.or(
-            `booking_ref.ilike.${like},customer_name.ilike.${like},customer_email.ilike.${like},vehicle_name.ilike.${like}`,
+        const select = '*, vehicles(make, model, year, location, name), customers(full_name)';
+
+        // Pass 1: booking-row columns. Pass 2: rows joined to a vehicle, so a
+        // multi-word phrase like "Ferrari 488 Spider" (make + model split across
+        // columns) can be matched token-by-token in code. Both passes ALWAYS
+        // run — the join pass used to fire only when pass 1 returned nothing.
+        const passes: any[] = [
+          applyFilters(supabase.from('bookings').select(select))
+            .order('start_date', { ascending: false })
+            .limit(tokens.length ? 500 : maxRows),
+        ];
+        if (tokens.length) {
+          passes.push(
+            applyFilters(
+              supabase
+                .from('bookings')
+                .select('*, vehicles!inner(make, model, year, location, name), customers(full_name)'),
+            )
+              .order('start_date', { ascending: false })
+              .limit(500),
           );
         }
-        
-        if (daysRange) {
-          const dateFilter = new Date();
-          dateFilter.setDate(dateFilter.getDate() - daysRange);
-          query = query.gte('start_date', dateFilter.toISOString());
+
+        const results = await Promise.all(passes);
+        const byId = new Map<string, any>();
+        for (const res of results) {
+          for (const row of res?.data || []) {
+            if (!byId.has(row.id)) byId.set(row.id, row);
+          }
+        }
+        let filteredBookings = [...byId.values()];
+
+        if (tokens.length) {
+          filteredBookings = filteredBookings.filter((b: any) =>
+            matchesAllTokens(tokens, [
+              b.booking_ref,
+              b.customer_name,
+              b.customer_email,
+              b.vehicle_name,
+              b.customers?.full_name,
+              b.vehicles?.make,
+              b.vehicles?.model,
+              b.vehicles?.year,
+              b.vehicles?.name,
+            ]),
+          );
         }
 
-        const { data: bookings } = await query
-          .order('start_date', { ascending: false })
-          .limit(Math.max(maxRows, term ? 200 : maxRows));
-
-        let filteredBookings = bookings || [];
-
-        // Second pass so a term that only matches the joined vehicle still hits.
-        if (term && filteredBookings.length === 0) {
-          let joinQuery = supabase
-            .from('bookings')
-            .select('*, vehicles!inner(make, model, year, location), customers(full_name)');
-          if (teamId) joinQuery = joinQuery.eq('team_id', teamId);
-          if (status) joinQuery = joinQuery.eq('status', status);
-          const like = `%${term}%`;
-          const { data: byVehicle } = await joinQuery
-            .or(`make.ilike.${like},model.ilike.${like}`, { foreignTable: 'vehicles' })
-            .order('start_date', { ascending: false })
-            .limit(maxRows);
-          filteredBookings = byVehicle || [];
-        }
+        filteredBookings.sort(
+          (a: any, b: any) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime(),
+        );
 
         if (location && location !== 'all') {
           filteredBookings = filteredBookings.filter((b: any) => 
@@ -1437,6 +1611,7 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
         }
 
         filteredBookings = filteredBookings.slice(0, maxRows);
+
         
         const bookingList = filteredBookings.map(b => {
           const vehicleName = b.vehicles ? vehicleDisplayName(b.vehicles) : (b.vehicle_name || 'vehicle');

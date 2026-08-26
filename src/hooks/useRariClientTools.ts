@@ -208,35 +208,49 @@ export function createRariClientTools(userId: string, teamId?: string, userRole?
     },
 
     // Get Vehicle Details
-    getVehicleDetails: async (params: { vehicleName: string; includeBookings?: boolean }) => {
+    getVehicleDetails: async (params: { vehicleName?: string; vehicle?: string }) => {
       try {
-        let vehicleQuery = supabase
-          .from('vehicles')
-          .select('*')
-          .or(`name.ilike.%${params.vehicleName}%,make.ilike.%${params.vehicleName}%,model.ilike.%${params.vehicleName}%`)
-          .limit(1);
-        
+        const term = (params.vehicleName || params.vehicle || '').trim();
+        const tokens = term.toLowerCase().split(/\s+/).filter(Boolean);
+
+        let vehicleQuery = supabase.from('vehicles').select('*').limit(500);
         if (teamId) {
           vehicleQuery = vehicleQuery.eq('team_id', teamId);
         }
-        
+
         const { data: vehicles } = await vehicleQuery;
-
-        const vehicle = vehicles?.[0];
+        const matchAll = (v: any) => {
+          const hay = [v.name, v.make, v.model, v.year, v.license_plate]
+            .filter(Boolean)
+            .map((f: any) => String(f).toLowerCase());
+          return tokens.every((t) => hay.some((h) => h.includes(t)));
+        };
+        const vehicle = (vehicles || []).find(matchAll)
+          || (vehicles || []).find((v: any) =>
+            tokens.some((t) => [v.name, v.make, v.model, v.year].filter(Boolean).some((f: any) => String(f).toLowerCase().includes(t))),
+          );
         if (!vehicle) {
-          return JSON.stringify({ error: `Vehicle "${params.vehicleName}" not found`, status: 'not_found' });
+          return JSON.stringify({ error: `Vehicle "${term}" not found`, status: 'not_found' });
         }
 
-        let bookingInfo = null;
-        if (params.includeBookings) {
-          const { data: bookings } = await supabase
-            .from('bookings')
-            .select('id, customer_name, start_date, end_date, status, total_value')
-            .eq('vehicle_id', vehicle.id)
-            .order('start_date', { ascending: false })
-            .limit(5);
-          bookingInfo = bookings;
-        }
+        // Bookings are always returned — the tool schema has no flag for them.
+        const { data: bookings } = await supabase
+          .from('bookings')
+          .select('id, booking_ref, customer_name, start_date, end_date, status, total_value')
+          .eq('vehicle_id', vehicle.id)
+          .order('start_date', { ascending: false })
+          .limit(20);
+        const dead = ['cancelled', 'canceled', 'declined', 'expired', 'rejected'];
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const live = (bookings || [])
+          .filter((b) => !dead.includes(String(b.status || '').toLowerCase()) && new Date(b.end_date) >= todayStart)
+          .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
+        const past = (bookings || [])
+          .filter((b) => !dead.includes(String(b.status || '').toLowerCase()) && new Date(b.end_date) < todayStart)
+          .slice(0, 2);
+        const bookingInfo = [...live, ...past].slice(0, 5);
+
 
         return JSON.stringify({
           vehicle: {
