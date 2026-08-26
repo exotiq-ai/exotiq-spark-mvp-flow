@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { devLog, devError, devWarn } from '@/lib/logger';
+import { safeSignOut } from '@/lib/safeSignOut';
 import { useSessionHealth, SessionHealthStatus } from '@/hooks/useSessionHealth';
 
 // Subscription tier types
@@ -768,7 +769,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     try {
-      const { error } = await supabase.auth.signOut();
+      // Shared demo accounts are signed out locally only — a global sign-out
+      // would revoke every other demo visitor's session (session_not_found).
+      const { error } = await safeSignOut(supabase, 'global');
       if (error) throw error;
     } catch (err) {
       devError('Sign out error:', err);

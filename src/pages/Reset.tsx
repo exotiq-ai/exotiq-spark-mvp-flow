@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { safeSignOut } from '@/lib/safeSignOut';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { Button } from '@/components/ui/button';
 
@@ -92,7 +93,7 @@ export const masterCacheClear = async (onStatusChange?: (status: string) => void
     setStatus('Signing out from all sessions...');
     try {
       const signOutWithTimeout = Promise.race([
-        supabase.auth.signOut({ scope: 'global' }).catch(e => {
+        safeSignOut(supabase, 'global').catch(e => {
           console.warn('[MasterClear] SignOut error (proceeding anyway):', e);
         }),
         new Promise(resolve => setTimeout(resolve, 2000))

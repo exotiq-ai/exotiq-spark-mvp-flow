@@ -1,7 +1,7 @@
 // @ts-nocheck — dynamic tool arg handling; matches the original elevenlabs-tools behaviour.
 // Shared FleetCopilot tool executor — the single implementation of every
-// Rari capability. Voice (elevenlabs-tools), MCP (rari-mcp-server) and the
-// in-app chat (fleet-copilot-chat) are thin adapters over this module.
+// Rari capability. Voice (elevenlabs-tools) and MCP (rari-mcp-server) are
+// thin adapters over this module.
 //
 // Every handler is team-scoped through the `teamId` argument. Handlers must
 // never accept a team id from tool input.
@@ -251,45 +251,52 @@ export function getTimeAgo(date: Date): string {
   return `${Math.floor(seconds / 86400)} days ago`;
 }
 
-// Peak season calendar for pricing context — expanded with real-world events
-const PEAK_SEASONS = [
-  // Miami
-  { name: 'Art Basel Miami', start: '12-01', end: '12-08', location: 'Miami', surge: 1.35 },
-  { name: 'Miami Boat Show', start: '02-12', end: '02-16', location: 'Miami', surge: 1.30 },
-  { name: 'Ultra Music Festival', start: '03-28', end: '03-30', location: 'Miami', surge: 1.35 },
-  { name: 'Miami Grand Prix', start: '05-02', end: '05-04', location: 'Miami', surge: 1.40 },
-  { name: 'Miami Open Tennis', start: '03-17', end: '03-30', location: 'Miami', surge: 1.25 },
-  { name: 'Miami Swim Week', start: '06-01', end: '06-08', location: 'Miami', surge: 1.20 },
-  { name: 'Spring Break', start: '03-10', end: '03-25', location: 'Miami', surge: 1.25 },
-  // Scottsdale / Phoenix
-  { name: 'Barrett-Jackson Auction', start: '01-18', end: '01-26', location: 'Scottsdale', surge: 1.35 },
-  { name: 'WM Phoenix Open', start: '02-03', end: '02-09', location: 'Scottsdale', surge: 1.40 },
-  { name: 'Scottsdale Arabian Horse Show', start: '02-13', end: '02-23', location: 'Scottsdale', surge: 1.20 },
-  { name: 'Spring Training Baseball', start: '02-22', end: '03-25', location: 'Scottsdale', surge: 1.20 },
-  { name: 'Scottsdale Arts Festival', start: '03-07', end: '03-09', location: 'Scottsdale', surge: 1.15 },
-  // National holidays
-  { name: 'Christmas & New Years', start: '12-20', end: '01-03', location: 'all', surge: 1.45 },
-  { name: 'Super Bowl Weekend', start: '02-05', end: '02-12', location: 'all', surge: 1.50 },
-  { name: 'Presidents Day Weekend', start: '02-14', end: '02-17', location: 'all', surge: 1.15 },
-  { name: 'Memorial Day Weekend', start: '05-23', end: '05-26', location: 'all', surge: 1.25 },
-  { name: 'Independence Day', start: '07-01', end: '07-06', location: 'all', surge: 1.30 },
-  { name: 'Labor Day Weekend', start: '08-29', end: '09-01', location: 'all', surge: 1.20 },
-  { name: 'Thanksgiving Week', start: '11-24', end: '11-30', location: 'all', surge: 1.30 },
-  { name: 'Summer Peak', start: '06-15', end: '08-15', location: 'all', surge: 1.15 },
-];
+// ---------------------------------------------------------------------------
+// Tenant locations — always derived from the tenant's own data. Hardcoded
+// city lists (the old PEAK_SEASONS calendar) were removed 2026-08-26: they
+// fabricated surge pricing for tenants in markets we know nothing about.
+// ---------------------------------------------------------------------------
 
-export function getCurrentPeakSeason(location?: string): { name: string; surge: number } | null {
-  const now = new Date();
-  const monthDay = `${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-  
-  for (const season of PEAK_SEASONS) {
-    const inRange = monthDay >= season.start && monthDay <= season.end;
-    const locationMatch = season.location === 'all' || !location || season.location.toLowerCase() === location.toLowerCase();
-    if (inRange && locationMatch) {
-      return { name: season.name, surge: season.surge };
-    }
-  }
-  return null;
+/**
+ * Returns the tenant's location names from the `locations` table, falling
+ * back to distinct vehicle locations when no location records exist.
+ */
+export async function getTenantLocations(
+  supabase: SupabaseClient,
+  teamId: string | null,
+): Promise<string[]> {
+  if (!teamId) return [];
+
+  const { data: locationRows } = await supabase
+    .from('locations')
+    .select('name, city')
+    .eq('team_id', teamId);
+
+  const names = (locationRows || [])
+    .map((r: any) => String(r.name || r.city || '').trim())
+    .filter(Boolean);
+  if (names.length > 0) return [...new Set(names)];
+
+  const { data: vehicleRows } = await supabase
+    .from('vehicles')
+    .select('location')
+    .eq('team_id', teamId)
+    .not('location', 'is', null);
+
+  return [...new Set((vehicleRows || []).map((r: any) => String(r.location).trim()).filter(Boolean))];
+}
+
+/**
+ * The tenant's primary location (first configured), or undefined when the
+ * tenant has none — callers must then operate fleet-wide rather than
+ * defaulting to an arbitrary city.
+ */
+export async function getTenantDefaultLocation(
+  supabase: SupabaseClient,
+  teamId: string | null,
+): Promise<string | undefined> {
+  const locations = await getTenantLocations(supabase, teamId);
+  return locations[0];
 }
 
 // Helper function to build team filter for multi-tenant queries
@@ -456,7 +463,7 @@ export async function executeFunction(functionName: string, args: Record<string,
         const vehicleList = vehicleData.map((v: Vehicle) => ({
           name: `${v.year} ${v.make} ${v.model}`,
           status: v.status,
-          location: v.location || 'Miami',
+          location: v.location || 'Unassigned',
           rate: `$${v.daily_rate || v.current_rate} per day`,
           utilization: `${(v.utilization || 0)}% utilized`,
           revenue: `$${Number(v.revenue || 0).toFixed(0)} total revenue`
@@ -464,7 +471,7 @@ export async function executeFunction(functionName: string, args: Record<string,
 
         // Group by location for summary
         const locationGroups = vehicleData.reduce((acc: Record<string, number>, v: Vehicle) => {
-          const loc = v.location || 'Miami';
+          const loc = v.location || 'Unassigned';
           acc[loc] = (acc[loc] || 0) + 1;
           return acc;
         }, {} as Record<string, number>);
@@ -606,7 +613,7 @@ export async function executeFunction(functionName: string, args: Record<string,
           return {
             customer: customerName,
             vehicle: vehicleName,
-            location: b.vehicles?.location || 'Miami',
+            location: b.vehicles?.location || 'Unassigned',
             dates: formatDateRange(b.start_date, b.end_date),
             status: b.status,
             total: formatUsdWords(totalAmount),
@@ -651,7 +658,7 @@ export async function executeFunction(functionName: string, args: Record<string,
           
           return {
             description: `${customerName} booked ${vehicleName} for ${formatUsdWords(amountVal)}`,
-            location: b.vehicles?.location || 'Miami',
+            location: b.vehicles?.location || 'Unassigned',
             timeAgo,
             status: b.status,
             amount: formatUsdWords(amountVal),
@@ -717,9 +724,6 @@ export async function executeFunction(functionName: string, args: Record<string,
           ? vehicles.reduce((sum, v) => sum + ((v.utilization || 0) || 0), 0) / vehicles.length 
           : 0;
 
-        // Check for peak season
-        const peakSeason = getCurrentPeakSeason(location);
-
         console.log(`[getFleetMetrics] Results - Vehicles: ${vehicles.length}, Active Bookings: ${activeBookings}, Revenue: $${totalRevenue}`);
 
         return {
@@ -731,9 +735,7 @@ export async function executeFunction(functionName: string, args: Record<string,
           averageUtilization: `${avgUtilization.toFixed(0)}%`,
           location: location || 'all',
           timeframe,
-          peakSeason: peakSeason?.name || null,
-          surgePricing: peakSeason?.surge || 1.0,
-          summary: `${location ? `${location} fleet` : 'Your fleet'} has ${vehicles.length} vehicles with ${activeBookings} active bookings and ${formatUsdWords(totalRevenue)} in revenue for the ${timeframe || 'period'}.${peakSeason ? ` Currently in ${peakSeason.name} with ${((peakSeason.surge - 1) * 100).toFixed(0)}% surge pricing recommended.` : ''}`
+          summary: `${location ? `${location} fleet` : 'Your fleet'} has ${vehicles.length} vehicles with ${activeBookings} active bookings and ${formatUsdWords(totalRevenue)} in revenue for the ${timeframe || 'period'}.`
         };
       }
 
@@ -762,7 +764,7 @@ export async function executeFunction(functionName: string, args: Record<string,
         const locationStats: Record<string, any> = {};
         
         for (const vehicle of allVehicles) {
-          const loc = vehicle.location || 'Miami';
+          const loc = vehicle.location || 'Unassigned';
           if (!locationStats[loc]) {
             locationStats[loc] = {
               location: loc,
@@ -804,17 +806,10 @@ export async function executeFunction(functionName: string, args: Record<string,
         const { data: bookings } = await bookingsQuery.in('status', ['active', 'confirmed', 'pending']);
         
         for (const booking of (bookings || [])) {
-          const loc = booking.vehicles?.location || 'Miami';
+          const loc = booking.vehicles?.location || 'Unassigned';
           if (locationStats[loc]) {
             locationStats[loc].activeBookings = (locationStats[loc].activeBookings || 0) + 1;
           }
-        }
-        
-        // Check peak season for each location
-        for (const loc of Object.keys(locationStats)) {
-          const peakSeason = getCurrentPeakSeason(loc);
-          locationStats[loc].peakSeason = peakSeason?.name || null;
-          locationStats[loc].surgePricing = peakSeason?.surge || 1.0;
         }
         
         // If specific location requested
@@ -830,10 +825,8 @@ export async function executeFunction(functionName: string, args: Record<string,
               avgUtilization: `${stats.avgUtilization.toFixed(0)}%`,
               avgRate: `$${stats.avgRate.toFixed(0)}`,
               activeBookings: stats.activeBookings || 0,
-              peakSeason: stats.peakSeason,
-              surgePricing: stats.surgePricing,
               topVehicles: stats.vehicles.slice(0, 5),
-              summary: `${stats.location} has ${stats.vehicleCount} vehicles with ${formatUsdWords(stats.totalRevenue)} total revenue, ${stats.avgUtilization.toFixed(0)}% average utilization, and ${stats.activeBookings || 0} active bookings.${stats.peakSeason ? ` Currently in ${stats.peakSeason} peak season.` : ''}`
+              summary: `${stats.location} has ${stats.vehicleCount} vehicles with ${formatUsdWords(stats.totalRevenue)} total revenue, ${stats.avgUtilization.toFixed(0)}% average utilization, and ${stats.activeBookings || 0} active bookings.`
             };
           }
         }
@@ -849,8 +842,7 @@ export async function executeFunction(functionName: string, args: Record<string,
             totalRevenueRaw: l.totalRevenue,
             avgUtilization: `${l.avgUtilization.toFixed(0)}%`,
             avgRate: `$${l.avgRate.toFixed(0)}`,
-            activeBookings: l.activeBookings || 0,
-            peakSeason: l.peakSeason
+            activeBookings: l.activeBookings || 0
           })),
           summary: `Your fleet spans ${locations.length} location${locations.length > 1 ? 's' : ''}: ${locations.map((l: any) => `${l.location} (${l.vehicleCount} vehicles, ${formatUsdWords(l.totalRevenue)} revenue)`).join('; ')}.`
         };
@@ -968,7 +960,7 @@ export async function executeFunction(functionName: string, args: Record<string,
           vehicle: {
             name: fullName,
             status: vehicle.status,
-            location: vehicle.location || 'Miami',
+            location: vehicle.location || 'Unassigned',
             rate: `$${vehicle.current_rate || vehicle.daily_rate} per day`,
             suggestedRate: vehicle.suggested_rate ? `$${vehicle.suggested_rate}` : null,
             utilization: `${vehicle.utilization || 0}% utilization`,
@@ -977,7 +969,7 @@ export async function executeFunction(functionName: string, args: Record<string,
             vin: vehicle.vin
           },
           bookings: bookingsData,
-          summary: `${fullName} in ${vehicle.location || 'Miami'} is currently ${vehicle.status}, priced at $${vehicle.current_rate || vehicle.daily_rate} per day with ${vehicle.utilization || 0}% utilization.`
+          summary: `${fullName} in ${vehicle.location || 'Unassigned'} is currently ${vehicle.status}, priced at $${vehicle.current_rate || vehicle.daily_rate} per day with ${vehicle.utilization || 0}% utilization.`
         };
       }
 
@@ -1023,7 +1015,7 @@ export async function executeFunction(functionName: string, args: Record<string,
             
             bookingsData = bookings.map(b => ({
               vehicle: b.vehicles ? `${b.vehicles.year} ${b.vehicles.make} ${b.vehicles.model}` : 'Unknown',
-              location: b.vehicles?.location || 'Miami',
+              location: b.vehicles?.location || 'Unassigned',
               dates: `${new Date(b.start_date).toLocaleDateString()} to ${new Date(b.end_date).toLocaleDateString()}`,
               status: b.status,
               total: `$${Number(b.total_value || b.total_amount || 0).toFixed(0)}`
@@ -1252,7 +1244,7 @@ export async function executeFunction(functionName: string, args: Record<string,
           return {
             customer: b.customers?.full_name || b.customer_name || 'Unknown',
             vehicle: vehicleName,
-            location: b.vehicles?.location || 'Miami',
+            location: b.vehicles?.location || 'Unassigned',
             dates: formatDateRange(b.start_date, b.end_date),
             status: b.status,
             total: formatUsdWords(amt),
@@ -1294,7 +1286,7 @@ export async function executeFunction(functionName: string, args: Record<string,
         
         const claimList = filteredClaims.map(c => ({
           vehicle: c.vehicles ? `${c.vehicles.year} ${c.vehicles.make} ${c.vehicles.model}` : 'Unknown',
-          location: c.vehicles?.location || 'Miami',
+          location: c.vehicles?.location || 'Unassigned',
           severity: c.severity,
           status: c.claim_status,
           estimatedCost: c.estimated_cost ? `$${c.estimated_cost}` : 'TBD',
@@ -1335,7 +1327,7 @@ export async function executeFunction(functionName: string, args: Record<string,
         
         const maintenanceList = filteredMaintenance.map(m => ({
           vehicle: m.vehicles ? `${m.vehicles.year} ${m.vehicles.make} ${m.vehicles.model}` : 'Unknown',
-          location: m.vehicles?.location || 'Miami',
+          location: m.vehicles?.location || 'Unassigned',
           type: m.maintenance_type,
           scheduledDate: new Date(m.scheduled_date).toLocaleDateString(),
           estimatedCost: m.estimated_cost ? `$${m.estimated_cost}` : 'TBD',
@@ -1447,14 +1439,11 @@ export async function executeFunction(functionName: string, args: Record<string,
 
 
       case "getDemandForecast": {
-        const { city = 'miami', days = 14, location } = args;
-        const effectiveLocation = location || city;
-        console.log(`[getDemandForecast] Team: ${teamId}, Location: ${effectiveLocation}, Days: ${days}`);
-        
-        // Check for peak season
-        const peakSeason = getCurrentPeakSeason(effectiveLocation);
-        
-        let demandMultiplier = peakSeason?.surge || 1.0;
+        const { city, days = 14, location } = args;
+        // No hardcoded default city: fall back to the tenant's own primary
+        // location, and run fleet-wide when the tenant has none.
+        const effectiveLocation = location || city || await getTenantDefaultLocation(supabase, teamId);
+        console.log(`[getDemandForecast] Team: ${teamId}, Location: ${effectiveLocation || 'fleet-wide'}, Days: ${days}`);
         
         // Get upcoming bookings for demand context
         let bookingsQuery = supabase
@@ -1481,16 +1470,12 @@ export async function executeFunction(functionName: string, args: Record<string,
         const upcomingRevenue = filteredBookings.reduce((sum, b) => sum + Number(b.total_value || 0), 0);
         
         return {
-          location: effectiveLocation,
+          location: effectiveLocation || 'all',
           forecastDays: days,
-          demandMultiplier,
-          peakSeason: peakSeason?.name || null,
           upcomingBookings,
           upcomingRevenue: formatUsdWords(upcomingRevenue),
           upcomingRevenueRaw: upcomingRevenue,
-          summary: peakSeason 
-            ? `${effectiveLocation} is currently in ${peakSeason.name} peak season with a ${((peakSeason.surge - 1) * 100).toFixed(0)}% surge multiplier. You have ${upcomingBookings} bookings worth ${formatUsdWords(upcomingRevenue)} coming up.`
-            : `Standard demand period for ${effectiveLocation}. You have ${upcomingBookings} bookings worth ${formatUsdWords(upcomingRevenue)} coming up.`
+          summary: `For ${effectiveLocation || 'your fleet'} over the next ${days} days, you have ${upcomingBookings} bookings worth ${formatUsdWords(upcomingRevenue)} coming up.`
         };
       }
 
@@ -1525,11 +1510,8 @@ export async function executeFunction(functionName: string, args: Record<string,
 
         const currentRate = Number(vehicle.current_rate || vehicle.daily_rate);
         const utilization = vehicle.utilization || 0;
-        const vehicleLocation = vehicle.location || 'Miami';
-        
-        // Check for peak season
-        const peakSeason = getCurrentPeakSeason(vehicleLocation);
-        
+        const vehicleLocation = vehicle.location || 'Unassigned';
+
         // Calculate recommendation
         let suggestedRate = currentRate;
         const factors: string[] = [];
@@ -1543,12 +1525,6 @@ export async function executeFunction(functionName: string, args: Record<string,
           factors.push(`low utilization at ${utilization}%`);
         }
         
-        // Peak season adjustment
-        if (peakSeason) {
-          suggestedRate *= peakSeason.surge;
-          factors.push(`${peakSeason.name} peak season (${((peakSeason.surge - 1) * 100).toFixed(0)}% surge)`);
-        }
-        
         // Use suggested_rate from DB if available
         if (vehicle.suggested_rate && Math.abs(vehicle.suggested_rate - suggestedRate) < 100) {
           suggestedRate = vehicle.suggested_rate;
@@ -1557,6 +1533,8 @@ export async function executeFunction(functionName: string, args: Record<string,
         suggestedRate = Math.round(suggestedRate / 5) * 5;
         const difference = suggestedRate - currentRate;
         const percentChange = ((difference / currentRate) * 100).toFixed(1);
+        const factorsText = factors.length > 0 ? factors.join(' and ') : 'current utilization and market conditions';
+
         
         return {
           vehicle: `${vehicle.year} ${vehicle.make} ${vehicle.model}`,
@@ -1566,7 +1544,6 @@ export async function executeFunction(functionName: string, args: Record<string,
           difference: difference > 0 ? `+$${difference}` : `$${difference}`,
           percentChange: difference > 0 ? `+${percentChange}%` : `${percentChange}%`,
           factors,
-          peakSeason: peakSeason?.name || null,
           monthlyImpact: `$${Math.abs(difference * 20).toFixed(0)}/month`,
           summary: suggestedRate > currentRate 
             ? `I recommend increasing the rate for your ${vehicle.year} ${vehicle.make} ${vehicle.model} in ${vehicleLocation} from $${currentRate} to $${suggestedRate} per day, a ${percentChange}% increase. This is based on ${factors.join(' and ')}. This could add approximately $${Math.abs(difference * 20).toFixed(0)} per month in revenue.`
@@ -1609,12 +1586,9 @@ export async function executeFunction(functionName: string, args: Record<string,
         const underUtilized = vehicles.filter(v => (v.utilization || 0) < 50);
         const highPerformers = vehicles.filter(v => (v.utilization || 0) > 75);
         
-        // Check for peak season
-        const peakSeason = getCurrentPeakSeason(location);
-        
         // Group by location
         const byLocation = vehicles.reduce((acc, v) => {
-          const loc = v.location || 'Miami';
+          const loc = v.location || 'Unassigned';
           if (!acc[loc]) {
             acc[loc] = { count: 0, revenue: 0, avgRate: 0 };
           }
@@ -1637,8 +1611,6 @@ export async function executeFunction(functionName: string, args: Record<string,
           underUtilizedCount: underUtilized.length,
           highPerformerCount: highPerformers.length,
           location: location || 'all',
-          peakSeason: peakSeason?.name || null,
-          surgePricing: peakSeason?.surge || 1.0,
           byLocation: Object.entries(byLocation).map(([loc, stats]) => ({
             location: loc,
             vehicleCount: stats.count,
@@ -1655,7 +1627,7 @@ export async function executeFunction(functionName: string, args: Record<string,
           recommendations: underUtilized.length > 0 
             ? `${underUtilized.length} vehicles are under-utilized and may benefit from price adjustments.`
             : 'Fleet pricing looks healthy!',
-          summary: `Your fleet${location ? ` in ${location}` : ''} has ${totalVehicles} vehicles with an average daily rate of $${avgRate.toFixed(0)} and ${avgUtilization.toFixed(0)}% average utilization. Total fleet revenue is ${formatUsdWords(totalRevenue)}. ${highPerformers.length} vehicles are performing above 75% utilization, while ${underUtilized.length} are below 50%.${peakSeason ? ` Currently in ${peakSeason.name} peak season.` : ''}`
+          summary: `Your fleet${location ? ` in ${location}` : ''} has ${totalVehicles} vehicles with an average daily rate of $${avgRate.toFixed(0)} and ${avgUtilization.toFixed(0)}% average utilization. Total fleet revenue is ${formatUsdWords(totalRevenue)}. ${highPerformers.length} vehicles are performing above 75% utilization, while ${underUtilized.length} are below 50%.`
         };
       }
 
@@ -1663,25 +1635,9 @@ export async function executeFunction(functionName: string, args: Record<string,
         const { eventName, location } = args;
         console.log(`[getEventImpact] Searching for event: ${eventName}, Location: ${location}`);
         
-        // Check peak seasons calendar first
-        const peakSeason = PEAK_SEASONS.find(s => 
-          s.name.toLowerCase().includes(eventName.toLowerCase()) ||
-          eventName.toLowerCase().includes(s.name.toLowerCase())
-        );
-        
-        if (peakSeason) {
-          return {
-            searched: eventName,
-            eventName: peakSeason.name,
-            dates: `${peakSeason.start} to ${peakSeason.end}`,
-            location: peakSeason.location,
-            surgePricing: peakSeason.surge,
-            impact: `${((peakSeason.surge - 1) * 100).toFixed(0)}% surge pricing recommended`,
-            recommendation: `During ${peakSeason.name}, increase rates by ${((peakSeason.surge - 1) * 100).toFixed(0)}% to capture peak demand. Ensure high-value vehicles are available.`,
-            summary: `${peakSeason.name} runs from ${peakSeason.start} to ${peakSeason.end} in ${peakSeason.location}. I recommend a ${((peakSeason.surge - 1) * 100).toFixed(0)}% price surge during this period to maximize revenue.`
-          };
-        }
-        
+        // The hardcoded peak-season calendar was removed — event context
+        // comes from the tenant's real demand data (MotorIQ), not a static
+        // Miami/Scottsdale event list.
         return {
           searched: eventName,
           impact: "Events typically increase demand by 15-30% in the surrounding area",
@@ -1943,7 +1899,7 @@ export async function executeFunction(functionName: string, args: Record<string,
         const locationData: Record<string, any> = {};
         
         for (const vehicle of vehicles) {
-          const loc = vehicle.location || 'Miami';
+          const loc = vehicle.location || 'Unassigned';
           if (!locationData[loc]) {
             locationData[loc] = {
               location: loc,
@@ -2024,7 +1980,7 @@ export async function executeFunction(functionName: string, args: Record<string,
           return {
             customer: b.customers?.full_name || b.customer_name || 'Unknown',
             vehicle: b.vehicles ? `${b.vehicles.year} ${b.vehicles.make} ${b.vehicles.model}` : 'Unknown',
-            location: b.vehicles?.location || 'Miami',
+            location: b.vehicles?.location || 'Unassigned',
             balanceDue: `$${Number(b.balance_due || b.total_value || 0).toFixed(0)}`,
             daysOverdue: daysOverdue > 0 ? daysOverdue : 0,
             urgency: daysOverdue > 30 ? 'critical' : daysOverdue > 14 ? 'high' : 'normal'
@@ -2083,7 +2039,7 @@ export async function executeFunction(functionName: string, args: Record<string,
           .filter((v: any) => !recentlyBookedIds.has(v.id))
           .map((v: any) => ({
             vehicle: `${v.year} ${v.make} ${v.model}`,
-            location: v.location || 'Miami',
+            location: v.location || 'Unassigned',
             currentRate: `$${v.current_rate}`,
             utilization: `${v.utilization || 0}%`,
             recommendation: (v.utilization || 0) < 20 ? 'Consider 10-15% price reduction' : 'Run promotion'
@@ -2149,7 +2105,7 @@ export async function executeFunction(functionName: string, args: Record<string,
         for (const vehicle of vehicles) {
           if (conflictedIds.has(vehicle.id)) continue;
           
-          const loc = vehicle.location || 'Miami';
+          const loc = vehicle.location || 'Unassigned';
           if (!byLocation[loc]) byLocation[loc] = [];
           
           byLocation[loc].push({
@@ -2311,18 +2267,6 @@ export async function executeFunction(functionName: string, args: Record<string,
             title: `${maintenance.length} vehicles need service this week`,
             description: `Schedule maintenance for ${maintenance.slice(0, 3).map((m: any) => m.vehicles?.name || 'vehicle').join(', ')}`,
             action: 'Review and confirm maintenance appointments'
-          });
-        }
-        
-        // Check peak season
-        const peakSeason = getCurrentPeakSeason();
-        if (peakSeason) {
-          insights.push({
-            type: 'pricing',
-            priority: 'high',
-            title: `${peakSeason.name} peak season active`,
-            description: `Demand is elevated. Recommended ${((peakSeason.surge - 1) * 100).toFixed(0)}% surge pricing.`,
-            action: 'Review and adjust vehicle rates'
           });
         }
         
@@ -2501,7 +2445,7 @@ export async function executeFunction(functionName: string, args: Record<string,
           customer_phone: customer_phone || null,
           start_date,
           end_date,
-          pickup_location: veh.location || 'Miami',
+          pickup_location: veh.location || 'Unassigned',
           daily_rate: veh.current_rate || 0,
           total_value: total,
           status: 'pending',
