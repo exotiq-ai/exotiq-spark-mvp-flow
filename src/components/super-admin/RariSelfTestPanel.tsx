@@ -17,7 +17,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { AlertTriangle, CheckCircle2, Loader2, MinusCircle, PlayCircle, RefreshCw, Search, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Download, Loader2, MinusCircle, PlayCircle, RefreshCw, Search, XCircle } from 'lucide-react';
 import { describeFunctionError } from '@/lib/functionError';
 
 const SUITES = [
