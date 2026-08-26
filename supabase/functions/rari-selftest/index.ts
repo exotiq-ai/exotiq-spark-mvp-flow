@@ -540,7 +540,7 @@ function serve_handler() {
           };
         });
 
-      const tenants = profiles.map((p) => ({ teamId: p.teamId, name: p.name, currency: p.currencySymbol, strict: p.strict, sample: p.sample }));
+      const tenants = profiles.map((p) => ({ teamId: p.teamId, name: p.name, currency: p.currencySymbol, strict: p.strict, ownerEmail: p.ownerEmail, sample: p.sample }));
       const totals = { cases: total, passed: total - failed - skipped, failed, skipped };
       const isGreen = failed === 0;
       const ranAt = new Date().toISOString();
