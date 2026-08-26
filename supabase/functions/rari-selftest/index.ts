@@ -286,6 +286,19 @@ function serve_handler() {
         }
       };
 
+      // A seeding failure is a real failure, not a silent skip — otherwise the
+      // harness reports "skipped" for every fixture-dependent case.
+      if (seedFailure) {
+        push({
+          suite: 'setup',
+          tenant: testProfile?.name || 'Rari Self-Test',
+          case: 'seed-test-tenant',
+          failures: [{ assertion: 'seed', detail: seedFailure }],
+        });
+      }
+
+
+
       // =====================================================================
       // Suites that run per tenant
       // =====================================================================
