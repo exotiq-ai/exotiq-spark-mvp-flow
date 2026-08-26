@@ -1,0 +1,621 @@
+{
+  "ask_fleet": {
+    "type": "object",
+    "properties": {
+      "question": {
+        "type": "string",
+        "description": "The question exactly as the user asked it"
+      },
+      "timeframe": {
+        "type": "string",
+        "description": "Rental window to measure: today, week, month, year, or all",
+        "enum": [
+          "today",
+          "week",
+          "month",
+          "year",
+          "all"
+        ]
+      },
+      "location": {
+        "type": "string",
+        "description": "Filter to a single location/market"
+      }
+    },
+    "required": [
+      "question"
+    ],
+    "additionalProperties": false
+  },
+  "checkAvailability": {
+    "type": "object",
+    "properties": {
+      "vehicle": {
+        "type": "string",
+        "description": "Vehicle name or make/model"
+      },
+      "startDate": {
+        "type": "string",
+        "description": "ISO start date"
+      },
+      "endDate": {
+        "type": "string",
+        "description": "ISO end date"
+      },
+      "location": {
+        "type": "string",
+        "description": "Filter to a single location/market"
+      }
+    },
+    "required": [
+      "startDate",
+      "endDate"
+    ],
+    "additionalProperties": false
+  },
+  "compareLocations": {
+    "type": "object",
+    "properties": {
+      "timeframe": {
+        "type": "string",
+        "description": "Rental window to measure: today, week, month, year, or all",
+        "enum": [
+          "today",
+          "week",
+          "month",
+          "year",
+          "all"
+        ]
+      }
+    },
+    "additionalProperties": false
+  },
+  "create_booking_hold": {
+    "type": "object",
+    "properties": {
+      "vehicle": {
+        "type": "string",
+        "description": "Vehicle name or make/model"
+      },
+      "startDate": {
+        "type": "string",
+        "description": "ISO start date"
+      },
+      "endDate": {
+        "type": "string",
+        "description": "ISO end date"
+      },
+      "customer": {
+        "type": "string",
+        "description": "Customer name or email"
+      }
+    },
+    "required": [
+      "vehicle",
+      "startDate",
+      "endDate"
+    ],
+    "additionalProperties": false
+  },
+  "get_booking_by_reference": {
+    "type": "object",
+    "properties": {
+      "reference": {
+        "type": "string",
+        "description": "Booking reference"
+      }
+    },
+    "required": [
+      "reference"
+    ],
+    "additionalProperties": false
+  },
+  "get_bookings": {
+    "type": "object",
+    "properties": {
+      "status": {
+        "type": "string",
+        "description": "pending, requested, confirmed, active, completed, or cancelled"
+      },
+      "timeframe": {
+        "type": "string",
+        "description": "Rental window to measure: today, week, month, year, or all",
+        "enum": [
+          "today",
+          "week",
+          "month",
+          "year",
+          "all"
+        ]
+      },
+      "limit": {
+        "type": "number",
+        "description": "Maximum number of records to return"
+      }
+    },
+    "additionalProperties": false
+  },
+  "get_fleet_vehicles": {
+    "type": "object",
+    "properties": {
+      "status": {
+        "type": "string",
+        "description": "available, booked, maintenance, or retired",
+        "enum": [
+          "available",
+          "booked",
+          "maintenance",
+          "retired"
+        ]
+      },
+      "location": {
+        "type": "string",
+        "description": "Filter to a single location/market"
+      },
+      "limit": {
+        "type": "number",
+        "description": "Maximum number of records to return"
+      }
+    },
+    "additionalProperties": false
+  },
+  "get_open_work_orders": {
+    "type": "object",
+    "properties": {
+      "limit": {
+        "type": "number",
+        "description": "Maximum number of records to return"
+      }
+    },
+    "additionalProperties": false
+  },
+  "get_recent_activity": {
+    "type": "object",
+    "properties": {
+      "limit": {
+        "type": "number",
+        "description": "Maximum number of records to return"
+      }
+    },
+    "additionalProperties": false
+  },
+  "get_todays_schedule": {
+    "type": "object",
+    "properties": {
+      "location": {
+        "type": "string",
+        "description": "Filter to a single location/market"
+      }
+    },
+    "additionalProperties": false
+  },
+  "get_vehicle_status": {
+    "type": "object",
+    "properties": {
+      "vehicle": {
+        "type": "string",
+        "description": "Vehicle name, make/model, or plate"
+      }
+    },
+    "required": [
+      "vehicle"
+    ],
+    "additionalProperties": false
+  },
+  "getCustomerLifetimeValue": {
+    "type": "object",
+    "properties": {
+      "customer": {
+        "type": "string",
+        "description": "Customer name or email"
+      }
+    },
+    "required": [
+      "customer"
+    ],
+    "additionalProperties": false
+  },
+  "getCustomerProfile": {
+    "type": "object",
+    "properties": {
+      "customer": {
+        "type": "string",
+        "description": "Customer name or email"
+      }
+    },
+    "required": [
+      "customer"
+    ],
+    "additionalProperties": false
+  },
+  "getCustomerSegments": {
+    "type": "object",
+    "properties": {
+      "segment": {
+        "type": "string",
+        "description": "Segment filter",
+        "enum": [
+          "all",
+          "vip",
+          "high_value",
+          "active",
+          "warm",
+          "at_risk",
+          "new"
+        ]
+      },
+      "location": {
+        "type": "string",
+        "description": "Filter to a single location/market"
+      },
+      "limit": {
+        "type": "number",
+        "description": "Maximum number of records to return"
+      }
+    },
+    "additionalProperties": false
+  },
+  "getDamageReports": {
+    "type": "object",
+    "properties": {
+      "limit": {
+        "type": "number",
+        "description": "Maximum number of records to return"
+      }
+    },
+    "additionalProperties": false
+  },
+  "getDemandForecast": {
+    "type": "object",
+    "properties": {
+      "location": {
+        "type": "string",
+        "description": "Filter to a single location/market"
+      },
+      "timeframe": {
+        "type": "string",
+        "description": "Rental window to measure: today, week, month, year, or all",
+        "enum": [
+          "today",
+          "week",
+          "month",
+          "year",
+          "all"
+        ]
+      }
+    },
+    "additionalProperties": false
+  },
+  "getEventImpact": {
+    "type": "object",
+    "properties": {
+      "location": {
+        "type": "string",
+        "description": "Filter to a single location/market"
+      }
+    },
+    "additionalProperties": false
+  },
+  "getFleetMetrics": {
+    "type": "object",
+    "properties": {
+      "timeframe": {
+        "type": "string",
+        "description": "Rental window to measure: today, week, month, year, or all",
+        "enum": [
+          "today",
+          "week",
+          "month",
+          "year",
+          "all"
+        ]
+      },
+      "location": {
+        "type": "string",
+        "description": "Filter to a single location/market"
+      }
+    },
+    "additionalProperties": false
+  },
+  "getFleetPricingOverview": {
+    "type": "object",
+    "properties": {
+      "location": {
+        "type": "string",
+        "description": "Filter to a single location/market"
+      }
+    },
+    "additionalProperties": false
+  },
+  "getFleetProfitLoss": {
+    "type": "object",
+    "properties": {
+      "timeframe": {
+        "type": "string",
+        "description": "Rental window to measure: today, week, month, year, or all",
+        "enum": [
+          "today",
+          "week",
+          "month",
+          "year",
+          "all"
+        ]
+      },
+      "location": {
+        "type": "string",
+        "description": "Filter to a single location/market"
+      }
+    },
+    "additionalProperties": false
+  },
+  "getIdleVehicles": {
+    "type": "object",
+    "properties": {
+      "days": {
+        "type": "number",
+        "description": "Idle threshold in days"
+      },
+      "location": {
+        "type": "string",
+        "description": "Filter to a single location/market"
+      }
+    },
+    "additionalProperties": false
+  },
+  "getLocationMetrics": {
+    "type": "object",
+    "properties": {
+      "location": {
+        "type": "string",
+        "description": "Filter to a single location/market"
+      },
+      "timeframe": {
+        "type": "string",
+        "description": "Rental window to measure: today, week, month, year, or all",
+        "enum": [
+          "today",
+          "week",
+          "month",
+          "year",
+          "all"
+        ]
+      }
+    },
+    "additionalProperties": false
+  },
+  "getMultiLocationAvailability": {
+    "type": "object",
+    "properties": {
+      "startDate": {
+        "type": "string",
+        "description": "ISO start date"
+      },
+      "endDate": {
+        "type": "string",
+        "description": "ISO end date"
+      }
+    },
+    "required": [
+      "startDate",
+      "endDate"
+    ],
+    "additionalProperties": false
+  },
+  "getOutstandingBalances": {
+    "type": "object",
+    "properties": {
+      "limit": {
+        "type": "number",
+        "description": "Maximum number of records to return"
+      }
+    },
+    "additionalProperties": false
+  },
+  "getPaymentSummary": {
+    "type": "object",
+    "properties": {
+      "timeframe": {
+        "type": "string",
+        "description": "Rental window to measure: today, week, month, year, or all",
+        "enum": [
+          "today",
+          "week",
+          "month",
+          "year",
+          "all"
+        ]
+      }
+    },
+    "additionalProperties": false
+  },
+  "getPricingRecommendation": {
+    "type": "object",
+    "properties": {
+      "vehicle": {
+        "type": "string",
+        "description": "Vehicle name or make/model"
+      }
+    },
+    "required": [
+      "vehicle"
+    ],
+    "additionalProperties": false
+  },
+  "getRariInsights": {
+    "type": "object",
+    "properties": {
+      "limit": {
+        "type": "number",
+        "description": "Maximum number of records to return"
+      }
+    },
+    "additionalProperties": false
+  },
+  "getRevenueAnalysis": {
+    "type": "object",
+    "properties": {
+      "timeframe": {
+        "type": "string",
+        "description": "Rental window to measure: today, week, month, year, or all",
+        "enum": [
+          "today",
+          "week",
+          "month",
+          "year",
+          "all"
+        ]
+      },
+      "location": {
+        "type": "string",
+        "description": "Filter to a single location/market"
+      }
+    },
+    "additionalProperties": false
+  },
+  "getTopPerformers": {
+    "type": "object",
+    "properties": {
+      "timeframe": {
+        "type": "string",
+        "description": "Rental window to measure: today, week, month, year, or all",
+        "enum": [
+          "today",
+          "week",
+          "month",
+          "year",
+          "all"
+        ]
+      },
+      "limit": {
+        "type": "number",
+        "description": "Maximum number of records to return"
+      },
+      "location": {
+        "type": "string",
+        "description": "Filter to a single location/market"
+      }
+    },
+    "additionalProperties": false
+  },
+  "getUpcomingMaintenance": {
+    "type": "object",
+    "properties": {
+      "limit": {
+        "type": "number",
+        "description": "Maximum number of records to return"
+      },
+      "location": {
+        "type": "string",
+        "description": "Filter to a single location/market"
+      }
+    },
+    "additionalProperties": false
+  },
+  "getVaultDocuments": {
+    "type": "object",
+    "properties": {
+      "vehicle": {
+        "type": "string",
+        "description": "Filter to one vehicle"
+      },
+      "limit": {
+        "type": "number",
+        "description": "Maximum number of records to return"
+      }
+    },
+    "additionalProperties": false
+  },
+  "getVehicleDetails": {
+    "type": "object",
+    "properties": {
+      "vehicle": {
+        "type": "string",
+        "description": "Vehicle name, make/model, or plate"
+      }
+    },
+    "required": [
+      "vehicle"
+    ],
+    "additionalProperties": false
+  },
+  "getVehicleProfitLoss": {
+    "type": "object",
+    "properties": {
+      "vehicle": {
+        "type": "string",
+        "description": "Vehicle name or make/model"
+      },
+      "timeframe": {
+        "type": "string",
+        "description": "Rental window to measure: today, week, month, year, or all",
+        "enum": [
+          "today",
+          "week",
+          "month",
+          "year",
+          "all"
+        ]
+      }
+    },
+    "required": [
+      "vehicle"
+    ],
+    "additionalProperties": false
+  },
+  "getVehicleSpecs": {
+    "type": "object",
+    "properties": {
+      "vehicle": {
+        "type": "string",
+        "description": "Vehicle name or make/model"
+      }
+    },
+    "required": [
+      "vehicle"
+    ],
+    "additionalProperties": false
+  },
+  "logFeedback": {
+    "type": "object",
+    "properties": {
+      "feedback": {
+        "type": "string",
+        "description": "What the user said"
+      }
+    },
+    "required": [
+      "feedback"
+    ],
+    "additionalProperties": false
+  },
+  "search_customer": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "string",
+        "description": "Search text"
+      }
+    },
+    "required": [
+      "query"
+    ],
+    "additionalProperties": false
+  },
+  "searchBookings": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "string",
+        "description": "Search text"
+      },
+      "limit": {
+        "type": "number",
+        "description": "Maximum number of records to return"
+      }
+    },
+    "required": [
+      "query"
+    ],
+    "additionalProperties": false
+  }
+}
