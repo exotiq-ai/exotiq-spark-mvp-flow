@@ -1726,37 +1726,61 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
       }
 
       case "getCustomerLifetimeValue": {
-        const { customerName } = args;
-        
+        const { customerName } = args as { customerName?: string };
+        const asked = String(customerName || '').trim();
+        if (!asked) {
+          return { error: 'no_customer_reference', summary: 'Which customer would you like the lifetime value for?' };
+        }
+
         let query = supabase
           .from('customers')
-          .select('full_name, lifetime_value, total_bookings, customer_status');
-        
-        if (teamId) {
-          query = query.eq('team_id', teamId);
-        }
-        
-        const { data: customer } = await query
-          .ilike('full_name', `%${customerName}%`)
-          .maybeSingle();
+          .select('id, full_name, email, lifetime_value, total_bookings, customer_status');
+        if (teamId) query = query.eq('team_id', teamId);
 
-        if (!customer) return { 
-          error: "Customer not found",
-          summary: `I couldn't find a customer matching "${customerName}".`
-        };
+        const tokens = searchTokens(asked);
+        const { data: rows } = await query
+          .or(`full_name.ilike.%${asked}%,email.ilike.%${asked}%`)
+          .order('lifetime_value', { ascending: false, nullsFirst: false })
+          .limit(25);
+
+        let candidates = (rows || []).filter((c: any) => matchesAllTokens(tokens, [c.full_name, c.email]));
+        if (candidates.length === 0) candidates = rows || [];
+
+        if (candidates.length === 0) {
+          return {
+            error: 'not_found',
+            searched: asked,
+            summary: `I couldn't find a customer matching "${asked}".`,
+          };
+        }
+
+        // Prefer an exact full-name match, otherwise the highest-value match.
+        const exact = candidates.find(
+          (c: any) => String(c.full_name || '').toLowerCase() === asked.toLowerCase(),
+        );
+        const customer = exact || candidates[0];
+        const others = candidates.filter((c: any) => c.id !== customer.id);
 
         const ltv = Number(customer.lifetime_value || 0);
-        return { 
+        let summary = `${customer.full_name} is a ${customer.customer_status || 'regular'} customer with ${customer.total_bookings || 0} bookings and ${formatUsdWords(ltv)} lifetime value.`;
+        if (!exact && others.length) {
+          summary += ` ${others.length} other customer${others.length === 1 ? '' : 's'} also match "${asked}" (${others.slice(0, 3).map((c: any) => c.full_name).join(', ')}) — say the full name if you meant one of those.`;
+        }
+
+        return {
           customer: {
             name: customer.full_name,
+            email: customer.email,
             status: customer.customer_status,
             totalBookings: customer.total_bookings || 0,
             lifetimeValue: formatUsdWords(ltv),
-            lifetimeValueRaw: ltv
+            lifetimeValueRaw: ltv,
           },
-          summary: `${customer.full_name} is a ${customer.customer_status || 'regular'} customer with ${customer.total_bookings || 0} bookings and ${formatUsdWords(ltv)} lifetime value.`
+          otherMatches: others.map((c: any) => c.full_name),
+          summary,
         };
       }
+
 
       case "getVaultDocuments": {
         const { category, status, vehicle, limit } = args;
