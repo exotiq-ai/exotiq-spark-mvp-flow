@@ -71,6 +71,7 @@ export const TOOL_CASES: ToolCase[] = [
   { tool: 'getPricingRecommendation', args: { vehicle: '{{vehicle}}' }, needs: ['vehicle'] },
   { tool: 'getFleetPricingOverview', args: {} },
   { tool: 'getDemandForecast', args: { timeframe: 'month' } },
+  { tool: 'getEventImpact', args: { eventName: 'Art Basel' } },
   { tool: 'getEventImpact', args: {} },
 
   // ---- operations ----
@@ -93,6 +94,8 @@ export interface QuestionCase {
   question: string;
   /** Substrings, any of which proves the right routing. */
   expectAnyOf: string[];
+  /** ask_fleet routed_to values that also prove correct routing. */
+  expectRoutedTo?: string[];
   needs?: ToolCase['needs'];
   label: string;
 }
@@ -102,35 +105,41 @@ export const QUESTION_CASES: QuestionCase[] = [
     label: 'single-vehicle question routes to vehicle detail',
     question: "what's going on with the {{vehicleWord}}?",
     expectAnyOf: ['{{vehicleWord}}'],
+    expectRoutedTo: ['getVehicleDetails'],
     needs: ['vehicle'],
   },
   {
     label: 'vehicle availability phrasing stays vehicle-scoped',
     question: 'is the {{vehicleWord}} booked right now?',
     expectAnyOf: ['{{vehicleWord}}'],
+    expectRoutedTo: ['getVehicleDetails'],
     needs: ['vehicle'],
   },
   {
     label: 'multi-word vehicle name resolves',
     question: 'tell me about the {{vehicle}}',
     expectAnyOf: ['{{vehicleWord}}'],
+    expectRoutedTo: ['getVehicleDetails'],
     needs: ['vehicle'],
   },
   {
     label: 'customer first name resolves to that customer',
     question: 'what has {{customer}} booked with us?',
     expectAnyOf: ['{{customer}}'],
+    expectRoutedTo: ['getCustomerProfile'],
     needs: ['customer'],
   },
   {
     label: 'money question stays fleet-wide',
     question: 'who owes me money?',
     expectAnyOf: ['owe', 'outstanding', 'balance', 'paid', 'no ', 'nothing'],
+    expectRoutedTo: ['getOutstandingBalances'],
   },
   {
     label: 'out-of-service question routes to operations',
     question: "what's out of service right now?",
     expectAnyOf: ['service', 'maintenance', 'work order', 'no ', 'nothing', 'all '],
+    expectRoutedTo: ['get_open_work_orders', 'getUpcomingMaintenance'],
   },
   {
     label: 'generic performance question stays fleet-wide',
@@ -141,6 +150,7 @@ export const QUESTION_CASES: QuestionCase[] = [
     label: 'schedule question routes to today',
     question: 'what do I have going on today?',
     expectAnyOf: ['today', 'pickup', 'return', 'nothing', 'no '],
+    expectRoutedTo: ['get_todays_schedule'],
   },
 ];
 
