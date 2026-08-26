@@ -299,6 +299,23 @@ export const RariSelfTestPanel = () => {
     }
   };
 
+  const exportCsv = () => {
+    if (!result) return;
+    downloadFile(`rari-selftest-${runStamp(result.ranAt)}.csv`, 'text/csv', buildCsv(result));
+    toast.success('CSV report downloaded');
+  };
+
+  const exportJson = () => {
+    if (!result) return;
+    downloadFile(
+      `rari-selftest-${runStamp(result.ranAt)}.json`,
+      'application/json',
+      JSON.stringify(result, null, 2),
+    );
+    toast.success('JSON report downloaded');
+  };
+
+
   const tenantCols = result?.tenants ?? [];
   const caseRows = useMemo(() => Object.keys(result?.matrix ?? {}).sort(), [result]);
   const lastGreen = history.find((h) => h.is_green);
