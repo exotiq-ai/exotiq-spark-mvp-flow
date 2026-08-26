@@ -78,18 +78,17 @@ export const uploadVehiclePhoto = async (
       return { url: '', path: '', originalBytes, compressedBytes, error: error.message };
     }
 
-    // Get 1-year signed URL for private bucket access
-    const { data: signedData, error: signedError } = await supabase.storage
+    // Stable public URL — never persist signed URLs, they expire.
+    const { data: publicData } = supabase.storage
       .from(bucket)
-      .createSignedUrl(data.path, 60 * 60 * 24 * 365); // 1 year
+      .getPublicUrl(data.path);
 
-    if (signedError) {
-      console.error('Signed URL error:', signedError);
-      return { url: '', path: '', originalBytes, compressedBytes, error: signedError.message };
+    if (!publicData?.publicUrl) {
+      return { url: '', path: '', originalBytes, compressedBytes, error: 'Failed to resolve photo URL' };
     }
 
     const result: PhotoUploadResult = {
-      url: signedData.signedUrl,
+      url: publicData.publicUrl,
       path: data.path,
       originalBytes,
       compressedBytes,
@@ -109,12 +108,12 @@ export const uploadVehiclePhoto = async (
           });
 
         if (!thumbError) {
-          const { data: thumbSignedData } = await supabase.storage
+          const { data: thumbPublic } = supabase.storage
             .from(bucket)
-            .createSignedUrl(thumbPath, 60 * 60 * 24 * 365);
+            .getPublicUrl(thumbPath);
 
-          if (thumbSignedData?.signedUrl) {
-            result.thumbnailUrl = thumbSignedData.signedUrl;
+          if (thumbPublic?.publicUrl) {
+            result.thumbnailUrl = thumbPublic.publicUrl;
             result.thumbnailPath = thumbPath;
           }
         }
@@ -122,6 +121,7 @@ export const uploadVehiclePhoto = async (
         console.warn('Thumbnail generation failed, continuing without:', thumbErr);
       }
     }
+
 
     return result;
   } catch (error: any) {
