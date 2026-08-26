@@ -119,6 +119,81 @@ const TENANT_STORAGE_KEY = 'rari_selftest_tenants';
 const DEFAULT_TENANT_EMAILS = ['hello@exotiq.ai', 'info@exoticsbythebay.co'];
 const DEFAULT_TENANT_NAMES = ['exotiq', 'exotics by the bay'];
 
+const csvCell = (value: unknown): string => {
+  if (value === null || value === undefined) return '';
+  const s = typeof value === 'string' ? value : JSON.stringify(value);
+  return `"${s.replace(/"/g, '""')}"`;
+};
+
+const downloadFile = (filename: string, mime: string, contents: string) => {
+  const blob = new Blob([contents], { type: `${mime};charset=utf-8` });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+};
+
+const runStamp = (ranAt: string) => new Date(ranAt).toISOString().replace(/[:.]/g, '-');
+
+/** One row per case x tenant, with the drill-down trace flattened alongside. */
+const buildCsv = (result: RunResponse): string => {
+  const header = [
+    'case',
+    'suite',
+    'tenant',
+    'team_id',
+    'owner_email',
+    'currency',
+    'strict',
+    'status',
+    'tool',
+    'failed_assertions',
+    'failure_details',
+    'missing_required',
+    'undeclared_args',
+    'tool_input',
+    'normalized_args',
+    'tool_output',
+  ];
+  const tenantMeta = new Map(result.tenants.map((t) => [t.name, t]));
+  const rows: string[] = [header.join(',')];
+
+  for (const caseName of Object.keys(result.matrix).sort()) {
+    const byTenant = result.matrix[caseName] ?? {};
+    for (const tenantKey of Object.keys(byTenant)) {
+      const status = byTenant[tenantKey];
+      const detail = result.details.find((d) => d.case === caseName && d.tenant === tenantKey);
+      const meta = tenantMeta.get(tenantKey);
+      rows.push(
+        [
+          csvCell(caseName),
+          csvCell(detail?.suite ?? ''),
+          csvCell(tenantKey),
+          csvCell(meta?.teamId ?? ''),
+          csvCell(meta?.ownerEmail ?? ''),
+          csvCell(meta?.currency ?? ''),
+          csvCell(meta ? String(meta.strict) : ''),
+          csvCell(status),
+          csvCell(detail?.tool ?? ''),
+          csvCell((detail?.failures ?? []).map((f) => f.assertion).filter(Boolean).join(' | ')),
+          csvCell((detail?.failures ?? []).map((f) => f.detail).filter(Boolean).join(' | ')),
+          csvCell((detail?.mapping?.missingRequired ?? []).join(' | ')),
+          csvCell((detail?.mapping?.undeclaredArgs ?? []).join(' | ')),
+          csvCell(detail?.input ?? ''),
+          csvCell(detail?.mapping?.normalizedArgs ?? ''),
+          csvCell(detail?.output ?? ''),
+        ].join(','),
+      );
+    }
+  }
+  return rows.join('\n');
+};
+
+
 export const RariSelfTestPanel = () => {
   const [selected, setSelected] = useState<string[]>(SUITES.map((s) => s.id));
   const [running, setRunning] = useState(false);
