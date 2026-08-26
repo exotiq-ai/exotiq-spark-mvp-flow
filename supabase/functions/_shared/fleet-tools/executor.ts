@@ -378,11 +378,97 @@ async function detectAskFleetLocation(
     .sort((a, b) => b.length - a.length)[0];
 }
 
-export async function executeFunction(functionName: string, args: Record<string, unknown>, supabase: SupabaseClient, userId: string, teamId: string | null): Promise<ToolResult> {
+/**
+ * Registry param name -> handler param name.
+ *
+ * `registry.ts` is synced to ElevenLabs, so its schemas are frozen. Handlers
+ * historically used different spellings, which meant every single-entity
+ * lookup received `undefined`. This map bridges the two; both spellings work.
+ *
+ * Keep this in sync with the parity test (src/test/fleet-tools.parity.test.ts).
+ */
+export const TOOL_PARAM_ALIASES: Record<string, Record<string, string>> = {
+  get_vehicle_status: { vehicle: 'vehicle_name' },
+  getVehicleDetails: { vehicle: 'vehicleName' },
+  getVehicleSpecs: { vehicle: 'vehicleName' },
+  checkAvailability: { vehicle: 'vehicleName' },
+  getVehicleProfitLoss: { vehicle: 'vehicleName' },
+  getPricingRecommendation: { vehicle: 'vehicleName' },
+  getCustomerProfile: { customer: 'customerName' },
+  getCustomerLifetimeValue: { customer: 'customerName' },
+  getIdleVehicles: { days: 'daysIdle' },
+  create_booking_hold: {
+    customer: 'customer_name',
+    startDate: 'start_date',
+    endDate: 'end_date',
+    // `vehicle` (free text) is resolved to `vehicle_id` inside the handler,
+    // scoped to the caller's team.
+  },
+};
+
+/** Copy registry-named args onto the handler names the executor reads. */
+export function normalizeToolArgs(
+  functionName: string,
+  args: Record<string, unknown>,
+): Record<string, unknown> {
+  const aliases = TOOL_PARAM_ALIASES[functionName];
+  if (!aliases) return { ...(args || {}) };
+  const out: Record<string, unknown> = { ...(args || {}) };
+  for (const [from, to] of Object.entries(aliases)) {
+    if (out[to] === undefined && out[from] !== undefined) out[to] = out[from];
+  }
+  return out;
+}
+
+/** Human vehicle name that never renders a leading "null"/"undefined" year. */
+export function vehicleDisplayName(v: {
+  year?: number | string | null;
+  make?: string | null;
+  model?: string | null;
+  name?: string | null;
+} | null | undefined): string {
+  if (!v) return 'Unknown vehicle';
+  const year = v.year === null || v.year === undefined || v.year === '' ? '' : String(v.year);
+  const parts = [year, v.make || '', v.model || ''].map((s) => String(s).trim()).filter(Boolean);
+  const composed = parts.join(' ').trim();
+  return composed || (v.name ? String(v.name) : 'Unknown vehicle');
+}
+
+/** Clamp a caller-supplied limit into a sane range. */
+function toLimit(value: unknown, fallback: number, max = 100): number {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return fallback;
+  return Math.min(Math.floor(n), max);
+}
+
+/** Resolve a free-text vehicle reference to one vehicle inside the team. */
+async function resolveTeamVehicle(
+  supabase: SupabaseClient,
+  teamId: string | null,
+  text: string,
+): Promise<{ vehicle?: any; matches?: any[]; error?: string }> {
+  const term = String(text || '').trim();
+  if (!term) return { error: 'no_vehicle_reference' };
+  let q = supabase
+    .from('vehicles')
+    .select('id, name, year, make, model, current_rate, location, status');
+  if (teamId) q = q.eq('team_id', teamId);
+  const { data } = await q
+    .or(`name.ilike.%${term}%,make.ilike.%${term}%,model.ilike.%${term}%`)
+    .limit(5);
+  const matches = data || [];
+  if (matches.length === 0) return { error: 'not_found' };
+  if (matches.length > 1) return { matches };
+  return { vehicle: matches[0] };
+}
+
+export async function executeFunction(functionName: string, rawArgs: Record<string, unknown>, supabase: SupabaseClient, userId: string, teamId: string | null): Promise<ToolResult> {
+  const args = normalizeToolArgs(functionName, rawArgs || {});
   console.log(`[TOOL] Executing: ${functionName} | User: ${userId} | Team: ${teamId} | Args:`, JSON.stringify(args));
 
   try {
     switch (functionName) {
+
       case "ask_fleet": {
         const { question, timeframe, location } = args as {
           question?: string;
