@@ -16,7 +16,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { AlertTriangle, CheckCircle2, Loader2, MinusCircle, PlayCircle, RefreshCw, XCircle } from 'lucide-react';
-import { getFunctionErrorMessage } from '@/lib/functionError';
+import { describeFunctionError } from '@/lib/functionError';
 
 const SUITES = [
   { id: 'contract', label: 'Contract', hint: 'Registry / executor parity' },
@@ -101,7 +101,7 @@ export const RariSelfTestPanel = () => {
       if (payload.ok) toast.success(`All ${payload.totals.cases} cases passed`);
       else toast.error(`${payload.totals.failed} case(s) failed`);
     } catch (e) {
-      toast.error(await getFunctionErrorMessage(e, 'Self-test run failed'));
+      toast.error(await describeFunctionError(e, 'Self-test run failed'));
     } finally {
       setRunning(false);
     }
