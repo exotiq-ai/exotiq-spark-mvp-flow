@@ -364,11 +364,16 @@ function serve_handler() {
             }
             const summary = String(result?.summary || '').toLowerCase();
             const wanted = q.expectAnyOf.map((w) => String(substitute(w, p.sample)).toLowerCase()).filter(Boolean);
-            const routed = wanted.some((w) => summary.includes(w));
+            const routedTo = String(result?.routed_to || '');
+            // Routing passes when the answer mentions the expected subject OR
+            // ask_fleet demonstrably routed to the expected handler.
+            const routedByTool = Array.isArray(q.expectRoutedTo) && q.expectRoutedTo.includes(routedTo);
+            const routed = routedByTool || wanted.some((w) => summary.includes(w));
             const caseFailures = [
               ...assertResult(result, { teamId: p.teamId, args: { question }, strict: false }),
-              ...(routed ? [] : [{ assertion: 'routing', detail: `expected one of [${wanted.join(', ')}] in: ${summary.slice(0, 200)}` }]),
+              ...(routed ? [] : [{ assertion: 'routing', detail: `routed_to=${routedTo || 'n/a'}; expected one of [${wanted.join(', ')}] in: ${summary.slice(0, 200)}` }]),
             ];
+
             push({ suite: 'questions', tenant: p.name, case: q.label, tool: 'ask_fleet', args: { question }, question, rawResult: result, summary: summary.slice(0, 160), failures: caseFailures });
           }
         }
