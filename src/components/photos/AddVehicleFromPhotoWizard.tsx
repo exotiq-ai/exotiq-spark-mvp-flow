@@ -174,14 +174,14 @@ export const AddVehicleFromPhotoWizard = ({
         // Analyze with AI
         const { data: analysisData, error: analysisError } = await supabase.functions.invoke(
           'analyze-vehicle-photo',
-          { body: { imageUrl: signedData.signedUrl, filename: file.name } }
+          { body: { imageUrl: publicData.publicUrl, filename: file.name } }
         );
         
         const analysis = analysisError ? null : analysisData as AIAnalysisResult;
         
         uploadedPhotos.push({
           file,
-          url: signedData.signedUrl,
+          url: publicData.publicUrl,
           storagePath: uploadData.path,
           analysis,
         });
