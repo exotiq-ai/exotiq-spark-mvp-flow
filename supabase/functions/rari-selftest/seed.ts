@@ -36,6 +36,7 @@ const SEED_VEHICLES = [
 ];
 
 export async function seedTestTenant(supabase: any, teamId: string) {
+  assertSelftestTeam(teamId);
   await unseedTestTenant(supabase, teamId);
 
   const vehicleRows = SEED_VEHICLES.map((v) => ({
@@ -99,6 +100,7 @@ export async function seedTestTenant(supabase: any, teamId: string) {
 }
 
 export async function unseedTestTenant(supabase: any, teamId: string) {
+  assertSelftestTeam(teamId);
   await supabase.from('bookings').delete().eq('team_id', teamId).eq('notes', SEED_TAG);
   const { data: seeded } = await supabase
     .from('vehicles')
