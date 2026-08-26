@@ -437,17 +437,76 @@ function serve_handler() {
         row[r.tenant] = r.status === 'skipped' ? 'skip' : (r.failures || []).length ? 'FAIL' : 'pass';
       }
 
+      const tenants = profiles.map((p) => ({ teamId: p.teamId, name: p.name, currency: p.currencySymbol, strict: p.strict, sample: p.sample }));
+      const totals = { cases: total, passed: total - failed - skipped, failed, skipped };
+      const isGreen = failed === 0;
+      const ranAt = new Date().toISOString();
+
+      // ---- regression against the last green run ------------------------------
+      const { data: lastGreen } = await admin
+        .from('rari_selftest_runs')
+        .select('id, ran_at, matrix')
+        .eq('is_green', true)
+        .order('ran_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const regressions: any[] = [];
+      const fixed: any[] = [];
+      const newCases: any[] = [];
+      if (lastGreen?.matrix) {
+        const prev = lastGreen.matrix as Record<string, Record<string, string>>;
+        for (const [caseName, row] of Object.entries(matrix)) {
+          for (const [tenant, status] of Object.entries(row)) {
+            const before = prev?.[caseName]?.[tenant];
+            if (before === undefined) { newCases.push({ case: caseName, tenant, status }); continue; }
+            if (before === 'pass' && status === 'FAIL') regressions.push({ case: caseName, tenant });
+            if (before === 'FAIL' && status === 'pass') fixed.push({ case: caseName, tenant });
+          }
+        }
+      }
+
+      // ---- persist the run artifact -------------------------------------------
+      let runId: string | null = null;
+      try {
+        const { data: inserted, error: insErr } = await admin
+          .from('rari_selftest_runs')
+          .insert({
+            ran_at: ranAt,
+            ran_by: caller.id,
+            ran_by_email: caller.email ?? null,
+            suites,
+            tenants,
+            totals,
+            matrix,
+            failures,
+            elapsed_ms: Date.now() - started,
+            is_green: isGreen,
+          })
+          .select('id')
+          .maybeSingle();
+        if (insErr) console.error('[rari-selftest] artifact insert failed', insErr);
+        runId = inserted?.id ?? null;
+      } catch (e) {
+        console.error('[rari-selftest] artifact insert threw', e);
+      }
+
       return json({
-        ok: failed === 0,
-        ranAt: new Date().toISOString(),
+        ok: isGreen,
+        runId,
+        ranAt,
         elapsedMs: Date.now() - started,
         suites,
-        tenants: profiles.map((p) => ({ teamId: p.teamId, name: p.name, currency: p.currencySymbol, strict: p.strict, sample: p.sample })),
-        totals: { cases: total, passed: total - failed - skipped, failed, skipped },
+        tenants,
+        totals,
         failures,
         matrix,
+        comparedTo: lastGreen ? { runId: lastGreen.id, ranAt: lastGreen.ran_at } : null,
+        regressions,
+        fixed,
+        newCases,
         results: body.verbose === false ? undefined : results,
-      }, failed === 0 ? 200 : 200);
+      }, 200);
     } catch (error) {
       console.error('[rari-selftest] fatal', error);
       return json({ error: 'selftest_failed', message: String(error?.message || error) }, 500);
