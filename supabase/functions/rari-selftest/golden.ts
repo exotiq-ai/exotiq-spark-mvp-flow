@@ -2,7 +2,7 @@
 // Golden-number cross-checks: what Rari says out loud must equal what the
 // database says. Computed independently via the service-role path, then
 // compared against the tool payloads.
-import { executeFunction, resolveTimeframeWindow } from '../_shared/fleet-tools/executor.ts';
+import { executeFunction, resolveTimeframeWindow, applyRentalWindow } from '../_shared/fleet-tools/executor.ts';
 
 interface Failure { assertion: string; detail: string }
 
