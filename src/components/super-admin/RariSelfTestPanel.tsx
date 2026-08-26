@@ -385,9 +385,14 @@ export const RariSelfTestPanel = () => {
                     <tr className="border-b">
                       <th className="text-left py-2 pr-4 font-medium">Case</th>
                       {tenantCols.map((t) => (
-                        <th key={t.teamId} className="py-2 px-2 font-medium text-center whitespace-nowrap">
-                          {t.name}
-                          {t.strict && <Badge variant="outline" className="ml-1">test</Badge>}
+                        <th key={t.teamId} className="py-2 px-2 font-medium text-center whitespace-nowrap align-bottom">
+                          <span className="flex items-center justify-center gap-1">
+                            {t.name}
+                            <Badge variant="outline" className="text-[10px]">{t.strict ? 'test' : 'live'}</Badge>
+                          </span>
+                          {t.ownerEmail && (
+                            <span className="block text-[10px] font-normal text-muted-foreground">{t.ownerEmail}</span>
+                          )}
                         </th>
                       ))}
                       <th className="py-2 px-2 font-medium text-center">workspace</th>
