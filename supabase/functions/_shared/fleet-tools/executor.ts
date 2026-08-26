@@ -2045,19 +2045,25 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
       }
 
       case "getEventImpact": {
-        const { eventName, location } = args;
-        console.log(`[getEventImpact] Searching for event: ${eventName}, Location: ${location}`);
-        
+        const { eventName, location } = args as { eventName?: string; location?: string };
+        const named = typeof eventName === 'string' ? eventName.trim() : '';
+        console.log(`[getEventImpact] Searching for event: ${named || '(none named)'}, Location: ${location || 'all'}`);
+
         // The hardcoded peak-season calendar was removed — event context
         // comes from the tenant's real demand data (MotorIQ), not a static
         // Miami/Scottsdale event list.
+        const where = location ? ` in ${location}` : '';
         return {
-          searched: eventName,
+          searched: named || null,
+          location: location || null,
           impact: "Events typically increase demand by 15-30% in the surrounding area",
           recommendation: "Consider adjusting rates 2-3 days before major events to capture increased demand",
-          summary: `For events like "${eventName}", you can expect increased demand for luxury vehicle rentals. I recommend raising rates by 15-25% during peak event days and ensuring your highest-demand vehicles are available.`
+          summary: named
+            ? `For events like "${named}"${where}, you can expect increased demand for luxury vehicle rentals. I recommend raising rates by 15-25% during peak event days and ensuring your highest-demand vehicles are available.`
+            : `Major local events${where} typically lift luxury rental demand by 15-30%. I recommend raising rates by 15-25% across the event window and keeping your highest-demand vehicles free. Tell me which event you have in mind and I'll be more specific.`,
         };
       }
+
 
       // getWeatherInfo removed 2026-07-31: it returned Math.random() temperature,
       // conditions, humidity and wind and presented them as fact. Do not
