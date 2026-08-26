@@ -525,7 +525,7 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
           query = query.ilike('location', `%${location}%`);
         }
 
-        const { data: vehicles, error } = await query.order('created_at', { ascending: false });
+        const { data: vehicles, error } = await query.order('created_at', { ascending: false }).limit(maxVehicles);
         
         if (error) {
           console.error('[get_fleet_vehicles] Database error:', error);
