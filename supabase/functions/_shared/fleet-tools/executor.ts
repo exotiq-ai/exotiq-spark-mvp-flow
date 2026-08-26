@@ -1503,19 +1503,43 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
       }
 
       case "getVaultDocuments": {
-        const { category, status } = args;
+        const { category, status, vehicle, limit } = args;
+
+        // Optional vehicle filter, resolved inside the caller's team only.
+        let vehicleFilterId: string | null = null;
+        let vehicleFilterName: string | null = null;
+        if (vehicle && String(vehicle).trim()) {
+          const resolved = await resolveTeamVehicle(supabase, teamId, String(vehicle));
+          if (resolved.error === 'not_found') {
+            return {
+              error: 'vehicle_not_found',
+              summary: `I couldn't find a vehicle matching "${vehicle}" in your fleet, so I didn't pull any documents.`,
+            };
+          }
+          if (resolved.matches) {
+            return {
+              error: 'ambiguous_vehicle',
+              matches: resolved.matches.map((v: any) => vehicleDisplayName(v)),
+              summary: `Several vehicles match "${vehicle}": ${resolved.matches.map((v: any) => vehicleDisplayName(v)).join(', ')}. Which one?`,
+            };
+          }
+          vehicleFilterId = resolved.vehicle.id;
+          vehicleFilterName = vehicleDisplayName(resolved.vehicle);
+        }
 
         let docsQuery = supabase
           .from('documents')
           .select('id, name, type, status, expires_at, verification_status, vehicles(make, model, year)')
           .eq('team_id', teamId)
           .order('expires_at', { ascending: true, nullsFirst: false })
-          .limit(50);
+          .limit(toLimit(limit, 50));
 
         if (category) docsQuery = docsQuery.eq('type', category);
         if (status) docsQuery = docsQuery.eq('status', status);
+        if (vehicleFilterId) docsQuery = docsQuery.eq('vehicle_id', vehicleFilterId);
 
         const { data: docs, error: docsError } = await docsQuery;
+
 
         if (docsError) {
           console.error('[getVaultDocuments] Query failed:', docsError);
