@@ -1868,7 +1868,23 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
       }
 
       case "logFeedback": {
-        const { feedbackType, keywords, userQuery, rariResponse, context } = args;
+        // `feedback` is the registry param: the raw thing the user said.
+        const { feedback, feedbackType, keywords, userQuery, rariResponse, context } = args;
+        const feedbackText = (typeof feedback === 'string' && feedback.trim())
+          ? feedback.trim()
+          : (typeof userQuery === 'string' ? userQuery : '');
+        if (!feedbackText) {
+          return {
+            success: false,
+            error: 'empty_feedback',
+            summary: "I didn't catch what you'd like me to pass along. Could you say it again?",
+          };
+        }
+        let parsedContext: unknown = null;
+        if (context) {
+          try { parsedContext = typeof context === 'string' ? JSON.parse(context) : context; }
+          catch { parsedContext = { raw: String(context) }; }
+        }
         console.log(`[logFeedback] Logging feedback: ${feedbackType}`);
         
         const { error } = await supabase
@@ -1877,9 +1893,9 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
             user_id: userId,
             feedback_type: feedbackType || 'feature_request',
             keywords: keywords ? keywords.split(',').map((k: string) => k.trim()) : [],
-            user_query: userQuery,
-            rari_response: rariResponse,
-            context: context ? JSON.parse(context) : null
+            user_query: feedbackText,
+            rari_response: rariResponse ?? null,
+            context: parsedContext
           });
 
         if (error) {
@@ -1893,7 +1909,7 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
 
         return { 
           success: true,
-          summary: "I've logged your feedback. This feature is coming soon, and the team will review your request. Is there anything else I can help you with?"
+          summary: "I've logged that feedback and the team will see it. Anything else?"
         };
       }
 
