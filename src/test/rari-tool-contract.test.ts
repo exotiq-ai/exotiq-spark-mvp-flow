@@ -57,7 +57,8 @@ describe('Rari tool registry contract', () => {
     for (const c of TOOL_CASES) {
       const tool = FLEET_TOOLS.find((t) => t.name === c.tool);
       if (!tool) continue;
-      const declared = new Set(tool.parameters.map((p) => p.name));
+      const schema = toJsonSchema(tool) as { properties?: Record<string, unknown> };
+      const declared = new Set(Object.keys(schema.properties ?? {}));
       for (const key of Object.keys(c.args)) {
         // create_booking_hold cases intentionally exercise handler-side aliases.
         if (declared.has(key)) continue;
