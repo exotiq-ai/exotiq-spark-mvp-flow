@@ -205,9 +205,39 @@ function serve_handler() {
         return json({ action, teamId: body.teamId || TEST_TEAM_ID, removed });
       }
 
+      // ---- tenant list (for the Super Admin picker) --------------------------
+      if (action === 'tenants') {
+        const { data: teams } = await admin
+          .from('teams')
+          .select('id, name, currency, owner_id, is_demo_account')
+          .order('name', { ascending: true })
+          .limit(500);
+        const ownerIds = [...new Set((teams || []).map((t: any) => t.owner_id).filter(Boolean))];
+        const { data: owners } = ownerIds.length
+          ? await admin.from('profiles').select('id, email').in('id', ownerIds)
+          : { data: [] as any[] };
+        const emailById = new Map((owners || []).map((o: any) => [o.id, o.email]));
+        return json({
+          action,
+          testTeamId: TEST_TEAM_ID,
+          tenants: (teams || []).map((t: any) => ({
+            teamId: t.id,
+            name: t.name,
+            currency: String(t.currency || 'USD').toUpperCase(),
+            ownerEmail: emailById.get(t.owner_id) ?? null,
+            isDemo: !!t.is_demo_account,
+            isTestWorkspace: t.id === TEST_TEAM_ID,
+          })),
+        });
+      }
+
       // ---- tenant matrix ----------------------------------------------------
       let teamIds: string[] = Array.isArray(body.teams) && body.teams.length ? body.teams : [];
-      if (!teamIds.length) {
+      if (teamIds.length) {
+        // The dedicated test workspace is the only tenant with deterministic
+        // fixtures, so it is always part of the matrix.
+        teamIds = [TEST_TEAM_ID, ...teamIds.filter((id) => id !== TEST_TEAM_ID)];
+      } else {
         const { data: teams } = await admin
           .from('teams')
           .select('id, name')
