@@ -11,7 +11,7 @@
 // credentials ever live in a script or CI env.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.77.0';
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
-import { executeFunction } from '../_shared/fleet-tools/executor.ts';
+import { executeFunction, normalizeToolArgs, TOOL_PARAM_ALIASES } from '../_shared/fleet-tools/executor.ts';
 import { FLEET_TOOLS } from '../_shared/fleet-tools/registry.ts';
 import { mintTestToolToken, mintExpiredToolToken } from './token.ts';
 import { assertResult, assertCurrency, collectRecordIds } from './assertions.ts';
@@ -107,6 +107,46 @@ async function profileTenant(supabase: any, teamId: string): Promise<TenantProfi
 
 function missingNeeds(needs: string[] | undefined, sample: Record<string, string | null>): string[] {
   return (needs || []).filter((n) => !sample[n]);
+}
+
+// ---- drill-down helpers ---------------------------------------------------
+const MAX_DETAIL_CHARS = 6000;
+
+function pretty(value: unknown): string {
+  let s: string;
+  try {
+    s = JSON.stringify(value ?? null, null, 2) ?? 'null';
+  } catch {
+    s = String(value);
+  }
+  return s.length > MAX_DETAIL_CHARS ? `${s.slice(0, MAX_DETAIL_CHARS)}\n… truncated` : s;
+}
+
+/** How the registry schema for a tool maps onto the handler args actually used. */
+function registryMapping(tool: string, args: Record<string, unknown>) {
+  const def = FLEET_TOOLS.find((t) => t.name === tool) || null;
+  const aliases = TOOL_PARAM_ALIASES[tool] || {};
+  const declared = (def?.params || []).map((p: any) => p.name);
+  return {
+    tool,
+    foundInRegistry: !!def,
+    category: def?.category ?? null,
+    readOnly: def?.readOnly ?? null,
+    aliasMap: aliases,
+    params: (def?.params || []).map((p: any) => ({
+      registryName: p.name,
+      handlerName: aliases[p.name] ?? p.name,
+      type: p.type,
+      required: !!p.required,
+      supplied: args?.[p.name] !== undefined,
+      value: args?.[p.name] ?? null,
+    })),
+    undeclaredArgs: Object.keys(args || {}).filter((k) => !declared.includes(k)),
+    missingRequired: (def?.params || [])
+      .filter((p: any) => p.required && (args?.[p.name] === undefined || args?.[p.name] === ''))
+      .map((p: any) => p.name),
+    normalizedArgs: normalizeToolArgs(tool, args || {}),
+  };
 }
 
 serve_handler();
@@ -236,7 +276,7 @@ function serve_handler() {
             try {
               result = await executeFunction(c.tool, args, admin, userId, p.teamId);
             } catch (e) {
-              push({ suite: 'execution', tenant: p.name, case: c.tool, args, failures: [{ assertion: 'threw', detail: String(e?.message || e) }] });
+              push({ suite: 'execution', tenant: p.name, case: c.tool, tool: c.tool, args, rawResult: { threw: String(e?.message || e) }, failures: [{ assertion: 'threw', detail: String(e?.message || e) }] });
               continue;
             }
 
@@ -252,7 +292,9 @@ function serve_handler() {
               suite: 'execution',
               tenant: p.name,
               case: c.tool,
+              tool: c.tool,
               args,
+              rawResult: result,
               summary: String(result?.summary || '').slice(0, 160),
               failures: caseFailures,
             });
@@ -279,7 +321,7 @@ function serve_handler() {
             try {
               result = await executeFunction('ask_fleet', { question }, admin, userId, p.teamId);
             } catch (e) {
-              push({ suite: 'questions', tenant: p.name, case: q.label, question, failures: [{ assertion: 'threw', detail: String(e?.message || e) }] });
+              push({ suite: 'questions', tenant: p.name, case: q.label, tool: 'ask_fleet', args: { question }, question, rawResult: { threw: String(e?.message || e) }, failures: [{ assertion: 'threw', detail: String(e?.message || e) }] });
               continue;
             }
             const summary = String(result?.summary || '').toLowerCase();
@@ -289,7 +331,7 @@ function serve_handler() {
               ...assertResult(result, { teamId: p.teamId, args: { question }, strict: false }),
               ...(routed ? [] : [{ assertion: 'routing', detail: `expected one of [${wanted.join(', ')}] in: ${summary.slice(0, 200)}` }]),
             ];
-            push({ suite: 'questions', tenant: p.name, case: q.label, question, summary: summary.slice(0, 160), failures: caseFailures });
+            push({ suite: 'questions', tenant: p.name, case: q.label, tool: 'ask_fleet', args: { question }, question, rawResult: result, summary: summary.slice(0, 160), failures: caseFailures });
           }
         }
 
@@ -300,13 +342,16 @@ function serve_handler() {
             try {
               result = await executeFunction(c.tool, substitute(c.args, p.sample) as any, admin, userId, p.teamId);
             } catch (e) {
-              push({ suite: 'edge', tenant: p.name, case: c.label || c.tool, failures: [{ assertion: 'threw', detail: String(e?.message || e) }] });
+              push({ suite: 'edge', tenant: p.name, case: c.label || c.tool, tool: c.tool, args: c.args, rawResult: { threw: String(e?.message || e) }, failures: [{ assertion: 'threw', detail: String(e?.message || e) }] });
               continue;
             }
             push({
               suite: 'edge',
               tenant: p.name,
               case: c.label || c.tool,
+              tool: c.tool,
+              args: c.args,
+              rawResult: result,
               summary: String(result?.summary || '').slice(0, 160),
               failures: assertResult(result, { teamId: p.teamId, args: c.args, expectError: c.expectError, strict: false }),
             });
@@ -317,7 +362,7 @@ function serve_handler() {
         if (suites.includes('golden')) {
           try {
             const { checks, failures: gf } = await runGoldenChecks(admin, userId, p.teamId);
-            push({ suite: 'golden', tenant: p.name, case: 'sql-cross-check', checks, failures: gf });
+            push({ suite: 'golden', tenant: p.name, case: 'sql-cross-check', rawResult: { checks }, checks, failures: gf });
           } catch (e) {
             push({ suite: 'golden', tenant: p.name, case: 'sql-cross-check', failures: [{ assertion: 'threw', detail: String(e?.message || e) }] });
           }
@@ -350,6 +395,8 @@ function serve_handler() {
                 suite: 'isolation',
                 tenant: p.name,
                 case: `write against ${other.name}'s vehicle`,
+                tool: 'create_booking_hold',
+                rawResult: result,
                 summary: String(result?.summary || result?.error || '').slice(0, 160),
                 failures: refused ? [] : [{ assertion: 'cross-tenant-write', detail: `booking ${result.bookingId} was created against another team's vehicle` }],
               });
@@ -437,6 +484,24 @@ function serve_handler() {
         row[r.tenant] = r.status === 'skipped' ? 'skip' : (r.failures || []).length ? 'FAIL' : 'pass';
       }
 
+      // ---- drill-down details for every failing case --------------------------
+      const details = results
+        .filter((r) => (r.failures || []).length > 0)
+        .map((r) => {
+          const input = r.args ?? (r.question ? { question: r.question } : {});
+          return {
+            key: `${r.suite}::${r.case}::${r.tenant}`,
+            suite: r.suite,
+            tenant: r.tenant,
+            case: r.case,
+            tool: r.tool ?? null,
+            input,
+            mapping: r.tool ? registryMapping(r.tool, input as Record<string, unknown>) : null,
+            output: pretty(r.rawResult ?? r.detail ?? null),
+            failures: r.failures,
+          };
+        });
+
       const tenants = profiles.map((p) => ({ teamId: p.teamId, name: p.name, currency: p.currencySymbol, strict: p.strict, sample: p.sample }));
       const totals = { cases: total, passed: total - failed - skipped, failed, skipped };
       const isGreen = failed === 0;
@@ -505,7 +570,10 @@ function serve_handler() {
         regressions,
         fixed,
         newCases,
-        results: body.verbose === false ? undefined : results,
+        details,
+        results: body.verbose === false
+          ? undefined
+          : results.map(({ rawResult, ...rest }: any) => rest),
       }, 200);
     } catch (error) {
       console.error('[rari-selftest] fatal', error);
