@@ -658,7 +658,7 @@ export async function executeFunction(functionName: string, args: Record<string,
           
           return {
             description: `${customerName} booked ${vehicleName} for ${formatUsdWords(amountVal)}`,
-            location: b.vehicles?.location || 'Miami',
+            location: b.vehicles?.location || 'Unassigned',
             timeAgo,
             status: b.status,
             amount: formatUsdWords(amountVal),
@@ -764,7 +764,7 @@ export async function executeFunction(functionName: string, args: Record<string,
         const locationStats: Record<string, any> = {};
         
         for (const vehicle of allVehicles) {
-          const loc = vehicle.location || 'Miami';
+          const loc = vehicle.location || 'Unassigned';
           if (!locationStats[loc]) {
             locationStats[loc] = {
               location: loc,
@@ -960,7 +960,7 @@ export async function executeFunction(functionName: string, args: Record<string,
           vehicle: {
             name: fullName,
             status: vehicle.status,
-            location: vehicle.location || 'Miami',
+            location: vehicle.location || 'Unassigned',
             rate: `$${vehicle.current_rate || vehicle.daily_rate} per day`,
             suggestedRate: vehicle.suggested_rate ? `$${vehicle.suggested_rate}` : null,
             utilization: `${vehicle.utilization || 0}% utilization`,
@@ -969,7 +969,7 @@ export async function executeFunction(functionName: string, args: Record<string,
             vin: vehicle.vin
           },
           bookings: bookingsData,
-          summary: `${fullName} in ${vehicle.location || 'Miami'} is currently ${vehicle.status}, priced at $${vehicle.current_rate || vehicle.daily_rate} per day with ${vehicle.utilization || 0}% utilization.`
+          summary: `${fullName} in ${vehicle.location || 'Unassigned'} is currently ${vehicle.status}, priced at $${vehicle.current_rate || vehicle.daily_rate} per day with ${vehicle.utilization || 0}% utilization.`
         };
       }
 
@@ -1015,7 +1015,7 @@ export async function executeFunction(functionName: string, args: Record<string,
             
             bookingsData = bookings.map(b => ({
               vehicle: b.vehicles ? `${b.vehicles.year} ${b.vehicles.make} ${b.vehicles.model}` : 'Unknown',
-              location: b.vehicles?.location || 'Miami',
+              location: b.vehicles?.location || 'Unassigned',
               dates: `${new Date(b.start_date).toLocaleDateString()} to ${new Date(b.end_date).toLocaleDateString()}`,
               status: b.status,
               total: `$${Number(b.total_value || b.total_amount || 0).toFixed(0)}`
@@ -1244,7 +1244,7 @@ export async function executeFunction(functionName: string, args: Record<string,
           return {
             customer: b.customers?.full_name || b.customer_name || 'Unknown',
             vehicle: vehicleName,
-            location: b.vehicles?.location || 'Miami',
+            location: b.vehicles?.location || 'Unassigned',
             dates: formatDateRange(b.start_date, b.end_date),
             status: b.status,
             total: formatUsdWords(amt),
@@ -1286,7 +1286,7 @@ export async function executeFunction(functionName: string, args: Record<string,
         
         const claimList = filteredClaims.map(c => ({
           vehicle: c.vehicles ? `${c.vehicles.year} ${c.vehicles.make} ${c.vehicles.model}` : 'Unknown',
-          location: c.vehicles?.location || 'Miami',
+          location: c.vehicles?.location || 'Unassigned',
           severity: c.severity,
           status: c.claim_status,
           estimatedCost: c.estimated_cost ? `$${c.estimated_cost}` : 'TBD',
@@ -1327,7 +1327,7 @@ export async function executeFunction(functionName: string, args: Record<string,
         
         const maintenanceList = filteredMaintenance.map(m => ({
           vehicle: m.vehicles ? `${m.vehicles.year} ${m.vehicles.make} ${m.vehicles.model}` : 'Unknown',
-          location: m.vehicles?.location || 'Miami',
+          location: m.vehicles?.location || 'Unassigned',
           type: m.maintenance_type,
           scheduledDate: new Date(m.scheduled_date).toLocaleDateString(),
           estimatedCost: m.estimated_cost ? `$${m.estimated_cost}` : 'TBD',
@@ -1897,7 +1897,7 @@ export async function executeFunction(functionName: string, args: Record<string,
         const locationData: Record<string, any> = {};
         
         for (const vehicle of vehicles) {
-          const loc = vehicle.location || 'Miami';
+          const loc = vehicle.location || 'Unassigned';
           if (!locationData[loc]) {
             locationData[loc] = {
               location: loc,
@@ -1978,7 +1978,7 @@ export async function executeFunction(functionName: string, args: Record<string,
           return {
             customer: b.customers?.full_name || b.customer_name || 'Unknown',
             vehicle: b.vehicles ? `${b.vehicles.year} ${b.vehicles.make} ${b.vehicles.model}` : 'Unknown',
-            location: b.vehicles?.location || 'Miami',
+            location: b.vehicles?.location || 'Unassigned',
             balanceDue: `$${Number(b.balance_due || b.total_value || 0).toFixed(0)}`,
             daysOverdue: daysOverdue > 0 ? daysOverdue : 0,
             urgency: daysOverdue > 30 ? 'critical' : daysOverdue > 14 ? 'high' : 'normal'
@@ -2037,7 +2037,7 @@ export async function executeFunction(functionName: string, args: Record<string,
           .filter((v: any) => !recentlyBookedIds.has(v.id))
           .map((v: any) => ({
             vehicle: `${v.year} ${v.make} ${v.model}`,
-            location: v.location || 'Miami',
+            location: v.location || 'Unassigned',
             currentRate: `$${v.current_rate}`,
             utilization: `${v.utilization || 0}%`,
             recommendation: (v.utilization || 0) < 20 ? 'Consider 10-15% price reduction' : 'Run promotion'
@@ -2103,7 +2103,7 @@ export async function executeFunction(functionName: string, args: Record<string,
         for (const vehicle of vehicles) {
           if (conflictedIds.has(vehicle.id)) continue;
           
-          const loc = vehicle.location || 'Miami';
+          const loc = vehicle.location || 'Unassigned';
           if (!byLocation[loc]) byLocation[loc] = [];
           
           byLocation[loc].push({
@@ -2443,7 +2443,7 @@ export async function executeFunction(functionName: string, args: Record<string,
           customer_phone: customer_phone || null,
           start_date,
           end_date,
-          pickup_location: veh.location || 'Miami',
+          pickup_location: veh.location || 'Unassigned',
           daily_rate: veh.current_rate || 0,
           total_value: total,
           status: 'pending',
