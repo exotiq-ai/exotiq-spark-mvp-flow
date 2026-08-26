@@ -293,6 +293,10 @@ export const SuperAdminDashboard = () => {
             <SupportAccessTab />
           </TabsContent>
 
+          <TabsContent value="rari-selftest" className="space-y-4">
+            <RariSelfTestPanel />
+          </TabsContent>
+
 
 
 
