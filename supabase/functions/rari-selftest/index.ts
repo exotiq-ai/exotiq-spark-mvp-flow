@@ -255,9 +255,10 @@ function serve_handler() {
 
       // Seed the deterministic tenant so timeframe assertions are meaningful.
       const testProfile = profiles.find((p) => p.teamId === TEST_TEAM_ID);
+      let seedFailure: string | null = null;
       if (testProfile && suites.includes('execution') && body.seed !== false) {
         try {
-          const seeded = await seedTestTenant(admin, TEST_TEAM_ID);
+          const seeded = await seedTestTenant(admin, TEST_TEAM_ID, testProfile.ownerUserId);
           testProfile.sample = {
             ...testProfile.sample,
             vehicle: seeded.sampleVehicle,
@@ -267,9 +268,11 @@ function serve_handler() {
             location: seeded.location,
           };
         } catch (e) {
+          seedFailure = String((e as any)?.message || e);
           console.error('[rari-selftest] seeding failed', e);
         }
       }
+
 
       const results: any[] = [];
       const failures: any[] = [];
