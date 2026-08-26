@@ -63,7 +63,7 @@ function substitute(value: unknown, sample: Record<string, string | null>): unkn
 /** Pull real anchors (vehicle / customer / booking ref / location) from a tenant. */
 async function profileTenant(supabase: any, teamId: string): Promise<TenantProfile> {
   const [teamRes, vehicleRes, bookingRes, memberRes] = await Promise.all([
-    supabase.from('teams').select('id, name, currency, is_demo_account').eq('id', teamId).maybeSingle(),
+    supabase.from('teams').select('id, name, currency, is_demo_account, owner_id').eq('id', teamId).maybeSingle(),
     supabase.from('vehicles').select('make, model, year, location').eq('team_id', teamId).order('created_at', { ascending: false }).limit(5),
     supabase.from('bookings').select('booking_ref, customer_name').eq('team_id', teamId).not('booking_ref', 'is', null).order('created_at', { ascending: false }).limit(5),
     supabase.from('team_members').select('user_id').eq('team_id', teamId).eq('is_active', true).limit(1),
