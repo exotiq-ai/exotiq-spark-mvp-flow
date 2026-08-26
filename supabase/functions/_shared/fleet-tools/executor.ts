@@ -1533,6 +1533,8 @@ export async function executeFunction(functionName: string, args: Record<string,
         suggestedRate = Math.round(suggestedRate / 5) * 5;
         const difference = suggestedRate - currentRate;
         const percentChange = ((difference / currentRate) * 100).toFixed(1);
+        const factorsText = factors.length > 0 ? factors.join(' and ') : 'current utilization and market conditions';
+
         
         return {
           vehicle: `${vehicle.year} ${vehicle.make} ${vehicle.model}`,
