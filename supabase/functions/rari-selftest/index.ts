@@ -28,7 +28,9 @@ const TOOL_SECRET = Deno.env.get('RARI_TOOL_TOKEN_SECRET');
 const ALL_SUITES = ['execution', 'questions', 'edge', 'golden', 'isolation', 'surface', 'auth', 'drift', 'session'] as const;
 
 /** The deterministic, seedable tenant. Everything else gets shape + isolation only. */
-const TEST_TEAM_ID = Deno.env.get('RARI_SELFTEST_TEAM_ID') || 'e00f4367-03de-440a-8273-9842830f18f4';
+// Dedicated harness workspace ("Rari Self-Test"). It is deliberately NOT a real
+// tenant and NOT the demo account — seeded fixtures must never land anywhere else.
+const TEST_TEAM_ID = Deno.env.get('RARI_SELFTEST_TEAM_ID') || 'd378546a-29cb-4ed6-81ce-ef768fa3f36f';
 
 interface TenantProfile {
   teamId: string;
@@ -61,7 +63,7 @@ function substitute(value: unknown, sample: Record<string, string | null>): unkn
 /** Pull real anchors (vehicle / customer / booking ref / location) from a tenant. */
 async function profileTenant(supabase: any, teamId: string): Promise<TenantProfile> {
   const [teamRes, vehicleRes, bookingRes, memberRes] = await Promise.all([
-    supabase.from('teams').select('id, name, currency, is_demo_account').eq('id', teamId).maybeSingle(),
+    supabase.from('teams').select('id, name, currency, is_demo_account, owner_id').eq('id', teamId).maybeSingle(),
     supabase.from('vehicles').select('make, model, year, location').eq('team_id', teamId).order('created_at', { ascending: false }).limit(5),
     supabase.from('bookings').select('booking_ref, customer_name').eq('team_id', teamId).not('booking_ref', 'is', null).order('created_at', { ascending: false }).limit(5),
     supabase.from('team_members').select('user_id').eq('team_id', teamId).eq('is_active', true).limit(1),
@@ -88,7 +90,9 @@ async function profileTenant(supabase: any, teamId: string): Promise<TenantProfi
     role: teamId === TEST_TEAM_ID ? 'test' : 'data-rich',
     currencySymbol,
     strict: teamId === TEST_TEAM_ID,
-    ownerUserId: memberRes.data?.[0]?.user_id ?? null,
+    // The dedicated harness team has no active team_members row (a user may only
+    // hold one active membership), so fall back to the team owner.
+    ownerUserId: memberRes.data?.[0]?.user_id ?? team?.owner_id ?? null,
     sample: {
       vehicle: vehiclePhrase,
       vehicleWord,
@@ -433,17 +437,76 @@ function serve_handler() {
         row[r.tenant] = r.status === 'skipped' ? 'skip' : (r.failures || []).length ? 'FAIL' : 'pass';
       }
 
+      const tenants = profiles.map((p) => ({ teamId: p.teamId, name: p.name, currency: p.currencySymbol, strict: p.strict, sample: p.sample }));
+      const totals = { cases: total, passed: total - failed - skipped, failed, skipped };
+      const isGreen = failed === 0;
+      const ranAt = new Date().toISOString();
+
+      // ---- regression against the last green run ------------------------------
+      const { data: lastGreen } = await admin
+        .from('rari_selftest_runs')
+        .select('id, ran_at, matrix')
+        .eq('is_green', true)
+        .order('ran_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const regressions: any[] = [];
+      const fixed: any[] = [];
+      const newCases: any[] = [];
+      if (lastGreen?.matrix) {
+        const prev = lastGreen.matrix as Record<string, Record<string, string>>;
+        for (const [caseName, row] of Object.entries(matrix)) {
+          for (const [tenant, status] of Object.entries(row)) {
+            const before = prev?.[caseName]?.[tenant];
+            if (before === undefined) { newCases.push({ case: caseName, tenant, status }); continue; }
+            if (before === 'pass' && status === 'FAIL') regressions.push({ case: caseName, tenant });
+            if (before === 'FAIL' && status === 'pass') fixed.push({ case: caseName, tenant });
+          }
+        }
+      }
+
+      // ---- persist the run artifact -------------------------------------------
+      let runId: string | null = null;
+      try {
+        const { data: inserted, error: insErr } = await admin
+          .from('rari_selftest_runs')
+          .insert({
+            ran_at: ranAt,
+            ran_by: caller.id,
+            ran_by_email: caller.email ?? null,
+            suites,
+            tenants,
+            totals,
+            matrix,
+            failures,
+            elapsed_ms: Date.now() - started,
+            is_green: isGreen,
+          })
+          .select('id')
+          .maybeSingle();
+        if (insErr) console.error('[rari-selftest] artifact insert failed', insErr);
+        runId = inserted?.id ?? null;
+      } catch (e) {
+        console.error('[rari-selftest] artifact insert threw', e);
+      }
+
       return json({
-        ok: failed === 0,
-        ranAt: new Date().toISOString(),
+        ok: isGreen,
+        runId,
+        ranAt,
         elapsedMs: Date.now() - started,
         suites,
-        tenants: profiles.map((p) => ({ teamId: p.teamId, name: p.name, currency: p.currencySymbol, strict: p.strict, sample: p.sample })),
-        totals: { cases: total, passed: total - failed - skipped, failed, skipped },
+        tenants,
+        totals,
         failures,
         matrix,
+        comparedTo: lastGreen ? { runId: lastGreen.id, ranAt: lastGreen.ran_at } : null,
+        regressions,
+        fixed,
+        newCases,
         results: body.verbose === false ? undefined : results,
-      }, failed === 0 ? 200 : 200);
+      }, 200);
     } catch (error) {
       console.error('[rari-selftest] fatal', error);
       return json({ error: 'selftest_failed', message: String(error?.message || error) }, 500);

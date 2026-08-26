@@ -21,6 +21,7 @@ import { SuperAdminTenantDocumentsTab } from '@/components/super-admin/SuperAdmi
 import { MarketplaceVisibilityTab } from '@/components/super-admin/MarketplaceVisibilityTab';
 import { SuperAdminPaymentsTestTab } from '@/components/super-admin/SuperAdminPaymentsTestTab';
 import { SupportAccessTab } from '@/components/super-admin/SupportAccessTab';
+import { RariSelfTestPanel } from '@/components/super-admin/RariSelfTestPanel';
 
 import { GoLiveSmokeTestPanel } from '@/components/super-admin/GoLiveSmokeTestPanel';
 import { supabase } from '@/integrations/supabase/client';
@@ -40,6 +41,8 @@ import {
   Store,
   Wallet,
   LifeBuoy,
+  Bot,
+
 
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -249,6 +252,10 @@ export const SuperAdminDashboard = () => {
               <Wallet className="h-4 w-4 mr-2" />
               Payments &amp; Go-Live
             </TabsTrigger>
+            <TabsTrigger value="rari-selftest">
+              <Bot className="h-4 w-4 mr-2" />
+              Rari Self-Test
+            </TabsTrigger>
             <TabsTrigger value="audit">
               <Database className="h-4 w-4 mr-2" />
               Audit Log
@@ -287,6 +294,10 @@ export const SuperAdminDashboard = () => {
 
           <TabsContent value="support-access" className="space-y-4">
             <SupportAccessTab />
+          </TabsContent>
+
+          <TabsContent value="rari-selftest" className="space-y-4">
+            <RariSelfTestPanel />
           </TabsContent>
 
 

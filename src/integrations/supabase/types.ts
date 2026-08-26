@@ -3065,6 +3065,51 @@ export type Database = {
           },
         ]
       }
+      rari_selftest_runs: {
+        Row: {
+          created_at: string
+          elapsed_ms: number | null
+          failures: Json
+          id: string
+          is_green: boolean
+          matrix: Json
+          ran_at: string
+          ran_by: string | null
+          ran_by_email: string | null
+          suites: string[]
+          tenants: Json
+          totals: Json
+        }
+        Insert: {
+          created_at?: string
+          elapsed_ms?: number | null
+          failures?: Json
+          id?: string
+          is_green?: boolean
+          matrix?: Json
+          ran_at?: string
+          ran_by?: string | null
+          ran_by_email?: string | null
+          suites?: string[]
+          tenants?: Json
+          totals?: Json
+        }
+        Update: {
+          created_at?: string
+          elapsed_ms?: number | null
+          failures?: Json
+          id?: string
+          is_green?: boolean
+          matrix?: Json
+          ran_at?: string
+          ran_by?: string | null
+          ran_by_email?: string | null
+          suites?: string[]
+          tenants?: Json
+          totals?: Json
+        }
+        Relationships: []
+      }
       rate_limit_counters: {
         Row: {
           bucket: string
