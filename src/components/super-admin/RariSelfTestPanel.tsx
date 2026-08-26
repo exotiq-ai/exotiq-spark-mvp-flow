@@ -396,9 +396,16 @@ export const RariSelfTestPanel = () => {
 
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex-1" />
+            <Button variant="outline" size="sm" onClick={exportCsv} disabled={running || !result}>
+              <Download className="h-4 w-4 mr-2" /> Export CSV
+            </Button>
+            <Button variant="outline" size="sm" onClick={exportJson} disabled={running || !result}>
+              <Download className="h-4 w-4 mr-2" /> Export JSON
+            </Button>
             <Button variant="outline" size="sm" onClick={loadHistory} disabled={running}>
               <RefreshCw className="h-4 w-4 mr-2" /> Refresh history
             </Button>
+
             <Button onClick={run} disabled={running}>
               {running ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <PlayCircle className="h-4 w-4 mr-2" />}
               {running ? 'Running…' : 'Run self-test'}
