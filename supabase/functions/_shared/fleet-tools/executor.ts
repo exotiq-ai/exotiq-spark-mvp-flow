@@ -504,7 +504,8 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
       }
 
       case "get_fleet_vehicles": {
-        const { status, location } = args as { status?: string; location?: string };
+        const { status, location, limit } = args as { status?: string; location?: string; limit?: number };
+        const maxVehicles = toLimit(limit, 100);
         console.log(`[get_fleet_vehicles] Querying vehicles for team ${teamId}, status: ${status || 'all'}, location: ${location || 'all'}`);
         
         let query = supabase
@@ -575,7 +576,8 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
       }
 
       case "get_bookings": {
-        const { status, start_date, end_date, location, date } = args;
+        const { status, start_date, end_date, location, date, timeframe, limit } = args;
+        const maxBookings = toLimit(limit, 30);
         console.log(`[get_bookings] Team: ${teamId}, Status: ${status || 'all'}, Date: ${date || 'n/a'}, Range: ${start_date || '-'}..${end_date || '-'}, Location: ${location || 'all'}`);
 
         // --- Status synonyms ---------------------------------------------------
@@ -628,6 +630,12 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
           windowStart = start_date ? new Date(start_date) : null;
           windowEnd   = end_date   ? new Date(end_date)   : null;
           windowLabel = `${start_date || '…'} → ${end_date || '…'}`;
+        } else if (timeframe && timeframe !== 'all') {
+          // Registry param: today | week | month | year. Same overlap semantics.
+          const tf = resolveTimeframeWindow(String(timeframe));
+          windowStart = tf.start ? new Date(tf.start) : null;
+          windowEnd   = new Date(tf.end);
+          windowLabel = tf.label;
         }
 
         // --- Build query -------------------------------------------------------
@@ -649,7 +657,7 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
 
         const { data: bookings, error } = await query
           .order('start_date', { ascending: false })
-          .limit(30);
+          .limit(maxBookings);
 
         if (error) {
           console.error('[get_bookings] Database error:', error);
@@ -826,8 +834,9 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
       }
 
       case "getLocationMetrics": {
-        const { location } = args;
-        console.log(`[getLocationMetrics] Team: ${teamId}, Location: ${location || 'all'}`);
+        const { location, timeframe } = args;
+        const locWindow = resolveTimeframeWindow(typeof timeframe === 'string' ? timeframe : undefined);
+        console.log(`[getLocationMetrics] Team: ${teamId}, Location: ${location || 'all'}, Timeframe: ${locWindow.label}`);
         
         // Get all vehicles
         let vehicleQuery = supabase
@@ -1230,7 +1239,9 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
       }
 
       case "getTopPerformers": {
-        const { metric, limit = 5, location } = args;
+        const { metric, limit: rawLimit, location, timeframe } = args;
+        const limit = toLimit(rawLimit, 5, 25);
+        const topWindow = resolveTimeframeWindow(typeof timeframe === 'string' ? timeframe : undefined);
         
         if (metric === 'revenue' || metric === 'utilization') {
           let query = supabase
@@ -1591,7 +1602,12 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
 
 
       case "getDemandForecast": {
-        const { city, days = 14, location } = args;
+        const { city, location, timeframe } = args;
+        // Registry exposes `timeframe`; older callers pass `days`.
+        const TIMEFRAME_DAYS: Record<string, number> = { today: 1, week: 7, month: 30, year: 365 };
+        const days = Number(args.days) > 0
+          ? Number(args.days)
+          : (typeof timeframe === 'string' ? (TIMEFRAME_DAYS[timeframe] ?? 14) : 14);
         // No hardcoded default city: fall back to the tenant's own primary
         // location, and run fleet-wide when the tenant has none.
         const effectiveLocation = location || city || await getTenantDefaultLocation(supabase, teamId);
@@ -2111,7 +2127,8 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
       }
 
       case "getOutstandingBalances": {
-        const { location, minAmount } = args;
+        const { location, minAmount, limit } = args;
+        const maxBalances = toLimit(limit, 25);
         console.log(`[getOutstandingBalances] Team: ${teamId}, Location: ${location || 'all'}, MinAmount: ${minAmount || 0}`);
         
         // Get bookings with outstanding balances
