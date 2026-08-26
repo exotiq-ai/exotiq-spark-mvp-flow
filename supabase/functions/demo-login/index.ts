@@ -111,8 +111,27 @@ serve(async (req) => {
       );
     }
 
+    // Verify the minted session is actually accepted by the Auth server
+    // before handing it to the browser — a session that fails getUser is
+    // worse than no session (the client would store a dead token).
+    const verifier = createClient(supabaseUrl, supabaseAnonKey);
+    const { data: verifyData, error: verifyError } = await verifier.auth.getUser(
+      data.session.access_token
+    );
+
+    if (verifyError || !verifyData?.user) {
+      console.error('🚨 Demo session failed verification:', verifyError);
+      return new Response(
+        JSON.stringify({ error: 'Demo mode temporarily unavailable' }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
     // Log successful demo login
-    console.log(`✅ Demo login successful from IP: ${clientIP}`);
+    console.log(`✅ Demo login successful from IP: ${clientIP} (session verified)`);
 
     // Return session data
     return new Response(
