@@ -21,6 +21,7 @@ import { SuperAdminTenantDocumentsTab } from '@/components/super-admin/SuperAdmi
 import { MarketplaceVisibilityTab } from '@/components/super-admin/MarketplaceVisibilityTab';
 import { SuperAdminPaymentsTestTab } from '@/components/super-admin/SuperAdminPaymentsTestTab';
 import { SupportAccessTab } from '@/components/super-admin/SupportAccessTab';
+import { RariSelfTestPanel } from '@/components/super-admin/RariSelfTestPanel';
 
 import { GoLiveSmokeTestPanel } from '@/components/super-admin/GoLiveSmokeTestPanel';
 import { supabase } from '@/integrations/supabase/client';
