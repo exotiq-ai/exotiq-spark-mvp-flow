@@ -2183,6 +2183,8 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
           outstandingBookings: outstandingList,
           totalOutstanding: `$${totalOutstanding.toFixed(0)}`,
           count: outstandingList.length,
+          totalCount: outstandingTotalCount,
+          truncated: outstandingTotalCount > outstandingList.length,
           summary: outstandingList.length > 0
             ? `You have $${totalOutstanding.toFixed(0)} in outstanding balances across ${outstandingList.length} booking${outstandingList.length > 1 ? 's' : ''}${location ? ` in ${location}` : ''}. Top outstanding: ${outstandingList[0]?.customer} owes ${outstandingList[0]?.balanceDue}.`
             : `No outstanding balances found${location ? ` in ${location}` : ''}. All payments are up to date!`
