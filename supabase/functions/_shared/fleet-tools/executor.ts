@@ -1298,7 +1298,10 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
       }
 
       case "searchBookings": {
-        const { status, daysRange, location } = args;
+        const { status, daysRange, location, query: searchText, limit } = args;
+        const maxRows = toLimit(limit, 30);
+        const term = typeof searchText === 'string' ? searchText.trim() : '';
+
         let query = supabase
           .from('bookings')
           .select('*, vehicles(make, model, year, location), customers(full_name)');
@@ -1308,6 +1311,16 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
         }
 
         if (status) query = query.eq('status', status);
+
+        // Free-text search across the columns that live on the booking row.
+        // Vehicle make/model live on the join, so they're matched client-side
+        // below (PostgREST can't OR across an embedded resource).
+        if (term) {
+          const like = `%${term}%`;
+          query = query.or(
+            `booking_ref.ilike.${like},customer_name.ilike.${like},customer_email.ilike.${like},vehicle_name.ilike.${like}`,
+          );
+        }
         
         if (daysRange) {
           const dateFilter = new Date();
@@ -1315,19 +1328,40 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
           query = query.gte('start_date', dateFilter.toISOString());
         }
 
-        const { data: bookings } = await query.order('start_date', { ascending: false }).limit(30);
-        
+        const { data: bookings } = await query
+          .order('start_date', { ascending: false })
+          .limit(Math.max(maxRows, term ? 200 : maxRows));
+
         let filteredBookings = bookings || [];
+
+        // Second pass so a term that only matches the joined vehicle still hits.
+        if (term && filteredBookings.length === 0) {
+          let joinQuery = supabase
+            .from('bookings')
+            .select('*, vehicles!inner(make, model, year, location), customers(full_name)');
+          if (teamId) joinQuery = joinQuery.eq('team_id', teamId);
+          if (status) joinQuery = joinQuery.eq('status', status);
+          const like = `%${term}%`;
+          const { data: byVehicle } = await joinQuery
+            .or(`make.ilike.${like},model.ilike.${like}`, { foreignTable: 'vehicles' })
+            .order('start_date', { ascending: false })
+            .limit(maxRows);
+          filteredBookings = byVehicle || [];
+        }
+
         if (location && location !== 'all') {
           filteredBookings = filteredBookings.filter((b: any) => 
             b.vehicles?.location?.toLowerCase().includes(location.toLowerCase())
           );
         }
+
+        filteredBookings = filteredBookings.slice(0, maxRows);
         
         const bookingList = filteredBookings.map(b => {
-          const vehicleName = b.vehicles ? vehicleDisplayName(b.vehicles) : 'vehicle';
+          const vehicleName = b.vehicles ? vehicleDisplayName(b.vehicles) : (b.vehicle_name || 'vehicle');
           const amt = Number(b.total_value || b.total_amount || 0);
           return {
+            reference: b.booking_ref,
             customer: b.customers?.full_name || b.customer_name || 'Unknown',
             vehicle: vehicleName,
             location: b.vehicles?.location || 'Unassigned',
@@ -1345,8 +1379,10 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
           bookings: bookingList,
           totalValue: formatUsdWords(totalValue),
           totalValueRaw: totalValue,
-          summary: `Found ${filteredBookings.length} bookings${status ? ` with ${status} status` : ''}${location ? ` in ${location}` : ''}${daysRange ? ` in the last ${daysRange} days` : ''}. Total value: ${formatUsdWords(totalValue)}.`
+          summary: `Found ${filteredBookings.length} bookings${term ? ` matching "${term}"` : ''}${status ? ` with ${status} status` : ''}${location ? ` in ${location}` : ''}${daysRange ? ` in the last ${daysRange} days` : ''}. Total value: ${formatUsdWords(totalValue)}.`
         };
+      }
+
       }
 
       case "getDamageReports": {
