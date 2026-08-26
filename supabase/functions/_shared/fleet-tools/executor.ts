@@ -624,6 +624,27 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
         }
 
         const asked = String(question).trim();
+
+        // A question that names one of the team's own vehicles is about that
+        // vehicle, not the fleet average.
+        const namedVehicle = await detectAskFleetVehicle(supabase, teamId, asked);
+        if (namedVehicle) {
+          const vehicleRef = namedVehicle.name || vehicleDisplayName(namedVehicle);
+          console.log(`[ask_fleet] "${asked}" -> getVehicleDetails (${vehicleRef})`);
+          const detail = await executeFunction(
+            'getVehicleDetails',
+            { vehicleName: vehicleRef, vehicleId: namedVehicle.id },
+            supabase,
+            userId,
+            teamId,
+          );
+          return {
+            ...(detail as Record<string, unknown>),
+            question: asked,
+            routed_to: 'getVehicleDetails',
+          } as ToolResult;
+        }
+
         const routedTool = detectAskFleetTool(asked);
         const routedTimeframe = timeframe || detectAskFleetTimeframe(asked);
         const routedLocation = location || (await detectAskFleetLocation(supabase, teamId, asked));
