@@ -276,7 +276,7 @@ function serve_handler() {
             try {
               result = await executeFunction(c.tool, args, admin, userId, p.teamId);
             } catch (e) {
-              push({ suite: 'execution', tenant: p.name, case: c.tool, args, failures: [{ assertion: 'threw', detail: String(e?.message || e) }] });
+              push({ suite: 'execution', tenant: p.name, case: c.tool, tool: c.tool, args, rawResult: { threw: String(e?.message || e) }, failures: [{ assertion: 'threw', detail: String(e?.message || e) }] });
               continue;
             }
 
@@ -292,7 +292,9 @@ function serve_handler() {
               suite: 'execution',
               tenant: p.name,
               case: c.tool,
+              tool: c.tool,
               args,
+              rawResult: result,
               summary: String(result?.summary || '').slice(0, 160),
               failures: caseFailures,
             });
@@ -319,7 +321,7 @@ function serve_handler() {
             try {
               result = await executeFunction('ask_fleet', { question }, admin, userId, p.teamId);
             } catch (e) {
-              push({ suite: 'questions', tenant: p.name, case: q.label, question, failures: [{ assertion: 'threw', detail: String(e?.message || e) }] });
+              push({ suite: 'questions', tenant: p.name, case: q.label, tool: 'ask_fleet', args: { question }, question, rawResult: { threw: String(e?.message || e) }, failures: [{ assertion: 'threw', detail: String(e?.message || e) }] });
               continue;
             }
             const summary = String(result?.summary || '').toLowerCase();
@@ -329,7 +331,7 @@ function serve_handler() {
               ...assertResult(result, { teamId: p.teamId, args: { question }, strict: false }),
               ...(routed ? [] : [{ assertion: 'routing', detail: `expected one of [${wanted.join(', ')}] in: ${summary.slice(0, 200)}` }]),
             ];
-            push({ suite: 'questions', tenant: p.name, case: q.label, question, summary: summary.slice(0, 160), failures: caseFailures });
+            push({ suite: 'questions', tenant: p.name, case: q.label, tool: 'ask_fleet', args: { question }, question, rawResult: result, summary: summary.slice(0, 160), failures: caseFailures });
           }
         }
 
@@ -340,13 +342,16 @@ function serve_handler() {
             try {
               result = await executeFunction(c.tool, substitute(c.args, p.sample) as any, admin, userId, p.teamId);
             } catch (e) {
-              push({ suite: 'edge', tenant: p.name, case: c.label || c.tool, failures: [{ assertion: 'threw', detail: String(e?.message || e) }] });
+              push({ suite: 'edge', tenant: p.name, case: c.label || c.tool, tool: c.tool, args: c.args, rawResult: { threw: String(e?.message || e) }, failures: [{ assertion: 'threw', detail: String(e?.message || e) }] });
               continue;
             }
             push({
               suite: 'edge',
               tenant: p.name,
               case: c.label || c.tool,
+              tool: c.tool,
+              args: c.args,
+              rawResult: result,
               summary: String(result?.summary || '').slice(0, 160),
               failures: assertResult(result, { teamId: p.teamId, args: c.args, expectError: c.expectError, strict: false }),
             });
@@ -357,7 +362,7 @@ function serve_handler() {
         if (suites.includes('golden')) {
           try {
             const { checks, failures: gf } = await runGoldenChecks(admin, userId, p.teamId);
-            push({ suite: 'golden', tenant: p.name, case: 'sql-cross-check', checks, failures: gf });
+            push({ suite: 'golden', tenant: p.name, case: 'sql-cross-check', rawResult: { checks }, checks, failures: gf });
           } catch (e) {
             push({ suite: 'golden', tenant: p.name, case: 'sql-cross-check', failures: [{ assertion: 'threw', detail: String(e?.message || e) }] });
           }
@@ -390,6 +395,8 @@ function serve_handler() {
                 suite: 'isolation',
                 tenant: p.name,
                 case: `write against ${other.name}'s vehicle`,
+                tool: 'create_booking_hold',
+                rawResult: result,
                 summary: String(result?.summary || result?.error || '').slice(0, 160),
                 failures: refused ? [] : [{ assertion: 'cross-tenant-write', detail: `booking ${result.bookingId} was created against another team's vehicle` }],
               });
