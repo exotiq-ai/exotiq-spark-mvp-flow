@@ -161,26 +161,27 @@ export const AddVehicleFromPhotoWizard = ({
         
         if (uploadError) throw uploadError;
         
-        // Get signed URL
-        const { data: signedData, error: signedError } = await supabase.storage
+        // Stable public URL — signed URLs must never be persisted.
+        const { data: publicData } = supabase.storage
           .from('vehicle-photos')
-          .createSignedUrl(uploadData.path, 60 * 60 * 24 * 365);
-        
-        if (signedError || !signedData?.signedUrl) throw new Error('Failed to get URL');
+          .getPublicUrl(uploadData.path);
+
+        if (!publicData?.publicUrl) throw new Error('Failed to get URL');
+
         
         setUploadProgress(((i + 0.5) / files.length) * 50 + 25);
         
         // Analyze with AI
         const { data: analysisData, error: analysisError } = await supabase.functions.invoke(
           'analyze-vehicle-photo',
-          { body: { imageUrl: signedData.signedUrl, filename: file.name } }
+          { body: { imageUrl: publicData.publicUrl, filename: file.name } }
         );
         
         const analysis = analysisError ? null : analysisData as AIAnalysisResult;
         
         uploadedPhotos.push({
           file,
-          url: signedData.signedUrl,
+          url: publicData.publicUrl,
           storagePath: uploadData.path,
           analysis,
         });

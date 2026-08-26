@@ -1,14 +1,16 @@
 // M3 (renter app public read plumbing): public-safe vehicle media delivery.
 // Ref: docs/rent/RENTER_APP_GOAL.md milestone M3; exotiq-rent roadmap §3 task D.
 //
-// The vehicle-photos bucket is private and DB photo URLs are not publicly
-// fetchable. This function lets the anonymous renter app obtain short-lived
-// signed URLs (TTL <= 1 hour) for exactly the photos of one marketplace-
-// visible vehicle. Visibility is re-validated server-side on every call via
-// public.is_marketplace_vehicle; nothing else in the bucket is reachable.
+// The vehicle-photos bucket is public for READS (writes stay restricted to
+// authenticated team members via storage RLS). This endpoint exists to serve an
+// ordered, marketplace-validated gallery for exactly one vehicle: visibility is
+// re-checked server-side on every call via public.is_marketplace_vehicle, and
+// nothing else in the bucket is enumerated. URLs are signed with a short TTL as
+// a delivery detail — callers must re-fetch rather than cache them.
 //
 // GET /rent-public-media?team=<teamSlug>&vehicle=<vehicleSlug>
 // -> { photos: [{ signedUrl, thumbnailUrl, displayOrder }], expiresIn: 3600 }
+
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.77.0";
@@ -76,12 +78,14 @@ serve(async (req) => {
     return json({ error: "Not found" }, 404);
   }
 
+  // NULL-safe flags: match the coalesce(..., true) semantics the public RPCs
+  // use. `.eq(col, true)` never matches NULL and would silently hide photos.
   const { data: photos, error: photosError } = await supabase
     .from("vehicle_photos")
-    .select("storage_path, thumbnail_url, display_order")
+    .select("storage_path, display_order")
     .eq("vehicle_id", vehicle.id)
-    .eq("is_visible", true)
-    .eq("is_vehicle_confirmed", true)
+    .not("is_visible", "is", false)
+    .not("is_vehicle_confirmed", "is", false)
     .order("display_order", { ascending: true, nullsFirst: false })
     .limit(24);
 
@@ -90,15 +94,22 @@ serve(async (req) => {
     return json({ error: "Lookup failed" }, 500);
   }
 
+  // Thumbnails follow the upload convention in src/lib/photoUpload.ts:
+  // the original path with its extension replaced by `_thumb.jpg`.
+  const thumbPathFor = (path: string) => path.replace(/\.[^.]+$/, "_thumb.jpg");
+
   const paths = (photos ?? [])
     .map((p) => p.storage_path)
     .filter((p): p is string => Boolean(p));
+  const thumbPaths = paths.map(thumbPathFor);
 
   let signed: { path: string | null; signedUrl: string | null }[] = [];
   if (paths.length > 0) {
+    // Originals and thumbnails are signed in one batch so a thumbnail can
+    // never be served from a stale, long-lived token stored in the database.
     const { data: signedData, error: signError } = await supabase.storage
       .from("vehicle-photos")
-      .createSignedUrls(paths, SIGNED_URL_TTL_SECONDS);
+      .createSignedUrls([...paths, ...thumbPaths], SIGNED_URL_TTL_SECONDS);
     if (signError) {
       console.error("rent-public-media signing failed", signError);
       return json({ error: "Signing failed" }, 500);
@@ -106,14 +117,20 @@ serve(async (req) => {
     signed = signedData ?? [];
   }
 
-  const byPath = new Map(signed.map((s) => [s.path, s.signedUrl]));
+  const byPath = new Map(signed.map((s) => [s.path, s.signedUrl ?? null]));
   const result = (photos ?? [])
-    .map((p) => ({
-      signedUrl: p.storage_path ? byPath.get(p.storage_path) ?? null : null,
-      thumbnailUrl: p.thumbnail_url,
-      displayOrder: p.display_order,
-    }))
+    .map((p) => {
+      const path = p.storage_path;
+      return {
+        signedUrl: path ? byPath.get(path) ?? null : null,
+        // Missing thumb objects sign to null — the renter app falls back to
+        // the full-size image rather than requesting a 404.
+        thumbnailUrl: path ? byPath.get(thumbPathFor(path)) ?? null : null,
+        displayOrder: p.display_order,
+      };
+    })
     .filter((p) => p.signedUrl !== null);
+
 
   return json(
     { photos: result, expiresIn: SIGNED_URL_TTL_SECONDS },

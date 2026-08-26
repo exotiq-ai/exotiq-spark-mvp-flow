@@ -88,18 +88,18 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
 
     const storedPath = data.path;
 
-    // 1-year signed URL
-    const { data: signedData, error: signedError } = await supabase.storage
+    // Stable public URL — never persist signed URLs, they expire.
+    const { data: publicData } = supabase.storage
       .from('vehicle-photos')
-      .createSignedUrl(storedPath, 60 * 60 * 24 * 365);
+      .getPublicUrl(storedPath);
 
-    if (signedError || !signedData?.signedUrl) {
-      throw new Error('Failed to create signed URL');
+    if (!publicData?.publicUrl) {
+      throw new Error('Failed to resolve photo URL');
     }
 
     const result: { path: string; url: string; thumbnailUrl?: string; thumbnailPath?: string; compressedBytes: number; width: number; height: number } = {
       path: storedPath,
-      url: signedData.signedUrl,
+      url: publicData.publicUrl,
       compressedBytes: compressedFile.size,
       width: imgWidth,
       height: imgHeight,
@@ -116,12 +116,12 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
           .upload(thumbPath, thumbnail, { cacheControl: '3600', upsert: false });
 
         if (!thumbErr) {
-          const { data: thumbSigned } = await supabase.storage
+          const { data: thumbPublic } = supabase.storage
             .from('vehicle-photos')
-            .createSignedUrl(thumbPath, 60 * 60 * 24 * 365);
+            .getPublicUrl(thumbPath);
 
-          if (thumbSigned?.signedUrl) {
-            result.thumbnailUrl = thumbSigned.signedUrl;
+          if (thumbPublic?.publicUrl) {
+            result.thumbnailUrl = thumbPublic.publicUrl;
             result.thumbnailPath = thumbPath;
           }
         }
@@ -129,6 +129,7 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
         console.warn('Thumbnail generation failed:', e);
       }
     }
+
 
     return result;
   }, [user]);
