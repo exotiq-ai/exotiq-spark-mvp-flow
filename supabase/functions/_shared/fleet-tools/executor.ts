@@ -547,7 +547,7 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
         }
         
         const vehicleList = vehicleData.map((v: Vehicle) => ({
-          name: `${v.year} ${v.make} ${v.model}`,
+          name: vehicleDisplayName(v),
           status: v.status,
           location: v.location || 'Unassigned',
           rate: `$${v.daily_rate || v.current_rate} per day`,
@@ -693,7 +693,7 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
         }
 
         const bookingList = filteredBookings.map(b => {
-          const vehicleName = b.vehicles ? `${b.vehicles.year} ${b.vehicles.make} ${b.vehicles.model}` : 'Unknown vehicle';
+          const vehicleName = b.vehicles ? vehicleDisplayName(b.vehicles) : 'Unknown vehicle';
           const customerName = b.customers?.full_name || b.customer_name || 'Unknown';
           const totalAmount = Number(b.total_value || b.total_amount || 0);
           return {
@@ -738,7 +738,7 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
 
         const activities = recentBookings?.map((b: any) => {
           const timeAgo = getTimeAgo(new Date(b.created_at));
-          const vehicleName = b.vehicles ? `${b.vehicles.year} ${b.vehicles.make} ${b.vehicles.model}` : 'a vehicle';
+          const vehicleName = b.vehicles ? vehicleDisplayName(b.vehicles) : 'a vehicle';
           const customerName = b.customers?.full_name || b.customer_name || 'A customer';
           const amountVal = Number(b.total_value || b.total_amount || 0);
           
@@ -866,7 +866,7 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
           locationStats[loc].totalUtilization += vehicle.utilization || 0;
           locationStats[loc].avgRate += Number(vehicle.current_rate || vehicle.daily_rate || 0);
           locationStats[loc].vehicles.push({
-            name: `${vehicle.year} ${vehicle.make} ${vehicle.model}`,
+            name: vehicleDisplayName(vehicle),
             status: vehicle.status,
             utilization: vehicle.utilization || 0,
             rate: vehicle.current_rate || vehicle.daily_rate
@@ -1022,7 +1022,7 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
           summary: `I couldn't find a vehicle matching "${vehicleName}" in your fleet.`
         };
 
-        const fullName = `${vehicle.year} ${vehicle.make} ${vehicle.model}`;
+        const fullName = vehicleDisplayName(vehicle);
         let bookingsData = null;
         if (includeBookings) {
           const { data: bookings } = await supabase
@@ -1100,7 +1100,7 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
             lifetimeValue = bookings.reduce((sum, b) => sum + Number(b.total_value || b.total_amount || 0), 0);
             
             bookingsData = bookings.map(b => ({
-              vehicle: b.vehicles ? `${b.vehicles.year} ${b.vehicles.make} ${b.vehicles.model}` : 'Unknown',
+              vehicle: b.vehicles ? vehicleDisplayName(b.vehicles) : 'Unknown',
               location: b.vehicles?.location || 'Unassigned',
               dates: `${new Date(b.start_date).toLocaleDateString()} to ${new Date(b.end_date).toLocaleDateString()}`,
               status: b.status,
@@ -1160,7 +1160,7 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
             .or(`and(start_date.lte.${endDate},end_date.gte.${startDate})`);
           
           availabilityResults.push({
-            vehicle: `${vehicle.year} ${vehicle.make} ${vehicle.model}`,
+            vehicle: vehicleDisplayName(vehicle),
             location: vehicle.location,
             rate: `$${vehicle.current_rate}`,
             available: !conflicts || conflicts.length === 0,
@@ -1252,7 +1252,7 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
           const performers = vehicles?.map(v => {
             const rev = Number(v.revenue || 0);
             return {
-              name: `${v.year} ${v.make} ${v.model}`,
+              name: vehicleDisplayName(v),
               location: v.location,
               revenue: formatUsdWords(rev),
               revenueRaw: rev,
@@ -1325,7 +1325,7 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
         }
         
         const bookingList = filteredBookings.map(b => {
-          const vehicleName = b.vehicles ? `${b.vehicles.year} ${b.vehicles.make} ${b.vehicles.model}` : 'vehicle';
+          const vehicleName = b.vehicles ? vehicleDisplayName(b.vehicles) : 'vehicle';
           const amt = Number(b.total_value || b.total_amount || 0);
           return {
             customer: b.customers?.full_name || b.customer_name || 'Unknown',
@@ -1371,7 +1371,7 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
         }
         
         const claimList = filteredClaims.map(c => ({
-          vehicle: c.vehicles ? `${c.vehicles.year} ${c.vehicles.make} ${c.vehicles.model}` : 'Unknown',
+          vehicle: c.vehicles ? vehicleDisplayName(c.vehicles) : 'Unknown',
           location: c.vehicles?.location || 'Unassigned',
           severity: c.severity,
           status: c.claim_status,
@@ -1412,7 +1412,7 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
         }
         
         const maintenanceList = filteredMaintenance.map(m => ({
-          vehicle: m.vehicles ? `${m.vehicles.year} ${m.vehicles.make} ${m.vehicles.model}` : 'Unknown',
+          vehicle: m.vehicles ? vehicleDisplayName(m.vehicles) : 'Unknown',
           location: m.vehicles?.location || 'Unassigned',
           type: m.maintenance_type,
           scheduledDate: new Date(m.scheduled_date).toLocaleDateString(),
@@ -1490,7 +1490,7 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
             ? Math.round((expiresAt.getTime() - now) / 86400000)
             : null;
           const vehicle = d.vehicles
-            ? `${d.vehicles.year || ''} ${d.vehicles.make || ''} ${d.vehicles.model || ''}`.trim()
+            ? vehicleDisplayName(d.vehicles)
             : null;
           return {
             name: d.name,
@@ -1623,7 +1623,7 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
 
         
         return {
-          vehicle: `${vehicle.year} ${vehicle.make} ${vehicle.model}`,
+          vehicle: vehicleDisplayName(vehicle),
           location: vehicleLocation,
           currentRate: `$${currentRate}`,
           suggestedRate: `$${suggestedRate}`,
@@ -1632,10 +1632,10 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
           factors,
           monthlyImpact: `$${Math.abs(difference * 20).toFixed(0)}/month`,
           summary: suggestedRate > currentRate 
-            ? `I recommend increasing the rate for your ${vehicle.year} ${vehicle.make} ${vehicle.model} in ${vehicleLocation} from $${currentRate} to $${suggestedRate} per day, a ${percentChange}% increase. This is based on ${factors.join(' and ')}. This could add approximately $${Math.abs(difference * 20).toFixed(0)} per month in revenue.`
+            ? `I recommend increasing the rate for your ${vehicleDisplayName(vehicle)} in ${vehicleLocation} from $${currentRate} to $${suggestedRate} per day, a ${percentChange}% increase. This is based on ${factors.join(' and ')}. This could add approximately $${Math.abs(difference * 20).toFixed(0)} per month in revenue.`
             : suggestedRate < currentRate
-              ? `Consider reducing the rate for your ${vehicle.year} ${vehicle.make} ${vehicle.model} in ${vehicleLocation} from $${currentRate} to $${suggestedRate} per day to boost bookings. This is based on ${factors.join(' and ')}.`
-              : `The current rate of $${currentRate} for your ${vehicle.year} ${vehicle.make} ${vehicle.model} in ${vehicleLocation} appears optimal given current market conditions.`
+              ? `Consider reducing the rate for your ${vehicleDisplayName(vehicle)} in ${vehicleLocation} from $${currentRate} to $${suggestedRate} per day to boost bookings. This is based on ${factors.join(' and ')}.`
+              : `The current rate of $${currentRate} for your ${vehicleDisplayName(vehicle)} in ${vehicleLocation} appears optimal given current market conditions.`
         };
       }
 
@@ -1705,7 +1705,7 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
             avgRate: `$${stats.avgRate.toFixed(0)}`
           })),
           topPerformers: highPerformers.slice(0, 3).map(v => ({
-            name: `${v.year} ${v.make} ${v.model}`,
+            name: vehicleDisplayName(v),
             location: v.location,
             utilization: `${v.utilization || 0}%`,
             rate: `$${v.current_rate || v.daily_rate}`
@@ -2065,7 +2065,7 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
           
           return {
             customer: b.customers?.full_name || b.customer_name || 'Unknown',
-            vehicle: b.vehicles ? `${b.vehicles.year} ${b.vehicles.make} ${b.vehicles.model}` : 'Unknown',
+            vehicle: b.vehicles ? vehicleDisplayName(b.vehicles) : 'Unknown',
             location: b.vehicles?.location || 'Unassigned',
             balanceDue: `$${Number(b.balance_due || b.total_value || 0).toFixed(0)}`,
             daysOverdue: daysOverdue > 0 ? daysOverdue : 0,
@@ -2124,7 +2124,7 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
         const idleVehicles = vehicles
           .filter((v: any) => !recentlyBookedIds.has(v.id))
           .map((v: any) => ({
-            vehicle: `${v.year} ${v.make} ${v.model}`,
+            vehicle: vehicleDisplayName(v),
             location: v.location || 'Unassigned',
             currentRate: `$${v.current_rate}`,
             utilization: `${v.utilization || 0}%`,
@@ -2195,7 +2195,7 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
           if (!byLocation[loc]) byLocation[loc] = [];
           
           byLocation[loc].push({
-            vehicle: `${vehicle.year} ${vehicle.make} ${vehicle.model}`,
+            vehicle: vehicleDisplayName(vehicle),
             rate: `$${vehicle.current_rate}/day`
           });
         }
@@ -2402,7 +2402,7 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
           else if (mw) { liveState = 'in maintenance'; detail = mw.reason || ''; }
           else if (v.status === 'retired') liveState = 'retired';
           return {
-            vehicle: `${v.year} ${v.make} ${v.model}`,
+            vehicle: vehicleDisplayName(v),
             location: v.location,
             db_status: v.status,
             live_status: liveState,
@@ -2487,7 +2487,7 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
         if (error) return { error: error.message };
         const list = (data || []).map((w: any) => ({
           title: w.title, status: w.status, priority: w.priority,
-          vehicle: w.vehicles ? `${w.vehicles.year} ${w.vehicles.make} ${w.vehicles.model}` : 'unassigned',
+          vehicle: w.vehicles ? vehicleDisplayName(w.vehicles) : 'unassigned',
           due_at: w.due_at, vendor: w.vendor_name,
         }));
         return {
@@ -2526,7 +2526,7 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
           user_id: userId,
           team_id: teamId,
           vehicle_id,
-          vehicle_name: `${veh.year} ${veh.make} ${veh.model}`,
+          vehicle_name: vehicleDisplayName(veh),
           customer_name,
           customer_phone: customer_phone || null,
           start_date,
@@ -2547,7 +2547,7 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
           success: true,
           booking_id: created.id,
           booking_ref: created.booking_ref,
-          summary: `Hold created — reference ${created.booking_ref}. ${veh.year} ${veh.make} ${veh.model} for ${customer_name}, ${days} day${days===1?'':'s'}, total $${total.toLocaleString()}. It's pending until you confirm or cancel.`,
+          summary: `Hold created — reference ${created.booking_ref}. ${vehicleDisplayName(veh)} for ${customer_name}, ${days} day${days===1?'':'s'}, total $${total.toLocaleString()}. It's pending until you confirm or cancel.`,
         };
       }
 
