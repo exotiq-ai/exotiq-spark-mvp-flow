@@ -1,36 +1,40 @@
-# Rari E2E Tool Coverage — finish and verify
+# Rari E2E Tool Coverage — finish, verify, and clean up
 
-The approved plan was already archived, so here is the current state and exactly what is left. The harness code is written; it has not yet been run against live tenants, and one temporary helper is still deployed and must be removed.
+Your corrections are folded in. One item is already done, and one of your assumptions needs adjusting based on what the database actually says.
 
-## Already built (in the codebase now)
+## Done just now
 
-- `supabase/functions/rari-selftest/` — permanent, super-admin-gated harness:
-  - `index.ts` — suite runner (execution, questions, edge, golden, isolation, surface, auth, drift, session), tenant matrix, pass/fail matrix output, cleanup.
-  - `token.ts` — server-side minting of scoped tool tokens (valid and deliberately expired). No tenant credentials anywhere.
-  - `assertions.ts` — non-empty summary, no `null`/`undefined`/`NaN` in spoken text, tenant isolation, limit compliance, currency symbol.
-  - `cases.ts` — one or more cases for all 41 registry tools, 8 natural-language routing cases, 4 graceful-miss cases.
-  - `seed.ts` — relative-date fixtures (on-rent today, upcoming, completed last month, completed this year) for the deterministic test tenant.
-  - `golden.ts` — fleet count, yearly revenue, per-vehicle and fleet P&L cross-checked against direct SQL and `fn_vehicle_pnl`.
-  - `surfaces.ts` — voice-webhook vs MCP parity, fail-closed auth refusals, and the real `elevenlabs-session` handshake (signed URL + dynamic variables + `authMethod: tool_token`).
-  - `drift.ts` — live ElevenLabs workspace parity (zero drift vs the registry).
-- `src/test/rari-tool-contract.test.ts` — CI contract layer: schema snapshot, every registry tool has a case, no undeclared params. Passing.
-- Deployed and verified gate: unauthenticated returns 401, non-super-admin returns 403.
+**tmp-selftest-driver is deleted from the live project.** It now returns `404 NOT_FOUND`. The folder still sits in the repo (plan mode can't delete files), so removing `supabase/functions/tmp-selftest-driver/` is the first action once you approve — otherwise the next deploy would resurrect it.
 
-## What is left
+## Corrections applied
 
-1. **Remove the temporary driver.** `supabase/functions/tmp-selftest-driver/` was deployed only to mint a super-admin session from the sandbox. Delete the folder and the deployed function before anything else ships.
-2. **Run the suite for real.** Preferred path: you stay signed in as a super admin in the preview, and the run happens through your own session — no session-minting helper needed at all.
-3. **Triage the first run.** Expect real findings (missing summaries, `null` leakage, timeframe or limit drift, surface mismatches). Fix executor bugs, re-run until the matrix is clean.
-4. **Super Admin panel.** A "Rari Self-Test" card in Super Admin: pick suites and tenants, run, and read the tool x tenant pass/fail matrix with failure detail inline. This is how the suite gets used after today.
-5. **Docs.** Short `docs/rari/SELFTEST.md`: what each suite proves, how to add a tool case, and what to do when drift or golden-number checks fail.
+- **No CI service-token path.** CI keeps only the contract layer (schema snapshot + parity). Runs happen through your signed-in super-admin session in the preview. Any future scheduled runs stay server-side inside the backend; no exported token.
+- **Tool count reconciled: 37 registry tools, 41 harness cases.** The 41 was case count, not tool count (several tools get two cases, e.g. `get_fleet_vehicles` filtered and unfiltered). The plan and docs will say 37 tools / 41 cases.
+- **Both-direction contract assertions.** Already implemented and passing: every registry tool has a case, and every case maps to an existing registry tool. Adding a third: every case argument must be a declared parameter of that tool (also passing), so orphan cases and stale params both fail loudly in CI.
+
+## What the database actually shows (correction to your point 4)
+
+- `RARI_SELFTEST_TEAM_ID` currently points at **"test's Fleet"**, which is **not** a dedicated harness team — it is the real solo workspace of `1hello@exotiq.ai` (0 vehicles, 0 bookings, 1 member). Safe today only because it is empty. It should not stay the target.
+- **No team has `is_demo_account = true`.** Nothing is flagged as the demo tenant right now.
+- The **"2027 TEST TEST"** vehicle lives in the internal **"Exotiq"** team (`c1de6533…`, 56 vehicles, 1,339 bookings) — the internal/showcase tenant, not a flagged demo account. It has **0 bookings attached**, so it can be deleted cleanly.
+
+### Plan for that
+1. Create a dedicated team named **Rari Self-Test**, owned by the `hello@exotiq.ai` super admin, marked as non-marketplace and excluded from tenant reporting. Point `RARI_SELFTEST_TEAM_ID` at it and leave `test's Fleet` alone.
+2. Delete the "2027 TEST TEST" vehicle from the Exotiq team.
+3. Add a harness guard: refuse to seed if the target team id is not the configured self-test team, so fixtures can never land in a real or demo tenant.
+
+## Remaining work
+
+1. Remove `supabase/functions/tmp-selftest-driver/` from the repo.
+2. Create the dedicated self-test team, repoint the env var, delete the stray TEST vehicle, add the seed guard.
+3. **Run the full suite through your signed-in super-admin session** and triage the first-run failures (expect real findings: missing summaries, `null` leakage, timeframe/limit drift, surface mismatches). Fix and re-run until the matrix is clean.
+4. **Persist each run as a dated JSON artifact** and show regression against the last green run.
+5. **Super Admin panel** — pick suites and tenants, run, read the tool x tenant matrix, and see what changed since the last green run.
+6. `docs/rari/SELFTEST.md` — what each suite proves, how to add a case, what to do when drift or golden-number checks fail.
 
 ## Technical notes
 
-- The deterministic tenant defaults to `RARI_SELFTEST_TEAM_ID` (currently "test's Fleet"); seeded rows are tagged and wiped after each run. Real tenants get shape and isolation assertions only, so the suite stays deterministic.
-- Mutating cases (`create_booking_hold`, `logFeedback`) run only on the test tenant, and created bookings are deleted at the end of the run.
-- The cross-tenant write test asks one tenant's session to hold another tenant's `vehicle_id`; a created booking is a hard failure.
-- Nothing in the harness changes auth, registry tool names, or registry schemas.
-
-## Open question
-
-For step 2, do you want the run to go through your signed-in super-admin session in the preview, or should the harness also be callable from CI with a scoped service token (a small amount of extra auth surface to maintain)?
+- **Run artifacts**: new `rari_selftest_runs` table (id, ran_at, ran_by, suites, totals, matrix jsonb, failures jsonb, git-less build marker, `is_green` boolean). RLS: super-admin read/insert only, no anon or authenticated grants. The runner writes one row per run; the panel diffs the current matrix against the most recent `is_green` row and flags cells that went pass -> FAIL (regression) or FAIL -> pass (fixed).
+- Mutating cases (`create_booking_hold`, `logFeedback`) run only on the self-test team; created bookings are deleted at the end of the run; seeded rows are tagged and wiped unless `keepSeed` is set.
+- Real tenants get shape, isolation, currency, and golden-number assertions only — timeframe and limit correctness are asserted on the seeded team, so the suite stays deterministic.
+- Nothing changes auth, registry tool names, or registry schemas.
