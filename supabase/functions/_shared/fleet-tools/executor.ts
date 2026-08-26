@@ -1539,52 +1539,70 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
         const maxRows = toLimit(limit, 30);
         const term = typeof searchText === 'string' ? searchText.trim() : '';
 
-        let query = supabase
-          .from('bookings')
-          .select('*, vehicles(make, model, year, location), customers(full_name)');
-        
-        if (teamId) {
-          query = query.eq('team_id', teamId);
-        }
+        const tokens = searchTokens(term);
 
-        if (status) query = query.eq('status', status);
+        const applyFilters = (q: any) => {
+          if (teamId) q = q.eq('team_id', teamId);
+          if (status) q = q.eq('status', status);
+          if (daysRange) {
+            const dateFilter = new Date();
+            dateFilter.setDate(dateFilter.getDate() - daysRange);
+            q = q.gte('start_date', dateFilter.toISOString());
+          }
+          return q;
+        };
 
-        // Free-text search across the columns that live on the booking row.
-        // Vehicle make/model live on the join, so they're matched client-side
-        // below (PostgREST can't OR across an embedded resource).
-        if (term) {
-          const like = `%${term}%`;
-          query = query.or(
-            `booking_ref.ilike.${like},customer_name.ilike.${like},customer_email.ilike.${like},vehicle_name.ilike.${like}`,
+        const select = '*, vehicles(make, model, year, location, name), customers(full_name)';
+
+        // Pass 1: booking-row columns. Pass 2: rows joined to a vehicle, so a
+        // multi-word phrase like "Ferrari 488 Spider" (make + model split across
+        // columns) can be matched token-by-token in code. Both passes ALWAYS
+        // run — the join pass used to fire only when pass 1 returned nothing.
+        const passes: any[] = [
+          applyFilters(supabase.from('bookings').select(select))
+            .order('start_date', { ascending: false })
+            .limit(tokens.length ? 500 : maxRows),
+        ];
+        if (tokens.length) {
+          passes.push(
+            applyFilters(
+              supabase
+                .from('bookings')
+                .select('*, vehicles!inner(make, model, year, location, name), customers(full_name)'),
+            )
+              .order('start_date', { ascending: false })
+              .limit(500),
           );
         }
-        
-        if (daysRange) {
-          const dateFilter = new Date();
-          dateFilter.setDate(dateFilter.getDate() - daysRange);
-          query = query.gte('start_date', dateFilter.toISOString());
+
+        const results = await Promise.all(passes);
+        const byId = new Map<string, any>();
+        for (const res of results) {
+          for (const row of res?.data || []) {
+            if (!byId.has(row.id)) byId.set(row.id, row);
+          }
+        }
+        let filteredBookings = [...byId.values()];
+
+        if (tokens.length) {
+          filteredBookings = filteredBookings.filter((b: any) =>
+            matchesAllTokens(tokens, [
+              b.booking_ref,
+              b.customer_name,
+              b.customer_email,
+              b.vehicle_name,
+              b.customers?.full_name,
+              b.vehicles?.make,
+              b.vehicles?.model,
+              b.vehicles?.year,
+              b.vehicles?.name,
+            ]),
+          );
         }
 
-        const { data: bookings } = await query
-          .order('start_date', { ascending: false })
-          .limit(Math.max(maxRows, term ? 200 : maxRows));
-
-        let filteredBookings = bookings || [];
-
-        // Second pass so a term that only matches the joined vehicle still hits.
-        if (term && filteredBookings.length === 0) {
-          let joinQuery = supabase
-            .from('bookings')
-            .select('*, vehicles!inner(make, model, year, location), customers(full_name)');
-          if (teamId) joinQuery = joinQuery.eq('team_id', teamId);
-          if (status) joinQuery = joinQuery.eq('status', status);
-          const like = `%${term}%`;
-          const { data: byVehicle } = await joinQuery
-            .or(`make.ilike.${like},model.ilike.${like}`, { foreignTable: 'vehicles' })
-            .order('start_date', { ascending: false })
-            .limit(maxRows);
-          filteredBookings = byVehicle || [];
-        }
+        filteredBookings.sort(
+          (a: any, b: any) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime(),
+        );
 
         if (location && location !== 'all') {
           filteredBookings = filteredBookings.filter((b: any) => 
@@ -1593,6 +1611,7 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
         }
 
         filteredBookings = filteredBookings.slice(0, maxRows);
+
         
         const bookingList = filteredBookings.map(b => {
           const vehicleName = b.vehicles ? vehicleDisplayName(b.vehicles) : (b.vehicle_name || 'vehicle');
