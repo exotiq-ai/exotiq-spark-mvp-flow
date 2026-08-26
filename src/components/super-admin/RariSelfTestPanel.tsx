@@ -65,7 +65,7 @@ type RunResponse = {
   ranAt: string;
   elapsedMs: number;
   suites: string[];
-  tenants: { teamId: string; name: string; currency: string; strict: boolean }[];
+  tenants: { teamId: string; name: string; currency: string; strict: boolean; ownerEmail?: string | null }[];
   totals: { cases: number; passed: number; failed: number; skipped: number };
   failures: { suite: string; tenant: string; case: string; assertion?: string; detail?: string }[];
   matrix: Record<string, Record<string, string>>;
