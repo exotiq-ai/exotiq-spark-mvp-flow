@@ -378,6 +378,56 @@ async function detectAskFleetLocation(
     .sort((a, b) => b.length - a.length)[0];
 }
 
+/** Words that look like names but never are, so they can't match a customer. */
+const CUSTOMER_STOPWORDS = new Set([
+  'what', 'whats', 'who', 'how', 'when', 'where', 'why', 'the', 'a', 'an', 'is', 'are', 'was',
+  'has', 'have', 'had', 'do', 'does', 'did', 'my', 'me', 'our', 'us', 'with', 'for', 'from',
+  'booked', 'booking', 'bookings', 'rental', 'rentals', 'fleet', 'car', 'cars', 'vehicle',
+  'this', 'that', 'today', 'week', 'month', 'year', 'and', 'about', 'tell', 'show', 'list',
+]);
+
+/**
+ * A question that names one of the team's own customers is about that
+ * customer, not the fleet average. Returns the customer's full name.
+ */
+async function detectAskFleetCustomer(
+  supabase: SupabaseClient,
+  teamId: string | null,
+  question: string,
+): Promise<string | undefined> {
+  if (!teamId) return undefined;
+  const words = searchTokens(question)
+    .map((w) => w.replace(/[^a-z'-]/g, ''))
+    .filter((w) => w.length > 2 && !CUSTOMER_STOPWORDS.has(w));
+  if (words.length === 0) return undefined;
+
+  const { data } = await supabase
+    .from('customers')
+    .select('full_name')
+    .eq('team_id', teamId)
+    .limit(1000);
+
+  const names = (data || []).map((c: any) => String(c.full_name || '').trim()).filter(Boolean);
+  const q = ` ${question.toLowerCase()} `;
+
+  // Full name mentioned outright wins.
+  const full = names
+    .filter((n) => q.includes(` ${n.toLowerCase()} `) || q.includes(n.toLowerCase()))
+    .sort((a, b) => b.length - a.length)[0];
+  if (full) return full;
+
+  // Otherwise a distinctive first or last name token.
+  for (const word of words) {
+    const hits = names.filter((n) =>
+      n.toLowerCase().split(/\s+/).some((part) => part === word),
+    );
+    if (hits.length >= 1) return hits[0];
+  }
+  return undefined;
+}
+
+
+
 /**
  * Registry param name -> handler param name.
  *
