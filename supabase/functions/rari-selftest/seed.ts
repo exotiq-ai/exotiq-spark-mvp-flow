@@ -7,6 +7,21 @@
 
 export const SEED_TAG = 'rari-selftest';
 
+/**
+ * Hard guard: fixtures may ONLY be written to the dedicated harness workspace.
+ * Never a real tenant, never the demo account.
+ */
+export const SELFTEST_TEAM_ID =
+  Deno.env.get('RARI_SELFTEST_TEAM_ID') || 'd378546a-29cb-4ed6-81ce-ef768fa3f36f';
+
+function assertSelftestTeam(teamId: string) {
+  if (teamId !== SELFTEST_TEAM_ID) {
+    throw new Error(
+      `refusing to seed: ${teamId} is not the dedicated Rari self-test workspace`,
+    );
+  }
+}
+
 function isoDaysFromNow(days: number, hour = 10): string {
   const d = new Date();
   d.setUTCDate(d.getUTCDate() + days);
