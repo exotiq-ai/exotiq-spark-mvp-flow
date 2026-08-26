@@ -2406,8 +2406,11 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
 
         return {
           vehicles: profitLoss,
+          grossRevenueRaw: totalGross,
+          operatorNetRaw: totalNet,
           totals: {
             grossRevenue: formatUsdWords(totalGross),
+            grossRevenueRaw: totalGross,
             platformFees: formatUsdWords(totalFees),
             expenses: formatUsdWords(totalExpenses),
             partnerPayouts: formatUsdWords(totalPayouts),
@@ -2417,6 +2420,7 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
           },
           timeframe: window.label,
           summary,
+
         };
       }
 
