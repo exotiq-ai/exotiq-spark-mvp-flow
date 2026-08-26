@@ -28,7 +28,9 @@ const TOOL_SECRET = Deno.env.get('RARI_TOOL_TOKEN_SECRET');
 const ALL_SUITES = ['execution', 'questions', 'edge', 'golden', 'isolation', 'surface', 'auth', 'drift', 'session'] as const;
 
 /** The deterministic, seedable tenant. Everything else gets shape + isolation only. */
-const TEST_TEAM_ID = Deno.env.get('RARI_SELFTEST_TEAM_ID') || 'e00f4367-03de-440a-8273-9842830f18f4';
+// Dedicated harness workspace ("Rari Self-Test"). It is deliberately NOT a real
+// tenant and NOT the demo account — seeded fixtures must never land anywhere else.
+const TEST_TEAM_ID = Deno.env.get('RARI_SELFTEST_TEAM_ID') || 'd378546a-29cb-4ed6-81ce-ef768fa3f36f';
 
 interface TenantProfile {
   teamId: string;
