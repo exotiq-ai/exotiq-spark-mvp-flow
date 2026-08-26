@@ -156,14 +156,21 @@ export async function runSessionSmoke(userJwt: string): Promise<{ detail: any; f
 
   const signedUrl = body?.signed_url ?? body?.signedUrl;
   const dynamic = body?.dynamic_variables ?? body?.dynamicVariables ?? {};
-  const sessionToolToken = dynamic?.secret__rari_tool_token ?? dynamic?.rari_tool_token;
+  // The session function may return the tool token at the top level and/or
+  // inside dynamic variables — either is a valid handshake.
+  const sessionToolToken =
+    dynamic?.secret__rari_tool_token ??
+    dynamic?.rari_tool_token ??
+    body?.toolToken ??
+    body?.tool_token;
 
   if (!signedUrl || !/^wss?:\/\/|^https:\/\//.test(String(signedUrl))) {
     failures.push({ assertion: 'session:signed-url', detail: `missing or malformed signed URL: ${String(signedUrl).slice(0, 120)}` });
   }
   if (!sessionToolToken) {
-    failures.push({ assertion: 'session:dynamic-vars', detail: `no tool token in dynamic variables: ${JSON.stringify(Object.keys(dynamic))}` });
+    failures.push({ assertion: 'session:tool-token', detail: `no tool token at top level or in dynamic variables: body keys ${JSON.stringify(Object.keys(body || {}))}, dynamic keys ${JSON.stringify(Object.keys(dynamic))}` });
   } else {
+
     // The token the live session hands the agent must actually authorize a tool
     // call, and the response must report authMethod "tool_token".
     const bare = String(sessionToolToken).replace(/^Bearer\s+/i, '');

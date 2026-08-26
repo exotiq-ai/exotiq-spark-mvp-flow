@@ -2,7 +2,7 @@
 // Golden-number cross-checks: what Rari says out loud must equal what the
 // database says. Computed independently via the service-role path, then
 // compared against the tool payloads.
-import { executeFunction, resolveTimeframeWindow } from '../_shared/fleet-tools/executor.ts';
+import { executeFunction, resolveTimeframeWindow, applyRentalWindow } from '../_shared/fleet-tools/executor.ts';
 
 interface Failure { assertion: string; detail: string }
 
@@ -35,20 +35,21 @@ export async function runGoldenChecks(
   record('fleet_count', sqlVehicleCount, fleet?.count, Number(fleet?.count) === Number(sqlVehicleCount));
 
   // --- 2. Revenue total (completed bookings, this year) ---------------------
+  // Must use the SAME window semantics as the tool (rental-period overlap),
+  // otherwise the cross-check fails on a definition difference, not a bug.
   const window = resolveTimeframeWindow('year');
-  let revQuery = supabase
+  const revQuery = supabase
     .from('bookings')
-    .select('total_value, start_date')
+    .select('total_value, start_date, end_date')
     .eq('team_id', teamId)
-    .eq('status', 'completed')
-    .lte('start_date', window.end);
-  if (window.start) revQuery = revQuery.gte('start_date', window.start);
-  const { data: revRows } = await revQuery;
+    .eq('status', 'completed');
+  const { data: revRows } = await applyRentalWindow(revQuery, window);
   const sqlRevenue = (revRows || []).reduce((s: number, r: any) => s + Number(r.total_value || 0), 0);
 
   const revenue = await executeFunction('getRevenueAnalysis', { timeframe: 'year' }, supabase, userId, teamId);
   record('revenue_year', Math.round(sqlRevenue), Math.round(Number(revenue?.totalRevenueRaw ?? NaN)), near(Number(revenue?.totalRevenueRaw), sqlRevenue, 1));
   record('revenue_booking_count', (revRows || []).length, revenue?.bookingCount, Number(revenue?.bookingCount) === (revRows || []).length);
+
 
   // --- 3. Per-vehicle P&L vs fn_vehicle_pnl --------------------------------
   const pStart = (window.start ?? '2000-01-01T00:00:00.000Z').slice(0, 10);

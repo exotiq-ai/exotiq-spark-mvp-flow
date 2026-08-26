@@ -378,6 +378,56 @@ async function detectAskFleetLocation(
     .sort((a, b) => b.length - a.length)[0];
 }
 
+/** Words that look like names but never are, so they can't match a customer. */
+const CUSTOMER_STOPWORDS = new Set([
+  'what', 'whats', 'who', 'how', 'when', 'where', 'why', 'the', 'a', 'an', 'is', 'are', 'was',
+  'has', 'have', 'had', 'do', 'does', 'did', 'my', 'me', 'our', 'us', 'with', 'for', 'from',
+  'booked', 'booking', 'bookings', 'rental', 'rentals', 'fleet', 'car', 'cars', 'vehicle',
+  'this', 'that', 'today', 'week', 'month', 'year', 'and', 'about', 'tell', 'show', 'list',
+]);
+
+/**
+ * A question that names one of the team's own customers is about that
+ * customer, not the fleet average. Returns the customer's full name.
+ */
+async function detectAskFleetCustomer(
+  supabase: SupabaseClient,
+  teamId: string | null,
+  question: string,
+): Promise<string | undefined> {
+  if (!teamId) return undefined;
+  const words = searchTokens(question)
+    .map((w) => w.replace(/[^a-z'-]/g, ''))
+    .filter((w) => w.length > 2 && !CUSTOMER_STOPWORDS.has(w));
+  if (words.length === 0) return undefined;
+
+  const { data } = await supabase
+    .from('customers')
+    .select('full_name')
+    .eq('team_id', teamId)
+    .limit(1000);
+
+  const names = (data || []).map((c: any) => String(c.full_name || '').trim()).filter(Boolean);
+  const q = ` ${question.toLowerCase()} `;
+
+  // Full name mentioned outright wins.
+  const full = names
+    .filter((n) => q.includes(` ${n.toLowerCase()} `) || q.includes(n.toLowerCase()))
+    .sort((a, b) => b.length - a.length)[0];
+  if (full) return full;
+
+  // Otherwise a distinctive first or last name token.
+  for (const word of words) {
+    const hits = names.filter((n) =>
+      n.toLowerCase().split(/\s+/).some((part) => part === word),
+    );
+    if (hits.length >= 1) return hits[0];
+  }
+  return undefined;
+}
+
+
+
 /**
  * Registry param name -> handler param name.
  *
@@ -644,6 +694,27 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
             routed_to: 'getVehicleDetails',
           } as ToolResult;
         }
+
+        // A question that names one of the team's own customers is about that
+        // customer.
+        const namedCustomer = await detectAskFleetCustomer(supabase, teamId, asked);
+        if (namedCustomer) {
+          console.log(`[ask_fleet] "${asked}" -> getCustomerProfile (${namedCustomer})`);
+          const profile = await executeFunction(
+            'getCustomerProfile',
+            { customerName: namedCustomer },
+            supabase,
+            userId,
+            teamId,
+          );
+          return {
+            ...(profile as Record<string, unknown>),
+            question: asked,
+            routed_to: 'getCustomerProfile',
+          } as ToolResult;
+        }
+
+
 
         const routedTool = detectAskFleetTool(asked);
         const routedTimeframe = timeframe || detectAskFleetTimeframe(asked);
@@ -1726,37 +1797,61 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
       }
 
       case "getCustomerLifetimeValue": {
-        const { customerName } = args;
-        
+        const { customerName } = args as { customerName?: string };
+        const asked = String(customerName || '').trim();
+        if (!asked) {
+          return { error: 'no_customer_reference', summary: 'Which customer would you like the lifetime value for?' };
+        }
+
         let query = supabase
           .from('customers')
-          .select('full_name, lifetime_value, total_bookings, customer_status');
-        
-        if (teamId) {
-          query = query.eq('team_id', teamId);
-        }
-        
-        const { data: customer } = await query
-          .ilike('full_name', `%${customerName}%`)
-          .maybeSingle();
+          .select('id, full_name, email, lifetime_value, total_bookings, customer_status');
+        if (teamId) query = query.eq('team_id', teamId);
 
-        if (!customer) return { 
-          error: "Customer not found",
-          summary: `I couldn't find a customer matching "${customerName}".`
-        };
+        const tokens = searchTokens(asked);
+        const { data: rows } = await query
+          .or(`full_name.ilike.%${asked}%,email.ilike.%${asked}%`)
+          .order('lifetime_value', { ascending: false, nullsFirst: false })
+          .limit(25);
+
+        let candidates = (rows || []).filter((c: any) => matchesAllTokens(tokens, [c.full_name, c.email]));
+        if (candidates.length === 0) candidates = rows || [];
+
+        if (candidates.length === 0) {
+          return {
+            error: 'not_found',
+            searched: asked,
+            summary: `I couldn't find a customer matching "${asked}".`,
+          };
+        }
+
+        // Prefer an exact full-name match, otherwise the highest-value match.
+        const exact = candidates.find(
+          (c: any) => String(c.full_name || '').toLowerCase() === asked.toLowerCase(),
+        );
+        const customer = exact || candidates[0];
+        const others = candidates.filter((c: any) => c.id !== customer.id);
 
         const ltv = Number(customer.lifetime_value || 0);
-        return { 
+        let summary = `${customer.full_name} is a ${customer.customer_status || 'regular'} customer with ${customer.total_bookings || 0} bookings and ${formatUsdWords(ltv)} lifetime value.`;
+        if (!exact && others.length) {
+          summary += ` ${others.length} other customer${others.length === 1 ? '' : 's'} also match "${asked}" (${others.slice(0, 3).map((c: any) => c.full_name).join(', ')}) — say the full name if you meant one of those.`;
+        }
+
+        return {
           customer: {
             name: customer.full_name,
+            email: customer.email,
             status: customer.customer_status,
             totalBookings: customer.total_bookings || 0,
             lifetimeValue: formatUsdWords(ltv),
-            lifetimeValueRaw: ltv
+            lifetimeValueRaw: ltv,
           },
-          summary: `${customer.full_name} is a ${customer.customer_status || 'regular'} customer with ${customer.total_bookings || 0} bookings and ${formatUsdWords(ltv)} lifetime value.`
+          otherMatches: others.map((c: any) => c.full_name),
+          summary,
         };
       }
+
 
       case "getVaultDocuments": {
         const { category, status, vehicle, limit } = args;
@@ -2045,19 +2140,25 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
       }
 
       case "getEventImpact": {
-        const { eventName, location } = args;
-        console.log(`[getEventImpact] Searching for event: ${eventName}, Location: ${location}`);
-        
+        const { eventName, location } = args as { eventName?: string; location?: string };
+        const named = typeof eventName === 'string' ? eventName.trim() : '';
+        console.log(`[getEventImpact] Searching for event: ${named || '(none named)'}, Location: ${location || 'all'}`);
+
         // The hardcoded peak-season calendar was removed — event context
         // comes from the tenant's real demand data (MotorIQ), not a static
         // Miami/Scottsdale event list.
+        const where = location ? ` in ${location}` : '';
         return {
-          searched: eventName,
+          searched: named || null,
+          location: location || null,
           impact: "Events typically increase demand by 15-30% in the surrounding area",
           recommendation: "Consider adjusting rates 2-3 days before major events to capture increased demand",
-          summary: `For events like "${eventName}", you can expect increased demand for luxury vehicle rentals. I recommend raising rates by 15-25% during peak event days and ensuring your highest-demand vehicles are available.`
+          summary: named
+            ? `For events like "${named}"${where}, you can expect increased demand for luxury vehicle rentals. I recommend raising rates by 15-25% during peak event days and ensuring your highest-demand vehicles are available.`
+            : `Major local events${where} typically lift luxury rental demand by 15-30%. I recommend raising rates by 15-25% across the event window and keeping your highest-demand vehicles free. Tell me which event you have in mind and I'll be more specific.`,
         };
       }
+
 
       // getWeatherInfo removed 2026-07-31: it returned Math.random() temperature,
       // conditions, humidity and wind and presented them as fact. Do not
@@ -2076,57 +2177,70 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
       }
 
       case "getVehicleSpecs": {
-        const { vehicleName } = args;
-        
+        const { vehicleName } = args as { vehicleName?: string };
+        const asked = String(vehicleName || '').trim();
+        if (!asked) {
+          return { error: 'no_vehicle_reference', summary: 'Which vehicle would you like the specs for?' };
+        }
+
+        // Reference specs for a handful of halo cars. Only ever used to enrich
+        // a vehicle that actually exists in the tenant's fleet.
         const specsDatabase: Record<string, any> = {
-          "ferrari sf90": {
-            make: "Ferrari", model: "SF90 Stradale", engine: "4.0L V8 + Electric Motors",
-            horsepower: "986 hp", torque: "590 lb-ft", acceleration: "2.5 sec (0-60 mph)",
-            topSpeed: "211 mph", drivetrain: "AWD", weight: "3,461 lbs"
-          },
-          "lamborghini aventador": {
-            make: "Lamborghini", model: "Aventador SVJ", engine: "6.5L V12",
-            horsepower: "770 hp", torque: "531 lb-ft", acceleration: "2.8 sec (0-60 mph)",
-            topSpeed: "217 mph", drivetrain: "AWD", weight: "3,362 lbs"
-          },
-          "mclaren 720s": {
-            make: "McLaren", model: "720S Spider", engine: "4.0L Twin-Turbo V8",
-            horsepower: "710 hp", torque: "568 lb-ft", acceleration: "2.8 sec (0-60 mph)",
-            topSpeed: "212 mph", drivetrain: "RWD", weight: "3,128 lbs"
-          },
-          "bugatti chiron": {
-            make: "Bugatti", model: "Chiron Sport", engine: "8.0L Quad-Turbo W16",
-            horsepower: "1,479 hp", torque: "1,180 lb-ft", acceleration: "2.4 sec (0-60 mph)",
-            topSpeed: "261 mph", drivetrain: "AWD", weight: "4,400 lbs"
-          },
-          "porsche 911": {
-            make: "Porsche", model: "911 Turbo S", engine: "3.7L Twin-Turbo Flat-6",
-            horsepower: "640 hp", torque: "590 lb-ft", acceleration: "2.6 sec (0-60 mph)",
-            topSpeed: "205 mph", drivetrain: "AWD", weight: "3,636 lbs"
-          },
-          "rolls-royce": {
-            make: "Rolls-Royce", model: "Phantom", engine: "6.75L Twin-Turbo V12",
-            horsepower: "563 hp", torque: "664 lb-ft", acceleration: "5.1 sec (0-60 mph)",
-            topSpeed: "155 mph", drivetrain: "RWD", weight: "5,644 lbs"
-          }
+          "ferrari sf90": { engine: "4.0L V8 + Electric Motors", horsepower: "986 hp", torque: "590 lb-ft", acceleration: "2.5 sec (0-60 mph)", topSpeed: "211 mph", drivetrain: "AWD" },
+          "lamborghini aventador": { engine: "6.5L V12", horsepower: "770 hp", torque: "531 lb-ft", acceleration: "2.8 sec (0-60 mph)", topSpeed: "217 mph", drivetrain: "AWD" },
+          "mclaren 720s": { engine: "4.0L Twin-Turbo V8", horsepower: "710 hp", torque: "568 lb-ft", acceleration: "2.8 sec (0-60 mph)", topSpeed: "212 mph", drivetrain: "RWD" },
+          "bugatti chiron": { engine: "8.0L Quad-Turbo W16", horsepower: "1,479 hp", torque: "1,180 lb-ft", acceleration: "2.4 sec (0-60 mph)", topSpeed: "261 mph", drivetrain: "AWD" },
+          "porsche 911": { engine: "3.7L Twin-Turbo Flat-6", horsepower: "640 hp", torque: "590 lb-ft", acceleration: "2.6 sec (0-60 mph)", topSpeed: "205 mph", drivetrain: "AWD" },
+          "rolls-royce phantom": { engine: "6.75L Twin-Turbo V12", horsepower: "563 hp", torque: "664 lb-ft", acceleration: "5.1 sec (0-60 mph)", topSpeed: "155 mph", drivetrain: "RWD" },
         };
 
-        const searchKey = vehicleName.toLowerCase();
-        const spec = Object.keys(specsDatabase).find(key => searchKey.includes(key) || key.includes(searchKey));
-        
-        if (spec) {
-          const specData = specsDatabase[spec];
+        const vehicle = await findTeamVehicleByTokens(supabase, teamId, asked);
+        if (!vehicle) {
           return {
-            ...specData,
-            summary: `The ${specData.make} ${specData.model} features a ${specData.engine} producing ${specData.horsepower} and ${specData.torque}. It does 0-60 in ${specData.acceleration} with a top speed of ${specData.topSpeed}.`
+            error: 'not_found',
+            searched: asked,
+            summary: `I couldn't find "${asked}" in your fleet, so I don't have specs for it.`,
           };
         }
-        return { 
-          error: "Vehicle specs not found in database", 
-          searched: vehicleName,
-          summary: `I don't have detailed specs for "${vehicleName}" in my database. Try asking about Ferrari SF90, Lamborghini Aventador, McLaren 720S, Bugatti Chiron, Porsche 911, or Rolls-Royce.`
+
+        const display = vehicleDisplayName(vehicle);
+        const key = `${vehicle.make || ''} ${vehicle.model || ''} ${vehicle.name || ''}`.toLowerCase();
+        const specKey = Object.keys(specsDatabase).find((k) => key.includes(k) || k.includes(key.trim()));
+        const reference = specKey ? specsDatabase[specKey] : null;
+
+        const fleetFacts: string[] = [];
+        if (vehicle.color) fleetFacts.push(`finished in ${vehicle.color}`);
+        if (vehicle.transmission) fleetFacts.push(`${vehicle.transmission} transmission`);
+        if (vehicle.mileage != null) fleetFacts.push(`${Number(vehicle.mileage).toLocaleString()} miles`);
+        if (vehicle.location) fleetFacts.push(`based at ${vehicle.location}`);
+
+        let summary = `The ${display}`;
+        if (reference) {
+          summary += ` runs a ${reference.engine} making ${reference.horsepower} and ${reference.torque}, 0-60 in ${reference.acceleration}, top speed ${reference.topSpeed}.`;
+        } else {
+          summary += ` is in your fleet`;
+          summary += fleetFacts.length ? `, ${fleetFacts.join(', ')}.` : '. I don\'t have manufacturer performance figures for it.';
+        }
+        if (reference && fleetFacts.length) summary += ` Yours is ${fleetFacts.join(', ')}.`;
+        if (vehicle.current_rate) summary += ` It rents at ${formatUsdWords(Number(vehicle.current_rate))} a day.`;
+
+        return {
+          vehicleId: vehicle.id,
+          vehicle: display,
+          year: vehicle.year ?? null,
+          make: vehicle.make ?? null,
+          model: vehicle.model ?? null,
+          color: vehicle.color ?? null,
+          transmission: vehicle.transmission ?? null,
+          mileage: vehicle.mileage ?? null,
+          location: vehicle.location ?? null,
+          status: vehicle.status ?? null,
+          dailyRate: vehicle.current_rate ?? null,
+          ...(reference || {}),
+          summary,
         };
       }
+
 
       case "logFeedback": {
         // `feedback` is the registry param: the raw thing the user said.
@@ -2266,6 +2380,8 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
           partnerPayouts: formatUsdWords(Number(r.partner_payouts || 0)),
           operatorNet: formatUsdWords(Number(r.operator_net || 0)),
           operatorNetRaw: Number(r.operator_net || 0),
+          grossRevenueRaw: Number(r.gross_revenue || 0),
+
           margin: `${Number(r.margin_pct || 0).toFixed(1)}%`,
           bookings: Number(r.booking_count || 0),
         }));
@@ -2290,8 +2406,11 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
 
         return {
           vehicles: profitLoss,
+          grossRevenueRaw: totalGross,
+          operatorNetRaw: totalNet,
           totals: {
             grossRevenue: formatUsdWords(totalGross),
+            grossRevenueRaw: totalGross,
             platformFees: formatUsdWords(totalFees),
             expenses: formatUsdWords(totalExpenses),
             partnerPayouts: formatUsdWords(totalPayouts),
@@ -2301,6 +2420,7 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
           },
           timeframe: window.label,
           summary,
+
         };
       }
 

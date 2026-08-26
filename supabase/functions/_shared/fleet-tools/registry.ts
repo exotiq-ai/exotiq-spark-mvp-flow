@@ -296,9 +296,13 @@ export const FLEET_TOOLS: FleetToolDefinition[] = [
     name: 'getEventImpact',
     category: 'pricing',
     description: 'Impact of local events/peak season on demand and rates.',
-    params: [LOCATION],
+    params: [
+      { name: 'eventName', type: 'string', required: false, description: 'Name of the event, e.g. "Art Basel".' },
+      LOCATION,
+    ],
     readOnly: true,
   },
+
 
   // ---------------- operations ----------------
   {

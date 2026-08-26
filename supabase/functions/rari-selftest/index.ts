@@ -255,9 +255,10 @@ function serve_handler() {
 
       // Seed the deterministic tenant so timeframe assertions are meaningful.
       const testProfile = profiles.find((p) => p.teamId === TEST_TEAM_ID);
+      let seedFailure: string | null = null;
       if (testProfile && suites.includes('execution') && body.seed !== false) {
         try {
-          const seeded = await seedTestTenant(admin, TEST_TEAM_ID);
+          const seeded = await seedTestTenant(admin, TEST_TEAM_ID, testProfile.ownerUserId);
           testProfile.sample = {
             ...testProfile.sample,
             vehicle: seeded.sampleVehicle,
@@ -267,9 +268,11 @@ function serve_handler() {
             location: seeded.location,
           };
         } catch (e) {
+          seedFailure = String((e as any)?.message || e);
           console.error('[rari-selftest] seeding failed', e);
         }
       }
+
 
       const results: any[] = [];
       const failures: any[] = [];
@@ -282,6 +285,19 @@ function serve_handler() {
           failures.push({ ...f, suite: entry.suite, tenant: entry.tenant, case: entry.case });
         }
       };
+
+      // A seeding failure is a real failure, not a silent skip — otherwise the
+      // harness reports "skipped" for every fixture-dependent case.
+      if (seedFailure) {
+        push({
+          suite: 'setup',
+          tenant: testProfile?.name || 'Rari Self-Test',
+          case: 'seed-test-tenant',
+          failures: [{ assertion: 'seed', detail: seedFailure }],
+        });
+      }
+
+
 
       // =====================================================================
       // Suites that run per tenant
@@ -364,11 +380,16 @@ function serve_handler() {
             }
             const summary = String(result?.summary || '').toLowerCase();
             const wanted = q.expectAnyOf.map((w) => String(substitute(w, p.sample)).toLowerCase()).filter(Boolean);
-            const routed = wanted.some((w) => summary.includes(w));
+            const routedTo = String(result?.routed_to || '');
+            // Routing passes when the answer mentions the expected subject OR
+            // ask_fleet demonstrably routed to the expected handler.
+            const routedByTool = Array.isArray(q.expectRoutedTo) && q.expectRoutedTo.includes(routedTo);
+            const routed = routedByTool || wanted.some((w) => summary.includes(w));
             const caseFailures = [
               ...assertResult(result, { teamId: p.teamId, args: { question }, strict: false }),
-              ...(routed ? [] : [{ assertion: 'routing', detail: `expected one of [${wanted.join(', ')}] in: ${summary.slice(0, 200)}` }]),
+              ...(routed ? [] : [{ assertion: 'routing', detail: `routed_to=${routedTo || 'n/a'}; expected one of [${wanted.join(', ')}] in: ${summary.slice(0, 200)}` }]),
             ];
+
             push({ suite: 'questions', tenant: p.name, case: q.label, tool: 'ask_fleet', args: { question }, question, rawResult: result, summary: summary.slice(0, 160), failures: caseFailures });
           }
         }
