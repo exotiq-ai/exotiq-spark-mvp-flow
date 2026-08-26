@@ -906,6 +906,26 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
             locationStats[loc].activeBookings = (locationStats[loc].activeBookings || 0) + 1;
           }
         }
+
+        // Timeframe-scoped revenue. `vehicles.revenue` is lifetime, so when the
+        // caller asks for a window we recompute from bookings in that window.
+        if (locWindow.start) {
+          let revQuery = supabase
+            .from('bookings')
+            .select('total_value, total_amount, start_date, vehicles(location)')
+            .gte('start_date', locWindow.start)
+            .lte('start_date', locWindow.end)
+            .not('status', 'in', '("cancelled")');
+          if (teamId) revQuery = revQuery.eq('team_id', teamId);
+          const { data: windowBookings } = await revQuery;
+          for (const loc of Object.keys(locationStats)) locationStats[loc].totalRevenue = 0;
+          for (const b of (windowBookings || [])) {
+            const loc = (b as any).vehicles?.location || 'Unassigned';
+            if (locationStats[loc]) {
+              locationStats[loc].totalRevenue += Number((b as any).total_value || (b as any).total_amount || 0);
+            }
+          }
+        }
         
         // If specific location requested
         if (location && location !== 'all') {
@@ -921,7 +941,8 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
               avgRate: `$${stats.avgRate.toFixed(0)}`,
               activeBookings: stats.activeBookings || 0,
               topVehicles: stats.vehicles.slice(0, 5),
-              summary: `${stats.location} has ${stats.vehicleCount} vehicles with ${formatUsdWords(stats.totalRevenue)} total revenue, ${stats.avgUtilization.toFixed(0)}% average utilization, and ${stats.activeBookings || 0} active bookings.`
+              timeframe: locWindow.label,
+              summary: `${stats.location} has ${stats.vehicleCount} vehicles with ${formatUsdWords(stats.totalRevenue)} revenue for ${locWindow.label}, ${stats.avgUtilization.toFixed(0)}% average utilization, and ${stats.activeBookings || 0} active bookings.`
             };
           }
         }
@@ -929,6 +950,7 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
         // Return all locations
         const locations = Object.values(locationStats);
         return {
+          timeframe: locWindow.label,
           locationCount: locations.length,
           locations: locations.map((l: any) => ({
             location: l.location,
