@@ -71,6 +71,12 @@ async function profileTenant(supabase: any, teamId: string): Promise<TenantProfi
   ]);
 
   const team = teamRes.data;
+  let ownerEmail: string | null = null;
+  if (team?.owner_id) {
+    const { data: ownerProfile } = await supabase
+      .from('profiles').select('email').eq('id', team.owner_id).maybeSingle();
+    ownerEmail = ownerProfile?.email ?? null;
+  }
   const vehicle = (vehicleRes.data || [])[0];
   const booking = (bookingRes.data || []).find((b: any) => b.customer_name) || (bookingRes.data || [])[0];
 
