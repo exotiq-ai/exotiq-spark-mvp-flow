@@ -189,7 +189,7 @@ export const RariSelfTestPanel = () => {
     setHistory((data || []) as unknown as StoredRun[]);
   };
 
-  useEffect(() => { loadHistory(); }, []);
+  useEffect(() => { loadHistory(); loadTenants(); }, []);
 
   const toggleSuite = (id: string) =>
     setSelected((prev) => (prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]));
