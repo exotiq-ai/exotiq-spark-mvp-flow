@@ -3,7 +3,6 @@
 // One source of truth for every capability Rari exposes, regardless of surface:
 //   - elevenlabs-tools   (voice webhook)
 //   - rari-mcp-server    (MCP / auto-discovered tools)
-//   - fleet-copilot-chat (in-app text chat function calling)
 //
 // Adding a capability = add a `case` in executor.ts + an entry here.
 // No surface should carry its own tool list again.

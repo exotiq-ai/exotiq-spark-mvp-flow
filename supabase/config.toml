@@ -15,9 +15,6 @@ verify_jwt = false
 [functions.elevenlabs-tools]
 verify_jwt = false
 
-[functions.fleet-copilot-chat]
-verify_jwt = false
-
 [functions.voice-to-text]
 verify_jwt = false
 
