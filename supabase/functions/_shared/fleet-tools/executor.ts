@@ -1266,6 +1266,52 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
         const topWindow = resolveTimeframeWindow(typeof timeframe === 'string' ? timeframe : undefined);
         
         if (metric === 'revenue' || metric === 'utilization') {
+          // `vehicles.revenue` is lifetime. When a timeframe is asked for, rank
+          // by revenue booked inside that window instead.
+          if (metric === 'revenue' && topWindow.start) {
+            let bq = supabase
+              .from('bookings')
+              .select('total_value, total_amount, vehicle_id, vehicles(name, make, model, year, location, utilization)')
+              .gte('start_date', topWindow.start)
+              .lte('start_date', topWindow.end)
+              .neq('status', 'cancelled');
+            if (teamId) bq = bq.eq('team_id', teamId);
+            const { data: windowBookings } = await bq;
+
+            const byVehicle = new Map<string, { v: any; revenue: number; bookings: number }>();
+            for (const b of (windowBookings || []) as any[]) {
+              const veh = b.vehicles;
+              if (!veh) continue;
+              if (location && location !== 'all' && !String(veh.location || '').toLowerCase().includes(String(location).toLowerCase())) continue;
+              const key = b.vehicle_id;
+              const entry = byVehicle.get(key) || { v: veh, revenue: 0, bookings: 0 };
+              entry.revenue += Number(b.total_value || b.total_amount || 0);
+              entry.bookings += 1;
+              byVehicle.set(key, entry);
+            }
+
+            const performers = [...byVehicle.values()]
+              .sort((a, b) => b.revenue - a.revenue)
+              .slice(0, limit)
+              .map((e) => ({
+                name: vehicleDisplayName(e.v),
+                location: e.v.location,
+                revenue: formatUsdWords(e.revenue),
+                revenueRaw: e.revenue,
+                bookings: e.bookings,
+                utilization: `${e.v.utilization || 0}%`,
+              }));
+
+            return {
+              metric,
+              timeframe: topWindow.label,
+              performers,
+              summary: performers.length
+                ? `Top ${performers.length} vehicles by revenue for ${topWindow.label}${location ? ` in ${location}` : ''}: ${performers.map(p => `${p.name} (${p.revenue})`).join(', ')}.`
+                : `No booking revenue recorded for ${topWindow.label}${location ? ` in ${location}` : ''}.`,
+            };
+          }
+
           let query = supabase
             .from('vehicles')
             .select('name, make, model, year, revenue, utilization, location');
@@ -1295,10 +1341,12 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
           
           return { 
             metric, 
+            timeframe: metric === 'utilization' ? 'current' : 'all time',
             performers,
             summary: `Top ${performers.length} vehicles by ${metric}${location ? ` in ${location}` : ''}: ${performers.map(p => `${p.name} (${metric === 'revenue' ? p.revenue : p.utilization})`).join(', ')}.`
           };
         } else {
+
           // Top customers
           let query = supabase
             .from('customers')
