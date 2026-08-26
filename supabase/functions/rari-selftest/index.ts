@@ -11,7 +11,7 @@
 // credentials ever live in a script or CI env.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.77.0';
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
-import { executeFunction } from '../_shared/fleet-tools/executor.ts';
+import { executeFunction, normalizeToolArgs, TOOL_PARAM_ALIASES } from '../_shared/fleet-tools/executor.ts';
 import { FLEET_TOOLS } from '../_shared/fleet-tools/registry.ts';
 import { mintTestToolToken, mintExpiredToolToken } from './token.ts';
 import { assertResult, assertCurrency, collectRecordIds } from './assertions.ts';
@@ -107,6 +107,46 @@ async function profileTenant(supabase: any, teamId: string): Promise<TenantProfi
 
 function missingNeeds(needs: string[] | undefined, sample: Record<string, string | null>): string[] {
   return (needs || []).filter((n) => !sample[n]);
+}
+
+// ---- drill-down helpers ---------------------------------------------------
+const MAX_DETAIL_CHARS = 6000;
+
+function pretty(value: unknown): string {
+  let s: string;
+  try {
+    s = JSON.stringify(value ?? null, null, 2) ?? 'null';
+  } catch {
+    s = String(value);
+  }
+  return s.length > MAX_DETAIL_CHARS ? `${s.slice(0, MAX_DETAIL_CHARS)}\n… truncated` : s;
+}
+
+/** How the registry schema for a tool maps onto the handler args actually used. */
+function registryMapping(tool: string, args: Record<string, unknown>) {
+  const def = FLEET_TOOLS.find((t) => t.name === tool) || null;
+  const aliases = TOOL_PARAM_ALIASES[tool] || {};
+  const declared = (def?.params || []).map((p: any) => p.name);
+  return {
+    tool,
+    foundInRegistry: !!def,
+    category: def?.category ?? null,
+    readOnly: def?.readOnly ?? null,
+    aliasMap: aliases,
+    params: (def?.params || []).map((p: any) => ({
+      registryName: p.name,
+      handlerName: aliases[p.name] ?? p.name,
+      type: p.type,
+      required: !!p.required,
+      supplied: args?.[p.name] !== undefined,
+      value: args?.[p.name] ?? null,
+    })),
+    undeclaredArgs: Object.keys(args || {}).filter((k) => !declared.includes(k)),
+    missingRequired: (def?.params || [])
+      .filter((p: any) => p.required && (args?.[p.name] === undefined || args?.[p.name] === ''))
+      .map((p: any) => p.name),
+    normalizedArgs: normalizeToolArgs(tool, args || {}),
+  };
 }
 
 serve_handler();
