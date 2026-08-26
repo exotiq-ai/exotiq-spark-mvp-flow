@@ -249,6 +249,10 @@ export const SuperAdminDashboard = () => {
               <Wallet className="h-4 w-4 mr-2" />
               Payments &amp; Go-Live
             </TabsTrigger>
+            <TabsTrigger value="rari-selftest">
+              <Bot className="h-4 w-4 mr-2" />
+              Rari Self-Test
+            </TabsTrigger>
             <TabsTrigger value="audit">
               <Database className="h-4 w-4 mr-2" />
               Audit Log
