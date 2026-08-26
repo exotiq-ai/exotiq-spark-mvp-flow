@@ -378,11 +378,97 @@ async function detectAskFleetLocation(
     .sort((a, b) => b.length - a.length)[0];
 }
 
-export async function executeFunction(functionName: string, args: Record<string, unknown>, supabase: SupabaseClient, userId: string, teamId: string | null): Promise<ToolResult> {
+/**
+ * Registry param name -> handler param name.
+ *
+ * `registry.ts` is synced to ElevenLabs, so its schemas are frozen. Handlers
+ * historically used different spellings, which meant every single-entity
+ * lookup received `undefined`. This map bridges the two; both spellings work.
+ *
+ * Keep this in sync with the parity test (src/test/fleet-tools.parity.test.ts).
+ */
+export const TOOL_PARAM_ALIASES: Record<string, Record<string, string>> = {
+  get_vehicle_status: { vehicle: 'vehicle_name' },
+  getVehicleDetails: { vehicle: 'vehicleName' },
+  getVehicleSpecs: { vehicle: 'vehicleName' },
+  checkAvailability: { vehicle: 'vehicleName' },
+  getVehicleProfitLoss: { vehicle: 'vehicleName' },
+  getPricingRecommendation: { vehicle: 'vehicleName' },
+  getCustomerProfile: { customer: 'customerName' },
+  getCustomerLifetimeValue: { customer: 'customerName' },
+  getIdleVehicles: { days: 'daysIdle' },
+  create_booking_hold: {
+    customer: 'customer_name',
+    startDate: 'start_date',
+    endDate: 'end_date',
+    // `vehicle` (free text) is resolved to `vehicle_id` inside the handler,
+    // scoped to the caller's team.
+  },
+};
+
+/** Copy registry-named args onto the handler names the executor reads. */
+export function normalizeToolArgs(
+  functionName: string,
+  args: Record<string, unknown>,
+): Record<string, unknown> {
+  const aliases = TOOL_PARAM_ALIASES[functionName];
+  if (!aliases) return { ...(args || {}) };
+  const out: Record<string, unknown> = { ...(args || {}) };
+  for (const [from, to] of Object.entries(aliases)) {
+    if (out[to] === undefined && out[from] !== undefined) out[to] = out[from];
+  }
+  return out;
+}
+
+/** Human vehicle name that never renders a leading "null"/"undefined" year. */
+export function vehicleDisplayName(v: {
+  year?: number | string | null;
+  make?: string | null;
+  model?: string | null;
+  name?: string | null;
+} | null | undefined): string {
+  if (!v) return 'Unknown vehicle';
+  const year = v.year === null || v.year === undefined || v.year === '' ? '' : String(v.year);
+  const parts = [year, v.make || '', v.model || ''].map((s) => String(s).trim()).filter(Boolean);
+  const composed = parts.join(' ').trim();
+  return composed || (v.name ? String(v.name) : 'Unknown vehicle');
+}
+
+/** Clamp a caller-supplied limit into a sane range. */
+function toLimit(value: unknown, fallback: number, max = 100): number {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return fallback;
+  return Math.min(Math.floor(n), max);
+}
+
+/** Resolve a free-text vehicle reference to one vehicle inside the team. */
+async function resolveTeamVehicle(
+  supabase: SupabaseClient,
+  teamId: string | null,
+  text: string,
+): Promise<{ vehicle?: any; matches?: any[]; error?: string }> {
+  const term = String(text || '').trim();
+  if (!term) return { error: 'no_vehicle_reference' };
+  let q = supabase
+    .from('vehicles')
+    .select('id, name, year, make, model, current_rate, location, status');
+  if (teamId) q = q.eq('team_id', teamId);
+  const { data } = await q
+    .or(`name.ilike.%${term}%,make.ilike.%${term}%,model.ilike.%${term}%`)
+    .limit(5);
+  const matches = data || [];
+  if (matches.length === 0) return { error: 'not_found' };
+  if (matches.length > 1) return { matches };
+  return { vehicle: matches[0] };
+}
+
+export async function executeFunction(functionName: string, rawArgs: Record<string, unknown>, supabase: SupabaseClient, userId: string, teamId: string | null): Promise<ToolResult> {
+  const args = normalizeToolArgs(functionName, rawArgs || {});
   console.log(`[TOOL] Executing: ${functionName} | User: ${userId} | Team: ${teamId} | Args:`, JSON.stringify(args));
 
   try {
     switch (functionName) {
+
       case "ask_fleet": {
         const { question, timeframe, location } = args as {
           question?: string;
@@ -418,7 +504,8 @@ export async function executeFunction(functionName: string, args: Record<string,
       }
 
       case "get_fleet_vehicles": {
-        const { status, location } = args as { status?: string; location?: string };
+        const { status, location, limit } = args as { status?: string; location?: string; limit?: number };
+        const maxVehicles = toLimit(limit, 100);
         console.log(`[get_fleet_vehicles] Querying vehicles for team ${teamId}, status: ${status || 'all'}, location: ${location || 'all'}`);
         
         let query = supabase
@@ -438,7 +525,7 @@ export async function executeFunction(functionName: string, args: Record<string,
           query = query.ilike('location', `%${location}%`);
         }
 
-        const { data: vehicles, error } = await query.order('created_at', { ascending: false });
+        const { data: vehicles, error } = await query.order('created_at', { ascending: false }).limit(maxVehicles);
         
         if (error) {
           console.error('[get_fleet_vehicles] Database error:', error);
@@ -461,7 +548,7 @@ export async function executeFunction(functionName: string, args: Record<string,
         }
         
         const vehicleList = vehicleData.map((v: Vehicle) => ({
-          name: `${v.year} ${v.make} ${v.model}`,
+          name: vehicleDisplayName(v),
           status: v.status,
           location: v.location || 'Unassigned',
           rate: `$${v.daily_rate || v.current_rate} per day`,
@@ -489,7 +576,8 @@ export async function executeFunction(functionName: string, args: Record<string,
       }
 
       case "get_bookings": {
-        const { status, start_date, end_date, location, date } = args;
+        const { status, start_date, end_date, location, date, timeframe, limit } = args;
+        const maxBookings = toLimit(limit, 30);
         console.log(`[get_bookings] Team: ${teamId}, Status: ${status || 'all'}, Date: ${date || 'n/a'}, Range: ${start_date || '-'}..${end_date || '-'}, Location: ${location || 'all'}`);
 
         // --- Status synonyms ---------------------------------------------------
@@ -542,6 +630,12 @@ export async function executeFunction(functionName: string, args: Record<string,
           windowStart = start_date ? new Date(start_date) : null;
           windowEnd   = end_date   ? new Date(end_date)   : null;
           windowLabel = `${start_date || '…'} → ${end_date || '…'}`;
+        } else if (timeframe && timeframe !== 'all') {
+          // Registry param: today | week | month | year. Same overlap semantics.
+          const tf = resolveTimeframeWindow(String(timeframe));
+          windowStart = tf.start ? new Date(tf.start) : null;
+          windowEnd   = new Date(tf.end);
+          windowLabel = tf.label;
         }
 
         // --- Build query -------------------------------------------------------
@@ -563,7 +657,7 @@ export async function executeFunction(functionName: string, args: Record<string,
 
         const { data: bookings, error } = await query
           .order('start_date', { ascending: false })
-          .limit(30);
+          .limit(maxBookings);
 
         if (error) {
           console.error('[get_bookings] Database error:', error);
@@ -607,7 +701,7 @@ export async function executeFunction(functionName: string, args: Record<string,
         }
 
         const bookingList = filteredBookings.map(b => {
-          const vehicleName = b.vehicles ? `${b.vehicles.year} ${b.vehicles.make} ${b.vehicles.model}` : 'Unknown vehicle';
+          const vehicleName = b.vehicles ? vehicleDisplayName(b.vehicles) : 'Unknown vehicle';
           const customerName = b.customers?.full_name || b.customer_name || 'Unknown';
           const totalAmount = Number(b.total_value || b.total_amount || 0);
           return {
@@ -652,7 +746,7 @@ export async function executeFunction(functionName: string, args: Record<string,
 
         const activities = recentBookings?.map((b: any) => {
           const timeAgo = getTimeAgo(new Date(b.created_at));
-          const vehicleName = b.vehicles ? `${b.vehicles.year} ${b.vehicles.make} ${b.vehicles.model}` : 'a vehicle';
+          const vehicleName = b.vehicles ? vehicleDisplayName(b.vehicles) : 'a vehicle';
           const customerName = b.customers?.full_name || b.customer_name || 'A customer';
           const amountVal = Number(b.total_value || b.total_amount || 0);
           
@@ -740,8 +834,9 @@ export async function executeFunction(functionName: string, args: Record<string,
       }
 
       case "getLocationMetrics": {
-        const { location } = args;
-        console.log(`[getLocationMetrics] Team: ${teamId}, Location: ${location || 'all'}`);
+        const { location, timeframe } = args;
+        const locWindow = resolveTimeframeWindow(typeof timeframe === 'string' ? timeframe : undefined);
+        console.log(`[getLocationMetrics] Team: ${teamId}, Location: ${location || 'all'}, Timeframe: ${locWindow.label}`);
         
         // Get all vehicles
         let vehicleQuery = supabase
@@ -780,7 +875,7 @@ export async function executeFunction(functionName: string, args: Record<string,
           locationStats[loc].totalUtilization += vehicle.utilization || 0;
           locationStats[loc].avgRate += Number(vehicle.current_rate || vehicle.daily_rate || 0);
           locationStats[loc].vehicles.push({
-            name: `${vehicle.year} ${vehicle.make} ${vehicle.model}`,
+            name: vehicleDisplayName(vehicle),
             status: vehicle.status,
             utilization: vehicle.utilization || 0,
             rate: vehicle.current_rate || vehicle.daily_rate
@@ -811,6 +906,26 @@ export async function executeFunction(functionName: string, args: Record<string,
             locationStats[loc].activeBookings = (locationStats[loc].activeBookings || 0) + 1;
           }
         }
+
+        // Timeframe-scoped revenue. `vehicles.revenue` is lifetime, so when the
+        // caller asks for a window we recompute from bookings in that window.
+        if (locWindow.start) {
+          let revQuery = supabase
+            .from('bookings')
+            .select('total_value, total_amount, start_date, vehicles(location)')
+            .gte('start_date', locWindow.start)
+            .lte('start_date', locWindow.end)
+            .not('status', 'in', '("cancelled")');
+          if (teamId) revQuery = revQuery.eq('team_id', teamId);
+          const { data: windowBookings } = await revQuery;
+          for (const loc of Object.keys(locationStats)) locationStats[loc].totalRevenue = 0;
+          for (const b of (windowBookings || [])) {
+            const loc = (b as any).vehicles?.location || 'Unassigned';
+            if (locationStats[loc]) {
+              locationStats[loc].totalRevenue += Number((b as any).total_value || (b as any).total_amount || 0);
+            }
+          }
+        }
         
         // If specific location requested
         if (location && location !== 'all') {
@@ -826,7 +941,8 @@ export async function executeFunction(functionName: string, args: Record<string,
               avgRate: `$${stats.avgRate.toFixed(0)}`,
               activeBookings: stats.activeBookings || 0,
               topVehicles: stats.vehicles.slice(0, 5),
-              summary: `${stats.location} has ${stats.vehicleCount} vehicles with ${formatUsdWords(stats.totalRevenue)} total revenue, ${stats.avgUtilization.toFixed(0)}% average utilization, and ${stats.activeBookings || 0} active bookings.`
+              timeframe: locWindow.label,
+              summary: `${stats.location} has ${stats.vehicleCount} vehicles with ${formatUsdWords(stats.totalRevenue)} revenue for ${locWindow.label}, ${stats.avgUtilization.toFixed(0)}% average utilization, and ${stats.activeBookings || 0} active bookings.`
             };
           }
         }
@@ -834,6 +950,7 @@ export async function executeFunction(functionName: string, args: Record<string,
         // Return all locations
         const locations = Object.values(locationStats);
         return {
+          timeframe: locWindow.label,
           locationCount: locations.length,
           locations: locations.map((l: any) => ({
             location: l.location,
@@ -936,7 +1053,7 @@ export async function executeFunction(functionName: string, args: Record<string,
           summary: `I couldn't find a vehicle matching "${vehicleName}" in your fleet.`
         };
 
-        const fullName = `${vehicle.year} ${vehicle.make} ${vehicle.model}`;
+        const fullName = vehicleDisplayName(vehicle);
         let bookingsData = null;
         if (includeBookings) {
           const { data: bookings } = await supabase
@@ -1014,7 +1131,7 @@ export async function executeFunction(functionName: string, args: Record<string,
             lifetimeValue = bookings.reduce((sum, b) => sum + Number(b.total_value || b.total_amount || 0), 0);
             
             bookingsData = bookings.map(b => ({
-              vehicle: b.vehicles ? `${b.vehicles.year} ${b.vehicles.make} ${b.vehicles.model}` : 'Unknown',
+              vehicle: b.vehicles ? vehicleDisplayName(b.vehicles) : 'Unknown',
               location: b.vehicles?.location || 'Unassigned',
               dates: `${new Date(b.start_date).toLocaleDateString()} to ${new Date(b.end_date).toLocaleDateString()}`,
               status: b.status,
@@ -1074,7 +1191,7 @@ export async function executeFunction(functionName: string, args: Record<string,
             .or(`and(start_date.lte.${endDate},end_date.gte.${startDate})`);
           
           availabilityResults.push({
-            vehicle: `${vehicle.year} ${vehicle.make} ${vehicle.model}`,
+            vehicle: vehicleDisplayName(vehicle),
             location: vehicle.location,
             rate: `$${vehicle.current_rate}`,
             available: !conflicts || conflicts.length === 0,
@@ -1144,9 +1261,57 @@ export async function executeFunction(functionName: string, args: Record<string,
       }
 
       case "getTopPerformers": {
-        const { metric, limit = 5, location } = args;
+        const { metric, limit: rawLimit, location, timeframe } = args;
+        const limit = toLimit(rawLimit, 5, 25);
+        const topWindow = resolveTimeframeWindow(typeof timeframe === 'string' ? timeframe : undefined);
         
         if (metric === 'revenue' || metric === 'utilization') {
+          // `vehicles.revenue` is lifetime. When a timeframe is asked for, rank
+          // by revenue booked inside that window instead.
+          if (metric === 'revenue' && topWindow.start) {
+            let bq = supabase
+              .from('bookings')
+              .select('total_value, total_amount, vehicle_id, vehicles(name, make, model, year, location, utilization)')
+              .gte('start_date', topWindow.start)
+              .lte('start_date', topWindow.end)
+              .neq('status', 'cancelled');
+            if (teamId) bq = bq.eq('team_id', teamId);
+            const { data: windowBookings } = await bq;
+
+            const byVehicle = new Map<string, { v: any; revenue: number; bookings: number }>();
+            for (const b of (windowBookings || []) as any[]) {
+              const veh = b.vehicles;
+              if (!veh) continue;
+              if (location && location !== 'all' && !String(veh.location || '').toLowerCase().includes(String(location).toLowerCase())) continue;
+              const key = b.vehicle_id;
+              const entry = byVehicle.get(key) || { v: veh, revenue: 0, bookings: 0 };
+              entry.revenue += Number(b.total_value || b.total_amount || 0);
+              entry.bookings += 1;
+              byVehicle.set(key, entry);
+            }
+
+            const performers = [...byVehicle.values()]
+              .sort((a, b) => b.revenue - a.revenue)
+              .slice(0, limit)
+              .map((e) => ({
+                name: vehicleDisplayName(e.v),
+                location: e.v.location,
+                revenue: formatUsdWords(e.revenue),
+                revenueRaw: e.revenue,
+                bookings: e.bookings,
+                utilization: `${e.v.utilization || 0}%`,
+              }));
+
+            return {
+              metric,
+              timeframe: topWindow.label,
+              performers,
+              summary: performers.length
+                ? `Top ${performers.length} vehicles by revenue for ${topWindow.label}${location ? ` in ${location}` : ''}: ${performers.map(p => `${p.name} (${p.revenue})`).join(', ')}.`
+                : `No booking revenue recorded for ${topWindow.label}${location ? ` in ${location}` : ''}.`,
+            };
+          }
+
           let query = supabase
             .from('vehicles')
             .select('name, make, model, year, revenue, utilization, location');
@@ -1166,7 +1331,7 @@ export async function executeFunction(functionName: string, args: Record<string,
           const performers = vehicles?.map(v => {
             const rev = Number(v.revenue || 0);
             return {
-              name: `${v.year} ${v.make} ${v.model}`,
+              name: vehicleDisplayName(v),
               location: v.location,
               revenue: formatUsdWords(rev),
               revenueRaw: rev,
@@ -1176,10 +1341,12 @@ export async function executeFunction(functionName: string, args: Record<string,
           
           return { 
             metric, 
+            timeframe: metric === 'utilization' ? 'current' : 'all time',
             performers,
             summary: `Top ${performers.length} vehicles by ${metric}${location ? ` in ${location}` : ''}: ${performers.map(p => `${p.name} (${metric === 'revenue' ? p.revenue : p.utilization})`).join(', ')}.`
           };
         } else {
+
           // Top customers
           let query = supabase
             .from('customers')
@@ -1212,7 +1379,10 @@ export async function executeFunction(functionName: string, args: Record<string,
       }
 
       case "searchBookings": {
-        const { status, daysRange, location } = args;
+        const { status, daysRange, location, query: searchText, limit } = args;
+        const maxRows = toLimit(limit, 30);
+        const term = typeof searchText === 'string' ? searchText.trim() : '';
+
         let query = supabase
           .from('bookings')
           .select('*, vehicles(make, model, year, location), customers(full_name)');
@@ -1222,6 +1392,16 @@ export async function executeFunction(functionName: string, args: Record<string,
         }
 
         if (status) query = query.eq('status', status);
+
+        // Free-text search across the columns that live on the booking row.
+        // Vehicle make/model live on the join, so they're matched client-side
+        // below (PostgREST can't OR across an embedded resource).
+        if (term) {
+          const like = `%${term}%`;
+          query = query.or(
+            `booking_ref.ilike.${like},customer_name.ilike.${like},customer_email.ilike.${like},vehicle_name.ilike.${like}`,
+          );
+        }
         
         if (daysRange) {
           const dateFilter = new Date();
@@ -1229,19 +1409,40 @@ export async function executeFunction(functionName: string, args: Record<string,
           query = query.gte('start_date', dateFilter.toISOString());
         }
 
-        const { data: bookings } = await query.order('start_date', { ascending: false }).limit(30);
-        
+        const { data: bookings } = await query
+          .order('start_date', { ascending: false })
+          .limit(Math.max(maxRows, term ? 200 : maxRows));
+
         let filteredBookings = bookings || [];
+
+        // Second pass so a term that only matches the joined vehicle still hits.
+        if (term && filteredBookings.length === 0) {
+          let joinQuery = supabase
+            .from('bookings')
+            .select('*, vehicles!inner(make, model, year, location), customers(full_name)');
+          if (teamId) joinQuery = joinQuery.eq('team_id', teamId);
+          if (status) joinQuery = joinQuery.eq('status', status);
+          const like = `%${term}%`;
+          const { data: byVehicle } = await joinQuery
+            .or(`make.ilike.${like},model.ilike.${like}`, { foreignTable: 'vehicles' })
+            .order('start_date', { ascending: false })
+            .limit(maxRows);
+          filteredBookings = byVehicle || [];
+        }
+
         if (location && location !== 'all') {
           filteredBookings = filteredBookings.filter((b: any) => 
             b.vehicles?.location?.toLowerCase().includes(location.toLowerCase())
           );
         }
+
+        filteredBookings = filteredBookings.slice(0, maxRows);
         
         const bookingList = filteredBookings.map(b => {
-          const vehicleName = b.vehicles ? `${b.vehicles.year} ${b.vehicles.make} ${b.vehicles.model}` : 'vehicle';
+          const vehicleName = b.vehicles ? vehicleDisplayName(b.vehicles) : (b.vehicle_name || 'vehicle');
           const amt = Number(b.total_value || b.total_amount || 0);
           return {
+            reference: b.booking_ref,
             customer: b.customers?.full_name || b.customer_name || 'Unknown',
             vehicle: vehicleName,
             location: b.vehicles?.location || 'Unassigned',
@@ -1259,12 +1460,15 @@ export async function executeFunction(functionName: string, args: Record<string,
           bookings: bookingList,
           totalValue: formatUsdWords(totalValue),
           totalValueRaw: totalValue,
-          summary: `Found ${filteredBookings.length} bookings${status ? ` with ${status} status` : ''}${location ? ` in ${location}` : ''}${daysRange ? ` in the last ${daysRange} days` : ''}. Total value: ${formatUsdWords(totalValue)}.`
+          summary: `Found ${filteredBookings.length} bookings${term ? ` matching "${term}"` : ''}${status ? ` with ${status} status` : ''}${location ? ` in ${location}` : ''}${daysRange ? ` in the last ${daysRange} days` : ''}. Total value: ${formatUsdWords(totalValue)}.`
         };
       }
 
+
+
       case "getDamageReports": {
-        const { status, location } = args;
+        const { status, location, limit } = args;
+        const maxClaims = toLimit(limit, 25);
         let query = supabase
           .from('damage_claims')
           .select('*, vehicles(make, model, year, location)');
@@ -1275,7 +1479,7 @@ export async function executeFunction(functionName: string, args: Record<string,
 
         if (status && status !== 'all') query = query.eq('claim_status', status);
 
-        const { data: claims } = await query.order('reported_date', { ascending: false });
+        const { data: claims } = await query.order('reported_date', { ascending: false }).limit(Math.max(maxClaims, 100));
         
         let filteredClaims = claims || [];
         if (location && location !== 'all') {
@@ -1284,8 +1488,10 @@ export async function executeFunction(functionName: string, args: Record<string,
           );
         }
         
+        filteredClaims = filteredClaims.slice(0, maxClaims);
+
         const claimList = filteredClaims.map(c => ({
-          vehicle: c.vehicles ? `${c.vehicles.year} ${c.vehicles.make} ${c.vehicles.model}` : 'Unknown',
+          vehicle: c.vehicles ? vehicleDisplayName(c.vehicles) : 'Unknown',
           location: c.vehicles?.location || 'Unassigned',
           severity: c.severity,
           status: c.claim_status,
@@ -1301,7 +1507,8 @@ export async function executeFunction(functionName: string, args: Record<string,
       }
 
       case "getUpcomingMaintenance": {
-        const { daysAhead = 30, location } = args;
+        const { daysAhead = 30, location, limit } = args;
+        const maxMaintenance = toLimit(limit, 25);
         const futureDate = new Date();
         futureDate.setDate(futureDate.getDate() + daysAhead);
 
@@ -1325,8 +1532,10 @@ export async function executeFunction(functionName: string, args: Record<string,
           );
         }
         
+        filteredMaintenance = filteredMaintenance.slice(0, maxMaintenance);
+
         const maintenanceList = filteredMaintenance.map(m => ({
-          vehicle: m.vehicles ? `${m.vehicles.year} ${m.vehicles.make} ${m.vehicles.model}` : 'Unknown',
+          vehicle: m.vehicles ? vehicleDisplayName(m.vehicles) : 'Unknown',
           location: m.vehicles?.location || 'Unassigned',
           type: m.maintenance_type,
           scheduledDate: new Date(m.scheduled_date).toLocaleDateString(),
@@ -1375,19 +1584,43 @@ export async function executeFunction(functionName: string, args: Record<string,
       }
 
       case "getVaultDocuments": {
-        const { category, status } = args;
+        const { category, status, vehicle, limit } = args;
+
+        // Optional vehicle filter, resolved inside the caller's team only.
+        let vehicleFilterId: string | null = null;
+        let vehicleFilterName: string | null = null;
+        if (vehicle && String(vehicle).trim()) {
+          const resolved = await resolveTeamVehicle(supabase, teamId, String(vehicle));
+          if (resolved.error === 'not_found') {
+            return {
+              error: 'vehicle_not_found',
+              summary: `I couldn't find a vehicle matching "${vehicle}" in your fleet, so I didn't pull any documents.`,
+            };
+          }
+          if (resolved.matches) {
+            return {
+              error: 'ambiguous_vehicle',
+              matches: resolved.matches.map((v: any) => vehicleDisplayName(v)),
+              summary: `Several vehicles match "${vehicle}": ${resolved.matches.map((v: any) => vehicleDisplayName(v)).join(', ')}. Which one?`,
+            };
+          }
+          vehicleFilterId = resolved.vehicle.id;
+          vehicleFilterName = vehicleDisplayName(resolved.vehicle);
+        }
 
         let docsQuery = supabase
           .from('documents')
           .select('id, name, type, status, expires_at, verification_status, vehicles(make, model, year)')
           .eq('team_id', teamId)
           .order('expires_at', { ascending: true, nullsFirst: false })
-          .limit(50);
+          .limit(toLimit(limit, 50));
 
         if (category) docsQuery = docsQuery.eq('type', category);
         if (status) docsQuery = docsQuery.eq('status', status);
+        if (vehicleFilterId) docsQuery = docsQuery.eq('vehicle_id', vehicleFilterId);
 
         const { data: docs, error: docsError } = await docsQuery;
+
 
         if (docsError) {
           console.error('[getVaultDocuments] Query failed:', docsError);
@@ -1404,7 +1637,7 @@ export async function executeFunction(functionName: string, args: Record<string,
             ? Math.round((expiresAt.getTime() - now) / 86400000)
             : null;
           const vehicle = d.vehicles
-            ? `${d.vehicles.year || ''} ${d.vehicles.make || ''} ${d.vehicles.model || ''}`.trim()
+            ? vehicleDisplayName(d.vehicles)
             : null;
           return {
             name: d.name,
@@ -1423,23 +1656,28 @@ export async function executeFunction(functionName: string, args: Record<string,
 
         let summary: string;
         if (documents.length === 0) {
-          summary = category || status
-            ? `No documents match that filter.`
+          summary = category || status || vehicleFilterName
+            ? `No documents match that filter${vehicleFilterName ? ` for the ${vehicleFilterName}` : ''}.`
             : `There are no documents in your vault yet.`;
         } else {
-          summary = `Found ${documents.length} document${documents.length === 1 ? '' : 's'}`;
+          summary = `Found ${documents.length} document${documents.length === 1 ? '' : 's'}${vehicleFilterName ? ` for the ${vehicleFilterName}` : ''}`;
           if (expired) summary += `, ${expired} expired`;
           if (expiringSoon) summary += `, ${expiringSoon} expiring within 30 days`;
           summary += '.';
         }
 
         console.log(`[getVaultDocuments] team ${teamId}: ${documents.length} docs (${expired} expired, ${expiringSoon} expiring)`);
-        return { documents, expired, expiringSoon, summary };
+        return { documents, expired, expiringSoon, vehicle: vehicleFilterName, summary };
       }
 
 
       case "getDemandForecast": {
-        const { city, days = 14, location } = args;
+        const { city, location, timeframe } = args;
+        // Registry exposes `timeframe`; older callers pass `days`.
+        const TIMEFRAME_DAYS: Record<string, number> = { today: 1, week: 7, month: 30, year: 365 };
+        const days = Number(args.days) > 0
+          ? Number(args.days)
+          : (typeof timeframe === 'string' ? (TIMEFRAME_DAYS[timeframe] ?? 14) : 14);
         // No hardcoded default city: fall back to the tenant's own primary
         // location, and run fleet-wide when the tenant has none.
         const effectiveLocation = location || city || await getTenantDefaultLocation(supabase, teamId);
@@ -1537,7 +1775,7 @@ export async function executeFunction(functionName: string, args: Record<string,
 
         
         return {
-          vehicle: `${vehicle.year} ${vehicle.make} ${vehicle.model}`,
+          vehicle: vehicleDisplayName(vehicle),
           location: vehicleLocation,
           currentRate: `$${currentRate}`,
           suggestedRate: `$${suggestedRate}`,
@@ -1546,10 +1784,10 @@ export async function executeFunction(functionName: string, args: Record<string,
           factors,
           monthlyImpact: `$${Math.abs(difference * 20).toFixed(0)}/month`,
           summary: suggestedRate > currentRate 
-            ? `I recommend increasing the rate for your ${vehicle.year} ${vehicle.make} ${vehicle.model} in ${vehicleLocation} from $${currentRate} to $${suggestedRate} per day, a ${percentChange}% increase. This is based on ${factors.join(' and ')}. This could add approximately $${Math.abs(difference * 20).toFixed(0)} per month in revenue.`
+            ? `I recommend increasing the rate for your ${vehicleDisplayName(vehicle)} in ${vehicleLocation} from $${currentRate} to $${suggestedRate} per day, a ${percentChange}% increase. This is based on ${factors.join(' and ')}. This could add approximately $${Math.abs(difference * 20).toFixed(0)} per month in revenue.`
             : suggestedRate < currentRate
-              ? `Consider reducing the rate for your ${vehicle.year} ${vehicle.make} ${vehicle.model} in ${vehicleLocation} from $${currentRate} to $${suggestedRate} per day to boost bookings. This is based on ${factors.join(' and ')}.`
-              : `The current rate of $${currentRate} for your ${vehicle.year} ${vehicle.make} ${vehicle.model} in ${vehicleLocation} appears optimal given current market conditions.`
+              ? `Consider reducing the rate for your ${vehicleDisplayName(vehicle)} in ${vehicleLocation} from $${currentRate} to $${suggestedRate} per day to boost bookings. This is based on ${factors.join(' and ')}.`
+              : `The current rate of $${currentRate} for your ${vehicleDisplayName(vehicle)} in ${vehicleLocation} appears optimal given current market conditions.`
         };
       }
 
@@ -1619,7 +1857,7 @@ export async function executeFunction(functionName: string, args: Record<string,
             avgRate: `$${stats.avgRate.toFixed(0)}`
           })),
           topPerformers: highPerformers.slice(0, 3).map(v => ({
-            name: `${v.year} ${v.make} ${v.model}`,
+            name: vehicleDisplayName(v),
             location: v.location,
             utilization: `${v.utilization || 0}%`,
             rate: `$${v.current_rate || v.daily_rate}`
@@ -1716,7 +1954,23 @@ export async function executeFunction(functionName: string, args: Record<string,
       }
 
       case "logFeedback": {
-        const { feedbackType, keywords, userQuery, rariResponse, context } = args;
+        // `feedback` is the registry param: the raw thing the user said.
+        const { feedback, feedbackType, keywords, userQuery, rariResponse, context } = args;
+        const feedbackText = (typeof feedback === 'string' && feedback.trim())
+          ? feedback.trim()
+          : (typeof userQuery === 'string' ? userQuery : '');
+        if (!feedbackText) {
+          return {
+            success: false,
+            error: 'empty_feedback',
+            summary: "I didn't catch what you'd like me to pass along. Could you say it again?",
+          };
+        }
+        let parsedContext: unknown = null;
+        if (context) {
+          try { parsedContext = typeof context === 'string' ? JSON.parse(context) : context; }
+          catch { parsedContext = { raw: String(context) }; }
+        }
         console.log(`[logFeedback] Logging feedback: ${feedbackType}`);
         
         const { error } = await supabase
@@ -1725,9 +1979,9 @@ export async function executeFunction(functionName: string, args: Record<string,
             user_id: userId,
             feedback_type: feedbackType || 'feature_request',
             keywords: keywords ? keywords.split(',').map((k: string) => k.trim()) : [],
-            user_query: userQuery,
-            rari_response: rariResponse,
-            context: context ? JSON.parse(context) : null
+            user_query: feedbackText,
+            rari_response: rariResponse ?? null,
+            context: parsedContext
           });
 
         if (error) {
@@ -1741,7 +1995,7 @@ export async function executeFunction(functionName: string, args: Record<string,
 
         return { 
           success: true,
-          summary: "I've logged your feedback. This feature is coming soon, and the team will review your request. Is there anything else I can help you with?"
+          summary: "I've logged that feedback and the team will see it. Anything else?"
         };
       }
 
@@ -1943,7 +2197,8 @@ export async function executeFunction(functionName: string, args: Record<string,
       }
 
       case "getOutstandingBalances": {
-        const { location, minAmount } = args;
+        const { location, minAmount, limit } = args;
+        const maxBalances = toLimit(limit, 25);
         console.log(`[getOutstandingBalances] Team: ${teamId}, Location: ${location || 'all'}, MinAmount: ${minAmount || 0}`);
         
         // Get bookings with outstanding balances
@@ -1973,13 +2228,18 @@ export async function executeFunction(functionName: string, args: Record<string,
           );
         }
         
+        // Total across everything owed stays accurate; only the returned rows
+        // are capped, so a voice answer doesn't read 200 bookings aloud.
+        const outstandingTotalCount = filteredBookings.length;
+        filteredBookings = filteredBookings.slice(0, maxBalances);
+
         const outstandingList = filteredBookings.map((b: any) => {
           const endDate = new Date(b.end_date);
           const daysOverdue = Math.floor((new Date().getTime() - endDate.getTime()) / (1000 * 60 * 60 * 24));
           
           return {
             customer: b.customers?.full_name || b.customer_name || 'Unknown',
-            vehicle: b.vehicles ? `${b.vehicles.year} ${b.vehicles.make} ${b.vehicles.model}` : 'Unknown',
+            vehicle: b.vehicles ? vehicleDisplayName(b.vehicles) : 'Unknown',
             location: b.vehicles?.location || 'Unassigned',
             balanceDue: `$${Number(b.balance_due || b.total_value || 0).toFixed(0)}`,
             daysOverdue: daysOverdue > 0 ? daysOverdue : 0,
@@ -1993,6 +2253,8 @@ export async function executeFunction(functionName: string, args: Record<string,
           outstandingBookings: outstandingList,
           totalOutstanding: `$${totalOutstanding.toFixed(0)}`,
           count: outstandingList.length,
+          totalCount: outstandingTotalCount,
+          truncated: outstandingTotalCount > outstandingList.length,
           summary: outstandingList.length > 0
             ? `You have $${totalOutstanding.toFixed(0)} in outstanding balances across ${outstandingList.length} booking${outstandingList.length > 1 ? 's' : ''}${location ? ` in ${location}` : ''}. Top outstanding: ${outstandingList[0]?.customer} owes ${outstandingList[0]?.balanceDue}.`
             : `No outstanding balances found${location ? ` in ${location}` : ''}. All payments are up to date!`
@@ -2038,7 +2300,7 @@ export async function executeFunction(functionName: string, args: Record<string,
         const idleVehicles = vehicles
           .filter((v: any) => !recentlyBookedIds.has(v.id))
           .map((v: any) => ({
-            vehicle: `${v.year} ${v.make} ${v.model}`,
+            vehicle: vehicleDisplayName(v),
             location: v.location || 'Unassigned',
             currentRate: `$${v.current_rate}`,
             utilization: `${v.utilization || 0}%`,
@@ -2109,7 +2371,7 @@ export async function executeFunction(functionName: string, args: Record<string,
           if (!byLocation[loc]) byLocation[loc] = [];
           
           byLocation[loc].push({
-            vehicle: `${vehicle.year} ${vehicle.make} ${vehicle.model}`,
+            vehicle: vehicleDisplayName(vehicle),
             rate: `$${vehicle.current_rate}/day`
           });
         }
@@ -2316,7 +2578,7 @@ export async function executeFunction(functionName: string, args: Record<string,
           else if (mw) { liveState = 'in maintenance'; detail = mw.reason || ''; }
           else if (v.status === 'retired') liveState = 'retired';
           return {
-            vehicle: `${v.year} ${v.make} ${v.model}`,
+            vehicle: vehicleDisplayName(v),
             location: v.location,
             db_status: v.status,
             live_status: liveState,
@@ -2393,15 +2655,15 @@ export async function executeFunction(functionName: string, args: Record<string,
       }
 
       case "get_open_work_orders": {
-        const { priority } = args as { priority?: string };
-        let q = supabase.from('work_orders').select('id, title, status, priority, vehicle_id, due_at, created_at, vendor_name, vehicles(year, make, model)').in('status', ['open','in_progress']).order('created_at', { ascending: true }).limit(50);
+        const { priority, limit } = args as { priority?: string; limit?: number };
+        let q = supabase.from('work_orders').select('id, title, status, priority, vehicle_id, due_at, created_at, vendor_name, vehicles(year, make, model)').in('status', ['open','in_progress']).order('created_at', { ascending: true }).limit(toLimit(limit, 50));
         if (teamId) q = q.eq('team_id', teamId);
         if (priority && priority !== 'all') q = q.eq('priority', priority);
         const { data, error } = await q;
         if (error) return { error: error.message };
         const list = (data || []).map((w: any) => ({
           title: w.title, status: w.status, priority: w.priority,
-          vehicle: w.vehicles ? `${w.vehicles.year} ${w.vehicles.make} ${w.vehicles.model}` : 'unassigned',
+          vehicle: w.vehicles ? vehicleDisplayName(w.vehicles) : 'unassigned',
           due_at: w.due_at, vendor: w.vendor_name,
         }));
         return {
@@ -2412,9 +2674,30 @@ export async function executeFunction(functionName: string, args: Record<string,
       }
 
       case "create_booking_hold": {
-        const { vehicle_id, customer_name, customer_phone, start_date, end_date, notes } = args as any;
+        const { vehicle, customer_name, customer_phone, start_date, end_date, notes } = args as any;
+        let { vehicle_id } = args as any;
+
+        // The registry exposes a free-text `vehicle`; resolve it to an id that
+        // belongs to the caller's team before anything is written.
+        let veh: any = null;
+        if (!vehicle_id && vehicle) {
+          const resolved = await resolveTeamVehicle(supabase, teamId, String(vehicle));
+          if (resolved.error === 'not_found') {
+            return { error: 'vehicle_not_found', summary: `I couldn't find a vehicle matching "${vehicle}" in your fleet.` };
+          }
+          if (resolved.matches) {
+            return {
+              error: 'ambiguous_vehicle',
+              matches: resolved.matches.map((v: any) => vehicleDisplayName(v)),
+              summary: `Several vehicles match "${vehicle}": ${resolved.matches.map((v: any) => vehicleDisplayName(v)).join(', ')}. Which one should I hold?`,
+            };
+          }
+          veh = resolved.vehicle;
+          vehicle_id = veh.id;
+        }
+
         if (!vehicle_id || !customer_name || !start_date || !end_date) {
-          return { error: 'vehicle_id, customer_name, start_date, and end_date are required' };
+          return { error: 'vehicle, customer_name, start_date, and end_date are required' };
         }
         let conflictQ = supabase.from('bookings').select('id, booking_ref, customer_name').eq('vehicle_id', vehicle_id).in('status', ['confirmed','pending']).lte('start_date', end_date).gte('end_date', start_date);
         if (teamId) conflictQ = conflictQ.eq('team_id', teamId);
@@ -2422,14 +2705,14 @@ export async function executeFunction(functionName: string, args: Record<string,
         if (conflicts && conflicts.length) {
           return { error: 'conflict', conflict: conflicts[0], summary: `That window overlaps booking ${conflicts[0].booking_ref} for ${conflicts[0].customer_name}. Pick a different vehicle or time.` };
         }
-        let veh: any = null;
-        {
+        if (!veh) {
           let vq = supabase.from('vehicles').select('id, year, make, model, current_rate, location').eq('id', vehicle_id);
           if (teamId) vq = vq.eq('team_id', teamId);
           const { data } = await vq.maybeSingle();
           veh = data;
         }
         if (!veh) return { error: 'vehicle not found in your fleet' };
+
 
         const ms = new Date(end_date).getTime() - new Date(start_date).getTime();
         const days = Math.max(1, Math.ceil(ms / 86400000));
@@ -2440,7 +2723,7 @@ export async function executeFunction(functionName: string, args: Record<string,
           user_id: userId,
           team_id: teamId,
           vehicle_id,
-          vehicle_name: `${veh.year} ${veh.make} ${veh.model}`,
+          vehicle_name: vehicleDisplayName(veh),
           customer_name,
           customer_phone: customer_phone || null,
           start_date,
@@ -2461,7 +2744,7 @@ export async function executeFunction(functionName: string, args: Record<string,
           success: true,
           booking_id: created.id,
           booking_ref: created.booking_ref,
-          summary: `Hold created — reference ${created.booking_ref}. ${veh.year} ${veh.make} ${veh.model} for ${customer_name}, ${days} day${days===1?'':'s'}, total $${total.toLocaleString()}. It's pending until you confirm or cancel.`,
+          summary: `Hold created — reference ${created.booking_ref}. ${vehicleDisplayName(veh)} for ${customer_name}, ${days} day${days===1?'':'s'}, total $${total.toLocaleString()}. It's pending until you confirm or cancel.`,
         };
       }
 
