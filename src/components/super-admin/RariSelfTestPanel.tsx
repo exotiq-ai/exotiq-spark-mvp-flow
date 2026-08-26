@@ -260,20 +260,65 @@ export const RariSelfTestPanel = () => {
             ))}
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-muted-foreground">Live tenants sampled</span>
+          <Separator />
+
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm font-medium">Workspaces to test</span>
+              <Badge variant="secondary">{tenantIds.length} selected</Badge>
+              <Badge variant="outline">Rari Self-Test always included</Badge>
+              <div className="flex-1" />
+              <span className="text-xs text-muted-foreground">Quick pick</span>
               {[1, 3, 5].map((n) => (
-                <Button
-                  key={n}
-                  size="sm"
-                  variant={tenantSampleSize === n ? 'default' : 'outline'}
-                  onClick={() => setTenantSampleSize(n)}
-                >
+                <Button key={n} size="sm" variant="outline" onClick={() => quickPick(n)} disabled={loadingTenants}>
                   {n}
                 </Button>
               ))}
+              <Button size="sm" variant="outline" onClick={() => setTenants(tenantOptions.map((t) => t.teamId))} disabled={loadingTenants}>
+                All
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setTenants([])} disabled={loadingTenants}>
+                Clear
+              </Button>
             </div>
+
+            <div className="relative">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                value={tenantQuery}
+                onChange={(e) => setTenantQuery(e.target.value)}
+                placeholder="Search by workspace name or owner email"
+                className="pl-8"
+              />
+            </div>
+
+            <ScrollArea className="h-48 rounded-md border">
+              <div className="p-2 space-y-1">
+                {loadingTenants && <p className="text-xs text-muted-foreground px-1 py-2">Loading workspaces…</p>}
+                {!loadingTenants && !visibleTenants.length && (
+                  <p className="text-xs text-muted-foreground px-1 py-2">No workspaces match that search.</p>
+                )}
+                {visibleTenants.map((t) => (
+                  <label
+                    key={t.teamId}
+                    className="flex items-start gap-2 cursor-pointer rounded px-1 py-1 hover:bg-muted/50"
+                  >
+                    <Checkbox checked={tenantIds.includes(t.teamId)} onCheckedChange={() => toggleTenant(t.teamId)} />
+                    <span className="leading-tight min-w-0">
+                      <span className="text-sm font-medium flex items-center gap-1.5">
+                        {t.name}
+                        {t.isDemo && <Badge variant="outline" className="text-[10px]">demo</Badge>}
+                        {t.currency !== 'USD' && <Badge variant="outline" className="text-[10px]">{t.currency}</Badge>}
+                      </span>
+                      <span className="text-xs text-muted-foreground truncate block">{t.ownerEmail || t.teamId}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </ScrollArea>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
             <div className="flex-1" />
             <Button variant="outline" size="sm" onClick={loadHistory} disabled={running}>
               <RefreshCw className="h-4 w-4 mr-2" /> Refresh history
