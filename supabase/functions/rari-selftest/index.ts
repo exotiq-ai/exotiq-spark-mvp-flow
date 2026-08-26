@@ -5,7 +5,7 @@ import { executeFunction } from '../_shared/fleet-tools/executor.ts';
 
 Deno.serve(async (req) => {
   const body = await req.json().catch(() => ({}));
-  if (body.token !== Deno.env.get('INTERNAL_FUNCTION_TOKEN')) {
+  if (body.token !== Deno.env.get('RARI_SELFTEST_TOKEN')) {
     return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401 });
   }
   const supabase = createClient(
