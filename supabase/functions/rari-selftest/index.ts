@@ -39,6 +39,7 @@ interface TenantProfile {
   currencySymbol: string;
   strict: boolean;
   ownerUserId: string | null;
+  ownerEmail: string | null;
   sample: Record<string, string | null>;
 }
 
