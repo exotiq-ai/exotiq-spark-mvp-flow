@@ -2082,57 +2082,70 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
       }
 
       case "getVehicleSpecs": {
-        const { vehicleName } = args;
-        
+        const { vehicleName } = args as { vehicleName?: string };
+        const asked = String(vehicleName || '').trim();
+        if (!asked) {
+          return { error: 'no_vehicle_reference', summary: 'Which vehicle would you like the specs for?' };
+        }
+
+        // Reference specs for a handful of halo cars. Only ever used to enrich
+        // a vehicle that actually exists in the tenant's fleet.
         const specsDatabase: Record<string, any> = {
-          "ferrari sf90": {
-            make: "Ferrari", model: "SF90 Stradale", engine: "4.0L V8 + Electric Motors",
-            horsepower: "986 hp", torque: "590 lb-ft", acceleration: "2.5 sec (0-60 mph)",
-            topSpeed: "211 mph", drivetrain: "AWD", weight: "3,461 lbs"
-          },
-          "lamborghini aventador": {
-            make: "Lamborghini", model: "Aventador SVJ", engine: "6.5L V12",
-            horsepower: "770 hp", torque: "531 lb-ft", acceleration: "2.8 sec (0-60 mph)",
-            topSpeed: "217 mph", drivetrain: "AWD", weight: "3,362 lbs"
-          },
-          "mclaren 720s": {
-            make: "McLaren", model: "720S Spider", engine: "4.0L Twin-Turbo V8",
-            horsepower: "710 hp", torque: "568 lb-ft", acceleration: "2.8 sec (0-60 mph)",
-            topSpeed: "212 mph", drivetrain: "RWD", weight: "3,128 lbs"
-          },
-          "bugatti chiron": {
-            make: "Bugatti", model: "Chiron Sport", engine: "8.0L Quad-Turbo W16",
-            horsepower: "1,479 hp", torque: "1,180 lb-ft", acceleration: "2.4 sec (0-60 mph)",
-            topSpeed: "261 mph", drivetrain: "AWD", weight: "4,400 lbs"
-          },
-          "porsche 911": {
-            make: "Porsche", model: "911 Turbo S", engine: "3.7L Twin-Turbo Flat-6",
-            horsepower: "640 hp", torque: "590 lb-ft", acceleration: "2.6 sec (0-60 mph)",
-            topSpeed: "205 mph", drivetrain: "AWD", weight: "3,636 lbs"
-          },
-          "rolls-royce": {
-            make: "Rolls-Royce", model: "Phantom", engine: "6.75L Twin-Turbo V12",
-            horsepower: "563 hp", torque: "664 lb-ft", acceleration: "5.1 sec (0-60 mph)",
-            topSpeed: "155 mph", drivetrain: "RWD", weight: "5,644 lbs"
-          }
+          "ferrari sf90": { engine: "4.0L V8 + Electric Motors", horsepower: "986 hp", torque: "590 lb-ft", acceleration: "2.5 sec (0-60 mph)", topSpeed: "211 mph", drivetrain: "AWD" },
+          "lamborghini aventador": { engine: "6.5L V12", horsepower: "770 hp", torque: "531 lb-ft", acceleration: "2.8 sec (0-60 mph)", topSpeed: "217 mph", drivetrain: "AWD" },
+          "mclaren 720s": { engine: "4.0L Twin-Turbo V8", horsepower: "710 hp", torque: "568 lb-ft", acceleration: "2.8 sec (0-60 mph)", topSpeed: "212 mph", drivetrain: "RWD" },
+          "bugatti chiron": { engine: "8.0L Quad-Turbo W16", horsepower: "1,479 hp", torque: "1,180 lb-ft", acceleration: "2.4 sec (0-60 mph)", topSpeed: "261 mph", drivetrain: "AWD" },
+          "porsche 911": { engine: "3.7L Twin-Turbo Flat-6", horsepower: "640 hp", torque: "590 lb-ft", acceleration: "2.6 sec (0-60 mph)", topSpeed: "205 mph", drivetrain: "AWD" },
+          "rolls-royce phantom": { engine: "6.75L Twin-Turbo V12", horsepower: "563 hp", torque: "664 lb-ft", acceleration: "5.1 sec (0-60 mph)", topSpeed: "155 mph", drivetrain: "RWD" },
         };
 
-        const searchKey = vehicleName.toLowerCase();
-        const spec = Object.keys(specsDatabase).find(key => searchKey.includes(key) || key.includes(searchKey));
-        
-        if (spec) {
-          const specData = specsDatabase[spec];
+        const vehicle = await findTeamVehicleByTokens(supabase, teamId, asked);
+        if (!vehicle) {
           return {
-            ...specData,
-            summary: `The ${specData.make} ${specData.model} features a ${specData.engine} producing ${specData.horsepower} and ${specData.torque}. It does 0-60 in ${specData.acceleration} with a top speed of ${specData.topSpeed}.`
+            error: 'not_found',
+            searched: asked,
+            summary: `I couldn't find "${asked}" in your fleet, so I don't have specs for it.`,
           };
         }
-        return { 
-          error: "Vehicle specs not found in database", 
-          searched: vehicleName,
-          summary: `I don't have detailed specs for "${vehicleName}" in my database. Try asking about Ferrari SF90, Lamborghini Aventador, McLaren 720S, Bugatti Chiron, Porsche 911, or Rolls-Royce.`
+
+        const display = vehicleDisplayName(vehicle);
+        const key = `${vehicle.make || ''} ${vehicle.model || ''} ${vehicle.name || ''}`.toLowerCase();
+        const specKey = Object.keys(specsDatabase).find((k) => key.includes(k) || k.includes(key.trim()));
+        const reference = specKey ? specsDatabase[specKey] : null;
+
+        const fleetFacts: string[] = [];
+        if (vehicle.color) fleetFacts.push(`finished in ${vehicle.color}`);
+        if (vehicle.transmission) fleetFacts.push(`${vehicle.transmission} transmission`);
+        if (vehicle.mileage != null) fleetFacts.push(`${Number(vehicle.mileage).toLocaleString()} miles`);
+        if (vehicle.location) fleetFacts.push(`based at ${vehicle.location}`);
+
+        let summary = `The ${display}`;
+        if (reference) {
+          summary += ` runs a ${reference.engine} making ${reference.horsepower} and ${reference.torque}, 0-60 in ${reference.acceleration}, top speed ${reference.topSpeed}.`;
+        } else {
+          summary += ` is in your fleet`;
+          summary += fleetFacts.length ? `, ${fleetFacts.join(', ')}.` : '. I don\'t have manufacturer performance figures for it.';
+        }
+        if (reference && fleetFacts.length) summary += ` Yours is ${fleetFacts.join(', ')}.`;
+        if (vehicle.current_rate) summary += ` It rents at ${formatUsdWords(Number(vehicle.current_rate))} a day.`;
+
+        return {
+          vehicleId: vehicle.id,
+          vehicle: display,
+          year: vehicle.year ?? null,
+          make: vehicle.make ?? null,
+          model: vehicle.model ?? null,
+          color: vehicle.color ?? null,
+          transmission: vehicle.transmission ?? null,
+          mileage: vehicle.mileage ?? null,
+          location: vehicle.location ?? null,
+          status: vehicle.status ?? null,
+          dailyRate: vehicle.current_rate ?? null,
+          ...(reference || {}),
+          summary,
         };
       }
+
 
       case "logFeedback": {
         // `feedback` is the registry param: the raw thing the user said.
