@@ -1,14 +1,16 @@
 // M3 (renter app public read plumbing): public-safe vehicle media delivery.
 // Ref: docs/rent/RENTER_APP_GOAL.md milestone M3; exotiq-rent roadmap §3 task D.
 //
-// The vehicle-photos bucket is private and DB photo URLs are not publicly
-// fetchable. This function lets the anonymous renter app obtain short-lived
-// signed URLs (TTL <= 1 hour) for exactly the photos of one marketplace-
-// visible vehicle. Visibility is re-validated server-side on every call via
-// public.is_marketplace_vehicle; nothing else in the bucket is reachable.
+// The vehicle-photos bucket is public for READS (writes stay restricted to
+// authenticated team members via storage RLS). This endpoint exists to serve an
+// ordered, marketplace-validated gallery for exactly one vehicle: visibility is
+// re-checked server-side on every call via public.is_marketplace_vehicle, and
+// nothing else in the bucket is enumerated. URLs are signed with a short TTL as
+// a delivery detail — callers must re-fetch rather than cache them.
 //
 // GET /rent-public-media?team=<teamSlug>&vehicle=<vehicleSlug>
 // -> { photos: [{ signedUrl, thumbnailUrl, displayOrder }], expiresIn: 3600 }
+
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.77.0";
