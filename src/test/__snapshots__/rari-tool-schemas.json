@@ -289,6 +289,10 @@
   "getEventImpact": {
     "type": "object",
     "properties": {
+      "eventName": {
+        "type": "string",
+        "description": "Name of the event, e.g. \"Art Basel\"."
+      },
       "location": {
         "type": "string",
         "description": "Filter to a single location/market"
