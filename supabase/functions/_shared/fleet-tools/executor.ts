@@ -1383,7 +1383,7 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
         };
       }
 
-      }
+
 
       case "getDamageReports": {
         const { status, location } = args;
