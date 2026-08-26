@@ -2158,6 +2158,11 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
           );
         }
         
+        // Total across everything owed stays accurate; only the returned rows
+        // are capped, so a voice answer doesn't read 200 bookings aloud.
+        const outstandingTotalCount = filteredBookings.length;
+        filteredBookings = filteredBookings.slice(0, maxBalances);
+
         const outstandingList = filteredBookings.map((b: any) => {
           const endDate = new Date(b.end_date);
           const daysOverdue = Math.floor((new Date().getTime() - endDate.getTime()) / (1000 * 60 * 60 * 24));
