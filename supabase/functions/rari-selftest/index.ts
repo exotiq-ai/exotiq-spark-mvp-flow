@@ -90,7 +90,9 @@ async function profileTenant(supabase: any, teamId: string): Promise<TenantProfi
     role: teamId === TEST_TEAM_ID ? 'test' : 'data-rich',
     currencySymbol,
     strict: teamId === TEST_TEAM_ID,
-    ownerUserId: memberRes.data?.[0]?.user_id ?? null,
+    // The dedicated harness team has no active team_members row (a user may only
+    // hold one active membership), so fall back to the team owner.
+    ownerUserId: memberRes.data?.[0]?.user_id ?? team?.owner_id ?? null,
     sample: {
       vehicle: vehiclePhrase,
       vehicleWord,
