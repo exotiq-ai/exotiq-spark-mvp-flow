@@ -92,7 +92,7 @@ export const masterCacheClear = async (onStatusChange?: (status: string) => void
     setStatus('Signing out from all sessions...');
     try {
       const signOutWithTimeout = Promise.race([
-        supabase.auth.signOut({ scope: 'global' }).catch(e => {
+        safeSignOut(supabase, 'global').catch(e => {
           console.warn('[MasterClear] SignOut error (proceeding anyway):', e);
         }),
         new Promise(resolve => setTimeout(resolve, 2000))
