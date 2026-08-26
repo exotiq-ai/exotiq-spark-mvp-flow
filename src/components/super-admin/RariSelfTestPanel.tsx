@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
@@ -65,7 +66,7 @@ type RunResponse = {
   ranAt: string;
   elapsedMs: number;
   suites: string[];
-  tenants: { teamId: string; name: string; currency: string; strict: boolean }[];
+  tenants: { teamId: string; name: string; currency: string; strict: boolean; ownerEmail?: string | null }[];
   totals: { cases: number; passed: number; failed: number; skipped: number };
   failures: { suite: string; tenant: string; case: string; assertion?: string; detail?: string }[];
   matrix: Record<string, Record<string, string>>;
@@ -104,13 +105,80 @@ const StatusCell = ({ status, onInspect }: { status?: string; onInspect?: () => 
   return <span className="text-muted-foreground text-xs">—</span>;
 };
 
+type TenantOption = {
+  teamId: string;
+  name: string;
+  currency: string;
+  ownerEmail: string | null;
+  isDemo: boolean;
+  isTestWorkspace: boolean;
+};
+
+const TENANT_STORAGE_KEY = 'rari_selftest_tenants';
+/** Accounts the operator asked to cover by default. */
+const DEFAULT_TENANT_EMAILS = ['hello@exotiq.ai', 'info@exoticsbythebay.co'];
+const DEFAULT_TENANT_NAMES = ['exotiq', 'exotics by the bay'];
+
 export const RariSelfTestPanel = () => {
   const [selected, setSelected] = useState<string[]>(SUITES.map((s) => s.id));
-  const [tenantSampleSize, setTenantSampleSize] = useState(3);
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<RunResponse | null>(null);
   const [history, setHistory] = useState<StoredRun[]>([]);
   const [detail, setDetail] = useState<CaseDetail | null>(null);
+  const [tenantOptions, setTenantOptions] = useState<TenantOption[]>([]);
+  const [tenantIds, setTenantIds] = useState<string[]>([]);
+  const [tenantQuery, setTenantQuery] = useState('');
+  const [loadingTenants, setLoadingTenants] = useState(false);
+
+  const loadTenants = async () => {
+    setLoadingTenants(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('rari-selftest', {
+        body: { action: 'tenants' },
+      });
+      if (error) throw error;
+      const options = ((data?.tenants ?? []) as TenantOption[]).filter((t) => !t.isTestWorkspace);
+      setTenantOptions(options);
+
+      const stored = localStorage.getItem(TENANT_STORAGE_KEY);
+      const restored = stored ? (JSON.parse(stored) as string[]) : null;
+      const valid = (restored || []).filter((id) => options.some((o) => o.teamId === id));
+      if (valid.length) {
+        setTenantIds(valid);
+      } else {
+        const defaults = options
+          .filter(
+            (o) =>
+              DEFAULT_TENANT_NAMES.includes(o.name.trim().toLowerCase()) &&
+              (!o.ownerEmail || DEFAULT_TENANT_EMAILS.includes(o.ownerEmail.toLowerCase())),
+          )
+          .map((o) => o.teamId);
+        setTenantIds(defaults);
+      }
+    } catch (e) {
+      toast.error(await describeFunctionError(e, 'Could not load the workspace list'));
+    } finally {
+      setLoadingTenants(false);
+    }
+  };
+
+  const setTenants = (ids: string[]) => {
+    setTenantIds(ids);
+    localStorage.setItem(TENANT_STORAGE_KEY, JSON.stringify(ids));
+  };
+
+  const toggleTenant = (id: string) =>
+    setTenants(tenantIds.includes(id) ? tenantIds.filter((t) => t !== id) : [...tenantIds, id]);
+
+  const quickPick = (n: number) => setTenants(tenantOptions.slice(0, n).map((t) => t.teamId));
+
+  const visibleTenants = useMemo(() => {
+    const q = tenantQuery.trim().toLowerCase();
+    if (!q) return tenantOptions;
+    return tenantOptions.filter(
+      (t) => t.name.toLowerCase().includes(q) || (t.ownerEmail || '').toLowerCase().includes(q),
+    );
+  }, [tenantOptions, tenantQuery]);
 
   const loadHistory = async () => {
     const { data, error } = await supabase
@@ -122,7 +190,7 @@ export const RariSelfTestPanel = () => {
     setHistory((data || []) as unknown as StoredRun[]);
   };
 
-  useEffect(() => { loadHistory(); }, []);
+  useEffect(() => { loadHistory(); loadTenants(); }, []);
 
   const toggleSuite = (id: string) =>
     setSelected((prev) => (prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]));
@@ -136,7 +204,12 @@ export const RariSelfTestPanel = () => {
     setResult(null);
     try {
       const { data, error } = await supabase.functions.invoke('rari-selftest', {
-        body: { action: 'run', suites: selected, tenantSampleSize, verbose: false },
+        body: {
+          action: 'run',
+          suites: selected,
+          ...(tenantIds.length ? { teams: tenantIds } : { tenantSampleSize: 3 }),
+          verbose: false,
+        },
       });
       if (error) throw error;
       const payload = data as RunResponse;
@@ -188,20 +261,65 @@ export const RariSelfTestPanel = () => {
             ))}
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-muted-foreground">Live tenants sampled</span>
+          <Separator />
+
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm font-medium">Workspaces to test</span>
+              <Badge variant="secondary">{tenantIds.length} selected</Badge>
+              <Badge variant="outline">Rari Self-Test always included</Badge>
+              <div className="flex-1" />
+              <span className="text-xs text-muted-foreground">Quick pick</span>
               {[1, 3, 5].map((n) => (
-                <Button
-                  key={n}
-                  size="sm"
-                  variant={tenantSampleSize === n ? 'default' : 'outline'}
-                  onClick={() => setTenantSampleSize(n)}
-                >
+                <Button key={n} size="sm" variant="outline" onClick={() => quickPick(n)} disabled={loadingTenants}>
                   {n}
                 </Button>
               ))}
+              <Button size="sm" variant="outline" onClick={() => setTenants(tenantOptions.map((t) => t.teamId))} disabled={loadingTenants}>
+                All
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setTenants([])} disabled={loadingTenants}>
+                Clear
+              </Button>
             </div>
+
+            <div className="relative">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                value={tenantQuery}
+                onChange={(e) => setTenantQuery(e.target.value)}
+                placeholder="Search by workspace name or owner email"
+                className="pl-8"
+              />
+            </div>
+
+            <ScrollArea className="h-48 rounded-md border">
+              <div className="p-2 space-y-1">
+                {loadingTenants && <p className="text-xs text-muted-foreground px-1 py-2">Loading workspaces…</p>}
+                {!loadingTenants && !visibleTenants.length && (
+                  <p className="text-xs text-muted-foreground px-1 py-2">No workspaces match that search.</p>
+                )}
+                {visibleTenants.map((t) => (
+                  <label
+                    key={t.teamId}
+                    className="flex items-start gap-2 cursor-pointer rounded px-1 py-1 hover:bg-muted/50"
+                  >
+                    <Checkbox checked={tenantIds.includes(t.teamId)} onCheckedChange={() => toggleTenant(t.teamId)} />
+                    <span className="leading-tight min-w-0">
+                      <span className="text-sm font-medium flex items-center gap-1.5">
+                        {t.name}
+                        {t.isDemo && <Badge variant="outline" className="text-[10px]">demo</Badge>}
+                        {t.currency !== 'USD' && <Badge variant="outline" className="text-[10px]">{t.currency}</Badge>}
+                      </span>
+                      <span className="text-xs text-muted-foreground truncate block">{t.ownerEmail || t.teamId}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </ScrollArea>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
             <div className="flex-1" />
             <Button variant="outline" size="sm" onClick={loadHistory} disabled={running}>
               <RefreshCw className="h-4 w-4 mr-2" /> Refresh history
@@ -267,9 +385,14 @@ export const RariSelfTestPanel = () => {
                     <tr className="border-b">
                       <th className="text-left py-2 pr-4 font-medium">Case</th>
                       {tenantCols.map((t) => (
-                        <th key={t.teamId} className="py-2 px-2 font-medium text-center whitespace-nowrap">
-                          {t.name}
-                          {t.strict && <Badge variant="outline" className="ml-1">test</Badge>}
+                        <th key={t.teamId} className="py-2 px-2 font-medium text-center whitespace-nowrap align-bottom">
+                          <span className="flex items-center justify-center gap-1">
+                            {t.name}
+                            <Badge variant="outline" className="text-[10px]">{t.strict ? 'test' : 'live'}</Badge>
+                          </span>
+                          {t.ownerEmail && (
+                            <span className="block text-[10px] font-normal text-muted-foreground">{t.ownerEmail}</span>
+                          )}
                         </th>
                       ))}
                       <th className="py-2 px-2 font-medium text-center">workspace</th>

@@ -39,6 +39,7 @@ interface TenantProfile {
   currencySymbol: string;
   strict: boolean;
   ownerUserId: string | null;
+  ownerEmail: string | null;
   sample: Record<string, string | null>;
 }
 
@@ -70,6 +71,12 @@ async function profileTenant(supabase: any, teamId: string): Promise<TenantProfi
   ]);
 
   const team = teamRes.data;
+  let ownerEmail: string | null = null;
+  if (team?.owner_id) {
+    const { data: ownerProfile } = await supabase
+      .from('profiles').select('email').eq('id', team.owner_id).maybeSingle();
+    ownerEmail = ownerProfile?.email ?? null;
+  }
   const vehicle = (vehicleRes.data || [])[0];
   const booking = (bookingRes.data || []).find((b: any) => b.customer_name) || (bookingRes.data || [])[0];
 
@@ -93,6 +100,7 @@ async function profileTenant(supabase: any, teamId: string): Promise<TenantProfi
     // The dedicated harness team has no active team_members row (a user may only
     // hold one active membership), so fall back to the team owner.
     ownerUserId: memberRes.data?.[0]?.user_id ?? team?.owner_id ?? null,
+    ownerEmail,
     sample: {
       vehicle: vehiclePhrase,
       vehicleWord,
@@ -197,9 +205,39 @@ function serve_handler() {
         return json({ action, teamId: body.teamId || TEST_TEAM_ID, removed });
       }
 
+      // ---- tenant list (for the Super Admin picker) --------------------------
+      if (action === 'tenants') {
+        const { data: teams } = await admin
+          .from('teams')
+          .select('id, name, currency, owner_id, is_demo_account')
+          .order('name', { ascending: true })
+          .limit(500);
+        const ownerIds = [...new Set((teams || []).map((t: any) => t.owner_id).filter(Boolean))];
+        const { data: owners } = ownerIds.length
+          ? await admin.from('profiles').select('id, email').in('id', ownerIds)
+          : { data: [] as any[] };
+        const emailById = new Map((owners || []).map((o: any) => [o.id, o.email]));
+        return json({
+          action,
+          testTeamId: TEST_TEAM_ID,
+          tenants: (teams || []).map((t: any) => ({
+            teamId: t.id,
+            name: t.name,
+            currency: String(t.currency || 'USD').toUpperCase(),
+            ownerEmail: emailById.get(t.owner_id) ?? null,
+            isDemo: !!t.is_demo_account,
+            isTestWorkspace: t.id === TEST_TEAM_ID,
+          })),
+        });
+      }
+
       // ---- tenant matrix ----------------------------------------------------
       let teamIds: string[] = Array.isArray(body.teams) && body.teams.length ? body.teams : [];
-      if (!teamIds.length) {
+      if (teamIds.length) {
+        // The dedicated test workspace is the only tenant with deterministic
+        // fixtures, so it is always part of the matrix.
+        teamIds = [TEST_TEAM_ID, ...teamIds.filter((id) => id !== TEST_TEAM_ID)];
+      } else {
         const { data: teams } = await admin
           .from('teams')
           .select('id, name')
@@ -502,7 +540,7 @@ function serve_handler() {
           };
         });
 
-      const tenants = profiles.map((p) => ({ teamId: p.teamId, name: p.name, currency: p.currencySymbol, strict: p.strict, sample: p.sample }));
+      const tenants = profiles.map((p) => ({ teamId: p.teamId, name: p.name, currency: p.currencySymbol, strict: p.strict, ownerEmail: p.ownerEmail, sample: p.sample }));
       const totals = { cases: total, passed: total - failed - skipped, failed, skipped };
       const isGreen = failed === 0;
       const ranAt = new Date().toISOString();
