@@ -2580,9 +2580,30 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
       }
 
       case "create_booking_hold": {
-        const { vehicle_id, customer_name, customer_phone, start_date, end_date, notes } = args as any;
+        const { vehicle, customer_name, customer_phone, start_date, end_date, notes } = args as any;
+        let { vehicle_id } = args as any;
+
+        // The registry exposes a free-text `vehicle`; resolve it to an id that
+        // belongs to the caller's team before anything is written.
+        let veh: any = null;
+        if (!vehicle_id && vehicle) {
+          const resolved = await resolveTeamVehicle(supabase, teamId, String(vehicle));
+          if (resolved.error === 'not_found') {
+            return { error: 'vehicle_not_found', summary: `I couldn't find a vehicle matching "${vehicle}" in your fleet.` };
+          }
+          if (resolved.matches) {
+            return {
+              error: 'ambiguous_vehicle',
+              matches: resolved.matches.map((v: any) => vehicleDisplayName(v)),
+              summary: `Several vehicles match "${vehicle}": ${resolved.matches.map((v: any) => vehicleDisplayName(v)).join(', ')}. Which one should I hold?`,
+            };
+          }
+          veh = resolved.vehicle;
+          vehicle_id = veh.id;
+        }
+
         if (!vehicle_id || !customer_name || !start_date || !end_date) {
-          return { error: 'vehicle_id, customer_name, start_date, and end_date are required' };
+          return { error: 'vehicle, customer_name, start_date, and end_date are required' };
         }
         let conflictQ = supabase.from('bookings').select('id, booking_ref, customer_name').eq('vehicle_id', vehicle_id).in('status', ['confirmed','pending']).lte('start_date', end_date).gte('end_date', start_date);
         if (teamId) conflictQ = conflictQ.eq('team_id', teamId);
@@ -2590,14 +2611,14 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
         if (conflicts && conflicts.length) {
           return { error: 'conflict', conflict: conflicts[0], summary: `That window overlaps booking ${conflicts[0].booking_ref} for ${conflicts[0].customer_name}. Pick a different vehicle or time.` };
         }
-        let veh: any = null;
-        {
+        if (!veh) {
           let vq = supabase.from('vehicles').select('id, year, make, model, current_rate, location').eq('id', vehicle_id);
           if (teamId) vq = vq.eq('team_id', teamId);
           const { data } = await vq.maybeSingle();
           veh = data;
         }
         if (!veh) return { error: 'vehicle not found in your fleet' };
+
 
         const ms = new Date(end_date).getTime() - new Date(start_date).getTime();
         const days = Math.max(1, Math.ceil(ms / 86400000));
