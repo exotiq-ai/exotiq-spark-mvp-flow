@@ -41,6 +41,8 @@ import {
   Store,
   Wallet,
   LifeBuoy,
+  Bot,
+
 
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
