@@ -203,7 +203,12 @@ export const RariSelfTestPanel = () => {
     setResult(null);
     try {
       const { data, error } = await supabase.functions.invoke('rari-selftest', {
-        body: { action: 'run', suites: selected, tenantSampleSize, verbose: false },
+        body: {
+          action: 'run',
+          suites: selected,
+          ...(tenantIds.length ? { teams: tenantIds } : { tenantSampleSize: 3 }),
+          verbose: false,
+        },
       });
       if (error) throw error;
       const payload = data as RunResponse;
