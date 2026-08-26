@@ -484,6 +484,24 @@ function serve_handler() {
         row[r.tenant] = r.status === 'skipped' ? 'skip' : (r.failures || []).length ? 'FAIL' : 'pass';
       }
 
+      // ---- drill-down details for every failing case --------------------------
+      const details = results
+        .filter((r) => (r.failures || []).length > 0)
+        .map((r) => {
+          const input = r.args ?? (r.question ? { question: r.question } : {});
+          return {
+            key: `${r.suite}::${r.case}::${r.tenant}`,
+            suite: r.suite,
+            tenant: r.tenant,
+            case: r.case,
+            tool: r.tool ?? null,
+            input,
+            mapping: r.tool ? registryMapping(r.tool, input as Record<string, unknown>) : null,
+            output: pretty(r.rawResult ?? r.detail ?? null),
+            failures: r.failures,
+          };
+        });
+
       const tenants = profiles.map((p) => ({ teamId: p.teamId, name: p.name, currency: p.currencySymbol, strict: p.strict, sample: p.sample }));
       const totals = { cases: total, passed: total - failed - skipped, failed, skipped };
       const isGreen = failed === 0;
@@ -552,7 +570,10 @@ function serve_handler() {
         regressions,
         fixed,
         newCases,
-        results: body.verbose === false ? undefined : results,
+        details,
+        results: body.verbose === false
+          ? undefined
+          : results.map(({ rawResult, ...rest }: any) => rest),
       }, 200);
     } catch (error) {
       console.error('[rari-selftest] fatal', error);
