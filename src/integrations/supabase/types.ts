@@ -5077,8 +5077,8 @@ export type Database = {
           height: number | null
           id: string
           is_enhanced: boolean | null
-          is_vehicle_confirmed: boolean | null
-          is_visible: boolean | null
+          is_vehicle_confirmed: boolean
+          is_visible: boolean
           mime_type: string | null
           original_filename: string | null
           photo_type: string | null
@@ -5108,8 +5108,8 @@ export type Database = {
           height?: number | null
           id?: string
           is_enhanced?: boolean | null
-          is_vehicle_confirmed?: boolean | null
-          is_visible?: boolean | null
+          is_vehicle_confirmed?: boolean
+          is_visible?: boolean
           mime_type?: string | null
           original_filename?: string | null
           photo_type?: string | null
@@ -5139,8 +5139,8 @@ export type Database = {
           height?: number | null
           id?: string
           is_enhanced?: boolean | null
-          is_vehicle_confirmed?: boolean | null
-          is_visible?: boolean | null
+          is_vehicle_confirmed?: boolean
+          is_visible?: boolean
           mime_type?: string | null
           original_filename?: string | null
           photo_type?: string | null
