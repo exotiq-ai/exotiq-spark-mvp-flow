@@ -1386,7 +1386,8 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
 
 
       case "getDamageReports": {
-        const { status, location } = args;
+        const { status, location, limit } = args;
+        const maxClaims = toLimit(limit, 25);
         let query = supabase
           .from('damage_claims')
           .select('*, vehicles(make, model, year, location)');
@@ -1397,7 +1398,7 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
 
         if (status && status !== 'all') query = query.eq('claim_status', status);
 
-        const { data: claims } = await query.order('reported_date', { ascending: false });
+        const { data: claims } = await query.order('reported_date', { ascending: false }).limit(Math.max(maxClaims, 100));
         
         let filteredClaims = claims || [];
         if (location && location !== 'all') {
@@ -1406,6 +1407,8 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
           );
         }
         
+        filteredClaims = filteredClaims.slice(0, maxClaims);
+
         const claimList = filteredClaims.map(c => ({
           vehicle: c.vehicles ? vehicleDisplayName(c.vehicles) : 'Unknown',
           location: c.vehicles?.location || 'Unassigned',
@@ -1423,7 +1426,8 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
       }
 
       case "getUpcomingMaintenance": {
-        const { daysAhead = 30, location } = args;
+        const { daysAhead = 30, location, limit } = args;
+        const maxMaintenance = toLimit(limit, 25);
         const futureDate = new Date();
         futureDate.setDate(futureDate.getDate() + daysAhead);
 
@@ -1447,6 +1451,8 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
           );
         }
         
+        filteredMaintenance = filteredMaintenance.slice(0, maxMaintenance);
+
         const maintenanceList = filteredMaintenance.map(m => ({
           vehicle: m.vehicles ? vehicleDisplayName(m.vehicles) : 'Unknown',
           location: m.vehicles?.location || 'Unassigned',
@@ -2515,8 +2521,8 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
       }
 
       case "get_open_work_orders": {
-        const { priority } = args as { priority?: string };
-        let q = supabase.from('work_orders').select('id, title, status, priority, vehicle_id, due_at, created_at, vendor_name, vehicles(year, make, model)').in('status', ['open','in_progress']).order('created_at', { ascending: true }).limit(50);
+        const { priority, limit } = args as { priority?: string; limit?: number };
+        let q = supabase.from('work_orders').select('id, title, status, priority, vehicle_id, due_at, created_at, vendor_name, vehicles(year, make, model)').in('status', ['open','in_progress']).order('created_at', { ascending: true }).limit(toLimit(limit, 50));
         if (teamId) q = q.eq('team_id', teamId);
         if (priority && priority !== 'all') q = q.eq('priority', priority);
         const { data, error } = await q;
