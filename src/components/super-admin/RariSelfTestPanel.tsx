@@ -17,7 +17,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { AlertTriangle, CheckCircle2, Loader2, MinusCircle, PlayCircle, RefreshCw, Search, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Download, Loader2, MinusCircle, PlayCircle, RefreshCw, Search, XCircle } from 'lucide-react';
 import { describeFunctionError } from '@/lib/functionError';
 
 const SUITES = [
@@ -118,6 +118,81 @@ const TENANT_STORAGE_KEY = 'rari_selftest_tenants';
 /** Accounts the operator asked to cover by default. */
 const DEFAULT_TENANT_EMAILS = ['hello@exotiq.ai', 'info@exoticsbythebay.co'];
 const DEFAULT_TENANT_NAMES = ['exotiq', 'exotics by the bay'];
+
+const csvCell = (value: unknown): string => {
+  if (value === null || value === undefined) return '';
+  const s = typeof value === 'string' ? value : JSON.stringify(value);
+  return `"${s.replace(/"/g, '""')}"`;
+};
+
+const downloadFile = (filename: string, mime: string, contents: string) => {
+  const blob = new Blob([contents], { type: `${mime};charset=utf-8` });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+};
+
+const runStamp = (ranAt: string) => new Date(ranAt).toISOString().replace(/[:.]/g, '-');
+
+/** One row per case x tenant, with the drill-down trace flattened alongside. */
+const buildCsv = (result: RunResponse): string => {
+  const header = [
+    'case',
+    'suite',
+    'tenant',
+    'team_id',
+    'owner_email',
+    'currency',
+    'strict',
+    'status',
+    'tool',
+    'failed_assertions',
+    'failure_details',
+    'missing_required',
+    'undeclared_args',
+    'tool_input',
+    'normalized_args',
+    'tool_output',
+  ];
+  const tenantMeta = new Map(result.tenants.map((t) => [t.name, t]));
+  const rows: string[] = [header.join(',')];
+
+  for (const caseName of Object.keys(result.matrix).sort()) {
+    const byTenant = result.matrix[caseName] ?? {};
+    for (const tenantKey of Object.keys(byTenant)) {
+      const status = byTenant[tenantKey];
+      const detail = result.details.find((d) => d.case === caseName && d.tenant === tenantKey);
+      const meta = tenantMeta.get(tenantKey);
+      rows.push(
+        [
+          csvCell(caseName),
+          csvCell(detail?.suite ?? ''),
+          csvCell(tenantKey),
+          csvCell(meta?.teamId ?? ''),
+          csvCell(meta?.ownerEmail ?? ''),
+          csvCell(meta?.currency ?? ''),
+          csvCell(meta ? String(meta.strict) : ''),
+          csvCell(status),
+          csvCell(detail?.tool ?? ''),
+          csvCell((detail?.failures ?? []).map((f) => f.assertion).filter(Boolean).join(' | ')),
+          csvCell((detail?.failures ?? []).map((f) => f.detail).filter(Boolean).join(' | ')),
+          csvCell((detail?.mapping?.missingRequired ?? []).join(' | ')),
+          csvCell((detail?.mapping?.undeclaredArgs ?? []).join(' | ')),
+          csvCell(detail?.input ?? ''),
+          csvCell(detail?.mapping?.normalizedArgs ?? ''),
+          csvCell(detail?.output ?? ''),
+        ].join(','),
+      );
+    }
+  }
+  return rows.join('\n');
+};
+
 
 export const RariSelfTestPanel = () => {
   const [selected, setSelected] = useState<string[]>(SUITES.map((s) => s.id));
@@ -224,6 +299,23 @@ export const RariSelfTestPanel = () => {
     }
   };
 
+  const exportCsv = () => {
+    if (!result) return;
+    downloadFile(`rari-selftest-${runStamp(result.ranAt)}.csv`, 'text/csv', buildCsv(result));
+    toast.success('CSV report downloaded');
+  };
+
+  const exportJson = () => {
+    if (!result) return;
+    downloadFile(
+      `rari-selftest-${runStamp(result.ranAt)}.json`,
+      'application/json',
+      JSON.stringify(result, null, 2),
+    );
+    toast.success('JSON report downloaded');
+  };
+
+
   const tenantCols = result?.tenants ?? [];
   const caseRows = useMemo(() => Object.keys(result?.matrix ?? {}).sort(), [result]);
   const lastGreen = history.find((h) => h.is_green);
@@ -321,9 +413,16 @@ export const RariSelfTestPanel = () => {
 
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex-1" />
+            <Button variant="outline" size="sm" onClick={exportCsv} disabled={running || !result}>
+              <Download className="h-4 w-4 mr-2" /> Export CSV
+            </Button>
+            <Button variant="outline" size="sm" onClick={exportJson} disabled={running || !result}>
+              <Download className="h-4 w-4 mr-2" /> Export JSON
+            </Button>
             <Button variant="outline" size="sm" onClick={loadHistory} disabled={running}>
               <RefreshCw className="h-4 w-4 mr-2" /> Refresh history
             </Button>
+
             <Button onClick={run} disabled={running}>
               {running ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <PlayCircle className="h-4 w-4 mr-2" />}
               {running ? 'Running…' : 'Run self-test'}
