@@ -695,6 +695,27 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
           } as ToolResult;
         }
 
+        // A question that names one of the team's own customers is about that
+        // customer.
+        const namedCustomer = await detectAskFleetCustomer(supabase, teamId, asked);
+        if (namedCustomer) {
+          console.log(`[ask_fleet] "${asked}" -> getCustomerProfile (${namedCustomer})`);
+          const profile = await executeFunction(
+            'getCustomerProfile',
+            { customerName: namedCustomer },
+            supabase,
+            userId,
+            teamId,
+          );
+          return {
+            ...(profile as Record<string, unknown>),
+            question: asked,
+            routed_to: 'getCustomerProfile',
+          } as ToolResult;
+        }
+
+
+
         const routedTool = detectAskFleetTool(asked);
         const routedTimeframe = timeframe || detectAskFleetTimeframe(asked);
         const routedLocation = location || (await detectAskFleetLocation(supabase, teamId, asked));
