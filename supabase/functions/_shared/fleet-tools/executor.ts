@@ -2380,6 +2380,8 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
           partnerPayouts: formatUsdWords(Number(r.partner_payouts || 0)),
           operatorNet: formatUsdWords(Number(r.operator_net || 0)),
           operatorNetRaw: Number(r.operator_net || 0),
+          grossRevenueRaw: Number(r.gross_revenue || 0),
+
           margin: `${Number(r.margin_pct || 0).toFixed(1)}%`,
           bookings: Number(r.booking_count || 0),
         }));
