@@ -1194,20 +1194,20 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
       }
 
       case "getVehicleDetails": {
-        const { vehicleName, includeBookings } = args;
-        
-        let vehicleQuery = supabase
-          .from('vehicles')
-          .select('*');
-        
-        if (teamId) {
-          vehicleQuery = vehicleQuery.eq('team_id', teamId);
+        const { vehicleName, vehicleId } = args as { vehicleName?: string; vehicleId?: string };
+
+        let vehicle: any = null;
+        if (vehicleId) {
+          let byId = supabase.from('vehicles').select('*').eq('id', vehicleId);
+          if (teamId) byId = byId.eq('team_id', teamId);
+          const { data } = await byId.maybeSingle();
+          vehicle = data || null;
         }
-        
-        const { data: vehicle } = await vehicleQuery
-          .or(`name.ilike.%${vehicleName}%,make.ilike.%${vehicleName}%,model.ilike.%${vehicleName}%`)
-          .limit(1)
-          .maybeSingle();
+        // Token-based match so "Ferrari 488 Spider" (make + model split across
+        // two columns) resolves — a single whole-phrase ILIKE never can.
+        if (!vehicle) {
+          vehicle = await findTeamVehicleByTokens(supabase, teamId, String(vehicleName || ''));
+        }
 
         if (!vehicle) return { 
           error: "Vehicle not found",
@@ -1215,24 +1215,16 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
         };
 
         const fullName = vehicleDisplayName(vehicle);
-        let bookingsData = null;
-        if (includeBookings) {
-          const { data: bookings } = await supabase
-            .from('bookings')
-            .select('*, customers(full_name)')
-            .eq('vehicle_id', vehicle.id)
-            .order('start_date', { ascending: false })
-            .limit(5);
-          bookingsData = bookings?.map(b => {
-            const customerName = b.customers?.full_name || b.customer_name || 'Unknown';
-            return {
-              customer: customerName,
-              dates: `${new Date(b.start_date).toLocaleDateString()} to ${new Date(b.end_date).toLocaleDateString()}`,
-              status: b.status,
-              amount: `$${Number(b.total_value || b.total_amount || 0).toFixed(0)}`
-            };
-          });
-        }
+        // Bookings are ALWAYS included: this used to hang off an `includeBookings`
+        // flag the registry never sends, so Rari reported "no bookings" on
+        // vehicles that were booked.
+        const bookingsData = await getVehicleBookingWindow(supabase, vehicle.id, teamId);
+        const nextBooking = bookingsData.find((b) => b.timing === 'current')
+          || bookingsData.find((b) => b.timing === 'upcoming');
+
+        const bookingSentence = nextBooking
+          ? ` ${nextBooking.timing === 'current' ? 'On rent now' : 'Next booking'}: ${nextBooking.customer}, ${nextBooking.dates} (${nextBooking.status}).`
+          : ' No current or upcoming bookings.';
 
         return { 
           vehicle: {
@@ -1244,10 +1236,13 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
             utilization: `${vehicle.utilization || 0}% utilization`,
             revenue: `$${Number(vehicle.revenue || 0).toFixed(0)} total revenue`,
             licensePlate: vehicle.license_plate,
-            vin: vehicle.vin
+            vin: vehicle.vin,
+            bookings: bookingsData,
           },
           bookings: bookingsData,
-          summary: `${fullName} in ${vehicle.location || 'Unassigned'} is currently ${vehicle.status}, priced at $${vehicle.current_rate || vehicle.daily_rate} per day with ${vehicle.utilization || 0}% utilization.`
+          bookingCount: bookingsData.length,
+          nextBooking: nextBooking || null,
+          summary: `${fullName} in ${vehicle.location || 'Unassigned'} is currently ${vehicle.status}, priced at $${vehicle.current_rate || vehicle.daily_rate} per day with ${vehicle.utilization || 0}% utilization.${bookingSentence}`
         };
       }
 
