@@ -104,13 +104,80 @@ const StatusCell = ({ status, onInspect }: { status?: string; onInspect?: () => 
   return <span className="text-muted-foreground text-xs">—</span>;
 };
 
+type TenantOption = {
+  teamId: string;
+  name: string;
+  currency: string;
+  ownerEmail: string | null;
+  isDemo: boolean;
+  isTestWorkspace: boolean;
+};
+
+const TENANT_STORAGE_KEY = 'rari_selftest_tenants';
+/** Accounts the operator asked to cover by default. */
+const DEFAULT_TENANT_EMAILS = ['hello@exotiq.ai', 'info@exoticsbythebay.co'];
+const DEFAULT_TENANT_NAMES = ['exotiq', 'exotics by the bay'];
+
 export const RariSelfTestPanel = () => {
   const [selected, setSelected] = useState<string[]>(SUITES.map((s) => s.id));
-  const [tenantSampleSize, setTenantSampleSize] = useState(3);
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<RunResponse | null>(null);
   const [history, setHistory] = useState<StoredRun[]>([]);
   const [detail, setDetail] = useState<CaseDetail | null>(null);
+  const [tenantOptions, setTenantOptions] = useState<TenantOption[]>([]);
+  const [tenantIds, setTenantIds] = useState<string[]>([]);
+  const [tenantQuery, setTenantQuery] = useState('');
+  const [loadingTenants, setLoadingTenants] = useState(false);
+
+  const loadTenants = async () => {
+    setLoadingTenants(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('rari-selftest', {
+        body: { action: 'tenants' },
+      });
+      if (error) throw error;
+      const options = ((data?.tenants ?? []) as TenantOption[]).filter((t) => !t.isTestWorkspace);
+      setTenantOptions(options);
+
+      const stored = localStorage.getItem(TENANT_STORAGE_KEY);
+      const restored = stored ? (JSON.parse(stored) as string[]) : null;
+      const valid = (restored || []).filter((id) => options.some((o) => o.teamId === id));
+      if (valid.length) {
+        setTenantIds(valid);
+      } else {
+        const defaults = options
+          .filter(
+            (o) =>
+              DEFAULT_TENANT_NAMES.includes(o.name.trim().toLowerCase()) &&
+              (!o.ownerEmail || DEFAULT_TENANT_EMAILS.includes(o.ownerEmail.toLowerCase())),
+          )
+          .map((o) => o.teamId);
+        setTenantIds(defaults);
+      }
+    } catch (e) {
+      toast.error(await describeFunctionError(e, 'Could not load the workspace list'));
+    } finally {
+      setLoadingTenants(false);
+    }
+  };
+
+  const setTenants = (ids: string[]) => {
+    setTenantIds(ids);
+    localStorage.setItem(TENANT_STORAGE_KEY, JSON.stringify(ids));
+  };
+
+  const toggleTenant = (id: string) =>
+    setTenants(tenantIds.includes(id) ? tenantIds.filter((t) => t !== id) : [...tenantIds, id]);
+
+  const quickPick = (n: number) => setTenants(tenantOptions.slice(0, n).map((t) => t.teamId));
+
+  const visibleTenants = useMemo(() => {
+    const q = tenantQuery.trim().toLowerCase();
+    if (!q) return tenantOptions;
+    return tenantOptions.filter(
+      (t) => t.name.toLowerCase().includes(q) || (t.ownerEmail || '').toLowerCase().includes(q),
+    );
+  }, [tenantOptions, tenantQuery]);
 
   const loadHistory = async () => {
     const { data, error } = await supabase
