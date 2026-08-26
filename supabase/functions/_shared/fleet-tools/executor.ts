@@ -1575,18 +1575,18 @@ export async function executeFunction(functionName: string, rawArgs: Record<stri
 
         let summary: string;
         if (documents.length === 0) {
-          summary = category || status
-            ? `No documents match that filter.`
+          summary = category || status || vehicleFilterName
+            ? `No documents match that filter${vehicleFilterName ? ` for the ${vehicleFilterName}` : ''}.`
             : `There are no documents in your vault yet.`;
         } else {
-          summary = `Found ${documents.length} document${documents.length === 1 ? '' : 's'}`;
+          summary = `Found ${documents.length} document${documents.length === 1 ? '' : 's'}${vehicleFilterName ? ` for the ${vehicleFilterName}` : ''}`;
           if (expired) summary += `, ${expired} expired`;
           if (expiringSoon) summary += `, ${expiringSoon} expiring within 30 days`;
           summary += '.';
         }
 
         console.log(`[getVaultDocuments] team ${teamId}: ${documents.length} docs (${expired} expired, ${expiringSoon} expiring)`);
-        return { documents, expired, expiringSoon, summary };
+        return { documents, expired, expiringSoon, vehicle: vehicleFilterName, summary };
       }
 
 
