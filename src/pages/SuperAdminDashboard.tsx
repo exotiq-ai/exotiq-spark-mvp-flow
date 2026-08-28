@@ -43,6 +43,7 @@ import {
   Wallet,
   LifeBuoy,
   Bot,
+  DollarSign,
 
 
 } from 'lucide-react';
