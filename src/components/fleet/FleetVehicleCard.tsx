@@ -62,6 +62,8 @@ interface Vehicle {
   rate_3hr?: number | null;
   rate_6hr?: number | null;
   rate_multiday?: number | null;
+  marketplace_visible?: boolean | null;
+  marketplace_unlisted?: boolean | null;
 }
 
 interface Booking {
