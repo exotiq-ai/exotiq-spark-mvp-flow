@@ -37,7 +37,10 @@ interface Vehicle {
   partner_id?: string | null;
   split_type?: string | null;
   split_value?: number | null;
+  marketplace_visible?: boolean | null;
+  marketplace_unlisted?: boolean | null;
 }
+
 
 interface EditVehicleDialogProps {
   open: boolean;
