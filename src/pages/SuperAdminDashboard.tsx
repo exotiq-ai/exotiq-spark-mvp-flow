@@ -19,6 +19,7 @@ import { TenantHealthTab } from '@/components/super-admin/TenantHealthTab';
 import { VehicleAuditTab } from '@/components/super-admin/VehicleAuditTab';
 import { SuperAdminTenantDocumentsTab } from '@/components/super-admin/SuperAdminTenantDocumentsTab';
 import { MarketplaceVisibilityTab } from '@/components/super-admin/MarketplaceVisibilityTab';
+import { MarketplaceRevenueTab } from '@/components/super-admin/MarketplaceRevenueTab';
 import { SuperAdminPaymentsTestTab } from '@/components/super-admin/SuperAdminPaymentsTestTab';
 import { SupportAccessTab } from '@/components/super-admin/SupportAccessTab';
 import { RariSelfTestPanel } from '@/components/super-admin/RariSelfTestPanel';
@@ -42,6 +43,7 @@ import {
   Wallet,
   LifeBuoy,
   Bot,
+  DollarSign,
 
 
 } from 'lucide-react';
@@ -236,6 +238,10 @@ export const SuperAdminDashboard = () => {
               <CreditCard className="h-4 w-4 mr-2" />
               Billing
             </TabsTrigger>
+            <TabsTrigger value="revenue">
+              <DollarSign className="h-4 w-4 mr-2" />
+              Revenue
+            </TabsTrigger>
             <TabsTrigger value="maintenance">
               <Wrench className="h-4 w-4 mr-2" />
               Maintenance
@@ -273,6 +279,10 @@ export const SuperAdminDashboard = () => {
 
           <TabsContent value="billing" className="space-y-4">
             <SuperAdminBillingTab />
+          </TabsContent>
+
+          <TabsContent value="revenue" className="space-y-4">
+            <MarketplaceRevenueTab />
           </TabsContent>
 
           <TabsContent value="maintenance" className="space-y-4">
