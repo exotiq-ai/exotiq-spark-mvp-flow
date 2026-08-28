@@ -159,6 +159,15 @@ export const FleetVehicleCard = ({
   };
 
   const statusDisplay = getStatusDisplay();
+
+  // Public listing state (informational only — changed from Edit Vehicle)
+  const listingChip = vehicle.marketplace_visible === false
+    ? 'Not public'
+    : vehicle.marketplace_unlisted === true
+      ? 'Link only'
+      : null;
+
+
   
 
 
