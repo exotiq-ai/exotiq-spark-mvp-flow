@@ -280,6 +280,10 @@ export const SuperAdminDashboard = () => {
             <SuperAdminBillingTab />
           </TabsContent>
 
+          <TabsContent value="revenue" className="space-y-4">
+            <MarketplaceRevenueTab />
+          </TabsContent>
+
           <TabsContent value="maintenance" className="space-y-4">
             <MaintenanceModeSection />
           </TabsContent>
