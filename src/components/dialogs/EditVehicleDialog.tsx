@@ -76,6 +76,16 @@ export const EditVehicleDialog = ({ open, onOpenChange, vehicle, onSave }: EditV
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastEditInfo, setLastEditInfo] = useState<string | null>(null);
+  const [listingState, setListingState] = useState<ListingState>("listed");
+  const [teamListingInfo, setTeamListingInfo] = useState<{ live: boolean; feeConfirmed: boolean } | null>(null);
+
+  const initialListingState: ListingState = vehicle
+    ? vehicle.marketplace_visible === false
+      ? "hidden"
+      : vehicle.marketplace_unlisted === true
+        ? "unlisted"
+        : "listed"
+    : "listed";
 
   // Populate form when vehicle changes
   useEffect(() => {
@@ -96,12 +106,35 @@ export const EditVehicleDialog = ({ open, onOpenChange, vehicle, onSave }: EditV
       setPartnerId(vehicle.partner_id || "none");
       setSplitType(vehicle.split_type || "percentage");
       setSplitValue(vehicle.split_value != null ? String(vehicle.split_value) : "");
+      setListingState(initialListingState);
       setError(null);
 
       // Fetch last edit info
       fetchLastEdit(vehicle.id);
     }
   }, [vehicle, open]);
+
+  // Is the team's public booking site actually live?
+  useEffect(() => {
+    if (!open || !currentTeam?.id) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('teams')
+        .select('marketplace_visible, marketplace_request_status, platform_fee_percent, platform_fee_confirmed_at')
+        .eq('id', currentTeam.id)
+        .maybeSingle();
+      if (cancelled) return;
+      const row = data as any;
+      setTeamListingInfo({
+        live: !!row?.marketplace_visible && row?.marketplace_request_status === 'approved',
+        feeConfirmed: Number(row?.platform_fee_percent ?? 0) > 0 && !!row?.platform_fee_confirmed_at,
+      });
+    })();
+    return () => { cancelled = true; };
+  }, [open, currentTeam?.id]);
+
+
 
   const fetchLastEdit = async (vehicleId: string) => {
     const { data } = await supabase
