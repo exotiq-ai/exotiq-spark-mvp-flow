@@ -328,6 +328,56 @@ export const EditVehicleDialog = ({ open, onOpenChange, vehicle, onSave }: EditV
               </Select>
             </div>
 
+            {/* Public booking site */}
+            <div className="space-y-3 pt-2 border-t">
+              <Label className="flex items-center gap-2">
+                <Globe className="h-4 w-4" />
+                Public booking site
+              </Label>
+
+              {teamListingInfo && !teamListingInfo.live ? (
+                <p className="text-xs text-muted-foreground">
+                  Your public booking site isn't live yet, so this vehicle isn't shown to renters online.
+                </p>
+              ) : (
+                <>
+                  <RadioGroup
+                    value={listingState}
+                    onValueChange={(v) => setListingState(v as ListingState)}
+                    className="space-y-2"
+                  >
+                    <div className="flex items-start gap-3 rounded-md border p-3">
+                      <RadioGroupItem value="listed" id="listing-listed" className="mt-0.5" />
+                      <div className="space-y-0.5">
+                        <Label htmlFor="listing-listed" className="cursor-pointer">Listed</Label>
+                        <p className="text-xs text-muted-foreground">Shown in your public lineup and bookable online.</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3 rounded-md border p-3">
+                      <RadioGroupItem value="unlisted" id="listing-unlisted" className="mt-0.5" />
+                      <div className="space-y-0.5">
+                        <Label htmlFor="listing-unlisted" className="cursor-pointer">Link only</Label>
+                        <p className="text-xs text-muted-foreground">Hidden from the lineup, but anyone with the direct link can still book it.</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3 rounded-md border p-3">
+                      <RadioGroupItem value="hidden" id="listing-hidden" className="mt-0.5" />
+                      <div className="space-y-0.5">
+                        <Label htmlFor="listing-hidden" className="cursor-pointer">Hidden</Label>
+                        <p className="text-xs text-muted-foreground">Removed from your public site entirely — direct links stop working too.</p>
+                      </div>
+                    </div>
+                  </RadioGroup>
+                  <p className="text-xs text-muted-foreground">
+                    This only affects what renters see online. Your calendar, availability, existing reservations and
+                    internal bookings are unchanged.
+                  </p>
+                </>
+              )}
+            </div>
+
+
+
             {/* Ownership */}
             <div className="space-y-3 pt-2 border-t">
               <Label className="flex items-center gap-2">
