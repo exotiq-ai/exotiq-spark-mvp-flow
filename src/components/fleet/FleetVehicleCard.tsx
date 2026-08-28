@@ -62,6 +62,8 @@ interface Vehicle {
   rate_3hr?: number | null;
   rate_6hr?: number | null;
   rate_multiday?: number | null;
+  marketplace_visible?: boolean | null;
+  marketplace_unlisted?: boolean | null;
 }
 
 interface Booking {
@@ -159,6 +161,15 @@ export const FleetVehicleCard = ({
   };
 
   const statusDisplay = getStatusDisplay();
+
+  // Public listing state (informational only — changed from Edit Vehicle)
+  const listingChip = vehicle.marketplace_visible === false
+    ? 'Not public'
+    : vehicle.marketplace_unlisted === true
+      ? 'Link only'
+      : null;
+
+
   
 
 
@@ -339,6 +350,14 @@ export const FleetVehicleCard = ({
             >
               {statusDisplay.label}
             </Badge>
+            {listingChip && (
+              <Badge
+                variant="outline"
+                className="text-[10px] py-0 px-1.5 h-4 font-medium flex-shrink-0 border-border bg-muted text-muted-foreground"
+              >
+                {listingChip}
+              </Badge>
+            )}
             {!isRetired && taskCount > 0 && (
               <Badge variant="destructive" className="text-[10px] py-0 px-1.5 h-4 flex-shrink-0">
                 {taskCount} {taskCount === 1 ? 'task' : 'tasks'}
@@ -543,6 +562,14 @@ export const FleetVehicleCard = ({
             >
               {statusDisplay.label}
             </Badge>
+            {listingChip && (
+              <Badge
+                variant="outline"
+                className="text-xs backdrop-blur-md shadow-sm border border-border bg-muted/80 text-muted-foreground"
+              >
+                {listingChip}
+              </Badge>
+            )}
           </div>
 
           {/* Top-right: actions menu */}

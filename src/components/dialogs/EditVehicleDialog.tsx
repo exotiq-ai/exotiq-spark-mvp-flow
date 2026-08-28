@@ -4,9 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, Loader2, MapPin, Users } from "lucide-react";
+import { AlertCircle, Loader2, MapPin, Users, Globe } from "lucide-react";
 import { useTeam } from "@/contexts/TeamContext";
 import { useMoney } from "@/hooks/useMoney";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -14,6 +15,9 @@ import { usePartners } from "@/hooks/usePartners";
 import { MILEAGE_RATE_TIERS } from "@/lib/pricingUtils";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
+
+type ListingState = "listed" | "unlisted" | "hidden";
+
 
 interface Vehicle {
   id: string;
@@ -33,7 +37,10 @@ interface Vehicle {
   partner_id?: string | null;
   split_type?: string | null;
   split_value?: number | null;
+  marketplace_visible?: boolean | null;
+  marketplace_unlisted?: boolean | null;
 }
+
 
 interface EditVehicleDialogProps {
   open: boolean;
@@ -43,7 +50,7 @@ interface EditVehicleDialogProps {
 }
 
 export const EditVehicleDialog = ({ open, onOpenChange, vehicle, onSave }: EditVehicleDialogProps) => {
-  const { locations } = useTeam();
+  const { locations, currentTeam } = useTeam();
   const { currency } = useMoney();
   const { role, hasRoleOrHigher } = useUserRole();
 
@@ -69,6 +76,16 @@ export const EditVehicleDialog = ({ open, onOpenChange, vehicle, onSave }: EditV
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastEditInfo, setLastEditInfo] = useState<string | null>(null);
+  const [listingState, setListingState] = useState<ListingState>("listed");
+  const [teamListingInfo, setTeamListingInfo] = useState<{ live: boolean; feeConfirmed: boolean } | null>(null);
+
+  const initialListingState: ListingState = vehicle
+    ? vehicle.marketplace_visible === false
+      ? "hidden"
+      : vehicle.marketplace_unlisted === true
+        ? "unlisted"
+        : "listed"
+    : "listed";
 
   // Populate form when vehicle changes
   useEffect(() => {
@@ -89,12 +106,35 @@ export const EditVehicleDialog = ({ open, onOpenChange, vehicle, onSave }: EditV
       setPartnerId(vehicle.partner_id || "none");
       setSplitType(vehicle.split_type || "percentage");
       setSplitValue(vehicle.split_value != null ? String(vehicle.split_value) : "");
+      setListingState(initialListingState);
       setError(null);
 
       // Fetch last edit info
       fetchLastEdit(vehicle.id);
     }
   }, [vehicle, open]);
+
+  // Is the team's public booking site actually live?
+  useEffect(() => {
+    if (!open || !currentTeam?.id) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('teams')
+        .select('marketplace_visible, marketplace_request_status, platform_fee_percent, platform_fee_confirmed_at')
+        .eq('id', currentTeam.id)
+        .maybeSingle();
+      if (cancelled) return;
+      const row = data as any;
+      setTeamListingInfo({
+        live: !!row?.marketplace_visible && row?.marketplace_request_status === 'approved',
+        feeConfirmed: Number(row?.platform_fee_percent ?? 0) > 0 && !!row?.platform_fee_confirmed_at,
+      });
+    })();
+    return () => { cancelled = true; };
+  }, [open, currentTeam?.id]);
+
+
 
   const fetchLastEdit = async (vehicleId: string) => {
     const { data } = await supabase
@@ -157,6 +197,21 @@ export const EditVehicleDialog = ({ open, onOpenChange, vehicle, onSave }: EditV
       if (newPartnerId !== (vehicle.partner_id ?? null)) updates.partner_id = newPartnerId;
       if (newSplitType !== (vehicle.split_type ?? null)) updates.split_type = newSplitType;
       if (newSplitValue !== (vehicle.split_value ?? null)) updates.split_value = newSplitValue;
+
+      // Public booking site listing
+      if (teamListingInfo?.live && listingState !== initialListingState) {
+        const nextVisible = listingState !== "hidden";
+        const nextUnlisted = listingState === "unlisted";
+        if (nextVisible && !teamListingInfo.feeConfirmed) {
+          setError("This vehicle can't be listed yet — your account rep still needs to confirm your platform fee. Reach out to support and we'll get it enabled.");
+          setLoading(false);
+          return;
+        }
+        if (nextVisible !== (vehicle.marketplace_visible !== false)) updates.marketplace_visible = nextVisible;
+        if (nextUnlisted !== (vehicle.marketplace_unlisted === true)) updates.marketplace_unlisted = nextUnlisted;
+      }
+
+
 
       if (Object.keys(updates).length === 0) {
         onOpenChange(false);
@@ -272,6 +327,56 @@ export const EditVehicleDialog = ({ open, onOpenChange, vehicle, onSave }: EditV
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Public booking site */}
+            <div className="space-y-3 pt-2 border-t">
+              <Label className="flex items-center gap-2">
+                <Globe className="h-4 w-4" />
+                Public booking site
+              </Label>
+
+              {teamListingInfo && !teamListingInfo.live ? (
+                <p className="text-xs text-muted-foreground">
+                  Your public booking site isn't live yet, so this vehicle isn't shown to renters online.
+                </p>
+              ) : (
+                <>
+                  <RadioGroup
+                    value={listingState}
+                    onValueChange={(v) => setListingState(v as ListingState)}
+                    className="space-y-2"
+                  >
+                    <div className="flex items-start gap-3 rounded-md border p-3">
+                      <RadioGroupItem value="listed" id="listing-listed" className="mt-0.5" />
+                      <div className="space-y-0.5">
+                        <Label htmlFor="listing-listed" className="cursor-pointer">Listed</Label>
+                        <p className="text-xs text-muted-foreground">Shown in your public lineup and bookable online.</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3 rounded-md border p-3">
+                      <RadioGroupItem value="unlisted" id="listing-unlisted" className="mt-0.5" />
+                      <div className="space-y-0.5">
+                        <Label htmlFor="listing-unlisted" className="cursor-pointer">Link only</Label>
+                        <p className="text-xs text-muted-foreground">Hidden from the lineup, but anyone with the direct link can still book it.</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3 rounded-md border p-3">
+                      <RadioGroupItem value="hidden" id="listing-hidden" className="mt-0.5" />
+                      <div className="space-y-0.5">
+                        <Label htmlFor="listing-hidden" className="cursor-pointer">Hidden</Label>
+                        <p className="text-xs text-muted-foreground">Removed from your public site entirely — direct links stop working too.</p>
+                      </div>
+                    </div>
+                  </RadioGroup>
+                  <p className="text-xs text-muted-foreground">
+                    This only affects what renters see online. Your calendar, availability, existing reservations and
+                    internal bookings are unchanged.
+                  </p>
+                </>
+              )}
+            </div>
+
+
 
             {/* Ownership */}
             <div className="space-y-3 pt-2 border-t">
