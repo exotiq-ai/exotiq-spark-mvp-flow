@@ -19,6 +19,7 @@ import { TenantHealthTab } from '@/components/super-admin/TenantHealthTab';
 import { VehicleAuditTab } from '@/components/super-admin/VehicleAuditTab';
 import { SuperAdminTenantDocumentsTab } from '@/components/super-admin/SuperAdminTenantDocumentsTab';
 import { MarketplaceVisibilityTab } from '@/components/super-admin/MarketplaceVisibilityTab';
+import { MarketplaceRevenueTab } from '@/components/super-admin/MarketplaceRevenueTab';
 import { SuperAdminPaymentsTestTab } from '@/components/super-admin/SuperAdminPaymentsTestTab';
 import { SupportAccessTab } from '@/components/super-admin/SupportAccessTab';
 import { RariSelfTestPanel } from '@/components/super-admin/RariSelfTestPanel';
