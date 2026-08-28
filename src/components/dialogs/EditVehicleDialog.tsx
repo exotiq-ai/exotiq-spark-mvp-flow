@@ -198,6 +198,21 @@ export const EditVehicleDialog = ({ open, onOpenChange, vehicle, onSave }: EditV
       if (newSplitType !== (vehicle.split_type ?? null)) updates.split_type = newSplitType;
       if (newSplitValue !== (vehicle.split_value ?? null)) updates.split_value = newSplitValue;
 
+      // Public booking site listing
+      if (teamListingInfo?.live && listingState !== initialListingState) {
+        const nextVisible = listingState !== "hidden";
+        const nextUnlisted = listingState === "unlisted";
+        if (nextVisible && !teamListingInfo.feeConfirmed) {
+          setError("This vehicle can't be listed yet — your account rep still needs to confirm your platform fee. Reach out to support and we'll get it enabled.");
+          setLoading(false);
+          return;
+        }
+        if (nextVisible !== (vehicle.marketplace_visible !== false)) updates.marketplace_visible = nextVisible;
+        if (nextUnlisted !== (vehicle.marketplace_unlisted === true)) updates.marketplace_unlisted = nextUnlisted;
+      }
+
+
+
       if (Object.keys(updates).length === 0) {
         onOpenChange(false);
         return;
