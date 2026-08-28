@@ -50,7 +50,7 @@ interface EditVehicleDialogProps {
 }
 
 export const EditVehicleDialog = ({ open, onOpenChange, vehicle, onSave }: EditVehicleDialogProps) => {
-  const { locations } = useTeam();
+  const { locations, currentTeam } = useTeam();
   const { currency } = useMoney();
   const { role, hasRoleOrHigher } = useUserRole();
 
