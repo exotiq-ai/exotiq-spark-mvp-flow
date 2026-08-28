@@ -350,6 +350,14 @@ export const FleetVehicleCard = ({
             >
               {statusDisplay.label}
             </Badge>
+            {listingChip && (
+              <Badge
+                variant="outline"
+                className="text-[10px] py-0 px-1.5 h-4 font-medium flex-shrink-0 border-border bg-muted text-muted-foreground"
+              >
+                {listingChip}
+              </Badge>
+            )}
             {!isRetired && taskCount > 0 && (
               <Badge variant="destructive" className="text-[10px] py-0 px-1.5 h-4 flex-shrink-0">
                 {taskCount} {taskCount === 1 ? 'task' : 'tasks'}
