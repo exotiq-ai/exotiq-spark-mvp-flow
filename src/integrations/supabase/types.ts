@@ -6249,6 +6249,52 @@ export type Database = {
           role: string
         }[]
       }
+      get_super_admin_marketplace_bookings: {
+        Args: { _from?: string; _team_id: string; _to?: string }
+        Returns: {
+          booking_id: string
+          booking_ref: string
+          created_at: string
+          customer_name: string
+          exotiq_leg_attempt: number
+          exotiq_payment_intent_id: string
+          exotiq_total: number
+          fee_state: string
+          operator_payment_intent_id: string
+          paid_at: string
+          platform_fee: number
+          processing_fee: number
+          protection_fee: number
+          state_fee: number
+          status: string
+          team_name: string
+          total_value: number
+          vehicle_name: string
+        }[]
+      }
+      get_super_admin_marketplace_revenue: {
+        Args: { _from?: string; _to?: string }
+        Returns: {
+          direct_bookings: number
+          direct_volume: number
+          exotiq_revenue: number
+          gross_volume: number
+          is_demo: boolean
+          last_paid_at: string
+          marketplace_attempts: number
+          paid_bookings: number
+          platform_fee: number
+          processing_fee: number
+          protection_fee: number
+          refunded_volume: number
+          state_fee: number
+          team_id: string
+          team_name: string
+          uncollected_bookings: number
+          uncollected_fees: number
+          zero_fee_paid_bookings: number
+        }[]
+      }
       get_super_admin_platform_pulse: {
         Args: never
         Returns: {
