@@ -237,6 +237,10 @@ export const SuperAdminDashboard = () => {
               <CreditCard className="h-4 w-4 mr-2" />
               Billing
             </TabsTrigger>
+            <TabsTrigger value="revenue">
+              <DollarSign className="h-4 w-4 mr-2" />
+              Revenue
+            </TabsTrigger>
             <TabsTrigger value="maintenance">
               <Wrench className="h-4 w-4 mr-2" />
               Maintenance
