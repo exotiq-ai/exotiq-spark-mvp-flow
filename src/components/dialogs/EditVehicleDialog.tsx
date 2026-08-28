@@ -4,9 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, Loader2, MapPin, Users } from "lucide-react";
+import { AlertCircle, Loader2, MapPin, Users, Globe } from "lucide-react";
 import { useTeam } from "@/contexts/TeamContext";
 import { useMoney } from "@/hooks/useMoney";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -14,6 +15,9 @@ import { usePartners } from "@/hooks/usePartners";
 import { MILEAGE_RATE_TIERS } from "@/lib/pricingUtils";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
+
+type ListingState = "listed" | "unlisted" | "hidden";
+
 
 interface Vehicle {
   id: string;
