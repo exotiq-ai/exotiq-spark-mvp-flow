@@ -562,6 +562,14 @@ export const FleetVehicleCard = ({
             >
               {statusDisplay.label}
             </Badge>
+            {listingChip && (
+              <Badge
+                variant="outline"
+                className="text-xs backdrop-blur-md shadow-sm border border-border bg-muted/80 text-muted-foreground"
+              >
+                {listingChip}
+              </Badge>
+            )}
           </div>
 
           {/* Top-right: actions menu */}
