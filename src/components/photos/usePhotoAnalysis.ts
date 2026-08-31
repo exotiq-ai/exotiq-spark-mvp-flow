@@ -597,21 +597,34 @@ export function usePhotoAnalysis(options: UsePhotoAnalysisOptions = {}) {
       .eq('id', photoId)
       .single();
 
+    // Delete the row first — if permissions block it, we must not orphan the file.
+    const { data: deleted, error } = await supabase
+      .from('vehicle_photos')
+      .delete()
+      .eq('id', photoId)
+      .select('id');
+
+    if (error) throw error;
+    if (!deleted || deleted.length === 0) {
+      throw new Error(
+        "This photo couldn't be deleted. You may not have permission to remove photos in this workspace."
+      );
+    }
+
     if (photo?.storage_path) {
       // Delete both main file and thumbnail
       const thumbPath = photo.storage_path.replace(/\.[^.]+$/, '_thumb.jpg');
-      await supabase.storage
+      const { error: storageError } = await supabase.storage
         .from('vehicle-photos')
         .remove([photo.storage_path, thumbPath]);
+      // The record is gone, so the photo is no longer shown. A leftover file is
+      // non-fatal — surface it in logs rather than failing the user's action.
+      if (storageError) {
+        console.warn('Photo record deleted but file removal failed:', storageError.message);
+      }
     }
-
-    const { error } = await supabase
-      .from('vehicle_photos')
-      .delete()
-      .eq('id', photoId);
-
-    if (error) throw error;
   }, []);
+
 
   /**
    * Reorder photos for a vehicle

@@ -149,7 +149,8 @@ export const VehiclePhotoManager = ({
       await refetch();
       toast.success('Photo deleted');
     } catch (error) {
-      toast.error('Failed to delete photo');
+      toast.error(error instanceof Error ? error.message : 'Failed to delete photo');
+
     } finally {
       setActionLoading(null);
       setDeleteConfirm(null);
@@ -308,12 +309,18 @@ export const VehiclePhotoManager = ({
                   <DropdownMenuItem
                     className="text-destructive focus:text-destructive"
                     onClick={async () => {
-                       if (heroPhoto?.id) {
+                      if (!heroPhoto?.id) return;
+                      try {
                         await deletePhoto(heroPhoto.id);
                         await refetch();
                         toast.success('Hero photo deleted');
+                      } catch (error) {
+                        toast.error(
+                          error instanceof Error ? error.message : 'Failed to delete photo'
+                        );
                       }
                     }}
+
                   >
                     <Trash2 className="h-4 w-4 mr-2" />
                     Delete Hero Photo

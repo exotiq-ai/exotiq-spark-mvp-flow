@@ -5853,6 +5853,10 @@ export type Database = {
         Args: { _topic: string; _user_id: string }
         Returns: boolean
       }
+      can_delete_vehicle_photo_object: {
+        Args: { _object_name: string; _user_id: string }
+        Returns: boolean
+      }
       can_manage_team_groups: { Args: { _team_id: string }; Returns: boolean }
       can_manage_team_or_user_storage_path: {
         Args: { _object_name: string; _user_id: string }
