@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.can_delete_vehicle_photo_object(uuid, text) FROM PUBLIC, anon, authenticated;
