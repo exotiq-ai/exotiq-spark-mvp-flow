@@ -14,6 +14,9 @@ import { useModuleNavigation } from '@/hooks/useModuleNavigation';
 import { useLocationFilteredFleet } from '@/hooks/useLocationFilteredFleet';
 import { useFleetTasks, type VehicleTask } from '@/hooks/useFleetTasks';
 import { useWorkOrders } from '@/hooks/useWorkOrders';
+import { useVehicleBlockedDates } from '@/hooks/useVehicleBlockedDates';
+import { BlockDatesDialog } from '@/components/fleet/BlockDatesDialog';
+import { blockReasonLabel } from '@/lib/blockedDates';
 import { getActiveOutOfServiceWorkOrder } from '@/lib/conflictDetection';
 import { useVehicleOpsStatus, OpsStatus } from '@/hooks/useVehicleOpsStatus';
 import { useVehiclePhotos } from '@/hooks/useVehiclePhotos';
@@ -71,6 +74,7 @@ export const FleetPageEnhanced = () => {
   const { vehicles, bookings, loading, applyPriceOptimization, updateVehicle, refreshData, createVehicle, deleteVehicles, archiveVehicle, trashVehicle } = useLocationFilteredFleet() as any;
   const { tasks, myTasks, unassignedTasks, createTask, updateTaskStatus, claimTask } = useFleetTasks();
   const { activeOrders: activeWorkOrders } = useWorkOrders();
+  const { blocks: blockedDates, refresh: refreshBlockedDates } = useVehicleBlockedDates();
   const { updateOpsStatus } = useVehicleOpsStatus();
   const { photoCountByVehicle } = useVehiclePhotos({ realtime: false });
   const { currentTeam } = useTeam();
@@ -189,6 +193,7 @@ export const FleetPageEnhanced = () => {
   const [showImportWizard, setShowImportWizard] = useState(false);
   const [photoUploadVehicle, setPhotoUploadVehicle] = useState<{ id: string; name: string } | null>(null);
   const [editVehicle, setEditVehicle] = useState<any>(null);
+  const [blockDatesVehicle, setBlockDatesVehicle] = useState<any>(null);
 
   // Facets derived from the underlying vehicle set
   const facets = useMemo<FleetFacets>(() => {
@@ -392,6 +397,18 @@ export const FleetPageEnhanced = () => {
     });
     return map;
   }, [vehicles, activeWorkOrders]);
+
+  // Manual date blocks currently in effect (Turo, personal use, transport, …)
+  const currentBlockMap = useMemo(() => {
+    const now = Date.now();
+    const map: Record<string, { end: string; reason: string | null }> = {};
+    (blockedDates || []).forEach((b) => {
+      const start = new Date(b.start_date).getTime();
+      const end = new Date(b.end_date).getTime();
+      if (start <= now && end >= now) map[b.vehicle_id] = { end: b.end_date, reason: b.reason };
+    });
+    return map;
+  }, [blockedDates]);
 
   const handleStatusChange = async (vehicle: any, newStatus: OpsStatus) => {
     await updateOpsStatus(vehicle.id, newStatus);
@@ -632,6 +649,11 @@ export const FleetPageEnhanced = () => {
                     taskCount={taskCountMap[vehicle.id] || 0}
                     photoCount={photoCountByVehicle[vehicle.id]}
                     outOfServiceUntil={outOfServiceMap[vehicle.id] ?? null}
+                    blockedUntil={currentBlockMap[vehicle.id]?.end ?? null}
+                    blockedReasonLabel={
+                      currentBlockMap[vehicle.id] ? blockReasonLabel(currentBlockMap[vehicle.id].reason) : null
+                    }
+                    onBlockDates={(v) => setBlockDatesVehicle(v)}
                     onEditPrice={(v) => setPriceEditVehicle(v)}
                     onEdit={(v) => setEditVehicle(v)}
                     onCreateTask={(v) => setTaskVehicle(v)}
@@ -794,6 +816,13 @@ export const FleetPageEnhanced = () => {
       />
 
       {/* Edit Vehicle Dialog */}
+      <BlockDatesDialog
+        open={!!blockDatesVehicle}
+        onOpenChange={(open) => !open && setBlockDatesVehicle(null)}
+        vehicle={blockDatesVehicle}
+        onChanged={refreshBlockedDates}
+      />
+
       <EditVehicleDialog
         open={!!editVehicle}
         onOpenChange={(open) => !open && setEditVehicle(null)}

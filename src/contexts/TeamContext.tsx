@@ -56,6 +56,10 @@ export interface Location {
   timezone: string | null;
   is_default: boolean;
   is_active: boolean;
+  // Optional per-location tax overrides (null = use workspace default)
+  tax_rate_percent?: number | null;
+  tax_label?: string | null;
+  tax_inclusive?: boolean | null;
 }
 
 interface TeamContextType {

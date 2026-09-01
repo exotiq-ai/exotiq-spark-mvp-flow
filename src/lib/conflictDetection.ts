@@ -1,4 +1,5 @@
 import { Database } from '@/integrations/supabase/types';
+import { blockReasonLabel } from '@/lib/blockedDates';
 
 type Booking = Database['public']['Tables']['bookings']['Row'];
 type Maintenance = Database['public']['Tables']['maintenance_schedules']['Row'];
@@ -51,6 +52,14 @@ export interface VehicleAvailabilityInput {
     out_of_rotation: boolean;
     expected_return_at: string | null;
   }[];
+  /** Manual date blocks (Turo, personal use, transport, …) */
+  blockedDates?: {
+    id: string;
+    vehicle_id: string;
+    start_date: string;
+    end_date: string;
+    reason?: string | null;
+  }[];
   excludeBookingId?: string;
 }
 
@@ -58,6 +67,7 @@ export type UnavailableReason =
   | 'retired'
   | 'maintenance_status'
   | 'out_of_service'
+  | 'blocked'
   | 'booking';
 
 export interface VehicleAvailabilityState {
@@ -67,8 +77,20 @@ export interface VehicleAvailabilityState {
   detail: string | null;             // extra info e.g. "returns Mar 12"
   workOrderId?: string;
   bookingId?: string;
+  blockId?: string;
   expectedReturnAt?: string | null;
 }
+
+/** Does a manual block overlap the requested window? Half-open [start, end). */
+export const blockOverlaps = (
+  block: { start_date: string; end_date: string },
+  start: Date,
+  end: Date,
+): boolean => {
+  const bStart = new Date(block.start_date);
+  const bEnd = new Date(block.end_date);
+  return start < bEnd && end > bStart;
+};
 
 /**
  * Returns whether the given active work order blocks the requested window.
@@ -100,6 +122,7 @@ export const getVehicleAvailabilityState = ({
   window,
   bookings,
   workOrders,
+  blockedDates = [],
   excludeBookingId,
 }: VehicleAvailabilityInput): VehicleAvailabilityState => {
   if (vehicle.status === 'retired') {
@@ -130,6 +153,20 @@ export const getVehicleAvailabilityState = ({
       reason: 'maintenance_status',
       label: 'In maintenance',
       detail: null,
+    };
+  }
+
+  // Manual block (Turo, personal use, transport, …) overlapping the window
+  const block = blockedDates.find(
+    (b) => b.vehicle_id === vehicle.id && blockOverlaps(b, window.start, window.end)
+  );
+  if (block) {
+    return {
+      available: false,
+      reason: 'blocked',
+      label: 'Blocked',
+      detail: blockReasonLabel(block.reason),
+      blockId: block.id,
     };
   }
 

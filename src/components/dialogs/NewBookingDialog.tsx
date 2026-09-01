@@ -42,6 +42,7 @@ import { cn } from '@/lib/utils';
 import { calculateBookingTotal, getRateForDuration, getAvailableDurations, getDurationLabel, getGasFeeForTeam, type RentalDurationType } from '@/lib/pricingUtils';
 import { isBlockingBooking, getVehicleAvailabilityState, type VehicleAvailabilityState } from '@/lib/conflictDetection';
 import { useWorkOrders } from '@/hooks/useWorkOrders';
+import { useVehicleBlockedDates } from '@/hooks/useVehicleBlockedDates';
 import { useLocationFilteredFleet } from '@/hooks/useLocationFilteredFleet';
 import { Switch } from '@/components/ui/switch';
 import { useTeamGasFeeSettings } from '@/hooks/useTeamGasFeeSettings';
@@ -66,6 +67,7 @@ export const NewBookingDialog = ({
   const { currency, money } = useMoney();
   const { bookings: allBookings } = useLocationFilteredFleet();
   const { activeOrders: activeWorkOrders } = useWorkOrders();
+  const { blocks: blockedDates } = useVehicleBlockedDates();
   const gasFeeSettings = useTeamGasFeeSettings();
   const teamGasFee = getGasFeeForTeam(gasFeeSettings.gasFeeAmount);
   
@@ -180,10 +182,11 @@ export const NewBookingDialog = ({
         window: { start, end },
         bookings: allBookings as any,
         workOrders: activeWorkOrders as any,
+        blockedDates: blockedDates as any,
       });
     });
     return out;
-  }, [startDate, endDate, startDateTimeStr, endDateTimeStr, vehicles, allBookings, activeWorkOrders]);
+  }, [startDate, endDate, startDateTimeStr, endDateTimeStr, vehicles, allBookings, activeWorkOrders, blockedDates]);
   
   // Auto-set pickup location when dialog opens
   const effectivePickupLocationId = pickupLocationId || (selectedLocationId !== 'all' ? selectedLocationId : locations[0]?.id || '');
@@ -221,10 +224,13 @@ export const NewBookingDialog = ({
       window: { start: new Date(startDateTimeStr), end: new Date(endDateTimeStr) },
       bookings: allBookings as any,
       workOrders: activeWorkOrders as any,
+      blockedDates: blockedDates as any,
     });
     if (!availability.available) {
       if (availability.reason === 'out_of_service' || availability.reason === 'maintenance_status') {
         setError(`This vehicle is Out of Service${availability.detail ? ` (${availability.detail})` : ''} and cannot be booked. Clear the work order or pick another vehicle.`);
+      } else if (availability.reason === 'blocked') {
+        setError(`These dates are blocked for this vehicle${availability.detail ? ` (${availability.detail})` : ''}. Remove the block from the vehicle's Block dates menu or pick another vehicle.`);
       } else if (availability.reason === 'retired') {
         setError('This vehicle is retired and cannot be booked.');
       } else {

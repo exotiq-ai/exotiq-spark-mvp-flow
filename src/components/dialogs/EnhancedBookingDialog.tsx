@@ -34,6 +34,7 @@ import { DocumentPreviewDialog } from "@/components/common/DocumentPreviewDialog
 import { BookingCostsSection } from "@/components/margin/BookingCostsSection";
 import { useFleet } from "@/contexts/FleetContext";
 import { useTeam } from "@/contexts/TeamContext";
+import { resolveTaxConfig } from "@/lib/taxResolution";
 import { useToast } from "@/hooks/use-toast";
 import { startIdentityVerification } from "@/lib/identityVerification";
 
@@ -136,7 +137,13 @@ export const EnhancedBookingDialog = ({
   const [addingNote, setAddingNote] = useState(false);
   const [loadingNotes, setLoadingNotes] = useState(false);
   const [activeTab, setActiveTab] = useState("details");
-  const [locations, setLocations] = useState<Array<{ id: string; name: string }>>([]);
+  const [locations, setLocations] = useState<Array<{
+    id: string;
+    name: string;
+    tax_rate_percent?: number | null;
+    tax_label?: string | null;
+    tax_inclusive?: boolean | null;
+  }>>([]);
   const [preparingDocument, setPreparingDocument] = useState(false);
   const [generatingInvoice, setGeneratingInvoice] = useState(false);
   
@@ -192,9 +199,21 @@ export const EnhancedBookingDialog = ({
   // Tenant-aware currency & tax config (defaults preserve US behaviour)
   const currency = currentTeam?.currency || "USD";
   const locale = currentTeam?.locale || "en-US";
-  const taxLabel = currentTeam?.tax_label || "Tax";
-  const taxRate = Number(currentTeam?.tax_rate_percent ?? 0);
-  const taxInclusive = !!currentTeam?.tax_inclusive;
+  // Tax follows the pickup location when that location has its own settings,
+  // otherwise the workspace defaults apply.
+  const pickupLocationRecord = useMemo(() => {
+    const name = (isEditMode ? editValues.pickupLocation : booking?.pickup_location) || '';
+    if (!name) return null;
+    return locations.find((l) => l.name === name) || null;
+  }, [locations, isEditMode, editValues.pickupLocation, booking?.pickup_location]);
+
+  const resolvedTax = useMemo(
+    () => resolveTaxConfig(currentTeam as any, pickupLocationRecord),
+    [currentTeam, pickupLocationRecord],
+  );
+  const taxLabel = resolvedTax.tax_label;
+  const taxRate = resolvedTax.tax_rate_percent;
+  const taxInclusive = resolvedTax.tax_inclusive;
   const fmt = (n: number) => formatMoney(n, { currency, locale, decimals: 2 });
 
   // Tax breakdown: when rate=0 (US default), total == grandTotal — zero behaviour change.
@@ -318,7 +337,7 @@ export const EnhancedBookingDialog = ({
       try {
         const { data } = await supabase
           .from("locations")
-          .select("id, name")
+          .select("id, name, tax_rate_percent, tax_label, tax_inclusive")
           .eq("is_active", true)
           .order("name");
         setLocations(data || []);

@@ -32,6 +32,7 @@ import {
   Archive,
   Sparkles,
   CircleDashed,
+  Ban,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -82,11 +83,14 @@ interface FleetVehicleCardProps {
   taskCount?: number;
   photoCount?: number;
   outOfServiceUntil?: string | null; // ISO date; presence indicates active OOR work order
+  blockedUntil?: string | null;      // ISO date; presence indicates an active manual date block
+  blockedReasonLabel?: string | null;
   onEditPrice: (vehicle: Vehicle) => void;
   onCreateTask: (vehicle: Vehicle) => void;
   onViewDetails: (vehicle: Vehicle) => void;
   onStatusChange: (vehicle: Vehicle, newStatus: OpsStatus) => void;
   onEdit?: (vehicle: Vehicle) => void;
+  onBlockDates?: (vehicle: Vehicle) => void;
   onArchive?: (vehicle: Vehicle) => void;
   onDelete?: (vehicle: Vehicle) => void;
   isOpsMode?: boolean;
@@ -115,11 +119,14 @@ export const FleetVehicleCard = ({
   taskCount = 0,
   photoCount,
   outOfServiceUntil,
+  blockedUntil,
+  blockedReasonLabel,
   onEditPrice,
   onCreateTask,
   onViewDetails,
   onStatusChange,
   onEdit,
+  onBlockDates,
   onArchive,
   onDelete,
   isOpsMode = false,
@@ -152,6 +159,10 @@ export const FleetVehicleCard = ({
     if (isOutOfService) return {
       label: oosReturnLabel ? `Out of Service · back ${oosReturnLabel}` : 'Out of Service',
       className: 'border-amber-500/50 bg-amber-500/10 text-amber-600 dark:text-amber-400',
+    };
+    if (blockedUntil) return {
+      label: blockedReasonLabel ? `Blocked · ${blockedReasonLabel}` : 'Blocked',
+      className: 'border-slate-400/50 bg-slate-500/10 text-slate-600 dark:text-slate-300',
     };
     if (isWithRenter) return { label: 'With Renter', className: 'border-primary/50 bg-primary/10 text-primary' };
     if (hasActiveBooking) return { label: 'On Rental', className: 'border-primary/50 bg-primary/10 text-primary' };
@@ -457,6 +468,14 @@ export const FleetVehicleCard = ({
                     <ClipboardCheck className="h-4 w-4 mr-2" />
                     Create Task
                   </DropdownMenuItem>
+                  {onBlockDates && (
+                    <PermissionGuard minRole="manager">
+                      <DropdownMenuItem onClick={() => onBlockDates(vehicle)}>
+                        <Ban className="h-4 w-4 mr-2" />
+                        Block dates
+                      </DropdownMenuItem>
+                    </PermissionGuard>
+                  )}
                 </>
               )}
               <DropdownMenuSeparator />
@@ -603,6 +622,14 @@ export const FleetVehicleCard = ({
                       <ClipboardCheck className="h-4 w-4 mr-2" />
                       Create Task
                     </DropdownMenuItem>
+                    {onBlockDates && (
+                      <PermissionGuard minRole="manager">
+                        <DropdownMenuItem onClick={() => onBlockDates(vehicle)}>
+                          <Ban className="h-4 w-4 mr-2" />
+                          Block dates
+                        </DropdownMenuItem>
+                      </PermissionGuard>
+                    )}
                   </>
                 )}
                 <DropdownMenuSeparator />
