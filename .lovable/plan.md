@@ -30,25 +30,25 @@ tenant and the public booking app.
    double-booking guard and it is the one gap that can cause a real failure. It
    should be a first-class "blocked dates" record, not a fake booking, so it
    never pollutes revenue, CRM, or utilization numbers.
-3. **Day-of-week pricing — yes, but keep it simple.** A percentage adjustment
-   per pickup day on the vehicle's rate-tier card. Recommend framing it as
-   "pickup-day adjustment" (applies to the whole rental, based on pickup day) —
-   per-night repricing across a multi-day rental is a much bigger change and
-   makes quotes hard for renters to understand.
+3. **Day-of-week pricing — parked pending Gregory's answer.** Design is ready
+   either way (whole-rental adjustment based on pickup day vs. per-night
+   repricing); we hold the build until the rule is confirmed, since the two
+   options price multi-day rentals differently.
 4. **Variable delivery pricing — yes, later.** Distance-based pricing needs a
    mileage source (address → distance). Interim step that costs almost nothing:
    let the operator save reusable delivery tiers (e.g. 0–25 mi $150, 25–50 mi
    $250) and pick one at booking time instead of retyping. Full automatic
    mileage calculation is a separate phase.
 5. **Custom add-ons — yes, and it also replaces hard-coded fees.** A per-workspace
-   catalog of add-ons (admin fee, transponder, etc.) with a fixed or per-day
-   amount, selectable on a booking. Blocked on Becca's actual fee list.
+   catalog of add-ons (admin fee, transponder, etc.). Confirmed: **flat
+   per-booking amounts, and taxable** — so no per-day math and they sit inside
+   the taxed subtotal. Only the actual fee list is still outstanding.
 
 ## Recommended sequencing
 
 - **Phase 1 (unblocks Sharp Exotics now):** blocked dates + per-location tax.
 - **Phase 2:** custom add-ons catalog (start once Becca sends her list).
-- **Phase 3:** pickup-day pricing adjustments.
+- **Phase 3:** pickup-day pricing adjustments (on hold until the rule is decided).
 - **Phase 4:** delivery tiers, then mileage-based delivery if still wanted.
 
 ## Technical notes
@@ -56,6 +56,8 @@ tenant and the public booking app.
 **Blocked dates**
 - New `vehicle_blocked_dates` table (team_id, vehicle_id, start/end, reason,
   source e.g. `manual` / `turo`, note), team-scoped RLS + grants, manager+ write.
+- Manual entry only for now — no Turo iCal import in this phase, though the
+  `source` field leaves the door open for it later.
 - Feed it into the single availability helper in `conflictDetection.ts` as a new
   unavailable reason so the fleet card, booking pickers, and calendar all agree.
 - Add it to `public_vehicle_availability` (and the marketplace booking RPC's
@@ -71,15 +73,18 @@ tenant and the public booking app.
   team. Update `public_vehicle_quote` and the booking dialogs to use the
   resolved values. Bookings keep snapshotting the rate they were priced at.
 
-**Pickup-day adjustments**
-- `vehicles.day_of_week_adjustments` JSON (`{"1":-20,...}`, percent, null =
-  none). Applied in the shared pricing helpers (`pricing.ts` / `pricingUtils.ts`)
-  and mirrored in `public_vehicle_quote` so operator and renter quotes match.
-- Edited inline in the rate-tier card with a preview of the resulting daily rate.
+**Pickup-day adjustments (deferred)**
+- Likely shape: `vehicles.day_of_week_adjustments` JSON (`{"1":-20,...}`,
+  percent, null = none), applied in the shared pricing helpers
+  (`pricing.ts` / `pricingUtils.ts`) and mirrored in `public_vehicle_quote` so
+  operator and renter quotes match, edited inline in the rate-tier card.
+- Not started until the whole-rental vs per-night question is settled.
 
 **Add-ons**
-- `team_addons` catalog (name, amount, per-day vs flat, taxable, active) plus
-  `booking_addons` line items; totals flow through the existing pricing helpers
+- `team_addons` catalog (name, flat amount, active) plus `booking_addons` line
+  items. Flat per-booking only; every add-on is taxable, so the amounts join the
+  taxed subtotal before tax is computed.
+- Totals flow through the existing pricing helpers and the public quote function
   and appear on the renter quote, payment record, and invoice.
 - Migrate the existing gas fee into this model only after add-ons are proven —
   not in the same change.
@@ -100,10 +105,11 @@ tenant and the public booking app.
 - Ship each phase behind the existing feature-flag file where user-visible, and
   verify against Sharp Exotics plus one control tenant before wider exposure.
 
-## Open questions for Becca
+## Answers received / still open
 
-- Should the pickup-day discount apply to the whole rental or only nights that
-  fall on those days?
-- Are her add-ons per-day or per-booking, and are they taxable?
-- Are the Turo blocks entered by hand, or does she want an iCal feed from Turo
-  imported automatically later?
+- Add-ons: flat per booking, taxable. Confirmed.
+- Turo blocks: entered by hand for now. Confirmed.
+- Pickup-day discount rule (whole rental vs only the nights that fall on those
+  days): still open — Gregory to come back on this.
+- Becca's actual add-on list (admin fee, transponder, anything else) — awaiting
+  her email.
