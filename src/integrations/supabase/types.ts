@@ -1836,6 +1836,9 @@ export type Database = {
           phone: string | null
           settings: Json | null
           state: string | null
+          tax_inclusive: boolean | null
+          tax_label: string | null
+          tax_rate_percent: number | null
           team_id: string
           timezone: string | null
           updated_at: string | null
@@ -1854,6 +1857,9 @@ export type Database = {
           phone?: string | null
           settings?: Json | null
           state?: string | null
+          tax_inclusive?: boolean | null
+          tax_label?: string | null
+          tax_rate_percent?: number | null
           team_id: string
           timezone?: string | null
           updated_at?: string | null
@@ -1872,6 +1878,9 @@ export type Database = {
           phone?: string | null
           settings?: Json | null
           state?: string | null
+          tax_inclusive?: boolean | null
+          tax_label?: string | null
+          tax_rate_percent?: number | null
           team_id?: string
           timezone?: string | null
           updated_at?: string | null
@@ -4741,6 +4750,63 @@ export type Database = {
           trashed_count?: number
         }
         Relationships: []
+      }
+      vehicle_blocked_dates: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          end_date: string
+          id: string
+          note: string | null
+          reason: string
+          source: string
+          start_date: string
+          team_id: string
+          updated_at: string
+          vehicle_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          end_date: string
+          id?: string
+          note?: string | null
+          reason?: string
+          source?: string
+          start_date: string
+          team_id: string
+          updated_at?: string
+          vehicle_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          end_date?: string
+          id?: string
+          note?: string | null
+          reason?: string
+          source?: string
+          start_date?: string
+          team_id?: string
+          updated_at?: string
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_blocked_dates_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_blocked_dates_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       vehicle_change_log: {
         Row: {
