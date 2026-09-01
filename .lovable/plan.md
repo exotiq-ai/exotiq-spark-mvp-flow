@@ -30,19 +30,19 @@ tenant and the public booking app.
    double-booking guard and it is the one gap that can cause a real failure. It
    should be a first-class "blocked dates" record, not a fake booking, so it
    never pollutes revenue, CRM, or utilization numbers.
-3. **Day-of-week pricing — yes, but keep it simple.** A percentage adjustment
-   per pickup day on the vehicle's rate-tier card. Recommend framing it as
-   "pickup-day adjustment" (applies to the whole rental, based on pickup day) —
-   per-night repricing across a multi-day rental is a much bigger change and
-   makes quotes hard for renters to understand.
+3. **Day-of-week pricing — parked pending Gregory's answer.** Design is ready
+   either way (whole-rental adjustment based on pickup day vs. per-night
+   repricing); we hold the build until the rule is confirmed, since the two
+   options price multi-day rentals differently.
 4. **Variable delivery pricing — yes, later.** Distance-based pricing needs a
    mileage source (address → distance). Interim step that costs almost nothing:
    let the operator save reusable delivery tiers (e.g. 0–25 mi $150, 25–50 mi
    $250) and pick one at booking time instead of retyping. Full automatic
    mileage calculation is a separate phase.
 5. **Custom add-ons — yes, and it also replaces hard-coded fees.** A per-workspace
-   catalog of add-ons (admin fee, transponder, etc.) with a fixed or per-day
-   amount, selectable on a booking. Blocked on Becca's actual fee list.
+   catalog of add-ons (admin fee, transponder, etc.). Confirmed: **flat
+   per-booking amounts, and taxable** — so no per-day math and they sit inside
+   the taxed subtotal. Only the actual fee list is still outstanding.
 
 ## Recommended sequencing
 
