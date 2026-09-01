@@ -160,6 +160,10 @@ export const FleetVehicleCard = ({
       label: oosReturnLabel ? `Out of Service · back ${oosReturnLabel}` : 'Out of Service',
       className: 'border-amber-500/50 bg-amber-500/10 text-amber-600 dark:text-amber-400',
     };
+    if (blockedUntil) return {
+      label: blockedReasonLabel ? `Blocked · ${blockedReasonLabel}` : 'Blocked',
+      className: 'border-slate-400/50 bg-slate-500/10 text-slate-600 dark:text-slate-300',
+    };
     if (isWithRenter) return { label: 'With Renter', className: 'border-primary/50 bg-primary/10 text-primary' };
     if (hasActiveBooking) return { label: 'On Rental', className: 'border-primary/50 bg-primary/10 text-primary' };
     if (nextBooking) return { label: 'Booked', className: 'border-accent/50 bg-accent/10 text-accent' };
