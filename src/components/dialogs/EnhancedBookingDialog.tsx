@@ -211,9 +211,9 @@ export const EnhancedBookingDialog = ({
     () => resolveTaxConfig(currentTeam as any, pickupLocationRecord),
     [currentTeam, pickupLocationRecord],
   );
-  const taxLabel = resolvedTax.label;
-  const taxRate = resolvedTax.rate;
-  const taxInclusive = resolvedTax.inclusive;
+  const taxLabel = resolvedTax.tax_label;
+  const taxRate = resolvedTax.tax_rate_percent;
+  const taxInclusive = resolvedTax.tax_inclusive;
   const fmt = (n: number) => formatMoney(n, { currency, locale, decimals: 2 });
 
   // Tax breakdown: when rate=0 (US default), total == grandTotal — zero behaviour change.
