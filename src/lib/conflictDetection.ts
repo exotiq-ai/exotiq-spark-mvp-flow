@@ -122,6 +122,7 @@ export const getVehicleAvailabilityState = ({
   window,
   bookings,
   workOrders,
+  blockedDates = [],
   excludeBookingId,
 }: VehicleAvailabilityInput): VehicleAvailabilityState => {
   if (vehicle.status === 'retired') {
@@ -152,6 +153,20 @@ export const getVehicleAvailabilityState = ({
       reason: 'maintenance_status',
       label: 'In maintenance',
       detail: null,
+    };
+  }
+
+  // Manual block (Turo, personal use, transport, …) overlapping the window
+  const block = blockedDates.find(
+    (b) => b.vehicle_id === vehicle.id && blockOverlaps(b, window.start, window.end)
+  );
+  if (block) {
+    return {
+      available: false,
+      reason: 'blocked',
+      label: 'Blocked',
+      detail: blockReasonLabel(block.reason),
+      blockId: block.id,
     };
   }
 
