@@ -14,6 +14,9 @@ import { useModuleNavigation } from '@/hooks/useModuleNavigation';
 import { useLocationFilteredFleet } from '@/hooks/useLocationFilteredFleet';
 import { useFleetTasks, type VehicleTask } from '@/hooks/useFleetTasks';
 import { useWorkOrders } from '@/hooks/useWorkOrders';
+import { useVehicleBlockedDates } from '@/hooks/useVehicleBlockedDates';
+import { BlockDatesDialog } from '@/components/fleet/BlockDatesDialog';
+import { blockReasonLabel } from '@/lib/blockedDates';
 import { getActiveOutOfServiceWorkOrder } from '@/lib/conflictDetection';
 import { useVehicleOpsStatus, OpsStatus } from '@/hooks/useVehicleOpsStatus';
 import { useVehiclePhotos } from '@/hooks/useVehiclePhotos';
@@ -71,6 +74,7 @@ export const FleetPageEnhanced = () => {
   const { vehicles, bookings, loading, applyPriceOptimization, updateVehicle, refreshData, createVehicle, deleteVehicles, archiveVehicle, trashVehicle } = useLocationFilteredFleet() as any;
   const { tasks, myTasks, unassignedTasks, createTask, updateTaskStatus, claimTask } = useFleetTasks();
   const { activeOrders: activeWorkOrders } = useWorkOrders();
+  const { blocks: blockedDates, refresh: refreshBlockedDates } = useVehicleBlockedDates();
   const { updateOpsStatus } = useVehicleOpsStatus();
   const { photoCountByVehicle } = useVehiclePhotos({ realtime: false });
   const { currentTeam } = useTeam();
@@ -189,6 +193,7 @@ export const FleetPageEnhanced = () => {
   const [showImportWizard, setShowImportWizard] = useState(false);
   const [photoUploadVehicle, setPhotoUploadVehicle] = useState<{ id: string; name: string } | null>(null);
   const [editVehicle, setEditVehicle] = useState<any>(null);
+  const [blockDatesVehicle, setBlockDatesVehicle] = useState<any>(null);
 
   // Facets derived from the underlying vehicle set
   const facets = useMemo<FleetFacets>(() => {
