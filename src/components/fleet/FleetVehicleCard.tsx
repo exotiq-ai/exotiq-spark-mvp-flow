@@ -83,6 +83,8 @@ interface FleetVehicleCardProps {
   taskCount?: number;
   photoCount?: number;
   outOfServiceUntil?: string | null; // ISO date; presence indicates active OOR work order
+  blockedUntil?: string | null;      // ISO date; presence indicates an active manual date block
+  blockedReasonLabel?: string | null;
   onEditPrice: (vehicle: Vehicle) => void;
   onCreateTask: (vehicle: Vehicle) => void;
   onViewDetails: (vehicle: Vehicle) => void;
@@ -117,6 +119,8 @@ export const FleetVehicleCard = ({
   taskCount = 0,
   photoCount,
   outOfServiceUntil,
+  blockedUntil,
+  blockedReasonLabel,
   onEditPrice,
   onCreateTask,
   onViewDetails,
