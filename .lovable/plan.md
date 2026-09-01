@@ -73,15 +73,18 @@ tenant and the public booking app.
   team. Update `public_vehicle_quote` and the booking dialogs to use the
   resolved values. Bookings keep snapshotting the rate they were priced at.
 
-**Pickup-day adjustments**
-- `vehicles.day_of_week_adjustments` JSON (`{"1":-20,...}`, percent, null =
-  none). Applied in the shared pricing helpers (`pricing.ts` / `pricingUtils.ts`)
-  and mirrored in `public_vehicle_quote` so operator and renter quotes match.
-- Edited inline in the rate-tier card with a preview of the resulting daily rate.
+**Pickup-day adjustments (deferred)**
+- Likely shape: `vehicles.day_of_week_adjustments` JSON (`{"1":-20,...}`,
+  percent, null = none), applied in the shared pricing helpers
+  (`pricing.ts` / `pricingUtils.ts`) and mirrored in `public_vehicle_quote` so
+  operator and renter quotes match, edited inline in the rate-tier card.
+- Not started until the whole-rental vs per-night question is settled.
 
 **Add-ons**
-- `team_addons` catalog (name, amount, per-day vs flat, taxable, active) plus
-  `booking_addons` line items; totals flow through the existing pricing helpers
+- `team_addons` catalog (name, flat amount, active) plus `booking_addons` line
+  items. Flat per-booking only; every add-on is taxable, so the amounts join the
+  taxed subtotal before tax is computed.
+- Totals flow through the existing pricing helpers and the public quote function
   and appear on the renter quote, payment record, and invoice.
 - Migrate the existing gas fee into this model only after add-ons are proven —
   not in the same change.
@@ -102,10 +105,11 @@ tenant and the public booking app.
 - Ship each phase behind the existing feature-flag file where user-visible, and
   verify against Sharp Exotics plus one control tenant before wider exposure.
 
-## Open questions for Becca
+## Answers received / still open
 
-- Should the pickup-day discount apply to the whole rental or only nights that
-  fall on those days?
-- Are her add-ons per-day or per-booking, and are they taxable?
-- Are the Turo blocks entered by hand, or does she want an iCal feed from Turo
-  imported automatically later?
+- Add-ons: flat per booking, taxable. Confirmed.
+- Turo blocks: entered by hand for now. Confirmed.
+- Pickup-day discount rule (whole rental vs only the nights that fall on those
+  days): still open — Gregory to come back on this.
+- Becca's actual add-on list (admin fee, transponder, anything else) — awaiting
+  her email.
