@@ -48,7 +48,7 @@ tenant and the public booking app.
 
 - **Phase 1 (unblocks Sharp Exotics now):** blocked dates + per-location tax.
 - **Phase 2:** custom add-ons catalog (start once Becca sends her list).
-- **Phase 3:** pickup-day pricing adjustments.
+- **Phase 3:** pickup-day pricing adjustments (on hold until the rule is decided).
 - **Phase 4:** delivery tiers, then mileage-based delivery if still wanted.
 
 ## Technical notes
@@ -56,6 +56,8 @@ tenant and the public booking app.
 **Blocked dates**
 - New `vehicle_blocked_dates` table (team_id, vehicle_id, start/end, reason,
   source e.g. `manual` / `turo`, note), team-scoped RLS + grants, manager+ write.
+- Manual entry only for now — no Turo iCal import in this phase, though the
+  `source` field leaves the door open for it later.
 - Feed it into the single availability helper in `conflictDetection.ts` as a new
   unavailable reason so the fleet card, booking pickers, and calendar all agree.
 - Add it to `public_vehicle_availability` (and the marketplace booking RPC's
