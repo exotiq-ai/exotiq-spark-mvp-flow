@@ -393,6 +393,18 @@ export const FleetPageEnhanced = () => {
     return map;
   }, [vehicles, activeWorkOrders]);
 
+  // Manual date blocks currently in effect (Turo, personal use, transport, …)
+  const currentBlockMap = useMemo(() => {
+    const now = Date.now();
+    const map: Record<string, { end: string; reason: string | null }> = {};
+    (blockedDates || []).forEach((b) => {
+      const start = new Date(b.start_date).getTime();
+      const end = new Date(b.end_date).getTime();
+      if (start <= now && end >= now) map[b.vehicle_id] = { end: b.end_date, reason: b.reason };
+    });
+    return map;
+  }, [blockedDates]);
+
   const handleStatusChange = async (vehicle: any, newStatus: OpsStatus) => {
     await updateOpsStatus(vehicle.id, newStatus);
   };
