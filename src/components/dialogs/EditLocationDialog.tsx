@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -67,6 +68,9 @@ const locationSchema = z.object({
   phone: z.string().optional(),
   email: z.string().email("Invalid email").optional().or(z.literal("")),
   timezone: z.string().optional(),
+  tax_rate_percent: z.string().optional(),
+  tax_label: z.string().optional(),
+  tax_inclusive: z.boolean().optional(),
 });
 
 type LocationFormValues = z.infer<typeof locationSchema>;
@@ -101,6 +105,12 @@ export const EditLocationDialog = ({
       phone: location.phone || "",
       email: location.email || "",
       timezone: location.timezone || "America/New_York",
+      tax_rate_percent:
+        location.tax_rate_percent === null || location.tax_rate_percent === undefined
+          ? ""
+          : String(location.tax_rate_percent),
+      tax_label: location.tax_label || "",
+      tax_inclusive: location.tax_inclusive ?? false,
     },
   });
 
@@ -116,6 +126,12 @@ export const EditLocationDialog = ({
       phone: location.phone || "",
       email: location.email || "",
       timezone: location.timezone || "America/New_York",
+      tax_rate_percent:
+        location.tax_rate_percent === null || location.tax_rate_percent === undefined
+          ? ""
+          : String(location.tax_rate_percent),
+      tax_label: location.tax_label || "",
+      tax_inclusive: location.tax_inclusive ?? false,
     });
   }, [location, form]);
 
@@ -134,6 +150,12 @@ export const EditLocationDialog = ({
           phone: values.phone || null,
           email: values.email || null,
           timezone: values.timezone || null,
+          tax_rate_percent:
+            values.tax_rate_percent && values.tax_rate_percent.trim() !== ""
+              ? Number(values.tax_rate_percent)
+              : null,
+          tax_label: values.tax_label?.trim() ? values.tax_label.trim() : null,
+          tax_inclusive: values.tax_inclusive ?? null,
         })
         .eq("id", location.id);
 
@@ -339,6 +361,60 @@ export const EditLocationDialog = ({
                   </FormItem>
                 )}
               />
+
+              <div className="rounded-lg border p-4 space-y-4">
+                <div>
+                  <p className="text-sm font-medium">Tax for this location</p>
+                  <p className="text-xs text-muted-foreground">
+                    Leave blank to use your workspace default tax settings.
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="tax_rate_percent"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Tax rate (%)</FormLabel>
+                        <FormControl>
+                          <Input type="number" step="0.001" min="0" placeholder="Workspace default" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="tax_label"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Tax label</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., Sales Tax" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <FormField
+                  control={form.control}
+                  name="tax_inclusive"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center justify-between gap-4">
+                      <div>
+                        <FormLabel className="text-sm">Prices include tax</FormLabel>
+                        <p className="text-xs text-muted-foreground">
+                          Turn on if your listed rates already include tax.
+                        </p>
+                      </div>
+                      <FormControl>
+                        <Switch checked={!!field.value} onCheckedChange={field.onChange} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              </div>
 
               <DialogFooter className="flex justify-between">
                 <div>
