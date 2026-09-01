@@ -460,6 +460,14 @@ export const FleetVehicleCard = ({
                     <ClipboardCheck className="h-4 w-4 mr-2" />
                     Create Task
                   </DropdownMenuItem>
+                  {onBlockDates && (
+                    <PermissionGuard minRole="manager">
+                      <DropdownMenuItem onClick={() => onBlockDates(vehicle)}>
+                        <Ban className="h-4 w-4 mr-2" />
+                        Block dates
+                      </DropdownMenuItem>
+                    </PermissionGuard>
+                  )}
                 </>
               )}
               <DropdownMenuSeparator />
@@ -606,6 +614,14 @@ export const FleetVehicleCard = ({
                       <ClipboardCheck className="h-4 w-4 mr-2" />
                       Create Task
                     </DropdownMenuItem>
+                    {onBlockDates && (
+                      <PermissionGuard minRole="manager">
+                        <DropdownMenuItem onClick={() => onBlockDates(vehicle)}>
+                          <Ban className="h-4 w-4 mr-2" />
+                          Block dates
+                        </DropdownMenuItem>
+                      </PermissionGuard>
+                    )}
                   </>
                 )}
                 <DropdownMenuSeparator />
