@@ -32,6 +32,7 @@ import {
   Archive,
   Sparkles,
   CircleDashed,
+  Ban,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -87,6 +88,7 @@ interface FleetVehicleCardProps {
   onViewDetails: (vehicle: Vehicle) => void;
   onStatusChange: (vehicle: Vehicle, newStatus: OpsStatus) => void;
   onEdit?: (vehicle: Vehicle) => void;
+  onBlockDates?: (vehicle: Vehicle) => void;
   onArchive?: (vehicle: Vehicle) => void;
   onDelete?: (vehicle: Vehicle) => void;
   isOpsMode?: boolean;
@@ -120,6 +122,7 @@ export const FleetVehicleCard = ({
   onViewDetails,
   onStatusChange,
   onEdit,
+  onBlockDates,
   onArchive,
   onDelete,
   isOpsMode = false,
