@@ -649,6 +649,11 @@ export const FleetPageEnhanced = () => {
                     taskCount={taskCountMap[vehicle.id] || 0}
                     photoCount={photoCountByVehicle[vehicle.id]}
                     outOfServiceUntil={outOfServiceMap[vehicle.id] ?? null}
+                    blockedUntil={currentBlockMap[vehicle.id]?.end ?? null}
+                    blockedReasonLabel={
+                      currentBlockMap[vehicle.id] ? blockReasonLabel(currentBlockMap[vehicle.id].reason) : null
+                    }
+                    onBlockDates={(v) => setBlockDatesVehicle(v)}
                     onEditPrice={(v) => setPriceEditVehicle(v)}
                     onEdit={(v) => setEditVehicle(v)}
                     onCreateTask={(v) => setTaskVehicle(v)}
@@ -811,6 +816,13 @@ export const FleetPageEnhanced = () => {
       />
 
       {/* Edit Vehicle Dialog */}
+      <BlockDatesDialog
+        open={!!blockDatesVehicle}
+        onOpenChange={(open) => !open && setBlockDatesVehicle(null)}
+        vehicle={blockDatesVehicle}
+        onChanged={refreshBlockedDates}
+      />
+
       <EditVehicleDialog
         open={!!editVehicle}
         onOpenChange={(open) => !open && setEditVehicle(null)}
