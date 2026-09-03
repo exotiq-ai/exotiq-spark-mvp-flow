@@ -22,7 +22,7 @@ import {
   getCountryDefaults,
 } from "@/lib/countryDefaults";
 import { formatMoney } from "@/lib/format";
-import { Globe, Building2, Receipt, Save, Mail } from "lucide-react";
+import { Globe, Building2, Receipt, Save, Mail, Store } from "lucide-react";
 
 interface BusinessAddress {
   line1?: string;
@@ -53,6 +53,7 @@ export const BusinessProfileSection = () => {
   const [supportPhone, setSupportPhone] = useState("");
   const [pickupAddress, setPickupAddress] = useState("");
   const [pickupInstructions, setPickupInstructions] = useState("");
+  const [marketplaceListed, setMarketplaceListed] = useState(false);
 
   const [saving, setSaving] = useState(false);
 
@@ -71,6 +72,7 @@ export const BusinessProfileSection = () => {
     setSupportPhone(((currentTeam as any).support_phone as string) || "");
     setPickupAddress(((currentTeam as any).pickup_address as string) || "");
     setPickupInstructions(((currentTeam as any).pickup_instructions as string) || "");
+    setMarketplaceListed(!!(currentTeam as any).marketplace_listed);
 
   }, [currentTeam]);
 
@@ -162,6 +164,7 @@ export const BusinessProfileSection = () => {
           // Plain text only — never rendered as HTML/markdown downstream
           pickup_instructions:
             pickupInstructions.replace(/[<>]/g, "").trim() || null,
+          marketplace_listed: marketplaceListed,
 
         } as any)
         .eq("id", currentTeam.id);
