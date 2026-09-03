@@ -14,11 +14,13 @@ Note for the record: `fredo-d-lima` already has `marketplace_visible = false`, s
 
 `supabase/migrations/<ts>_marketplace_listed_and_public_marketplace_rpcs.sql`
 
+0. First two statements: `set local lock_timeout = '5s'; set local statement_timeout = '60s';`. No `BEGIN`/`COMMIT` in the file (the migration runner wraps it). Applied at a quiet hour; if the `ALTER` on `teams` times out waiting for the exclusive lock, simply re-run — every statement is idempotent.
 1. `alter table public.teams add column if not exists marketplace_listed boolean not null default false;` plus a column comment.
-2. Seed, guarded: `update public.teams set marketplace_listed = true where slug in ('exotiq','exotics-by-the-bay');` wrapped in a `DO` block that raises (aborting the migration) if the row count is not exactly 2.
+2. Seed, guarded: `update public.teams set marketplace_listed = true where slug in ('exotiq','exotics-by-the-bay');` wrapped in a `DO` block that raises (aborting the migration) if the row count is not exactly 2. Both slugs seeded, per your confirmation. The `updated_at` bump on those two rows is expected.
 3. `create or replace function public.public_marketplace_teams()` — `language sql stable security definer set search_path = public`. Returns `slug, name, city, state, timezone, logo_url, verified(false)`. City/state resolved with the same `LEFT JOIN LATERAL` over `locations` that `public_team_by_slug` uses. Filter: `marketplace_listed = true AND public.is_marketplace_team(t.id)`. No support email/phone/address/currency/description.
 4. `create or replace function public.public_marketplace_fleet()` — same modifiers. Returns the full current `public_team_fleet` column set (`vehicle_slug, name, make, model, year, color, daily_rate numeric, hero_image_url, min_rental_days`) plus `team_slug`, `photo_count integer`, `verified boolean` (literal false). Filters: team `marketplace_listed` + `is_marketplace_team`, vehicle `is_marketplace_vehicle`, `coalesce(v.marketplace_unlisted,false) = false`. No ordering/pagination arguments.
-5. Grants for both: `revoke all on function ... from public;` then `grant execute ... to anon, authenticated;`.
+5. Grants for both: `revoke all on function ... from public;` then `grant execute ... to anon, authenticated, service_role;`.
+
 
 ## Command Center toggle
 
