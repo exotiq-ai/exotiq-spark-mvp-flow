@@ -460,6 +460,24 @@ export const BusinessProfileSection = () => {
         </div>
       </Card>
 
+      {/* Drive Exotiq marketplace listing */}
+      <Card className="p-6 space-y-5">
+        <div className="flex items-center gap-2">
+          <Store className="h-5 w-5 text-muted-foreground" />
+          <h3 className="text-lg font-semibold">Drive Exotiq marketplace</h3>
+        </div>
+        <div className="flex items-center justify-between gap-4 rounded-md border p-3">
+          <div>
+            <div className="text-sm font-medium">List my fleet on Drive Exotiq</div>
+            <div className="text-xs text-muted-foreground">
+              Your cars will appear on the Drive Exotiq marketplace alongside other
+              operators once it launches. Renters still book directly with you;
+              nothing about your storefront, pricing or payouts changes.
+            </div>
+          </div>
+          <Switch checked={marketplaceListed} onCheckedChange={setMarketplaceListed} />
+        </div>
+      </Card>
 
       <div className="flex justify-end">
         <Button onClick={handleSave} disabled={saving} className="gap-2">
