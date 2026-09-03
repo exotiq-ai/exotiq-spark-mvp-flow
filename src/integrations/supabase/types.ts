@@ -5887,6 +5887,7 @@ export type Database = {
     }
     Functions: {
       _team_slugify: { Args: { input: string }; Returns: string }
+      _tmp_m7f_rollback_test: { Args: never; Returns: Json }
       approve_marketplace_request: {
         Args: { _team_id: string; _visible?: boolean }
         Returns: boolean
