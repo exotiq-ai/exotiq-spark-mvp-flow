@@ -24,22 +24,23 @@ Note for the record: `fredo-d-lima` already has `marketplace_visible = false`, s
 
 ## Command Center toggle
 
-In the tenant Settings → Business Profile area (alongside the existing marketplace section), add a switch **"List my fleet on Drive Exotiq"** bound to `teams.marketplace_listed`, with the supplied helper copy. Same edit permission as the rest of the Business Profile. Ships with the migration; it is presentation-only over the new column.
+In the tenant Settings → Business Profile area, add a switch labelled verbatim **"List my fleet on Drive Exotiq"** with the handoff's helper copy verbatim, bound to `teams.marketplace_listed`. The existing marketplace control and its copy are left untouched. Same edit permission as the rest of the Business Profile. A screenshot of the section goes in the reply.
 
 ## Test run (section 5) and reply
 
-Executed in order, results pasted back in chat:
+Executed in order, results pasted back in chat with the role shown for each:
 
 - **0.** Baseline capture of the three existing functions for both tenants (before migration).
-- **1.** `public_marketplace_teams()` as `anon` — expect exactly `exotiq`, `exotics-by-the-bay`; no `fredo-d-lima`.
-- **2.** `count(*)` from the new fleet RPC vs the sum of `public_team_fleet` for both slugs — expect exact equality (unlisted already excluded on both sides).
+- **1.** *(anon)* `public_marketplace_teams()` — expect exactly `exotiq`, `exotics-by-the-bay`; no `fredo-d-lima`.
+- **2.** *(anon)* `count(*)` from the new fleet RPC vs the sum of `public_team_fleet` for both slugs — expect exact equality (unlisted already excluded on both sides).
 - **3.** Throwaway team + vehicle inside `begin; ... rollback;`: included when listed; excluded when `marketplace_listed = false`; excluded when relisted but `marketplace_visible = false`.
 - **4.** Same transaction pattern with `marketplace_unlisted = true` — absent from the marketplace fleet, still returned by `public_vehicle_by_slug`.
-- **5.** Column-by-column check for emails/phones/addresses/Stripe ids/uuids, plus `select * from public.teams limit 1` as `anon` still denied.
+- **5.** *(anon)* Column-by-column check for emails/phones/addresses/Stripe ids/uuids, plus `select * from public.teams limit 1` as `anon` still denied.
 - **6.** 20 runs each with `explain (analyze, timing)`; median and max reported.
 - **7.** Re-run the step 0 baselines and diff; run the security advisor and confirm no new findings for the two new functions.
 
-Reply will also include the two deployed signatures and the current rate-limiting posture on `/rest/v1/rpc/*`.
+Also pasted in the reply: the full migration file contents; the deployed body of `public_team_fleet`; `select column_name, data_type, is_nullable from information_schema.columns where table_name='vehicles' and column_name like '%unlisted%'`; a `pg_proc` count confirming exactly one row each for `public_team_fleet`, `public_marketplace_fleet`, `public_marketplace_teams`; a `pg_trigger` listing on `teams` confirming no new AFTER/audit trigger since early August; the two deployed RPC signatures; and the current rate-limiting posture on `/rest/v1/rpc/*`.
+
 
 ## Risk
 
