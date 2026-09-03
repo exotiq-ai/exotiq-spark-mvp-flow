@@ -3866,6 +3866,7 @@ export type Database = {
           is_demo_account: boolean | null
           locale: string
           logo_url: string | null
+          marketplace_listed: boolean
           marketplace_rejection_reason: string | null
           marketplace_request_status: string
           marketplace_requested_at: string | null
@@ -3939,6 +3940,7 @@ export type Database = {
           is_demo_account?: boolean | null
           locale?: string
           logo_url?: string | null
+          marketplace_listed?: boolean
           marketplace_rejection_reason?: string | null
           marketplace_request_status?: string
           marketplace_requested_at?: string | null
@@ -4012,6 +4014,7 @@ export type Database = {
           is_demo_account?: boolean | null
           locale?: string
           logo_url?: string | null
+          marketplace_listed?: boolean
           marketplace_rejection_reason?: string | null
           marketplace_request_status?: string
           marketplace_requested_at?: string | null
@@ -6590,6 +6593,35 @@ export type Database = {
           total_cents: number
           vehicle_name: string
           vehicle_slug: string
+        }[]
+      }
+      public_marketplace_fleet: {
+        Args: never
+        Returns: {
+          color: string
+          daily_rate: number
+          hero_image_url: string
+          make: string
+          min_rental_days: number
+          model: string
+          name: string
+          photo_count: number
+          team_slug: string
+          vehicle_slug: string
+          verified: boolean
+          year: number
+        }[]
+      }
+      public_marketplace_teams: {
+        Args: never
+        Returns: {
+          city: string
+          logo_url: string
+          name: string
+          slug: string
+          state: string
+          timezone: string
+          verified: boolean
         }[]
       }
       public_team_by_slug: {

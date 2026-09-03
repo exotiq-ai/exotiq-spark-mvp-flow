@@ -22,7 +22,7 @@ import {
   getCountryDefaults,
 } from "@/lib/countryDefaults";
 import { formatMoney } from "@/lib/format";
-import { Globe, Building2, Receipt, Save, Mail } from "lucide-react";
+import { Globe, Building2, Receipt, Save, Mail, Store } from "lucide-react";
 
 interface BusinessAddress {
   line1?: string;
@@ -53,6 +53,7 @@ export const BusinessProfileSection = () => {
   const [supportPhone, setSupportPhone] = useState("");
   const [pickupAddress, setPickupAddress] = useState("");
   const [pickupInstructions, setPickupInstructions] = useState("");
+  const [marketplaceListed, setMarketplaceListed] = useState(false);
 
   const [saving, setSaving] = useState(false);
 
@@ -71,6 +72,7 @@ export const BusinessProfileSection = () => {
     setSupportPhone(((currentTeam as any).support_phone as string) || "");
     setPickupAddress(((currentTeam as any).pickup_address as string) || "");
     setPickupInstructions(((currentTeam as any).pickup_instructions as string) || "");
+    setMarketplaceListed(!!(currentTeam as any).marketplace_listed);
 
   }, [currentTeam]);
 
@@ -162,6 +164,7 @@ export const BusinessProfileSection = () => {
           // Plain text only — never rendered as HTML/markdown downstream
           pickup_instructions:
             pickupInstructions.replace(/[<>]/g, "").trim() || null,
+          marketplace_listed: marketplaceListed,
 
         } as any)
         .eq("id", currentTeam.id);
@@ -460,6 +463,24 @@ export const BusinessProfileSection = () => {
         </div>
       </Card>
 
+      {/* Drive Exotiq marketplace listing */}
+      <Card className="p-6 space-y-5">
+        <div className="flex items-center gap-2">
+          <Store className="h-5 w-5 text-muted-foreground" />
+          <h3 className="text-lg font-semibold">Drive Exotiq marketplace</h3>
+        </div>
+        <div className="flex items-center justify-between gap-4 rounded-md border p-3">
+          <div>
+            <div className="text-sm font-medium">List my fleet on Drive Exotiq</div>
+            <div className="text-xs text-muted-foreground">
+              Your cars will appear on the Drive Exotiq marketplace alongside other
+              operators once it launches. Renters still book directly with you;
+              nothing about your storefront, pricing or payouts changes.
+            </div>
+          </div>
+          <Switch checked={marketplaceListed} onCheckedChange={setMarketplaceListed} />
+        </div>
+      </Card>
 
       <div className="flex justify-end">
         <Button onClick={handleSave} disabled={saving} className="gap-2">

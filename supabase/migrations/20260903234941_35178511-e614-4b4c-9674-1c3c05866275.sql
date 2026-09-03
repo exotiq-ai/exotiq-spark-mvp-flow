@@ -1,0 +1,1 @@
+DROP FUNCTION IF EXISTS public._tmp_m7f_rollback_test();
