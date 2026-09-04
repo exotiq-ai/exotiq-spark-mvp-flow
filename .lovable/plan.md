@@ -6,7 +6,14 @@ One new read-only database function. Nothing existing changes: no table, trigger
 
 A single function `public_fleet_busy(_range_start date, _range_end date, _team_slug text default null)` returning `{team_slug, vehicle_slug}` — one row per listed car that has any booking or manual block overlapping the requested window. The renter app subtracts those cars from its cached grid.
 
-It reuses the exact same busy rule the per-vehicle read uses today, expressed as the same two branches over the same tables, with the same buffer handling and the same scope gates (`is_marketplace_vehicle`, team `marketplace_listed`, not `marketplace_unlisted`).
+It reuses the exact same busy rule the per-vehicle read uses today, expressed as the same two branches over the same tables, with the same buffer handling.
+
+**Scope gates (per your change).**
+
+- Fleet-wide call (`_team_slug` null): team `marketplace_listed` + `is_marketplace_vehicle` + not `marketplace_unlisted`.
+- Team-scoped call (`_team_slug` given): `is_marketplace_vehicle` + not `marketplace_unlisted` only — no `marketplace_listed` gate, so a publicly visible but unlisted storefront returns its real busy rows instead of an empty set.
+
+**Overlap predicate (documented in the function comment and the reply).** A vehicle is busy when any busy range overlaps the window inclusively on both ends: `busy_start <= _range_end AND busy_end >= _range_start`, where `busy_start`/`busy_end` are the same buffer-adjusted dates the per-vehicle read produces. A booking whose stay ends on the window's start date counts as busy.
 
 ## Confirmed facts from the current database (answers to the three questions)
 
