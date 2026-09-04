@@ -35,7 +35,7 @@ A past window returns an empty set, as specified.
 
 - `language sql stable security definer set search_path = public`; `revoke all … from public; grant execute … to anon, authenticated, service_role;` — same hygiene as the September functions.
 - Single migration file, statements only (`set local lock_timeout`/`statement_timeout` first, no `BEGIN`/`COMMIT`). New function only, so no drop/recreate and no `pg_depend` risk.
-- Query shape: candidate vehicles (listed team + `is_marketplace_vehicle` + not `marketplace_unlisted`, optionally one slug) joined to bookings on `vehicle_id` with the overlap predicate, unioned with the same over `vehicle_blocked_dates`, `distinct` on `(team_slug, vehicle_slug)`. `idx_bookings_vehicle_id`, `idx_bookings_date_range` and `idx_vehicle_blocked_dates_vehicle` exist and should keep this off a sequential scan; the plan output goes in the reply.
+- Query shape: candidate vehicles (scope gates above — `marketplace_listed` applied only when `_team_slug` is null) joined to bookings on `vehicle_id` with the overlap predicate, unioned with the same over `vehicle_blocked_dates`, `distinct` on `(team_slug, vehicle_slug)`. `idx_bookings_vehicle_id`, `idx_bookings_date_range` and `idx_vehicle_blocked_dates_vehicle` exist and should keep this off a sequential scan; the plan output goes in the reply.
 - No pagination, no caching, expected tens of rows.
 
 ## Verification, run in the handoff's order and pasted back
