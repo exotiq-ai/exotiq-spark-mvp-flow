@@ -11,11 +11,12 @@ Additive only. The live booking app keeps returning exactly what it returns toda
 
 1. `alter table public.vehicles add column if not exists body_type text;` plus a column comment.
 2. `alter table public.vehicles add constraint vehicles_body_type_check check (body_type is null or body_type in ('supercar','sports-car','luxury-sedan','luxury-suv','grand-tourer','convertible','hypercar'));` — null allowed, no free text.
-3. `create or replace function` for the three fleet-shaped RPCs, each with a trailing `body_type text` added to `RETURNS TABLE` and `v.body_type` appended to the select list. Same signatures, same modifiers, same grants, no overloads, no existing column reordered/renamed/retyped:
+3. Replace the three fleet-shaped RPCs with `drop function` + `create function` (not `create or replace` — adding a column to `RETURNS TABLE` changes the return type and `create or replace` errors with "cannot change return type of existing function"; same approach as the 22 July change to `public_team_fleet(text)`). Before the drops, `pg_depend` is checked for dependents of each function; if anything depends on one, the migration stops and I report rather than cascade. Each function is recreated with the identical signature and modifiers, a trailing `body_type text` on `RETURNS TABLE`, `v.body_type` appended to the select list, and no existing column reordered/renamed/retyped. After each `create`, re-issue `revoke all on function ... from public; grant execute on function ... to anon, authenticated, service_role;` — grants do not survive a drop.
    - `public_team_fleet(_team_slug text, _require_hero boolean default false)`
    - `public_marketplace_fleet()`
    - `public_vehicle_by_slug(_team_slug text, _vehicle_slug text)`
-4. First statements: `set local lock_timeout = '5s'; set local statement_timeout = '60s';`, no `BEGIN`/`COMMIT`.
+   No second overload is created; the drops are by exact argument signature.
+4. First statements: `set local lock_timeout = '5s'; set local statement_timeout = '60s';`, no `BEGIN`/`COMMIT`. The drop/create pairs run inside the migration's own transaction, so the functions are never missing to a concurrent caller for more than that statement.
 
 No backfill. No booking, pricing, availability, Stripe or email path is touched.
 
@@ -25,18 +26,19 @@ A single optional **"Vehicle type"** select in the vehicle edit dialog (`EditVeh
 
 ## 3. Acceptance run (section 3), pasted back in chat
 
-0. Baseline `select * from public_team_fleet('exotiq') order by vehicle_slug` and the same for `exotics-by-the-bay`, saved before the migration.
-1. After: identical rows in identical order, every previous column byte-identical, one extra trailing `body_type`. Diffed programmatically, not by eye.
-2. `select body_type, count(*) from public_marketplace_fleet() group by 1` — vocabulary plus null only.
-3. Throwaway vehicle inside `begin; … rollback;` set to a value outside the vocabulary — check constraint rejects; a valid value is accepted and appears on the RPC.
-4. `public_vehicle_by_slug('exotiq', <slug>)` carries `body_type`.
-5. Security advisor re-run: confirm no new findings versus the current baseline.
+0. Baseline before the migration, saved: `select * from public_team_fleet('exotiq') order by vehicle_slug` and the same for `exotics-by-the-bay`; `public_vehicle_by_slug` for one real slug on each tenant; and `pg_get_function_result(oid)` for all three functions.
+1. After: the same queries return the same rows in the same order, every previous column identical, one extra trailing `body_type`. Diffed programmatically, not by eye — including the two `public_vehicle_by_slug` rows.
+2. `pg_get_function_result(oid)` for all three after, shown next to the before values so the only delta is the appended `body_type text`.
+3. `select body_type, count(*) from public_marketplace_fleet() group by 1` — vocabulary plus null only.
+4. Throwaway vehicle inside `begin; … rollback;`: a value outside the vocabulary is rejected by the check constraint; a valid value is accepted and appears on the reads; and with `body_type` null the vehicle still appears on all three reads (nothing filters on the new column).
+5. `public_vehicle_by_slug('exotiq', <slug>)` carries `body_type`.
+6. Security advisor re-run: confirm no new findings versus the current baseline.
 
 Anonymous-role checks go through the REST endpoint with the anon key, so each result is reported with the role it ran as.
 
 ## 4. Also in the reply
 
-The full migration file contents, the three deployed function bodies after replacement, and the `information_schema.columns` row for `vehicles.body_type` with its constraint definition.
+The full migration file contents, the `pg_depend` dependent check output for the three functions, the three deployed function bodies and grants after replacement, and the `information_schema.columns` row for `vehicles.body_type` with its constraint definition.
 
 ## 5. Housekeeping
 
