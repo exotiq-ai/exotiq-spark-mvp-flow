@@ -6,7 +6,14 @@ One new read-only database function. Nothing existing changes: no table, trigger
 
 A single function `public_fleet_busy(_range_start date, _range_end date, _team_slug text default null)` returning `{team_slug, vehicle_slug}` — one row per listed car that has any booking or manual block overlapping the requested window. The renter app subtracts those cars from its cached grid.
 
-It reuses the exact same busy rule the per-vehicle read uses today, expressed as the same two branches over the same tables, with the same buffer handling and the same scope gates (`is_marketplace_vehicle`, team `marketplace_listed`, not `marketplace_unlisted`).
+It reuses the exact same busy rule the per-vehicle read uses today, expressed as the same two branches over the same tables, with the same buffer handling.
+
+**Scope gates (per your change).**
+
+- Fleet-wide call (`_team_slug` null): team `marketplace_listed` + `is_marketplace_vehicle` + not `marketplace_unlisted`.
+- Team-scoped call (`_team_slug` given): `is_marketplace_vehicle` + not `marketplace_unlisted` only — no `marketplace_listed` gate, so a publicly visible but unlisted storefront returns its real busy rows instead of an empty set.
+
+**Overlap predicate (documented in the function comment and the reply).** A vehicle is busy when any busy range overlaps the window inclusively on both ends: `busy_start <= _range_end AND busy_end >= _range_start`, where `busy_start`/`busy_end` are the same buffer-adjusted dates the per-vehicle read produces. A booking whose stay ends on the window's start date counts as busy.
 
 ## Confirmed facts from the current database (answers to the three questions)
 
@@ -28,7 +35,7 @@ A past window returns an empty set, as specified.
 
 - `language sql stable security definer set search_path = public`; `revoke all … from public; grant execute … to anon, authenticated, service_role;` — same hygiene as the September functions.
 - Single migration file, statements only (`set local lock_timeout`/`statement_timeout` first, no `BEGIN`/`COMMIT`). New function only, so no drop/recreate and no `pg_depend` risk.
-- Query shape: candidate vehicles (listed team + `is_marketplace_vehicle` + not `marketplace_unlisted`, optionally one slug) joined to bookings on `vehicle_id` with the overlap predicate, unioned with the same over `vehicle_blocked_dates`, `distinct` on `(team_slug, vehicle_slug)`. `idx_bookings_vehicle_id`, `idx_bookings_date_range` and `idx_vehicle_blocked_dates_vehicle` exist and should keep this off a sequential scan; the plan output goes in the reply.
+- Query shape: candidate vehicles (scope gates above — `marketplace_listed` applied only when `_team_slug` is null) joined to bookings on `vehicle_id` with the overlap predicate, unioned with the same over `vehicle_blocked_dates`, `distinct` on `(team_slug, vehicle_slug)`. `idx_bookings_vehicle_id`, `idx_bookings_date_range` and `idx_vehicle_blocked_dates_vehicle` exist and should keep this off a sequential scan; the plan output goes in the reply.
 - No pagination, no caching, expected tens of rows.
 
 ## Verification, run in the handoff's order and pasted back
@@ -37,7 +44,7 @@ A past window returns an empty set, as specified.
 1. Every row `public_fleet_busy(today, today+2)` returns is confirmed unavailable in that window by the per-vehicle read (three baseline vehicles plus two random).
 2. Five vehicles absent from the busy set show a fully free window per-vehicle.
 3. Rolled-back mutation test: throwaway booking appears → non-blocking status disappears → overlapping manual block appears.
-4. `_team_slug = 'exotics-by-the-bay'` scoping, unknown slug empty, inverted range errors, 200-day window errors.
+4. `_team_slug = 'exotics-by-the-bay'` scoping, unknown slug empty, inverted range errors, 200-day window errors — plus a publicly visible team with `marketplace_listed = false` still returning its busy rows when passed as `_team_slug`, while contributing nothing to the fleet-wide call.
 5. 20 timed runs each for a 3-day and a 30-day window, median and max, plus the query plan.
 6. Per-vehicle read byte-identical before/after; security advisor shows no new findings.
 
