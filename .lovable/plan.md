@@ -26,18 +26,19 @@ A single optional **"Vehicle type"** select in the vehicle edit dialog (`EditVeh
 
 ## 3. Acceptance run (section 3), pasted back in chat
 
-0. Baseline `select * from public_team_fleet('exotiq') order by vehicle_slug` and the same for `exotics-by-the-bay`, saved before the migration.
-1. After: identical rows in identical order, every previous column byte-identical, one extra trailing `body_type`. Diffed programmatically, not by eye.
-2. `select body_type, count(*) from public_marketplace_fleet() group by 1` — vocabulary plus null only.
-3. Throwaway vehicle inside `begin; … rollback;` set to a value outside the vocabulary — check constraint rejects; a valid value is accepted and appears on the RPC.
-4. `public_vehicle_by_slug('exotiq', <slug>)` carries `body_type`.
-5. Security advisor re-run: confirm no new findings versus the current baseline.
+0. Baseline before the migration, saved: `select * from public_team_fleet('exotiq') order by vehicle_slug` and the same for `exotics-by-the-bay`; `public_vehicle_by_slug` for one real slug on each tenant; and `pg_get_function_result(oid)` for all three functions.
+1. After: the same queries return the same rows in the same order, every previous column identical, one extra trailing `body_type`. Diffed programmatically, not by eye — including the two `public_vehicle_by_slug` rows.
+2. `pg_get_function_result(oid)` for all three after, shown next to the before values so the only delta is the appended `body_type text`.
+3. `select body_type, count(*) from public_marketplace_fleet() group by 1` — vocabulary plus null only.
+4. Throwaway vehicle inside `begin; … rollback;`: a value outside the vocabulary is rejected by the check constraint; a valid value is accepted and appears on the reads; and with `body_type` null the vehicle still appears on all three reads (nothing filters on the new column).
+5. `public_vehicle_by_slug('exotiq', <slug>)` carries `body_type`.
+6. Security advisor re-run: confirm no new findings versus the current baseline.
 
 Anonymous-role checks go through the REST endpoint with the anon key, so each result is reported with the role it ran as.
 
 ## 4. Also in the reply
 
-The full migration file contents, the three deployed function bodies after replacement, and the `information_schema.columns` row for `vehicles.body_type` with its constraint definition.
+The full migration file contents, the `pg_depend` dependent check output for the three functions, the three deployed function bodies and grants after replacement, and the `information_schema.columns` row for `vehicles.body_type` with its constraint definition.
 
 ## 5. Housekeeping
 
