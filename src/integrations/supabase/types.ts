@@ -6598,6 +6598,13 @@ export type Database = {
           vehicle_slug: string
         }[]
       }
+      public_fleet_busy: {
+        Args: { _range_end: string; _range_start: string; _team_slug?: string }
+        Returns: {
+          team_slug: string
+          vehicle_slug: string
+        }[]
+      }
       public_marketplace_fleet: {
         Args: never
         Returns: {
