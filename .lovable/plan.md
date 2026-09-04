@@ -44,7 +44,7 @@ A past window returns an empty set, as specified.
 1. Every row `public_fleet_busy(today, today+2)` returns is confirmed unavailable in that window by the per-vehicle read (three baseline vehicles plus two random).
 2. Five vehicles absent from the busy set show a fully free window per-vehicle.
 3. Rolled-back mutation test: throwaway booking appears → non-blocking status disappears → overlapping manual block appears.
-4. `_team_slug = 'exotics-by-the-bay'` scoping, unknown slug empty, inverted range errors, 200-day window errors.
+4. `_team_slug = 'exotics-by-the-bay'` scoping, unknown slug empty, inverted range errors, 200-day window errors — plus a publicly visible team with `marketplace_listed = false` still returning its busy rows when passed as `_team_slug`, while contributing nothing to the fleet-wide call.
 5. 20 timed runs each for a 3-day and a 30-day window, median and max, plus the query plan.
 6. Per-vehicle read byte-identical before/after; security advisor shows no new findings.
 
