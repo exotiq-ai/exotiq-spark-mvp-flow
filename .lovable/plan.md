@@ -11,11 +11,12 @@ Additive only. The live booking app keeps returning exactly what it returns toda
 
 1. `alter table public.vehicles add column if not exists body_type text;` plus a column comment.
 2. `alter table public.vehicles add constraint vehicles_body_type_check check (body_type is null or body_type in ('supercar','sports-car','luxury-sedan','luxury-suv','grand-tourer','convertible','hypercar'));` — null allowed, no free text.
-3. `create or replace function` for the three fleet-shaped RPCs, each with a trailing `body_type text` added to `RETURNS TABLE` and `v.body_type` appended to the select list. Same signatures, same modifiers, same grants, no overloads, no existing column reordered/renamed/retyped:
+3. Replace the three fleet-shaped RPCs with `drop function` + `create function` (not `create or replace` — adding a column to `RETURNS TABLE` changes the return type and `create or replace` errors with "cannot change return type of existing function"; same approach as the 22 July change to `public_team_fleet(text)`). Before the drops, `pg_depend` is checked for dependents of each function; if anything depends on one, the migration stops and I report rather than cascade. Each function is recreated with the identical signature and modifiers, a trailing `body_type text` on `RETURNS TABLE`, `v.body_type` appended to the select list, and no existing column reordered/renamed/retyped. After each `create`, re-issue `revoke all on function ... from public; grant execute on function ... to anon, authenticated, service_role;` — grants do not survive a drop.
    - `public_team_fleet(_team_slug text, _require_hero boolean default false)`
    - `public_marketplace_fleet()`
    - `public_vehicle_by_slug(_team_slug text, _vehicle_slug text)`
-4. First statements: `set local lock_timeout = '5s'; set local statement_timeout = '60s';`, no `BEGIN`/`COMMIT`.
+   No second overload is created; the drops are by exact argument signature.
+4. First statements: `set local lock_timeout = '5s'; set local statement_timeout = '60s';`, no `BEGIN`/`COMMIT`. The drop/create pairs run inside the migration's own transaction, so the functions are never missing to a concurrent caller for more than that statement.
 
 No backfill. No booking, pricing, availability, Stripe or email path is touched.
 
