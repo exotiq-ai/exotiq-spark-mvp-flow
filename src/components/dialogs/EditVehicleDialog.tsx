@@ -309,6 +309,18 @@ export const EditVehicleDialog = ({ open, onOpenChange, vehicle, onSave }: EditV
                 <Input id="edit-color" placeholder="e.g., Midnight Blue" value={color} onChange={(e) => setColor(e.target.value)} />
               </div>
               <div className="space-y-2">
+                <Label htmlFor="edit-body-type">Vehicle type</Label>
+                <Select value={bodyType} onValueChange={setBodyType}>
+                  <SelectTrigger id="edit-body-type"><SelectValue placeholder="Not set" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Not set</SelectItem>
+                    {BODY_TYPE_OPTIONS.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="edit-mileage">Included Miles/Day</Label>
                 <Input id="edit-mileage" type="number" value={defaultMileageLimit} onChange={(e) => setDefaultMileageLimit(e.target.value)} min="0" />
               </div>
