@@ -194,6 +194,8 @@ export const EditVehicleDialog = ({ open, onOpenChange, vehicle, onSave }: EditV
       if (status !== vehicle.status) updates.status = status;
       if ((locationId || null) !== (vehicle.location_id || null)) updates.location_id = locationId || null;
       if ((color || null) !== (vehicle.color || null)) updates.color = color || null;
+      const newBodyType = bodyType === "none" ? null : bodyType;
+      if (newBodyType !== (vehicle.body_type || null)) updates.body_type = newBodyType;
       
       const newMileageLimit = defaultMileageLimit ? parseInt(defaultMileageLimit) : null;
       if (newMileageLimit !== (vehicle.default_mileage_limit ?? null)) updates.default_mileage_limit = newMileageLimit;
