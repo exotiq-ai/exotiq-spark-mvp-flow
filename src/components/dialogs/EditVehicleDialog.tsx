@@ -39,7 +39,18 @@ interface Vehicle {
   split_value?: number | null;
   marketplace_visible?: boolean | null;
   marketplace_unlisted?: boolean | null;
+  body_type?: string | null;
 }
+
+const BODY_TYPE_OPTIONS = [
+  { value: "supercar", label: "Supercar" },
+  { value: "hypercar", label: "Hypercar" },
+  { value: "sports-car", label: "Sports car" },
+  { value: "grand-tourer", label: "Grand tourer" },
+  { value: "convertible", label: "Convertible" },
+  { value: "luxury-sedan", label: "Luxury sedan" },
+  { value: "luxury-suv", label: "Luxury SUV" },
+] as const;
 
 
 interface EditVehicleDialogProps {
