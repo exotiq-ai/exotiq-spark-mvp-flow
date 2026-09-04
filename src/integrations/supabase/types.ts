@@ -5403,6 +5403,7 @@ export type Database = {
       vehicles: {
         Row: {
           archived_at: string | null
+          body_type: string | null
           color: string | null
           created_at: string | null
           current_rate: number
@@ -5446,6 +5447,7 @@ export type Database = {
         }
         Insert: {
           archived_at?: string | null
+          body_type?: string | null
           color?: string | null
           created_at?: string | null
           current_rate?: number
@@ -5489,6 +5491,7 @@ export type Database = {
         }
         Update: {
           archived_at?: string | null
+          body_type?: string | null
           color?: string | null
           created_at?: string | null
           current_rate?: number
@@ -6598,6 +6601,7 @@ export type Database = {
       public_marketplace_fleet: {
         Args: never
         Returns: {
+          body_type: string
           color: string
           daily_rate: number
           hero_image_url: string
@@ -6644,6 +6648,7 @@ export type Database = {
       public_team_fleet: {
         Args: { _require_hero?: boolean; _team_slug: string }
         Returns: {
+          body_type: string
           color: string
           daily_rate: number
           hero_image_url: string
@@ -6684,6 +6689,7 @@ export type Database = {
       public_vehicle_by_slug: {
         Args: { _team_slug: string; _vehicle_slug: string }
         Returns: {
+          body_type: string
           color: string
           currency: string
           daily_rate: number

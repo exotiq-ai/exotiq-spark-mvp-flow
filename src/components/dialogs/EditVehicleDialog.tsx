@@ -39,7 +39,18 @@ interface Vehicle {
   split_value?: number | null;
   marketplace_visible?: boolean | null;
   marketplace_unlisted?: boolean | null;
+  body_type?: string | null;
 }
+
+const BODY_TYPE_OPTIONS = [
+  { value: "supercar", label: "Supercar" },
+  { value: "hypercar", label: "Hypercar" },
+  { value: "sports-car", label: "Sports car" },
+  { value: "grand-tourer", label: "Grand tourer" },
+  { value: "convertible", label: "Convertible" },
+  { value: "luxury-sedan", label: "Luxury sedan" },
+  { value: "luxury-suv", label: "Luxury SUV" },
+] as const;
 
 
 interface EditVehicleDialogProps {
@@ -67,6 +78,7 @@ export const EditVehicleDialog = ({ open, onOpenChange, vehicle, onSave }: EditV
   const [status, setStatus] = useState<string>("available");
   const [locationId, setLocationId] = useState<string>("");
   const [color, setColor] = useState("");
+  const [bodyType, setBodyType] = useState<string>("none");
   const [defaultMileageLimit, setDefaultMileageLimit] = useState("");
   const [mileageOverageRate, setMileageOverageRate] = useState("");
   const [ownershipType, setOwnershipType] = useState<string>("owned");
@@ -100,6 +112,7 @@ export const EditVehicleDialog = ({ open, onOpenChange, vehicle, onSave }: EditV
       setStatus(vehicle.status || "available");
       setLocationId(vehicle.location_id || "");
       setColor(vehicle.color || "");
+      setBodyType(vehicle.body_type || "none");
       setDefaultMileageLimit(vehicle.default_mileage_limit != null ? String(vehicle.default_mileage_limit) : "");
       setMileageOverageRate(vehicle.mileage_overage_rate != null ? String(vehicle.mileage_overage_rate) : "");
       setOwnershipType(vehicle.ownership_type || "owned");
@@ -181,6 +194,8 @@ export const EditVehicleDialog = ({ open, onOpenChange, vehicle, onSave }: EditV
       if (status !== vehicle.status) updates.status = status;
       if ((locationId || null) !== (vehicle.location_id || null)) updates.location_id = locationId || null;
       if ((color || null) !== (vehicle.color || null)) updates.color = color || null;
+      const newBodyType = bodyType === "none" ? null : bodyType;
+      if (newBodyType !== (vehicle.body_type || null)) updates.body_type = newBodyType;
       
       const newMileageLimit = defaultMileageLimit ? parseInt(defaultMileageLimit) : null;
       if (newMileageLimit !== (vehicle.default_mileage_limit ?? null)) updates.default_mileage_limit = newMileageLimit;
@@ -292,6 +307,18 @@ export const EditVehicleDialog = ({ open, onOpenChange, vehicle, onSave }: EditV
               <div className="space-y-2">
                 <Label htmlFor="edit-color">Color</Label>
                 <Input id="edit-color" placeholder="e.g., Midnight Blue" value={color} onChange={(e) => setColor(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-body-type">Vehicle type</Label>
+                <Select value={bodyType} onValueChange={setBodyType}>
+                  <SelectTrigger id="edit-body-type"><SelectValue placeholder="Not set" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Not set</SelectItem>
+                    {BODY_TYPE_OPTIONS.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="edit-mileage">Included Miles/Day</Label>
