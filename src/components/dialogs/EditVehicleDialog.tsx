@@ -112,6 +112,7 @@ export const EditVehicleDialog = ({ open, onOpenChange, vehicle, onSave }: EditV
       setStatus(vehicle.status || "available");
       setLocationId(vehicle.location_id || "");
       setColor(vehicle.color || "");
+      setBodyType(vehicle.body_type || "none");
       setDefaultMileageLimit(vehicle.default_mileage_limit != null ? String(vehicle.default_mileage_limit) : "");
       setMileageOverageRate(vehicle.mileage_overage_rate != null ? String(vehicle.mileage_overage_rate) : "");
       setOwnershipType(vehicle.ownership_type || "owned");
