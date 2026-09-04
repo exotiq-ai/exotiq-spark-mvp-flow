@@ -78,6 +78,7 @@ export const EditVehicleDialog = ({ open, onOpenChange, vehicle, onSave }: EditV
   const [status, setStatus] = useState<string>("available");
   const [locationId, setLocationId] = useState<string>("");
   const [color, setColor] = useState("");
+  const [bodyType, setBodyType] = useState<string>("none");
   const [defaultMileageLimit, setDefaultMileageLimit] = useState("");
   const [mileageOverageRate, setMileageOverageRate] = useState("");
   const [ownershipType, setOwnershipType] = useState<string>("owned");
