@@ -53,6 +53,9 @@ const initialFormData: OnboardingFormData = {
   countryCode: '',
   fleetSize: '',
   businessType: '',
+  taxRatePercent: '',
+  taxLabel: '',
+  taxInclusive: undefined,
   locations: [],
 };
 
