@@ -82,12 +82,14 @@ export const AutomatedDemoTour = ({ onModuleChange }: AutomatedDemoTourProps) =>
         case 'Escape': e.preventDefault(); demo.stop(); deactivateTour(); break;
         case ' ': e.preventDefault(); demo.isPaused ? demo.resume() : demo.pause(); break;
         case 'ArrowRight': e.preventDefault(); demo.skipToNext(); break;
+        case 'ArrowLeft': e.preventDefault(); demo.skipToPrevious(); break;
         case 'm': case 'M': e.preventDefault(); demo.toggleMute(); break;
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [demo.isActive, demo.isPaused, demo.stop, demo.pause, demo.resume, demo.skipToNext, demo.toggleMute]);
+  }, [demo.isActive, demo.isPaused, demo.stop, demo.pause, demo.resume, demo.skipToNext, demo.skipToPrevious, demo.toggleMute]);
+
 
   const formatTime = useCallback((ms: number) => {
     const seconds = Math.ceil(ms / 1000);
