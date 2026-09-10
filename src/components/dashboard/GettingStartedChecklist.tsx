@@ -39,11 +39,31 @@ export const GettingStartedChecklist = ({
   onNavigateToTeam,
 }: GettingStartedChecklistProps) => {
   const { profile } = useProfile();
+  const { currentTeam } = useTeam();
   const [dismissed, setDismissed] = useState(() => 
     localStorage.getItem('checklist-dismissed') === 'true'
   );
-  
-  const tourCompleted = profile ? (profile as any).tour_completed === true : false;
+  const [teamMemberCount, setTeamMemberCount] = useState<number | null>(null);
+
+  // Real member count so this step can actually complete.
+  useEffect(() => {
+    let cancelled = false;
+    if (!currentTeam?.id) {
+      setTeamMemberCount(null);
+      return;
+    }
+    (async () => {
+      const { count, error } = await supabase
+        .from('team_members')
+        .select('id', { count: 'exact', head: true })
+        .eq('team_id', currentTeam.id);
+      if (!cancelled && !error) setTeamMemberCount(count ?? 0);
+    })();
+    return () => { cancelled = true; };
+  }, [currentTeam?.id]);
+
+  const tourCompleted = profile?.tour_completed === true;
+
 
   const steps = useMemo(() => [
     {
