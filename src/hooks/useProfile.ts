@@ -9,7 +9,10 @@ interface Profile {
   phone: string | null;
   company_name: string | null;
   avatar_url: string | null;
+  tour_completed: boolean | null;
+  tour_skipped_at: string | null;
 }
+
 
 export const useProfile = () => {
   const { user } = useAuth();
