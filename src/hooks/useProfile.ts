@@ -85,11 +85,28 @@ export const useProfile = () => {
 
   const displayName = profile?.full_name || user?.email?.split('@')[0] || 'User';
 
+  // Persist first-run choices (tour taken / "I'll set up myself") on the account
+  // so they survive reloads and follow the user across devices.
+  const updateProfile = useCallback(async (updates: Partial<Omit<Profile, 'id' | 'email'>>) => {
+    if (!user?.id) return;
+    setProfile(prev => (prev ? { ...prev, ...updates } as Profile : prev));
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update(updates)
+      .eq('id', user.id);
+    if (updateError) {
+      console.error('Error updating profile:', updateError);
+      fetchProfile();
+    }
+  }, [user?.id, fetchProfile]);
+
   return {
     profile,
     loading,
     error,
     displayName,
+    updateProfile,
     refetch: fetchProfile,
   };
 };
+
