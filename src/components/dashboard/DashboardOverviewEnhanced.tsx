@@ -392,22 +392,25 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
           </p>
           
           {/* Primary CTA: See exotiq in Action */}
-          <div className="flex flex-col items-center gap-3 mt-4">
-            <Button
-              size="lg"
-              onClick={() => window.dispatchEvent(new Event('start-demo-tour'))}
-              className="gap-2 min-w-[260px]"
-            >
-              <Play className="h-5 w-5" />
-              See exotiq in Action
-            </Button>
-            <button
-              onClick={handleSkipTour}
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline"
-            >
-              Skip, I'll set up myself
-            </button>
-          </div>
+          {!skippedTour && (
+            <div className="flex flex-col items-center gap-3 mt-4">
+              <Button
+                size="lg"
+                onClick={() => window.dispatchEvent(new Event('start-demo-tour'))}
+                className="gap-2 min-w-[260px]"
+              >
+                <Play className="h-5 w-5" />
+                See exotiq in Action
+              </Button>
+              <button
+                onClick={handleSkipTour}
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline"
+              >
+                Skip, I'll set up myself
+              </button>
+            </div>
+          )}
+
         </motion.div>
 
         {/* Show checklist only if they skipped the tour */}
