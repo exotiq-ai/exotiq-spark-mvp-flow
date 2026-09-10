@@ -22,6 +22,10 @@ export interface OnboardingFormData {
   countryCode: string;
   fleetSize: string;
   businessType: string;
+  /** Tax applied at the primary pickup location; blank means inherit the country default. */
+  taxRatePercent?: string;
+  taxLabel?: string;
+  taxInclusive?: boolean;
   locations: Array<{
     id: string;
     name: string;
@@ -60,6 +64,9 @@ const defaultFormData: OnboardingFormData = {
   countryCode: '',
   fleetSize: '',
   businessType: '',
+  taxRatePercent: '',
+  taxLabel: '',
+  taxInclusive: undefined,
   locations: [],
 };
 
