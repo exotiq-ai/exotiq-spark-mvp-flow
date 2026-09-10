@@ -247,7 +247,9 @@ export const useDemoOrchestrator = ({
 
 
   const start = useCallback(() => {
+    runIdRef.current += 1; // invalidate any chain still running from a previous start
     cleanup();
+
     setIsActive(true);
     setIsPaused(false);
     setCurrentStepIndex(0);
