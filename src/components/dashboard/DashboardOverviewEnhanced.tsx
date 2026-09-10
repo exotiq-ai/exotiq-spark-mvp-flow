@@ -20,6 +20,8 @@ import { ScheduleMaintenanceDialog } from "@/components/dialogs/ScheduleMaintena
 import { RecordPaymentDialog } from "@/components/dialogs/RecordPaymentDialog";
 import { ImportWizard } from "@/components/import/ImportWizard";
 import { GettingStartedChecklist } from "./GettingStartedChecklist";
+import { BookingReadinessCard } from "./BookingReadinessCard";
+
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { useFleetAIInsight } from "@/hooks/useFleetAIInsight";
 import { useProfile } from "@/hooks/useProfile";
