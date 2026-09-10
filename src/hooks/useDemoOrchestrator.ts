@@ -152,6 +152,7 @@ export const useDemoOrchestrator = ({
   const executeStep = useCallback(async (stepIndex: number) => {
     if (!activeRef.current || stepIndex >= steps.length) {
       if (stepIndex >= steps.length) {
+        runIdRef.current += 1;
         setIsActive(false);
         setZoomTarget(null);
         setCursorTarget(null);
@@ -160,8 +161,14 @@ export const useDemoOrchestrator = ({
       return;
     }
 
+    // Claim this run. Any later start/skip/jump bumps runIdRef and invalidates
+    // this chain so two chapters can never advance at once.
+    const myRun = ++runIdRef.current;
+    const alive = () => activeRef.current && runIdRef.current === myRun;
+    const wait = (ms: number) => new Promise(r => setTimeout(r, ms));
+
     await waitWhilePaused();
-    if (!activeRef.current) return;
+    if (!alive()) return;
 
     const step = steps[stepIndex];
     setCurrentStepIndex(stepIndex);
@@ -170,7 +177,8 @@ export const useDemoOrchestrator = ({
 
     // Navigate to module — slower transition
     onModuleChange(step.module);
-    await new Promise(r => setTimeout(r, 1200));
+    await wait(1200);
+    if (!alive()) return;
     setIsTransitioning(false);
 
     // Move cursor to tab and click if specified
@@ -178,17 +186,21 @@ export const useDemoOrchestrator = ({
       const tabCenter = getElementCenter(step.tabSelector);
       if (tabCenter) {
         setCursorTarget(tabCenter);
-        await new Promise(r => setTimeout(r, 800)); // cursor travel time
-        
+        await wait(800); // cursor travel time
+        if (!alive()) return;
+
         // Click animation
         setCursorClicking(true);
-        await new Promise(r => setTimeout(r, 300));
+        await wait(300);
+        if (!alive()) { setCursorClicking(false); return; }
         const tabEl = document.querySelector(step.tabSelector);
         if (tabEl instanceof HTMLElement) tabEl.click();
-        await new Promise(r => setTimeout(r, 200));
+        await wait(200);
         setCursorClicking(false);
-        
-        await new Promise(r => setTimeout(r, 1200)); // let tab content settle
+        if (!alive()) return;
+
+        await wait(1200); // let tab content settle
+        if (!alive()) return;
       }
     }
 
@@ -197,7 +209,8 @@ export const useDemoOrchestrator = ({
       const elCenter = getElementCenter(step.selector);
       if (elCenter) {
         setCursorTarget(elCenter);
-        await new Promise(r => setTimeout(r, 600)); // cursor travel
+        await wait(600); // cursor travel
+        if (!alive()) return;
       }
 
       if (step.zoomLevel) {
@@ -206,7 +219,8 @@ export const useDemoOrchestrator = ({
 
       const el = document.querySelector(step.selector);
       el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      await new Promise(r => setTimeout(r, 800));
+      await wait(800);
+      if (!alive()) return;
     } else {
       setZoomTarget(null);
       // For module-level steps with no selector, park cursor off-screen
@@ -215,19 +229,20 @@ export const useDemoOrchestrator = ({
 
     // Check pause again before narration
     await waitWhilePaused();
-    if (!activeRef.current) return;
+    if (!alive()) return;
 
     // Narrate
     await speakNarration(step.narration, step.duration);
-    
+    if (!alive()) return;
+
     // Longer pause between steps for breathing room
-    await new Promise(r => setTimeout(r, 1500));
+    await wait(1500);
+    if (!alive()) return;
 
     // Move to next step
-    if (activeRef.current) {
-      executeStep(stepIndex + 1);
-    }
+    executeStep(stepIndex + 1);
   }, [steps, onModuleChange, zoomToElement, getElementCenter, speakNarration, waitWhilePaused, onComplete]);
+
 
   const start = useCallback(() => {
     cleanup();
