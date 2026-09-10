@@ -82,14 +82,20 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
   
   const { vehicles, bookings, loading, error, applyPriceOptimization, createBooking, createCustomer, generateReport, createMaintenance, createPayment, createVehicle, refreshData } = useLocationFilteredFleet();
   const { signOut, loading: authLoading } = useAuth();
-  const { profile } = useProfile();
+  const { profile, updateProfile } = useProfile();
   const { currentTeam, loading: teamLoading, error: teamError } = useTeam();
   const { toast } = useToast();
   const rariSidebar = useRariSidebar();
   const { hasRoleOrHigher: isManagerOrHigher } = useUserRole();
   const navigate = useNavigate();
   const [isRetrying, setIsRetrying] = useState(false);
-  const [skippedTour, setSkippedTour] = useState(false);
+
+  // Remembered on the account so the choice survives a reload / another device.
+  const skippedTour = Boolean(profile?.tour_skipped_at) || profile?.tour_completed === true;
+  const handleSkipTour = () => {
+    void updateProfile({ tour_skipped_at: new Date().toISOString() });
+  };
+
 
   // Listen for post-tour events to open dialogs
   useEffect(() => {
@@ -396,7 +402,7 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
               See exotiq in Action
             </Button>
             <button
-              onClick={() => setSkippedTour(true)}
+              onClick={handleSkipTour}
               className="text-sm text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline"
             >
               Skip, I'll set up myself
