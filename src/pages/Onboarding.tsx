@@ -878,9 +878,21 @@ export default function Onboarding() {
                     <ArrowLeft className="w-4 h-4 mr-2" />
                     Back
                   </Button>
+
+                  {!isEditMode && (
+                    <button
+                      type="button"
+                      onClick={() => handleStepChange(3, false)}
+                      disabled={loading}
+                      className="text-xs text-muted-foreground hover:text-foreground underline-offset-4 hover:underline"
+                    >
+                      Skip for now — I'll add locations and tax later
+                    </button>
+                  )}
                 </div>
               </motion.div>
             )}
+
 
             {/* Step 3: Add Fleet - Choice or Manual Entry */}
             {step === 3 && !isEditMode && step3Mode === 'choice' && (
