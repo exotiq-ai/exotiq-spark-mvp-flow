@@ -336,6 +336,9 @@ export const useDemoOrchestrator = ({
     pause,
     resume,
     skipToNext,
+    skipToPrevious,
+    goToStep,
+
     stop,
     toggleMute,
   };
