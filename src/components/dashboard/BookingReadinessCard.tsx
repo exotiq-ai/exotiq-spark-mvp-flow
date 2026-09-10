@@ -32,7 +32,7 @@ const ITEMS: ReadinessItem[] = [
   { key: 'has_ready_vehicle', label: 'A bookable vehicle', hint: 'Photos, daily rate and pickup location', to: '/dashboard/fleet' },
 ];
 
-export const BookingReadinessCard = () => {
+export const BookingReadinessCard = ({ hideWhenComplete = false }: { hideWhenComplete?: boolean }) => {
   const navigate = useNavigate();
   const { currentTeam } = useTeam();
   const { data, isLoading } = useMarketplaceReadiness(currentTeam?.id);
@@ -47,6 +47,8 @@ export const BookingReadinessCard = () => {
   const remaining = rows.filter(r => !r.done);
 
   if (!currentTeam?.id) return null;
+  if (hideWhenComplete && !isLoading && score === 100) return null;
+
 
   if (isLoading) {
     return (
