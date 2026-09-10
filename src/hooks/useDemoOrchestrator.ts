@@ -29,6 +29,8 @@ export const useDemoOrchestrator = ({
   const pausedRef = useRef(false);
   const mutedRef = useRef(false);
   const stepIndexRef = useRef(0);
+  const runIdRef = useRef(0);
+
 
   const currentStep = steps[currentStepIndex] || null;
   const progress = steps.length > 0 ? ((currentStepIndex + 1) / steps.length) * 100 : 0;
