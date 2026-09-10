@@ -100,7 +100,7 @@ export const GettingStartedChecklist = ({
       done: tourCompleted,
       action: onStartTour,
     },
-  ], [vehicleCount, bookingCount, tourCompleted, onAddVehicle, onImportFleet, onCreateBooking, onNavigateToTeam, onStartTour]);
+  ], [vehicleCount, bookingCount, tourCompleted, teamMemberCount, onAddVehicle, onImportFleet, onCreateBooking, onNavigateToTeam, onStartTour]);
 
   const completedCount = steps.filter(s => s.done).length;
   const progress = (completedCount / steps.length) * 100;
