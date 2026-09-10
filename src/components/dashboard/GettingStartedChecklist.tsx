@@ -89,7 +89,7 @@ export const GettingStartedChecklist = ({
       label: 'Set up your team',
       description: 'Invite team members to collaborate',
       icon: Users,
-      done: false, // Can't easily check without team members query
+      done: (teamMemberCount ?? 0) > 1,
       action: onNavigateToTeam,
     },
     {
