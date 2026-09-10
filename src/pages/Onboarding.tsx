@@ -338,7 +338,34 @@ export default function Onboarding() {
           .eq('id', primaryLocation.id);
       }
 
+      // Tax: blank falls back to the country default so quotes always total correctly
+      const parsedRate = parseFloat((formData.taxRatePercent ?? '').trim());
+      const taxRate = Number.isFinite(parsedRate) ? parsedRate : selectedCountryDefaults.tax_rate_percent;
+      const taxLabel = (formData.taxLabel ?? '').trim() || selectedCountryDefaults.tax_label;
+      const taxInclusive = formData.taxInclusive ?? selectedCountryDefaults.tax_inclusive;
+
+      const taxPayload = {
+        tax_rate_percent: taxRate,
+        tax_label: taxLabel,
+        tax_inclusive: taxInclusive,
+      };
+
+      const { error: teamTaxError } = await supabase
+        .from('teams')
+        .update(taxPayload)
+        .eq('id', currentTeam.id);
+      if (teamTaxError) console.warn('[Onboarding] team tax update failed:', teamTaxError.message);
+
+      if (primaryLocation) {
+        const { error: locTaxError } = await supabase
+          .from('locations')
+          .update(taxPayload)
+          .eq('id', primaryLocation.id);
+        if (locTaxError) console.warn('[Onboarding] location tax update failed:', locTaxError.message);
+      }
+
       await refreshTeam();
+      
       
       if (isEditMode) {
         toast({
