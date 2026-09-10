@@ -9,7 +9,10 @@ interface Profile {
   phone: string | null;
   company_name: string | null;
   avatar_url: string | null;
+  tour_completed: boolean | null;
+  tour_skipped_at: string | null;
 }
+
 
 export const useProfile = () => {
   const { user } = useAuth();
@@ -30,7 +33,7 @@ export const useProfile = () => {
 
       const { data, error: fetchError } = await supabase
         .from('profiles')
-        .select('id, email, full_name, phone, company_name, avatar_url')
+        .select('id, email, full_name, phone, company_name, avatar_url, tour_completed, tour_skipped_at')
         .eq('id', user.id)
         .maybeSingle();
 
@@ -82,11 +85,28 @@ export const useProfile = () => {
 
   const displayName = profile?.full_name || user?.email?.split('@')[0] || 'User';
 
+  // Persist first-run choices (tour taken / "I'll set up myself") on the account
+  // so they survive reloads and follow the user across devices.
+  const updateProfile = useCallback(async (updates: Partial<Omit<Profile, 'id' | 'email'>>) => {
+    if (!user?.id) return;
+    setProfile(prev => (prev ? { ...prev, ...updates } as Profile : prev));
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update(updates)
+      .eq('id', user.id);
+    if (updateError) {
+      console.error('Error updating profile:', updateError);
+      fetchProfile();
+    }
+  }, [user?.id, fetchProfile]);
+
   return {
     profile,
     loading,
     error,
     displayName,
+    updateProfile,
     refetch: fetchProfile,
   };
 };
+

@@ -2831,6 +2831,7 @@ export type Database = {
           onboarding_completed: boolean | null
           phone: string | null
           tour_completed: boolean | null
+          tour_skipped_at: string | null
           updated_at: string | null
           website: string | null
         }
@@ -2852,6 +2853,7 @@ export type Database = {
           onboarding_completed?: boolean | null
           phone?: string | null
           tour_completed?: boolean | null
+          tour_skipped_at?: string | null
           updated_at?: string | null
           website?: string | null
         }
@@ -2873,6 +2875,7 @@ export type Database = {
           onboarding_completed?: boolean | null
           phone?: string | null
           tour_completed?: boolean | null
+          tour_skipped_at?: string | null
           updated_at?: string | null
           website?: string | null
         }

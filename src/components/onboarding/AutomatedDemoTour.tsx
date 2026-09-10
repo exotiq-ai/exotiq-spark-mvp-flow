@@ -11,9 +11,18 @@ import { RariCursor } from './RariCursor';
 import confetti from 'canvas-confetti';
 import { cn } from '@/lib/utils';
 import { 
-  Play, Pause, SkipForward, X, 
+  Play, Pause, SkipForward, SkipBack, X, List, Check,
   Volume2, VolumeX, Brain
 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+
 
 interface AutomatedDemoTourProps {
   onModuleChange: (moduleId: string) => void;
@@ -73,12 +82,14 @@ export const AutomatedDemoTour = ({ onModuleChange }: AutomatedDemoTourProps) =>
         case 'Escape': e.preventDefault(); demo.stop(); deactivateTour(); break;
         case ' ': e.preventDefault(); demo.isPaused ? demo.resume() : demo.pause(); break;
         case 'ArrowRight': e.preventDefault(); demo.skipToNext(); break;
+        case 'ArrowLeft': e.preventDefault(); demo.skipToPrevious(); break;
         case 'm': case 'M': e.preventDefault(); demo.toggleMute(); break;
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [demo.isActive, demo.isPaused, demo.stop, demo.pause, demo.resume, demo.skipToNext, demo.toggleMute]);
+  }, [demo.isActive, demo.isPaused, demo.stop, demo.pause, demo.resume, demo.skipToNext, demo.skipToPrevious, demo.toggleMute]);
+
 
   const formatTime = useCallback((ms: number) => {
     const seconds = Math.ceil(ms / 1000);
@@ -190,16 +201,52 @@ export const AutomatedDemoTour = ({ onModuleChange }: AutomatedDemoTourProps) =>
             <Button size="icon" variant="ghost" className="h-7 w-7 sm:h-8 sm:w-8" onClick={demo.toggleMute} title={demo.isMuted ? 'Unmute (M)' : 'Mute (M)'}>
               {demo.isMuted ? <VolumeX className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> : <Volume2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
             </Button>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-7 w-7 sm:h-8 sm:w-8"
+              onClick={demo.skipToPrevious}
+              disabled={demo.currentStepIndex === 0}
+              title="Back (←)"
+            >
+              <SkipBack className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            </Button>
             <Button size="icon" variant="ghost" className="h-7 w-7 sm:h-8 sm:w-8" onClick={demo.isPaused ? demo.resume : demo.pause} title={demo.isPaused ? 'Resume (Space)' : 'Pause (Space)'}>
               {demo.isPaused ? <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> : <Pause className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
             </Button>
             <Button size="icon" variant="ghost" className="h-7 w-7 sm:h-8 sm:w-8" onClick={demo.skipToNext} title="Skip (→)">
               <SkipForward className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </Button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="icon" variant="ghost" className="h-7 w-7 sm:h-8 sm:w-8" title="Chapters">
+                  <List className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="center" side="top" className="z-[120] max-h-[50vh] overflow-y-auto w-64">
+                <DropdownMenuLabel>Chapters</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {steps.map((s, i) => (
+                  <DropdownMenuItem
+                    key={s.id}
+                    onSelect={() => demo.goToStep(i)}
+                    className={cn('gap-2 text-xs', i === demo.currentStepIndex && 'font-medium text-primary')}
+                  >
+                    <span className="w-4 shrink-0 text-muted-foreground">
+                      {i < demo.currentStepIndex ? <Check className="h-3 w-3" /> : i + 1}
+                    </span>
+                    <span className="truncate">{s.subtitle}</span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             <Button size="icon" variant="ghost" className="h-7 w-7 sm:h-8 sm:w-8 text-muted-foreground hover:text-destructive" onClick={() => { demo.stop(); deactivateTour(); }} title="Exit (Esc)">
               <X className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </Button>
           </div>
+
 
           <span className="text-[10px] text-muted-foreground hidden md:block whitespace-nowrap">
             ~{formatTime(demo.estimatedTimeRemaining)}

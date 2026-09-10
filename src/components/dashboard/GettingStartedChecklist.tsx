@@ -1,9 +1,12 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { useProfile } from '@/hooks/useProfile';
+import { useTeam } from '@/contexts/TeamContext';
+import { supabase } from '@/integrations/supabase/client';
+
 import { 
   Car, 
   Calendar, 
@@ -36,11 +39,31 @@ export const GettingStartedChecklist = ({
   onNavigateToTeam,
 }: GettingStartedChecklistProps) => {
   const { profile } = useProfile();
+  const { currentTeam } = useTeam();
   const [dismissed, setDismissed] = useState(() => 
     localStorage.getItem('checklist-dismissed') === 'true'
   );
-  
-  const tourCompleted = profile ? (profile as any).tour_completed === true : false;
+  const [teamMemberCount, setTeamMemberCount] = useState<number | null>(null);
+
+  // Real member count so this step can actually complete.
+  useEffect(() => {
+    let cancelled = false;
+    if (!currentTeam?.id) {
+      setTeamMemberCount(null);
+      return;
+    }
+    (async () => {
+      const { count, error } = await supabase
+        .from('team_members')
+        .select('id', { count: 'exact', head: true })
+        .eq('team_id', currentTeam.id);
+      if (!cancelled && !error) setTeamMemberCount(count ?? 0);
+    })();
+    return () => { cancelled = true; };
+  }, [currentTeam?.id]);
+
+  const tourCompleted = profile?.tour_completed === true;
+
 
   const steps = useMemo(() => [
     {
@@ -66,7 +89,7 @@ export const GettingStartedChecklist = ({
       label: 'Set up your team',
       description: 'Invite team members to collaborate',
       icon: Users,
-      done: false, // Can't easily check without team members query
+      done: (teamMemberCount ?? 0) > 1,
       action: onNavigateToTeam,
     },
     {
@@ -77,7 +100,7 @@ export const GettingStartedChecklist = ({
       done: tourCompleted,
       action: onStartTour,
     },
-  ], [vehicleCount, bookingCount, tourCompleted, onAddVehicle, onImportFleet, onCreateBooking, onNavigateToTeam, onStartTour]);
+  ], [vehicleCount, bookingCount, tourCompleted, teamMemberCount, onAddVehicle, onImportFleet, onCreateBooking, onNavigateToTeam, onStartTour]);
 
   const completedCount = steps.filter(s => s.done).length;
   const progress = (completedCount / steps.length) * 100;
