@@ -1,9 +1,12 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { useProfile } from '@/hooks/useProfile';
+import { useTeam } from '@/contexts/TeamContext';
+import { supabase } from '@/integrations/supabase/client';
+
 import { 
   Car, 
   Calendar, 
