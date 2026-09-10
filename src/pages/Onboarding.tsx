@@ -781,6 +781,46 @@ export default function Onboarding() {
                     value={formData.locations}
                     onChange={(locations) => updateFormData('locations', locations)}
                   />
+
+                  {/* Tax at the pickup location — prefilled from the country you chose */}
+                  <div className="rounded-lg border border-border p-4 space-y-4">
+                    <div>
+                      <h3 className="text-sm font-medium">Tax on rentals</h3>
+                      <p className="text-xs text-muted-foreground">
+                        Applied to quotes and invoices. You can change this per location later.
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="taxRatePercent">Tax rate (%)</Label>
+                        <Input
+                          id="taxRatePercent"
+                          inputMode="decimal"
+                          placeholder={String(selectedCountryDefaults.tax_rate_percent)}
+                          value={formData.taxRatePercent ?? ''}
+                          onChange={(e) => updateFormData('taxRatePercent', e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="taxLabel">What it's called</Label>
+                        <Input
+                          id="taxLabel"
+                          placeholder={selectedCountryDefaults.tax_label}
+                          value={formData.taxLabel ?? ''}
+                          onChange={(e) => updateFormData('taxLabel', e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-border accent-primary"
+                        checked={formData.taxInclusive ?? selectedCountryDefaults.tax_inclusive}
+                        onChange={(e) => updateFormData('taxInclusive', e.target.checked)}
+                      />
+                      My daily rates already include tax
+                    </label>
+                  </div>
                 </div>
 
                 <div className="flex flex-col gap-3">
