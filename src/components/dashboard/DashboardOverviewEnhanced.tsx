@@ -19,8 +19,7 @@ import { GenerateReportDialog } from "@/components/dialogs/GenerateReportDialog"
 import { ScheduleMaintenanceDialog } from "@/components/dialogs/ScheduleMaintenanceDialog";
 import { RecordPaymentDialog } from "@/components/dialogs/RecordPaymentDialog";
 import { ImportWizard } from "@/components/import/ImportWizard";
-import { GettingStartedChecklist } from "./GettingStartedChecklist";
-import { BookingReadinessCard } from "./BookingReadinessCard";
+import { SetupReadinessPanel } from "./SetupReadinessPanel";
 
 import { useLocationFilteredFleet } from "@/hooks/useLocationFilteredFleet";
 import { useFleetAIInsight } from "@/hooks/useFleetAIInsight";
@@ -84,7 +83,7 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
   
   const { vehicles, bookings, loading, error, applyPriceOptimization, createBooking, createCustomer, generateReport, createMaintenance, createPayment, createVehicle, refreshData } = useLocationFilteredFleet();
   const { signOut, loading: authLoading } = useAuth();
-  const { profile, updateProfile } = useProfile();
+  const { profile } = useProfile();
   const { currentTeam, loading: teamLoading, error: teamError } = useTeam();
   const { toast } = useToast();
   const rariSidebar = useRariSidebar();
@@ -92,11 +91,6 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
   const navigate = useNavigate();
   const [isRetrying, setIsRetrying] = useState(false);
 
-  // Remembered on the account so the choice survives a reload / another device.
-  const skippedTour = Boolean(profile?.tour_skipped_at) || profile?.tour_completed === true;
-  const handleSkipTour = () => {
-    void updateProfile({ tour_skipped_at: new Date().toISOString() });
-  };
 
 
   // Listen for post-tour events to open dialogs
@@ -393,42 +387,36 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
             Let's get {companyName ? <span className="font-medium text-foreground">{companyName}</span> : 'your fleet'} set up and running.
           </p>
           
-          {/* Primary CTA: See exotiq in Action */}
-          {!skippedTour && (
-            <div className="flex flex-col items-center gap-3 mt-4">
-              <Button
-                size="lg"
-                onClick={() => window.dispatchEvent(new Event('start-demo-tour'))}
-                className="gap-2 min-w-[260px]"
-              >
-                <Play className="h-5 w-5" />
-                See exotiq in Action
-              </Button>
+          {/* Primary: add the first car. Watching comes second. */}
+          <div className="flex flex-col items-center gap-3 mt-4">
+            <Button
+              size="lg"
+              onClick={() => setShowAddVehicleDialog(true)}
+              className="gap-2 min-w-[260px]"
+            >
+              <Plus className="h-5 w-5" />
+              Add your first vehicle
+            </Button>
+            <div className="flex items-center gap-4">
               <button
-                onClick={handleSkipTour}
+                onClick={() => setShowImportWizard(true)}
                 className="text-sm text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline"
               >
-                Skip, I'll set up myself
+                Import a spreadsheet
+              </button>
+              <button
+                onClick={() => window.dispatchEvent(new Event('start-demo-tour'))}
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline inline-flex items-center gap-1.5"
+              >
+                <Play className="h-3.5 w-3.5" />
+                See how it works
               </button>
             </div>
-          )}
+          </div>
 
         </motion.div>
 
-        {/* Show checklist only if they skipped the tour */}
-        {skippedTour && (
-          <GettingStartedChecklist
-            vehicleCount={vehicles.length}
-            bookingCount={bookings.length}
-            onAddVehicle={() => setShowAddVehicleDialog(true)}
-            onImportFleet={() => setShowImportWizard(true)}
-            onCreateBooking={() => setShowBookingDialog(true)}
-            onStartTour={() => window.dispatchEvent(new Event('start-demo-tour'))}
-            onNavigateToTeam={() => onModuleClick('settings')}
-          />
-        )}
-
-        <BookingReadinessCard />
+        <SetupReadinessPanel />
 
         
         {/* Dialogs */}
@@ -507,6 +495,9 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
       {/* Content wrapper — Quiet Command dashboard (dailyBrief is always on) */}
       <div className="relative">
         <div className="space-y-10 sm:space-y-12 pb-6 md:pb-24 max-w-5xl">
+          {/* Setup readiness — hides itself once everything is in place */}
+          <SetupReadinessPanel />
+
           {/* Band 1 — Hero brief */}
           <DailyBriefCard onModuleClick={onModuleClick} />
 

@@ -53,6 +53,9 @@ const initialFormData: OnboardingFormData = {
   countryCode: '',
   fleetSize: '',
   businessType: '',
+  taxRatePercent: '',
+  taxLabel: '',
+  taxInclusive: undefined,
   locations: [],
 };
 
@@ -335,7 +338,34 @@ export default function Onboarding() {
           .eq('id', primaryLocation.id);
       }
 
+      // Tax: blank falls back to the country default so quotes always total correctly
+      const parsedRate = parseFloat((formData.taxRatePercent ?? '').trim());
+      const taxRate = Number.isFinite(parsedRate) ? parsedRate : selectedCountryDefaults.tax_rate_percent;
+      const taxLabel = (formData.taxLabel ?? '').trim() || selectedCountryDefaults.tax_label;
+      const taxInclusive = formData.taxInclusive ?? selectedCountryDefaults.tax_inclusive;
+
+      const taxPayload = {
+        tax_rate_percent: taxRate,
+        tax_label: taxLabel,
+        tax_inclusive: taxInclusive,
+      };
+
+      const { error: teamTaxError } = await supabase
+        .from('teams')
+        .update(taxPayload)
+        .eq('id', currentTeam.id);
+      if (teamTaxError) console.warn('[Onboarding] team tax update failed:', teamTaxError.message);
+
+      if (primaryLocation) {
+        const { error: locTaxError } = await supabase
+          .from('locations')
+          .update(taxPayload)
+          .eq('id', primaryLocation.id);
+        if (locTaxError) console.warn('[Onboarding] location tax update failed:', locTaxError.message);
+      }
+
       await refreshTeam();
+      
       
       if (isEditMode) {
         toast({
@@ -778,6 +808,46 @@ export default function Onboarding() {
                     value={formData.locations}
                     onChange={(locations) => updateFormData('locations', locations)}
                   />
+
+                  {/* Tax at the pickup location — prefilled from the country you chose */}
+                  <div className="rounded-lg border border-border p-4 space-y-4">
+                    <div>
+                      <h3 className="text-sm font-medium">Tax on rentals</h3>
+                      <p className="text-xs text-muted-foreground">
+                        Applied to quotes and invoices. You can change this per location later.
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="taxRatePercent">Tax rate (%)</Label>
+                        <Input
+                          id="taxRatePercent"
+                          inputMode="decimal"
+                          placeholder={String(selectedCountryDefaults.tax_rate_percent)}
+                          value={formData.taxRatePercent ?? ''}
+                          onChange={(e) => updateFormData('taxRatePercent', e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="taxLabel">What it's called</Label>
+                        <Input
+                          id="taxLabel"
+                          placeholder={selectedCountryDefaults.tax_label}
+                          value={formData.taxLabel ?? ''}
+                          onChange={(e) => updateFormData('taxLabel', e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-border accent-primary"
+                        checked={formData.taxInclusive ?? selectedCountryDefaults.tax_inclusive}
+                        onChange={(e) => updateFormData('taxInclusive', e.target.checked)}
+                      />
+                      My daily rates already include tax
+                    </label>
+                  </div>
                 </div>
 
                 <div className="flex flex-col gap-3">
@@ -808,9 +878,21 @@ export default function Onboarding() {
                     <ArrowLeft className="w-4 h-4 mr-2" />
                     Back
                   </Button>
+
+                  {!isEditMode && (
+                    <button
+                      type="button"
+                      onClick={() => handleStepChange(3, false)}
+                      disabled={loading}
+                      className="text-xs text-muted-foreground hover:text-foreground underline-offset-4 hover:underline"
+                    >
+                      Skip for now — I'll add locations and tax later
+                    </button>
+                  )}
                 </div>
               </motion.div>
             )}
+
 
             {/* Step 3: Add Fleet - Choice or Manual Entry */}
             {step === 3 && !isEditMode && step3Mode === 'choice' && (
