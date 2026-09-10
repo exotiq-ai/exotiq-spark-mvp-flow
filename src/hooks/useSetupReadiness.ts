@@ -63,7 +63,7 @@ export const useSetupReadiness = (teamId: string | null | undefined) => {
 
     return [
       { key: 'business_name_set', label: 'Business name', hint: 'Shown on invoices and your booking page', to: '/dashboard/settings?tab=business', done: checks.business_name_set === true },
-      { key: 'owner_email_set', label: 'Contact email', hint: 'Where booking requests are sent', to: '/dashboard/settings?tab=business', done: checks.owner_email_set === true },
+      { key: 'owner_email_set', label: 'Contact email', hint: 'Where booking requests are sent', to: '/dashboard/settings?tab=account', done: checks.owner_email_set === true },
       { key: 'terms_accepted', label: 'Terms accepted', hint: 'Needed before you can take real bookings', to: '/dashboard/settings?tab=legal', done: checks.terms_accepted === true },
       { key: 'pickup_location', label: 'A pickup location', hint: 'Where renters collect the car', to: '/dashboard/settings?tab=locations', done: hasLocation },
       { key: 'tax_configured', label: 'Tax rate', hint: 'So quotes and invoices total correctly', to: '/dashboard/settings?tab=locations', done: taxSet },
