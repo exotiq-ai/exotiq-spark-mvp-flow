@@ -271,20 +271,36 @@ export const useDemoOrchestrator = ({
     }
   }, []);
 
-  const skipToNext = useCallback(() => {
+  // Jump straight to a chapter. Cancels whatever is currently playing.
+  const goToStep = useCallback((index: number) => {
+    if (index < 0) return;
+    runIdRef.current += 1;
     cleanup();
-    const next = stepIndexRef.current + 1;
-    if (next < steps.length) {
-      executeStep(next);
-    } else {
+    if (index >= steps.length) {
       setIsActive(false);
+      setIsPaused(false);
       setZoomTarget(null);
       setCursorTarget(null);
       onComplete?.();
+      return;
     }
+    setIsPaused(false);
+    pausedRef.current = false;
+    setCurrentStepIndex(index);
+    stepIndexRef.current = index;
+    setTimeout(() => executeStep(index), 50);
   }, [cleanup, steps.length, executeStep, onComplete]);
 
+  const skipToNext = useCallback(() => {
+    goToStep(stepIndexRef.current + 1);
+  }, [goToStep]);
+
+  const skipToPrevious = useCallback(() => {
+    goToStep(Math.max(0, stepIndexRef.current - 1));
+  }, [goToStep]);
+
   const stop = useCallback(() => {
+    runIdRef.current += 1;
     cleanup();
     setIsActive(false);
     setIsPaused(false);
@@ -293,6 +309,7 @@ export const useDemoOrchestrator = ({
     setZoomTarget(null);
     setCursorTarget(null);
   }, [cleanup]);
+
 
   const toggleMute = useCallback(() => {
     setIsMuted(prev => !prev);
