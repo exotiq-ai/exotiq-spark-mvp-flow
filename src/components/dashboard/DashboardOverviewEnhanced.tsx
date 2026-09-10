@@ -91,11 +91,6 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
   const navigate = useNavigate();
   const [isRetrying, setIsRetrying] = useState(false);
 
-  // Remembered on the account so the choice survives a reload / another device.
-  const skippedTour = Boolean(profile?.tour_skipped_at) || profile?.tour_completed === true;
-  const handleSkipTour = () => {
-    void updateProfile({ tour_skipped_at: new Date().toISOString() });
-  };
 
 
   // Listen for post-tour events to open dialogs
