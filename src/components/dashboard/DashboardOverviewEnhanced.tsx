@@ -425,6 +425,9 @@ export const DashboardOverviewEnhanced = ({ onModuleClick }: DashboardOverviewEn
             onNavigateToTeam={() => onModuleClick('settings')}
           />
         )}
+
+        <BookingReadinessCard />
+
         
         {/* Dialogs */}
         <AddVehicleDialog
