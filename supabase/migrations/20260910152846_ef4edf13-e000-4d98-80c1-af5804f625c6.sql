@@ -1,0 +1,2 @@
+alter table public.profiles add column if not exists tour_skipped_at timestamptz;
+comment on column public.profiles.tour_skipped_at is 'Set when the user chose to set up themselves instead of taking the guided tour.';
