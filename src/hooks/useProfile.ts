@@ -33,7 +33,7 @@ export const useProfile = () => {
 
       const { data, error: fetchError } = await supabase
         .from('profiles')
-        .select('id, email, full_name, phone, company_name, avatar_url')
+        .select('id, email, full_name, phone, company_name, avatar_url, tour_completed, tour_skipped_at')
         .eq('id', user.id)
         .maybeSingle();
 
