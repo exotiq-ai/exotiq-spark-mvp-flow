@@ -11,9 +11,18 @@ import { RariCursor } from './RariCursor';
 import confetti from 'canvas-confetti';
 import { cn } from '@/lib/utils';
 import { 
-  Play, Pause, SkipForward, X, 
+  Play, Pause, SkipForward, SkipBack, X, List, Check,
   Volume2, VolumeX, Brain
 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+
 
 interface AutomatedDemoTourProps {
   onModuleChange: (moduleId: string) => void;
