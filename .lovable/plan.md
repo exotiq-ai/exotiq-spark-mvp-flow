@@ -56,11 +56,12 @@ Copy approved via review. Voice will be generated verbatim — no paraphrasing a
 
 ## Production steps
 
-1. Generate Rari narration verbatim (voice ID `lcMyyd2HUfFzxdCaC4Ta`), measure per-line timings, lay the timeline to those measurements.
-2. Build 1080×1920 Remotion compositions (reel components reframed for vertical) alongside the untouched overview video.
+1. Generate one audio clip per Rari line, verbatim (voice ID `lcMyyd2HUfFzxdCaC4Ta`), measure each clip, lay the timeline to those measurements. Any weak read gets regenerated in isolation.
+2. Build the 1080×1920 Remotion compositions (reel components reframed for vertical) alongside the untouched overview video.
 3. Source the music bed and mix with ducking keyed to narration segment timings.
 4. Reuse existing UI captures; re-capture vertically only where a crop fails (fleet status flip, MotorIQ pricing, payments).
-5. Render 3 MP4s + 3 feed cuts to `/mnt/documents/`, verify with ffprobe, and check each plays muted with captions alone.
+5. Build separate 1080×1350 compositions with their own text layout and safe zones, sharing the same audio and captures.
+6. Render 3 MP4s + 3 feed cuts to `/mnt/documents/`, verify with ffprobe, and check each plays muted with captions alone.
 
 ## Open dependency (flagged, not blocking)
 
