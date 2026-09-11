@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Copy, Mail, Phone } from 'lucide-react';
+import { SuperAdminPeopleSection } from './SuperAdminPeopleSection';
 
 interface Props {
   teamId: string | null;
