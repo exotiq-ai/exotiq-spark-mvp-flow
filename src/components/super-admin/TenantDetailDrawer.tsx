@@ -185,7 +185,7 @@ export const TenantDetailDrawer = ({ teamId, onClose }: Props) => {
                 </CardContent>
               </Card>
 
-              <SuperAdminPeopleSection teamId={detail.team_id} teamName={detail.team_name} />
+              <SuperAdminPeopleSection teamId={teamId as string} teamName={detail.team_name} />
 
 
 
