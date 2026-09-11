@@ -9,12 +9,13 @@ Copy approved via review. Voice will be generated verbatim — no paraphrasing a
 
 ## Format (applies to all three)
 
-- 1080×1920, ~28–30s, H.264, 30fps. Plus 4:5 (1080×1350) feed cuts.
+- 1080×1920, ~28–30s, H.264, 30fps. Plus 4:5 (1080×1350) feed cuts with their own text layout — not a crop. Hook position, type size, and safe zones are re-laid for the feed frame so the hook never sits under the feed UI.
 - No title card, no logo, no fade-in. Frame 1 is real UI mid-motion with hook text over it; Rari's first word lands by frame 15.
 - Three text layers: hook text (big, short), Rari lines as burned-in captions (verbatim), payoff text (separate).
-- Spoken CTA at ~24s, before the end card. End card shows exotiq.ai only, music rises.
+- Spoken CTA at ~24s, before the end card. End card: Instagram handle on top, exotiq.ai under it. Music rises.
 - Music: dark minimal pulse, ducked ~12dB under Rari, up over the end card.
-- Safe margins: bottom ~250px, top ~120px.
+- Safe margins (9:16): bottom ~250px, top ~120px. Feed cut gets its own margins.
+- Each Rari line is generated as its own audio clip, never one take per reel — exact caption sync, and any single flat line can be regenerated on its own.
 - Launch order: 1) Double-booking killer, 2) Prices itself, 3) Money, not limbo.
 
 ## Locked copy
